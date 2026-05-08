@@ -1,0 +1,26 @@
+{
+  "name": "AI 운동 — 재민님 맞춤 홈트",
+  "short_name": "AI 운동",
+  "description": "재민님을 위한 AI 맞춤 홈 트레이닝 플랜",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#534AB7",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["health", "fitness"],
+  "lang": "ko"
+}
