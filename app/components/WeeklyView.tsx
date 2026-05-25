@@ -4,9 +4,10 @@ import { WEEK_OVERVIEW } from '../data/workouts';
 
 interface WeeklyViewProps {
   onTabChange: (id: string) => void;
+  completedDays: Record<'mon' | 'tue' | 'thu' | 'fri' | 'sat', boolean>;
 }
 
-export default function WeeklyView({ onTabChange }: WeeklyViewProps) {
+export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewProps) {
   const { stats, days, dayTimes } = WEEK_OVERVIEW;
 
   return (
@@ -28,6 +29,7 @@ export default function WeeklyView({ onTabChange }: WeeklyViewProps) {
       {/* 7-day Week Grid */}
       <div className="grid grid-cols-7 gap-1.5 mb-5">
         {days.map((d, i) => (
+          
           <div
             key={i}
             className={`rounded-xl py-2 px-1 text-center border transition-colors ${
@@ -57,6 +59,17 @@ export default function WeeklyView({ onTabChange }: WeeklyViewProps) {
             >
               {d.time}
             </span>
+            {d.active && d.tabId && (
+              <p
+                className={`text-[9px] font-medium mt-1 ${
+                  completedDays[d.tabId as keyof typeof completedDays]
+                    ? 'text-green-600'
+                    : 'text-gray-300'
+                }`}
+              >
+                {completedDays[d.tabId as keyof typeof completedDays] ? '완료' : '미완료'}
+              </p>
+            )}
           </div>
         ))}
       </div>

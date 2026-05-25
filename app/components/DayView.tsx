@@ -4,9 +4,11 @@ import PhaseSection from './PhaseSection';
 
 interface DayViewProps {
   day: DayWorkout;
+  isCompleted: boolean;
+  onToggleComplete: () => void;
 }
 
-export default function DayView({ day }: DayViewProps) {
+export default function DayView({ day, isCompleted, onToggleComplete }: DayViewProps) {
   return (
     <div>
       {/* Header */}
@@ -22,6 +24,18 @@ export default function DayView({ day }: DayViewProps) {
           {day.totalTime}
         </span>
       </div>
+
+      <button
+        type="button"
+        onClick={onToggleComplete}
+        className={`w-full mb-4 py-2.5 px-4 rounded-xl text-[14px] font-medium transition-colors border ${
+          isCompleted
+            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+            : 'bg-[#EEEDFE] text-[#3C3489] border-[#AFA9EC] hover:bg-[#E3E1FD]'
+        }`}
+      >
+        {isCompleted ? '운동 완료됨' : '오늘 운동 완료'}
+      </button>
 
       {/* Flow Diagram */}
       <FlowDiagram flow={day.flow} />

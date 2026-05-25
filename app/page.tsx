@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { WORKOUTS } from './data/workouts';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
@@ -8,6 +8,9 @@ import DietView from './components/DietView';
 import SafetyView from './components/SafetyView';
 
 type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'tips';
+type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
+
+const STORAGE_KEY = 'ai-fitness-workout-completed-days';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'ov',   label: '주간 개요' },
@@ -22,6 +25,39 @@ const TABS: { id: TabId; label: string }[] = [
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>('ov');
+  const [completedDays, setCompletedDays] = useState<Record<WorkoutDayId, boolean>>({
+    mon: false,
+    tue: false,
+    thu: false,
+    fri: false,
+    sat: false,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<Record<WorkoutDayId, boolean>>;
+      setCompletedDays((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  }, []);
+
+  const toggleDayComplete = (dayId: WorkoutDayId) => {
+    setCompletedDays((prev) => {
+      const next = { ...prev, [dayId]: !prev[dayId] };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const handleTabChange = (id: string) => {
     setActiveTab(id as TabId);
@@ -67,11 +103,15 @@ export default function Page() {
       {/* ── Main Content ── */}
       <main className="max-w-3xl mx-auto px-4 py-5">
         {activeTab === 'ov' && (
-          <WeeklyView onTabChange={handleTabChange} />
+          <WeeklyView onTabChange={handleTabChange} completedDays={completedDays} />
         )}
 
         {dayWorkout && activeTab === dayWorkout.id && (
-          <DayView day={dayWorkout} />
+          <DayView
+            day={dayWorkout}
+            isCompleted={completedDays[dayWorkout.id as WorkoutDayId]}
+            onToggleComplete={() => toggleDayComplete(dayWorkout.id as WorkoutDayId)}
+          />
         )}
 
         {activeTab === 'diet' && <DietView />}
