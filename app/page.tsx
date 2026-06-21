@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, SWITCHON_DEFAULT_START_DATE, SWITCHON_MODE_KEY, SWITCHON_START_DATE_KEY, SwitchOnSelection, WORKOUTS } from './data/workouts';
+import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
 import DietView from './components/DietView';
@@ -10,8 +11,6 @@ import SwitchOnModePanel, { SwitchOnMode } from './components/SwitchOnModePanel'
 
 type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'tips';
 type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
-
-const STORAGE_KEY = 'ai-fitness-workout-completed-days';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'ov',   label: '주간 개요' },
@@ -28,13 +27,7 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>('ov');
   const [startDate, setStartDate] = useState(SWITCHON_DEFAULT_START_DATE);
   const [switchMode, setSwitchMode] = useState<SwitchOnMode>('auto');
-  const [completedDays, setCompletedDays] = useState<Record<WorkoutDayId, boolean>>({
-    mon: false,
-    tue: false,
-    thu: false,
-    fri: false,
-    sat: false,
-  });
+  const [completedStore, setCompletedStore] = useState<WorkoutCompletionStore>({});
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -44,17 +37,7 @@ export default function Page() {
     setStartDate(window.localStorage.getItem(SWITCHON_START_DATE_KEY) || SWITCHON_DEFAULT_START_DATE);
     setSwitchMode((window.localStorage.getItem(SWITCHON_MODE_KEY) as SwitchOnMode | null) || 'auto');
 
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(saved) as Partial<Record<WorkoutDayId, boolean>>;
-      setCompletedDays((prev) => ({ ...prev, ...parsed }));
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+    setCompletedStore(readWorkoutCompletionStore());
   }, []);
 
   const handleStartDateChange = (value: string) => {
@@ -80,9 +63,10 @@ export default function Page() {
   };
 
   const toggleDayComplete = (dayId: WorkoutDayId) => {
-    setCompletedDays((prev) => {
-      const next = { ...prev, [dayId]: !prev[dayId] };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setCompletedStore((prev) => {
+      const dateKey = getDateForWorkoutDay(dayId);
+      const next = { ...prev, [dateKey]: !prev[dateKey] };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -93,6 +77,7 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const completedDays = getWeeklyWorkoutCompletion(completedStore);
   const switchSelection = getSwitchSelection();
   const baseDayWorkout = WORKOUTS.find((w) => w.id === activeTab);
   const dayWorkout = baseDayWorkout && switchSelection !== 'base' ? ADAPTATION_WORKOUTS[switchSelection] : baseDayWorkout;

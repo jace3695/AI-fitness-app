@@ -55,10 +55,13 @@ export const DIET_CHECK_ITEMS = [
   { id: 'noDinnerCarbs', label: '저녁 탄수화물 제외' },
   { id: 'proteinDone', label: '프로틴 섭취 완료' },
   { id: 'lunchProtein', label: '점심 단백질 섭취 완료' },
-  { id: 'backPain', label: '허리 통증 여부' },
-  { id: 'legNumbness', label: '다리 저림 여부' },
-  { id: 'dizzinessHeadache', label: '어지러움·두통 여부' },
+  { id: 'backPain', label: '허리 통증 발생', safety: true },
+  { id: 'legNumbness', label: '다리 저림 발생', safety: true },
+  { id: 'dizzinessHeadache', label: '어지러움·두통 발생', safety: true },
 ] as const;
+
+export const DIET_GOAL_CHECK_ITEMS = DIET_CHECK_ITEMS.filter((item) => !('safety' in item));
+export const DIET_SAFETY_CHECK_ITEMS = DIET_CHECK_ITEMS.filter((item) => 'safety' in item);
 
 export type DietCheckId = (typeof DIET_CHECK_ITEMS)[number]['id'];
 export type DietCheckMap = Partial<Record<DietCheckId, boolean>>;
