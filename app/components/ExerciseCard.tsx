@@ -16,6 +16,10 @@ function renderDetail(d: Detail, i: number) {
   return <div key={i} className="flex gap-2 my-1 text-[13px] text-gray-500 leading-relaxed"><span style={{ color: dotColor }} className="shrink-0 mt-0.5">•</span><span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-800">$1</strong>') }} /></div>;
 }
 
+function getVideoHref(exercise: Exercise) {
+  return exercise.guide?.videoUrl ?? `https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.name} 자세 초보`)}`;
+}
+
 function GuideBlock({ title, items, tone = 'plain' }: { title: string; items?: string[]; tone?: 'plain' | 'mistake' | 'stop' }) {
   if (!items?.length) return null;
   const box = tone === 'mistake' ? 'bg-[#FAEEDA] text-[#633806] border-[#EF9F27]' : tone === 'stop' ? 'bg-[#FCEBEB] text-[#791F1F] border-[#E24B4A]' : 'bg-gray-50 text-gray-600 border-gray-100';
@@ -27,14 +31,15 @@ function Guide({ exercise }: { exercise: Exercise }) {
   if (!g) return null;
   return <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
     <p className="text-[13px] font-bold text-gray-800">자세 가이드</p>
-    <GuideBlock title="1) 시작 자세" items={g.setup} />
-    <GuideBlock title="2) 움직이는 순서" items={g.movement} />
-    {g.breathing && <div className="rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><b>3) 호흡</b><p className="mt-1">{g.breathing}</p></div>}
-    {g.target && <div className="rounded-xl bg-[#EAF3DE] p-3 text-[12px] text-[#27500A]"><b>4) 자극 부위</b><p className="mt-1">{g.target}</p></div>}
-    <GuideBlock title="5) 자주 하는 실수" items={g.commonMistakes} tone="mistake" />
-    <GuideBlock title="6) 즉시 중단 기준" items={g.stopCriteria} tone="stop" />
+    {g.keyPoint && <p className="rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">1) 핵심 한 줄: {g.keyPoint}</p>}
+    <GuideBlock title="2) 시작 자세" items={g.setup} />
+    <GuideBlock title="3) 움직이는 순서" items={g.movement} />
+    {g.breathing && <div className="rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><b>4) 호흡</b><p className="mt-1">{g.breathing}</p></div>}
+    {g.target && <div className="rounded-xl bg-[#EAF3DE] p-3 text-[12px] text-[#27500A]"><b>5) 자극 부위</b><p className="mt-1">{g.target}</p></div>}
+    <GuideBlock title="6) 자주 하는 실수" items={g.commonMistakes} tone="mistake" />
+    <GuideBlock title="7) 즉시 중단 기준" items={g.stopCriteria} tone="stop" />
     <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 어깨 통증도 있으면 즉시 중단하세요.</p>
-    {g.videoUrl && <a href={g.videoUrl} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">7) 참고 영상 보기</a>}
+    <a href={getVideoHref(exercise)} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">8) 영상 보기</a>
   </div>;
 }
 
@@ -45,11 +50,10 @@ function IntervalGrid({ intervals }: { intervals: NonNullable<Exercise['interval
 function FollowModal({ exercises, index, onClose }: { exercises: Exercise[]; index: number; onClose: () => void }) {
   const [cur, setCur] = useState(index);
   const exercise = exercises[cur];
-  const g = exercise.guide;
   return <div className="fixed inset-0 z-50 bg-black/50 p-3" onClick={onClose}>
     <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
-      <div className="overflow-y-auto p-4 pb-28"><p className="text-[12px] text-gray-400">따라하기 모드 {cur + 1}/{exercises.length}</p><h2 className="text-xl font-bold text-gray-900">{exercise.name}</h2>{exercise.meta && <p className="mt-1 text-[13px] text-gray-500">{exercise.meta}</p>}{g?.keyPoint && <p className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">핵심: {g.keyPoint}</p>}{g ? <Guide exercise={exercise} /> : <p className="mt-4 text-[13px] text-gray-500">기본 설명을 확인하고 통증 없는 범위에서 진행하세요.</p>}<SetChecklist storageId={`follow-${exercise.name}`} sets={exercise.sets} restSeconds={exercise.restSeconds} />{exercise.intervalPlan && <IntervalTimer plan={exercise.intervalPlan} />}</div>
-      <div className="fixed inset-x-3 bottom-3 mx-auto grid max-w-md grid-cols-4 gap-2 rounded-2xl bg-white/95 p-3 shadow-2xl"><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.max(0, v - 1))}>이전</button><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.min(exercises.length - 1, v + 1))}>다음</button>{g?.videoUrl ? <a className="rounded-xl bg-[#111827] py-3 text-center text-[12px] font-bold text-white" href={g.videoUrl} target="_blank" rel="noreferrer">영상</a> : <span className="rounded-xl bg-gray-50 py-3 text-center text-[12px] text-gray-300">영상</span>}<button className="rounded-xl bg-[#E24B4A] py-3 text-[12px] font-bold text-white" onClick={onClose}>닫기</button></div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4"><p className="text-[12px] text-gray-400">따라하기 모드 {cur + 1}/{exercises.length}</p><h2 className="text-xl font-bold text-gray-900">{exercise.name}</h2>{exercise.meta && <p className="mt-1 text-[13px] text-gray-500">{exercise.meta}</p>}<Guide exercise={exercise} /><SetChecklist storageId={`follow-${exercise.name}`} sets={exercise.sets} restSeconds={exercise.restSeconds} />{exercise.intervalPlan && <IntervalTimer plan={exercise.intervalPlan} />}</div>
+      <div className="grid shrink-0 grid-cols-4 gap-2 border-t border-gray-100 bg-white/95 p-3 shadow-2xl"><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.max(0, v - 1))}>이전</button><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.min(exercises.length - 1, v + 1))}>다음</button><a className="rounded-xl bg-[#111827] py-3 text-center text-[12px] font-bold text-white" href={getVideoHref(exercise)} target="_blank" rel="noreferrer">영상</a><button className="rounded-xl bg-[#E24B4A] py-3 text-[12px] font-bold text-white" onClick={onClose}>닫기</button></div>
     </div>
   </div>;
 }
