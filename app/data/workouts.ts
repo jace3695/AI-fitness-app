@@ -8,8 +8,19 @@ export interface Detail { type: BulletType | 'step' | 'warn' | 'good' | 'text'; 
 export interface IntervalRow { weeks: string; pattern: string; total: string }
 export interface IntervalSegment { label: string; seconds: number; intensity: string }
 export interface IntervalPlan { rounds?: number; segments: IntervalSegment[] }
+export interface ExerciseGuide {
+  setup: string[];
+  movement: string[];
+  breathing?: string;
+  target?: string;
+  commonMistakes: string[];
+  stopCriteria: string[];
+  keyPoint?: string;
+  videoUrl?: string;
+}
 export interface Exercise {
   name: string; meta?: string; badge?: { label: string; variant: BadgeVariant }; details: Detail[];
+  guide?: ExerciseGuide;
   intervals?: IntervalRow[]; intervalNote?: string; sets?: number; restSeconds?: number; intervalPlan?: IntervalPlan; abSlideGate?: boolean;
 }
 export interface Phase { id: PhaseType; icon: string; title: string; subtitle: string; alert?: { variant: AlertType; text: string }; todaySliding?: { time: string; note: string }; exercises: Exercise[] }
@@ -24,6 +35,23 @@ export const AB_SLIDE_KEY = 'ai-fitness-switchon-ab-slide-checks';
 export const COMMON_INTENSITY = [
   '가볍게: 대화 가능', '중간: 짧은 문장은 가능하지만 숨이 참', '강하게: 긴 대화가 어려울 정도로 숨이 참. 단, 자세는 무너지지 않아야 함',
 ];
+const GUIDE_LIBRARY: Record<string, ExerciseGuide> = {
+  '슬라이딩보드': { setup: ['발을 양쪽 패드에 올린다.', '무릎을 살짝 굽히고 엉덩이를 약간 뒤로 보낸다.', '상체는 너무 숙이지 않고 허리 중립을 유지한다.'], movement: ['한쪽 다리로 옆 방향으로 밀고 반대쪽 다리가 따라오게 한다.', '점프하지 말고 스케이트 타듯 미끄러진다.', '속도보다 엉덩이와 다리로 밀어내는 자세를 우선한다.'], breathing: '자연스럽게 유지한다.', target: '엉덩이 옆, 허벅지 안쪽·바깥쪽, 심폐 지구력', commonMistakes: ['허리를 과하게 숙임', '무릎이 안쪽으로 모임', '발이 패드에서 들림', '상체 반동으로 속도를 냄'], stopCriteria: ['허리 통증', '무릎의 날카로운 통증', '다리 저림', '어지러움'], keyPoint: '속도보다 허리 중립과 하체로 밀어내는 느낌을 우선한다.', videoUrl: 'https://www.youtube.com/watch?v=YHEJeqRnmzc' },
+  '롱밴드 랫풀다운': { setup: ['롱밴드를 문틀 철봉 중앙에 단단히 고정한다.', '무릎을 꿇거나 앉아서 양손으로 밴드를 잡고 팔을 위로 뻗는다.'], movement: ['팔꿈치를 아래·뒤 방향으로 끌어내린다.', '밴드는 쇄골 또는 윗가슴 높이까지 당긴다.', '천천히 시작 자세로 돌아간다.'], breathing: '당길 때 내쉬고, 돌아갈 때 들이쉰다.', target: '겨드랑이 아래쪽과 등 옆쪽', commonMistakes: ['어깨가 귀 쪽으로 올라감', '허리를 과하게 젖혀 반동 사용', '팔 힘만으로 당김'], stopCriteria: ['어깨 통증', '팔 저림', '허리 통증'], keyPoint: '팔보다 팔꿈치를 아래로 내리며 등을 먼저 쓴다.', videoUrl: 'https://www.youtube.com/watch?v=84D8bVJWB3s' },
+  '롱밴드 로우': { setup: ['밴드를 배꼽 또는 가슴 아래 높이의 단단한 고정점에 연결한다.', '팔을 편 상태에서 시작한다.'], movement: ['팔꿈치를 뒤로 끌어당긴다.', '마지막에 날개뼈를 가볍게 모은다.', '천천히 원위치한다.'], breathing: '당길 때 내쉬고 돌아갈 때 들이쉰다.', target: '등 중앙과 날개뼈 주변', commonMistakes: ['허리를 뒤로 젖혀 반동 사용', '어깨가 올라감', '팔만 사용하고 등이 움직이지 않음'], stopCriteria: ['허리 통증', '어깨 앞쪽 통증', '팔 저림'], keyPoint: '허리는 고정하고 팔꿈치가 몸 뒤로 간다는 느낌으로 당긴다.' },
+  '덤벨 플로어 프레스': { setup: ['바닥에 누워 무릎을 세운다.', '덤벨을 가슴 옆에 둔다.', '팔꿈치는 몸통에서 약 45도 정도 벌린다.'], movement: ['덤벨을 가슴 위로 밀어 올린다.', '천천히 내린다.', '팔꿈치가 바닥에 닿으면 멈춘다.'], breathing: '밀 때 내쉬고 내릴 때 들이쉰다.', target: '가슴, 삼두, 어깨 앞쪽', commonMistakes: ['허리가 과하게 뜸', '팔꿈치를 90도로 너무 벌림', '덤벨을 급하게 내림'], stopCriteria: ['어깨 통증', '팔꿈치 통증', '허리 불편감'], keyPoint: '팔꿈치를 45도로 두고 바닥에서 멈춰 어깨 부담을 줄인다.', videoUrl: 'https://www.youtube.com/watch?v=uUGDRwge4F8' },
+  '루프밴드 풀어파트': { setup: ['가슴 높이에서 밴드를 양손으로 잡는다.', '팔꿈치는 거의 펴되 완전히 잠그지 않는다.'], movement: ['양손을 좌우로 벌려 밴드를 당긴다.', '등 위쪽과 어깨 뒤쪽이 조여지는 지점에서 멈춘다.', '천천히 돌아온다.'], breathing: '벌릴 때 내쉬고 돌아올 때 들이쉰다.', target: '등 위쪽과 어깨 뒤쪽', commonMistakes: ['허리를 젖힘', '어깨를 으쓱함', '팔을 너무 뒤로 과하게 보냄'], stopCriteria: ['어깨 통증', '목 통증', '팔 저림'], keyPoint: '어깨를 내리고 등 위쪽으로 밴드를 벌린다.' },
+  '발 보조 매달리기': { setup: ['철봉을 잡고 발끝은 바닥 또는 의자에 둔다.', '체중 전부를 철봉에 싣지 않는다.'], movement: ['발로 일부 체중을 지지한 상태에서 가볍게 매달린다.', '어깨를 귀에서 멀리 내리는 느낌으로 버틴다.'], breathing: '짧고 편안하게 호흡한다.', target: '등, 전완, 어깨 안정성', commonMistakes: ['갑자기 전 체중을 매달기', '어깨를 으쓱한 채 버티기', '통증을 참고 지속하기'], stopCriteria: ['어깨 통증', '팔 저림', '목 통증', '허리 불편감'], keyPoint: '발 보조를 유지해 어깨가 편한 범위에서만 버틴다.' },
+  '고블릿 스쿼트': { setup: ['덤벨을 가슴 앞에 세로로 잡는다.', '발바닥 전체가 바닥에 닿게 선다.'], movement: ['엉덩이를 뒤로 보내며 앉는다.', '무릎은 발끝 방향을 따라간다.', '허리 중립을 유지한다.', '일어날 때 발바닥 전체로 바닥을 민다.'], breathing: '내려갈 때 들이쉬고 일어날 때 내쉰다.', target: '허벅지 앞쪽, 엉덩이', commonMistakes: ['허리가 말림', '무릎이 안쪽으로 무너짐', '뒤꿈치가 들림'], stopCriteria: ['허리 통증', '날카로운 무릎 통증', '어지러움'], keyPoint: '무릎은 발끝 방향, 허리는 중립을 유지한다.' },
+  '힙 브릿지': { setup: ['무릎을 세우고 눕는다.', '발은 골반 너비로 둔다.'], movement: ['엉덩이에 힘을 주며 들어올린다.', '갈비뼈를 과하게 들지 않는다.', '허리로 밀지 않는다.', '엉덩이 수축을 먼저 느낀다.'], breathing: '올릴 때 내쉬고 내릴 때 들이쉰다.', target: '엉덩이와 햄스트링', commonMistakes: ['허리로 밀어 올림', '갈비뼈가 들림', '무릎이 안쪽으로 모임'], stopCriteria: ['허리 통증', '다리 저림', '햄스트링 경련'], keyPoint: '허리가 아니라 엉덩이를 조여 골반을 들어올린다.' },
+  '버드독': { setup: ['네발기기 자세', '손은 어깨 아래, 무릎은 골반 아래', '허리는 중립'], movement: ['반대쪽 팔과 다리를 천천히 뻗는다.', '골반이 돌아가지 않게 유지한다.', '천천히 돌아온 뒤 반대쪽 진행한다.'], breathing: '뻗을 때 내쉬고 돌아올 때 들이쉰다.', target: '코어 안정성, 엉덩이, 등', commonMistakes: ['허리가 꺼짐', '다리를 너무 높이 듦', '골반이 옆으로 돌아감', '속도를 너무 빠르게 냄'], stopCriteria: ['허리 통증', '다리 저림', '균형이 무너져 반복 유지 불가'], keyPoint: '높이보다 골반과 허리가 흔들리지 않는 것이 우선이다.', videoUrl: 'https://www.youtube.com/watch?v=xEDnlOxeJH4' },
+  '팔로프 프레스': { setup: ['밴드는 문틀 철봉이 아니라 옆 방향으로 당겨도 풀리지 않는 단단한 고정점에 연결한다.', '밴드가 몸 옆에서 당기는 위치에 선다.'], movement: ['손을 가슴 앞에 모은다.', '몸통이 밴드 쪽으로 돌아가지 않도록 앞으로 밀어낸다.', '허리가 꺾이거나 몸통이 회전하면 강도를 낮춘다.'], breathing: '밀 때 내쉬고 돌아올 때 들이쉰다.', target: '복부 옆면과 몸통 안정성', commonMistakes: ['약한 고정점에 밴드를 연결함', '몸통이 밴드 쪽으로 돌아감', '허리가 꺾임'], stopCriteria: ['허리 통증', '어깨 통증', '어지러움'], keyPoint: '절대 풀리지 않는 옆 방향 고정점을 먼저 확인한다.' },
+  '보조 리버스 런지': { setup: ['벽, 의자 또는 단단한 지지대를 잡는다.', '발은 골반 너비로 선다.'], movement: ['한쪽 다리를 뒤로 짧게 보낸다.', '앞쪽 무릎이 안쪽으로 무너지지 않게 한다.', '통증 없는 범위까지만 내려간다.'], breathing: '내려갈 때 들이쉬고 올라올 때 내쉰다.', target: '엉덩이, 허벅지 앞쪽, 균형감각', commonMistakes: ['뒤로 너무 멀리 보냄', '앞 무릎이 안쪽으로 무너짐', '통증을 참고 깊게 내려감'], stopCriteria: ['날카로운 무릎 통증', '허리 통증', '어지러움'], keyPoint: '지지대를 잡고 짧은 범위부터 안정적으로 반복한다.' },
+  'AB 슬라이드': { setup: ['무릎을 바닥에 댄다.', '배와 엉덩이에 힘을 준다.'], movement: ['짧은 범위만 앞으로 민다.', '허리가 꺼지지 않게 한다.', '통증 또는 허리 꺼짐이 생기면 즉시 버드독으로 복귀한다.'], breathing: '앞으로 밀 때 들이쉬고 돌아올 때 내쉰다.', target: '복부와 몸통 안정성', commonMistakes: ['처음부터 멀리 밀기', '허리가 아래로 꺼짐', '통증을 참고 반복'], stopCriteria: ['허리 통증', '다리 저림', '허리 꺼짐 유지'], keyPoint: '조건 충족 시에만 짧은 범위로 진행하고 이상하면 버드독으로 복귀한다.' }
+};
+
+const getGuide = (name: string): ExerciseGuide | undefined => Object.entries(GUIDE_LIBRARY).find(([key]) => name.includes(key))?.[1];
+
 export const SAFETY_STOP_MESSAGE = '허리 통증, 다리 저림, 날카로운 무릎 통증 또는 어지러움이 있으면 즉시 중단하세요.';
 
 const flow: FlowItem[] = [
@@ -32,7 +60,7 @@ const flow: FlowItem[] = [
   { icon:'🌿', label:'정리운동', time:'5분', bgColor:'#EAF3DE', labelColor:'#27500A', timeColor:'#3B6D11' },
 ];
 const tip = (text:string): Detail => ({ type:'purple', text });
-const mk = (name:string, meta:string, guide:string, sets=3, restSeconds=45, intervalPlan?:IntervalPlan, abSlideGate=false): Exercise => ({ name, meta, sets, restSeconds, intervalPlan, abSlideGate, details:[tip(guide)] });
+const mk = (name:string, meta:string, guide:string, sets=3, restSeconds=45, intervalPlan?:IntervalPlan, abSlideGate=false): Exercise => ({ name, meta, sets, restSeconds, intervalPlan, abSlideGate, guide: getGuide(name), details:[tip(guide)] });
 const sliding = (name:string, meta:string, guide:string, intervalPlan:IntervalPlan): Exercise => mk(name, meta, guide, 0, 0, intervalPlan);
 const phases = (exercises:Exercise[], alert?:string): Phase[] => [
   { id:'warmup', icon:'🧘', title:'워밍업', subtitle:'5~8분 · 본운동 시간 제외', exercises:[mk('관절 가동성 + 가벼운 제자리 걷기','5~8분','어깨·고관절·발목을 부드럽게 풀고 숨이 살짝 오를 정도로만 진행합니다.',0,0)] },
