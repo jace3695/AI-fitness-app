@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Exercise, Detail } from '../data/workouts';
+import { AbSlideGate, IntervalTimer, SetChecklist } from './WorkoutControls';
 
 const BADGE_STYLES: Record<string, string> = {
   yellow: 'bg-[#FAEEDA] text-[#854F0B]',
@@ -122,6 +123,9 @@ export default function ExerciseCard({ exercise }: ExerciseCardProps) {
               <span>{exercise.intervalNote}</span>
             </div>
           )}
+          {exercise.intervalPlan && <IntervalTimer plan={exercise.intervalPlan} />}
+          <SetChecklist storageId={exercise.name} sets={exercise.sets} restSeconds={exercise.restSeconds} />
+          {exercise.abSlideGate && <AbSlideGate storageId={exercise.name} />}
         </div>
       )}
     </div>

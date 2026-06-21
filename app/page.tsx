@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { WORKOUTS } from './data/workouts';
+import { ADAPTATION_WORKOUTS, SWITCHON_DEFAULT_START_DATE, SWITCHON_MODE_KEY, SWITCHON_START_DATE_KEY, SwitchOnSelection, WORKOUTS } from './data/workouts';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
 import DietView from './components/DietView';
 import SafetyView from './components/SafetyView';
+import SwitchOnModePanel, { SwitchOnMode } from './components/SwitchOnModePanel';
 
 type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'tips';
 type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
@@ -25,6 +26,8 @@ const TABS: { id: TabId; label: string }[] = [
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>('ov');
+  const [startDate, setStartDate] = useState(SWITCHON_DEFAULT_START_DATE);
+  const [switchMode, setSwitchMode] = useState<SwitchOnMode>('auto');
   const [completedDays, setCompletedDays] = useState<Record<WorkoutDayId, boolean>>({
     mon: false,
     tue: false,
@@ -38,6 +41,9 @@ export default function Page() {
       return;
     }
 
+    setStartDate(window.localStorage.getItem(SWITCHON_START_DATE_KEY) || SWITCHON_DEFAULT_START_DATE);
+    setSwitchMode((window.localStorage.getItem(SWITCHON_MODE_KEY) as SwitchOnMode | null) || 'auto');
+
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       return;
@@ -50,6 +56,28 @@ export default function Page() {
       window.localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
+
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    window.localStorage.setItem(SWITCHON_START_DATE_KEY, value);
+  };
+
+  const handleSwitchModeChange = (value: SwitchOnMode) => {
+    setSwitchMode(value);
+    window.localStorage.setItem(SWITCHON_MODE_KEY, value);
+  };
+
+  const getSwitchSelection = (): SwitchOnSelection => {
+    if (switchMode !== 'auto') return switchMode;
+    const start = new Date(`${startDate || SWITCHON_DEFAULT_START_DATE}T00:00:00`);
+    const today = new Date();
+    const current = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const diff = Math.floor((current.getTime() - start.getTime()) / 86400000);
+    if (diff <= 0) return 'adapt1';
+    if (diff === 1) return 'adapt2';
+    if (diff === 2) return 'adapt3';
+    return 'base';
+  };
 
   const toggleDayComplete = (dayId: WorkoutDayId) => {
     setCompletedDays((prev) => {
@@ -65,7 +93,9 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const dayWorkout = WORKOUTS.find((w) => w.id === activeTab);
+  const switchSelection = getSwitchSelection();
+  const baseDayWorkout = WORKOUTS.find((w) => w.id === activeTab);
+  const dayWorkout = baseDayWorkout && switchSelection !== 'base' ? ADAPTATION_WORKOUTS[switchSelection] : baseDayWorkout;
 
   return (
     <div className="min-h-dvh bg-gray-50">
@@ -102,15 +132,16 @@ export default function Page() {
 
       {/* ── Main Content ── */}
       <main className="max-w-3xl mx-auto px-4 py-5">
+        <SwitchOnModePanel startDate={startDate} mode={switchMode} selection={switchSelection} onStartDateChange={handleStartDateChange} onModeChange={handleSwitchModeChange} />
         {activeTab === 'ov' && (
           <WeeklyView onTabChange={handleTabChange} completedDays={completedDays} />
         )}
 
-        {dayWorkout && activeTab === dayWorkout.id && (
+        {dayWorkout && ['mon', 'tue', 'thu', 'fri', 'sat'].includes(activeTab) && (
           <DayView
             day={dayWorkout}
-            isCompleted={completedDays[dayWorkout.id as WorkoutDayId]}
-            onToggleComplete={() => toggleDayComplete(dayWorkout.id as WorkoutDayId)}
+            isCompleted={completedDays[activeTab as WorkoutDayId]}
+            onToggleComplete={() => toggleDayComplete(activeTab as WorkoutDayId)}
           />
         )}
 
