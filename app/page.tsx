@@ -7,9 +7,10 @@ import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
 import DietView from './components/DietView';
 import SafetyView from './components/SafetyView';
+import RecordCalendarView from './components/RecordCalendarView';
 import SwitchOnModePanel, { SwitchOnMode } from './components/SwitchOnModePanel';
 
-type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'tips';
+type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'record' | 'tips';
 type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
 
 const TABS: { id: TabId; label: string }[] = [
@@ -20,6 +21,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'fri',  label: '금요일' },
   { id: 'sat',  label: '토요일' },
   { id: 'diet', label: '식단' },
+  { id: 'record', label: '기록' },
   { id: 'tips', label: '주의사항' },
 ];
 
@@ -132,6 +134,8 @@ export default function Page() {
 
         {activeTab === 'diet' && <DietView />}
 
+        {activeTab === 'record' && <RecordCalendarView />}
+
         {activeTab === 'tips' && <SafetyView />}
       </main>
 
@@ -146,6 +150,7 @@ export default function Page() {
             { id: 'fri',  emoji: '⚡', label: '금' },
             { id: 'sat',  emoji: '🔥', label: '토' },
             { id: 'diet', emoji: '🥗', label: '식단' },
+            { id: 'record', emoji: '📈', label: '기록' },
             { id: 'tips', emoji: '⚠️', label: '주의' },
           ].map((item) => (
             <button
