@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { SWITCHON_DEFAULT_START_DATE, SWITCHON_START_DATE_KEY } from '../data/workouts';
 import {
   COMMON_DIET_RULES,
-  DIET_CHECK_ITEMS,
+  DIET_GOAL_CHECK_ITEMS,
+  DIET_SAFETY_CHECK_ITEMS,
   DIET_COMPLETED_DAYS_KEY,
   DIET_MODE_KEY,
   DIET_PHASE_KEY,
@@ -18,19 +19,16 @@ import {
   FASTING_START_TIME_KEY,
   SAFETY_WARNING,
   WATER_INTAKE_KEY,
-  WORKOUT_COMPLETED_DAYS_KEY,
   getAutoDietPhase,
   getDietStatusText,
   getLocalDateKey,
   getSwitchOnDay,
 } from '../data/dietPlans';
+import { isWorkoutCompletedOnDate, readWorkoutCompletionStore } from '../data/workoutCompletion';
 
 type MealChecks = Record<string, boolean>;
 type DietDayRecord = DietCheckMap & { meals?: MealChecks; safetyAlert?: boolean };
 type DietCompletedStore = Record<string, DietDayRecord>;
-type WorkoutDayId = 'mon' | 'tue' | 'thu' | 'fri' | 'sat';
-
-const weekdayMap: Record<number, WorkoutDayId | null> = { 0: null, 1: 'mon', 2: 'tue', 3: null, 4: 'thu', 5: 'fri', 6: 'sat' };
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
@@ -39,11 +37,22 @@ function readJson<T>(key: string, fallback: T): T {
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
-function addHours(dateKey: string, time: string, hours: number) {
-  const [hour, minute] = time.split(':').map(Number);
-  const base = new Date(`${dateKey}T${String(hour || 0).padStart(2, '0')}:${String(minute || 0).padStart(2, '0')}:00`);
-  base.setHours(base.getHours() + hours);
-  return base;
+function getFastingWindow(now: Date, startTime: string, hours: number) {
+  const [hour = 0, minute = 0] = startTime.split(':').map(Number);
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+  const start = now >= startToday ? startToday : new Date(startToday.getTime() - 86400000);
+  const end = new Date(start.getTime());
+  end.setHours(end.getHours() + hours);
+
+  if (now < start) {
+    return { start, end, status: 'not-started' as const };
+  }
+
+  if (now >= end) {
+    return { start, end, status: 'reached' as const };
+  }
+
+  return { start, end, status: 'in-progress' as const };
 }
 
 function formatTime(date: Date) {
@@ -85,9 +94,7 @@ export default function DietView() {
     setFastingStart(window.localStorage.getItem(FASTING_START_TIME_KEY) || '18:30');
     setWaterStore(readJson<Record<string, number>>(WATER_INTAKE_KEY, {}));
     setDinnerStore(readJson<Record<string, string>>(DINNER_COMPLETED_TIME_KEY, {}));
-    const workout = readJson<Partial<Record<WorkoutDayId, boolean>>>(WORKOUT_COMPLETED_DAYS_KEY, {});
-    const dayId = weekdayMap[new Date().getDay()];
-    setWorkoutDone(dayId ? Boolean(workout[dayId]) : false);
+    setWorkoutDone(isWorkoutCompletedOnDate(readWorkoutCompletionStore()));
     setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 60000);
     return () => window.clearInterval(timer);
@@ -98,10 +105,14 @@ export default function DietView() {
   const plan = DIET_PLANS[currentPhase];
   const today = store[todayKey] || {};
   const water = waterStore[todayKey] || 0;
-  const fastingEnd = addHours(todayKey, fastingStart, 14);
-  const fastingReached = now >= fastingEnd;
+  const fastingWindow = getFastingWindow(now, fastingStart, 14);
+  const fastingReached = fastingWindow.status === 'reached';
   const dinnerTime = dinnerStore[todayKey];
-  const checkCount = DIET_CHECK_ITEMS.filter((item) => Boolean(today[item.id])).length + (workoutDone ? 1 : 0);
+  const safetyChecked = DIET_SAFETY_CHECK_ITEMS.some((item) => Boolean(today[item.id]));
+  const safetyAlertVisible = Boolean(today.safetyAlert) || safetyChecked;
+  const checkCount = DIET_GOAL_CHECK_ITEMS.filter((item) => Boolean(today[item.id])).length + (workoutDone ? 1 : 0);
+  const goalCheckTotal = DIET_GOAL_CHECK_ITEMS.length + 1;
+  const fastingStatusText = fastingWindow.status === 'reached' ? '14시간 달성' : fastingWindow.status === 'in-progress' ? '공복 진행 중' : '아직 시작 전';
 
   const updateStore = (next: DietCompletedStore) => {
     setStore(next);
@@ -109,7 +120,11 @@ export default function DietView() {
   };
 
   const patchToday = (patch: DietDayRecord) => updateStore({ ...store, [todayKey]: { ...today, ...patch } });
-  const toggleCheck = (id: keyof DietCheckMap) => patchToday({ [id]: !today[id] });
+  const toggleCheck = (id: keyof DietCheckMap) => {
+    const checked = !today[id];
+    const isSafetyCheck = DIET_SAFETY_CHECK_ITEMS.some((item) => item.id === id);
+    patchToday({ [id]: checked, ...(isSafetyCheck && checked ? { safetyAlert: true } : {}) });
+  };
   const toggleMeal = (mealId: string) => patchToday({ meals: { ...(today.meals || {}), [mealId]: !today.meals?.[mealId] } });
 
   const addWater = (ml: number) => {
@@ -189,7 +204,7 @@ export default function DietView() {
       <p className="text-[15px] font-bold text-gray-800">공복 시간</p>
       <label className="mt-2 block text-[12px] text-gray-500">공복 시작 시간</label>
       <input type="time" value={fastingStart} onChange={(e) => changeFastingStart(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" />
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]"><div className="rounded-xl bg-gray-50 p-3"><b>예상 종료</b><br />{formatTime(fastingEnd)}</div><div className="rounded-xl bg-gray-50 p-3"><b>현재 상태</b><br />{fastingReached ? '14시간 달성 가능' : '공복 진행 중'}</div></div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]"><div className="rounded-xl bg-gray-50 p-3"><b>예상 종료</b><br />{getLocalDateKey(fastingWindow.end)} {formatTime(fastingWindow.end)}</div><div className="rounded-xl bg-gray-50 p-3"><b>현재 상태</b><br />{fastingStatusText}</div></div>
     </section>
 
     <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
@@ -210,17 +225,18 @@ export default function DietView() {
       <p className="text-[15px] font-bold text-gray-800">운동·식단 현황 통합</p>
       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-gray-700">
         <div className="rounded-xl bg-gray-50 p-3">운동 완료<br /><b>{workoutDone ? '완료' : '미완료/휴식일'}</b></div>
-        <div className="rounded-xl bg-gray-50 p-3">체크 완료<br /><b>{checkCount} / {DIET_CHECK_ITEMS.length + 1}</b></div>
+        <div className="rounded-xl bg-gray-50 p-3">체크 완료<br /><b>{checkCount} / {goalCheckTotal}</b></div>
         <div className="rounded-xl bg-gray-50 p-3">물 섭취량<br /><b>{water}mL</b></div>
         <div className="rounded-xl bg-gray-50 p-3">공복 목표<br /><b>{fastingReached || today.fasting14h ? '달성 가능/달성' : '진행 중'}</b></div>
       </div>
-      <div className="mt-3 space-y-2">{DIET_CHECK_ITEMS.map((item) => <label key={item.id} className="flex items-center gap-2 rounded-xl border border-gray-100 px-3 py-2 text-[13px] text-gray-700"><input type="checkbox" checked={Boolean(today[item.id])} onChange={() => toggleCheck(item.id)} className="h-4 w-4 accent-[#534AB7]" />{item.label}</label>)}
-        <label className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[13px] text-gray-500"><input type="checkbox" checked={workoutDone} readOnly className="h-4 w-4" />운동 완료 (운동 탭 기록 자동 표시)</label></div>
+      <div className="mt-3 space-y-2">{DIET_GOAL_CHECK_ITEMS.map((item) => <label key={item.id} className="flex items-center gap-2 rounded-xl border border-gray-100 px-3 py-2 text-[13px] text-gray-700"><input type="checkbox" checked={Boolean(today[item.id])} onChange={() => toggleCheck(item.id)} className="h-4 w-4 accent-[#534AB7]" />{item.label}</label>)}
+        <label className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-[13px] text-gray-500"><input type="checkbox" checked={workoutDone} readOnly className="h-4 w-4" />운동 완료 (오늘 날짜 운동 탭 기록 자동 표시)</label></div>
+      <div className="mt-3 space-y-2">{DIET_SAFETY_CHECK_ITEMS.map((item) => <label key={item.id} className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-[13px] text-red-700"><input type="checkbox" checked={Boolean(today[item.id])} onChange={() => toggleCheck(item.id)} className="h-4 w-4 accent-red-600" />{item.label}</label>)}</div>
     </section>
 
     <section className="rounded-2xl bg-white border border-red-100 p-4 shadow-sm">
       <button onClick={() => patchToday({ safetyAlert: true })} className="w-full rounded-xl bg-red-600 px-4 py-3 text-[14px] font-bold text-white">두통·어지러움·저림 발생</button>
-      {today.safetyAlert && <div className="mt-3 rounded-2xl bg-red-50 p-4 text-[13px] text-red-800"><p className="font-bold">즉시 식단 강도를 완화하고 단식·운동을 중단하세요.</p><p className="mt-1">물과 휴식을 우선하고, 허리 통증 악화 또는 다리 저림이 있으면 운동은 쉬세요. 증상이 심하거나 지속되면 의료진과 상담하세요.</p>{plan.warningAction && <ul className="mt-2 space-y-1">{plan.warningAction.map((item) => <li key={item}>• {item}</li>)}</ul>}</div>}
+      {safetyAlertVisible && <div className="mt-3 rounded-2xl bg-red-50 p-4 text-[13px] text-red-800"><p className="font-bold">즉시 식단 강도를 완화하고 단식·운동을 중단하세요.</p><p className="mt-1">물과 휴식을 우선하고, 허리 통증 악화 또는 다리 저림이 있으면 운동은 쉬세요. 증상이 심하거나 지속되면 의료진과 상담하세요.</p>{plan.warningAction && <ul className="mt-2 space-y-1">{plan.warningAction.map((item) => <li key={item}>• {item}</li>)}</ul>}</div>}
     </section>
   </div>;
 }
