@@ -26,6 +26,22 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
         ))}
       </div>
 
+
+      {/* Pull-up Training Entry */}
+      <button
+        type="button"
+        onClick={() => onTabChange('pullup')}
+        className="mb-5 w-full rounded-2xl border border-[#AFA9EC] bg-[#EEEDFE] px-4 py-3 text-left shadow-sm transition hover:bg-[#E3E1FD]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[15px] font-bold text-[#3C3489]">철봉 단계 훈련</p>
+            <p className="mt-0.5 text-[12px] text-[#534AB7]">월·토 루틴과 연결된 5단계 턱걸이 준비 모드</p>
+          </div>
+          <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#534AB7]">입장</span>
+        </div>
+      </button>
+
       {/* 7-day Week Grid */}
       <div className="grid grid-cols-7 gap-1.5 mb-5">
         {days.map((d, i) => (
