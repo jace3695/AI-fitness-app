@@ -1,4 +1,4 @@
-import { Phase } from '../data/workouts';
+import { Exercise, Phase } from '../data/workouts';
 import ExerciseCard from './ExerciseCard';
 
 const PHASE_STYLES: Record<string, { bg: string; titleColor: string; subColor: string }> = {
@@ -17,9 +17,11 @@ const ALERT_STYLES: Record<string, string> = {
 
 interface PhaseSectionProps {
   phase: Phase;
+  exercises?: Exercise[];
+  offset?: number;
 }
 
-export default function PhaseSection({ phase }: PhaseSectionProps) {
+export default function PhaseSection({ phase, exercises, offset = 0 }: PhaseSectionProps) {
   const style = PHASE_STYLES[phase.id] ?? PHASE_STYLES.warmup;
 
   return (
@@ -59,7 +61,7 @@ export default function PhaseSection({ phase }: PhaseSectionProps) {
       {/* Exercises */}
       <div className="flex flex-col gap-1.5">
         {phase.exercises.map((ex, i) => (
-          <ExerciseCard key={i} exercise={ex} />
+          <ExerciseCard key={i} exercise={ex} exercises={exercises} index={offset + i} />
         ))}
       </div>
     </div>

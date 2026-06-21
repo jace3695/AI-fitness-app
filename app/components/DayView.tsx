@@ -18,6 +18,9 @@ export default function DayView({ day, isCompleted, onToggleComplete }: DayViewP
     <div className="mb-4 grid gap-1.5 rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><p className="font-semibold">운동 강도 기준</p>{COMMON_INTENSITY.map((x) => <p key={x}>• {x}</p>)}<p className="font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE}</p></div>
     <button type="button" onClick={onToggleComplete} className={`w-full mb-4 py-2.5 px-4 rounded-xl text-[14px] font-medium transition-colors border ${isCompleted ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-[#EEEDFE] text-[#3C3489] border-[#AFA9EC] hover:bg-[#E3E1FD]'}`}>{isCompleted ? '운동 완료됨' : '오늘 운동 완료'}</button>
     <FlowDiagram flow={day.flow} />
-    {day.phases.map((phase, i) => <PhaseSection key={i} phase={phase} />)}
+    {day.phases.map((phase, i) => {
+      const offset = day.phases.slice(0, i).reduce((sum, p) => sum + p.exercises.length, 0);
+      return <PhaseSection key={i} phase={phase} exercises={day.phases.flatMap((p) => p.exercises)} offset={offset} />;
+    })}
   </div>;
 }
