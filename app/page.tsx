@@ -9,8 +9,9 @@ import DietView from './components/DietView';
 import SafetyView from './components/SafetyView';
 import RecordCalendarView from './components/RecordCalendarView';
 import SwitchOnModePanel, { SwitchOnMode } from './components/SwitchOnModePanel';
+import PullupTrainingView from './components/PullupTrainingView';
 
-type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'diet' | 'record' | 'tips';
+type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'pullup' | 'diet' | 'record' | 'tips';
 type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
 
 const TABS: { id: TabId; label: string }[] = [
@@ -20,6 +21,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'thu',  label: '목요일' },
   { id: 'fri',  label: '금요일' },
   { id: 'sat',  label: '토요일' },
+  { id: 'pullup', label: '철봉 훈련' },
   { id: 'diet', label: '식단' },
   { id: 'record', label: '기록' },
   { id: 'tips', label: '주의사항' },
@@ -129,8 +131,11 @@ export default function Page() {
             day={dayWorkout}
             isCompleted={completedDays[activeTab as WorkoutDayId]}
             onToggleComplete={() => toggleDayComplete(activeTab as WorkoutDayId)}
+            onPullupTraining={() => handleTabChange('pullup')}
           />
         )}
+
+        {activeTab === 'pullup' && <PullupTrainingView />}
 
         {activeTab === 'diet' && <DietView />}
 
