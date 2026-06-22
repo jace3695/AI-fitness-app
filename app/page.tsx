@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, SWITCHON_DEFAULT_START_DATE, SWITCHON_MODE_KEY, SWITCHON_START_DATE_KEY, SwitchOnSelection, WORKOUTS } from './data/workouts';
 import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
+import { FASTING_MODE_KEY, getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
 import DietView from './components/DietView';
@@ -32,6 +33,7 @@ export default function Page() {
   const [startDate, setStartDate] = useState(SWITCHON_DEFAULT_START_DATE);
   const [switchMode, setSwitchMode] = useState<SwitchOnMode>('auto');
   const [completedStore, setCompletedStore] = useState<WorkoutCompletionStore>({});
+  const [isFasting24Today, setIsFasting24Today] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -42,6 +44,12 @@ export default function Page() {
     setSwitchMode((window.localStorage.getItem(SWITCHON_MODE_KEY) as SwitchOnMode | null) || 'auto');
 
     setCompletedStore(readWorkoutCompletionStore());
+    try {
+      const modes = JSON.parse(window.localStorage.getItem(FASTING_MODE_KEY) || '{}') as Record<string, string>;
+      setIsFasting24Today(modes[getLocalDateKey()] === '24h');
+    } catch {
+      setIsFasting24Today(false);
+    }
   }, []);
 
   const handleStartDateChange = (value: string) => {
@@ -127,12 +135,15 @@ export default function Page() {
         )}
 
         {dayWorkout && ['mon', 'tue', 'thu', 'fri', 'sat'].includes(activeTab) && (
+          <>
+            {isFasting24Today && <section className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-[13px] text-amber-800 shadow-sm"><p className="font-bold">오늘은 24시간 단식 선택일입니다.</p><p className="mt-1">강한 슬라이딩보드, 전신 서킷, 고중량 운동은 피하고 걷기·가벼운 스트레칭·회복 운동 중심으로 진행하세요.</p><div className="mt-2 rounded-xl bg-white/70 px-3 py-2">루틴은 삭제하거나 강제로 변경하지 않습니다. 컨디션에 따라 강도를 낮춰 진행하세요.</div></section>}
           <DayView
             day={dayWorkout}
             isCompleted={completedDays[activeTab as WorkoutDayId]}
             onToggleComplete={() => toggleDayComplete(activeTab as WorkoutDayId)}
             onPullupTraining={() => handleTabChange('pullup')}
           />
+          </>
         )}
 
         {activeTab === 'pullup' && <PullupTrainingView />}
