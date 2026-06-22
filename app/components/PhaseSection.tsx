@@ -19,9 +19,10 @@ interface PhaseSectionProps {
   phase: Phase;
   exercises?: Exercise[];
   offset?: number;
+  highRiskNames?: string[];
 }
 
-export default function PhaseSection({ phase, exercises, offset = 0 }: PhaseSectionProps) {
+export default function PhaseSection({ phase, exercises, offset = 0, highRiskNames = [] }: PhaseSectionProps) {
   const style = PHASE_STYLES[phase.id] ?? PHASE_STYLES.warmup;
 
   return (
@@ -61,7 +62,7 @@ export default function PhaseSection({ phase, exercises, offset = 0 }: PhaseSect
       {/* Exercises */}
       <div className="flex flex-col gap-1.5">
         {phase.exercises.map((ex, i) => (
-          <ExerciseCard key={i} exercise={ex} exercises={exercises} index={offset + i} />
+          <ExerciseCard key={i} exercise={ex} exercises={exercises} index={offset + i} highRisk={highRiskNames.some((name) => ex.name.includes(name))} />
         ))}
       </div>
     </div>

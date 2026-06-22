@@ -24,6 +24,9 @@ export interface InbodyRecord {
 }
 export type InbodyRecordStore = Record<string, InbodyRecord>;
 export type DailyNotesStore = Record<string, string>;
+export interface RecoveryDayRecord { recoveryMode: boolean; reasons: string[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; intensity: 'normal' | '70%' | 'recovery'; updatedAt?: string }
+export type RecoveryModeStore = Record<string, RecoveryDayRecord>;
+export const RECOVERY_MODE_DAYS_KEY_FOR_RECORDS = 'ai-fitness-recovery-mode-days';
 
 export interface RecordStores {
   workouts: WorkoutCompletionStore;
@@ -37,6 +40,7 @@ export interface RecordStores {
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
   notes: DailyNotesStore;
+  recovery: RecoveryModeStore;
 }
 
 export function readJson<T>(key: string, fallback: T): T {
@@ -64,6 +68,7 @@ export function readRecordStores(): RecordStores {
     weights: readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
     inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
     notes: readJson<DailyNotesStore>(DAILY_NOTES_KEY, {}),
+    recovery: readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY_FOR_RECORDS, {}),
   };
 }
 
