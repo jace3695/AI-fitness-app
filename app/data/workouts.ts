@@ -2,7 +2,9 @@ export type BadgeVariant = 'yellow' | 'green' | 'blue' | 'purple' | 'red';
 export type PhaseType = 'warmup' | 'main' | 'sliding' | 'cooldown';
 export type AlertType = 'yellow' | 'green' | 'blue' | 'purple';
 export type BulletType = 'purple' | 'red' | 'green';
-export type SwitchOnSelection = 'adapt1' | 'adapt2' | 'adapt3' | 'base';
+export type AdaptationRoutineSelection = 'adapt1' | 'adapt2' | 'adapt3';
+export type RoutineSelection = AdaptationRoutineSelection | 'base' | 'recovery';
+export type SwitchOnSelection = Exclude<RoutineSelection, 'recovery'>;
 
 export interface Detail { type: BulletType | 'step' | 'warn' | 'good' | 'text'; text: string; stepNum?: number }
 export interface IntervalRow { weeks: string; pattern: string; total: string }
@@ -31,6 +33,7 @@ export interface DayWorkout { id: string; tabLabel: string; emoji: string; title
 export const SWITCHON_DEFAULT_START_DATE = '2026-06-22';
 export const SWITCHON_START_DATE_KEY = 'ai-fitness-switchon-start-date';
 export const SWITCHON_MODE_KEY = 'ai-fitness-switchon-mode';
+export const WORKOUT_ROUTINE_SELECTION_KEY = 'ai-fitness-workout-routine-selection';
 export const SET_COMPLETION_KEY = 'ai-fitness-switchon-set-completions';
 export const AB_SLIDE_KEY = 'ai-fitness-switchon-ab-slide-checks';
 export const COMMON_INTENSITY = [
@@ -94,7 +97,7 @@ const phases = (exercises:Exercise[], alert?:string): Phase[] => [
 ];
 const day = (id:string, tabLabel:string, emoji:string, title:string, subtitle:string, exercises:Exercise[], color:string, alert?:string): DayWorkout => ({ id, tabLabel, emoji, title, subtitle, totalTime:'본운동 30분', badgeBg:color, dayColor:color, flow, phases:phases(exercises, alert) });
 
-export const ADAPTATION_WORKOUTS: Record<Exclude<SwitchOnSelection,'base'>, DayWorkout> = {
+export const ADAPTATION_WORKOUTS: Record<AdaptationRoutineSelection, DayWorkout> = {
   adapt1: day('adapt1','적응 1일차','🌱','적응 1일차 — 상체 활성화 + 슬라이딩보드','강도는 중간 이하. 강하게 구간도 컨디션에 따라 중간으로 낮추세요.',[
     sliding('슬라이딩보드 가볍게','40초 가볍게 + 20초 천천히 × 8회 · 총 8분','허리를 숙이지 말고 다리와 엉덩이로 밀기',{rounds:8,segments:[{label:'가볍게',seconds:40,intensity:'가볍게~중간'},{label:'천천히',seconds:20,intensity:'회복'}]}),
     mk('롱밴드 랫풀다운','12회 × 3세트 · 휴식 45초','밴드를 철봉에 고정하고 팔꿈치를 아래·뒤로 당깁니다.'), mk('롱밴드 로우','12회 × 3세트 · 휴식 45초','팔보다 등을 먼저 조인다는 느낌으로 당깁니다.'), mk('덤벨 플로어 프레스','10회 × 3세트 · 휴식 45초','바닥에 누워 팔꿈치가 바닥에 닿을 때까지만 내립니다.'), mk('루프밴드 풀어파트','15회 × 3세트 · 휴식 30초','가슴 높이에서 밴드를 양옆으로 벌립니다.',3,30), mk('발 보조 매달리기','20초 × 3세트 · 휴식 40초','발끝을 바닥이나 의자에 두고 체중 일부만 싣습니다.',3,40)
