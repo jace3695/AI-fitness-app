@@ -3,8 +3,11 @@ export type DietMode = 'auto' | 'manual';
 export type ProteinChoice = 'none' | 'half' | 'full';
 export type ProteinGramChoice = '20' | '25' | '30' | 'custom';
 export type DinnerCarbChoice = 'none' | '50' | '80' | '100' | 'third-bowl' | 'half-bowl' | 'two-third-bowl' | 'one-bowl' | 'custom';
+export type LunchCarbChoice = DinnerCarbChoice;
 export type DinnerRiceType = '흰쌀밥' | '잡곡밥' | '현미밥' | '통곡물밥' | '곤약밥' | '기타';
 export interface DinnerCarbRecord { riceType: DinnerRiceType; amountType: DinnerCarbChoice; grams: number; customRiceType: string; estimatedCarbs: number }
+export type LunchCarbRecord = DinnerCarbRecord;
+export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: number; customProtein: number }
 export type SocialMealMode = 'none' | 'lunch' | 'dinner';
 export type FastingMode = 'none' | '24h';
 
@@ -18,6 +21,8 @@ export const FASTING_MODE_KEY = 'ai-fitness-fasting-mode';
 export const FASTING_COMPLETED_KEY = 'ai-fitness-fasting-completed';
 export const WATER_INTAKE_KEY = 'ai-fitness-water-intake';
 export const DINNER_CARB_CHOICE_KEY = 'ai-fitness-dinner-carb-choice';
+export const LUNCH_CARB_CHOICE_KEY = 'ai-fitness-lunch-carb-choice';
+export const LUNCH_PROTEIN_CHOICE_KEY = 'ai-fitness-lunch-protein-choice';
 export const SOCIAL_MEAL_MODE_KEY = 'ai-fitness-social-meal-mode';
 export const DIET_SYMPTOMS_KEY = 'ai-fitness-diet-symptoms';
 export const WORKOUT_COMPLETED_DAYS_KEY = 'ai-fitness-workout-completed-days';
@@ -86,6 +91,8 @@ export const DINNER_CARB_OPTIONS: { id: DinnerCarbChoice; label: string; grams: 
   { id: 'custom', label: '직접 입력', grams: 0 },
 ];
 export const DEFAULT_DINNER_CARB_RECORD: DinnerCarbRecord = { riceType: '잡곡밥', amountType: 'none', grams: 0, customRiceType: '', estimatedCarbs: 0 };
+export const DEFAULT_LUNCH_CARB_RECORD: LunchCarbRecord = { riceType: '통곡물밥', amountType: '100', grams: 100, customRiceType: '', estimatedCarbs: 30 };
+export const DEFAULT_LUNCH_PROTEIN_RECORD: LunchProteinRecord = { type: 'none', protein: 0, customProtein: 0 };
 export function estimateDinnerRiceCarbs(grams: number) { return Math.max(0, Math.round((Number(grams) || 0) * 0.3)); }
 export function getDinnerCarbOption(choice: DinnerCarbChoice) { return DINNER_CARB_OPTIONS.find((option) => option.id === choice) || DINNER_CARB_OPTIONS[0]; }
 function isDinnerCarbChoice(value: unknown): value is DinnerCarbChoice { return DINNER_CARB_OPTIONS.some((option) => option.id === value); }
@@ -109,13 +116,46 @@ export function normalizeDinnerCarbStore(value: unknown): Record<string, DinnerC
   if (!value || typeof value !== 'object') return {};
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([date, record]) => [date, normalizeDinnerCarbRecord(record)]));
 }
-export function formatDinnerCarbRecord(record?: DinnerCarbRecord) {
+export function normalizeLunchCarbRecord(value: unknown): LunchCarbRecord {
+  const normalized = normalizeDinnerCarbRecord(value);
+  if (!value || (typeof value === 'object' && Object.keys(value as object).length === 0)) return DEFAULT_LUNCH_CARB_RECORD;
+  return { ...normalized, riceType: normalized.riceType || '통곡물밥' };
+}
+export function normalizeLunchCarbStore(value: unknown): Record<string, LunchCarbRecord> {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([date, record]) => [date, normalizeLunchCarbRecord(record)]));
+}
+export function normalizeLunchProteinRecord(value: unknown): LunchProteinRecord {
+  if (value && typeof value === 'object') {
+    const record = value as Partial<LunchProteinRecord>;
+    const type = record.type === 'half' || record.type === 'full' || record.type === 'custom' || record.type === 'none' ? record.type : 'none';
+    const customProtein = Math.max(0, Math.floor(Number(record.customProtein ?? record.protein) || 0));
+    const protein = type === 'custom' ? customProtein : proteinChoiceGrams(type);
+    return { type, protein, customProtein };
+  }
+  if (typeof value === 'number') return normalizeLunchProteinRecord({ type: 'custom', protein: value, customProtein: value });
+  if (typeof value === 'string') return normalizeLunchProteinRecord({ type: value });
+  return DEFAULT_LUNCH_PROTEIN_RECORD;
+}
+export function normalizeLunchProteinStore(value: unknown): Record<string, LunchProteinRecord> {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([date, record]) => [date, normalizeLunchProteinRecord(record)]));
+}
+export function formatRiceCarbRecord(mealLabel: string, record?: DinnerCarbRecord) {
   const normalized = normalizeDinnerCarbRecord(record);
-  if (normalized.amountType === 'none' || normalized.grams <= 0) return { rice: '저녁 밥: 없음', carbs: '' };
+  if (normalized.amountType === 'none' || normalized.grams <= 0) return { rice: `${mealLabel} 밥: 없음`, carbs: '' };
   const riceName = normalized.riceType === '기타' ? (normalized.customRiceType.trim() || '기타 밥') : normalized.riceType;
   const option = getDinnerCarbOption(normalized.amountType);
   const amountLabel = normalized.amountType === 'custom' ? `직접 입력 ${normalized.grams}g 밥량` : option.label;
-  return { rice: `저녁 밥: ${riceName} ${amountLabel}`, carbs: `참고 탄수화물: 약 ${normalized.estimatedCarbs}g` };
+  return { rice: `${mealLabel} 밥: ${riceName} ${amountLabel}`, carbs: `${mealLabel} 참고 탄수화물: 약 ${normalized.estimatedCarbs}g` };
+}
+export function formatDinnerCarbRecord(record?: DinnerCarbRecord) { return formatRiceCarbRecord('저녁', record); }
+export function formatLunchCarbRecord(record?: LunchCarbRecord) { return formatRiceCarbRecord('점심', record); }
+export function formatLunchProteinRecord(record?: LunchProteinRecord) {
+  const normalized = normalizeLunchProteinRecord(record);
+  if (normalized.protein <= 0) return '점심 프로틴: 없음';
+  const label = normalized.type === 'half' ? '퓨어프로틴7 0.5회' : normalized.type === 'full' ? '퓨어프로틴7 1회' : '기타 직접 입력';
+  return `점심 프로틴: ${label}, 단백질 ${normalized.protein}g`;
 }
 
 export const SAFETY_WARNING = '어지러움, 손 떨림, 식은땀, 심한 두통, 수면 부족, 허리 통증 악화, 다리 저림, 속쓰림 또는 회식·음주 다음 날에는 24시간 단식을 하지 말고 12~14시간 공복과 회복을 우선하세요.';
@@ -151,5 +191,5 @@ export function getAutoDietPhase(day: number): DietPhaseId { if (day <= 7) retur
 export function getDietStatusText(day: number, phase: DietPhaseId) { const plan = DIET_PLANS[phase]; if (phase === 'maintenance') return '스위치온 유지기'; return `${plan.label} ${day}일차 · ${plan.shortLabel}`; }
 export function proteinChoiceGrams(choice: ProteinChoice) { if (choice === 'full') return FULL_SHAKE_PROTEIN; if (choice === 'half') return HALF_SHAKE_PROTEIN; return 0; }
 export function mealProteinGrams(choice: ProteinGramChoice, custom: number) { return choice === 'custom' ? Math.max(0, Number(custom) || 0) : Number(choice); }
-export function calculateProteinTotal(log: DietMealLog) { return (log.breakfastShake ? FULL_SHAKE_PROTEIN : 0) + proteinChoiceGrams(log.afternoonShake) + proteinChoiceGrams(log.afterDinnerShake) + mealProteinGrams(log.lunchProteinChoice, log.lunchProteinCustom) + mealProteinGrams(log.dinnerProteinChoice, log.dinnerProteinCustom); }
+export function calculateProteinTotal(log: DietMealLog, lunchProteinSupplement = 0) { return (log.breakfastShake ? FULL_SHAKE_PROTEIN : 0) + proteinChoiceGrams(log.afternoonShake) + proteinChoiceGrams(log.afterDinnerShake) + mealProteinGrams(log.lunchProteinChoice, log.lunchProteinCustom) + lunchProteinSupplement + mealProteinGrams(log.dinnerProteinChoice, log.dinnerProteinCustom); }
 export function getProteinStatus(total: number) { if (total < 100) return { label: '단백질 보충 권장', color: 'text-amber-700', bg: 'bg-amber-50' }; if (total <= 135 && total >= 110) return { label: '목표 범위', color: 'text-green-700', bg: 'bg-green-50' }; if (total <= 150) return { label: '충분', color: 'text-blue-700', bg: 'bg-blue-50' }; return { label: '수분 섭취와 소화 상태를 확인하세요', color: 'text-red-700', bg: 'bg-red-50' }; }
