@@ -2,7 +2,9 @@ export type DietPhaseId = 'week1' | 'week2' | 'week3' | 'week4' | 'maintenance';
 export type DietMode = 'auto' | 'manual';
 export type ProteinChoice = 'none' | 'half' | 'full';
 export type ProteinGramChoice = '20' | '25' | '30' | 'custom';
-export type DinnerCarbChoice = 'none' | '50' | '80';
+export type DinnerCarbChoice = 'none' | '50' | '80' | '100' | 'third-bowl' | 'half-bowl' | 'two-third-bowl' | 'one-bowl' | 'custom';
+export type DinnerRiceType = '흰쌀밥' | '잡곡밥' | '현미밥' | '통곡물밥' | '곤약밥' | '기타';
+export interface DinnerCarbRecord { riceType: DinnerRiceType; amountType: DinnerCarbChoice; grams: number; customRiceType: string; estimatedCarbs: number }
 export type SocialMealMode = 'none' | 'lunch' | 'dinner';
 export type FastingMode = 'none' | '24h';
 
@@ -62,7 +64,7 @@ export const DEFAULT_MEAL_LOG: DietMealLog = {
 export const COMMON_DIET_RULES = [
   '일반식 기반: 점심은 통곡물밥 100~130g + 실제 식품 단백질 20g 이상 + 채소',
   '저녁은 단백질 20g 이상 + 채소 중심, 밥은 기본 제외',
-  '저녁 밥은 운동 전 기운 부족·야식 위험·점심 부족 시 50g 또는 80g만 선택',
+  '저녁 밥은 기본 제외, 필요 시 조리된 밥 기준 50~80g 밥량 우선',
   '퓨어프로틴7은 의무 식사가 아니라 단백질 보충 선택지',
   '기본 공복 목표는 매일 14시간, 24시간 단식은 선택 기능',
   '운동 시간: 월/화/목/금/토 20:00~20:40',
@@ -70,13 +72,59 @@ export const COMMON_DIET_RULES = [
   '물 목표: 하루 2L 이상',
 ];
 
+
+export const DINNER_RICE_TYPES: DinnerRiceType[] = ['흰쌀밥', '잡곡밥', '현미밥', '통곡물밥', '곤약밥', '기타'];
+export const DINNER_CARB_OPTIONS: { id: DinnerCarbChoice; label: string; grams: number; note?: string }[] = [
+  { id: 'none', label: '없음', grams: 0 },
+  { id: '50', label: '50g 밥량', grams: 50 },
+  { id: '80', label: '80g 밥량', grams: 80 },
+  { id: '100', label: '100g 밥량', grams: 100 },
+  { id: 'third-bowl', label: '1/3공기, 약 70g 밥량', grams: 70 },
+  { id: 'half-bowl', label: '반 공기, 약 100g 밥량', grams: 100 },
+  { id: 'two-third-bowl', label: '2/3공기, 약 130g 밥량', grams: 130 },
+  { id: 'one-bowl', label: '1공기, 약 200g 밥량', grams: 200, note: '많음 / 특별한 경우' },
+  { id: 'custom', label: '직접 입력', grams: 0 },
+];
+export const DEFAULT_DINNER_CARB_RECORD: DinnerCarbRecord = { riceType: '잡곡밥', amountType: 'none', grams: 0, customRiceType: '', estimatedCarbs: 0 };
+export function estimateDinnerRiceCarbs(grams: number) { return Math.max(0, Math.round((Number(grams) || 0) * 0.3)); }
+export function getDinnerCarbOption(choice: DinnerCarbChoice) { return DINNER_CARB_OPTIONS.find((option) => option.id === choice) || DINNER_CARB_OPTIONS[0]; }
+function isDinnerCarbChoice(value: unknown): value is DinnerCarbChoice { return DINNER_CARB_OPTIONS.some((option) => option.id === value); }
+export function normalizeDinnerCarbRecord(value: unknown): DinnerCarbRecord {
+  if (value && typeof value === 'object') {
+    const record = value as Partial<DinnerCarbRecord>;
+    const amountType = isDinnerCarbChoice(record.amountType) ? record.amountType : 'none';
+    const option = getDinnerCarbOption(amountType);
+    const grams = amountType === 'custom' ? Math.max(0, Math.floor(Number(record.grams) || 0)) : option.grams;
+    const riceType = DINNER_RICE_TYPES.includes(record.riceType as DinnerRiceType) ? record.riceType as DinnerRiceType : '잡곡밥';
+    return { riceType, amountType, grams, customRiceType: String(record.customRiceType || ''), estimatedCarbs: amountType === 'none' ? 0 : estimateDinnerRiceCarbs(grams) };
+  }
+  if (typeof value === 'number') return normalizeDinnerCarbRecord({ amountType: 'custom', grams: value });
+  if (typeof value === 'string' && isDinnerCarbChoice(value)) {
+    const option = getDinnerCarbOption(value);
+    return { ...DEFAULT_DINNER_CARB_RECORD, amountType: value, grams: option.grams, estimatedCarbs: estimateDinnerRiceCarbs(option.grams) };
+  }
+  return DEFAULT_DINNER_CARB_RECORD;
+}
+export function normalizeDinnerCarbStore(value: unknown): Record<string, DinnerCarbRecord> {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([date, record]) => [date, normalizeDinnerCarbRecord(record)]));
+}
+export function formatDinnerCarbRecord(record?: DinnerCarbRecord) {
+  const normalized = normalizeDinnerCarbRecord(record);
+  if (normalized.amountType === 'none' || normalized.grams <= 0) return { rice: '저녁 밥: 없음', carbs: '' };
+  const riceName = normalized.riceType === '기타' ? (normalized.customRiceType.trim() || '기타 밥') : normalized.riceType;
+  const option = getDinnerCarbOption(normalized.amountType);
+  const amountLabel = normalized.amountType === 'custom' ? `직접 입력 ${normalized.grams}g 밥량` : option.label;
+  return { rice: `저녁 밥: ${riceName} ${amountLabel}`, carbs: `참고 탄수화물: 약 ${normalized.estimatedCarbs}g` };
+}
+
 export const SAFETY_WARNING = '어지러움, 손 떨림, 식은땀, 심한 두통, 수면 부족, 허리 통증 악화, 다리 저림, 속쓰림 또는 회식·음주 다음 날에는 24시간 단식을 하지 말고 12~14시간 공복과 회복을 우선하세요.';
 
 export const DIET_CHECK_ITEMS = [
   { id: 'water2l', label: '오늘 물 2L 달성' },
   { id: 'dinnerBefore1830', label: '저녁 식사 시간 기록' },
   { id: 'fasting14h', label: '14시간 공복 달성' },
-  { id: 'noDinnerCarbs', label: '저녁 밥 없음 또는 계획량(50/80g)만 섭취' },
+  { id: 'noDinnerCarbs', label: '저녁 밥 없음 또는 계획량(조리된 밥 기준 50~80g 우선)만 섭취' },
   { id: 'proteinDone', label: '하루 단백질 목표 관리' },
   { id: 'lunchProtein', label: '점심 실제 식품 단백질 20g 이상' },
   { id: 'backPain', label: '허리 통증 발생', safety: true },

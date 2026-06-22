@@ -1,4 +1,4 @@
-import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_COMPLETED_TIME_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey } from './dietPlans';
+import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey, normalizeDinnerCarbStore, DinnerCarbRecord } from './dietPlans';
 import { WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './workoutCompletion';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
@@ -30,6 +30,7 @@ export interface RecordStores {
   diet: DietCompletedStore;
   water: NumberStore;
   dinner: StringStore;
+  dinnerCarbs: Record<string, DinnerCarbRecord>;
   fastingStart: string;
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
@@ -54,6 +55,7 @@ export function readRecordStores(): RecordStores {
     diet: readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {}),
     water: readJson<NumberStore>(WATER_INTAKE_KEY, {}),
     dinner: readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, {}),
+    dinnerCarbs: normalizeDinnerCarbStore(readJson<Record<string, unknown>>(DINNER_CARB_CHOICE_KEY, {})),
     fastingStart: typeof window === 'undefined' ? '' : window.localStorage.getItem(FASTING_START_TIME_KEY) || '',
     weights: readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
     inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
