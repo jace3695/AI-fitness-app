@@ -1,171 +1,107 @@
-export type DietPhaseId = 'adaptation' | 'week1' | 'week2' | 'week3' | 'week4' | 'maintenance';
+export type DietPhaseId = 'week1' | 'week2' | 'week3' | 'week4' | 'maintenance';
 export type DietMode = 'auto' | 'manual';
+export type ProteinChoice = 'none' | 'half' | 'full';
+export type ProteinGramChoice = '20' | '25' | '30' | 'custom';
+export type DinnerCarbChoice = 'none' | '50' | '80';
+export type SocialMealMode = 'none' | 'lunch' | 'dinner';
+export type FastingMode = 'none' | '24h';
 
 export const DIET_PHASE_KEY = 'ai-fitness-diet-phase';
 export const DIET_START_DATE_KEY = 'ai-fitness-diet-start-date';
 export const DIET_COMPLETED_DAYS_KEY = 'ai-fitness-diet-completed-days';
+export const DIET_MEAL_LOG_KEY = 'ai-fitness-diet-meal-log';
+export const PROTEIN_TOTAL_KEY = 'ai-fitness-protein-total';
 export const FASTING_START_TIME_KEY = 'ai-fitness-fasting-start-time';
+export const FASTING_MODE_KEY = 'ai-fitness-fasting-mode';
+export const FASTING_COMPLETED_KEY = 'ai-fitness-fasting-completed';
 export const WATER_INTAKE_KEY = 'ai-fitness-water-intake';
+export const DINNER_CARB_CHOICE_KEY = 'ai-fitness-dinner-carb-choice';
+export const SOCIAL_MEAL_MODE_KEY = 'ai-fitness-social-meal-mode';
+export const DIET_SYMPTOMS_KEY = 'ai-fitness-diet-symptoms';
 export const WORKOUT_COMPLETED_DAYS_KEY = 'ai-fitness-workout-completed-days';
 
 export const DIET_MODE_KEY = `${DIET_PHASE_KEY}-mode`;
 export const DINNER_COMPLETED_TIME_KEY = 'ai-fitness-diet-dinner-completed-time';
 
-export interface MealPlan {
-  id: string;
-  time: string;
-  title: string;
-  items: string[];
-  options?: string[];
-  alternatives?: string[];
-  note?: string;
+export const PROTEIN_TARGET_GRAMS = 120;
+export const FULL_SHAKE_PROTEIN = 31;
+export const HALF_SHAKE_PROTEIN = 16;
+
+export interface MealPlan { id: string; time: string; title: string; items: string[]; options?: string[]; note?: string }
+export interface DietPlan { id: DietPhaseId; shortLabel: string; label: string; description: string; badge: string; fasting: string[]; safety: string[] }
+
+export interface DietMealLog {
+  breakfastShake: boolean;
+  lunchRice: boolean;
+  lunchProteinChoice: ProteinGramChoice;
+  lunchProteinCustom: number;
+  afternoonShake: ProteinChoice;
+  dinnerProteinChoice: ProteinGramChoice;
+  dinnerProteinCustom: number;
+  dinnerCarb: DinnerCarbChoice;
+  afterDinnerShake: ProteinChoice;
+  lastMealTime: string;
 }
 
-export interface DietPlan {
-  id: DietPhaseId;
-  shortLabel: string;
-  label: string;
-  description: string;
-  badge: string;
-  meals: MealPlan[];
-  allowedFoods?: string[];
-  cautionFoods?: string[];
-  fasting: string[];
-  exerciseAfter: string;
-  warning?: string[];
-  warningAction?: string[];
-}
+export type DietSymptomId = 'alcoholYesterday' | 'hangover' | 'afterSocialMeal' | 'sleepLack' | 'dizziness' | 'handTremor' | 'coldSweat' | 'severeHeadache' | 'backPain' | 'legNumbness' | 'heartburn' | 'highIntensityPlanned';
+export type DietSymptomMap = Partial<Record<DietSymptomId, boolean>>;
+
+export const DEFAULT_MEAL_LOG: DietMealLog = {
+  breakfastShake: true,
+  lunchRice: true,
+  lunchProteinChoice: '20',
+  lunchProteinCustom: 20,
+  afternoonShake: 'half',
+  dinnerProteinChoice: '20',
+  dinnerProteinCustom: 20,
+  dinnerCarb: 'none',
+  afterDinnerShake: 'half',
+  lastMealTime: '18:30',
+};
 
 export const COMMON_DIET_RULES = [
-  '저녁 식사 18:30 이전 완료',
-  '운동 시간: 20:00~20:40',
-  '운동 후 기본적으로 물만 섭취',
+  '일반식 기반: 점심은 통곡물밥 100~130g + 실제 식품 단백질 20g 이상 + 채소',
+  '저녁은 단백질 20g 이상 + 채소 중심, 밥은 기본 제외',
+  '저녁 밥은 운동 전 기운 부족·야식 위험·점심 부족 시 50g 또는 80g만 선택',
+  '퓨어프로틴7은 의무 식사가 아니라 단백질 보충 선택지',
+  '기본 공복 목표는 매일 14시간, 24시간 단식은 선택 기능',
+  '운동 시간: 월/화/목/금/토 20:00~20:40',
+  '목표 단백질: 하루 약 120g 전후',
   '물 목표: 하루 2L 이상',
-  '기본 공복 목표: 14시간',
-  '저녁 탄수화물 기본 제외',
-  '점심에만 통곡물밥 또는 일반 밥 소량 허용',
 ];
 
-export const SAFETY_WARNING = '심한 두통, 손 떨림, 식은땀, 어지러움, 업무 집중 저하, 허리 통증 악화 또는 다리 저림이 나타나면 식단·단식·운동을 즉시 중단하고 휴식하세요. 증상이 지속되거나 심하면 의료진과 상담하세요.';
+export const SAFETY_WARNING = '어지러움, 손 떨림, 식은땀, 심한 두통, 수면 부족, 허리 통증 악화, 다리 저림, 속쓰림 또는 회식·음주 다음 날에는 24시간 단식을 하지 말고 12~14시간 공복과 회복을 우선하세요.';
 
 export const DIET_CHECK_ITEMS = [
   { id: 'water2l', label: '오늘 물 2L 달성' },
-  { id: 'dinnerBefore1830', label: '저녁 식사 18:30 이전 완료' },
+  { id: 'dinnerBefore1830', label: '저녁 식사 시간 기록' },
   { id: 'fasting14h', label: '14시간 공복 달성' },
-  { id: 'noDinnerCarbs', label: '저녁 탄수화물 제외' },
-  { id: 'proteinDone', label: '프로틴 섭취 완료' },
-  { id: 'lunchProtein', label: '점심 단백질 섭취 완료' },
+  { id: 'noDinnerCarbs', label: '저녁 밥 없음 또는 계획량(50/80g)만 섭취' },
+  { id: 'proteinDone', label: '하루 단백질 목표 관리' },
+  { id: 'lunchProtein', label: '점심 실제 식품 단백질 20g 이상' },
   { id: 'backPain', label: '허리 통증 발생', safety: true },
   { id: 'legNumbness', label: '다리 저림 발생', safety: true },
   { id: 'dizzinessHeadache', label: '어지러움·두통 발생', safety: true },
 ] as const;
-
 export const DIET_GOAL_CHECK_ITEMS = DIET_CHECK_ITEMS.filter((item) => !('safety' in item));
 export const DIET_SAFETY_CHECK_ITEMS = DIET_CHECK_ITEMS.filter((item) => 'safety' in item);
-
 export type DietCheckId = (typeof DIET_CHECK_ITEMS)[number]['id'];
 export type DietCheckMap = Partial<Record<DietCheckId, boolean>>;
 
 export const DIET_PLANS: Record<DietPhaseId, DietPlan> = {
-  adaptation: {
-    id: 'adaptation', shortLabel: '적응 모드', label: 'day 1~3 적응 모드', badge: '더단백 우선 사용',
-    description: '남아 있는 더단백 딸기맛을 우선 사용하고, 오이는 허기 보완용으로만 활용합니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['더단백 딸기맛 250mL 1병', '단백질 약 20g'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['더단백 딸기맛 250mL 1병', '단백질 약 20g'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['더단백 딸기맛 250mL 1병', '단백질 약 20g'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['더단백 딸기맛 250mL 1병', '단백질 약 20g', '저녁 식사는 18:30 이전 완료'] },
-    ],
-    allowedFoods: ['오이 하루 1개 정도, 허기 심한 날 최대 1~2개', '알배기배추 한 줌', '데친 양배추 한 줌', '두부 또는 연두부 소량'],
-    cautionFoods: ['오이는 매 끼니마다 먹는 식품이 아니라 허기 보완용입니다.', '오후에 배고프면 오이 1/2개부터 먹고, 저녁 전까지 허기가 지속되면 나머지 1/2개를 먹습니다.', '운동 후에는 원칙적으로 물만 마십니다.'],
-    fasting: ['기본 공복 목표: 14시간'], exerciseAfter: '물 300~500mL. 취침이 가까우면 추가 음식 섭취하지 않음.',
-    warning: ['심한 어지러움', '손 떨림', '식은땀', '심한 두통', '업무 집중 저하'],
-    warningAction: ['자동으로 다음 식단 단계로 변경하지 않습니다.', '적응 모드를 중단하고 일반식이 포함된 완화 식단으로 전환을 검토하세요.', '증상이 심하거나 지속되면 의료진과 상담하세요.'],
-  },
-  week1: {
-    id: 'week1', shortLabel: '점심 일반식 도입', label: 'day 4~7 점심 일반식 도입', badge: '퓨어프로틴7', description: '점심에 통곡물밥과 단백질 식사를 도입합니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['퓨어프로틴7 1회'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['통곡물밥 + 단백질 + 채소'], options: ['햇반 통곡물밥 130g + 닭가슴살 150g + 샐러드', '햇반 통곡물밥 130g + 돼지안심 150g + 알배기배추', '햇반 통곡물밥 130g + 생선 1토막 + 버섯·채소', '햇반 통곡물밥 130g + 두부 1/2모 + 계란 2개 + 채소'], alternatives: ['통곡물밥 130g + 퓨어프로틴7 + 샐러드 또는 오이', '두부·계란·생선 중 하나 추가'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['퓨어프로틴7 1회'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['퓨어프로틴7 1회', '저녁 식사 18:30 이전 완료'] },
-    ], fasting: ['기본 공복 목표: 14시간'], exerciseAfter: '운동 후 물만 섭취', cautionFoods: ['24시간 단식은 기본 루틴이 아니라 선택 항목 / 의료진 상담 권장입니다.'],
-  },
-  week2: {
-    id: 'week2', shortLabel: '감량 안정화', label: '2주차 감량 안정화', badge: '14시간 주 3~4회', description: '점심 탄수화물은 유지하고 저녁은 단백질과 채소 중심으로 안정화합니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['퓨어프로틴7 1회'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['통곡물밥 130g + 단백질 30g 이상 + 채소'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['퓨어프로틴7 1회'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['단백질 + 채소', '밥·면·빵 제외'], options: ['닭가슴살 150g + 양배추·알배기배추', '돼지안심 150g + 버섯·샐러드', '생선 1토막 + 두부·채소', '계란 2개 + 두부 1/2모 + 오이'] },
-    ], allowedFoods: ['견과류 하루 한 줌 이하', '무가당 그릭요거트', '콩류', '치즈 소량', '오전 디카페인 블랙커피 1잔'], fasting: ['14시간 공복 주 3~4회', '24시간 단식은 선택 사항으로만 표시', '단식일 운동은 걷기·스트레칭 위주 권장'], exerciseAfter: '운동 후 물만 섭취', cautionFoods: ['24시간 단식은 선택 항목 / 의료진 상담 권장입니다.'],
-  },
-  week3: {
-    id: 'week3', shortLabel: '감량 강화', label: '3주차 감량 강화', badge: '저녁 탄수 제외', description: '공복 빈도를 늘리되 저혈당 의심 증상과 운동 피로가 있으면 즉시 낮춥니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['퓨어프로틴7 1회'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['통곡물밥 130g + 단백질 + 채소'], options: ['강한 운동일 점심 또는 오전에만: 바나나 1/2개', '블루베리 한 줌', '토마토 1개', '단호박 소량', '작은 고구마 1/2개'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['퓨어프로틴7 또는 더단백 1회'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['단백질 + 채소', '저녁 탄수화물 제외'] },
-    ], fasting: ['14시간 공복 주 4~5회', '24시간 단식은 선택 기능', '연속 배치 금지', '어지러움, 저혈당 의심 증상, 운동 피로가 있으면 비활성 권장'], exerciseAfter: '운동 후 물만 섭취', cautionFoods: ['저녁에는 탄수화물 선택지를 표시하지 않습니다.', '24시간 단식은 선택 항목 / 의료진 상담 권장입니다.'],
-  },
-  week4: {
-    id: 'week4', shortLabel: '유지 전환', label: '4주차 유지 전환', badge: '과일 오전/점심', description: '감량 루틴에서 유지 루틴으로 넘어가며 저녁 탄수화물은 최소화합니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['퓨어프로틴7 또는 계란·그릭요거트'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['통곡물밥 130g + 단백질 + 채소'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['허기 있을 때만 퓨어프로틴7'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['단백질 + 채소', '저녁 탄수 최소화'] },
-    ], allowedFoods: ['과일 하루 1개 이내', '과일은 오전 또는 점심에만'], fasting: ['14시간 공복 주 4~5회', '24시간 단식은 주 1회 이하의 선택 항목'], exerciseAfter: '운동 후 물만 섭취', cautionFoods: ['24시간 단식은 선택 항목 / 의료진 상담 권장입니다.'],
-  },
-  maintenance: {
-    id: 'maintenance', shortLabel: '유지 식단', label: 'day 29 이후 유지 식단', badge: '유지기', description: '일반식을 허용하되 저녁은 단백질과 채소 중심을 유지합니다.',
-    meals: [
-      { id: 'breakfast', time: '08:30', title: '아침', items: ['프로틴 쉐이크 또는 계란·그릭요거트'] },
-      { id: 'lunch', time: '12:30', title: '점심', items: ['일반식 가능', '밥 1/2~2/3공기 + 단백질 + 채소'] },
-      { id: 'snack', time: '16:00', title: '간식', items: ['배고픈 날만 프로틴 쉐이크'] },
-      { id: 'dinner', time: '18:00~18:30', title: '저녁', items: ['단백질 + 채소 중심', '저녁 밥 기본 제외'] },
-    ], fasting: ['14시간 공복 주 4~5회', '24시간 단식은 선택 항목으로만 표시'], exerciseAfter: '운동 후 물만 섭취', cautionFoods: ['밥·고구마·과일은 아침 또는 점심', '저녁 탄수화물 기본 제외', '저녁 외식으로 탄수화물을 먹은 다음 날은 점심 밥을 줄이거나 생략하세요.', '24시간 단식은 선택 항목 / 의료진 상담 권장입니다.'],
-  },
+  week1: { id: 'week1', shortLabel: '14시간 적응', label: '1주차', badge: '24시간 단식 없음', description: '야식 끊기, 저녁 탄수 줄이기, 식사 리듬 정리가 목표입니다.', fasting: ['매일 14시간 공복 적응', '24시간 단식 없음'], safety: ['컨디션과 운동 지속성을 최우선으로 합니다.'] },
+  week2: { id: 'week2', shortLabel: '선택 단식 검토', label: '2주차', badge: '주 0~1회 선택', description: '14시간 공복을 유지하고 24시간 단식은 운동 없는 수요일 또는 일요일에만 선택합니다.', fasting: ['24시간 단식은 주 0~1회만 허용', '단식일에는 걷기·스트레칭·회복 운동만 안내'], safety: ['강한 슬라이딩보드, 전신 서킷 금지'] },
+  week3: { id: 'week3', shortLabel: '컨디션 조건부', label: '3주차', badge: '연속 단식 금지', description: '최근 2주간 위험 신호가 없을 때만 주 1회 유지 또는 주 2회까지 검토합니다.', fasting: ['단식일 사이 최소 2일 이상 간격', '회식 후 과식 반동이 있으면 단식 비추천'], safety: ['어지러움·손 떨림·허리 통증·다리 저림 확인'] },
+  week4: { id: 'week4', shortLabel: '유지 전환', label: '4주차', badge: '주 1회 이하 기본', description: '24시간 단식은 기본 추천 주 1회 이하이며 주 2회 이상은 자동 추천하지 않습니다.', fasting: ['주 2회는 사용자가 직접 선택한 경우만 허용', '주 3회 24시간 단식은 기본 플랜 제외'], safety: ['연속 단식 금지'] },
+  maintenance: { id: 'maintenance', shortLabel: '생활 유지', label: '4주 이후 유지기', badge: '회식 후 복귀', description: '체중 감량보다 회식 후 빠른 복귀와 생활 유지가 목표입니다.', fasting: ['14시간 공복 주 4~5회 이상', '24시간 단식은 격주 1회 / 주 1회 / 주 2회 중 사용자 선택'], safety: ['컨디션이 흔들리면 12~14시간 공복으로 낮춥니다.'] },
 };
+export const DIET_PHASE_OPTIONS = Object.values(DIET_PLANS).map((p) => ({ id: p.id, label: `${p.label} · ${p.shortLabel}` }));
 
-export const DIET_PHASE_OPTIONS: { id: DietPhaseId; label: string }[] = [
-  { id: 'adaptation', label: '적응 모드' },
-  { id: 'week1', label: '점심 일반식 도입' },
-  { id: 'week2', label: '2주차 감량 안정화' },
-  { id: 'week3', label: '3주차 감량 강화' },
-  { id: 'week4', label: '4주차 유지 전환' },
-  { id: 'maintenance', label: '유지 식단' },
-];
-
-export function getLocalDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function getSwitchOnDay(startDate: string, today = new Date()) {
-  const fallback = getLocalDateKey(today);
-  const [y, m, d] = (startDate || fallback).split('-').map(Number);
-  const start = new Date(y, (m || 1) - 1, d || 1);
-  const current = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return Math.max(1, Math.floor((current.getTime() - start.getTime()) / 86400000) + 1);
-}
-
-export function getAutoDietPhase(day: number): DietPhaseId {
-  if (day <= 3) return 'adaptation';
-  if (day <= 7) return 'week1';
-  if (day <= 14) return 'week2';
-  if (day <= 21) return 'week3';
-  if (day <= 28) return 'week4';
-  return 'maintenance';
-}
-
-export function getDietStatusText(day: number, phase: DietPhaseId) {
-  if (phase === 'maintenance') return '스위치온 유지기';
-  if (phase === 'week2') return '스위치온 2주차 · 감량 안정화';
-  if (phase === 'week3') return '스위치온 3주차 · 감량 강화';
-  if (phase === 'week4') return '스위치온 4주차 · 유지 전환';
-  return `스위치온 ${day}일차 · ${DIET_PLANS[phase].shortLabel}`;
-}
+export function getLocalDateKey(date = new Date()) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, '0'); const d = String(date.getDate()).padStart(2, '0'); return `${y}-${m}-${d}`; }
+export function getSwitchOnDay(startDate: string, today = new Date()) { const fallback = getLocalDateKey(today); const [y, m, d] = (startDate || fallback).split('-').map(Number); const start = new Date(y, (m || 1) - 1, d || 1); const current = new Date(today.getFullYear(), today.getMonth(), today.getDate()); return Math.max(1, Math.floor((current.getTime() - start.getTime()) / 86400000) + 1); }
+export function getAutoDietPhase(day: number): DietPhaseId { if (day <= 7) return 'week1'; if (day <= 14) return 'week2'; if (day <= 21) return 'week3'; if (day <= 28) return 'week4'; return 'maintenance'; }
+export function getDietStatusText(day: number, phase: DietPhaseId) { const plan = DIET_PLANS[phase]; if (phase === 'maintenance') return '스위치온 유지기'; return `${plan.label} ${day}일차 · ${plan.shortLabel}`; }
+export function proteinChoiceGrams(choice: ProteinChoice) { if (choice === 'full') return FULL_SHAKE_PROTEIN; if (choice === 'half') return HALF_SHAKE_PROTEIN; return 0; }
+export function mealProteinGrams(choice: ProteinGramChoice, custom: number) { return choice === 'custom' ? Math.max(0, Number(custom) || 0) : Number(choice); }
+export function calculateProteinTotal(log: DietMealLog) { return (log.breakfastShake ? FULL_SHAKE_PROTEIN : 0) + proteinChoiceGrams(log.afternoonShake) + proteinChoiceGrams(log.afterDinnerShake) + mealProteinGrams(log.lunchProteinChoice, log.lunchProteinCustom) + mealProteinGrams(log.dinnerProteinChoice, log.dinnerProteinCustom); }
+export function getProteinStatus(total: number) { if (total < 100) return { label: '단백질 보충 권장', color: 'text-amber-700', bg: 'bg-amber-50' }; if (total <= 135 && total >= 110) return { label: '목표 범위', color: 'text-green-700', bg: 'bg-green-50' }; if (total <= 150) return { label: '충분', color: 'text-blue-700', bg: 'bg-blue-50' }; return { label: '수분 섭취와 소화 상태를 확인하세요', color: 'text-red-700', bg: 'bg-red-50' }; }
