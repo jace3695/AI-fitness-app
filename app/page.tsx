@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, SWITCHON_DEFAULT_START_DATE, SWITCHON_MODE_KEY, SWITCHON_START_DATE_KEY, SwitchOnSelection, WORKOUTS } from './data/workouts';
 import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
+import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord } from './data/recoveryMode';
 import { FASTING_MODE_KEY, getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
@@ -34,6 +35,8 @@ export default function Page() {
   const [switchMode, setSwitchMode] = useState<SwitchOnMode>('auto');
   const [completedStore, setCompletedStore] = useState<WorkoutCompletionStore>({});
   const [isFasting24Today, setIsFasting24Today] = useState(false);
+  const [recoveryToday, setRecoveryToday] = useState<RecoveryDayRecord | null>(null);
+  const [showBaseRoutine, setShowBaseRoutine] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -50,7 +53,8 @@ export default function Page() {
     } catch {
       setIsFasting24Today(false);
     }
-  }, []);
+    setRecoveryToday(assessRecoveryMode(getLocalDateKey(), ['mon', 'tue', 'thu', 'fri', 'sat'].includes(activeTab) ? activeTab as WorkoutDayId : null));
+  }, [activeTab]);
 
   const handleStartDateChange = (value: string) => {
     setStartDate(value);
@@ -87,6 +91,11 @@ export default function Page() {
     setActiveTab(id as TabId);
     // Scroll to top when switching tabs
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const recordRecoveryPriority = () => {
+    const saved = saveRecoveryRecord(getLocalDateKey(), { recoveryMode: true, completedAsRecovery: true, recoveryPriorityOnly: true, intensity: 'recovery' });
+    setRecoveryToday(saved);
   };
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
@@ -142,6 +151,11 @@ export default function Page() {
             isCompleted={completedDays[activeTab as WorkoutDayId]}
             onToggleComplete={() => toggleDayComplete(activeTab as WorkoutDayId)}
             onPullupTraining={() => handleTabChange('pullup')}
+            recovery={recoveryToday || undefined}
+            onRecordRecovery={recordRecoveryPriority}
+            showBaseRoutine={showBaseRoutine || !recoveryToday?.recoveryMode}
+            onShowRecommended={() => setShowBaseRoutine(false)}
+            onShowBaseRoutine={() => setShowBaseRoutine(true)}
           />
           </>
         )}
