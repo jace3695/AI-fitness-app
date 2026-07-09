@@ -5,7 +5,7 @@ export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
 export const DAILY_NOTES_KEY = 'ai-fitness-daily-notes';
 
-export type DietDayRecord = Partial<Record<string, boolean>> & { meals?: Record<string, boolean>; safetyAlert?: boolean };
+export type DietDayRecord = Record<string, unknown> & { meals?: Record<string, boolean>; safetyAlert?: boolean; dietStatus?: string; fastingRecordStatus?: string; fastingHours?: number; fastingSuccess?: boolean; dietMemo?: string };
 export type DietCompletedStore = Record<string, DietDayRecord>;
 export type NumberStore = Record<string, number>;
 export type StringStore = Record<string, string>;
@@ -24,7 +24,7 @@ export interface InbodyRecord {
 }
 export type InbodyRecordStore = Record<string, InbodyRecord>;
 export type DailyNotesStore = Record<string, string>;
-export interface RecoveryDayRecord { recoveryMode: boolean; reasons: string[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; intensity: 'normal' | '70%' | 'recovery'; updatedAt?: string }
+export interface RecoveryDayRecord { recoveryMode: boolean; reasons: string[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; recoveryMemo?: string; intensity: 'normal' | '70%' | 'recovery'; updatedAt?: string }
 export type RecoveryModeStore = Record<string, RecoveryDayRecord>;
 export const RECOVERY_MODE_DAYS_KEY_FOR_RECORDS = 'ai-fitness-recovery-mode-days';
 

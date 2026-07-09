@@ -1,24 +1,43 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { SWITCHON_DEFAULT_START_DATE, SWITCHON_START_DATE_KEY } from '../data/workouts';
-import { isWorkoutCompletedOnDate, readWorkoutCompletionStore } from '../data/workoutCompletion';
 import {
-  COMMON_DIET_RULES, DEFAULT_DINNER_CARB_RECORD, DEFAULT_LUNCH_CARB_RECORD, DEFAULT_LUNCH_PROTEIN_RECORD, DEFAULT_MEAL_LOG, DIET_COMPLETED_DAYS_KEY, DIET_MEAL_LOG_KEY, DIET_MODE_KEY, DIET_PHASE_KEY, DIET_PHASE_OPTIONS, DIET_PLANS, DIET_START_DATE_KEY, DIET_SYMPTOMS_KEY, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, DINNER_CARB_OPTIONS, DINNER_RICE_TYPES, LUNCH_CARB_CHOICE_KEY, LUNCH_PROTEIN_CHOICE_KEY, DietCheckMap, DietMealLog, DietMode, DinnerCarbRecord, DinnerRiceType, LunchCarbRecord, LunchProteinRecord, DietPhaseId, DietSymptomId, DietSymptomMap, FASTING_COMPLETED_KEY, FASTING_START_TIME_KEY, PROTEIN_TARGET_GRAMS, PROTEIN_TOTAL_KEY, SAFETY_WARNING, SOCIAL_MEAL_MODE_KEY, SocialMealMode, WATER_INTAKE_KEY, calculateProteinTotal, getAutoDietPhase, getDietStatusText, getLocalDateKey, getDinnerCarbOption, getProteinStatus, getSwitchOnDay, mealProteinGrams, normalizeDinnerCarbRecord, normalizeDinnerCarbStore, normalizeLunchCarbRecord, normalizeLunchCarbStore, normalizeLunchProteinRecord, normalizeLunchProteinStore, proteinChoiceGrams,
+  DIET_COMPLETED_DAYS_KEY,
+  DIET_MODE_KEY,
+  DIET_PHASE_KEY,
+  DIET_PHASE_OPTIONS,
+  DIET_PLANS,
+  DIET_START_DATE_KEY,
+  DietMode,
+  DietPhaseId,
+  DietStatus,
+  FASTING_STATUS_LABELS,
+  FastingRecordStatus,
+  getAutoDietPhase,
+  getDietStatusText,
+  getLocalDateKey,
+  getSwitchOnDay,
+  DIET_STATUS_LABELS,
+  simpleDietRecommendations,
 } from '../data/dietPlans';
+import { SWITCHON_DEFAULT_START_DATE, SWITCHON_START_DATE_KEY } from '../data/workouts';
 
-type DietDayRecord = DietCheckMap & { meals?: Record<string, boolean>; safetyAlert?: boolean };
+type DietDayRecord = Record<string, unknown> & {
+  dietStatus?: DietStatus;
+  fastingHours?: number;
+  fastingSuccess?: boolean;
+  fastingRecordStatus?: FastingRecordStatus;
+  dietMemo?: string;
+};
 type DietCompletedStore = Record<string, DietDayRecord>;
 
-const SYMPTOMS: { id: DietSymptomId; label: string }[] = [
-  { id: 'alcoholYesterday', label: '전날 음주' }, { id: 'hangover', label: '숙취' }, { id: 'afterSocialMeal', label: '회식 다음 날' }, { id: 'sleepLack', label: '수면 부족' }, { id: 'dizziness', label: '어지러움' }, { id: 'handTremor', label: '손 떨림' }, { id: 'coldSweat', label: '식은땀' }, { id: 'severeHeadache', label: '심한 두통' }, { id: 'backPain', label: '허리 통증' }, { id: 'legNumbness', label: '다리 저림' }, { id: 'heartburn', label: '속쓰림/위장 불편' }, { id: 'highIntensityPlanned', label: '운동 강도 조절 필요' },
-];
-
-function readJson<T>(key: string, fallback: T): T { if (typeof window === 'undefined') return fallback; const raw = window.localStorage.getItem(key); if (!raw) return fallback; try { return JSON.parse(raw) as T; } catch { return fallback; } }
+function readJson<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return fallback;
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
 function writeJson<T>(key: string, value: T) { window.localStorage.setItem(key, JSON.stringify(value)); }
-function dateTime(dateKey: string, time: string) { const [y, m, d] = dateKey.split('-').map(Number); const [hh, mm] = time.split(':').map(Number); return new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0); }
-function addHours(date: Date, hours: number) { return new Date(date.getTime() + hours * 3600000); }
-function fmt(date: Date) { return `${getLocalDateKey(date)} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; }
 
 export default function DietView() {
   const todayKey = getLocalDateKey();
@@ -27,78 +46,103 @@ export default function DietView() {
   const [mode, setMode] = useState<DietMode>('auto');
   const [manualPhase, setManualPhase] = useState<DietPhaseId>('week1');
   const [store, setStore] = useState<DietCompletedStore>({});
-  const [mealStore, setMealStore] = useState<Record<string, DietMealLog>>({});
-  const [proteinStore, setProteinStore] = useState<Record<string, number>>({});
-  const [fastingStartStore, setFastingStartStore] = useState<Record<string, string>>({});
-  const [fastingDoneStore, setFastingDoneStore] = useState<Record<string, boolean>>({});
-  const [waterStore, setWaterStore] = useState<Record<string, number>>({});
-  const [socialStore, setSocialStore] = useState<Record<string, SocialMealMode>>({});
-  const [symptomStore, setSymptomStore] = useState<Record<string, DietSymptomMap>>({});
-  const [dinnerStore, setDinnerStore] = useState<Record<string, string>>({});
-  const [dinnerCarbStore, setDinnerCarbStore] = useState<Record<string, DinnerCarbRecord>>({});
-  const [lunchCarbStore, setLunchCarbStore] = useState<Record<string, LunchCarbRecord>>({});
-  const [lunchProteinStore, setLunchProteinStore] = useState<Record<string, LunchProteinRecord>>({});
-  const [now, setNow] = useState(new Date());
-  const [workoutDone, setWorkoutDone] = useState(false);
+  const [dietStatus, setDietStatus] = useState<DietStatus>('normal');
+  const [fastingStatus, setFastingStatus] = useState<FastingRecordStatus>('14h');
+  const [dietMemo, setDietMemo] = useState('');
+  const [message, setMessage] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const now = useMemo(() => new Date(), []);
 
   useEffect(() => {
     const existingDietStart = window.localStorage.getItem(DIET_START_DATE_KEY);
     const initialStart = existingDietStart || window.localStorage.getItem(SWITCHON_START_DATE_KEY) || SWITCHON_DEFAULT_START_DATE;
-    setStartDate(initialStart); if (!existingDietStart) window.localStorage.setItem(DIET_START_DATE_KEY, initialStart);
+    setStartDate(initialStart);
+    if (!existingDietStart) window.localStorage.setItem(DIET_START_DATE_KEY, initialStart);
     const oldPhase = window.localStorage.getItem(DIET_PHASE_KEY) as DietPhaseId | 'adaptation' | null;
     setManualPhase(oldPhase && oldPhase !== 'adaptation' ? oldPhase : 'week1');
     setMode((window.localStorage.getItem(DIET_MODE_KEY) as DietMode | null) || 'auto');
-    setStore(readJson(DIET_COMPLETED_DAYS_KEY, {})); setMealStore(readJson(DIET_MEAL_LOG_KEY, {})); setProteinStore(readJson(PROTEIN_TOTAL_KEY, {}));
-    const oldFasting = window.localStorage.getItem(FASTING_START_TIME_KEY);
-    const fastingByDate = readJson<Record<string, string>>(FASTING_START_TIME_KEY, {});
-    setFastingStartStore(typeof fastingByDate === 'object' ? fastingByDate : oldFasting ? { [todayKey]: oldFasting } : {});
-    setFastingDoneStore(readJson(FASTING_COMPLETED_KEY, {})); setWaterStore(readJson(WATER_INTAKE_KEY, {})); setSocialStore(readJson(SOCIAL_MEAL_MODE_KEY, {})); setSymptomStore(readJson(DIET_SYMPTOMS_KEY, {})); setDinnerStore(readJson(DINNER_COMPLETED_TIME_KEY, {}));
-    const normalizedDinnerCarbs = normalizeDinnerCarbStore(readJson<Record<string, unknown>>(DINNER_CARB_CHOICE_KEY, {})); setDinnerCarbStore(normalizedDinnerCarbs); writeJson(DINNER_CARB_CHOICE_KEY, normalizedDinnerCarbs);
-    const normalizedLunchCarbs = normalizeLunchCarbStore(readJson<Record<string, unknown>>(LUNCH_CARB_CHOICE_KEY, {})); setLunchCarbStore(normalizedLunchCarbs); writeJson(LUNCH_CARB_CHOICE_KEY, normalizedLunchCarbs);
-    const normalizedLunchProteins = normalizeLunchProteinStore(readJson<Record<string, unknown>>(LUNCH_PROTEIN_CHOICE_KEY, {})); setLunchProteinStore(normalizedLunchProteins); writeJson(LUNCH_PROTEIN_CHOICE_KEY, normalizedLunchProteins);
-    setWorkoutDone(isWorkoutCompletedOnDate(readWorkoutCompletionStore())); setHydrated(true);
-    const timer = window.setInterval(() => setNow(new Date()), 60000); return () => window.clearInterval(timer);
+    const savedStore = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {});
+    setStore(savedStore);
+    const today = savedStore[todayKey] || {};
+    setDietStatus(today.dietStatus ?? 'normal');
+    setFastingStatus(today.fastingRecordStatus ?? (today.fasting14h ? '14h' : '14h'));
+    setDietMemo(today.dietMemo ?? '');
+    setHydrated(true);
   }, [todayKey]);
 
-  const switchDay = useMemo(() => getSwitchOnDay(startDate, now), [startDate, now]);
+  const switchDay = getSwitchOnDay(startDate, now);
   const currentPhase = mode === 'auto' ? getAutoDietPhase(switchDay) : manualPhase;
-  const plan = DIET_PLANS[currentPhase]; const today = store[todayKey] || {}; const log = mealStore[todayKey] || DEFAULT_MEAL_LOG;
-  const dinnerCarbRecord = dinnerCarbStore[todayKey] || normalizeDinnerCarbRecord(log.dinnerCarb);
-  const lunchCarbRecord = lunchCarbStore[todayKey] || DEFAULT_LUNCH_CARB_RECORD;
-  const lunchProteinRecord = lunchProteinStore[todayKey] || DEFAULT_LUNCH_PROTEIN_RECORD;
-  const proteinTotal = calculateProteinTotal(log, lunchProteinRecord.protein); const proteinStatus = getProteinStatus(proteinTotal); const water = waterStore[todayKey] || 0; const social = socialStore[todayKey] || 'none'; const symptoms = symptomStore[todayKey] || {}; const fastingStart = fastingStartStore[todayKey] || log.lastMealTime || '18:30';
-  const hasRisk = Object.values(symptoms).some(Boolean) || social === 'dinner'; const fastingBase = dateTime(todayKey, fastingStart); const fasting12End = addHours(fastingBase, 12); const fasting14End = addHours(fastingBase, 14); const fasting12Reached = now >= fasting12End; const fasting14Reached = now >= fasting14End;
+  const plan = DIET_PLANS[currentPhase];
+  const today = store[todayKey] || {};
 
-  const saveMeal = (next: DietMealLog, lunchSupplement = lunchProteinRecord.protein) => { const ms = { ...mealStore, [todayKey]: next }; setMealStore(ms); writeJson(DIET_MEAL_LOG_KEY, ms); const totals = { ...proteinStore, [todayKey]: calculateProteinTotal(next, lunchSupplement) }; setProteinStore(totals); writeJson(PROTEIN_TOTAL_KEY, totals); };
+  const saveDiet = () => {
+    const fastingHours = fastingStatus === '14h' ? 14 : fastingStatus === '12h' ? 12 : 0;
+    const fastingSuccess = fastingStatus === '14h';
+    const next = {
+      ...store,
+      [todayKey]: {
+        ...today,
+        dietStatus,
+        fastingRecordStatus: fastingStatus,
+        fastingHours,
+        fastingSuccess,
+        fasting14h: fastingStatus === '14h',
+        safetyAlert: today.safetyAlert,
+        dietMemo: dietMemo.trim() || undefined,
+      },
+    };
+    setStore(next);
+    writeJson(DIET_COMPLETED_DAYS_KEY, next);
+    setMessage('식단 기록을 저장했습니다.');
+  };
 
-  const saveLunchCarb = (patch: Partial<LunchCarbRecord>) => { const current = lunchCarbStore[todayKey] || DEFAULT_LUNCH_CARB_RECORD; const amountType = patch.amountType || current.amountType; const option = getDinnerCarbOption(amountType); const rawGrams = amountType === 'custom' ? patch.grams ?? current.grams : option.grams; const grams = amountType === 'none' ? 0 : Math.max(0, Math.floor(Number(rawGrams) || 0)); const nextRecord = normalizeLunchCarbRecord({ ...current, ...patch, amountType, grams }); const nextStore = { ...lunchCarbStore, [todayKey]: nextRecord }; setLunchCarbStore(nextStore); writeJson(LUNCH_CARB_CHOICE_KEY, nextStore); saveMeal({ ...log, lunchRice: amountType !== 'none' }); };
-  const saveLunchProtein = (patch: Partial<LunchProteinRecord>) => { const current = lunchProteinStore[todayKey] || DEFAULT_LUNCH_PROTEIN_RECORD; const type = patch.type || current.type; const protein = type === 'custom' ? Math.max(0, Math.floor(Number(patch.customProtein ?? patch.protein ?? current.customProtein) || 0)) : proteinChoiceGrams(type); const nextRecord = normalizeLunchProteinRecord({ ...current, ...patch, type, protein, customProtein: type === 'custom' ? protein : current.customProtein }); const nextStore = { ...lunchProteinStore, [todayKey]: nextRecord }; setLunchProteinStore(nextStore); writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextStore); saveMeal(log, nextRecord.protein); };
-  const saveDinnerCarb = (patch: Partial<DinnerCarbRecord>) => { const current = dinnerCarbStore[todayKey] || DEFAULT_DINNER_CARB_RECORD; const amountType = patch.amountType || current.amountType; const option = getDinnerCarbOption(amountType); const rawGrams = amountType === 'custom' ? patch.grams ?? current.grams : option.grams; const grams = amountType === 'none' ? 0 : Math.max(0, Math.floor(Number(rawGrams) || 0)); const nextRecord = normalizeDinnerCarbRecord({ ...current, ...patch, amountType, grams }); const nextStore = { ...dinnerCarbStore, [todayKey]: nextRecord }; setDinnerCarbStore(nextStore); writeJson(DINNER_CARB_CHOICE_KEY, nextStore); saveMeal({ ...log, dinnerCarb: amountType }); };
-  const patchToday = (patch: DietDayRecord) => { const next = { ...store, [todayKey]: { ...today, ...patch } }; setStore(next); writeJson(DIET_COMPLETED_DAYS_KEY, next); };
-  const setFastingStart = (value: string) => { const next = { ...fastingStartStore, [todayKey]: value }; setFastingStartStore(next); writeJson(FASTING_START_TIME_KEY, next); saveMeal({ ...log, lastMealTime: value }); };
-  const setSocial = (value: SocialMealMode) => { const next = { ...socialStore, [todayKey]: value }; setSocialStore(next); writeJson(SOCIAL_MEAL_MODE_KEY, next); if (value === 'dinner') saveMeal({ ...log, afterDinnerShake: 'none' }); };
-  const addWater = (ml: number) => { const next = { ...waterStore, [todayKey]: Math.max(0, water + ml) }; setWaterStore(next); writeJson(WATER_INTAKE_KEY, next); if (next[todayKey] >= 2000) patchToday({ water2l: true }); };
-  const completeDinner = () => { const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; const next = { ...dinnerStore, [todayKey]: time }; setDinnerStore(next); writeJson(DINNER_COMPLETED_TIME_KEY, next); setFastingStart(time); patchToday({ dinnerBefore1830: true }); };
+  const cancelDiet = () => {
+    const nextRecord = { ...today };
+    delete nextRecord.dietStatus;
+    delete nextRecord.fastingRecordStatus;
+    delete nextRecord.fastingHours;
+    delete nextRecord.fastingSuccess;
+    delete nextRecord.fasting14h;
+    delete nextRecord.dietMemo;
+    const next = { ...store, [todayKey]: nextRecord };
+    setStore(next);
+    writeJson(DIET_COMPLETED_DAYS_KEY, next);
+    setDietStatus('normal');
+    setFastingStatus('14h');
+    setDietMemo('');
+    setMessage('식단 기록을 취소했습니다.');
+  };
 
   if (!hydrated) return <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">식단 정보를 불러오는 중...</div>;
 
-  const contribution = [ ['아침 프로틴', log.breakfastShake ? 31 : 0], ['점심 식품 단백질', mealProteinGrams(log.lunchProteinChoice, log.lunchProteinCustom)], ['점심 프로틴', lunchProteinRecord.protein], ['오후 프로틴', proteinChoiceGrams(log.afternoonShake)], ['저녁 식품 단백질', mealProteinGrams(log.dinnerProteinChoice, log.dinnerProteinCustom)], ['저녁 후 프로틴', proteinChoiceGrams(log.afterDinnerShake)] ];
-
   return <div className="space-y-4">
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[12px] font-semibold text-[#534AB7]">오늘 단계 카드</p><h2 className="mt-1 text-[20px] font-bold text-gray-900">{getDietStatusText(switchDay, currentPhase)}</h2><p className="mt-1 text-[13px] text-gray-500">오늘 공복 목표: 14시간 주 5일 이상 · 컨디션 저하 시 12시간 조절</p><p className="mt-2 rounded-xl bg-[#EAF3DE] px-3 py-2 text-[12px] text-[#27500A]">{plan.description}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => { setMode('auto'); window.localStorage.setItem(DIET_MODE_KEY, 'auto'); }} className={`rounded-xl border px-3 py-2 text-[13px] font-semibold ${mode === 'auto' ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-100 bg-gray-50 text-gray-500'}`}>자동</button><button onClick={() => { setMode('manual'); window.localStorage.setItem(DIET_MODE_KEY, 'manual'); }} className={`rounded-xl border px-3 py-2 text-[13px] font-semibold ${mode === 'manual' ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-100 bg-gray-50 text-gray-500'}`}>수동</button></div><input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); window.localStorage.setItem(DIET_START_DATE_KEY, e.target.value); }} className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" />{mode === 'manual' && <select value={manualPhase} onChange={(e) => { setManualPhase(e.target.value as DietPhaseId); window.localStorage.setItem(DIET_PHASE_KEY, e.target.value); }} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]">{DIET_PHASE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>}</section>
+    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <p className="text-[12px] font-semibold text-[#534AB7]">오늘 단계 카드</p>
+      <h2 className="mt-1 text-[20px] font-bold text-gray-900">{getDietStatusText(switchDay, currentPhase)}</h2>
+      <p className="mt-2 rounded-xl bg-[#EAF3DE] px-3 py-2 text-[12px] text-[#27500A]">{plan.description}</p>
+      <p className="mt-2 rounded-xl bg-blue-50 px-3 py-2 text-[12px] font-semibold text-blue-800">이번 주 목표는 14시간 공복 5일 이상입니다. 컨디션이 좋지 않은 날은 12시간 공복으로 조절해도 됩니다. 24시간 단식은 현재 계획에서 제외합니다.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => { setMode('auto'); window.localStorage.setItem(DIET_MODE_KEY, 'auto'); }} className={`rounded-xl border px-3 py-2 text-[13px] font-semibold ${mode === 'auto' ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-100 bg-gray-50 text-gray-500'}`}>자동</button><button onClick={() => { setMode('manual'); window.localStorage.setItem(DIET_MODE_KEY, 'manual'); }} className={`rounded-xl border px-3 py-2 text-[13px] font-semibold ${mode === 'manual' ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-100 bg-gray-50 text-gray-500'}`}>수동</button></div>
+      <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); window.localStorage.setItem(DIET_START_DATE_KEY, e.target.value); }} className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" />
+      {mode === 'manual' && <select value={manualPhase} onChange={(e) => { setManualPhase(e.target.value as DietPhaseId); window.localStorage.setItem(DIET_PHASE_KEY, e.target.value); }} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]">{DIET_PHASE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>}
+    </section>
 
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">공통 기준</p><div className="mt-2 grid gap-1.5 text-[12px] text-gray-600">{COMMON_DIET_RULES.map((rule) => <div key={rule} className="rounded-lg bg-gray-50 px-2.5 py-1.5">✅ {rule}</div>)}</div><div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-[12px] font-medium text-red-700">⚠️ {SAFETY_WARNING}</div></section>
+    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <p className="text-[15px] font-bold text-gray-800">오늘 추천 식단 보기</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">{simpleDietRecommendations.map((rec) => <article key={rec.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-3"><h3 className="text-[14px] font-bold text-gray-900">{rec.title}</h3><ul className="mt-2 space-y-1 text-[12px] text-gray-600">{rec.items.map((item) => <li key={item}>- {item}</li>)}</ul></article>)}</div>
+    </section>
 
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">회식 모드</p><select value={social} onChange={(e) => setSocial(e.target.value as SocialMealMode)} className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"><option value="none">회식 없음</option><option value="lunch">점심 회식</option><option value="dinner">저녁 회식</option></select><div className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] text-amber-800">{social === 'lunch' ? '점심 회식: 밥/면은 하나만, 밥은 반 공기 이하. 저녁은 단백질+채소, 밥 없음. 다음 날 정상 14시간 공복 유지.' : social === 'dinner' ? '저녁 회식: 회식 후 프로틴 금지, 물만. 다음 날 회식 종료 시점부터 12~14시간 공복으로 조절합니다.' : '우선 메뉴: 구이 고기, 수육, 생선, 회, 샤브샤브, 두부, 계란. 술 1잔당 물 1잔 권장.'}</div></section>
+    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <p className="text-[15px] font-bold text-gray-800">오늘 식단 기록</p>
+      <div className="mt-3"><p className="text-[12px] font-bold text-gray-600">식단 상태</p><div className="mt-2 flex flex-wrap gap-2">{Object.entries(DIET_STATUS_LABELS).map(([id, label]) => <button key={id} type="button" onClick={() => setDietStatus(id as DietStatus)} className={`rounded-full border px-3 py-2 text-[12px] font-bold ${dietStatus === id ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-200 bg-white text-gray-600'}`}>{label}</button>)}</div></div>
+      <div className="mt-4"><p className="text-[12px] font-bold text-gray-600">공복</p><div className="mt-2 flex flex-wrap gap-2">{Object.entries(FASTING_STATUS_LABELS).map(([id, label]) => <button key={id} type="button" onClick={() => setFastingStatus(id as FastingRecordStatus)} className={`rounded-full border px-3 py-2 text-[12px] font-bold ${fastingStatus === id ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-200 bg-white text-gray-600'}`}>{label}</button>)}</div></div>
+      <label className="mt-4 block text-[12px] font-bold text-gray-600">메모<textarea value={dietMemo} onChange={(e) => setDietMemo(e.target.value)} placeholder="오늘 식단 특이사항 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
+      <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={saveDiet} className="rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">식단 기록 저장</button><button onClick={cancelDiet} className="rounded-xl bg-red-50 px-4 py-3 text-[14px] font-bold text-red-600">식단 기록 취소</button></div>
+      {message && <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">{message}</p>}
+    </section>
 
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">오늘 식사 체크리스트</p><div className="mt-3 space-y-2 text-[13px]"><label className="flex gap-2 rounded-xl bg-gray-50 p-3"><input type="checkbox" checked={log.breakfastShake} onChange={(e) => saveMeal({ ...log, breakfastShake: e.target.checked })} />아침 퓨어프로틴7 1회 · 단백질 약 31g</label><label className="flex gap-2 rounded-xl bg-gray-50 p-3"><input type="checkbox" checked={log.lunchRice} onChange={(e) => saveMeal({ ...log, lunchRice: e.target.checked })} />점심 통곡물밥 100~130g</label><div className="rounded-xl bg-gray-50 p-3">점심 단백질<select value={log.lunchProteinChoice} onChange={(e) => saveMeal({ ...log, lunchProteinChoice: e.target.value as any })} className="ml-2 rounded-lg border px-2 py-1"><option value="20">20g 이상</option><option value="25">25g 이상</option><option value="30">30g 이상</option><option value="custom">직접 입력</option></select>{log.lunchProteinChoice === 'custom' && <input type="number" value={log.lunchProteinCustom} onChange={(e) => saveMeal({ ...log, lunchProteinCustom: Number(e.target.value) })} className="ml-2 w-20 rounded-lg border px-2 py-1" />}</div><div className="rounded-xl bg-gray-50 p-3"><div className="flex items-start justify-between gap-2"><div><p className="font-bold text-gray-800">점심 밥 섭취량</p><p className="mt-1 text-[12px] text-gray-600">※ 표기된 g은 조리된 밥의 무게입니다.</p></div><span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-[#534AB7]">조리된 밥 기준</span></div><div className="mt-3 flex flex-wrap gap-2">{DINNER_CARB_OPTIONS.map((option) => <button key={`lunch-${option.id}`} type="button" onClick={() => saveLunchCarb({ amountType: option.id })} className={`rounded-full border px-3 py-2 text-[12px] font-semibold ${lunchCarbRecord.amountType === option.id ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-200 bg-white text-gray-600'}`}>{option.label}{option.note ? ` · ${option.note}` : ''}</button>)}</div>{lunchCarbRecord.amountType !== 'none' && <div className="mt-3 space-y-2"><label className="block text-[12px] font-bold text-gray-700">점심 밥 종류</label><select value={lunchCarbRecord.riceType} onChange={(e) => saveLunchCarb({ riceType: e.target.value as DinnerRiceType })} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]">{DINNER_RICE_TYPES.map((type) => <option key={`lunch-${type}`} value={type}>{type === '기타' ? '기타 직접 입력' : type}</option>)}</select>{lunchCarbRecord.riceType === '기타' && <input value={lunchCarbRecord.customRiceType} onChange={(e) => saveLunchCarb({ customRiceType: e.target.value })} placeholder="예: 귀리밥" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" />}{lunchCarbRecord.amountType === 'custom' && <label className="flex items-center gap-2 text-[13px]"><input type="number" inputMode="numeric" min={0} step={1} value={lunchCarbRecord.grams || ''} onChange={(e) => saveLunchCarb({ grams: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="예: 120" className="w-28 rounded-xl border border-gray-200 px-3 py-2" /><span className="font-semibold text-gray-600">조리된 밥 g</span></label>}<div className="rounded-xl bg-blue-50 p-3 text-[12px] text-blue-800"><p>참고 탄수화물 약 {lunchCarbRecord.estimatedCarbs}g</p><p className="mt-1">밥 종류와 제품, 수분량에 따라 실제 탄수화물은 달라질 수 있으며 단백질 합계에는 포함하지 않습니다.</p></div></div>}{social === 'lunch' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] text-amber-800">점심 회식에서도 밥 종류와 밥량은 기록 가능합니다. 탄수화물은 밥/면 중 하나만 선택하고, 회식에서 단백질을 충분히 먹었으면 프로틴은 생략하세요.</p>}</div><div className="rounded-xl bg-gray-50 p-3">점심 프로틴 보충<select value={lunchProteinRecord.type} onChange={(e) => saveLunchProtein({ type: e.target.value as LunchProteinRecord['type'] })} className="ml-2 rounded-lg border px-2 py-1"><option value="none">없음</option><option value="half">퓨어프로틴7 0.5회</option><option value="full">퓨어프로틴7 1회</option><option value="custom">기타 직접 입력</option></select>{lunchProteinRecord.type === 'custom' && <label className="ml-2 inline-flex items-center gap-1"><input type="number" inputMode="numeric" min={0} step={1} value={lunchProteinRecord.customProtein || ''} onChange={(e) => saveLunchProtein({ customProtein: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className="w-20 rounded-lg border px-2 py-1" /><span>단백질 g</span></label>}<p className="mt-1 text-[12px] text-gray-500">점심 식사 단백질과 별도로 부족할 때만 보충하세요.</p><p className="mt-1 text-[12px] text-gray-500">점심 단백질 식품을 충분히 먹었다면 프로틴은 생략할 수 있습니다.</p></div><div className="rounded-xl bg-gray-50 p-3">오후 프로틴<select value={log.afternoonShake} onChange={(e) => saveMeal({ ...log, afternoonShake: e.target.value as any })} className="ml-2 rounded-lg border px-2 py-1"><option value="none">없음</option><option value="half">0.5회</option><option value="full">1회</option></select><p className="mt-1 text-[12px] text-gray-500">기본 0.5회. 반 회는 분말 22~23g + 물 150~200mL, 1회는 분말 45g + 물 250~300mL.</p></div><div className="rounded-xl bg-gray-50 p-3">저녁 단백질<select value={log.dinnerProteinChoice} onChange={(e) => saveMeal({ ...log, dinnerProteinChoice: e.target.value as any })} className="ml-2 rounded-lg border px-2 py-1"><option value="20">20g 이상</option><option value="25">25g 이상</option><option value="30">30g 이상</option><option value="custom">직접 입력</option></select>{log.dinnerProteinChoice === 'custom' && <input type="number" value={log.dinnerProteinCustom} onChange={(e) => saveMeal({ ...log, dinnerProteinCustom: Number(e.target.value) })} className="ml-2 w-20 rounded-lg border px-2 py-1" />}<p className="mt-1 text-[12px] text-gray-500">김, 김치, 나물, 버섯, 알배기배추, 양배추 허용.</p></div><div className="rounded-xl bg-gray-50 p-3"><div className="flex items-start justify-between gap-2"><div><p className="font-bold text-gray-800">저녁 밥 섭취량</p><p className="mt-1 text-[12px] text-gray-600">※ 표기된 g은 탄수화물 g이 아니라 조리된 밥의 무게입니다.</p></div><span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-[#534AB7]">조리된 밥 기준</span></div><div className="mt-3 rounded-xl bg-white p-3 text-[12px] text-gray-600"><p><b>기본 원칙:</b> 저녁 밥은 기본 제외</p><p className="mt-1">허용: 운동 전 기운 부족, 점심이 너무 적은 날, 야식 위험이 큰 날, 회식 후가 아닌 정상 식사일</p><p className="mt-1">기본 권장: 없음 또는 50~80g 밥량 · 100g 이상은 컨디션/운동량 고려 · 1공기 약 200g은 많음/특별한 경우</p></div><div className="mt-3 flex flex-wrap gap-2">{DINNER_CARB_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => saveDinnerCarb({ amountType: option.id })} className={`rounded-full border px-3 py-2 text-[12px] font-semibold ${dinnerCarbRecord.amountType === option.id ? 'border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]' : 'border-gray-200 bg-white text-gray-600'}`}>{option.label}{option.note ? ` · ${option.note}` : ''}</button>)}</div>{dinnerCarbRecord.amountType !== 'none' && <div className="mt-3 space-y-2"><label className="block text-[12px] font-bold text-gray-700">밥 종류</label><select value={dinnerCarbRecord.riceType} onChange={(e) => saveDinnerCarb({ riceType: e.target.value as DinnerRiceType })} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]">{DINNER_RICE_TYPES.map((type) => <option key={type} value={type}>{type === '기타' ? '기타 직접 입력' : type}</option>)}</select>{dinnerCarbRecord.riceType === '기타' && <input value={dinnerCarbRecord.customRiceType} onChange={(e) => saveDinnerCarb({ customRiceType: e.target.value })} placeholder="예: 귀리밥" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" />}{dinnerCarbRecord.amountType === 'custom' && <label className="flex items-center gap-2 text-[13px]"><input type="number" inputMode="numeric" min={0} step={1} value={dinnerCarbRecord.grams || ''} onChange={(e) => saveDinnerCarb({ grams: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} placeholder="예: 120" className="w-28 rounded-xl border border-gray-200 px-3 py-2" /><span className="font-semibold text-gray-600">조리된 밥 g</span></label>}<div className="rounded-xl bg-blue-50 p-3 text-[12px] text-blue-800"><p>참고 탄수화물: 약 {dinnerCarbRecord.estimatedCarbs}g</p><p className="mt-1">밥 종류와 제품, 수분량에 따라 실제 탄수화물은 달라질 수 있으며 단백질 합계에는 포함하지 않습니다.</p></div></div>}{social === 'dinner' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] text-amber-800">저녁 회식 모드에서는 밥 종류와 밥량은 기록용으로 선택 가능합니다. 회식 후에는 프로틴보다 물 위주 안내를 유지하세요.</p>}{symptoms.afterSocialMeal && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-[12px] text-amber-800">회식 다음 날 복귀 식단에서는 저녁 밥은 없음 또는 50g 밥량을 우선 권장합니다.{dinnerCarbRecord.amountType === 'one-bowl' ? ' 회식 다음 날 복귀 식단에서는 저녁 밥량을 줄이는 편이 좋습니다.' : ''}</p>}</div><div className="rounded-xl bg-gray-50 p-3">저녁 후 프로틴<select value={log.afterDinnerShake} onChange={(e) => saveMeal({ ...log, afterDinnerShake: e.target.value as any })} className="ml-2 rounded-lg border px-2 py-1"><option value="none">없음</option><option value="half">0.5회</option><option value="full">1회</option></select><p className="mt-1 text-[12px] text-gray-500">늦은 시간, 속쓰림, 회식 후에는 먹지 않음.</p></div><label className="flex gap-2 rounded-xl bg-gray-50 p-3"><input type="checkbox" checked={workoutDone} readOnly />운동 완료 여부(운동 탭 기록 자동 표시)</label></div></section>
-
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">단백질 합계 카드</p><div className="mt-3 flex items-end justify-between"><b className="text-[28px] text-gray-900">{proteinTotal}g</b><span className={`rounded-full px-3 py-1 text-[12px] font-bold ${proteinStatus.bg} ${proteinStatus.color}`}>{proteinStatus.label}</span></div><p className="text-[12px] text-gray-500">하루 목표 약 {PROTEIN_TARGET_GRAMS}g</p><div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#534AB7]" style={{ width: `${Math.min(100, (proteinTotal / PROTEIN_TARGET_GRAMS) * 100)}%` }} /></div><div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-gray-600">{contribution.map(([name, grams]) => <div key={name as string} className="rounded-xl bg-gray-50 p-2">{name}<br /><b>{grams}g</b></div>)}</div></section>
-
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">공복 타이머</p><label className="mt-2 block text-[12px] text-gray-500">마지막 식사 또는 프로틴 시간</label><input type="time" value={fastingStart} onChange={(e) => setFastingStart(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]" /><div className="mt-3 grid grid-cols-2 gap-2 text-[12px]"><div className="rounded-xl bg-gray-50 p-3"><b>다음 식사 가능</b><br />{fmt(fasting14End)}</div><div className="rounded-xl bg-gray-50 p-3"><b>14시간 공복</b><br />{fasting14Reached ? '달성' : '진행 중'}</div></div><button onClick={() => { const next = { ...fastingDoneStore, [todayKey]: true }; setFastingDoneStore(next); writeJson(FASTING_COMPLETED_KEY, next); patchToday({ fasting14h: true }); }} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-2 text-[13px] font-bold text-white">공복 달성 기록</button><div className="mt-3 rounded-xl border border-gray-100 p-3 text-[12px] text-gray-700"><p className="font-bold text-gray-800">목표: 14시간 공복 주 5일 이상</p><p className="mt-1">12시간 예상 종료: {fmt(fasting12End)} · {fasting12Reached ? '컨디션 조절 성공 가능' : '진행 중'}</p><p className="mt-1">14시간 이상은 공복 목표 달성, 12~14시간은 조절일/회복일로 기록할 수 있습니다.</p>{hasRisk && <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-[12px] text-red-700">위험 신호가 있으면 12~14시간 공복, 물, 일반식, 회복 운동을 우선하세요.</p>}</div></section>
-
-    <section className="rounded-2xl bg-white border border-red-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">공복 안전 경고</p><div className="mt-3 grid grid-cols-2 gap-2">{SYMPTOMS.map((item) => <label key={item.id} className="rounded-xl bg-red-50 px-3 py-2 text-[12px] text-red-700"><input type="checkbox" checked={Boolean(symptoms[item.id])} onChange={() => { const nextSymptoms = { ...symptoms, [item.id]: !symptoms[item.id] }; const next = { ...symptomStore, [todayKey]: nextSymptoms }; setSymptomStore(next); writeJson(DIET_SYMPTOMS_KEY, next); if (!symptoms[item.id]) patchToday({ safetyAlert: true }); }} className="mr-1" />{item.label}</label>)}</div>{hasRisk && <div className="mt-3 rounded-2xl bg-red-50 p-4 text-[13px] text-red-800"><p className="font-bold">컨디션 조절 / 운동 중단 기준</p><p className="mt-1">허리 통증, 다리 저림, 무릎 통증, 어지럼, 손떨림, 식은땀, 메스꺼움, 가슴 답답함이 있으면 중단하고 회복 모드로 전환하세요.</p></div>}</section>
-
-    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm"><p className="text-[15px] font-bold text-gray-800">물 섭취 / 저녁 마감 / 단계 가이드</p><div className="mt-3 h-3 overflow-hidden rounded-full bg-gray-100"><div className="h-full bg-[#378ADD]" style={{ width: `${Math.min(100, (water / 2000) * 100)}%` }} /></div><p className="mt-2 text-[13px] text-gray-600">오늘 누적 {water}mL / 2,000mL</p><div className="mt-3 grid grid-cols-3 gap-2"><button onClick={() => addWater(250)} className="rounded-xl bg-blue-50 px-3 py-2 text-[13px] font-semibold text-blue-700">+250mL</button><button onClick={() => addWater(500)} className="rounded-xl bg-blue-50 px-3 py-2 text-[13px] font-semibold text-blue-700">+500mL</button><button onClick={() => addWater(-250)} className="rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-500">-250mL</button></div><button onClick={completeDinner} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">저녁/마지막 섭취 완료 시간 기록</button><p className="mt-2 text-[12px] text-gray-600">완료 시간: {dinnerStore[todayKey] || '미기록'}</p><div className="mt-3 space-y-2 text-[12px] text-gray-600">{plan.fasting.concat(plan.safety).map((item) => <div key={item} className="rounded-lg bg-gray-50 px-2.5 py-1.5">• {item}</div>)}</div></section>
+    <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <button type="button" onClick={() => setShowDetails(!showDetails)} className="w-full rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-bold text-gray-700">{showDetails ? '상세 기록 닫기' : '상세 기록 열기'}</button>
+      {showDetails && <div className="mt-3 rounded-xl bg-gray-50 p-3 text-[12px] text-gray-600"><p>기존 세부 체크는 빠른 기록 흐름을 위해 기본 화면에서 숨겼습니다.</p><p className="mt-1">저장된 기존 localStorage 기록은 유지되며, 달력에서 과거 기록 확인이 가능합니다.</p></div>}
+    </section>
   </div>;
 }
