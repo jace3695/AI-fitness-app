@@ -1,12 +1,12 @@
 import { getLocalDateKey } from './dietPlans';
 
-export type WorkoutDayId = 'mon' | 'tue' | 'thu' | 'fri' | 'sat';
+export type WorkoutDayId = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 export type WorkoutCompletionStore = Record<string, boolean>;
 
 export const WORKOUT_COMPLETED_DAYS_KEY = 'ai-fitness-workout-completed-days';
-export const WORKOUT_DAY_IDS: WorkoutDayId[] = ['mon', 'tue', 'thu', 'fri', 'sat'];
+export const WORKOUT_DAY_IDS: WorkoutDayId[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
-const dayIndexById: Record<WorkoutDayId, number> = { mon: 1, tue: 2, thu: 4, fri: 5, sat: 6 };
+const dayIndexById: Record<WorkoutDayId, number> = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 
 export function isWorkoutDayId(value: string): value is WorkoutDayId {
   return WORKOUT_DAY_IDS.includes(value as WorkoutDayId);
@@ -28,7 +28,7 @@ export function getWeeklyWorkoutCompletion(store: WorkoutCompletionStore, baseDa
   return WORKOUT_DAY_IDS.reduce<Record<WorkoutDayId, boolean>>((acc, dayId) => {
     acc[dayId] = Boolean(store[getDateForWorkoutDay(dayId, baseDate)]);
     return acc;
-  }, { mon: false, tue: false, thu: false, fri: false, sat: false });
+  }, { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false });
 }
 
 export function readWorkoutCompletionStore(baseDate = new Date()): WorkoutCompletionStore {

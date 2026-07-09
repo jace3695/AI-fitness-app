@@ -4,7 +4,7 @@ import { WEEK_OVERVIEW } from '../data/workouts';
 
 interface WeeklyViewProps {
   onTabChange: (id: string) => void;
-  completedDays: Record<'mon' | 'tue' | 'thu' | 'fri' | 'sat', boolean>;
+  completedDays: Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', boolean>;
 }
 
 export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewProps) {
@@ -36,7 +36,7 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[15px] font-bold text-[#3C3489]">철봉 단계 훈련</p>
-            <p className="mt-0.5 text-[12px] text-[#534AB7]">월·토 루틴과 연결된 5단계 턱걸이 준비 모드</p>
+            <p className="mt-0.5 text-[12px] text-[#534AB7]">매일 3~5분 턱걸이 초기자세 연습</p>
           </div>
           <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-[#534AB7]">입장</span>
         </div>
@@ -94,7 +94,7 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
       <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
         요일별 운동 시간
       </p>
-      <div className="grid grid-cols-5 gap-1.5 mb-5">
+      <div className="grid grid-cols-6 gap-1.5 mb-5">
         {dayTimes.map((dt, i) => (
           <div
             key={i}
@@ -130,9 +130,9 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
       </p>
       <div className="flex items-stretch gap-0 mb-3">
         {[
-          { icon: '🧘', label: '준비운동', time: '10분', bg: '#EEEDFE', lc: '#3C3489', tc: '#534AB7' },
-          { icon: '💪', label: '본 운동', time: '30~35분', bg: '#E6F1FB', lc: '#0C447C', tc: '#185FA5' },
-          { icon: '🏂', label: '슬라이딩보드', time: '20~25분', bg: '#FAEEDA', lc: '#633806', tc: '#854F0B' },
+          { icon: '🧘', label: '준비운동', time: '5~8분', bg: '#EEEDFE', lc: '#3C3489', tc: '#534AB7' },
+          { icon: '💪', label: '본 운동', time: '15~20분', bg: '#E6F1FB', lc: '#0C447C', tc: '#185FA5' },
+          { icon: '🏂', label: '걷기/가벼운 보드', time: '5~20분', bg: '#FAEEDA', lc: '#633806', tc: '#854F0B' },
           { icon: '🌿', label: '마무리 스트레칭', time: '5~8분', bg: '#EAF3DE', lc: '#27500A', tc: '#3B6D11' },
         ].map((s, i, arr) => (
           <div key={i} className="flex items-center flex-1">
@@ -151,13 +151,13 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
       <div className="flex justify-end items-center gap-2 mb-4">
         <span className="text-[12px] text-gray-400">근력일 총 시간</span>
         <span className="bg-[#534AB7] text-white text-[11px] font-medium px-2.5 py-1 rounded-full">
-          약 65~70분
+          약 15~25분
         </span>
       </div>
 
       {/* Info Box */}
       <div className="bg-[#E6F1FB] text-[#0C447C] border-l-[3px] border-[#378ADD] rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed">
-        💡 각 요일 탭 하나에 준비운동 · 본 운동 · 슬라이딩보드 · 마무리 스트레칭이 모두 담겨 있습니다.
+        💡 각 요일 탭 하나에 준비운동 · 근력/안정화 또는 식후 걷기 · 마무리 스트레칭이 모두 담겨 있습니다.
         해당 요일 탭만 열면 그날 운동을 처음부터 끝까지 진행할 수 있습니다.
       </div>
     </div>

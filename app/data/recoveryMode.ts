@@ -1,4 +1,4 @@
-import { DIET_SYMPTOMS_KEY, FASTING_MODE_KEY, SOCIAL_MEAL_MODE_KEY, DietSymptomMap, getLocalDateKey } from './dietPlans';
+import { DIET_SYMPTOMS_KEY, SOCIAL_MEAL_MODE_KEY, DietSymptomMap, getLocalDateKey } from './dietPlans';
 import { readJson, writeJson } from './recordStorage';
 import { WorkoutDayId } from './workoutCompletion';
 
@@ -7,12 +7,12 @@ export const SLEEP_STATUS_KEY = 'ai-fitness-sleep-status';
 export const ALCOHOL_STATUS_KEY = 'ai-fitness-alcohol-status';
 export const WORKOUT_CONDITION_KEY = 'ai-fitness-workout-condition';
 
-export type RecoveryReasonId = 'fasting-24h' | 'alcohol-yesterday' | 'hangover' | 'sleep-lack' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'back-pain' | 'leg-numbness' | 'heartburn' | 'fasting-high-intensity' | 'social-dinner-yesterday' | 'after-social-meal';
+export type RecoveryReasonId = 'alcohol-yesterday' | 'hangover' | 'sleep-lack' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'back-pain' | 'leg-numbness' | 'heartburn' | 'fasting-high-intensity' | 'social-dinner-yesterday' | 'after-social-meal';
 export interface RecoveryDayRecord { recoveryMode: boolean; reasons: RecoveryReasonId[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; intensity: 'normal' | '70%' | 'recovery'; updatedAt?: string }
 export type RecoveryModeStore = Record<string, RecoveryDayRecord>;
 
 export const RECOVERY_REASON_LABELS: Record<RecoveryReasonId, string> = {
-  'fasting-24h': '24시간 단식 중', 'alcohol-yesterday': '전날 음주', hangover: '숙취', 'sleep-lack': '수면 부족', dizziness: '어지럼', 'hand-tremor': '손 떨림', 'cold-sweat': '식은땀', 'severe-headache': '심한 두통', 'back-pain': '허리 통증', 'leg-numbness': '다리 저림', heartburn: '속쓰림/위장 불편', 'fasting-high-intensity': '단식일과 운동일 겹침', 'social-dinner-yesterday': '저녁 회식 다음 날', 'after-social-meal': '회식 다음 날',
+  'alcohol-yesterday': '전날 음주', hangover: '숙취', 'sleep-lack': '수면 부족', dizziness: '어지럼', 'hand-tremor': '손 떨림', 'cold-sweat': '식은땀', 'severe-headache': '심한 두통', 'back-pain': '허리 통증', 'leg-numbness': '다리 저림', heartburn: '속쓰림/위장 불편', 'fasting-high-intensity': '운동 강도 조절 필요', 'social-dinner-yesterday': '저녁 회식 다음 날', 'after-social-meal': '회식 다음 날',
 };
 
 const symptomReasonMap: Partial<Record<keyof DietSymptomMap, RecoveryReasonId>> = {
@@ -23,21 +23,18 @@ function previousDateKey(dateKey: string) { const [y, m, d] = dateKey.split('-')
 
 export function assessRecoveryMode(dateKey = getLocalDateKey(), workoutDayId?: WorkoutDayId | null): RecoveryDayRecord {
   const symptomsStore = readJson<Record<string, DietSymptomMap>>(DIET_SYMPTOMS_KEY, {});
-  const fastingStore = readJson<Record<string, string>>(FASTING_MODE_KEY, {});
   const socialStore = readJson<Record<string, string>>(SOCIAL_MEAL_MODE_KEY, {});
   const savedRecovery = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
   const symptoms = symptomsStore[dateKey] || {};
   const reasons = new Set<RecoveryReasonId>(savedRecovery[dateKey]?.reasons || []);
 
-  if (fastingStore[dateKey] === '24h') reasons.add('fasting-24h');
-  if (fastingStore[dateKey] === '24h' && workoutDayId) reasons.add('fasting-high-intensity');
   if (socialStore[previousDateKey(dateKey)] === 'dinner') reasons.add('social-dinner-yesterday');
   Object.entries(symptomReasonMap).forEach(([symptom, reason]) => { if (symptoms[symptom as keyof DietSymptomMap] && reason) reasons.add(reason); });
 
   const reasonList = Array.from(reasons);
   const isRecovery = reasonList.length > 0;
   const isAlcoholRelated = reasonList.some((reason) => ['alcohol-yesterday', 'hangover', 'social-dinner-yesterday'].includes(reason));
-  return { recoveryMode: isRecovery, reasons: reasonList, completedAsRecovery: savedRecovery[dateKey]?.completedAsRecovery, recoveryPriorityOnly: savedRecovery[dateKey]?.recoveryPriorityOnly, intensity: isRecovery ? (isAlcoholRelated || reasonList.includes('fasting-24h') ? 'recovery' : '70%') : 'normal', updatedAt: savedRecovery[dateKey]?.updatedAt };
+  return { recoveryMode: isRecovery, reasons: reasonList, completedAsRecovery: savedRecovery[dateKey]?.completedAsRecovery, recoveryPriorityOnly: savedRecovery[dateKey]?.recoveryPriorityOnly, intensity: isRecovery ? (isAlcoholRelated ? 'recovery' : '70%') : 'normal', updatedAt: savedRecovery[dateKey]?.updatedAt };
 }
 
 export function saveRecoveryRecord(dateKey: string, patch: Partial<RecoveryDayRecord>) {

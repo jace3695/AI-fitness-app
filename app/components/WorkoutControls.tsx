@@ -61,9 +61,9 @@ export function AbSlideGate({ storageId }: { storageId: string }) {
   const [state, save] = useJsonState<Record<string, boolean>>(AB_SLIDE_KEY, {});
   const all = labels.every((_, i) => state[`${storageId}-${i}`]);
   return <div className="mt-3 rounded-xl border border-red-100 bg-[#FCEBEB] p-3" onClick={(e) => e.stopPropagation()}>
-    <p className="text-[13px] font-semibold text-[#791F1F] mb-2">AB 슬라이드 진행 조건 확인</p>
+    <p className="text-[13px] font-semibold text-[#791F1F] mb-2">제외 운동 안내</p>
     {labels.map((l, i) => <label key={l} className="flex gap-2 text-[12px] text-[#791F1F] my-1"><input type="checkbox" checked={!!state[`${storageId}-${i}`]} onChange={() => save({ ...state, [`${storageId}-${i}`]: !state[`${storageId}-${i}`] })}/>{l}</label>)}
-    <label className={`mt-2 flex gap-2 text-[13px] font-medium ${all ? 'text-[#3B6D11]' : 'text-gray-400'}`}><input type="checkbox" disabled={!all}/> 버드독 대신 AB 슬라이드 진행</label>
-    <p className="mt-2 text-[12px] font-semibold text-[#A32D2D]">허리가 꺼지거나 통증이 나면 즉시 중단하고 버드독으로 복귀하세요.</p>
+    <label className={`mt-2 flex gap-2 text-[13px] font-medium ${all ? 'text-[#3B6D11]' : 'text-gray-400'}`}><input type="checkbox" disabled={!all}/> 현재 계획에서는 제외</label>
+    <p className="mt-2 text-[12px] font-semibold text-[#A32D2D]">허리 통증이나 다리 저림이 있으면 즉시 중단하고 회복일로 전환하세요.</p>
   </div>;
 }
