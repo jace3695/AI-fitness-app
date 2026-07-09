@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { getLocalDateKey } from '../data/dietPlans';
+import { getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY } from '../data/workoutCompletion';
 import { createDefaultPullupProgress, getPullupVideoUrl, PULLUP_PROGRESS_KEY, PULLUP_STAGES, PullupProgress } from '../data/pullupTraining';
 
 const safetyRules = ['통증을 참고 진행하지 않기', '팔 저림, 어깨 통증, 목 통증이 있으면 즉시 중단', '허리가 꺾이거나 반동이 커지면 난이도를 낮추기', '밴드와 철봉 고정 상태를 매번 확인', '문틀 철봉의 허용 하중과 설치 상태를 확인'];
@@ -39,8 +41,23 @@ export default function PullupTrainingView() {
   };
 
   const completeToday = () => {
-    const nextCheck = { ...check, todayCompleted: !check.todayCompleted, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1 };
+    const pullupDone = !check.todayCompleted;
+    const nextCheck = { ...check, todayCompleted: pullupDone, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1 };
     save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+
+    const dateKey = getLocalDateKey();
+    const store = readWorkoutCompletionStore();
+    const current = getWorkoutRecord(store[dateKey]);
+    window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify({
+      ...store,
+      [dateKey]: {
+        ...current,
+        pullupDone,
+        pullupStage: stage.id,
+        pullupExerciseNames: pullupDone ? stage.exercises : current.pullupExerciseNames,
+        pullupPain: pullupDone ? !nextCheck.painFree : current.pullupPain,
+      },
+    }));
   };
 
   const moveNext = () => {
@@ -66,6 +83,7 @@ export default function PullupTrainingView() {
     <section className="rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-3"><div><p className="text-[12px] font-bold text-[#534AB7]">{stage.id}단계</p><h3 className="text-lg font-bold text-gray-900">{stage.title}</h3><p className="mt-1 text-[13px] text-gray-500">{stage.prescription} · {stage.rest}</p></div>{canPromote && <span className="rounded-full bg-green-50 px-3 py-1 text-[11px] font-bold text-green-700">다음 단계 진행 가능</span>}</div>
       <div className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">1) 핵심 한 줄: {stage.keyPoint}</div>
+      <div className="mt-3 rounded-xl bg-white p-3 text-[13px] text-gray-700 border border-gray-100"><p className="font-bold text-gray-800">저장되는 철봉 운동</p>{stage.exercises.map((name) => <p key={name} className="mt-1">• {name}</p>)}</div>
       <Guide title="목표" items={stage.goal} /><Guide title="2) 시작 자세" items={stage.setup} /><Guide title="3) 움직이는 순서" items={stage.movement} />
       <div className="mt-2 grid gap-2 sm:grid-cols-2"><Info title="4) 호흡" text={stage.breathing} color="blue" /><Info title="5) 자극 부위" text={stage.target} color="green" /></div>
       <Guide title="6) 자주 하는 실수" items={stage.commonMistakes} tone="warn" /><Guide title="7) 즉시 중단 기준" items={stage.stopCriteria} tone="stop" />
