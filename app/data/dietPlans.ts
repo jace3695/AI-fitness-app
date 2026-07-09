@@ -9,7 +9,7 @@ export interface DinnerCarbRecord { riceType: DinnerRiceType; amountType: Dinner
 export type LunchCarbRecord = DinnerCarbRecord;
 export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: number; customProtein: number }
 export type SocialMealMode = 'none' | 'lunch' | 'dinner';
-export type FastingMode = 'none' | '24h';
+export type FastingMode = 'none';
 
 export const DIET_PHASE_KEY = 'ai-fitness-diet-phase';
 export const DIET_START_DATE_KEY = 'ai-fitness-diet-start-date';
@@ -71,8 +71,8 @@ export const COMMON_DIET_RULES = [
   '저녁은 단백질 20g 이상 + 채소 중심, 밥은 기본 제외',
   '저녁 밥은 기본 제외, 필요 시 조리된 밥 기준 50~80g 밥량 우선',
   '퓨어프로틴7은 의무 식사가 아니라 단백질 보충 선택지',
-  '기본 공복 목표는 매일 14시간, 24시간 단식은 선택 기능',
-  '운동 시간: 월/화/목/금/토 20:00~20:40',
+  '기본 목표는 14시간 공복을 주 5일 이상 달성, 컨디션 저하일은 12시간 공복 조절 가능',
+  '운동 기준: 월/수/금 근력·안정화, 화/목 식후 걷기, 토 선택 유산소, 일 휴식',
   '목표 단백질: 하루 약 120g 전후',
   '물 목표: 하루 2L 이상',
 ];
@@ -158,7 +158,7 @@ export function formatLunchProteinRecord(record?: LunchProteinRecord) {
   return `점심 프로틴: ${label}, 단백질 ${normalized.protein}g`;
 }
 
-export const SAFETY_WARNING = '어지러움, 손 떨림, 식은땀, 심한 두통, 수면 부족, 허리 통증 악화, 다리 저림, 속쓰림 또는 회식·음주 다음 날에는 24시간 단식을 하지 말고 12~14시간 공복과 회복을 우선하세요.';
+export const SAFETY_WARNING = '어지러움, 손 떨림, 식은땀, 심한 두통, 수면 부족, 허리 통증 악화, 다리 저림, 속쓰림 또는 회식·음주 다음 날에는 12~14시간 공복과 회복을 우선하세요.';
 
 export const DIET_CHECK_ITEMS = [
   { id: 'water2l', label: '오늘 물 2L 달성' },
@@ -177,11 +177,11 @@ export type DietCheckId = (typeof DIET_CHECK_ITEMS)[number]['id'];
 export type DietCheckMap = Partial<Record<DietCheckId, boolean>>;
 
 export const DIET_PLANS: Record<DietPhaseId, DietPlan> = {
-  week1: { id: 'week1', shortLabel: '14시간 적응', label: '1주차', badge: '24시간 단식 없음', description: '야식 끊기, 저녁 탄수 줄이기, 식사 리듬 정리가 목표입니다.', fasting: ['매일 14시간 공복 적응', '24시간 단식 없음'], safety: ['컨디션과 운동 지속성을 최우선으로 합니다.'] },
-  week2: { id: 'week2', shortLabel: '선택 단식 검토', label: '2주차', badge: '주 0~1회 선택', description: '14시간 공복을 유지하고 24시간 단식은 운동 없는 수요일 또는 일요일에만 선택합니다.', fasting: ['24시간 단식은 주 0~1회만 허용', '단식일에는 걷기·스트레칭·회복 운동만 안내'], safety: ['강한 슬라이딩보드, 전신 서킷 금지'] },
-  week3: { id: 'week3', shortLabel: '컨디션 조건부', label: '3주차', badge: '연속 단식 금지', description: '최근 2주간 위험 신호가 없을 때만 주 1회 유지 또는 주 2회까지 검토합니다.', fasting: ['단식일 사이 최소 2일 이상 간격', '회식 후 과식 반동이 있으면 단식 비추천'], safety: ['어지러움·손 떨림·허리 통증·다리 저림 확인'] },
-  week4: { id: 'week4', shortLabel: '유지 전환', label: '4주차', badge: '주 1회 이하 기본', description: '24시간 단식은 기본 추천 주 1회 이하이며 주 2회 이상은 자동 추천하지 않습니다.', fasting: ['주 2회는 사용자가 직접 선택한 경우만 허용', '주 3회 24시간 단식은 기본 플랜 제외'], safety: ['연속 단식 금지'] },
-  maintenance: { id: 'maintenance', shortLabel: '생활 유지', label: '4주 이후 유지기', badge: '회식 후 복귀', description: '체중 감량보다 회식 후 빠른 복귀와 생활 유지가 목표입니다.', fasting: ['14시간 공복 주 4~5회 이상', '24시간 단식은 격주 1회 / 주 1회 / 주 2회 중 사용자 선택'], safety: ['컨디션이 흔들리면 12~14시간 공복으로 낮춥니다.'] },
+  week1: { id: 'week1', shortLabel: '14시간 주 5일 적응', label: '1주차', badge: '주 5일 목표', description: '기본 목표는 14시간 공복을 주 5일 이상 달성하는 것입니다.', fasting: ['14시간 공복 주 5일 이상', '컨디션 저하, 속쓰림, 어지럼, 손떨림이 있으면 12시간 공복으로 조절 가능'], safety: ['회식 다음날, 수면 부족, 컨디션 저하일은 12시간 공복도 조절 성공으로 인정합니다.'] },
+  week2: { id: 'week2', shortLabel: '12~14시간 조절', label: '2주차', badge: '무리 금지', description: '매일 강제하지 않고 주간 달성 횟수를 관리합니다.', fasting: ['이번 주 목표: 14시간 공복 5일 이상', '12시간 이상 14시간 미만은 컨디션 조절 성공'], safety: ['속쓰림·어지럼·손떨림·피로가 있으면 회복일로 전환합니다.'] },
+  week3: { id: 'week3', shortLabel: '주간 리듬 유지', label: '3주차', badge: '5일 이상', description: '식사 리듬과 운동 회복을 함께 유지합니다.', fasting: ['14시간 이상 공복: 공복 목표 달성', '12시간 미만 공복: 미달성'], safety: ['미달성 문구보다 조절일·회복일 기록을 우선합니다.'] },
+  week4: { id: 'week4', shortLabel: '생활화', label: '4주차', badge: '주간 관리', description: '주 5일 이상 달성을 생활 리듬으로 만듭니다.', fasting: ['14시간 공복 달성일을 주간으로 확인', '컨디션에 따라 12시간 공복 조절 가능'], safety: ['무리한 보상 전략보다 다음 식사 리듬 복귀를 우선합니다.'] },
+  maintenance: { id: 'maintenance', shortLabel: '생활 유지', label: '4주 이후 유지기', badge: '회식 후 복귀', description: '체중 감량보다 회식 후 빠른 복귀와 생활 유지가 목표입니다.', fasting: ['14시간 공복 주 5일 이상', '회식 다음날은 무리하지 말고 12~14시간 공복으로 조절'], safety: ['회식 후 프로틴 추가 섭취 금지, 다음날 일반식 리듬으로 복귀합니다.'] },
 };
 export const DIET_PHASE_OPTIONS = Object.values(DIET_PLANS).map((p) => ({ id: p.id, label: `${p.label} · ${p.shortLabel}` }));
 

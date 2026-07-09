@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY, WORKOUTS } from './data/workouts';
 import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
 import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord } from './data/recoveryMode';
-import { FASTING_MODE_KEY, getLocalDateKey } from './data/dietPlans';
+import { getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
 import DietView from './components/DietView';
@@ -13,13 +13,14 @@ import RecordCalendarView from './components/RecordCalendarView';
 import SwitchOnModePanel from './components/SwitchOnModePanel';
 import PullupTrainingView from './components/PullupTrainingView';
 
-type TabId = 'ov' | 'mon' | 'tue' | 'thu' | 'fri' | 'sat' | 'pullup' | 'diet' | 'record' | 'tips';
-type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'thu' | 'fri' | 'sat'>;
+type TabId = 'ov' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'pullup' | 'diet' | 'record' | 'tips';
+type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'>;
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'ov',   label: '주간 개요' },
   { id: 'mon',  label: '월요일' },
   { id: 'tue',  label: '화요일' },
+  { id: 'wed',  label: '수요일' },
   { id: 'thu',  label: '목요일' },
   { id: 'fri',  label: '금요일' },
   { id: 'sat',  label: '토요일' },
@@ -33,7 +34,6 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>('ov');
   const [routineSelection, setRoutineSelection] = useState<RoutineSelection>('base');
   const [completedStore, setCompletedStore] = useState<WorkoutCompletionStore>({});
-  const [isFasting24Today, setIsFasting24Today] = useState(false);
   const [recoveryToday, setRecoveryToday] = useState<RecoveryDayRecord | null>(null);
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
 
@@ -46,13 +46,7 @@ export default function Page() {
     setRoutineSelection(savedRoutine && ['base', 'adapt1', 'adapt2', 'adapt3', 'recovery'].includes(savedRoutine) ? savedRoutine : 'base');
 
     setCompletedStore(readWorkoutCompletionStore());
-    try {
-      const modes = JSON.parse(window.localStorage.getItem(FASTING_MODE_KEY) || '{}') as Record<string, string>;
-      setIsFasting24Today(modes[getLocalDateKey()] === '24h');
-    } catch {
-      setIsFasting24Today(false);
-    }
-    setRecoveryToday(assessRecoveryMode(getLocalDateKey(), ['mon', 'tue', 'thu', 'fri', 'sat'].includes(activeTab) ? activeTab as WorkoutDayId : null));
+    setRecoveryToday(assessRecoveryMode(getLocalDateKey(), ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) ? activeTab as WorkoutDayId : null));
   }, [activeTab]);
 
   const handleRoutineSelectionChange = (value: RoutineSelection) => {
@@ -129,9 +123,8 @@ export default function Page() {
           <WeeklyView onTabChange={handleTabChange} completedDays={completedDays} />
         )}
 
-        {dayWorkout && ['mon', 'tue', 'thu', 'fri', 'sat'].includes(activeTab) && (
+        {dayWorkout && ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) && (
           <>
-            {isFasting24Today && <section className="mb-4 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-[13px] text-amber-800 shadow-sm"><p className="font-bold">오늘은 24시간 단식 선택일입니다.</p><p className="mt-1">강한 슬라이딩보드, 전신 서킷, 고중량 운동은 피하고 걷기·가벼운 스트레칭·회복 운동 중심으로 진행하세요.</p><div className="mt-2 rounded-xl bg-white/70 px-3 py-2">루틴은 삭제하거나 강제로 변경하지 않습니다. 컨디션에 따라 강도를 낮춰 진행하세요.</div></section>}
           <DayView
             day={dayWorkout}
             isCompleted={completedDays[activeTab as WorkoutDayId]}
@@ -162,7 +155,8 @@ export default function Page() {
             { id: 'ov',   emoji: '📅', label: '개요' },
             { id: 'mon',  emoji: '💪', label: '월' },
             { id: 'tue',  emoji: '🦵', label: '화' },
-            { id: 'thu',  emoji: '🔝', label: '목' },
+            { id: 'wed',  emoji: '🌿', label: '수' },
+            { id: 'thu',  emoji: '🚶', label: '목' },
             { id: 'fri',  emoji: '⚡', label: '금' },
             { id: 'sat',  emoji: '🔥', label: '토' },
             { id: 'diet', emoji: '🥗', label: '식단' },
