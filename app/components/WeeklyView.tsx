@@ -4,7 +4,7 @@ import { WEEK_OVERVIEW } from '../data/workouts';
 
 interface WeeklyViewProps {
   onTabChange: (id: string) => void;
-  completedDays: Record<'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', boolean>;
+  completedDays: Record<'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', boolean>;
 }
 
 export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewProps) {
@@ -94,7 +94,7 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
       <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
         요일별 운동 시간
       </p>
-      <div className="grid grid-cols-6 gap-1.5 mb-5">
+      <div className="grid grid-cols-7 gap-1.5 mb-5">
         {dayTimes.map((dt, i) => (
           <div
             key={i}

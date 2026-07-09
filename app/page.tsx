@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY, WORKOUTS } from './data/workouts';
-import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
+import { getWeeklyWorkoutCompletion, getWorkoutDayForDate, getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
 import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord, RECOVERY_MODE_DAYS_KEY } from './data/recoveryMode';
 import { getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
@@ -13,11 +13,12 @@ import RecordCalendarView from './components/RecordCalendarView';
 import SwitchOnModePanel from './components/SwitchOnModePanel';
 import PullupTrainingView from './components/PullupTrainingView';
 
-type TabId = 'ov' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'pullup' | 'diet' | 'record' | 'tips';
-type WorkoutDayId = Extract<TabId, 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'>;
+type TabId = 'ov' | 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'pullup' | 'diet' | 'record' | 'tips';
+type WorkoutDayId = Extract<TabId, 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat'>;
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'ov',   label: '주간 개요' },
+  { id: 'sun',  label: '일요일' },
   { id: 'mon',  label: '월요일' },
   { id: 'tue',  label: '화요일' },
   { id: 'wed',  label: '수요일' },
@@ -46,8 +47,15 @@ export default function Page() {
     setRoutineSelection(savedRoutine && ['base', 'adapt1', 'adapt2', 'adapt3', 'recovery'].includes(savedRoutine) ? savedRoutine : 'base');
 
     setCompletedStore(readWorkoutCompletionStore());
-    setRecoveryToday(assessRecoveryMode(getLocalDateKey(), ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) ? activeTab as WorkoutDayId : null));
+    setRecoveryToday(assessRecoveryMode(getLocalDateKey(), ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) ? activeTab as WorkoutDayId : null));
   }, [activeTab]);
+
+  useEffect(() => {
+    const todayWorkoutDay = getWorkoutDayForDate();
+    if (todayWorkoutDay) {
+      setActiveTab(todayWorkoutDay);
+    }
+  }, []);
 
   const handleRoutineSelectionChange = (value: RoutineSelection) => {
     setRoutineSelection(value);
@@ -56,12 +64,12 @@ export default function Page() {
   };
 
   const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string) => {
-    const dateKey = getDateForWorkoutDay(dayId);
+    const dateKey = getLocalDateKey();
     if (recoveryToday?.recoveryMode && !window.confirm('오늘은 회복 우선으로 기록되어 있습니다. 회복 기록을 해제하고 운동 완료로 변경할까요?')) return;
     const exerciseNames = dayWorkout?.phases.flatMap((phase) => phase.exercises).filter((exercise) => exercise.sets !== 0 || exercise.intervalPlan || exercise.abSlideGate).map((exercise) => exercise.name) ?? [];
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
-      const next = { ...prev, [dateKey]: { ...current, workoutDone: true, workoutRoutineName: dayWorkout?.title, workoutExerciseNames: exerciseNames, workoutPain: pain, workoutMemo: memo.trim() || undefined } };
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: true, workoutRoutineName: dayWorkout?.title, workoutExerciseNames: exerciseNames, workoutSourceDay: baseDayWorkout?.tabLabel, workoutPain: pain, workoutMemo: memo.trim() || undefined } };
       window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
@@ -70,10 +78,10 @@ export default function Page() {
   };
 
   const cancelDayWorkout = (dayId: WorkoutDayId) => {
-    const dateKey = getDateForWorkoutDay(dayId);
+    const dateKey = getLocalDateKey();
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
-      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutPain: undefined, workoutMemo: undefined } };
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutSourceDay: undefined, workoutPain: undefined, workoutMemo: undefined } };
       window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
@@ -90,7 +98,7 @@ export default function Page() {
     if (getWorkoutRecord(completedStore[dateKey]).workoutDone && !window.confirm('오늘 운동 완료 기록이 있습니다. 회복 우선으로 변경하면 운동 완료 기록은 해제됩니다.')) return;
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
-      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutPain: undefined, workoutMemo: undefined } };
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutSourceDay: undefined, workoutPain: undefined, workoutMemo: undefined } };
       window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
@@ -110,6 +118,8 @@ export default function Page() {
   };
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
+  const todayKey = getLocalDateKey();
+  const todayDayName = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'][new Date().getDay()];
   const baseDayWorkout = WORKOUTS.find((w) => w.id === activeTab);
   const dayWorkout = baseDayWorkout && ['adapt1', 'adapt2', 'adapt3'].includes(routineSelection) ? ADAPTATION_WORKOUTS[routineSelection as keyof typeof ADAPTATION_WORKOUTS] : baseDayWorkout;
   const selectedRecovery = routineSelection === 'recovery';
@@ -157,15 +167,15 @@ export default function Page() {
           <WeeklyView onTabChange={handleTabChange} completedDays={completedDays} />
         )}
 
-        {dayWorkout && ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) && (
+        {dayWorkout && ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].includes(activeTab) && (
           <>
-          <DayView
+          <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm"><p className="text-[12px] font-bold text-[#534AB7]">오늘 추천 루틴</p><h2 className="mt-1 text-[18px] font-bold text-gray-900">오늘은 {todayDayName}입니다.</h2><p className="mt-2 text-[13px] font-semibold text-gray-700">추천 운동: {dayWorkout.title}</p><p className="mt-2 text-[12px] text-gray-500">오늘 추천 루틴이 자동 선택되었습니다. 운동을 미뤘거나 다른 루틴을 하고 싶다면 위 요일 탭의 다른 요일 루틴 보기에서 변경할 수 있습니다.</p></section><DayView
             day={dayWorkout}
-            isCompleted={completedDays[activeTab as WorkoutDayId]}
+            isCompleted={getWorkoutRecord(completedStore[todayKey]).workoutDone ?? false}
             onSaveWorkout={(pain, memo) => saveDayWorkout(activeTab as WorkoutDayId, pain, memo)}
             onCancelWorkout={() => cancelDayWorkout(activeTab as WorkoutDayId)}
-            workoutPain={getWorkoutRecord(completedStore[getDateForWorkoutDay(activeTab as WorkoutDayId)]).workoutPain}
-            workoutMemo={getWorkoutRecord(completedStore[getDateForWorkoutDay(activeTab as WorkoutDayId)]).workoutMemo}
+            workoutPain={getWorkoutRecord(completedStore[todayKey]).workoutPain}
+            workoutMemo={getWorkoutRecord(completedStore[todayKey]).workoutMemo}
             onPullupTraining={() => handleTabChange('pullup')}
             recovery={displayedRecovery}
             onRecordRecovery={recordRecoveryPriority}
@@ -191,6 +201,7 @@ export default function Page() {
         <div className="flex justify-around py-2">
           {[
             { id: 'ov',   emoji: '📅', label: '개요' },
+            { id: 'sun',  emoji: '😴', label: '일' },
             { id: 'mon',  emoji: '💪', label: '월' },
             { id: 'tue',  emoji: '🦵', label: '화' },
             { id: 'wed',  emoji: '🌿', label: '수' },
