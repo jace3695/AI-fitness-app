@@ -132,7 +132,7 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
         {[
           { icon: '🧘', label: '준비운동', time: '5~8분', bg: '#EEEDFE', lc: '#3C3489', tc: '#534AB7' },
           { icon: '💪', label: '본 운동', time: '15~20분', bg: '#E6F1FB', lc: '#0C447C', tc: '#185FA5' },
-          { icon: '🏂', label: '걷기/가벼운 보드', time: '5~20분', bg: '#FAEEDA', lc: '#633806', tc: '#854F0B' },
+          { icon: '🏂', label: '선택 유산소', time: '5~20분', bg: '#FAEEDA', lc: '#633806', tc: '#854F0B' },
           { icon: '🌿', label: '마무리 스트레칭', time: '5~8분', bg: '#EAF3DE', lc: '#27500A', tc: '#3B6D11' },
         ].map((s, i, arr) => (
           <div key={i} className="flex items-center flex-1">
@@ -157,7 +157,7 @@ export default function WeeklyView({ onTabChange, completedDays }: WeeklyViewPro
 
       {/* Info Box */}
       <div className="bg-[#E6F1FB] text-[#0C447C] border-l-[3px] border-[#378ADD] rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed">
-        💡 각 요일 탭 하나에 준비운동 · 근력/안정화 또는 식후 걷기 · 마무리 스트레칭이 모두 담겨 있습니다.
+        💡 각 요일 탭 하나에 준비운동 · 근력/안정화 또는 가벼운 유산소 · 마무리 스트레칭이 모두 담겨 있습니다.
         해당 요일 탭만 열면 그날 운동을 처음부터 끝까지 진행할 수 있습니다.
       </div>
     </div>
