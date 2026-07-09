@@ -9,6 +9,7 @@ export interface WorkoutDayRecord {
   pullupStage?: number;
   pullupExerciseNames?: string[];
   pullupPain?: boolean;
+  pullupMemo?: string;
 }
 export type WorkoutCompletionValue = boolean | WorkoutDayRecord;
 export type WorkoutCompletionStore = Record<string, WorkoutCompletionValue>;
