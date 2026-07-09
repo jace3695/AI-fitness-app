@@ -10,6 +10,9 @@ const safetyRules = ['통증을 참고 진행하지 않기', '팔 저림, 어깨
 export default function PullupTrainingView() {
   const [progress, setProgress] = useState<PullupProgress>(() => createDefaultPullupProgress());
   const [selectedStage, setSelectedStage] = useState(1);
+  const [pullupPain, setPullupPain] = useState(false);
+  const [pullupMemo, setPullupMemo] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     const raw = window.localStorage.getItem(PULLUP_PROGRESS_KEY);
@@ -40,11 +43,7 @@ export default function PullupTrainingView() {
     save(next);
   };
 
-  const completeToday = () => {
-    const pullupDone = !check.todayCompleted;
-    const nextCheck = { ...check, todayCompleted: pullupDone, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1 };
-    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
-
+  const writeTodayPullupRecord = (pain: boolean, memo: string, done: boolean) => {
     const dateKey = getLocalDateKey();
     const store = readWorkoutCompletionStore();
     const current = getWorkoutRecord(store[dateKey]);
@@ -52,12 +51,28 @@ export default function PullupTrainingView() {
       ...store,
       [dateKey]: {
         ...current,
-        pullupDone,
+        pullupDone: done,
         pullupStage: stage.id,
-        pullupExerciseNames: pullupDone ? stage.exercises : current.pullupExerciseNames,
-        pullupPain: pullupDone ? !nextCheck.painFree : current.pullupPain,
+        pullupExerciseNames: stage.exercises,
+        pullupPain: pain,
+        pullupMemo: memo.trim() || undefined,
       },
     }));
+  };
+
+  const completeToday = () => {
+    const pullupDone = !check.todayCompleted;
+    const nextCheck = { ...check, todayCompleted: pullupDone, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1, painFree: pullupDone ? !pullupPain : check.painFree };
+    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    writeTodayPullupRecord(pullupPain, pullupMemo, pullupDone);
+    setSaveMessage(pullupDone ? '오늘 철봉 완료 기록을 저장했습니다.' : '오늘 철봉 완료 기록을 해제했습니다.');
+  };
+
+  const saveTodayPullupRecord = () => {
+    const nextCheck = { ...check, todayCompleted: true, completedCount: check.todayCompleted ? check.completedCount : check.completedCount + 1, painFree: !pullupPain };
+    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    writeTodayPullupRecord(pullupPain, pullupMemo, true);
+    setSaveMessage('오늘 철봉 완료 기록을 저장했습니다.');
   };
 
   const moveNext = () => {
@@ -91,6 +106,17 @@ export default function PullupTrainingView() {
 
       <div className="mt-4 rounded-2xl bg-gray-50 p-3"><p className="mb-2 text-[13px] font-bold text-gray-800">오늘 체크</p><Check label="오늘 훈련 완료" checked={check.todayCompleted} onChange={completeToday} /><Check label="목표 세트 완료" checked={check.targetSetsCompleted} onChange={() => updateCheck('targetSetsCompleted', !check.targetSetsCompleted)} /><Check label="통증 없이 완료" checked={check.painFree} onChange={() => updateCheck('painFree', !check.painFree)} /><Check label="다음 단계 조건 충족" checked={check.promotionReady} onChange={() => updateCheck('promotionReady', !check.promotionReady)} />
       <div className="mt-3 rounded-xl bg-white p-3"><p className="text-[12px] font-bold text-gray-700">다음 단계 조건</p>{stage.nextCondition.map((condition) => <p key={condition} className="mt-1 text-[12px] text-gray-500">• {condition}</p>)}{canPromote && <button onClick={moveNext} className="mt-3 w-full rounded-xl bg-[#534AB7] py-2 text-[13px] font-bold text-white">사용자가 직접 다음 단계로 이동</button>}</div></div>
+    </section>
+
+    <section className="rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+      <p className="text-[12px] font-bold text-[#534AB7]">오늘 철봉 기록</p>
+      <h3 className="mt-1 text-lg font-bold text-gray-900">오늘 철봉 완료 저장</h3>
+      <div className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] text-[#3C3489]"><b>선택 단계: {stage.id}단계</b><p className="mt-1 text-[12px]">{stage.title}</p></div>
+      <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px] text-gray-700"><p className="font-bold text-gray-800">기록될 운동:</p>{stage.exercises.map((name) => <p key={`record-${name}`} className="mt-1">- {name}</p>)}</div>
+      <label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={pullupPain} onChange={(e) => setPullupPain(e.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
+      <label className="mt-3 block text-[13px] font-bold text-gray-700">메모<textarea value={pullupMemo} onChange={(e) => setPullupMemo(e.target.value)} placeholder="오늘 자세 느낌 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
+      <button onClick={saveTodayPullupRecord} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button>
+      {saveMessage && <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">{saveMessage}</p>}
     </section>
   </div>;
 }
