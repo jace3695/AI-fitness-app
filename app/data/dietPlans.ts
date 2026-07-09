@@ -11,6 +11,20 @@ export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: n
 export type SocialMealMode = 'none' | 'lunch' | 'dinner';
 export type FastingMode = 'none';
 
+export type DietStatus = 'good' | 'normal' | 'shaky' | 'dining' | 'recovery';
+export type FastingRecordStatus = '14h' | '12h' | 'missed';
+export interface SimpleDietRecommendation { id: string; title: string; items: string[] }
+export const DIET_STATUS_LABELS: Record<DietStatus, string> = { good: '좋음', normal: '보통', shaky: '흔들림', dining: '회식/외식', recovery: '컨디션 조절' };
+export const FASTING_STATUS_LABELS: Record<FastingRecordStatus, string> = { '14h': '14시간 달성', '12h': '12시간 조절', missed: '미달성' };
+export const simpleDietRecommendations: SimpleDietRecommendation[] = [
+  { id: 'breakfast', title: '아침 추천', items: ['퓨어프로틴7 1회', '물 1컵', '속이 불편하면 양을 줄이거나 천천히 섭취'] },
+  { id: 'lunch', title: '점심 추천', items: ['통곡물밥 100~130g', '닭가슴살 / 생선 / 계란 / 두부 / 살코기 중 1개', '채소 반찬 1~2가지'] },
+  { id: 'afternoon', title: '오후 보충 추천', items: ['퓨어프로틴7 0.5회', '허기가 크면 1회', '견과류는 필요할 때만 15~20g'] },
+  { id: 'dinner', title: '저녁 추천', items: ['단백질 20g 이상', '채소 포함', '밥은 기본 제외', '운동 전 기운 부족, 야식 위험, 점심 부족 시 통곡물밥 50~80g 허용'] },
+  { id: 'dining', title: '회식/외식 추천', items: ['구이 고기, 수육, 생선, 회, 샤브샤브, 두부, 계란 우선', '밥/면은 하나만 선택하고 과식하지 않기', '술 1잔당 물 1잔 권장'] },
+  { id: 'low-condition', title: '컨디션 저하일 추천', items: ['12시간 공복으로 조절 가능', '속쓰림·어지럼·손떨림이 있으면 회복 우선', '단백질과 수분은 유지하고 강한 운동은 피하기'] },
+];
+
 export const DIET_PHASE_KEY = 'ai-fitness-diet-phase';
 export const DIET_START_DATE_KEY = 'ai-fitness-diet-start-date';
 export const DIET_COMPLETED_DAYS_KEY = 'ai-fitness-diet-completed-days';

@@ -15,6 +15,10 @@ export default function PullupTrainingView() {
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
+    const todayRecord = getWorkoutRecord(readWorkoutCompletionStore()[getLocalDateKey()]);
+    setPullupPain(Boolean(todayRecord.pullupPain));
+    setPullupMemo(todayRecord.pullupMemo || '');
+    if (todayRecord.pullupStage) setSelectedStage(todayRecord.pullupStage);
     const raw = window.localStorage.getItem(PULLUP_PROGRESS_KEY);
     if (raw) {
       try {
@@ -52,10 +56,10 @@ export default function PullupTrainingView() {
       [dateKey]: {
         ...current,
         pullupDone: done,
-        pullupStage: stage.id,
-        pullupExerciseNames: stage.exercises,
-        pullupPain: pain,
-        pullupMemo: memo.trim() || undefined,
+        pullupStage: done ? stage.id : undefined,
+        pullupExerciseNames: done ? stage.exercises : undefined,
+        pullupPain: done ? pain : undefined,
+        pullupMemo: done ? memo.trim() || undefined : undefined,
       },
     }));
   };
@@ -73,6 +77,16 @@ export default function PullupTrainingView() {
     save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
     writeTodayPullupRecord(pullupPain, pullupMemo, true);
     setSaveMessage('오늘 철봉 완료 기록을 저장했습니다.');
+  };
+
+
+  const cancelTodayPullupRecord = () => {
+    const nextCheck = { ...check, todayCompleted: false, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount };
+    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    writeTodayPullupRecord(false, '', false);
+    setPullupPain(false);
+    setPullupMemo('');
+    setSaveMessage('철봉 기록을 취소했습니다.');
   };
 
   const moveNext = () => {
@@ -115,7 +129,7 @@ export default function PullupTrainingView() {
       <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px] text-gray-700"><p className="font-bold text-gray-800">기록될 운동:</p>{stage.exercises.map((name) => <p key={`record-${name}`} className="mt-1">- {name}</p>)}</div>
       <label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={pullupPain} onChange={(e) => setPullupPain(e.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
       <label className="mt-3 block text-[13px] font-bold text-gray-700">메모<textarea value={pullupMemo} onChange={(e) => setPullupMemo(e.target.value)} placeholder="오늘 자세 느낌 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
-      <button onClick={saveTodayPullupRecord} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button>
+      <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={saveTodayPullupRecord} className="rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button><button onClick={cancelTodayPullupRecord} className="rounded-xl bg-red-50 px-4 py-3 text-[14px] font-bold text-red-600">철봉 기록 취소</button></div>
       {saveMessage && <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">{saveMessage}</p>}
     </section>
   </div>;

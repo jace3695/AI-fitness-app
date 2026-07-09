@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY, WORKOUTS } from './data/workouts';
 import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
-import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord } from './data/recoveryMode';
+import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord, RECOVERY_MODE_DAYS_KEY } from './data/recoveryMode';
 import { getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
 import DayView from './components/DayView';
@@ -55,13 +55,25 @@ export default function Page() {
     if (value === 'recovery') setShowBaseRoutine(false);
   };
 
-  const toggleDayComplete = (dayId: WorkoutDayId) => {
+  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string) => {
+    const dateKey = getDateForWorkoutDay(dayId);
+    if (recoveryToday?.recoveryMode && !window.confirm('오늘은 회복 우선으로 기록되어 있습니다. 회복 기록을 해제하고 운동 완료로 변경할까요?')) return;
+    const exerciseNames = dayWorkout?.phases.flatMap((phase) => phase.exercises).filter((exercise) => exercise.sets !== 0 || exercise.intervalPlan || exercise.abSlideGate).map((exercise) => exercise.name) ?? [];
     setCompletedStore((prev) => {
-      const dateKey = getDateForWorkoutDay(dayId);
       const current = getWorkoutRecord(prev[dateKey]);
-      const workoutDone = !current.workoutDone;
-      const exerciseNames = dayWorkout?.phases.flatMap((phase) => phase.exercises).filter((exercise) => exercise.sets !== 0 || exercise.intervalPlan || exercise.abSlideGate).map((exercise) => exercise.name) ?? [];
-      const next = { ...prev, [dateKey]: { ...current, workoutDone, workoutRoutineName: workoutDone ? dayWorkout?.title : current.workoutRoutineName, workoutExerciseNames: workoutDone ? exerciseNames : current.workoutExerciseNames } };
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: true, workoutRoutineName: dayWorkout?.title, workoutExerciseNames: exerciseNames, workoutPain: pain, workoutMemo: memo.trim() || undefined } };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+    const saved = saveRecoveryRecord(dateKey, { recoveryMode: false, completedAsRecovery: false, recoveryPriorityOnly: false, reasons: [], intensity: 'normal' });
+    setRecoveryToday(saved);
+  };
+
+  const cancelDayWorkout = (dayId: WorkoutDayId) => {
+    const dateKey = getDateForWorkoutDay(dayId);
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutPain: undefined, workoutMemo: undefined } };
       window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
@@ -73,9 +85,28 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const recordRecoveryPriority = () => {
-    const saved = saveRecoveryRecord(getLocalDateKey(), { recoveryMode: true, completedAsRecovery: true, recoveryPriorityOnly: true, intensity: 'recovery' });
+  const recordRecoveryPriority = (memo = '') => {
+    const dateKey = getLocalDateKey();
+    if (getWorkoutRecord(completedStore[dateKey]).workoutDone && !window.confirm('오늘 운동 완료 기록이 있습니다. 회복 우선으로 변경하면 운동 완료 기록은 해제됩니다.')) return;
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = { ...prev, [dateKey]: { ...current, workoutDone: false, workoutRoutineName: undefined, workoutExerciseNames: undefined, workoutPain: undefined, workoutMemo: undefined } };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+    const saved = saveRecoveryRecord(dateKey, { recoveryMode: true, completedAsRecovery: true, recoveryPriorityOnly: true, intensity: 'recovery', recoveryMemo: memo.trim() || undefined });
     setRecoveryToday(saved);
+  };
+
+  const cancelRecoveryPriority = () => {
+    const dateKey = getLocalDateKey();
+    const raw = window.localStorage.getItem(RECOVERY_MODE_DAYS_KEY);
+    const store = raw ? JSON.parse(raw) : {};
+    const current = store[dateKey] || {};
+    const nextRecord = { ...current, recoveryMode: false, completedAsRecovery: false, recoveryPriorityOnly: false, recoveryMemo: undefined, updatedAt: new Date().toISOString() };
+    const next = { ...store, [dateKey]: nextRecord };
+    window.localStorage.setItem(RECOVERY_MODE_DAYS_KEY, JSON.stringify(next));
+    setRecoveryToday(nextRecord);
   };
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
@@ -83,7 +114,7 @@ export default function Page() {
   const dayWorkout = baseDayWorkout && ['adapt1', 'adapt2', 'adapt3'].includes(routineSelection) ? ADAPTATION_WORKOUTS[routineSelection as keyof typeof ADAPTATION_WORKOUTS] : baseDayWorkout;
   const selectedRecovery = routineSelection === 'recovery';
   const displayedRecovery = selectedRecovery
-    ? { recoveryMode: true, reasons: [], completedAsRecovery: recoveryToday?.completedAsRecovery, recoveryPriorityOnly: recoveryToday?.recoveryPriorityOnly, intensity: 'recovery' as const, updatedAt: recoveryToday?.updatedAt }
+    ? { recoveryMode: true, reasons: [], completedAsRecovery: recoveryToday?.completedAsRecovery, recoveryPriorityOnly: recoveryToday?.recoveryPriorityOnly, recoveryMemo: recoveryToday?.recoveryMemo, intensity: 'recovery' as const, updatedAt: recoveryToday?.updatedAt }
     : recoveryToday || undefined;
 
   return (
@@ -131,10 +162,14 @@ export default function Page() {
           <DayView
             day={dayWorkout}
             isCompleted={completedDays[activeTab as WorkoutDayId]}
-            onToggleComplete={() => toggleDayComplete(activeTab as WorkoutDayId)}
+            onSaveWorkout={(pain, memo) => saveDayWorkout(activeTab as WorkoutDayId, pain, memo)}
+            onCancelWorkout={() => cancelDayWorkout(activeTab as WorkoutDayId)}
+            workoutPain={getWorkoutRecord(completedStore[getDateForWorkoutDay(activeTab as WorkoutDayId)]).workoutPain}
+            workoutMemo={getWorkoutRecord(completedStore[getDateForWorkoutDay(activeTab as WorkoutDayId)]).workoutMemo}
             onPullupTraining={() => handleTabChange('pullup')}
             recovery={displayedRecovery}
             onRecordRecovery={recordRecoveryPriority}
+            onCancelRecovery={cancelRecoveryPriority}
             showBaseRoutine={!selectedRecovery && (showBaseRoutine || !displayedRecovery?.recoveryMode)}
             onShowRecommended={() => setShowBaseRoutine(false)}
             onShowBaseRoutine={() => setShowBaseRoutine(true)}

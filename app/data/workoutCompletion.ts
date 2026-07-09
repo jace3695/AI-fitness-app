@@ -5,6 +5,8 @@ export interface WorkoutDayRecord {
   workoutDone?: boolean;
   workoutRoutineName?: string;
   workoutExerciseNames?: string[];
+  workoutPain?: boolean;
+  workoutMemo?: string;
   pullupDone?: boolean;
   pullupStage?: number;
   pullupExerciseNames?: string[];
