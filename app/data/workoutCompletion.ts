@@ -1,7 +1,29 @@
 import { getLocalDateKey } from './dietPlans';
 
 export type WorkoutDayId = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
-export type WorkoutCompletionStore = Record<string, boolean>;
+export interface WorkoutDayRecord {
+  workoutDone?: boolean;
+  workoutRoutineName?: string;
+  workoutExerciseNames?: string[];
+  pullupDone?: boolean;
+  pullupStage?: number;
+  pullupExerciseNames?: string[];
+  pullupPain?: boolean;
+}
+export type WorkoutCompletionValue = boolean | WorkoutDayRecord;
+export type WorkoutCompletionStore = Record<string, WorkoutCompletionValue>;
+
+export function isWorkoutDone(value?: WorkoutCompletionValue) {
+  return typeof value === 'boolean' ? value : Boolean(value?.workoutDone);
+}
+
+export function isPullupDone(value?: WorkoutCompletionValue) {
+  return typeof value === 'object' && Boolean(value?.pullupDone);
+}
+
+export function getWorkoutRecord(value?: WorkoutCompletionValue): WorkoutDayRecord {
+  return typeof value === 'object' && value ? value : { workoutDone: Boolean(value) };
+}
 
 export const WORKOUT_COMPLETED_DAYS_KEY = 'ai-fitness-workout-completed-days';
 export const WORKOUT_DAY_IDS: WorkoutDayId[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -26,7 +48,7 @@ export function getWorkoutDayForDate(date = new Date()): WorkoutDayId | null {
 
 export function getWeeklyWorkoutCompletion(store: WorkoutCompletionStore, baseDate = new Date()) {
   return WORKOUT_DAY_IDS.reduce<Record<WorkoutDayId, boolean>>((acc, dayId) => {
-    acc[dayId] = Boolean(store[getDateForWorkoutDay(dayId, baseDate)]);
+    acc[dayId] = isWorkoutDone(store[getDateForWorkoutDay(dayId, baseDate)]);
     return acc;
   }, { mon: false, tue: false, wed: false, thu: false, fri: false, sat: false });
 }
@@ -44,11 +66,11 @@ export function readWorkoutCompletionStore(baseDate = new Date()): WorkoutComple
     Object.entries(parsed).forEach(([key, value]) => {
       if (!value) return;
       if (isWorkoutDayId(key)) {
-        migrated[getDateForWorkoutDay(key, baseDate)] = true;
+        migrated[getDateForWorkoutDay(key, baseDate)] = { workoutDone: true };
         changed = true;
         return;
       }
-      migrated[key] = true;
+      migrated[key] = typeof value === 'object' && value !== null ? value as WorkoutDayRecord : { workoutDone: true };
     });
 
     if (changed) {
@@ -63,5 +85,5 @@ export function readWorkoutCompletionStore(baseDate = new Date()): WorkoutComple
 }
 
 export function isWorkoutCompletedOnDate(store: WorkoutCompletionStore, date = new Date()) {
-  return Boolean(store[getLocalDateKey(date)]);
+  return isWorkoutDone(store[getLocalDateKey(date)]);
 }

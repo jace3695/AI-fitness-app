@@ -1,3 +1,4 @@
+import { isWorkoutDone } from '../data/workoutCompletion';
 import { RecordStores, getMonthDateKeys, isDietSuccess } from '../data/recordStorage';
 
 export default function MonthlySummaryCard({ year, monthIndex, stores }: { year: number; monthIndex: number; stores: RecordStores }) {
@@ -7,7 +8,7 @@ export default function MonthlySummaryCard({ year, monthIndex, stores }: { year:
   const last = monthWeights[monthWeights.length - 1]?.[1].weight;
   const change = first !== undefined && last !== undefined ? last - first : null;
   const items = [
-    ['운동 완료', `${keys.filter((key) => stores.workouts[key]).length}회`],
+    ['운동 완료', `${keys.filter((key) => isWorkoutDone(stores.workouts[key])).length}회`],
     ['식단 성공일', `${keys.filter((key) => isDietSuccess(stores.diet[key])).length}일`],
     ['물 2L 달성', `${keys.filter((key) => (stores.water[key] || 0) >= 2000).length}일`],
     ['체중 기록', `${monthWeights.length}회`],

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ADAPTATION_WORKOUTS, RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY, WORKOUTS } from './data/workouts';
-import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
+import { getDateForWorkoutDay, getWeeklyWorkoutCompletion, getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './data/workoutCompletion';
 import { assessRecoveryMode, RecoveryDayRecord, saveRecoveryRecord } from './data/recoveryMode';
 import { getLocalDateKey } from './data/dietPlans';
 import WeeklyView from './components/WeeklyView';
@@ -58,7 +58,10 @@ export default function Page() {
   const toggleDayComplete = (dayId: WorkoutDayId) => {
     setCompletedStore((prev) => {
       const dateKey = getDateForWorkoutDay(dayId);
-      const next = { ...prev, [dateKey]: !prev[dateKey] };
+      const current = getWorkoutRecord(prev[dateKey]);
+      const workoutDone = !current.workoutDone;
+      const exerciseNames = dayWorkout?.phases.flatMap((phase) => phase.exercises).filter((exercise) => exercise.sets !== 0 || exercise.intervalPlan || exercise.abSlideGate).map((exercise) => exercise.name) ?? [];
+      const next = { ...prev, [dateKey]: { ...current, workoutDone, workoutRoutineName: workoutDone ? dayWorkout?.title : current.workoutRoutineName, workoutExerciseNames: workoutDone ? exerciseNames : current.workoutExerciseNames } };
       window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
       return next;
     });
