@@ -8,6 +8,10 @@ export interface WorkoutDayRecord {
   workoutSourceDay?: string;
   workoutPain?: boolean;
   workoutMemo?: string;
+  cardioDone?: boolean;
+  cardioType?: string;
+  cardioMinutes?: number;
+  cardioMemo?: string;
   pullupDone?: boolean;
   pullupStage?: number;
   pullupExerciseNames?: string[];
@@ -19,6 +23,10 @@ export type WorkoutCompletionStore = Record<string, WorkoutCompletionValue>;
 
 export function isWorkoutDone(value?: WorkoutCompletionValue) {
   return typeof value === 'boolean' ? value : Boolean(value?.workoutDone);
+}
+
+export function isCardioDone(value?: WorkoutCompletionValue) {
+  return typeof value === 'object' && Boolean(value?.cardioDone);
 }
 
 export function isPullupDone(value?: WorkoutCompletionValue) {

@@ -87,6 +87,26 @@ export default function Page() {
     });
   };
 
+  const saveDayCardio = (type: string, minutes: number, memo: string) => {
+    const dateKey = getLocalDateKey();
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = { ...prev, [dateKey]: { ...current, cardioDone: true, cardioType: type, cardioMinutes: minutes, cardioMemo: memo.trim() || undefined } };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const cancelDayCardio = () => {
+    const dateKey = getLocalDateKey();
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = { ...prev, [dateKey]: { ...current, cardioDone: false, cardioType: undefined, cardioMinutes: undefined, cardioMemo: undefined } };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleTabChange = (id: string) => {
     setActiveTab(id as TabId);
     // Scroll to top when switching tabs
@@ -176,6 +196,12 @@ export default function Page() {
             onCancelWorkout={() => cancelDayWorkout(activeTab as WorkoutDayId)}
             workoutPain={getWorkoutRecord(completedStore[todayKey]).workoutPain}
             workoutMemo={getWorkoutRecord(completedStore[todayKey]).workoutMemo}
+            cardioDone={getWorkoutRecord(completedStore[todayKey]).cardioDone}
+            cardioType={getWorkoutRecord(completedStore[todayKey]).cardioType}
+            cardioMinutes={getWorkoutRecord(completedStore[todayKey]).cardioMinutes}
+            cardioMemo={getWorkoutRecord(completedStore[todayKey]).cardioMemo}
+            onSaveCardio={saveDayCardio}
+            onCancelCardio={cancelDayCardio}
             onPullupTraining={() => handleTabChange('pullup')}
             recovery={displayedRecovery}
             onRecordRecovery={recordRecoveryPriority}
