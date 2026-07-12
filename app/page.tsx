@@ -14,6 +14,7 @@ import {
   readWorkoutCompletionStore,
   WORKOUT_COMPLETED_DAYS_KEY,
   WorkoutCompletionStore,
+  WorkoutDayRecord,
 } from "./data/workoutCompletion";
 import {
   assessRecoveryMode,
@@ -244,6 +245,47 @@ export default function Page() {
     });
   };
 
+
+  const saveFoamRoller = (record: Pick<WorkoutDayRecord, "foamRollerTiming" | "foamRollerAreas" | "foamRollerPain" | "foamRollerMemo">) => {
+    const dateKey = getLocalDateKey();
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = {
+        ...prev,
+        [dateKey]: {
+          ...current,
+          foamRollerDone: true,
+          foamRollerTiming: record.foamRollerTiming,
+          foamRollerAreas: record.foamRollerAreas?.length ? record.foamRollerAreas : undefined,
+          foamRollerPain: record.foamRollerPain,
+          foamRollerMemo: record.foamRollerMemo?.trim() || undefined,
+        },
+      };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const cancelFoamRoller = () => {
+    const dateKey = getLocalDateKey();
+    setCompletedStore((prev) => {
+      const current = getWorkoutRecord(prev[dateKey]);
+      const next = {
+        ...prev,
+        [dateKey]: {
+          ...current,
+          foamRollerDone: false,
+          foamRollerTiming: undefined,
+          foamRollerAreas: undefined,
+          foamRollerPain: undefined,
+          foamRollerMemo: undefined,
+        },
+      };
+      window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const handleTabChange = (id: string) => {
     setActiveTab(id as TabId);
     // Scroll to top when switching tabs
@@ -445,6 +487,23 @@ export default function Page() {
                 }
                 onSaveCardio={saveDayCardio}
                 onCancelCardio={cancelDayCardio}
+                foamRollerDone={
+                  getWorkoutRecord(completedStore[todayKey]).foamRollerDone
+                }
+                foamRollerTiming={
+                  getWorkoutRecord(completedStore[todayKey]).foamRollerTiming
+                }
+                foamRollerAreas={
+                  getWorkoutRecord(completedStore[todayKey]).foamRollerAreas
+                }
+                foamRollerPain={
+                  getWorkoutRecord(completedStore[todayKey]).foamRollerPain
+                }
+                foamRollerMemo={
+                  getWorkoutRecord(completedStore[todayKey]).foamRollerMemo
+                }
+                onSaveFoamRoller={saveFoamRoller}
+                onCancelFoamRoller={cancelFoamRoller}
                 onPullupTraining={() => handleTabChange("pullup")}
                 recovery={displayedRecovery}
                 onRecordRecovery={recordRecoveryPriority}

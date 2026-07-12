@@ -11,6 +11,7 @@ import {
   getLocalDateKey,
 } from "../data/dietPlans";
 import { RECOVERY_REASON_LABELS } from "../data/recoveryMode";
+import { FOAM_ROLLER_TIMING_LABELS } from "../data/foamRoller";
 import {
   isCardioDone,
   isPullupDone,
@@ -108,6 +109,7 @@ export default function RecordCalendarView() {
   const hasPostWorkoutCardio = Boolean(
     selectedWorkoutRecord?.postWorkoutCardioMinutes,
   );
+  const foamTimingLabel = selectedWorkoutRecord?.foamRollerTiming ? FOAM_ROLLER_TIMING_LABELS[selectedWorkoutRecord.foamRollerTiming] : undefined;
   const anyRecord = Boolean(
     selectedDiet ||
     stores.workouts[selected] ||
@@ -167,6 +169,7 @@ export default function RecordCalendarView() {
               stores.notes[key] ? "✎" : "",
               hasSafetyAlert(stores.diet[key]) ? "⚠" : "",
               isPullupDone(stores.workouts[key]) ? "철" : "",
+              (typeof stores.workouts[key] === "object" && stores.workouts[key]?.foamRollerDone) ? "폼" : "",
             ].filter(Boolean);
             return (
               <button
@@ -195,7 +198,7 @@ export default function RecordCalendarView() {
         </div>
         <p className="mt-3 text-[11px] text-gray-400">
           운=일반 운동, 유=유산소, 철=철봉, 회=회복 운동, 휴=회복 우선, 식=식단
-          목표 달성, 💧=물 2L, W=체중, I=인바디, ✎=메모, ⚠=안전 증상
+          목표 달성, 폼=폼롤러, 💧=물 2L, W=체중, I=인바디, ✎=메모, ⚠=안전 증상
         </p>
       </section>
       <MonthlySummaryCard
@@ -314,6 +317,21 @@ export default function RecordCalendarView() {
                 <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-gray-600">
                   메모: {selectedWorkoutRecord.cardioMemo}
                 </p>
+              )}
+            </div>
+          )}
+
+          {selectedWorkoutRecord?.foamRollerDone && (
+            <div className="rounded-xl bg-emerald-50 p-3 col-span-2 text-emerald-900">
+              <b>{selectedWorkoutRecord.foamRollerPain ? "폼롤러 ⚠️ 통증 기록 있음" : "폼롤러 완료"}</b>
+              <br />
+              <span>시점: {foamTimingLabel || "미기록"}</span>
+              <br />
+              <span>부위: {selectedWorkoutRecord.foamRollerAreas?.length ? selectedWorkoutRecord.foamRollerAreas.join(" · ") : "미기록"}</span>
+              <br />
+              <span>통증: {selectedWorkoutRecord.foamRollerPain ? "있음" : "없음"}</span>
+              {selectedWorkoutRecord.foamRollerMemo && (
+                <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-gray-600">메모: {selectedWorkoutRecord.foamRollerMemo}</p>
               )}
             </div>
           )}

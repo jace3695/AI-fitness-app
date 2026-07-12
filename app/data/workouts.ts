@@ -588,6 +588,24 @@ const sliding = (
   intervalPlan: IntervalPlan,
 ): Exercise => mk(name, meta, guide, 0, 0, intervalPlan);
 
+
+const FOAM_ROLLER_PREP = () =>
+  mk(
+    "폼롤러 준비",
+    "3~5분",
+    "운동 강도를 높이는 장비가 아니라 몸을 준비하는 도구입니다. 종아리, 허벅지 앞, 엉덩이, 등 위쪽을 짧게 풀고 시간이 부족하면 3분만 진행합니다.",
+    0,
+    0,
+  );
+const FOAM_ROLLER_RECOVERY = () =>
+  mk(
+    "폼롤러 회복",
+    "5분",
+    "운동 후 회복 목적입니다. 허리 아래쪽은 직접 굴리지 말고 종아리, 허벅지, 엉덩이, 등 위쪽 중심으로 가볍게 진행합니다.",
+    0,
+    0,
+  );
+
 const ROSARY_CARDIO_GUIDE =
   "운동 전 묵주기도 슬라이딩보드는 고강도 운동이 아니라, 기도와 저강도 유산소를 함께하는 시간입니다. 묵주기도를 이어갈 수 있을 정도의 가벼운 속도로 진행하세요. 목표는 묵주기도 5단이지만 컨디션 저하 시 1~3단만 진행해도 되며, 5단 완료보다 안전한 자세와 꾸준함이 중요합니다.";
 const POST_WORKOUT_CARDIO_GUIDE =
@@ -692,6 +710,7 @@ export const ADAPTATION_WORKOUTS: Record<
     "운동 A — 등 + 밴드 + 덤벨 로우",
     "월요일 권장 · 집 운동 기반 1개월 감량 집중 루틴",
     [
+      FOAM_ROLLER_PREP(),
       ROSARY_CARDIO(),
       mk("버드독", "좌우 6회 × 2세트", "골반이 흔들리지 않게 천천히 뻗습니다.", 2, 30),
       mk("롱밴드 랫풀다운", "12회 × 2세트", "팔꿈치를 아래·뒤로 당기며 어깨를 귀에서 멀리 둡니다.", 2, 45),
@@ -700,6 +719,7 @@ export const ADAPTATION_WORKOUTS: Record<
       mk("데드버그", "좌우 6회 × 2세트", "허리가 뜨지 않는 범위에서 팔다리를 천천히 움직입니다.", 2, 30),
       PULLUP_START(),
       POST_WORKOUT_CARDIO(),
+      FOAM_ROLLER_RECOVERY(),
     ],
     "#534AB7",
   ),
@@ -710,6 +730,7 @@ export const ADAPTATION_WORKOUTS: Record<
     "운동 B — 하체 + 덤벨 스쿼트 + 루프밴드",
     "화요일 권장 · 하체와 골반 안정화",
     [
+      FOAM_ROLLER_PREP(),
       ROSARY_CARDIO(),
       mk("힙브릿지", "12회 × 2세트", "허리가 아니라 엉덩이에 힘을 주고 과하게 젖히지 않습니다.", 2, 30),
       mk("덤벨 고블릿 스쿼트", "8~10회 × 2세트 · 5~7kg부터 시작", "자세가 무너지면 무게를 낮추고 허리 통증 없는 범위만 진행합니다.", 2, 45),
@@ -718,6 +739,7 @@ export const ADAPTATION_WORKOUTS: Record<
       mk("버드독", "좌우 6회 × 2세트", "흔들림 없는 자세를 우선합니다.", 2, 30),
       PULLUP_START(),
       POST_WORKOUT_CARDIO(),
+      FOAM_ROLLER_RECOVERY(),
     ],
     "#639922",
   ),
@@ -728,6 +750,7 @@ export const ADAPTATION_WORKOUTS: Record<
     "운동 C — 회복형 유산소 + 코어 + AB 슬라이더 준비",
     "수요일 권장 · 가벼운 회복형 운동일",
     [
+      FOAM_ROLLER_PREP(),
       sliding("묵주기도 슬라이딩보드", "15~20분 · 아주 가볍게", ROSARY_CARDIO_GUIDE, { segments: [{ label: "저강도 · 기도 가능", seconds: 900, intensity: "아주 가볍게" }] }),
       mk("힙브릿지", "12회 × 2세트", "허리가 아니라 엉덩이에 힘을 주고 과하게 젖히지 않습니다.", 2, 30),
       mk("데드버그", "좌우 6회 × 2세트", "허리가 뜨지 않는 범위에서 팔다리를 천천히 움직입니다.", 2, 30),
@@ -735,6 +758,7 @@ export const ADAPTATION_WORKOUTS: Record<
       mk("롱밴드 가벼운 로우", "12회 × 1~2세트", "회복형 강도로 가볍게 당기고 어깨를 귀에서 멀리 둡니다.", 2, 45),
       mk("턱걸이 초기자세", "3분", "현재 단계 1개만 짧게 연습하고 1~5단계를 하루에 모두 수행하지 않습니다.", 0, 0),
       POST_WORKOUT_CARDIO(),
+      FOAM_ROLLER_RECOVERY(),
     ],
     "#378ADD",
   ),
@@ -747,6 +771,7 @@ const WORKOUT_D = day(
   "운동 D — 상체 + 덤벨 + 밴드 + AB 준비",
   "목요일 권장 · 상체와 코어 안정화",
   [
+    FOAM_ROLLER_PREP(),
     ROSARY_CARDIO(),
     mk("덤벨 플로어프레스", "10회 × 2세트 · 한 손 3~5kg부터", "바닥에서 팔꿈치가 닿으면 멈추고 가벼운 무게로 시작합니다.", 2, 45),
     mk("롱밴드 페이스풀", "12회 × 2세트", "얼굴 방향으로 당기며 어깨를 내리고 등 위쪽을 사용합니다.", 2, 45),
@@ -755,6 +780,7 @@ const WORKOUT_D = day(
     mk("AB 슬라이더 준비 자세", "5초 × 3회 · 허리 꺾이면 즉시 중단", "처음 1~2주차에는 준비 자세만 진행하고 앞으로 밀지 않습니다.", 0, 0, undefined, true),
     PULLUP_START(),
     POST_WORKOUT_CARDIO(),
+    FOAM_ROLLER_RECOVERY(),
   ],
   "#EF9F27",
 );
@@ -766,6 +792,7 @@ const WORKOUT_E = day(
   "운동 E — 전신 가벼운 서킷",
   "금요일 권장 · 강한 서킷이 아닌 가벼운 전신 반복",
   [
+    FOAM_ROLLER_PREP(),
     ROSARY_CARDIO(),
     mk("덤벨 고블릿 스쿼트", "8회 × 2세트 · 5~7kg부터", "속도보다 자세를 우선하고 허리 통증 없는 범위만 진행합니다.", 2, 45),
     mk("밴드 로우", "12회 × 2세트", "허리는 중립으로 고정하고 팔꿈치를 뒤로 당깁니다.", 2, 45),
@@ -774,6 +801,7 @@ const WORKOUT_E = day(
     mk("버드독", "좌우 6회 × 2세트", "흔들림 없는 자세를 우선합니다.", 2, 30),
     PULLUP_START(),
     POST_WORKOUT_CARDIO(),
+    FOAM_ROLLER_RECOVERY(),
   ],
   "#E24B4A",
 );
