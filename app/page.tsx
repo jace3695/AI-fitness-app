@@ -186,6 +186,10 @@ export default function Page() {
           workoutSourceDay: undefined,
           workoutPain: undefined,
           workoutMemo: undefined,
+          rosaryCardioDone: undefined,
+          rosaryCardioMinutes: undefined,
+          rosaryDecades: undefined,
+          postWorkoutCardioMinutes: undefined,
         },
       };
       window.localStorage.setItem(
@@ -267,6 +271,10 @@ export default function Page() {
           workoutSourceDay: undefined,
           workoutPain: undefined,
           workoutMemo: undefined,
+          rosaryCardioDone: undefined,
+          rosaryCardioMinutes: undefined,
+          rosaryDecades: undefined,
+          postWorkoutCardioMinutes: undefined,
         },
       };
       window.localStorage.setItem(
