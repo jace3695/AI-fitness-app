@@ -14,7 +14,7 @@ export default function WeeklyView({
   onTabChange,
   completedDays,
 }: WeeklyViewProps) {
-  const { stats, days, dayTimes } = WEEK_OVERVIEW;
+  const { stats, days, dayTimes, afterMonth } = WEEK_OVERVIEW;
 
   return (
     <div>
@@ -212,8 +212,21 @@ export default function WeeklyView({
 
       {/* Info Box */}
       <div className="bg-[#E6F1FB] text-[#0C447C] border-l-[3px] border-[#378ADD] rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed">
-        💡 월/수/금 근력운동일은 묵주기도 슬라이딩보드 → 근력/안정화 A/B/C →
-        턱걸이 초기자세 → 슬라이딩보드 마무리 순서로 진행합니다.
+        💡 월~금은 1개월 감량 집중기 운동일입니다. 묵주기도 슬라이딩보드 → 근력/안정화 A/B/C/D/E →
+        턱걸이 초기자세 → 슬라이딩보드 마무리 순서로 진행하고, 토요일은 선택 유산소 또는 휴식, 일요일은 휴식입니다.
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-[#AFA9EC] bg-white p-4 text-[13px] text-gray-700 shadow-sm">
+        <p className="font-bold text-[#3C3489]">1개월 이후 유지/조절기 안내</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          {afterMonth.map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-4 text-[13px] leading-relaxed text-green-800">
+        <p className="font-bold">이번 달 감량 목표</p>
+        <p className="mt-1">현실 목표: 2~4kg · 공격 목표: 4~6kg</p>
+        <p className="mt-1">10kg 이상 감량은 2~3개월 이상 장기 목표로 관리합니다. 무리한 감량보다 허리 통증 없이 지속하는 것을 우선합니다.</p>
       </div>
     </div>
   );
