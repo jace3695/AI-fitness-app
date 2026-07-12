@@ -45,5 +45,5 @@ export function saveRecoveryRecord(dateKey: string, patch: Partial<RecoveryDayRe
   return next[dateKey];
 }
 
-export const RECOVERY_ROUTINE = ['폼롤러 3분', '가벼운 슬라이딩보드 8~10분', '버드독 좌우 6회 × 2세트', '힙 브릿지 10회 × 2세트', '가벼운 스트레칭 5분'];
+export const RECOVERY_ROUTINE = ['폼롤러 회복 5~10분', '가벼운 호흡 1~2분', '가벼운 스트레칭 3~5분', '허리 아래쪽 직접 폼롤링 금지', '종아리·허벅지 앞·허벅지 바깥쪽·엉덩이·등 위쪽 중심'];
 export const RECOVERY_STOP_CRITERIA = ['허리 통증', '다리 저림', '날카로운 무릎 통증', '어지럼', '메스꺼움', '식은땀', '심한 피로'];

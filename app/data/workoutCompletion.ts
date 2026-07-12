@@ -28,6 +28,11 @@ export interface WorkoutDayRecord {
   pullupExerciseNames?: string[];
   pullupPain?: boolean;
   pullupMemo?: string;
+  foamRollerDone?: boolean;
+  foamRollerTiming?: "before" | "after" | "both" | "recovery";
+  foamRollerAreas?: string[];
+  foamRollerPain?: boolean;
+  foamRollerMemo?: string;
 }
 export type WorkoutCompletionValue = boolean | WorkoutDayRecord;
 export type WorkoutCompletionStore = Record<string, WorkoutCompletionValue>;
