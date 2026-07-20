@@ -109,7 +109,7 @@ export default function RecordCalendarView() {
   );
   const hasRosaryCardio = Boolean(selectedWorkoutRecord?.rosaryCardioDone);
   const hasPostWorkoutCardio = Boolean(
-    selectedWorkoutRecord?.postWorkoutCardioMinutes,
+    selectedWorkoutRecord?.postWorkoutCardioDone || selectedWorkoutRecord?.postWorkoutCardioMinutes,
   );
   const foamTimingLabel = selectedWorkoutRecord?.foamRollerTiming ? FOAM_ROLLER_TIMING_LABELS[selectedWorkoutRecord.foamRollerTiming] : undefined;
   const anyRecord = Boolean(
@@ -263,7 +263,7 @@ export default function RecordCalendarView() {
           </div>
           {hasRosaryCardio && (
             <div className="rounded-xl bg-gray-50 p-3 col-span-2">
-              묵주기도 슬라이딩보드 완료
+              운동 전: 묵주기도 슬라이딩보드
               <br />
               <b>시간: {selectedWorkoutRecord?.rosaryCardioMinutes ?? 20}분</b>
               <br />
@@ -272,7 +272,7 @@ export default function RecordCalendarView() {
           )}
           {hasPostWorkoutCardio && (
             <div className="rounded-xl bg-gray-50 p-3 col-span-2">
-              슬라이딩보드 마무리
+              운동 후: 슬라이딩보드 마무리
               <br />
               <b>시간: {selectedWorkoutRecord?.postWorkoutCardioMinutes}분</b>
             </div>
