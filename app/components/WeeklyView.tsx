@@ -1,6 +1,7 @@
 "use client";
 
 import { WEEK_OVERVIEW } from "../data/workouts";
+import { WeeklyWorkoutPlan } from "../data/workoutPlans";
 
 interface WeeklyViewProps {
   onTabChange: (id: string) => void;
@@ -8,16 +9,52 @@ interface WeeklyViewProps {
     "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat",
     boolean
   >;
+  plans: WeeklyWorkoutPlan[];
+  selectedPlanId: string;
+  onPlanChange: (planId: string) => void;
 }
 
 export default function WeeklyView({
   onTabChange,
   completedDays,
+  plans,
+  selectedPlanId,
+  onPlanChange,
 }: WeeklyViewProps) {
   const { stats, days, dayTimes, afterMonth } = WEEK_OVERVIEW;
 
   return (
     <div>
+
+      <section className="mb-5 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+        <div className="mb-3">
+          <p className="text-[14px] font-bold text-[#3C3489]">이번 주 운동 계획</p>
+          <p className="mt-1 text-[12px] text-gray-500">컨디션과 목표에 맞춰 이번 주에 사용할 주간 운동 계획을 선택하세요.</p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {plans.map((plan) => (
+            <button
+              key={plan.id}
+              type="button"
+              onClick={() => onPlanChange(plan.id)}
+              className={`rounded-xl border px-3 py-3 text-left transition ${
+                selectedPlanId === plan.id
+                  ? "border-[#AFA9EC] bg-[#EEEDFE] text-[#3C3489]"
+                  : "border-gray-100 bg-gray-50 text-gray-600"
+              }`}
+            >
+              <span className="block text-[13px] font-bold">{plan.name}</span>
+              <span className="mt-1 block text-[11px] leading-relaxed opacity-80">{plan.recommendedFor}</span>
+            </button>
+          ))}
+        </div>
+        {plans.find((plan) => plan.id === selectedPlanId)?.notice && (
+          <p className="mt-3 rounded-xl bg-[#EAF3DE] px-3 py-2 text-[12px] leading-relaxed text-[#27500A]">
+            {plans.find((plan) => plan.id === selectedPlanId)?.notice}
+          </p>
+        )}
+      </section>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-4 gap-2 mb-5">
         {stats.map((s, i) => (

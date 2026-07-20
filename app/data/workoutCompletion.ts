@@ -11,6 +11,8 @@ export type WorkoutDayId =
 export interface WorkoutDayRecord {
   workoutDone?: boolean;
   workoutRoutineName?: string;
+  workoutPlanName?: string;
+  workoutGroupId?: string;
   workoutExerciseNames?: string[];
   workoutSourceDay?: string;
   workoutPain?: boolean;

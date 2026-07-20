@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY } from "./data/workouts";
 import {
-  ADAPTATION_WORKOUTS,
-  RoutineSelection,
-  WORKOUT_ROUTINE_SELECTION_KEY,
-  WORKOUTS,
-} from "./data/workouts";
+  DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
+  getDayWorkoutForPlan,
+  getWeeklyWorkoutPlanById,
+  getWorkoutGroupForPlanDay,
+  SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
+  WEEKLY_WORKOUT_PLANS,
+} from "./data/workoutPlans";
 import {
   getWeeklyWorkoutCompletion,
   getWorkoutDayForDate,
@@ -68,6 +71,9 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<TabId>("ov");
   const [routineSelection, setRoutineSelection] =
     useState<RoutineSelection>("base");
+  const [selectedWeeklyWorkoutPlanId, setSelectedWeeklyWorkoutPlanId] = useState(
+    DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
+  );
   const [completedStore, setCompletedStore] = useState<WorkoutCompletionStore>(
     {},
   );
@@ -93,6 +99,11 @@ export default function Page() {
         : "base",
     );
 
+    setSelectedWeeklyWorkoutPlanId(
+      window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
+        DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
+    );
+
     setCompletedStore(readWorkoutCompletionStore());
     setRecoveryToday(
       assessRecoveryMode(
@@ -115,6 +126,11 @@ export default function Page() {
     setRoutineSelection(value);
     window.localStorage.setItem(WORKOUT_ROUTINE_SELECTION_KEY, value);
     if (value === "recovery") setShowBaseRoutine(false);
+  };
+
+  const handleWeeklyWorkoutPlanChange = (planId: string) => {
+    setSelectedWeeklyWorkoutPlanId(planId);
+    window.localStorage.setItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY, planId);
   };
 
   const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string) => {
@@ -146,7 +162,9 @@ export default function Page() {
         [dateKey]: {
           ...current,
           workoutDone: true,
-          workoutRoutineName: dayWorkout?.title,
+          workoutRoutineName: selectedWorkoutGroup?.name || dayWorkout?.title,
+          workoutPlanName: selectedWeeklyWorkoutPlan.name,
+          workoutGroupId: selectedWorkoutGroup?.id,
           workoutExerciseNames: exerciseNames,
           workoutSourceDay: baseDayWorkout?.tabLabel,
           workoutPain: pain,
@@ -183,6 +201,8 @@ export default function Page() {
           ...current,
           workoutDone: false,
           workoutRoutineName: undefined,
+          workoutPlanName: undefined,
+          workoutGroupId: undefined,
           workoutExerciseNames: undefined,
           workoutSourceDay: undefined,
           workoutPain: undefined,
@@ -309,6 +329,8 @@ export default function Page() {
           ...current,
           workoutDone: false,
           workoutRoutineName: undefined,
+          workoutPlanName: undefined,
+          workoutGroupId: undefined,
           workoutExerciseNames: undefined,
           workoutSourceDay: undefined,
           workoutPain: undefined,
@@ -364,13 +386,16 @@ export default function Page() {
     "금요일",
     "토요일",
   ][new Date().getDay()];
-  const baseDayWorkout = WORKOUTS.find((w) => w.id === activeTab);
-  const dayWorkout =
-    baseDayWorkout && ["adapt1", "adapt2", "adapt3"].includes(routineSelection)
-      ? ADAPTATION_WORKOUTS[
-          routineSelection as keyof typeof ADAPTATION_WORKOUTS
-        ]
-      : baseDayWorkout;
+  const selectedWeeklyWorkoutPlan = getWeeklyWorkoutPlanById(
+    selectedWeeklyWorkoutPlanId,
+  );
+  const baseDayWorkout = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].includes(activeTab)
+    ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
+    : undefined;
+  const selectedWorkoutGroup = baseDayWorkout
+    ? getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
+    : undefined;
+  const dayWorkout = baseDayWorkout;
   const selectedRecovery = routineSelection === "recovery";
   const displayedRecovery = selectedRecovery
     ? {
@@ -431,6 +456,9 @@ export default function Page() {
           <WeeklyView
             onTabChange={handleTabChange}
             completedDays={completedDays}
+            plans={WEEKLY_WORKOUT_PLANS}
+            selectedPlanId={selectedWeeklyWorkoutPlan.id}
+            onPlanChange={handleWeeklyWorkoutPlanChange}
           />
         )}
 
@@ -447,12 +475,13 @@ export default function Page() {
                   오늘은 {todayDayName}입니다.
                 </h2>
                 <p className="mt-2 text-[13px] font-semibold text-gray-700">
-                  추천 운동: {dayWorkout.title}
+                  선택된 계획: {selectedWeeklyWorkoutPlan.name}
+                  <br />
+                  오늘 추천 운동: {dayWorkout.title}
                 </p>
                 <p className="mt-2 text-[12px] text-gray-500">
-                  오늘 추천 루틴이 자동 선택되었습니다. 운동을 미뤘거나 다른
-                  루틴을 하고 싶다면 위 요일 탭의 다른 요일 루틴 보기에서 변경할
-                  수 있습니다.
+                  선택한 주간 계획의 요일 배치에 따라 오늘 운동이 자동 선택되었습니다.
+                  이번 주 계획을 바꾸려면 주간 개요에서 다른 계획을 선택하세요.
                 </p>
               </section>
               <DayView
