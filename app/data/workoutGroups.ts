@@ -1,4 +1,5 @@
-import { DayWorkout, Exercise, FlowItem, Phase, SAFETY_STOP_MESSAGE } from './workouts';
+import { DayWorkout, Detail, Exercise, FlowItem, Phase, SAFETY_STOP_MESSAGE } from './workouts';
+import { exerciseGuides, fallbackExerciseGuide } from './exerciseGuides';
 
 export type WorkoutGroupCategory = 'cardio' | 'core' | 'strength' | 'recovery' | 'rest';
 export type WorkoutIntensity = 'low' | 'medium' | 'high';
@@ -45,17 +46,42 @@ const flow: FlowItem[] = [
   { icon: '🌿', label: '회복', time: '5분', bgColor: '#EAF3DE', labelColor: '#27500A', timeColor: '#3B6D11' },
 ];
 
-const toExercise = (exercise: WorkoutGroupExercise): Exercise => ({
-  name: exercise.name,
-  meta: exercise.sets || exercise.duration,
-  sets: exercise.sets ? 2 : 0,
-  restSeconds: exercise.sets ? 30 : 0,
-  abSlideGate: exercise.name.includes('AB 슬라이더'),
-  details: [
-    { type: 'purple', text: [exercise.duration, exercise.sets, exercise.description].filter(Boolean).join(' · ') || exercise.name },
-    ...((exercise.cautions || []).map((text) => ({ type: 'warn' as const, text }))),
-  ],
-});
+const DEFAULT_CAUTIONS = [
+  '통증이 있으면 즉시 중단하세요.',
+  '허리 통증이나 다리 저림이 있으면 회복 모드로 전환하세요.',
+  '반동으로 하지 말고 천천히 진행하세요.',
+];
+
+const createDetails = (exercise: WorkoutGroupExercise): Detail[] => {
+  const guide = exerciseGuides[exercise.name] || fallbackExerciseGuide(exercise.name, exercise.description);
+  const steps = guide.movement.length ? guide.movement : [exercise.description || guide.summary];
+  const cautions = exercise.cautions?.length ? exercise.cautions : guide.stopCriteria.length ? guide.stopCriteria : DEFAULT_CAUTIONS;
+
+  return [
+    { type: 'purple', text: [exercise.duration, exercise.sets, guide.summary].filter(Boolean).join(' · ') },
+    { type: 'green', text: `**목적:** ${guide.purpose}` },
+    ...guide.setup.map((text) => ({ type: 'purple' as const, text: `준비 자세: ${text}` })),
+    ...steps.map((text, index) => ({ type: 'step' as const, text: `방법 ${index + 1}. ${text}` })),
+    ...(guide.breathing ? [{ type: 'green' as const, text: `**호흡:** ${guide.breathing}` }] : []),
+    ...cautions.map((text) => ({ type: 'warn' as const, text })),
+    ...((guide.homeTips || []).map((text) => ({ type: 'good' as const, text: `집에서 하는 팁: ${text}` }))),
+    ...((guide.alternatives || []).map((text) => ({ type: 'purple' as const, text: `대체 운동: ${text}` }))),
+  ];
+};
+
+const toExercise = (exercise: WorkoutGroupExercise): Exercise => {
+  const guide = exerciseGuides[exercise.name] || fallbackExerciseGuide(exercise.name, exercise.description);
+
+  return {
+    name: exercise.name,
+    meta: exercise.sets || exercise.duration,
+    sets: exercise.sets ? 2 : 0,
+    restSeconds: exercise.sets ? 30 : 0,
+    abSlideGate: exercise.name.includes('AB 슬라이더'),
+    details: createDetails(exercise),
+    guide,
+  };
+};
 
 export function workoutGroupToDayWorkout(group: WorkoutGroup, dayId: string, tabLabel: string): DayWorkout {
   const color = group.category === 'rest' ? '#6B7280' : group.category === 'recovery' ? '#378ADD' : group.category === 'strength' ? '#534AB7' : '#639922';

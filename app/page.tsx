@@ -90,14 +90,11 @@ export default function Page() {
     const savedRoutine = window.localStorage.getItem(
       WORKOUT_ROUTINE_SELECTION_KEY,
     ) as RoutineSelection | null;
-    setRoutineSelection(
-      savedRoutine &&
-        ["base", "adapt1", "adapt2", "adapt3", "recovery"].includes(
-          savedRoutine,
-        )
-        ? savedRoutine
-        : "base",
-    );
+    const validRoutine = savedRoutine === "base" || savedRoutine === "recovery";
+    setRoutineSelection(validRoutine ? savedRoutine : "base");
+    if (savedRoutine && !validRoutine) {
+      window.localStorage.setItem(WORKOUT_ROUTINE_SELECTION_KEY, "base");
+    }
 
     setSelectedWeeklyWorkoutPlanId(
       window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
