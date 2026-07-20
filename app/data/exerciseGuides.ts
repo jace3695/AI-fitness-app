@@ -14,6 +14,7 @@ export const fallbackExerciseGuide = (name: string, summary?: string): ExerciseG
   commonMistakes: ['빠르게 진행함', '통증을 참고 계속함'],
   stopCriteria: stopDefault,
   keyPoint: summary || '빈 화면 방지를 위한 기본 안전 가이드입니다.',
+  videoSearchQuery: `${name} 운동 자세`,
 });
 
 export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
@@ -87,12 +88,68 @@ for (const [name, id] of Object.entries(exerciseIdByName)) {
   }
 }
 
+
+const videoSearchQueries: Record<string, string> = {
+  'foam-roller-prep': '폼롤러 사용법 초보자 종아리 허벅지 엉덩이 등',
+  'basic-warmup': '운동 전 준비운동 전신 스트레칭 초보자',
+  'pre-rosary-sliding-board': '슬라이딩보드 운동 초보자 자세',
+  'bird-dog': '버드독 운동 자세 허리 안정화',
+  'hip-bridge': '힙브릿지 운동 자세 초보자',
+  'dead-bug': '데드버그 운동 자세 허리 코어',
+  'cat-cow': '캣카우 스트레칭 자세 허리',
+  'pelvic-tilt': '골반 기울이기 운동 허리 안정화',
+  'pullup-basic-posture': '턱걸이 초보자 견갑 하강 연습',
+  'post-sliding-board': '슬라이딩보드 운동 초보자 유산소',
+  'basic-cooldown': '운동 후 정리운동 스트레칭 초보자',
+  'foam-roller-recovery': '폼롤러 회복 운동 종아리 허벅지 엉덩이 등',
+  'knee-side-plank': '무릎 사이드 플랭크 자세 초보자',
+  'ab-slider-ready-position': 'ab 슬라이더 초보자 자세 무릎',
+  'ab-slider-ready': 'ab 슬라이더 초보자 자세 무릎',
+  'dumbbell-goblet-squat': '덤벨 고블릿 스쿼트 자세 초보자',
+  'dumbbell-floor-press': '덤벨 플로어프레스 자세',
+  'one-arm-dumbbell-row-supported': '원암 덤벨 로우 집에서 의자 지지 자세',
+  'home-one-arm-dumbbell-row': '원암 덤벨 로우 집에서 의자 지지 자세',
+  'band-row': '밴드 로우 운동 자세',
+  'longband-lat-pulldown': '밴드 랫풀다운 운동 자세',
+  'long-band-lat-pulldown': '밴드 랫풀다운 운동 자세',
+  'longband-face-pull': '밴드 페이스풀 운동 자세',
+  'long-band-face-pull': '밴드 페이스풀 운동 자세',
+  'band-pull-apart': '밴드 풀어파트 자세',
+  'loopband-sidewalk': '루프밴드 사이드워크 자세',
+  'loop-band-side-walk': '루프밴드 사이드워크 자세',
+  'loopband-monster-walk': '루프밴드 몬스터워크 자세',
+  'loop-band-monster-walk': '루프밴드 몬스터워크 자세',
+};
+
+for (const [id, videoSearchQuery] of Object.entries(videoSearchQueries)) {
+  const guide = exerciseGuides[id];
+  if (guide) guide.videoSearchQuery = videoSearchQuery;
+}
+
+const exerciseIdAliases: Record<string, string> = {
+  'ab-slider-ready': 'ab-slider-ready-position',
+  'home-one-arm-dumbbell-row': 'one-arm-dumbbell-row-supported',
+  'long-band-lat-pulldown': 'longband-lat-pulldown',
+  'long-band-face-pull': 'longband-face-pull',
+  'loop-band-side-walk': 'loopband-sidewalk',
+  'loop-band-monster-walk': 'loopband-monster-walk',
+};
+
+for (const [alias, sourceId] of Object.entries(exerciseIdAliases)) {
+  const source = exerciseGuides[sourceId];
+  if (source) exerciseGuides[alias] = { ...source, id: alias, videoSearchQuery: videoSearchQueries[alias] || source.videoSearchQuery } as ExerciseGuideEntry;
+}
+
+for (const guide of Object.values(exerciseGuides)) {
+  if (!guide.videoUrl && !guide.videoSearchQuery) guide.videoSearchQuery = `${guide.name || guide.summary} 운동 자세`;
+}
+
 export const getExerciseGuide = (exerciseId: string, fallbackName?: string, summary?: string) =>
   exerciseGuides[exerciseId] || fallbackExerciseGuide(fallbackName || exerciseId, summary);
 
 export const missingVideoExercises = Object.values(exerciseGuides)
   .filter((exercise, index, list) => list.findIndex((item) => (item.id || item.name || item.summary) === (exercise.id || exercise.name || exercise.summary)) === index)
-  .filter((exercise) => !exercise.videoUrl);
+  .filter((exercise) => !exercise.videoUrl && !exercise.videoSearchQuery);
 
 if (process.env.NODE_ENV === 'development') {
   console.log('영상 링크 누락 운동:', missingVideoExercises.map((exercise) => exercise.name || exercise.summary));
