@@ -92,6 +92,8 @@ export default function RecordCalendarView() {
     typeof selectedWorkout === "object" && selectedWorkout
       ? selectedWorkout
       : undefined;
+  const workoutPlanName = selectedWorkoutRecord?.workoutPlanName;
+  const workoutGroupName = selectedWorkoutRecord?.workoutRoutineName;
   const workoutSourceDay = selectedWorkoutRecord?.workoutSourceDay;
   const workoutExerciseNames =
     selectedWorkoutRecord?.workoutExerciseNames ?? [];
@@ -276,8 +278,18 @@ export default function RecordCalendarView() {
             </div>
           )}
           <div className="rounded-xl bg-gray-50 p-3 col-span-2">
-            일반 루틴 운동 이름
+            운동 완료 상세
             <br />
+            {workoutPlanName && (
+              <p className="mb-1 text-[11px] font-bold text-[#27500A]">
+                계획: {workoutPlanName}
+              </p>
+            )}
+            {workoutGroupName && (
+              <p className="mb-1 text-[11px] font-bold text-[#534AB7]">
+                운동: {workoutGroupName}
+              </p>
+            )}
             {workoutSourceDay && (
               <p className="mb-1 text-[11px] font-bold text-[#534AB7]">
                 수행 루틴 요일: {workoutSourceDay}
