@@ -145,18 +145,12 @@ export default function Page() {
     const exerciseNames =
       dayWorkout?.phases
         .flatMap((phase) => phase.exercises)
-        .filter(
-          (exercise) =>
-            exercise.sets !== 0 ||
-            exercise.intervalPlan ||
-            exercise.abSlideGate,
-        )
         .map((exercise) => exercise.name) ?? [];
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
-      const hasRosaryCardio = exerciseNames.includes("묵주기도 슬라이딩보드");
+      const hasRosaryCardio = exerciseNames.includes("운동 전 묵주기도 슬라이딩보드");
       const hasPostWorkoutCardio =
-        exerciseNames.includes("슬라이딩보드 마무리");
+        exerciseNames.includes("운동 후 슬라이딩보드 마무리");
       const next = {
         ...prev,
         [dateKey]: {
@@ -172,6 +166,7 @@ export default function Page() {
           rosaryCardioDone: hasRosaryCardio || undefined,
           rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
           rosaryDecades: hasRosaryCardio ? 5 : undefined,
+          postWorkoutCardioDone: hasPostWorkoutCardio || undefined,
           postWorkoutCardioMinutes: hasPostWorkoutCardio ? 5 : undefined,
         },
       };
@@ -210,6 +205,7 @@ export default function Page() {
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
           rosaryDecades: undefined,
+          postWorkoutCardioDone: undefined,
           postWorkoutCardioMinutes: undefined,
         },
       };
@@ -338,6 +334,7 @@ export default function Page() {
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
           rosaryDecades: undefined,
+          postWorkoutCardioDone: undefined,
           postWorkoutCardioMinutes: undefined,
         },
       };

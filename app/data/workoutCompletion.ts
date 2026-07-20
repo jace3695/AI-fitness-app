@@ -24,6 +24,7 @@ export interface WorkoutDayRecord {
   rosaryCardioDone?: boolean;
   rosaryCardioMinutes?: number;
   rosaryDecades?: number;
+  postWorkoutCardioDone?: boolean;
   postWorkoutCardioMinutes?: number;
   pullupDone?: boolean;
   pullupStage?: number;
