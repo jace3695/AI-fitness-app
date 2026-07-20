@@ -17,7 +17,7 @@ function renderDetail(d: Detail, i: number) {
 }
 
 function getVideoHref(exercise: Exercise) {
-  return exercise.guide?.videoUrl ?? `https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.name} 자세 초보`)}`;
+  return exercise.guide?.videoUrl;
 }
 
 function GuideBlock({ title, items, tone = 'plain' }: { title: string; items?: string[]; tone?: 'plain' | 'mistake' | 'stop' }) {
@@ -39,7 +39,7 @@ function Guide({ exercise }: { exercise: Exercise }) {
     <GuideBlock title="6) 자주 하는 실수" items={g.commonMistakes} tone="mistake" />
     <GuideBlock title="7) 즉시 중단 기준" items={g.stopCriteria} tone="stop" />
     <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 어깨 통증도 있으면 즉시 중단하세요.</p>
-    <a href={getVideoHref(exercise)} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">8) 영상 보기</a>
+    {getVideoHref(exercise) ? <a href={getVideoHref(exercise)} target="_blank" rel="noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">8) 영상 보기</a> : <button type="button" disabled className="block w-full rounded-xl bg-gray-100 px-3 py-2 text-center text-[13px] font-bold text-gray-400">8) 영상 준비중</button>}
   </div>;
 }
 
@@ -53,7 +53,7 @@ function FollowModal({ exercises, index, onClose }: { exercises: Exercise[]; ind
   return <div className="fixed inset-0 z-50 bg-black/50 p-3" onClick={onClose}>
     <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
       <div className="min-h-0 flex-1 overflow-y-auto p-4"><p className="text-[12px] text-gray-400">따라하기 모드 {cur + 1}/{exercises.length}</p><h2 className="text-xl font-bold text-gray-900">{exercise.name}</h2>{exercise.meta && <p className="mt-1 text-[13px] text-gray-500">{exercise.meta}</p>}<Guide exercise={exercise} /><SetChecklist storageId={`follow-${exercise.name}`} sets={exercise.sets} restSeconds={exercise.restSeconds} />{exercise.intervalPlan && <IntervalTimer plan={exercise.intervalPlan} />}</div>
-      <div className="grid shrink-0 grid-cols-4 gap-2 border-t border-gray-100 bg-white/95 p-3 shadow-2xl"><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.max(0, v - 1))}>이전</button><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.min(exercises.length - 1, v + 1))}>다음</button><a className="rounded-xl bg-[#111827] py-3 text-center text-[12px] font-bold text-white" href={getVideoHref(exercise)} target="_blank" rel="noreferrer">영상</a><button className="rounded-xl bg-[#E24B4A] py-3 text-[12px] font-bold text-white" onClick={onClose}>닫기</button></div>
+      <div className="grid shrink-0 grid-cols-4 gap-2 border-t border-gray-100 bg-white/95 p-3 shadow-2xl"><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.max(0, v - 1))}>이전</button><button className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700" onClick={() => setCur((v) => Math.min(exercises.length - 1, v + 1))}>다음</button>{getVideoHref(exercise) ? <a className="rounded-xl bg-[#111827] py-3 text-center text-[12px] font-bold text-white" href={getVideoHref(exercise)} target="_blank" rel="noreferrer">영상</a> : <button type="button" disabled className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-400">영상 준비중</button>}<button className="rounded-xl bg-[#E24B4A] py-3 text-[12px] font-bold text-white" onClick={onClose}>닫기</button></div>
     </div>
   </div>;
 }
