@@ -17,6 +17,9 @@ export const fallbackExerciseGuide = (name: string, summary?: string): ExerciseG
 });
 
 export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
+
+  'basic-warmup': { summary: '폼롤러 후 관절을 부드럽게 움직여 본운동을 준비합니다.', purpose: '관절 가동성 확보, 체온 상승, 허리·무릎 부담 감소', setup: ['좁지 않은 공간에서 편하게 섭니다.', '통증 없는 범위에서 천천히 움직입니다.', '반동을 주지 않습니다.'], movement: ['목과 어깨를 가볍게 돌립니다.', '어깨를 앞뒤로 천천히 5회씩 돌립니다.', '골반을 좌우로 천천히 움직입니다.', '무릎을 살짝 굽혔다 펴며 하체를 깨웁니다.', '발목을 좌우 5회씩 돌립니다.', '제자리 걷기를 30초~1분 진행합니다.'], breathing: '편하게 호흡합니다. 숨을 참지 않습니다.', target: '관절 가동성, 체온 상승', commonMistakes: ['허리를 크게 돌림', '통증 방향으로 억지로 움직임'], stopCriteria: ['허리를 크게 돌리지 마세요.', '통증이 있는 방향으로 억지로 움직이지 마세요.', '어지럽거나 균형이 흔들리면 멈추세요.'], keyPoint: '운동 전에는 땀이 많이 날 정도가 아니라 몸이 부드러워지는 정도만 진행하세요.' },
+  'basic-cooldown': { summary: '운동 후 호흡을 정리하고 몸을 천천히 회복 상태로 전환합니다.', purpose: '호흡 안정, 심박 안정, 근육 긴장 완화', setup: ['운동 직후 바로 눕지 말고 천천히 서 있거나 앉습니다.', '숨이 차면 먼저 제자리 걷기로 호흡을 가라앉힙니다.'], movement: ['제자리에서 천천히 걷거나 좌우로 가볍게 움직입니다.', '어깨를 천천히 뒤로 돌립니다.', '가슴을 가볍게 열어 호흡을 정리합니다.', '허벅지 앞쪽과 종아리를 가볍게 늘립니다.', '마지막 30초는 천천히 코로 들이마시고 입으로 내쉽니다.'], breathing: '코로 들이마시고 입으로 천천히 내쉽니다.', target: '호흡 안정, 심박 안정, 근육 긴장 완화', commonMistakes: ['허리를 강하게 숙임', '반동을 주는 스트레칭'], stopCriteria: ['허리를 강하게 숙여 늘리지 마세요.', '반동을 주는 스트레칭은 하지 마세요.', '어지러우면 앉아서 호흡을 먼저 정리하세요.'], keyPoint: '운동 후 바로 멈추기보다 3~5분 정도 천천히 몸을 식히세요.' },
   '폼롤러 준비': { summary: '운동 전 몸을 깨우는 3분 폼롤러 준비', purpose: '운동 전 몸을 부드럽게 깨우고, 종아리·허벅지·엉덩이·등 위쪽 긴장을 줄입니다.', setup: ['폼롤러를 바닥에 두고 통증 없는 압력으로 시작합니다.'], movement: ['종아리 30초', '허벅지 앞 30초', '엉덩이 30초', '등 위쪽 30초', '가볍게 몸풀기 1분'], breathing: '굴릴 때 숨을 참지 않고 천천히 내쉽니다.', target: '종아리·허벅지·엉덩이·등 위쪽 긴장 완화', commonMistakes: ['허리 아래쪽을 직접 굴림', '통증 부위를 오래 누름'], stopCriteria: ['허리 아래쪽을 직접 굴리지 마세요.', '통증 부위를 오래 누르지 마세요.', '다리 저림이 있으면 즉시 중단하세요.'], keyPoint: '허리 아래쪽은 피하고 가볍게 몸을 깨우는 정도로만 진행합니다.' },
   '운동 전 묵주기도 슬라이딩보드': { summary: '기도와 저강도 유산소를 함께하는 운동 전 준비 시간', purpose: '기도와 저강도 유산소를 함께하는 운동 전 준비 시간입니다. 체온을 올리고 감량을 보조합니다.', setup: ['슬라이딩보드 위에 안정적으로 올라섭니다.', '균형이 흔들리면 벽이나 손잡이 가까이에서 시작합니다.'], movement: ['슬라이딩보드 위에서 천천히 좌우로 이동합니다.', '처음 2~3분은 아주 가볍게 시작합니다.', '묵주기도를 이어갈 수 있을 정도의 속도를 유지합니다.', '숨이 너무 차면 속도를 줄입니다.', '허리나 무릎 통증이 있으면 즉시 중단합니다.'], breathing: '기도를 이어갈 수 있을 정도로 편하게 호흡합니다.', target: '체온 상승, 저강도 유산소, 감량 보조', commonMistakes: ['처음부터 빠르게 움직임', '균형이 흔들리는데 속도를 유지함'], stopCriteria: ['운동 전부터 지칠 정도로 빠르게 하지 마세요.', '균형이 흔들리면 속도를 낮추세요.', '기도를 이어갈 수 없는 강도라면 너무 강한 것입니다.'], keyPoint: '기도가 이어지는 강도가 오늘의 적정 강도입니다.' },
   '묵주기도 슬라이딩보드': { summary: '기도를 이어갈 수 있는 저강도 슬라이딩보드', purpose: '가볍게 체온을 올리고 회복을 방해하지 않는 유산소를 진행합니다.', setup: ['슬라이딩보드 위에 안정적으로 올라섭니다.'], movement: ['천천히 좌우 이동합니다.', '기도가 끊기지 않는 속도를 유지합니다.', '컨디션이 좋으면 5분만 추가합니다.'], breathing: '대화와 기도가 가능한 호흡을 유지합니다.', target: '저강도 유산소와 회복', commonMistakes: ['회복일에 강도를 높임'], stopCriteria: stopDefault, keyPoint: '회복일에는 가볍게 끝내는 것이 목표입니다.' },
@@ -38,3 +41,48 @@ export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
   '루프밴드 사이드워크': { summary: '루프밴드로 엉덩이 옆 근육과 골반 안정화', purpose: '엉덩이 옆 근육 활성화, 골반 안정화, 무릎 정렬 개선', setup: ['루프밴드를 무릎 위 또는 발목 위에 겁니다.', '무릎을 살짝 굽히고 엉덩이를 뒤로 보냅니다.'], movement: ['옆으로 한 걸음 이동합니다.', '반대발이 끌려오지 않게 천천히 따라옵니다.', '좌우 같은 횟수로 진행합니다.'], breathing: '이동할 때 자연스럽게 호흡합니다.', target: '중둔근, 골반 안정성', commonMistakes: ['무릎이 안쪽으로 모임', '상체가 좌우로 크게 흔들림'], stopCriteria: ['무릎 통증이 있으면 밴드 장력을 낮추세요.', '허리 통증이 있으면 자세를 세우세요.', '발목이 불편하면 밴드 위치를 무릎 위로 올리세요.'], keyPoint: '작게 이동해도 무릎 정렬을 유지합니다.' },
   '루프밴드 몬스터워크': { summary: '앞뒤 이동으로 엉덩이와 골반 안정성을 강화', purpose: '엉덩이 근육 활성화, 골반 안정성, 하체 워밍업', setup: ['루프밴드를 무릎 위 또는 발목 위에 겁니다.', '무릎을 살짝 굽힌 반스쿼트 자세를 만듭니다.'], movement: ['대각선 앞으로 한 걸음씩 이동합니다.', '무릎이 안쪽으로 모이지 않게 합니다.', '뒤로 돌아올 때도 천천히 진행합니다.'], breathing: '이동 중 편하게 호흡합니다.', target: '엉덩이, 골반 안정성', commonMistakes: ['발을 끌며 이동', '상체 반동 사용'], stopCriteria: ['무릎 통증이 있으면 중단하세요.', '허리가 불편하면 자세를 높이세요.', '밴드 장력이 과하면 약한 밴드로 바꾸세요.'], keyPoint: '천천히 걸으며 엉덩이 옆 자극을 확인합니다.' },
 };
+
+
+const exerciseIdByName: Record<string, string> = {
+  '폼롤러 준비': 'foam-roller-prep',
+  '기본 몸풀기': 'basic-warmup',
+  '운동 전 묵주기도 슬라이딩보드': 'pre-rosary-sliding-board',
+  '묵주기도 슬라이딩보드': 'rosary-sliding-board',
+  '버드독': 'bird-dog',
+  '힙브릿지': 'hip-bridge',
+  '데드버그': 'dead-bug',
+  '무릎 사이드 플랭크': 'knee-side-plank',
+  'AB 슬라이더 준비 자세': 'ab-slider-ready-position',
+  '운동 후 슬라이딩보드 마무리': 'post-sliding-board',
+  '기본 정리운동': 'basic-cooldown',
+  '폼롤러 회복': 'foam-roller-recovery',
+  '턱걸이 초기자세': 'pullup-basic-posture',
+  '덤벨 고블릿 스쿼트': 'dumbbell-goblet-squat',
+  '덤벨 플로어프레스': 'dumbbell-floor-press',
+  '의자/테이블 지지 원암 덤벨 로우': 'one-arm-dumbbell-row-supported',
+  '밴드 로우': 'band-row',
+  '롱밴드 랫풀다운': 'longband-lat-pulldown',
+  '롱밴드 페이스풀': 'longband-face-pull',
+  '밴드 풀어파트': 'band-pull-apart',
+  '루프밴드 사이드워크': 'loopband-sidewalk',
+  '루프밴드 몬스터워크': 'loopband-monster-walk',
+};
+
+for (const [name, id] of Object.entries(exerciseIdByName)) {
+  const source = exerciseGuides[name] || exerciseGuides[id];
+  if (source) {
+    exerciseGuides[id] = { ...source, name, id, category: source.category || 'strength', steps: source.movement, cautions: source.stopCriteria } as ExerciseGuideEntry;
+    exerciseGuides[name] = exerciseGuides[id];
+  }
+}
+
+export const getExerciseGuide = (exerciseId: string, fallbackName?: string, summary?: string) =>
+  exerciseGuides[exerciseId] || fallbackExerciseGuide(fallbackName || exerciseId, summary);
+
+export const missingVideoExercises = Object.values(exerciseGuides)
+  .filter((exercise, index, list) => list.findIndex((item) => (item.id || item.name || item.summary) === (exercise.id || exercise.name || exercise.summary)) === index)
+  .filter((exercise) => !exercise.videoUrl);
+
+if (process.env.NODE_ENV === 'development') {
+  console.log('영상 링크 누락 운동:', missingVideoExercises.map((exercise) => exercise.name || exercise.summary));
+}

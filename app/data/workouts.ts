@@ -2,9 +2,8 @@ export type BadgeVariant = "yellow" | "green" | "blue" | "purple" | "red";
 export type PhaseType = "warmup" | "main" | "sliding" | "cooldown";
 export type AlertType = "yellow" | "green" | "blue" | "purple";
 export type BulletType = "purple" | "red" | "green";
-export type AdaptationRoutineSelection = "adapt1" | "adapt2" | "adapt3";
-export type RoutineSelection = AdaptationRoutineSelection | "base" | "recovery";
-export type SwitchOnSelection = Exclude<RoutineSelection, "recovery">;
+export type RoutineSelection = "base" | "recovery";
+export type SwitchOnSelection = "base";
 
 export interface Detail {
   type: BulletType | "step" | "warn" | "good" | "text";
@@ -26,6 +25,19 @@ export interface IntervalPlan {
   segments: IntervalSegment[];
 }
 export interface ExerciseGuide {
+  id?: string;
+  name?: string;
+  category?: 'warmup' | 'cardio' | 'strength' | 'core' | 'band' | 'dumbbell' | 'pullup' | 'foamRoller' | 'cooldown' | 'recovery';
+  duration?: string;
+  sets?: string;
+  reps?: string;
+  summary?: string;
+  purpose?: string;
+  steps?: string[];
+  cautions?: string[];
+  homeTips?: string[];
+  alternatives?: string[];
+  videoTitle?: string;
   setup: string[];
   movement: string[];
   breathing?: string;
@@ -740,71 +752,6 @@ const day = (
   phases: phases(exercises, alert),
 });
 
-export const ADAPTATION_WORKOUTS: Record<
-  AdaptationRoutineSelection,
-  DayWorkout
-> = {
-  adapt1: day(
-    "adapt1",
-    "운동 A",
-    "🌱",
-    "운동 A — 등 + 밴드 + 덤벨 로우",
-    "월요일 권장 · 집 운동 기반 1개월 감량 집중 루틴",
-    [
-      FOAM_ROLLER_PREP(),
-      ROSARY_CARDIO(),
-      mk("버드독", "좌우 6회 × 2세트", "골반이 흔들리지 않게 천천히 뻗습니다.", 2, 30),
-      mk("롱밴드 랫풀다운", "12회 × 2세트", "팔꿈치를 아래·뒤로 당기며 어깨를 귀에서 멀리 둡니다.", 2, 45),
-      mk("밴드 로우", "12회 × 2세트", "허리는 중립으로 고정하고 팔꿈치가 몸 뒤로 간다는 느낌으로 당깁니다.", 2, 45),
-      mk("의자/테이블 지지 원암 덤벨 로우", "좌우 10회 × 2세트 · 5~7kg부터", "등과 광배근을 강화합니다. 튼튼한 의자·식탁·책상 가장자리를 짚고 진행하며, 받칠 곳이 없거나 허리가 불편하면 밴드 로우로 대체합니다.", 2, 45),
-      mk("데드버그", "좌우 6회 × 2세트", "허리가 뜨지 않는 범위에서 팔다리를 천천히 움직입니다.", 2, 30),
-      PULLUP_START(),
-      POST_WORKOUT_CARDIO(),
-      FOAM_ROLLER_RECOVERY(),
-    ],
-    "#534AB7",
-  ),
-  adapt2: day(
-    "adapt2",
-    "운동 B",
-    "🌿",
-    "운동 B — 하체 + 덤벨 스쿼트 + 루프밴드",
-    "화요일 권장 · 하체와 골반 안정화",
-    [
-      FOAM_ROLLER_PREP(),
-      ROSARY_CARDIO(),
-      mk("힙브릿지", "12회 × 2세트", "허리가 아니라 엉덩이에 힘을 주고 과하게 젖히지 않습니다.", 2, 30),
-      mk("덤벨 고블릿 스쿼트", "8~10회 × 2세트 · 5~7kg부터 시작", "자세가 무너지면 무게를 낮추고 허리 통증 없는 범위만 진행합니다.", 2, 45),
-      mk("루프밴드 사이드워크", "좌우 10걸음 × 2세트", "작은 보폭으로 골반 높이를 유지합니다.", 2, 30),
-      mk("루프밴드 몬스터워크", "앞/뒤 8~10걸음 × 2세트", "무릎이 안쪽으로 무너지지 않게 엉덩이 힘을 유지합니다.", 2, 30),
-      mk("버드독", "좌우 6회 × 2세트", "흔들림 없는 자세를 우선합니다.", 2, 30),
-      PULLUP_START(),
-      POST_WORKOUT_CARDIO(),
-      FOAM_ROLLER_RECOVERY(),
-    ],
-    "#639922",
-  ),
-  adapt3: day(
-    "adapt3",
-    "운동 C",
-    "🌿",
-    "운동 C — 회복형 유산소 + 코어 + AB 슬라이더 준비",
-    "수요일 권장 · 가벼운 회복형 운동일",
-    [
-      FOAM_ROLLER_PREP(),
-      sliding("묵주기도 슬라이딩보드", "15~20분 · 아주 가볍게", ROSARY_CARDIO_GUIDE, { segments: [{ label: "저강도 · 기도 가능", seconds: 900, intensity: "아주 가볍게" }] }),
-      mk("힙브릿지", "12회 × 2세트", "허리가 아니라 엉덩이에 힘을 주고 과하게 젖히지 않습니다.", 2, 30),
-      mk("데드버그", "좌우 6회 × 2세트", "허리가 뜨지 않는 범위에서 팔다리를 천천히 움직입니다.", 2, 30),
-      mk("AB 슬라이더 준비 자세", "무릎 대고 잡기 · 복부 힘 주기 · 5초 버티기 × 3회 · 앞으로 밀지 않음", "복부 힘과 허리 안정성 확인이 목적입니다. 1~2주차에는 앞으로 밀지 않고 시작 자세에서 5초 버티기 × 3회만 진행합니다. 3~4주차는 허리 통증이 없을 때만 10~20cm 짧게 밀고 돌아옵니다. 허리 통증, 다리 저림, 반동이 있으면 즉시 중단하세요.", 0, 0, undefined, true),
-      mk("롱밴드 가벼운 로우", "12회 × 1~2세트", "회복형 강도로 가볍게 당기고 어깨를 귀에서 멀리 둡니다.", 2, 45),
-      mk("턱걸이 초기자세", "3분", "현재 단계 1개만 짧게 연습하고 1~5단계를 하루에 모두 수행하지 않습니다.", 0, 0),
-      POST_WORKOUT_CARDIO(),
-      FOAM_ROLLER_RECOVERY(),
-    ],
-    "#378ADD",
-  ),
-};
-
 const WORKOUT_D = day(
   "thu",
   "목요일",
@@ -848,34 +795,8 @@ const WORKOUT_E = day(
 );
 
 export const WORKOUTS: DayWorkout[] = [
-  day("mon", "월요일", "💪", "운동 A — 등 + 밴드 + 덤벨 로우", "월요일 · 집 운동 기반 감량 집중", ADAPTATION_WORKOUTS.adapt1.phases[1].exercises, "#534AB7"),
-  day("tue", "화요일", "🦵", "운동 B — 하체 + 덤벨 스쿼트 + 루프밴드", "화요일 · 하체와 골반 안정화", ADAPTATION_WORKOUTS.adapt2.phases[1].exercises, "#639922"),
-  day("wed", "수요일", "🌿", "운동 C — 회복형 유산소 + 코어 + AB 슬라이더 준비", "수요일 · 완전 휴식이 아닌 가벼운 운동일", ADAPTATION_WORKOUTS.adapt3.phases[1].exercises, "#378ADD"),
   WORKOUT_D,
   WORKOUT_E,
-  day(
-    "sat",
-    "토요일",
-    "🌤️",
-    "토요일 — 선택 유산소 또는 휴식",
-    "고정 운동일 아님 · 컨디션에 따라 선택",
-    [
-      sliding("선택 유산소", "선택 1: 슬라이딩보드 20~30분 · 선택 2: 가벼운 산책 30분 · 선택 3: 묵주기도 슬라이딩보드 15~20분 · 선택 4: 완전 휴식", "토요일은 고정 운동일이 아닙니다. 컨디션이 좋으면 가벼운 유산소를 선택하고 피곤하면 완전 휴식합니다.", { segments: [{ label: "선택", seconds: 1200, intensity: "가볍게" }] }),
-    ],
-    "#F59E0B",
-  ),
-  day(
-    "sun",
-    "일요일",
-    "😴",
-    "일요일 — 휴식",
-    "완전 휴식 또는 턱걸이 자세만 1~2분",
-    [
-      mk("완전 휴식", "권장", "근력운동은 추천하지 않습니다. 몸 상태를 회복하고 다음 주 운동을 준비합니다.", 0, 0),
-      mk("턱걸이 자세만", "선택 1~2분", "통증이 없을 때만 철봉 잡기와 견갑 내리기 감각을 짧게 확인합니다.", 0, 0),
-    ],
-    "#9CA3AF",
-  ),
 ];
 
 export const WEEK_OVERVIEW = {
