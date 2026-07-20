@@ -78,6 +78,13 @@ export interface FlowItem {
   labelColor: string;
   timeColor: string;
 }
+export interface CardioOption {
+  id: string;
+  name: string;
+  duration: string;
+  description: string;
+  exerciseIds: string[];
+}
 export interface DayWorkout {
   id: string;
   tabLabel: string;
@@ -89,6 +96,7 @@ export interface DayWorkout {
   dayColor: string;
   flow: FlowItem[];
   phases: Phase[];
+  optionalCardio?: { warmup: Exercise[]; options: (CardioOption & { exercises: Exercise[] })[]; cooldown: Exercise[] };
 }
 
 export const SWITCHON_DEFAULT_START_DATE = "2026-06-22";

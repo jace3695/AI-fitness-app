@@ -130,7 +130,7 @@ export default function Page() {
     window.localStorage.setItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY, planId);
   };
 
-  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string) => {
+  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string) => {
     const dateKey = getLocalDateKey();
     if (
       recoveryToday?.recoveryMode &&
@@ -139,10 +139,18 @@ export default function Page() {
       )
     )
       return;
-    const exerciseNames =
-      dayWorkout?.phases
-        .flatMap((phase) => phase.exercises)
-        .map((exercise) => exercise.name) ?? [];
+    const selectedOptionalCardio = dayWorkout?.optionalCardio?.options.find((option) => option.id === cardioOptionId);
+    const exerciseNames = selectedOptionalCardio
+      ? selectedOptionalCardio.id === "rest"
+        ? ["휴식"]
+        : [
+            ...(dayWorkout?.optionalCardio?.warmup.map((exercise) => exercise.name) ?? []),
+            ...selectedOptionalCardio.exercises.map((exercise) => exercise.name),
+            ...(dayWorkout?.optionalCardio?.cooldown.map((exercise) => exercise.name) ?? []),
+          ]
+      : dayWorkout?.phases
+          .flatMap((phase) => phase.exercises)
+          .map((exercise) => exercise.name) ?? [];
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
       const hasRosaryCardio = exerciseNames.includes("운동 전 묵주기도 슬라이딩보드");
@@ -159,12 +167,15 @@ export default function Page() {
           workoutExerciseNames: exerciseNames,
           workoutSourceDay: baseDayWorkout?.tabLabel,
           workoutPain: pain,
-          workoutMemo: memo.trim() || undefined,
+          workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
           rosaryCardioDone: hasRosaryCardio || undefined,
           rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
           rosaryDecades: hasRosaryCardio ? 5 : undefined,
           postWorkoutCardioDone: hasPostWorkoutCardio || undefined,
           postWorkoutCardioMinutes: hasPostWorkoutCardio ? 5 : undefined,
+          cardioDone: selectedOptionalCardio ? selectedOptionalCardio.id !== 'rest' : current.cardioDone,
+          cardioType: selectedOptionalCardio?.id === 'rest' ? undefined : selectedOptionalCardio?.name || current.cardioType,
+          cardioMinutes: selectedOptionalCardio?.id === 'rest' ? undefined : selectedOptionalCardio ? (selectedOptionalCardio.duration.includes('15') ? 20 : selectedOptionalCardio.duration.includes('30') ? 30 : current.cardioMinutes) : current.cardioMinutes,
         },
       };
       window.localStorage.setItem(
@@ -484,8 +495,8 @@ export default function Page() {
                   getWorkoutRecord(completedStore[todayKey]).workoutDone ??
                   false
                 }
-                onSaveWorkout={(pain, memo) =>
-                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo)
+                onSaveWorkout={(pain, memo, cardioOptionId) =>
+                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId)
                 }
                 onCancelWorkout={() =>
                   cancelDayWorkout(activeTab as WorkoutDayId)
