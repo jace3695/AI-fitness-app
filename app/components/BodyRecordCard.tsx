@@ -12,17 +12,71 @@ import {
   writeJson,
 } from "../data/recordStorage";
 
-const inbodyFields: {
+type InbodyField = {
   key: Exclude<keyof InbodyRecord, "weight" | "memo">;
   label: string;
   unit: string;
-}[] = [
-  { key: "skeletalMuscleMass", label: "골격근량", unit: "kg" },
-  { key: "bodyFatMass", label: "체지방량", unit: "kg" },
-  { key: "bodyFatPercent", label: "체지방률", unit: "%" },
-  { key: "visceralFatLevel", label: "내장지방레벨", unit: "" },
-  { key: "basalMetabolicRate", label: "기초대사량", unit: "kcal" },
+};
+
+const fieldGroups: { title: string; description: string; fields: InbodyField[] }[] = [
+  {
+    title: "핵심 변화",
+    description: "감량과 근육 유지 상태를 우선 확인하는 지표",
+    fields: [
+      { key: "bmi", label: "BMI", unit: "" },
+      { key: "bodyFatPercent", label: "체지방률", unit: "%" },
+      { key: "fatMass", label: "지방량", unit: "kg" },
+      { key: "skeletalMuscleMass", label: "신체 근육량", unit: "kg" },
+      { key: "muscleMass", label: "근육량", unit: "kg" },
+      { key: "musclePercent", label: "근육률", unit: "%" },
+      { key: "visceralFatLevel", label: "내장 지방 지수", unit: "" },
+    ],
+  },
+  {
+    title: "체성분 상세",
+    description: "지방·수분·단백질과 제지방 구성",
+    fields: [
+      { key: "bodyFatMass", label: "체지방량", unit: "kg" },
+      { key: "subcutaneousFatMass", label: "피하지방량", unit: "kg" },
+      { key: "subcutaneousFatPercent", label: "피하지방률", unit: "%" },
+      { key: "fatFreeMass", label: "무지방 체중", unit: "kg" },
+      { key: "bodyWaterPercent", label: "수분", unit: "%" },
+      { key: "proteinPercent", label: "단백질 비율", unit: "%" },
+      { key: "boneMass", label: "골량", unit: "kg" },
+    ],
+  },
+  {
+    title: "대사·종합 지표",
+    description: "기초대사와 기기에서 산출한 종합 결과",
+    fields: [
+      { key: "basalMetabolicRate", label: "기초대사량", unit: "kcal" },
+      { key: "bodyAge", label: "신체연령", unit: "세" },
+      { key: "bodyScore", label: "점수", unit: "점" },
+    ],
+  },
+  {
+    title: "부위별 지방량",
+    description: "좌우 팔·다리의 지방 분포",
+    fields: [
+      { key: "leftArmFatMass", label: "왼팔 지방량", unit: "kg" },
+      { key: "rightArmFatMass", label: "오른팔 지방량", unit: "kg" },
+      { key: "leftLegFatMass", label: "왼쪽 다리 지방량", unit: "kg" },
+      { key: "rightLegFatMass", label: "오른쪽 다리 지방량", unit: "kg" },
+    ],
+  },
+  {
+    title: "부위별 근육량",
+    description: "좌우 팔·다리의 근육 균형",
+    fields: [
+      { key: "leftArmMuscleMass", label: "왼팔 근육량", unit: "kg" },
+      { key: "rightArmMuscleMass", label: "오른팔 근육량", unit: "kg" },
+      { key: "leftLegMuscleMass", label: "왼쪽 다리 근육량", unit: "kg" },
+      { key: "rightLegMuscleMass", label: "오른쪽 다리 근육량", unit: "kg" },
+    ],
+  },
 ];
+
+const inbodyFields = fieldGroups.flatMap((group) => group.fields);
 
 interface Props {
   dateKey: string;
@@ -150,25 +204,53 @@ export default function BodyRecordCard({
           </b>
         </p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {inbodyFields.map((field) => (
-          <label
-            key={field.key}
-            className="text-[12px] font-semibold text-gray-600"
+      <div className="mt-3 space-y-2">
+        {fieldGroups.map((group, groupIndex) => (
+          <details
+            key={group.title}
+            open={groupIndex === 0}
+            className="group rounded-xl border border-gray-200 bg-gray-50/60"
           >
-            {field.label}
-            <div className="mt-1 flex items-center gap-1 rounded-xl border border-gray-200 px-2">
-              <input
-                inputMode="decimal"
-                value={form[field.key] || ""}
-                onChange={(event) =>
-                  setForm({ ...form, [field.key]: event.target.value })
-                }
-                className="min-w-0 flex-1 py-2 text-[13px] outline-none"
-              />
-              <span className="text-[11px] text-gray-400">{field.unit}</span>
+            <summary className="cursor-pointer list-none px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-bold text-gray-800">
+                    {group.title}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">
+                    {group.description}
+                  </p>
+                </div>
+                <span className="text-[16px] text-gray-400 transition-transform group-open:rotate-180">
+                  ⌄
+                </span>
+              </div>
+            </summary>
+            <div className="grid grid-cols-2 gap-2 border-t border-gray-200 bg-white p-3">
+              {group.fields.map((field) => (
+                <label
+                  key={field.key}
+                  className="text-[12px] font-semibold text-gray-600"
+                >
+                  {field.label}
+                  <div className="mt-1 flex items-center gap-1 rounded-xl border border-gray-200 px-2">
+                    <input
+                      inputMode="decimal"
+                      value={form[field.key] || ""}
+                      onChange={(event) =>
+                        setForm({ ...form, [field.key]: event.target.value })
+                      }
+                      placeholder="값 입력"
+                      className="min-w-0 flex-1 py-2 text-[13px] outline-none"
+                    />
+                    <span className="text-[11px] text-gray-400">
+                      {field.unit}
+                    </span>
+                  </div>
+                </label>
+              ))}
             </div>
-          </label>
+          </details>
         ))}
       </div>
       <textarea
