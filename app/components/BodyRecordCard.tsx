@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import {
   INBODY_RECORDS_KEY,
   InbodyRecord,
@@ -11,6 +11,7 @@ import {
   isTodayKey,
   writeJson,
 } from "../data/recordStorage";
+import { parseOaReport } from "../lib/oaReportParser";
 
 type InbodyField = {
   key: Exclude<keyof InbodyRecord, "weight" | "memo">;
@@ -97,6 +98,10 @@ export default function BodyRecordCard({
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
   const [form, setForm] = useState<Record<string, string>>({});
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importMessage, setImportMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const next: Record<string, string> = {
@@ -158,6 +163,51 @@ export default function BodyRecordCard({
   };
 
   const hasRecord = Boolean(currentWeight || currentInbody);
+
+  const importOaReport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setImportMessage("이미지 파일을 선택해주세요.");
+      return;
+    }
+
+    setImporting(true);
+    setImportProgress(0);
+    setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
+    try {
+      const result = await parseOaReport(file, setImportProgress);
+      if (result.recognizedCount < 15) {
+        throw new Error(
+          "인식된 항목이 너무 적습니다. 오아 앱에서 저장한 원본 이미지를 다시 선택해주세요.",
+        );
+      }
+      setForm((current) => {
+        const next = { ...current };
+        Object.entries(result.values).forEach(([key, value]) => {
+          next[key] = String(value);
+        });
+        return next;
+      });
+      const dateNotice =
+        result.detectedDate && result.detectedDate !== dateKey
+          ? ` 보고서 날짜는 ${result.detectedDate}이며, 현재 선택일은 ${dateKey}입니다.`
+          : "";
+      setImportMessage(
+        `${result.recognizedCount}개 항목을 채웠습니다.${dateNotice} 값을 확인한 뒤 통합 저장을 눌러주세요.`,
+      );
+    } catch (error) {
+      setImportMessage(
+        error instanceof Error
+          ? error.message
+          : "보고서를 분석하지 못했습니다. 다시 시도해주세요.",
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -179,6 +229,52 @@ export default function BodyRecordCard({
           권장합니다.
         </p>
       )}
+      <div className="mt-3 rounded-xl border border-[#D9D6FE] bg-[#F7F6FF] p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[13px] font-bold text-[#3C3489]">
+              오아 건강보고서 불러오기
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-600">
+              오아 앱에서 저장한 긴 보고서 이미지를 기기 안에서 분석합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={importing}
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-wait disabled:opacity-60"
+          >
+            {importing ? `${importProgress}%` : "이미지 선택"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/heic,image/heif"
+            onChange={importOaReport}
+            className="hidden"
+          />
+        </div>
+        {importing && (
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
+            <div
+              className="h-full rounded-full bg-[#534AB7] transition-[width]"
+              style={{ width: `${importProgress}%` }}
+            />
+          </div>
+        )}
+        {importMessage && (
+          <p
+            className={`mt-2 text-[11px] ${
+              importMessage.includes("채웠습니다")
+                ? "text-emerald-700"
+                : "text-amber-700"
+            }`}
+          >
+            {importMessage}
+          </p>
+        )}
+      </div>
       <label className="mt-3 block text-[12px] font-semibold text-gray-600">
         체중
         <div className="mt-1 flex items-center rounded-xl border border-gray-200 px-3">
