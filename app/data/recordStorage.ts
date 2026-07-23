@@ -15,11 +15,31 @@ export type WeightRecordStore = Record<string, WeightRecord>;
 
 export interface InbodyRecord {
   weight?: number;
+  bmi?: number;
+  musclePercent?: number;
   skeletalMuscleMass?: number;
+  muscleMass?: number;
   bodyFatMass?: number;
+  fatMass?: number;
   bodyFatPercent?: number;
   visceralFatLevel?: number;
+  subcutaneousFatMass?: number;
+  subcutaneousFatPercent?: number;
+  bodyWaterPercent?: number;
+  proteinPercent?: number;
+  fatFreeMass?: number;
+  boneMass?: number;
   basalMetabolicRate?: number;
+  bodyAge?: number;
+  bodyScore?: number;
+  leftArmFatMass?: number;
+  rightArmFatMass?: number;
+  leftLegFatMass?: number;
+  rightLegFatMass?: number;
+  leftArmMuscleMass?: number;
+  rightArmMuscleMass?: number;
+  leftLegMuscleMass?: number;
+  rightLegMuscleMass?: number;
   memo?: string;
 }
 export type InbodyRecordStore = Record<string, InbodyRecord>;
