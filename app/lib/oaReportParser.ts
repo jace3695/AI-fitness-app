@@ -68,9 +68,6 @@ function makeOcrSheet(image: HTMLImageElement) {
 
   context.fillStyle = "white";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "black";
-  context.font = "bold 30px monospace";
-  context.textBaseline = "middle";
 
   const drawCrop = (
     rowIndex: number,
@@ -80,16 +77,15 @@ function makeOcrSheet(image: HTMLImageElement) {
     sourceHeight: number,
   ) => {
     const top = rowIndex * rowHeight;
-    context.fillText(`${String(rowIndex).padStart(2, "0")}:`, 12, top + rowHeight / 2);
     context.drawImage(
       image,
       sourceX,
       sourceY,
       sourceWidth,
       sourceHeight,
-      100,
+      10,
       top + 6,
-      580,
+      680,
       rowHeight - 12,
     );
   };
@@ -152,32 +148,50 @@ export async function parseOaReport(
       preserve_interword_spaces: "1",
     });
     const {
-      data: { text },
-    } = await worker.recognize(canvas);
+      data: { text, tsv },
+    } = await worker.recognize(canvas, {}, { text: true, tsv: true });
 
     const values: Partial<Record<NumericKey, number>> = {};
     let detectedDate: string | undefined;
 
-    for (const line of text.split(/\r?\n/)) {
-      const rowMatch = line.match(/^\s*(\d{1,2})\s*[:.]?\s*(.*)$/);
-      if (!rowMatch) continue;
-      const rowIndex = Number(rowMatch[1]);
-      const contents = rowMatch[2];
+    // OCR가 줄 번호를 잘못 읽더라도 각 단어의 실제 Y 좌표는 안정적이다.
+    // 합성 시트의 행 위치로 값을 매핑해 브라우저별 줄바꿈 차이를 피한다.
+    for (const line of (tsv ?? "").split(/\r?\n/).slice(1)) {
+      const columns = line.split("\t");
+      if (columns.length < 12 || columns[0] !== "5") continue;
+      const top = Number(columns[7]);
+      const height = Number(columns[9]);
+      const contents = columns.slice(11).join("\t");
+      if (!Number.isFinite(top) || !Number.isFinite(height)) continue;
+      const rowIndex = Math.floor((top + height / 2) / 76);
+      const normalized = contents.replace(/,/g, ".").replace(/[Oo]/g, "0");
 
       if (rowIndex === 0) {
-        const dateMatch = contents.match(/(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/);
+        const dateMatch = normalized.match(
+          /(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/,
+        );
         if (dateMatch)
           detectedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}`;
         continue;
       }
 
       const row = REPORT_ROWS[rowIndex - 1];
-      if (!row) continue;
-      const normalized = contents.replace(/,/g, ".").replace(/[Oo]/g, "0");
+      if (!row || values[row.key] !== undefined) continue;
       const numberMatch = normalized.match(/\d+(?:\.\d+)?/);
       if (!numberMatch) continue;
       const value = Number(numberMatch[0]);
       if (Number.isFinite(value)) values[row.key] = value;
+    }
+
+    // 일부 구형 브라우저에서 TSV가 비어 있을 때는 텍스트 행 순서를 보조로 쓴다.
+    if (!Object.keys(values).length) {
+      const lines = text.split(/\r?\n/).filter((line) => /\d/.test(line));
+      lines.slice(1, REPORT_ROWS.length + 1).forEach((line, index) => {
+        const normalized = line.replace(/,/g, ".").replace(/[Oo]/g, "0");
+        const numberMatch = normalized.match(/\d+(?:\.\d+)?/);
+        const value = numberMatch ? Number(numberMatch[0]) : Number.NaN;
+        if (Number.isFinite(value)) values[REPORT_ROWS[index].key] = value;
+      });
     }
 
     return {
