@@ -5,36 +5,39 @@ type NumericKey = Exclude<keyof InbodyRecord, "memo"> | "weight";
 type ReportRow = {
   key: NumericKey;
   centerY: number;
+  min: number;
+  max: number;
+  decimals?: boolean;
 };
 
 const REPORT_ROWS: ReportRow[] = [
-  { key: "weight", centerY: 0.105 },
-  { key: "bodyScore", centerY: 0.402 },
-  { key: "bodyFatPercent", centerY: 0.4341 },
-  { key: "musclePercent", centerY: 0.4565 },
-  { key: "bmi", centerY: 0.479 },
-  { key: "boneMass", centerY: 0.502 },
-  { key: "proteinPercent", centerY: 0.5244 },
-  { key: "basalMetabolicRate", centerY: 0.5469 },
-  { key: "visceralFatLevel", centerY: 0.5693 },
-  { key: "bodyAge", centerY: 0.5923 },
-  { key: "fatFreeMass", centerY: 0.6147 },
-  { key: "subcutaneousFatPercent", centerY: 0.6372 },
-  { key: "bodyWaterPercent", centerY: 0.6602 },
-  { key: "subcutaneousFatMass", centerY: 0.6826 },
-  { key: "muscleMass", centerY: 0.7051 },
-  { key: "fatMass", centerY: 0.728 },
+  { key: "weight", centerY: 0.105, min: 20, max: 300, decimals: true },
+  { key: "bodyScore", centerY: 0.402, min: 0, max: 100 },
+  { key: "bodyFatPercent", centerY: 0.4341, min: 1, max: 80, decimals: true },
+  { key: "musclePercent", centerY: 0.4565, min: 1, max: 90, decimals: true },
+  { key: "bmi", centerY: 0.479, min: 5, max: 80, decimals: true },
+  { key: "boneMass", centerY: 0.502, min: 0.5, max: 15, decimals: true },
+  { key: "proteinPercent", centerY: 0.5244, min: 1, max: 40, decimals: true },
+  { key: "basalMetabolicRate", centerY: 0.5469, min: 500, max: 5000 },
+  { key: "visceralFatLevel", centerY: 0.5693, min: 1, max: 50 },
+  { key: "bodyAge", centerY: 0.5923, min: 10, max: 120 },
+  { key: "fatFreeMass", centerY: 0.6147, min: 10, max: 250, decimals: true },
+  { key: "subcutaneousFatPercent", centerY: 0.6372, min: 1, max: 80, decimals: true },
+  { key: "bodyWaterPercent", centerY: 0.6602, min: 10, max: 80, decimals: true },
+  { key: "subcutaneousFatMass", centerY: 0.6826, min: 0.1, max: 150, decimals: true },
+  { key: "muscleMass", centerY: 0.7051, min: 5, max: 200, decimals: true },
+  { key: "fatMass", centerY: 0.728, min: 0.1, max: 150, decimals: true },
   // 0.75 위치의 표준 체중은 현재 기록 필드에 없으므로 건너뛴다.
-  { key: "leftArmFatMass", centerY: 0.7725 },
-  { key: "rightArmFatMass", centerY: 0.7954 },
-  { key: "bodyFatMass", centerY: 0.818 },
-  { key: "leftLegFatMass", centerY: 0.8403 },
-  { key: "rightLegFatMass", centerY: 0.8628 },
-  { key: "leftArmMuscleMass", centerY: 0.8853 },
-  { key: "rightArmMuscleMass", centerY: 0.9082 },
-  { key: "skeletalMuscleMass", centerY: 0.9307 },
-  { key: "leftLegMuscleMass", centerY: 0.9536 },
-  { key: "rightLegMuscleMass", centerY: 0.9761 },
+  { key: "leftArmFatMass", centerY: 0.7725, min: 0.1, max: 30, decimals: true },
+  { key: "rightArmFatMass", centerY: 0.7954, min: 0.1, max: 30, decimals: true },
+  { key: "bodyFatMass", centerY: 0.818, min: 0.1, max: 80, decimals: true },
+  { key: "leftLegFatMass", centerY: 0.8403, min: 0.1, max: 50, decimals: true },
+  { key: "rightLegFatMass", centerY: 0.8628, min: 0.1, max: 50, decimals: true },
+  { key: "leftArmMuscleMass", centerY: 0.8853, min: 0.1, max: 30, decimals: true },
+  { key: "rightArmMuscleMass", centerY: 0.9082, min: 0.1, max: 30, decimals: true },
+  { key: "skeletalMuscleMass", centerY: 0.9307, min: 1, max: 100, decimals: true },
+  { key: "leftLegMuscleMass", centerY: 0.9536, min: 0.1, max: 50, decimals: true },
+  { key: "rightLegMuscleMass", centerY: 0.9761, min: 0.1, max: 50, decimals: true },
 ];
 
 export type OaReportResult = {
@@ -59,63 +62,41 @@ function loadImage(file: File) {
   });
 }
 
-function makeOcrSheet(image: HTMLImageElement) {
-  const rowHeight = 76;
+function makeCrop(
+  image: HTMLImageElement,
+  centerY: number,
+  kind: "header" | "score" | "value" | "segment",
+) {
+  const source = {
+    header: { x: 0.12, width: 0.76, height: 0.034 },
+    score: { x: 0.04, width: 0.52, height: 0.028 },
+    value: { x: 0.52, width: 0.44, height: 0.018 },
+    segment: { x: 0.64, width: 0.33, height: 0.018 },
+  }[kind];
+  const sourceHeight = image.naturalHeight * source.height;
+  const sourceWidth = image.naturalWidth * source.width;
   const canvas = document.createElement("canvas");
-  canvas.width = 700;
-  canvas.height = rowHeight * (REPORT_ROWS.length + 1);
+  const targetHeight = kind === "header" ? 120 : 96;
+  canvas.width = Math.max(420, Math.round((sourceWidth / sourceHeight) * targetHeight));
+  canvas.height = targetHeight;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("이미지 분석을 시작할 수 없습니다.");
 
   context.fillStyle = "white";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.imageSmoothingEnabled = false;
-
-  const drawCrop = (
-    rowIndex: number,
-    sourceX: number,
-    sourceY: number,
-    sourceWidth: number,
-    sourceHeight: number,
-  ) => {
-    const top = rowIndex * rowHeight;
-    const destinationHeight = rowHeight - 12;
-    const destinationWidth = Math.min(
-      680,
-      Math.round((sourceWidth / sourceHeight) * destinationHeight),
-    );
-    context.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      10,
-      top + 6,
-      destinationWidth,
-      destinationHeight,
-    );
-  };
-
-  drawCrop(
-    0,
-    image.naturalWidth * 0.23,
-    image.naturalHeight * 0.045,
-    image.naturalWidth * 0.58,
-    image.naturalHeight * 0.025,
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(
+    image,
+    image.naturalWidth * source.x,
+    image.naturalHeight * centerY - sourceHeight / 2,
+    sourceWidth,
+    sourceHeight,
+    8,
+    8,
+    canvas.width - 16,
+    canvas.height - 16,
   );
-
-  REPORT_ROWS.forEach((row, index) => {
-    const isTopValue = index < 2;
-    const isSegmentValue = index >= 16;
-    drawCrop(
-      index + 1,
-      image.naturalWidth * (isTopValue ? 0.055 : isSegmentValue ? 0.8 : 0.62),
-      image.naturalHeight * (row.centerY - (isTopValue ? 0.012 : 0.006)),
-      image.naturalWidth * (isTopValue ? 0.48 : isSegmentValue ? 0.17 : 0.25),
-      image.naturalHeight * (isTopValue ? 0.024 : 0.012),
-    );
-  });
 
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   for (let index = 0; index < pixels.data.length; index += 4) {
@@ -123,14 +104,30 @@ function makeOcrSheet(image: HTMLImageElement) {
       pixels.data[index] * 0.299 +
       pixels.data[index + 1] * 0.587 +
       pixels.data[index + 2] * 0.114;
-    // 공유 저장본은 숫자가 연한 회색이므로 임계값이 낮으면 글자가 사라진다.
-    const value = gray < 235 ? 0 : 255;
+    const value = gray < 242 ? 0 : 255;
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
   }
   context.putImageData(pixels, 0, 0);
   return canvas;
+}
+
+function numberFromText(text: string, row: ReportRow) {
+  const normalized = text
+    .replace(/,/g, ".")
+    .replace(/[Oo]/g, "0")
+    .replace(/[Il|]/g, "1");
+  const candidates = normalized.match(/\d+(?:\.\d+)?/g) ?? [];
+  for (const candidate of candidates) {
+    let value = Number(candidate);
+    if (!Number.isFinite(value)) continue;
+    // 소수점이 희미해 빠진 경우(예: 299 → 29.9)를 항목 범위로 복구한다.
+    if (row.decimals && !candidate.includes(".")) {
+      while (value > row.max && value / 10 >= row.min) value /= 10;
+    }
+    if (value >= row.min && value <= row.max) return value;
+  }
 }
 
 export async function parseOaReport(
@@ -142,65 +139,34 @@ export async function parseOaReport(
     throw new Error("오아 앱에서 저장한 긴 건강 보고서 원본을 선택해주세요.");
   }
 
-  const canvas = makeOcrSheet(image);
   const { createWorker, PSM } = await import("tesseract.js");
-  const worker = await createWorker("eng", 1, {
-    logger: (message) => {
-      if (message.status === "recognizing text")
-        onProgress?.(Math.round(message.progress * 100));
-    },
-  });
+  const worker = await createWorker("eng");
+  const values: Partial<Record<NumericKey, number>> = {};
+  let detectedDate: string | undefined;
 
   try {
     await worker.setParameters({
-      tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-      preserve_interword_spaces: "1",
+      tessedit_pageseg_mode: PSM.SINGLE_LINE,
+      tessedit_char_whitelist: "0123456789.-%kg",
     });
-    const {
-      data: { text, tsv },
-    } = await worker.recognize(canvas, {}, { text: true, tsv: true });
 
-    const values: Partial<Record<NumericKey, number>> = {};
-    let detectedDate: string | undefined;
-
-    // OCR가 줄 번호를 잘못 읽더라도 각 단어의 실제 Y 좌표는 안정적이다.
-    // 합성 시트의 행 위치로 값을 매핑해 브라우저별 줄바꿈 차이를 피한다.
-    for (const line of (tsv ?? "").split(/\r?\n/).slice(1)) {
-      const columns = line.split("\t");
-      if (columns.length < 12 || columns[0] !== "5") continue;
-      const top = Number(columns[7]);
-      const height = Number(columns[9]);
-      const contents = columns.slice(11).join("\t");
-      if (!Number.isFinite(top) || !Number.isFinite(height)) continue;
-      const rowIndex = Math.floor((top + height / 2) / 76);
-      const normalized = contents.replace(/,/g, ".").replace(/[Oo]/g, "0");
-
-      if (rowIndex === 0) {
-        const dateMatch = normalized.match(
-          /(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/,
-        );
-        if (dateMatch)
-          detectedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}`;
-        continue;
-      }
-
-      const row = REPORT_ROWS[rowIndex - 1];
-      if (!row || values[row.key] !== undefined) continue;
-      const numberMatch = normalized.match(/\d+(?:\.\d+)?/);
-      if (!numberMatch) continue;
-      const value = Number(numberMatch[0]);
-      if (Number.isFinite(value)) values[row.key] = value;
+    const header = makeCrop(image, 0.035, "header");
+    const headerResult = await worker.recognize(header);
+    const dateMatch = headerResult.data.text.match(
+      /(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/,
+    );
+    if (dateMatch) {
+      detectedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}`;
     }
 
-    // 일부 구형 브라우저에서 TSV가 비어 있을 때는 텍스트 행 순서를 보조로 쓴다.
-    if (!Object.keys(values).length) {
-      const lines = text.split(/\r?\n/).filter((line) => /\d/.test(line));
-      lines.slice(1, REPORT_ROWS.length + 1).forEach((line, index) => {
-        const normalized = line.replace(/,/g, ".").replace(/[Oo]/g, "0");
-        const numberMatch = normalized.match(/\d+(?:\.\d+)?/);
-        const value = numberMatch ? Number(numberMatch[0]) : Number.NaN;
-        if (Number.isFinite(value)) values[REPORT_ROWS[index].key] = value;
-      });
+    for (let index = 0; index < REPORT_ROWS.length; index += 1) {
+      const row = REPORT_ROWS[index];
+      const kind =
+        index === 0 ? "score" : index === 1 ? "score" : index >= 16 ? "segment" : "value";
+      const result = await worker.recognize(makeCrop(image, row.centerY, kind));
+      const value = numberFromText(result.data.text, row);
+      if (value !== undefined) values[row.key] = value;
+      onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
     }
 
     return {

@@ -178,11 +178,8 @@ export default function BodyRecordCard({
     setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
     try {
       const result = await parseOaReport(file, setImportProgress);
-      if (result.recognizedCount < 15) {
-        throw new Error(
-          "인식된 항목이 너무 적습니다. 오아 앱에서 저장한 원본 이미지를 다시 선택해주세요.",
-        );
-      }
+      if (!result.recognizedCount)
+        throw new Error("보고서의 숫자를 읽지 못했습니다. 원본 이미지를 다시 선택해주세요.");
       setForm((current) => {
         const next = { ...current };
         Object.entries(result.values).forEach(([key, value]) => {
@@ -195,7 +192,9 @@ export default function BodyRecordCard({
           ? ` 보고서 날짜는 ${result.detectedDate}이며, 현재 선택일은 ${dateKey}입니다.`
           : "";
       setImportMessage(
-        `${result.recognizedCount}개 항목을 채웠습니다.${dateNotice} 값을 확인한 뒤 통합 저장을 눌러주세요.`,
+        result.recognizedCount < 20
+          ? `${result.recognizedCount}개 항목을 채웠습니다. 일부 항목은 인식하지 못했으니 빈칸을 확인해주세요.${dateNotice}`
+          : `${result.recognizedCount}개 항목을 채웠습니다.${dateNotice} 값을 확인한 뒤 통합 저장을 눌러주세요.`,
       );
     } catch (error) {
       setImportMessage(
