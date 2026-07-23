@@ -65,21 +65,28 @@ function loadImage(file: File) {
 function makeCrop(
   image: HTMLImageElement,
   centerY: number,
-  kind: "header" | "score" | "value" | "segment",
+  kind: "header" | "score" | "value" | "plainValue" | "age" | "segment",
 ) {
   const source = {
     header: { x: 0.12, width: 0.76, height: 0.034 },
     score: { x: 0.04, width: 0.52, height: 0.028 },
-    // 상태 배지와 항목명을 함께 넣으면 연한 숫자의 앞자리를 자주 놓친다.
-    // 공유 저장본에서 실제 숫자가 놓이는 오른쪽 열만 잘라낸다.
-    value: { x: 0.625, width: 0.225, height: 0.018 },
+    // 상태 배지 직전까지만 잘라 배지 글자를 숫자로 오인하지 않게 한다.
+    value: { x: 0.595, width: 0.19, height: 0.018 },
+    // 상태 배지가 없는 무지방 체중은 값이 더 오른쪽에 정렬된다.
+    plainValue: { x: 0.68, width: 0.24, height: 0.018 },
+    // "40연령 단위"의 한글 획이 숫자로 합쳐지지 않도록 숫자만 자른다.
+    age: { x: 0.62, width: 0.09, height: 0.018 },
     segment: { x: 0.72, width: 0.22, height: 0.018 },
   }[kind];
   const sourceHeight = image.naturalHeight * source.height;
   const sourceWidth = image.naturalWidth * source.width;
   const canvas = document.createElement("canvas");
-  const targetHeight = kind === "header" ? 120 : 96;
-  canvas.width = Math.max(420, Math.round((sourceWidth / sourceHeight) * targetHeight));
+  const targetHeight = kind === "header" ? 160 : 192;
+  const contentHeight = targetHeight - 16;
+  // 고정 최소 너비를 사용하면 320px 원본의 숫자가 가로로 2~3배
+  // 찌그러진다. 원본 종횡비를 그대로 유지한 채 충분히 확대한다.
+  canvas.width =
+    Math.round((sourceWidth / sourceHeight) * contentHeight) + 16;
   canvas.height = targetHeight;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("이미지 분석을 시작할 수 없습니다.");
@@ -179,7 +186,15 @@ export async function parseOaReport(
     for (let index = 0; index < REPORT_ROWS.length; index += 1) {
       const row = REPORT_ROWS[index];
       const kind =
-        index === 0 ? "score" : index === 1 ? "score" : index >= 16 ? "segment" : "value";
+        index <= 1
+          ? "score"
+          : index === 9
+            ? "age"
+            : index === 10
+              ? "plainValue"
+              : index >= 16
+                ? "segment"
+                : "value";
       const result = await worker.recognize(makeCrop(image, row.centerY, kind));
       const value = numberFromText(result.data.text, row);
       if (value !== undefined) values[row.key] = value;
