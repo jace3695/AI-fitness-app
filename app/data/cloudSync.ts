@@ -1,19 +1,6 @@
 import { supabase } from "../lib/supabase";
 
-export const SYNCED_STORAGE_KEYS = [
-  "ai-fitness-workout-completed-days",
-  "ai-fitness-diet-completed-days",
-  "ai-fitness-water-intake",
-  "ai-fitness-dinner-completed-time",
-  "ai-fitness-dinner-carb-choice",
-  "ai-fitness-lunch-carb-choice",
-  "ai-fitness-lunch-protein-choice",
-  "ai-fitness-weight-records",
-  "ai-fitness-inbody-records",
-  "ai-fitness-daily-notes",
-  "ai-fitness-recovery-mode-days",
-  "ai-fitness-pullup-progress",
-] as const;
+const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 
 export type CloudState = Record<string, unknown>;
 
@@ -32,8 +19,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 export function readLocalCloudState(): CloudState {
   if (typeof window === "undefined") return {};
+  const keys = Array.from(
+    { length: window.localStorage.length },
+    (_, index) => window.localStorage.key(index),
+  ).filter(
+    (key): key is string =>
+      Boolean(key) && key!.startsWith(SYNCED_STORAGE_PREFIX),
+  );
   return Object.fromEntries(
-    SYNCED_STORAGE_KEYS.flatMap((key) => {
+    keys.flatMap((key) => {
       const value = parseStoredValue(window.localStorage.getItem(key));
       return value === undefined ? [] : [[key, value]];
     }),
