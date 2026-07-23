@@ -9,31 +9,32 @@ type ReportRow = {
 
 const REPORT_ROWS: ReportRow[] = [
   { key: "weight", centerY: 0.105 },
-  { key: "bodyScore", centerY: 0.398 },
-  { key: "bodyFatPercent", centerY: 0.48 },
-  { key: "musclePercent", centerY: 0.497 },
-  { key: "bmi", centerY: 0.514 },
-  { key: "boneMass", centerY: 0.532 },
-  { key: "proteinPercent", centerY: 0.549 },
-  { key: "basalMetabolicRate", centerY: 0.566 },
-  { key: "visceralFatLevel", centerY: 0.583 },
-  { key: "bodyAge", centerY: 0.6 },
-  { key: "fatFreeMass", centerY: 0.618 },
-  { key: "subcutaneousFatPercent", centerY: 0.635 },
-  { key: "bodyWaterPercent", centerY: 0.652 },
-  { key: "subcutaneousFatMass", centerY: 0.669 },
-  { key: "muscleMass", centerY: 0.686 },
-  { key: "fatMass", centerY: 0.704 },
-  { key: "leftArmFatMass", centerY: 0.738 },
-  { key: "rightArmFatMass", centerY: 0.755 },
-  { key: "bodyFatMass", centerY: 0.772 },
-  { key: "leftLegFatMass", centerY: 0.789 },
-  { key: "rightLegFatMass", centerY: 0.806 },
-  { key: "leftArmMuscleMass", centerY: 0.824 },
-  { key: "rightArmMuscleMass", centerY: 0.841 },
-  { key: "skeletalMuscleMass", centerY: 0.858 },
-  { key: "leftLegMuscleMass", centerY: 0.875 },
-  { key: "rightLegMuscleMass", centerY: 0.892 },
+  { key: "bodyScore", centerY: 0.402 },
+  { key: "bodyFatPercent", centerY: 0.4341 },
+  { key: "musclePercent", centerY: 0.4565 },
+  { key: "bmi", centerY: 0.479 },
+  { key: "boneMass", centerY: 0.502 },
+  { key: "proteinPercent", centerY: 0.5244 },
+  { key: "basalMetabolicRate", centerY: 0.5469 },
+  { key: "visceralFatLevel", centerY: 0.5693 },
+  { key: "bodyAge", centerY: 0.5923 },
+  { key: "fatFreeMass", centerY: 0.6147 },
+  { key: "subcutaneousFatPercent", centerY: 0.6372 },
+  { key: "bodyWaterPercent", centerY: 0.6602 },
+  { key: "subcutaneousFatMass", centerY: 0.6826 },
+  { key: "muscleMass", centerY: 0.7051 },
+  { key: "fatMass", centerY: 0.728 },
+  // 0.75 위치의 표준 체중은 현재 기록 필드에 없으므로 건너뛴다.
+  { key: "leftArmFatMass", centerY: 0.7725 },
+  { key: "rightArmFatMass", centerY: 0.7954 },
+  { key: "bodyFatMass", centerY: 0.818 },
+  { key: "leftLegFatMass", centerY: 0.8403 },
+  { key: "rightLegFatMass", centerY: 0.8628 },
+  { key: "leftArmMuscleMass", centerY: 0.8853 },
+  { key: "rightArmMuscleMass", centerY: 0.9082 },
+  { key: "skeletalMuscleMass", centerY: 0.9307 },
+  { key: "leftLegMuscleMass", centerY: 0.9536 },
+  { key: "rightLegMuscleMass", centerY: 0.9761 },
 ];
 
 export type OaReportResult = {
@@ -68,6 +69,7 @@ function makeOcrSheet(image: HTMLImageElement) {
 
   context.fillStyle = "white";
   context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = false;
 
   const drawCrop = (
     rowIndex: number,
@@ -77,6 +79,11 @@ function makeOcrSheet(image: HTMLImageElement) {
     sourceHeight: number,
   ) => {
     const top = rowIndex * rowHeight;
+    const destinationHeight = rowHeight - 12;
+    const destinationWidth = Math.min(
+      680,
+      Math.round((sourceWidth / sourceHeight) * destinationHeight),
+    );
     context.drawImage(
       image,
       sourceX,
@@ -85,8 +92,8 @@ function makeOcrSheet(image: HTMLImageElement) {
       sourceHeight,
       10,
       top + 6,
-      680,
-      rowHeight - 12,
+      destinationWidth,
+      destinationHeight,
     );
   };
 
@@ -100,12 +107,13 @@ function makeOcrSheet(image: HTMLImageElement) {
 
   REPORT_ROWS.forEach((row, index) => {
     const isTopValue = index < 2;
+    const isSegmentValue = index >= 16;
     drawCrop(
       index + 1,
-      image.naturalWidth * (isTopValue ? 0.055 : 0.55),
-      image.naturalHeight * (row.centerY - (isTopValue ? 0.012 : 0.009)),
-      image.naturalWidth * (isTopValue ? 0.48 : 0.31),
-      image.naturalHeight * (isTopValue ? 0.024 : 0.018),
+      image.naturalWidth * (isTopValue ? 0.055 : isSegmentValue ? 0.8 : 0.62),
+      image.naturalHeight * (row.centerY - (isTopValue ? 0.012 : 0.006)),
+      image.naturalWidth * (isTopValue ? 0.48 : isSegmentValue ? 0.17 : 0.25),
+      image.naturalHeight * (isTopValue ? 0.024 : 0.012),
     );
   });
 
@@ -115,7 +123,8 @@ function makeOcrSheet(image: HTMLImageElement) {
       pixels.data[index] * 0.299 +
       pixels.data[index + 1] * 0.587 +
       pixels.data[index + 2] * 0.114;
-    const value = gray < 185 ? 0 : 255;
+    // 공유 저장본은 숫자가 연한 회색이므로 임계값이 낮으면 글자가 사라진다.
+    const value = gray < 235 ? 0 : 255;
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
