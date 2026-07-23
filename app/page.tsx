@@ -33,6 +33,7 @@ import SafetyView from "./components/SafetyView";
 import RecordCalendarView from "./components/RecordCalendarView";
 import SwitchOnModePanel from "./components/SwitchOnModePanel";
 import PullupTrainingView from "./components/PullupTrainingView";
+import CloudSyncPanel from "./components/CloudSyncPanel";
 
 type TabId =
   | "ov"
@@ -450,6 +451,7 @@ export default function Page() {
           </div>
         </div>
       </header>
+      <CloudSyncPanel />
 
       {/* ── Main Content ── */}
       <main className="max-w-3xl mx-auto px-4 py-5">

@@ -27,8 +27,7 @@ import {
   readRecordStores,
   writeJson,
 } from "../data/recordStorage";
-import WeightRecordCard from "./WeightRecordCard";
-import InbodyRecordCard from "./InbodyRecordCard";
+import BodyRecordCard from "./BodyRecordCard";
 import MonthlySummaryCard from "./MonthlySummaryCard";
 import WeightChart from "./WeightChart";
 
@@ -446,19 +445,16 @@ export default function RecordCalendarView() {
             <br />
             <b>{hasSafetyAlert(selectedDiet) ? "기록 있음" : "없음"}</b>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            체중
+          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+            체중·인바디
             <br />
             <b>
               {stores.weights[selected]?.weight
                 ? `${stores.weights[selected].weight.toFixed(1)}kg`
-                : "미기록"}
+                : "체중 미기록"}
+              {" · "}
+              {stores.inbody[selected] ? "인바디 기록 있음" : "인바디 미기록"}
             </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            인바디
-            <br />
-            <b>{stores.inbody[selected] ? "기록 있음" : "미기록"}</b>
           </div>
           <div className="rounded-xl bg-gray-50 p-3 col-span-2">
             <span>{selectedLunchCarb.rice}</span>
@@ -489,15 +485,13 @@ export default function RecordCalendarView() {
           </div>
         </div>
       </section>
-      <WeightRecordCard
+      <BodyRecordCard
         dateKey={selected}
         weights={stores.weights}
-        onChange={(weights) => setStores({ ...stores, weights })}
-      />
-      <InbodyRecordCard
-        dateKey={selected}
-        records={stores.inbody}
-        onChange={(inbody) => setStores({ ...stores, inbody })}
+        inbody={stores.inbody}
+        onChange={({ weights, inbody }) =>
+          setStores({ ...stores, weights, inbody })
+        }
       />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
         <p className="text-[15px] font-bold text-gray-800">날짜별 메모</p>

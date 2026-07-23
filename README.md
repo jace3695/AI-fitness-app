@@ -12,7 +12,17 @@
 npm install
 ```
 
-### 2. 개발 서버 실행
+### 2. Supabase 환경변수
+
+`.env.example`을 `.env.local`로 복사한 뒤 Supabase 프로젝트의 URL과
+publishable key를 입력합니다.
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+```
+
+### 3. 개발 서버 실행
 ```bash
 npm run dev
 ```
