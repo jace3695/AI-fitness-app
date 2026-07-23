@@ -70,8 +70,10 @@ function makeCrop(
   const source = {
     header: { x: 0.12, width: 0.76, height: 0.034 },
     score: { x: 0.04, width: 0.52, height: 0.028 },
-    value: { x: 0.52, width: 0.44, height: 0.018 },
-    segment: { x: 0.64, width: 0.33, height: 0.018 },
+    // 상태 배지와 항목명을 함께 넣으면 연한 숫자의 앞자리를 자주 놓친다.
+    // 공유 저장본에서 실제 숫자가 놓이는 오른쪽 열만 잘라낸다.
+    value: { x: 0.625, width: 0.225, height: 0.018 },
+    segment: { x: 0.72, width: 0.22, height: 0.018 },
   }[kind];
   const sourceHeight = image.naturalHeight * source.height;
   const sourceWidth = image.naturalWidth * source.width;
@@ -98,13 +100,28 @@ function makeCrop(
     canvas.height - 16,
   );
 
+  // 보고서 숫자는 매우 연한 회색이다. 이진화하면 9의 꼬리나 6의 윗부분이
+  // 사라져 29.9→20, 66.5→5처럼 읽히므로 회색조 대비만 높인다.
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  let darkest = 255;
+  let lightest = 0;
   for (let index = 0; index < pixels.data.length; index += 4) {
     const gray =
       pixels.data[index] * 0.299 +
       pixels.data[index + 1] * 0.587 +
       pixels.data[index + 2] * 0.114;
-    const value = gray < 242 ? 0 : 255;
+    darkest = Math.min(darkest, gray);
+    lightest = Math.max(lightest, gray);
+    pixels.data[index] = gray;
+    pixels.data[index + 1] = gray;
+    pixels.data[index + 2] = gray;
+  }
+  const span = Math.max(1, lightest - darkest);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const value = Math.max(
+      0,
+      Math.min(255, ((pixels.data[index] - darkest) / span) * 255),
+    );
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
@@ -167,6 +184,29 @@ export async function parseOaReport(
       const value = numberFromText(result.data.text, row);
       if (value !== undefined) values[row.key] = value;
       onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
+    }
+
+    // 서로 직접 환산되는 값은 OCR 앞자리 누락을 교정한다.
+    // 원본 숫자가 모두 읽힌 경우에만 적용해 사용자의 실제 측정값을 보존한다.
+    if (values.weight && values.fatMass) {
+      const derived = Number(((values.fatMass / values.weight) * 100).toFixed(1));
+      if (
+        values.bodyFatPercent === undefined ||
+        Math.abs(values.bodyFatPercent - derived) > 1
+      ) {
+        values.bodyFatPercent = derived;
+      }
+    }
+    if (values.weight && values.muscleMass) {
+      const derived = Number(
+        ((values.muscleMass / values.weight) * 100).toFixed(1),
+      );
+      if (
+        values.musclePercent === undefined ||
+        Math.abs(values.musclePercent - derived) > 1
+      ) {
+        values.musclePercent = derived;
+      }
     }
 
     return {
