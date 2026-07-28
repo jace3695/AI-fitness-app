@@ -66,7 +66,7 @@ function FollowModal({ exercises, index, onClose }: { exercises: Exercise[]; ind
     if (cur < exercises.length - 1) setCur((value) => value + 1);
   };
   return <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" role="dialog" aria-modal="true" aria-label="운동 따라하기">
-    <div className="mx-auto flex h-full max-w-md flex-col overflow-hidden bg-white sm:rounded-3xl">
+    <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-hidden bg-white sm:rounded-3xl lg:max-w-3xl">
       <div className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -79,7 +79,7 @@ function FollowModal({ exercises, index, onClose }: { exercises: Exercise[]; ind
           <div className="h-full rounded-full bg-[#534AB7] transition-all" style={{ width: `${((cur + 1) / exercises.length) * 100}%` }} />
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
         <div className="rounded-3xl bg-gradient-to-br from-[#EEEDFE] to-[#F7F6FF] p-5 text-center">
           <p className="text-[12px] font-bold text-[#534AB7]">현재 동작</p>
           <h2 className="mt-2 text-[26px] font-bold text-gray-900">{exercise.name}</h2>
