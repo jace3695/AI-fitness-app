@@ -60,7 +60,7 @@ export default function PhaseSection({ phase, exercises, offset = 0, highRiskNam
       )}
 
       {/* Exercises */}
-      <div className="flex flex-col gap-1.5">
+      <div className="grid gap-2 lg:grid-cols-2">
         {phase.exercises.map((ex, i) => (
           <ExerciseCard key={i} exercise={ex} exercises={exercises} index={offset + i} highRisk={highRiskNames.some((name) => ex.name.includes(name))} />
         ))}
