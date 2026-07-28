@@ -96,6 +96,8 @@ export default function RecordCalendarView() {
   const workoutSourceDay = selectedWorkoutRecord?.workoutSourceDay;
   const workoutExerciseNames =
     selectedWorkoutRecord?.workoutExerciseNames ?? [];
+  const workoutExerciseRecords =
+    selectedWorkoutRecord?.workoutExerciseRecords ?? [];
   const pullupExerciseNames = selectedWorkoutRecord?.pullupExerciseNames ?? [];
   const selectedWater = stores.water[selected] || 0;
   const selectedDinner = stores.dinner[selected];
@@ -314,6 +316,39 @@ export default function RecordCalendarView() {
                 </p>
               )}
           </div>
+          {workoutExerciseRecords.length ? (
+            <div className="rounded-xl bg-[#F7F6FF] p-3 sm:col-span-2">
+              <p className="font-bold text-[#3C3489]">동작별 수행 기록</p>
+              <div className="mt-2 space-y-2">
+                {workoutExerciseRecords.map((record, index) => (
+                  <div key={`${record.exerciseName}-${index}`} className="rounded-xl bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <b>{record.exerciseName}</b>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${record.status === 'completed' ? 'bg-green-50 text-green-700' : record.status === 'skipped' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}>
+                        {record.status === 'completed' ? '완료' : record.status === 'skipped' ? '건너뜀' : '미완료'}
+                      </span>
+                    </div>
+                    {record.summary ? <p className="mt-1 text-[11px] text-gray-600">{record.summary}</p> : null}
+                    {record.sets?.length ? (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        {record.sets.map((set) => {
+                          const values = [
+                            `${set.setNumber}세트${set.completed ? ' ✓' : ''}`,
+                            set.reps !== undefined ? `${set.reps}회` : '',
+                            set.weightKg !== undefined ? `${set.weightKg}kg` : '',
+                            set.durationSeconds !== undefined ? `${set.durationSeconds}초` : '',
+                            set.bandLevel ? `밴드 ${set.bandLevel}` : '',
+                          ].filter(Boolean);
+                          return values.join(' · ');
+                        }).join(' / ')}
+                      </p>
+                    ) : null}
+                    {record.painScore !== undefined ? <p className="mt-1 font-bold text-red-600">불편감 {record.painScore}/10</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {isCardioDone(selectedWorkout) && (
             <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
               가벼운 유산소 완료
