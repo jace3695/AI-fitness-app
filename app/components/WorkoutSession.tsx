@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Exercise } from '../data/workouts';
+import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore } from '../data/workoutCompletion';
 import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from './ExerciseGuidePanel';
-import { IntervalTimer, SetChecklist } from './WorkoutControls';
+import ExerciseRecordEditor from './ExerciseRecordEditor';
+import { IntervalTimer } from './WorkoutControls';
 
 type SessionMode = 'exercise' | 'rest' | 'pain' | 'summary';
 
 export interface WorkoutSessionResult {
   pain: boolean;
   memo: string;
+  exerciseRecords: ExerciseRecord[];
 }
 
 const PAIN_SYMPTOMS = ['허리 통증', '다리 저림', '무릎 통증', '어지러움', '메스꺼움', '식은땀', '기타'];
@@ -20,6 +23,44 @@ function getExerciseSeconds(exercise: Exercise) {
   if (minutes) return Number(minutes[1]) * 60;
   const seconds = text.match(/(\d+)(?:\s*~\s*\d+)?\s*초/);
   return seconds ? Number(seconds[1]) : 0;
+}
+
+function getSuggestedReps(exercise: Exercise) {
+  const text = `${exercise.meta || ''} ${exercise.guide?.reps || ''}`;
+  const match = text.match(/(\d+)(?:\s*~\s*\d+)?\s*회/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function buildExerciseRecord(exercise: Exercise): ExerciseRecord {
+  const seconds = getExerciseSeconds(exercise);
+  const suggestedReps = getSuggestedReps(exercise);
+  return {
+    exerciseName: exercise.name,
+    status: 'pending',
+    durationMinutes: !exercise.sets && seconds ? Math.ceil(seconds / 60) : undefined,
+    sets: exercise.sets
+      ? Array.from({ length: exercise.sets }, (_, index) => ({
+          setNumber: index + 1,
+          completed: false,
+          reps: suggestedReps,
+        }))
+      : undefined,
+  };
+}
+
+function summarizeExerciseRecord(record: ExerciseRecord) {
+  if (record.durationMinutes !== undefined) return `${record.durationMinutes}분`;
+  if (!record.sets?.length) return undefined;
+  const completedSets = record.sets.filter((set) => set.completed).length;
+  const first = record.sets[0];
+  const details = [
+    `${completedSets || record.sets.length}세트`,
+    first.reps !== undefined ? `${first.reps}회` : '',
+    first.weightKg !== undefined ? `${first.weightKg}kg` : '',
+    first.durationSeconds !== undefined ? `${first.durationSeconds}초` : '',
+    first.bandLevel ? `밴드 ${first.bandLevel}` : '',
+  ].filter(Boolean);
+  return details.join(' · ');
 }
 
 function formatClock(seconds: number) {
@@ -116,6 +157,15 @@ export default function WorkoutSession({
   const [painScore, setPainScore] = useState(0);
   const [painSymptoms, setPainSymptoms] = useState<string[]>([]);
   const [painMemo, setPainMemo] = useState('');
+  const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => exercises.map(buildExerciseRecord));
+  const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
+    const store = readWorkoutCompletionStore();
+    return exercises.reduce<Record<string, ExerciseRecord>>((records, item) => {
+      const previous = getPreviousExerciseRecord(store, item.name);
+      if (previous) records[item.name] = { ...previous, summary: summarizeExerciseRecord(previous) };
+      return records;
+    }, {});
+  });
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const autoAdvanceRef = useRef(false);
   const exercise = exercises[currentIndex];
@@ -174,6 +224,9 @@ export default function WorkoutSession({
       return next;
     });
     setTimerRunning(false);
+    setExerciseRecords((records) => records.map((record, index) => index === currentIndex
+      ? { ...record, status: 'completed', summary: summarizeExerciseRecord(record) }
+      : record));
     if (isLastExercise) {
       setMode('summary');
       speak('오늘 운동을 모두 마쳤습니다.');
@@ -257,12 +310,14 @@ export default function WorkoutSession({
         painSymptoms,
         painMemo,
       }),
+      exerciseRecords,
     });
     onClose();
   };
 
   const skipCurrent = () => {
     setSkipped((current) => new Set(current).add(currentIndex));
+    setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, status: 'skipped' } : record));
     setTimerRunning(false);
     if (isLastExercise) setMode('summary');
     else goToExercise(currentIndex + 1);
@@ -322,7 +377,12 @@ export default function WorkoutSession({
                 }}
               />
               {exercise.intervalPlan ? <IntervalTimer plan={exercise.intervalPlan} /> : null}
-              <SetChecklist storageId={`session-${title}-${exercise.name}`} sets={exercise.sets} restSeconds={exercise.restSeconds} />
+              <ExerciseRecordEditor
+                exercise={exercise}
+                value={exerciseRecords[currentIndex]}
+                previous={previousRecords[exercise.name]}
+                onChange={(record) => setExerciseRecords((records) => records.map((item, index) => index === currentIndex ? record : item))}
+              />
               <ExerciseGuidePanel exercise={exercise} />
             </>
           )}
@@ -362,7 +422,10 @@ export default function WorkoutSession({
               </label>
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => setMode('exercise')} className="rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-red-800">입력 취소</button>
-                <button type="button" onClick={() => setMode('summary')} className="rounded-xl bg-red-600 px-4 py-3 text-[13px] font-bold text-white">기록하고 운동 종료</button>
+                <button type="button" onClick={() => {
+                  setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, painScore, status: 'completed', summary: summarizeExerciseRecord(record) } : record));
+                  setMode('summary');
+                }} className="rounded-xl bg-red-600 px-4 py-3 text-[13px] font-bold text-white">기록하고 운동 종료</button>
               </div>
             </section>
           )}
