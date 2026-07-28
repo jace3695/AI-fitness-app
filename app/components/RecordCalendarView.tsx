@@ -324,8 +324,8 @@ export default function RecordCalendarView() {
                   <div key={`${record.exerciseName}-${index}`} className="rounded-xl bg-white p-3">
                     <div className="flex items-center justify-between gap-2">
                       <b>{record.exerciseName}</b>
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${record.status === 'completed' ? 'bg-green-50 text-green-700' : record.status === 'skipped' ? 'bg-gray-100 text-gray-500' : 'bg-amber-50 text-amber-700'}`}>
-                        {record.status === 'completed' ? '완료' : record.status === 'skipped' ? '건너뜀' : '미완료'}
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${record.status === 'completed' ? 'bg-green-50 text-green-700' : record.status === 'partial' ? 'bg-amber-50 text-amber-700' : record.status === 'skipped' ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-500'}`}>
+                        {record.status === 'completed' ? '완료' : record.status === 'partial' ? '부분 완료' : record.status === 'skipped' ? '건너뜀' : '미완료'}
                       </span>
                     </div>
                     {record.summary ? <p className="mt-1 text-[11px] text-gray-600">{record.summary}</p> : null}
