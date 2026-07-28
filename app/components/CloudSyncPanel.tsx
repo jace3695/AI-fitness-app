@@ -106,7 +106,7 @@ export default function CloudSyncPanel() {
 
   if (!isSupabaseConfigured)
     return (
-      <div className="mx-auto mt-3 max-w-3xl px-4">
+      <div className="mt-3 w-full">
         <div className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
           기기 동기화 환경변수가 아직 설정되지 않았습니다.
         </div>
@@ -131,7 +131,7 @@ export default function CloudSyncPanel() {
 
   if (!user)
     return (
-      <div className="mx-auto mt-3 max-w-3xl px-4">
+      <div className="mt-3 w-full">
         <form className="rounded-2xl border border-[#D9D6FE] bg-white p-3 shadow-sm">
           <p className="text-[13px] font-bold text-gray-800">
             아이패드·컴퓨터 기록 동기화
@@ -183,7 +183,7 @@ export default function CloudSyncPanel() {
     );
 
   return (
-    <div className="mx-auto mt-3 max-w-3xl px-4">
+    <div className="mt-3 w-full">
       <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
         <span>
           {status === "syncing"
