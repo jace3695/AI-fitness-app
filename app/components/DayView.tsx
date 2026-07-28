@@ -7,6 +7,7 @@ import { RECOVERY_REASON_LABELS, RECOVERY_ROUTINE, RECOVERY_STOP_CRITERIA, Recov
 import FlowDiagram from './FlowDiagram';
 import PhaseSection from './PhaseSection';
 import ExerciseCard from './ExerciseCard';
+import WorkoutSession from './WorkoutSession';
 
 interface DayViewProps { day: DayWorkout; isCompleted: boolean; onSaveWorkout: (pain: boolean, memo: string, cardioOptionId?: string) => void; onCancelWorkout: () => void; workoutPain?: boolean; workoutMemo?: string; cardioDone?: boolean; cardioType?: string; cardioMinutes?: number; cardioMemo?: string; onSaveCardio?: (type: string, minutes: number, memo: string) => void; onCancelCardio?: () => void; foamRollerDone?: boolean; foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string; onSaveFoamRoller?: (record: { foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string }) => void; onCancelFoamRoller?: () => void; onPullupTraining?: () => void; recovery?: RecoveryDayRecord; onRecordRecovery?: (memo: string) => void; onCancelRecovery?: () => void; showBaseRoutine?: boolean; onShowRecommended?: () => void; onShowBaseRoutine?: () => void }
 
@@ -23,13 +24,14 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
   const [foamPain, setFoamPain] = useState(foamRollerPain);
   const [foamMemoDraft, setFoamMemoDraft] = useState(foamRollerMemo || '');
   const [selectedCardioOptionId, setSelectedCardioOptionId] = useState<string>(cardioType || '');
+  const [sessionOpen, setSessionOpen] = useState(false);
   useEffect(() => { setPain(workoutPain); setMemo(workoutMemo); }, [workoutPain, workoutMemo]);
   useEffect(() => { setRecoveryMemo(recovery?.recoveryMemo || ''); }, [recovery?.recoveryMemo]);
   useEffect(() => { setSelectedCardioType(cardioType || '슬라이딩보드'); setSelectedCardioMinutes(cardioMinutes || 15); setCardioMemoDraft(cardioMemo || ''); }, [cardioType, cardioMinutes, cardioMemo]);
   useEffect(() => { setSelectedFoamTiming(foamRollerTiming || 'before'); setSelectedFoamAreas(foamRollerAreas || []); setFoamPain(foamRollerPain); setFoamMemoDraft(foamRollerMemo || ''); }, [foamRollerTiming, foamRollerAreas, foamRollerPain, foamRollerMemo]);
   const selectedCardioOption = day.optionalCardio?.options.find((option) => option.id === selectedCardioOptionId || option.name === selectedCardioType);
   const selectedOptionExercises = selectedCardioOption ? (selectedCardioOption.id === 'rest' ? [{ name: '휴식', details: [{ type: 'good' as const, text: selectedCardioOption.description }] }] : [...(day.optionalCardio?.warmup || []), ...selectedCardioOption.exercises, ...(day.optionalCardio?.cooldown || [])]) : [];
-  const exercises = (day.optionalCardio ? selectedOptionExercises : day.phases.flatMap((p) => p.exercises)).filter((e) => e.sets !== 0 || e.intervalPlan || e.abSlideGate || day.optionalCardio);
+  const exercises = day.optionalCardio ? selectedOptionExercises : day.phases.flatMap((p) => p.exercises);
   const highRiskNames = ['슬라이딩보드', '고블릿 스쿼트', '매달리기', '런지', '무리한 코어 운동'];
   const isRecoveryRecommended = Boolean(recovery?.recoveryMode);
   const isCardioDay = day.id === 'sat';
@@ -47,6 +49,19 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
     </section>}
     {isRecoveryRecommended && !showBaseRoutine && <section className="mb-4 rounded-2xl border border-green-100 bg-white p-4 shadow-sm"><p className="text-[16px] font-bold text-gray-900">회복 운동 루틴 · 20~25분</p><div className="mt-3 space-y-2">{RECOVERY_ROUTINE.map((item, idx) => <div key={item} className="rounded-xl bg-green-50 px-3 py-2 text-[13px] text-green-800">{idx + 1}) {item}</div>)}</div><p className="mt-3 text-[12px] font-bold text-red-700">중단 기준: {RECOVERY_STOP_CRITERIA.join(' · ')}</p></section>}
     {(!isRecoveryRecommended || showBaseRoutine) && <><div className="flex justify-between items-start mb-4"><div><p className="text-[17px] font-medium text-gray-800">{day.title}</p><p className="text-[12px] text-gray-400 mt-0.5">{day.subtitle}</p></div><span className="text-white text-[11px] font-medium px-3 py-1 rounded-full shrink-0 ml-2" style={{ background: day.badgeBg }}>{day.totalTime}</span></div>
+    <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-4 text-white shadow-[0_14px_34px_rgba(83,74,183,0.2)] sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[12px] font-bold text-white/70">전체 루틴 따라하기</p>
+          <h3 className="mt-1 text-[20px] font-bold">{exercises.length}개 동작을 순서대로 진행</h3>
+          <p className="mt-2 text-[12px] leading-relaxed text-white/75">운동·휴식 타이머, 음성 안내, 화면 꺼짐 방지와 완료 기록을 한 화면에서 사용합니다.</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">{day.totalTime}</span>
+      </div>
+      <button type="button" disabled={!exercises.length || Boolean(day.optionalCardio && !selectedCardioOption)} onClick={() => setSessionOpen(true)} className="mt-4 w-full rounded-2xl bg-white px-4 py-3.5 text-[15px] font-bold text-[#3C3489] shadow-sm disabled:bg-white/40 disabled:text-white/70">
+        {day.optionalCardio && !selectedCardioOption ? '먼저 유산소를 선택하세요' : isCompleted ? '전체 운동 다시 시작' : '전체 운동 시작'}
+      </button>
+    </section>
     <button type="button" onClick={() => setWarning(true)} className="w-full mb-3 py-3 px-4 rounded-xl text-[14px] font-bold bg-[#FCEBEB] text-[#A32D2D] border border-red-200">통증·저림·어지러움 발생</button>
     {warning && <div className="mb-4 rounded-2xl bg-[#FCEBEB] border-2 border-[#E24B4A] p-4 text-[#791F1F]"><p className="text-[18px] font-bold mb-1">운동을 즉시 중단하세요.</p><p className="text-[13px] leading-relaxed">허리 통증, 다리 저림, 날카로운 무릎 통증 또는 어지러움이 지속되면 무리하지 말고 의료진과 상담하세요.</p><button className="mt-3 text-[12px] underline" onClick={() => setWarning(false)}>안내 접기</button></div>}
     {day.optionalCardio && <section className="mb-4 rounded-2xl border border-[#9CCAF0] bg-white p-4 shadow-sm"><p className="text-[12px] font-bold text-[#185FA5]">토요일 선택 유산소</p><h3 className="mt-1 text-lg font-bold text-gray-900">오늘은 아래 중 하나만 선택하세요.</h3><p className="mt-2 text-[13px] text-gray-600">무리하지 않고 활동량을 늘리는 날입니다.</p><div className="mt-4 rounded-xl bg-[#EEEDFE] p-3"><p className="text-[13px] font-bold text-[#3C3489]">준비운동</p>{day.optionalCardio.warmup.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#534AB7]">- {exercise.name} {exercise.meta || '3분'}</p>)}</div><p className="mt-4 text-[13px] font-bold text-gray-800">오늘 할 유산소를 하나 선택하세요</p><div className="mt-2 grid gap-2">{day.optionalCardio.options.map((option) => <button key={option.id} type="button" onClick={() => { setSelectedCardioOptionId(option.id); setSelectedCardioType(option.name); if (option.duration.includes('15')) setSelectedCardioMinutes(20); else if (option.duration.includes('30')) setSelectedCardioMinutes(30); else if (option.id === 'rest') setSelectedCardioMinutes(0); }} className={`rounded-xl border px-3 py-3 text-left ${selectedCardioOptionId === option.id ? 'border-[#378ADD] bg-[#E6F1FB] text-[#0C447C]' : 'border-gray-100 bg-gray-50 text-gray-700'}`}><span className="font-bold">○ {option.name} {option.duration}</span><span className="mt-1 block text-[12px]">{option.description}</span></button>)}</div><div className="mt-4 rounded-xl bg-[#EAF3DE] p-3"><p className="text-[13px] font-bold text-[#27500A]">마무리</p>{day.optionalCardio.cooldown.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#3B6D11]">- {exercise.name}{exercise.name.includes('폼롤러') ? ' 필요 시 5분' : ' 3분'}</p>)}</div>{selectedCardioOption ? <div className="mt-4 rounded-xl border border-gray-100 bg-white p-3"><p className="text-[13px] font-bold text-gray-800">선택한 유산소 따라하기 순서</p><div className="mt-2 flex flex-col gap-1.5">{selectedOptionExercises.map((exercise, index, list) => <ExerciseCard key={`${exercise.name}-${index}`} exercise={exercise} exercises={list} index={index} />)}</div></div> : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-800">따라하기 모드를 시작하려면 먼저 유산소를 선택하세요.</p>}</section>}
@@ -75,6 +90,17 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
       const offset = day.phases.slice(0, i).reduce((sum, p) => sum + p.exercises.length, 0);
       return <PhaseSection key={i} phase={phase} exercises={day.phases.flatMap((p) => p.exercises)} offset={offset} highRiskNames={isRecoveryRecommended ? highRiskNames : []} />;
     })}
+    {sessionOpen && <WorkoutSession
+      exercises={exercises}
+      title={day.title}
+      onClose={() => setSessionOpen(false)}
+      onFinish={(result) => {
+        const combinedMemo = [memo.trim(), result.memo].filter(Boolean).join('\n');
+        setPain(result.pain);
+        setMemo(combinedMemo);
+        onSaveWorkout(result.pain, combinedMemo, selectedCardioOptionId);
+      }}
+    />}
     </>}
   </div>;
 }
