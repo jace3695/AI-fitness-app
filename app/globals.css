@@ -24,6 +24,19 @@ body {
   min-height: 100dvh;
 }
 
+button,
+a,
+summary {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(83, 74, 183, 0.32);
+  outline-offset: 2px;
+}
+
 /* Smooth scroll */
 html {
   scroll-behavior: smooth;
