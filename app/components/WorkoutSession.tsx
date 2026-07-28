@@ -423,7 +423,7 @@ export default function WorkoutSession({
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <button type="button" onClick={() => setMode('exercise')} className="rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-red-800">입력 취소</button>
                 <button type="button" onClick={() => {
-                  setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, painScore, status: 'completed', summary: summarizeExerciseRecord(record) } : record));
+                  setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, painScore, status: 'partial', summary: summarizeExerciseRecord(record) } : record));
                   setMode('summary');
                 }} className="rounded-xl bg-red-600 px-4 py-3 text-[13px] font-bold text-white">기록하고 운동 종료</button>
               </div>
