@@ -463,7 +463,7 @@ export default function Page() {
     <div className="min-h-dvh bg-[#F6F7FB]">
       {/* ── Top Header ── */}
       <header className="sticky top-0 z-30 border-b border-gray-100/80 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto max-w-3xl px-4 py-3">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           {/* Title Row */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -500,10 +500,11 @@ export default function Page() {
       </header>
 
       {/* ── Main Content ── */}
-      <main className="mx-auto max-w-3xl px-4 py-5">
+      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         {activeTab === "ov" && (
-          <>
-            <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)]">
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.65fr)] xl:gap-7">
+            <div className="xl:sticky xl:top-24">
+            <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-semibold text-white/75">
@@ -529,7 +530,7 @@ export default function Page() {
               </button>
             </section>
 
-            <section className="mb-4 grid grid-cols-3 gap-2">
+            <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
               <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                 <p className="text-[11px] text-gray-400">이번 주</p>
                 <p className="mt-1 text-[20px] font-bold text-gray-900">
@@ -554,6 +555,7 @@ export default function Page() {
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 훈련 →</p>
               </button>
             </section>
+            </div>
 
             <WeeklyView
               onTabChange={handleTabChange}
@@ -562,15 +564,15 @@ export default function Page() {
               selectedPlanId={selectedWeeklyWorkoutPlan.id}
               onPlanChange={handleWeeklyWorkoutPlanChange}
             />
-          </>
+          </div>
         )}
 
         {dayWorkout &&
           ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].includes(
             activeTab,
           ) && (
-            <>
-              <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+            <div className="mx-auto w-full max-w-5xl">
+              <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[12px] font-bold text-[#534AB7]">
@@ -652,21 +654,29 @@ export default function Page() {
                 onShowRecommended={() => setShowBaseRoutine(false)}
                 onShowBaseRoutine={() => setShowBaseRoutine(true)}
               />
-            </>
+            </div>
           )}
 
-        {activeTab === "pullup" && <PullupTrainingView />}
+        {activeTab === "pullup" && (
+          <div className="mx-auto w-full max-w-6xl">
+            <PullupTrainingView />
+          </div>
+        )}
 
-        {activeTab === "diet" && <DietView />}
+        {activeTab === "diet" && (
+          <div className="mx-auto w-full max-w-6xl">
+            <DietView />
+          </div>
+        )}
 
         {activeTab === "record" && <RecordCalendarView />}
 
         {activeTab === "more" && (
-          <div>
-            <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mx-auto w-full max-w-5xl">
+            <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <p className="text-[12px] font-bold text-[#534AB7]">설정과 보조 기능</p>
               <h2 className="mt-1 text-[22px] font-bold text-gray-900">더보기</h2>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => handleTabChange("pullup")}
@@ -693,7 +703,11 @@ export default function Page() {
           </div>
         )}
 
-        {activeTab === "tips" && <SafetyView />}
+        {activeTab === "tips" && (
+          <div className="mx-auto w-full max-w-5xl">
+            <SafetyView />
+          </div>
+        )}
       </main>
 
       {/* ── Bottom Navigation (Mobile) ── */}
