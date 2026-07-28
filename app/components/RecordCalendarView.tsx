@@ -125,8 +125,8 @@ export default function RecordCalendarView() {
     stores.lunchProteins[selected],
   );
   return (
-    <div className="space-y-4">
-      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+    <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between">
           <button
             onClick={() => moveMonth(-1)}
@@ -176,7 +176,7 @@ export default function RecordCalendarView() {
               <button
                 key={key}
                 onClick={() => setSelected(key)}
-                className={`min-h-[62px] rounded-xl border p-1 text-left transition ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
+                className={`min-h-[56px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
               >
                 <span
                   className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold ${isToday ? "bg-[#534AB7] text-white" : "text-gray-700"}`}
@@ -207,7 +207,7 @@ export default function RecordCalendarView() {
         monthIndex={visible.getMonth()}
         stores={stores}
       />
-      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <p className="text-[12px] font-semibold text-[#534AB7]">
           선택 날짜 상세
         </p>
@@ -219,7 +219,7 @@ export default function RecordCalendarView() {
             기록이 없습니다.
           </p>
         )}
-        <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-gray-700">
+        <div className="mt-3 grid grid-cols-1 gap-2 text-[12px] text-gray-700 sm:grid-cols-2">
           <div className="rounded-xl bg-gray-50 p-3">
             운동
             <br />
@@ -261,7 +261,7 @@ export default function RecordCalendarView() {
             )}
           </div>
           {hasRosaryCardio && (
-            <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+            <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
               운동 전: 묵주기도 슬라이딩보드
               <br />
               <b>시간: {selectedWorkoutRecord?.rosaryCardioMinutes ?? 20}분</b>
@@ -270,13 +270,13 @@ export default function RecordCalendarView() {
             </div>
           )}
           {hasPostWorkoutCardio && (
-            <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+            <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
               운동 후: 슬라이딩보드 마무리
               <br />
               <b>시간: {selectedWorkoutRecord?.postWorkoutCardioMinutes}분</b>
             </div>
           )}
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             운동 완료 상세
             <br />
             {workoutPlanName && (
@@ -315,7 +315,7 @@ export default function RecordCalendarView() {
               )}
           </div>
           {isCardioDone(selectedWorkout) && (
-            <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+            <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
               가벼운 유산소 완료
               <br />
               <b>
@@ -333,7 +333,7 @@ export default function RecordCalendarView() {
           )}
 
           {selectedWorkoutRecord?.foamRollerDone && (
-            <div className="rounded-xl bg-emerald-50 p-3 col-span-2 text-emerald-900">
+            <div className="rounded-xl bg-emerald-50 p-3 text-emerald-900 sm:col-span-2">
               <b>{selectedWorkoutRecord.foamRollerPain ? "폼롤러 ⚠️ 통증 기록 있음" : "폼롤러 완료"}</b>
               <br />
               <span>시점: {foamTimingLabel || "미기록"}</span>
@@ -346,7 +346,7 @@ export default function RecordCalendarView() {
               )}
             </div>
           )}
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             철봉
             <br />
             <b>
@@ -405,7 +405,7 @@ export default function RecordCalendarView() {
                     : "미기록"}
             </b>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             기존 식단 목표
             <br />
             <b>
@@ -445,7 +445,7 @@ export default function RecordCalendarView() {
             <br />
             <b>{hasSafetyAlert(selectedDiet) ? "기록 있음" : "없음"}</b>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             체중·인바디
             <br />
             <b>
@@ -456,7 +456,7 @@ export default function RecordCalendarView() {
               {stores.inbody[selected] ? "인바디 기록 있음" : "인바디 미기록"}
             </b>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             <span>{selectedLunchCarb.rice}</span>
             {selectedLunchCarb.carbs && (
               <>
@@ -471,7 +471,7 @@ export default function RecordCalendarView() {
               포함하지 않습니다.
             </p>
           </div>
-          <div className="rounded-xl bg-gray-50 p-3 col-span-2">
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             <span>{selectedDinnerCarb.rice}</span>
             {selectedDinnerCarb.carbs && (
               <>
@@ -493,7 +493,7 @@ export default function RecordCalendarView() {
           setStores({ ...stores, weights, inbody })
         }
       />
-      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm">
+      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <p className="text-[15px] font-bold text-gray-800">날짜별 메모</p>
         <textarea
           value={noteDraft}
