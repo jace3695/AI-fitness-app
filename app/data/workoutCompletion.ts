@@ -18,7 +18,7 @@ export interface ExerciseSetRecord {
 }
 export interface ExerciseRecord {
   exerciseName: string;
-  status: "pending" | "completed" | "skipped";
+  status: "pending" | "completed" | "partial" | "skipped";
   durationMinutes?: number;
   sets?: ExerciseSetRecord[];
   painScore?: number;
