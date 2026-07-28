@@ -95,13 +95,13 @@ export default function PullupTrainingView() {
     setSelectedStage(nextStage);
   };
 
-  return <div className="space-y-4">
-    <div className="rounded-2xl bg-[#111827] p-4 text-white">
+  return <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+    <div className="rounded-2xl bg-[#111827] p-4 text-white sm:p-5 lg:col-span-2">
       <div className="flex items-start justify-between gap-3"><div><p className="text-[12px] text-white/60">철봉 단계별 훈련 모드</p><h2 className="text-xl font-bold">무리 없이 1회 턱걸이까지</h2><p className="mt-1 text-[13px] text-white/70">월요일·토요일은 루틴 연결, 다른 날은 선택 훈련으로 진행하세요.</p></div><span className="rounded-full bg-white/15 px-3 py-1 text-[12px] font-bold">누적 {totalCount}회</span></div>
       <div className="mt-3 grid gap-1 text-[12px] text-red-100">{safetyRules.map((rule) => <p key={rule}>⚠️ {rule}</p>)}</div>
     </div>
 
-    <div className="grid grid-cols-5 gap-1.5">{PULLUP_STAGES.map((item) => {
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:col-span-2">{PULLUP_STAGES.map((item) => {
       const locked = item.id > progress.currentStage;
       const ready = progress.stageChecks[`stage${item.id}`]?.promotionReady;
       return <button key={item.id} onClick={() => setSelectedStage(item.id)} className={`rounded-xl border p-2 text-left transition ${selectedStage === item.id ? 'border-[#534AB7] bg-[#EEEDFE] text-[#3C3489]' : locked ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-70' : 'border-gray-200 bg-white text-gray-700'}`}>
@@ -109,7 +109,7 @@ export default function PullupTrainingView() {
       </button>;
     })}</div>
 
-    <section className="rounded-2xl border border-gray-200 bg-white p-4">
+    <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3"><div><p className="text-[12px] font-bold text-[#534AB7]">{stage.id}단계</p><h3 className="text-lg font-bold text-gray-900">{stage.title}</h3><p className="mt-1 text-[13px] text-gray-500">{stage.prescription} · {stage.rest}</p></div>{canPromote && <span className="rounded-full bg-green-50 px-3 py-1 text-[11px] font-bold text-green-700">다음 단계 진행 가능</span>}</div>
       <div className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">1) 핵심 한 줄: {stage.keyPoint}</div>
       <div className="mt-3 rounded-xl bg-white p-3 text-[13px] text-gray-700 border border-gray-100"><p className="font-bold text-gray-800">저장되는 철봉 운동</p>{stage.exercises.map((name) => <p key={name} className="mt-1">• {name}</p>)}</div>
@@ -122,14 +122,14 @@ export default function PullupTrainingView() {
       <div className="mt-3 rounded-xl bg-white p-3"><p className="text-[12px] font-bold text-gray-700">다음 단계 조건</p>{stage.nextCondition.map((condition) => <p key={condition} className="mt-1 text-[12px] text-gray-500">• {condition}</p>)}{canPromote && <button onClick={moveNext} className="mt-3 w-full rounded-xl bg-[#534AB7] py-2 text-[13px] font-bold text-white">사용자가 직접 다음 단계로 이동</button>}</div></div>
     </section>
 
-    <section className="rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-5">
       <p className="text-[12px] font-bold text-[#534AB7]">오늘 철봉 기록</p>
       <h3 className="mt-1 text-lg font-bold text-gray-900">오늘 철봉 완료 저장</h3>
       <div className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] text-[#3C3489]"><b>선택 단계: {stage.id}단계</b><p className="mt-1 text-[12px]">{stage.title}</p></div>
       <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px] text-gray-700"><p className="font-bold text-gray-800">기록될 운동:</p>{stage.exercises.map((name) => <p key={`record-${name}`} className="mt-1">- {name}</p>)}</div>
       <label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={pullupPain} onChange={(e) => setPullupPain(e.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
       <label className="mt-3 block text-[13px] font-bold text-gray-700">메모<textarea value={pullupMemo} onChange={(e) => setPullupMemo(e.target.value)} placeholder="오늘 자세 느낌 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
-      <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={saveTodayPullupRecord} className="rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button><button onClick={cancelTodayPullupRecord} className="rounded-xl bg-red-50 px-4 py-3 text-[14px] font-bold text-red-600">철봉 기록 취소</button></div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"><button onClick={saveTodayPullupRecord} className="rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button><button onClick={cancelTodayPullupRecord} className="rounded-xl bg-red-50 px-4 py-3 text-[14px] font-bold text-red-600">철봉 기록 취소</button></div>
       {saveMessage && <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">{saveMessage}</p>}
     </section>
   </div>;
