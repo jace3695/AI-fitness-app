@@ -31,7 +31,7 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
   useEffect(() => { setSelectedFoamTiming(foamRollerTiming || 'before'); setSelectedFoamAreas(foamRollerAreas || []); setFoamPain(foamRollerPain); setFoamMemoDraft(foamRollerMemo || ''); }, [foamRollerTiming, foamRollerAreas, foamRollerPain, foamRollerMemo]);
   const selectedCardioOption = day.optionalCardio?.options.find((option) => option.id === selectedCardioOptionId || option.name === selectedCardioType);
   const selectedOptionExercises = selectedCardioOption ? (selectedCardioOption.id === 'rest' ? [{ name: '휴식', details: [{ type: 'good' as const, text: selectedCardioOption.description }] }] : [...(day.optionalCardio?.warmup || []), ...selectedCardioOption.exercises, ...(day.optionalCardio?.cooldown || [])]) : [];
-  const exercises = (day.optionalCardio ? selectedOptionExercises : day.phases.flatMap((p) => p.exercises)).filter((e) => e.sets !== 0 || e.intervalPlan || e.abSlideGate || day.optionalCardio);
+  const exercises = day.optionalCardio ? selectedOptionExercises : day.phases.flatMap((p) => p.exercises);
   const highRiskNames = ['슬라이딩보드', '고블릿 스쿼트', '매달리기', '런지', '무리한 코어 운동'];
   const isRecoveryRecommended = Boolean(recovery?.recoveryMode);
   const isCardioDay = day.id === 'sat';
