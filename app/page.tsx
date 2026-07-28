@@ -18,6 +18,7 @@ import {
   WORKOUT_COMPLETED_DAYS_KEY,
   WorkoutCompletionStore,
   WorkoutDayRecord,
+  ExerciseRecord,
 } from "./data/workoutCompletion";
 import {
   assessRecoveryMode,
@@ -148,7 +149,7 @@ export default function Page() {
     window.localStorage.setItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY, planId);
   };
 
-  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string) => {
+  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[]) => {
     const dateKey = getLocalDateKey();
     if (
       recoveryToday?.recoveryMode &&
@@ -186,6 +187,7 @@ export default function Page() {
           workoutSourceDay: baseDayWorkout?.tabLabel,
           workoutPain: pain,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
+          workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           rosaryCardioDone: hasRosaryCardio || undefined,
           rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
           rosaryDecades: hasRosaryCardio ? 5 : undefined,
@@ -228,6 +230,7 @@ export default function Page() {
           workoutSourceDay: undefined,
           workoutPain: undefined,
           workoutMemo: undefined,
+          workoutExerciseRecords: undefined,
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
           rosaryDecades: undefined,
@@ -600,8 +603,8 @@ export default function Page() {
                   getWorkoutRecord(completedStore[todayKey]).workoutDone ??
                   false
                 }
-                onSaveWorkout={(pain, memo, cardioOptionId) =>
-                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId)
+                onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords) =>
+                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId, exerciseRecords)
                 }
                 onCancelWorkout={() =>
                   cancelDayWorkout(activeTab as WorkoutDayId)

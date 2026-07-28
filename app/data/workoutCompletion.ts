@@ -8,6 +8,22 @@ export type WorkoutDayId =
   | "thu"
   | "fri"
   | "sat";
+export interface ExerciseSetRecord {
+  setNumber: number;
+  completed: boolean;
+  reps?: number;
+  weightKg?: number;
+  durationSeconds?: number;
+  bandLevel?: string;
+}
+export interface ExerciseRecord {
+  exerciseName: string;
+  status: "pending" | "completed" | "partial" | "skipped";
+  durationMinutes?: number;
+  sets?: ExerciseSetRecord[];
+  painScore?: number;
+  summary?: string;
+}
 export interface WorkoutDayRecord {
   workoutDone?: boolean;
   workoutRoutineName?: string;
@@ -17,6 +33,7 @@ export interface WorkoutDayRecord {
   workoutSourceDay?: string;
   workoutPain?: boolean;
   workoutMemo?: string;
+  workoutExerciseRecords?: ExerciseRecord[];
   cardioDone?: boolean;
   cardioType?: string;
   cardioMinutes?: number;
@@ -58,6 +75,21 @@ export function getWorkoutRecord(
   return typeof value === "object" && value
     ? value
     : { workoutDone: Boolean(value) };
+}
+
+export function getPreviousExerciseRecord(
+  store: WorkoutCompletionStore,
+  exerciseName: string,
+) {
+  const dateKeys = Object.keys(store).sort((a, b) => b.localeCompare(a));
+  for (const dateKey of dateKeys) {
+    const record = getWorkoutRecord(store[dateKey]);
+    const exerciseRecord = record.workoutExerciseRecords?.find(
+      (item) => item.exerciseName === exerciseName && item.status === "completed",
+    );
+    if (exerciseRecord) return exerciseRecord;
+  }
+  return undefined;
 }
 
 export const WORKOUT_COMPLETED_DAYS_KEY = "ai-fitness-workout-completed-days";

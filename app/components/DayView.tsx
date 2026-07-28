@@ -8,8 +8,9 @@ import FlowDiagram from './FlowDiagram';
 import PhaseSection from './PhaseSection';
 import ExerciseCard from './ExerciseCard';
 import WorkoutSession from './WorkoutSession';
+import { ExerciseRecord } from '../data/workoutCompletion';
 
-interface DayViewProps { day: DayWorkout; isCompleted: boolean; onSaveWorkout: (pain: boolean, memo: string, cardioOptionId?: string) => void; onCancelWorkout: () => void; workoutPain?: boolean; workoutMemo?: string; cardioDone?: boolean; cardioType?: string; cardioMinutes?: number; cardioMemo?: string; onSaveCardio?: (type: string, minutes: number, memo: string) => void; onCancelCardio?: () => void; foamRollerDone?: boolean; foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string; onSaveFoamRoller?: (record: { foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string }) => void; onCancelFoamRoller?: () => void; onPullupTraining?: () => void; recovery?: RecoveryDayRecord; onRecordRecovery?: (memo: string) => void; onCancelRecovery?: () => void; showBaseRoutine?: boolean; onShowRecommended?: () => void; onShowBaseRoutine?: () => void }
+interface DayViewProps { day: DayWorkout; isCompleted: boolean; onSaveWorkout: (pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[]) => void; onCancelWorkout: () => void; workoutPain?: boolean; workoutMemo?: string; cardioDone?: boolean; cardioType?: string; cardioMinutes?: number; cardioMemo?: string; onSaveCardio?: (type: string, minutes: number, memo: string) => void; onCancelCardio?: () => void; foamRollerDone?: boolean; foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string; onSaveFoamRoller?: (record: { foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string }) => void; onCancelFoamRoller?: () => void; onPullupTraining?: () => void; recovery?: RecoveryDayRecord; onRecordRecovery?: (memo: string) => void; onCancelRecovery?: () => void; showBaseRoutine?: boolean; onShowRecommended?: () => void; onShowBaseRoutine?: () => void }
 
 export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorkout, workoutPain = false, workoutMemo = '', cardioDone = false, cardioType = '슬라이딩보드', cardioMinutes = 15, cardioMemo = '', onSaveCardio, onCancelCardio, foamRollerDone = false, foamRollerTiming = 'before', foamRollerAreas = [], foamRollerPain = false, foamRollerMemo = '', onSaveFoamRoller, onCancelFoamRoller, onPullupTraining, recovery, onRecordRecovery, onCancelRecovery, showBaseRoutine = true, onShowRecommended, onShowBaseRoutine }: DayViewProps) {
   const [warning, setWarning] = useState(false);
@@ -98,7 +99,7 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
         const combinedMemo = [memo.trim(), result.memo].filter(Boolean).join('\n');
         setPain(result.pain);
         setMemo(combinedMemo);
-        onSaveWorkout(result.pain, combinedMemo, selectedCardioOptionId);
+        onSaveWorkout(result.pain, combinedMemo, selectedCardioOptionId, result.exerciseRecords);
       }}
     />}
     </>}
