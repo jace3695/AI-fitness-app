@@ -229,7 +229,7 @@ export default function BodyRecordCard({
         </p>
       )}
       <div className="mt-3 rounded-xl border border-[#D9D6FE] bg-[#F7F6FF] p-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-bold text-[#3C3489]">
               오아 건강보고서 불러오기
@@ -321,7 +321,7 @@ export default function BodyRecordCard({
                 </span>
               </div>
             </summary>
-            <div className="grid grid-cols-2 gap-2 border-t border-gray-200 bg-white p-3">
+            <div className="grid grid-cols-1 gap-2 border-t border-gray-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-3">
               {group.fields.map((field) => (
                 <label
                   key={field.key}

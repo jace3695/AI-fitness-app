@@ -47,6 +47,7 @@ type TabId =
   | "pullup"
   | "diet"
   | "record"
+  | "more"
   | "tips";
 type WorkoutDayId = Extract<
   TabId,
@@ -65,7 +66,30 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "pullup", label: "철봉 훈련" },
   { id: "diet", label: "식단" },
   { id: "record", label: "기록" },
+  { id: "more", label: "더보기" },
   { id: "tips", label: "주의사항" },
+];
+
+const WORKOUT_DAY_IDS: WorkoutDayId[] = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+];
+
+const PRIMARY_NAV: {
+  id: "home" | "workout" | "record" | "diet" | "more";
+  label: string;
+  emoji: string;
+}[] = [
+  { id: "home", label: "홈", emoji: "⌂" },
+  { id: "workout", label: "운동", emoji: "▶" },
+  { id: "record", label: "기록", emoji: "▦" },
+  { id: "diet", label: "식단", emoji: "◉" },
+  { id: "more", label: "더보기", emoji: "•••" },
 ];
 
 export default function Page() {
@@ -112,13 +136,6 @@ export default function Page() {
       ),
     );
   }, [activeTab]);
-
-  useEffect(() => {
-    const todayWorkoutDay = getWorkoutDayForDate();
-    if (todayWorkoutDay) {
-      setActiveTab(todayWorkoutDay);
-    }
-  }, []);
 
   const handleRoutineSelectionChange = (value: RoutineSelection) => {
     setRoutineSelection(value);
@@ -383,6 +400,7 @@ export default function Page() {
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
   const todayKey = getLocalDateKey();
+  const todayWorkoutDay = getWorkoutDayForDate();
   const todayDayName = [
     "일요일",
     "월요일",
@@ -395,13 +413,39 @@ export default function Page() {
   const selectedWeeklyWorkoutPlan = getWeeklyWorkoutPlanById(
     selectedWeeklyWorkoutPlanId,
   );
-  const baseDayWorkout = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].includes(activeTab)
+  const baseDayWorkout = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
     ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
     : undefined;
   const selectedWorkoutGroup = baseDayWorkout
     ? getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
     : undefined;
   const dayWorkout = baseDayWorkout;
+  const todayWorkout = todayWorkoutDay
+    ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay)
+    : undefined;
+  const todayRecord = getWorkoutRecord(completedStore[todayKey]);
+  const weeklyCompletedCount = Object.values(completedDays).filter(Boolean).length;
+  const activePrimaryNav =
+    activeTab === "ov"
+      ? "home"
+      : WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId) ||
+          activeTab === "pullup"
+        ? "workout"
+        : activeTab === "record"
+          ? "record"
+          : activeTab === "diet"
+            ? "diet"
+            : "more";
+  const handlePrimaryNavigation = (
+    id: (typeof PRIMARY_NAV)[number]["id"],
+  ) => {
+    if (id === "home") handleTabChange("ov");
+    else if (id === "workout")
+      handleTabChange(todayWorkoutDay || "mon");
+    else if (id === "record") handleTabChange("record");
+    else if (id === "diet") handleTabChange("diet");
+    else handleTabChange("more");
+  };
   const selectedRecovery = routineSelection === "recovery";
   const displayedRecovery = selectedRecovery
     ? {
@@ -416,79 +460,138 @@ export default function Page() {
     : recoveryToday || undefined;
 
   return (
-    <div className="min-h-dvh bg-gray-50">
+    <div className="min-h-dvh bg-[#F6F7FB]">
       {/* ── Top Header ── */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 pt-4 pb-0">
+      <header className="sticky top-0 z-30 border-b border-gray-100/80 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           {/* Title Row */}
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl">🏋️</span>
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#534AB7] text-xl text-white">
+                J
+              </span>
+              <div>
               <h1 className="text-[20px] font-semibold text-gray-800 leading-tight">
-                AI 운동
+                  재민님의 운동
               </h1>
               <p className="text-[12px] text-gray-400 leading-tight">
-                재민님 맞춤 홈트 플랜 v7
+                  허리를 지키며 꾸준히
               </p>
+              </div>
             </div>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="tab-scroll flex gap-0.5 overflow-x-auto border-b border-gray-100 -mx-4 px-4">
-            {TABS.map((tab) => (
+            <div className="hidden items-center gap-1 md:flex">
+              {PRIMARY_NAV.map((item) => (
               <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`shrink-0 text-[12px] px-3 py-2 border-b-2 font-medium transition-colors whitespace-nowrap rounded-t-md ${
-                  activeTab === tab.id
-                    ? "border-[#534AB7] text-[#534AB7] bg-[#EEEDFE]/30"
-                    : "border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                  key={item.id}
+                  type="button"
+                  onClick={() => handlePrimaryNavigation(item.id)}
+                  className={`rounded-xl px-3 py-2 text-[12px] font-bold transition-colors ${
+                    activePrimaryNav === item.id
+                      ? "bg-[#EEEDFE] text-[#3C3489]"
+                      : "text-gray-500 hover:bg-gray-50"
                 }`}
               >
-                {tab.label}
+                  {item.label}
               </button>
             ))}
+            </div>
           </div>
         </div>
       </header>
-      <CloudSyncPanel />
 
       {/* ── Main Content ── */}
-      <main className="max-w-3xl mx-auto px-4 py-5">
-        <SwitchOnModePanel
-          selection={routineSelection}
-          onSelectionChange={handleRoutineSelectionChange}
-        />
+      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         {activeTab === "ov" && (
-          <WeeklyView
-            onTabChange={handleTabChange}
-            completedDays={completedDays}
-            plans={WEEKLY_WORKOUT_PLANS}
-            selectedPlanId={selectedWeeklyWorkoutPlan.id}
-            onPlanChange={handleWeeklyWorkoutPlanChange}
-          />
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(320px,0.82fr)_minmax(0,1.65fr)] xl:gap-7">
+            <div className="xl:sticky xl:top-24">
+            <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-semibold text-white/75">
+                    {todayDayName} · 오늘의 추천
+                  </p>
+                  <h2 className="mt-2 text-[24px] font-bold leading-tight">
+                    {todayWorkout?.title || "오늘은 회복을 우선하세요"}
+                  </h2>
+                  <p className="mt-2 text-[13px] text-white/80">
+                    {todayWorkout?.totalTime || "가벼운 호흡과 휴식"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-bold">
+                  {todayRecord.workoutDone ? "완료" : "진행 전"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTabChange(todayWorkoutDay || "mon")}
+                className="mt-5 w-full rounded-2xl bg-white px-4 py-3.5 text-[15px] font-bold text-[#3C3489] shadow-sm transition active:scale-[0.99]"
+              >
+                {todayRecord.workoutDone ? "오늘 운동 다시 보기" : "오늘 운동 시작"}
+              </button>
+            </section>
+
+            <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                <p className="text-[11px] text-gray-400">이번 주</p>
+                <p className="mt-1 text-[20px] font-bold text-gray-900">
+                  {weeklyCompletedCount}
+                  <span className="text-[12px] font-medium text-gray-400"> / 7일</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleTabChange("record")}
+                className="rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
+              >
+                <p className="text-[11px] text-gray-400">몸 기록</p>
+                <p className="mt-1 text-[14px] font-bold text-[#534AB7]">확인하기 →</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange("pullup")}
+                className="rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
+              >
+                <p className="text-[11px] text-gray-400">짧은 운동</p>
+                <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 훈련 →</p>
+              </button>
+            </section>
+            </div>
+
+            <WeeklyView
+              onTabChange={handleTabChange}
+              completedDays={completedDays}
+              plans={WEEKLY_WORKOUT_PLANS}
+              selectedPlanId={selectedWeeklyWorkoutPlan.id}
+              onPlanChange={handleWeeklyWorkoutPlanChange}
+            />
+          </div>
         )}
 
         {dayWorkout &&
           ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].includes(
             activeTab,
           ) && (
-            <>
-              <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
-                <p className="text-[12px] font-bold text-[#534AB7]">
-                  오늘 추천 루틴
-                </p>
-                <h2 className="mt-1 text-[18px] font-bold text-gray-900">
-                  오늘은 {todayDayName}입니다.
-                </h2>
-                <p className="mt-2 text-[13px] font-semibold text-gray-700">
-                  선택된 계획: {selectedWeeklyWorkoutPlan.name}
-                  <br />
-                  오늘 추천 운동: {dayWorkout.title}
-                </p>
+            <div className="mx-auto w-full max-w-5xl">
+              <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[12px] font-bold text-[#534AB7]">
+                      {TABS.find((tab) => tab.id === activeTab)?.label} 운동
+                    </p>
+                    <h2 className="mt-1 text-[20px] font-bold text-gray-900">
+                      {dayWorkout.title}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange("ov")}
+                    className="rounded-xl bg-gray-50 px-3 py-2 text-[12px] font-bold text-gray-600"
+                  >
+                    홈
+                  </button>
+                </div>
                 <p className="mt-2 text-[12px] text-gray-500">
-                  선택한 주간 계획의 요일 배치에 따라 오늘 운동이 자동 선택되었습니다.
-                  이번 주 계획을 바꾸려면 주간 개요에서 다른 계획을 선택하세요.
+                  {selectedWeeklyWorkoutPlan.name} · {dayWorkout.totalTime}
                 </p>
               </section>
               <DayView
@@ -551,43 +654,83 @@ export default function Page() {
                 onShowRecommended={() => setShowBaseRoutine(false)}
                 onShowBaseRoutine={() => setShowBaseRoutine(true)}
               />
-            </>
+            </div>
           )}
 
-        {activeTab === "pullup" && <PullupTrainingView />}
+        {activeTab === "pullup" && (
+          <div className="mx-auto w-full max-w-6xl">
+            <PullupTrainingView />
+          </div>
+        )}
 
-        {activeTab === "diet" && <DietView />}
+        {activeTab === "diet" && (
+          <div className="mx-auto w-full max-w-6xl">
+            <DietView />
+          </div>
+        )}
 
         {activeTab === "record" && <RecordCalendarView />}
 
-        {activeTab === "tips" && <SafetyView />}
+        {activeTab === "more" && (
+          <div className="mx-auto w-full max-w-5xl">
+            <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+              <p className="text-[12px] font-bold text-[#534AB7]">설정과 보조 기능</p>
+              <h2 className="mt-1 text-[22px] font-bold text-gray-900">더보기</h2>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("pullup")}
+                  className="rounded-2xl bg-[#EEEDFE] p-4 text-left text-[#3C3489]"
+                >
+                  <span className="block text-[14px] font-bold">철봉 단계 훈련</span>
+                  <span className="mt-1 block text-[11px]">3~5분 자세 연습</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("tips")}
+                  className="rounded-2xl bg-red-50 p-4 text-left text-red-700"
+                >
+                  <span className="block text-[14px] font-bold">안전·중단 기준</span>
+                  <span className="mt-1 block text-[11px]">통증 발생 시 확인</span>
+                </button>
+              </div>
+            </section>
+            <SwitchOnModePanel
+              selection={routineSelection}
+              onSelectionChange={handleRoutineSelectionChange}
+            />
+            <CloudSyncPanel />
+          </div>
+        )}
+
+        {activeTab === "tips" && (
+          <div className="mx-auto w-full max-w-5xl">
+            <SafetyView />
+          </div>
+        )}
       </main>
 
       {/* ── Bottom Navigation (Mobile) ── */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-30 md:hidden safe-area-bottom">
-        <div className="flex justify-around py-2">
-          {[
-            { id: "ov", emoji: "📅", label: "개요" },
-            { id: "sun", emoji: "😴", label: "일" },
-            { id: "mon", emoji: "💪", label: "월" },
-            { id: "tue", emoji: "🦵", label: "화" },
-            { id: "wed", emoji: "🌿", label: "수" },
-            { id: "thu", emoji: "🚶", label: "목" },
-            { id: "fri", emoji: "⚡", label: "금" },
-            { id: "sat", emoji: "🔥", label: "토" },
-            { id: "diet", emoji: "🥗", label: "식단" },
-            { id: "record", emoji: "📈", label: "기록" },
-            { id: "tips", emoji: "⚠️", label: "주의" },
-          ].map((item) => (
+      <nav
+        aria-label="주요 메뉴"
+        className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur md:hidden safe-area-bottom"
+      >
+        <div className="mx-auto grid max-w-md grid-cols-5 px-2 py-2">
+          {PRIMARY_NAV.map((item) => (
             <button
               key={item.id}
-              onClick={() => handleTabChange(item.id)}
-              className={`flex flex-col items-center gap-0.5 px-1 py-1 rounded-lg transition-colors min-w-[36px] ${
-                activeTab === item.id ? "text-[#534AB7]" : "text-gray-400"
+              type="button"
+              onClick={() => handlePrimaryNavigation(item.id)}
+              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+                activePrimaryNav === item.id
+                  ? "bg-[#EEEDFE] text-[#3C3489]"
+                  : "text-gray-400"
               }`}
             >
-              <span className="text-[18px] leading-none">{item.emoji}</span>
-              <span className="text-[9px] font-medium">{item.label}</span>
+              <span className="text-[17px] font-bold leading-none" aria-hidden="true">
+                {item.emoji}
+              </span>
+              <span className="text-[10px] font-bold">{item.label}</span>
             </button>
           ))}
         </div>

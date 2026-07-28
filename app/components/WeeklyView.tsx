@@ -24,7 +24,7 @@ export default function WeeklyView({
   const { stats, days, dayTimes, afterMonth } = WEEK_OVERVIEW;
 
   return (
-    <div>
+    <div className="min-w-0">
 
       <section className="mb-5 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
         <div className="mb-3">
@@ -56,7 +56,7 @@ export default function WeeklyView({
       </section>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-2 mb-5">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {stats.map((s, i) => (
           <div key={i} className="bg-gray-50 rounded-xl p-3">
             <p className="text-[11px] text-gray-400 mb-0.5">{s.label}</p>
@@ -91,7 +91,8 @@ export default function WeeklyView({
       </button>
 
       {/* 7-day Week Grid */}
-      <div className="grid grid-cols-7 gap-1.5 mb-5">
+      <div className="mb-5 overflow-x-auto pb-2">
+      <div className="grid min-w-[680px] grid-cols-7 gap-2">
         {days.map((d, i) => (
           <div
             key={i}
@@ -140,12 +141,14 @@ export default function WeeklyView({
           </div>
         ))}
       </div>
+      </div>
 
       {/* Day-time Grid */}
       <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
         요일별 운동 시간
       </p>
-      <div className="grid grid-cols-7 gap-1.5 mb-5">
+      <div className="mb-5 overflow-x-auto pb-2">
+      <div className="grid min-w-[680px] grid-cols-7 gap-2">
         {dayTimes.map((dt, i) => (
           <div
             key={i}
@@ -177,12 +180,14 @@ export default function WeeklyView({
           </div>
         ))}
       </div>
+      </div>
 
       {/* Flow Diagram */}
       <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
         하루 운동 흐름
       </p>
-      <div className="flex items-stretch gap-0 mb-3">
+      <div className="mb-3 overflow-x-auto pb-2">
+      <div className="flex min-w-[640px] items-stretch gap-0">
         {[
           {
             icon: "📿",
@@ -238,6 +243,7 @@ export default function WeeklyView({
             )}
           </div>
         ))}
+      </div>
       </div>
 
       <div className="flex justify-end items-center gap-2 mb-4">
