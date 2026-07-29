@@ -29,6 +29,7 @@ import {
 } from "../data/recordStorage";
 import BodyRecordCard from "./BodyRecordCard";
 import MonthlySummaryCard from "./MonthlySummaryCard";
+import RecordDashboard from "./RecordDashboard";
 import WeightChart from "./WeightChart";
 
 const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
@@ -128,6 +129,11 @@ export default function RecordCalendarView() {
   );
   return (
     <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+      <RecordDashboard
+        stores={stores}
+        year={visible.getFullYear()}
+        monthIndex={visible.getMonth()}
+      />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between">
           <button
