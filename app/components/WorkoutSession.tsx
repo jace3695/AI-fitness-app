@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Exercise } from '../data/workouts';
 import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore } from '../data/workoutCompletion';
+import { getExerciseRecommendation, WorkoutIntensity } from '../data/workoutRecommendations';
 import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from './ExerciseGuidePanel';
 import ExerciseRecordEditor from './ExerciseRecordEditor';
 import { IntervalTimer } from './WorkoutControls';
@@ -31,15 +32,26 @@ function getSuggestedReps(exercise: Exercise) {
   return match ? Number(match[1]) : undefined;
 }
 
-function buildExerciseRecord(exercise: Exercise): ExerciseRecord {
+function getRecommendedExerciseSeconds(exercise: Exercise, intensity: WorkoutIntensity) {
+  const recommendation = getExerciseRecommendation(exercise, intensity);
+  return recommendation.durationMinutes
+    ? recommendation.durationMinutes * 60
+    : getExerciseSeconds(exercise);
+}
+
+function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): ExerciseRecord {
   const seconds = getExerciseSeconds(exercise);
-  const suggestedReps = getSuggestedReps(exercise);
+  const recommendation = getExerciseRecommendation(exercise, intensity);
+  const suggestedReps = recommendation.reps ?? getSuggestedReps(exercise);
+  const setCount = recommendation.sets ?? exercise.sets;
   return {
     exerciseName: exercise.name,
     status: 'pending',
-    durationMinutes: !exercise.sets && seconds ? Math.ceil(seconds / 60) : undefined,
-    sets: exercise.sets
-      ? Array.from({ length: exercise.sets }, (_, index) => ({
+    durationMinutes: !exercise.sets && seconds
+      ? recommendation.durationMinutes ?? Math.ceil(seconds / 60)
+      : undefined,
+    sets: setCount
+      ? Array.from({ length: setCount }, (_, index) => ({
           setNumber: index + 1,
           completed: false,
           reps: suggestedReps,
@@ -133,12 +145,14 @@ export default function WorkoutSession({
   exercises,
   title,
   startIndex = 0,
+  intensity = 'normal',
   onClose,
   onFinish,
 }: {
   exercises: Exercise[];
   title: string;
   startIndex?: number;
+  intensity?: WorkoutIntensity;
   onClose: () => void;
   onFinish?: (result: WorkoutSessionResult) => void;
 }) {
@@ -148,7 +162,7 @@ export default function WorkoutSession({
   const [completed, setCompleted] = useState<Set<number>>(() => new Set());
   const [skipped, setSkipped] = useState<Set<number>>(() => new Set());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [timerSeconds, setTimerSeconds] = useState(() => getExerciseSeconds(exercises[safeStartIndex]));
+  const [timerSeconds, setTimerSeconds] = useState(() => getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
   const [timerRunning, setTimerRunning] = useState(false);
   const [restSeconds, setRestSeconds] = useState(0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -157,7 +171,7 @@ export default function WorkoutSession({
   const [painScore, setPainScore] = useState(0);
   const [painSymptoms, setPainSymptoms] = useState<string[]>([]);
   const [painMemo, setPainMemo] = useState('');
-  const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => exercises.map(buildExerciseRecord));
+  const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => exercises.map((item) => buildExerciseRecord(item, intensity)));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
     const store = readWorkoutCompletionStore();
     return exercises.reduce<Record<string, ExerciseRecord>>((records, item) => {
@@ -169,7 +183,8 @@ export default function WorkoutSession({
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const autoAdvanceRef = useRef(false);
   const exercise = exercises[currentIndex];
-  const initialTimerSeconds = useMemo(() => getExerciseSeconds(exercise), [exercise]);
+  const recommendation = useMemo(() => getExerciseRecommendation(exercise, intensity), [exercise, intensity]);
+  const initialTimerSeconds = useMemo(() => getRecommendedExerciseSeconds(exercise, intensity), [exercise, intensity]);
   const isLastExercise = currentIndex === exercises.length - 1;
   const progress = exercises.length ? ((completed.size + skipped.size) / exercises.length) * 100 : 0;
 
@@ -213,9 +228,9 @@ export default function WorkoutSession({
     setCurrentIndex(boundedIndex);
     setMode('exercise');
     setTimerRunning(false);
-    setTimerSeconds(getExerciseSeconds(nextExercise));
+    setTimerSeconds(getRecommendedExerciseSeconds(nextExercise, intensity));
     speak(`다음 운동은 ${nextExercise.name}입니다.`);
-  }, [exercises, speak]);
+  }, [exercises, intensity, speak]);
 
   const finishOrAdvance = useCallback(() => {
     setCompleted((current) => {
@@ -363,6 +378,15 @@ export default function WorkoutSession({
                   {exercise.restSeconds ? <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-gray-700">휴식 {exercise.restSeconds}초</span> : null}
                 </div>
               </section>
+              <section className={`mt-4 rounded-2xl border p-4 text-left ${intensity === 'recovery' ? 'border-red-200 bg-red-50 text-red-900' : intensity === '70%' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-100 bg-green-50 text-green-900'}`}>
+                <p className="text-[12px] font-bold">{recommendation.headline}</p>
+                <p className="mt-1 text-[12px] leading-relaxed">{recommendation.detail}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {recommendation.sets ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.sets}세트</span> : null}
+                  {recommendation.reps ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.reps}회</span> : null}
+                  {recommendation.durationMinutes ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.durationMinutes}분</span> : null}
+                </div>
+              </section>
               <TimerButton
                 running={timerRunning}
                 seconds={timerSeconds}
@@ -381,6 +405,7 @@ export default function WorkoutSession({
                 exercise={exercise}
                 value={exerciseRecords[currentIndex]}
                 previous={previousRecords[exercise.name]}
+                intensity={intensity}
                 onChange={(record) => setExerciseRecords((records) => records.map((item, index) => index === currentIndex ? record : item))}
               />
               <ExerciseGuidePanel exercise={exercise} />

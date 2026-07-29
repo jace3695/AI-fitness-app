@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ExerciseRecord, ExerciseSetRecord } from '../data/workoutCompletion';
 import { Exercise } from '../data/workouts';
+import { getProgressionAdvice, WorkoutIntensity } from '../data/workoutRecommendations';
 
 function NumberInput({
   label,
@@ -44,11 +45,13 @@ export default function ExerciseRecordEditor({
   exercise,
   value,
   previous,
+  intensity = 'normal',
   onChange,
 }: {
   exercise: Exercise;
   value: ExerciseRecord;
   previous?: ExerciseRecord;
+  intensity?: WorkoutIntensity;
   onChange: (record: ExerciseRecord) => void;
 }) {
   const [setRestSeconds, setSetRestSeconds] = useState(0);
@@ -95,7 +98,7 @@ export default function ExerciseRecordEditor({
           <p className="text-[12px] font-bold text-[#534AB7]">오늘 수행 기록</p>
           <p className="mt-1 text-[11px] text-gray-500">입력한 값은 운동 완료 기록과 함께 날짜별로 저장됩니다.</p>
         </div>
-        {previous ? (
+        {previous && intensity === 'normal' ? (
           <button type="button" onClick={copyPrevious} className="shrink-0 rounded-xl bg-[#EEEDFE] px-3 py-2 text-[11px] font-bold text-[#3C3489]">
             이전과 동일
           </button>
@@ -109,6 +112,9 @@ export default function ExerciseRecordEditor({
       ) : (
         <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[11px] text-gray-400">이 운동의 직전 기록이 없습니다.</p>
       )}
+      <p className={`mt-2 rounded-xl px-3 py-2 text-[11px] font-semibold leading-relaxed ${intensity === 'recovery' ? 'bg-red-50 text-red-700' : intensity === '70%' ? 'bg-amber-50 text-amber-800' : 'bg-[#EAF3DE] text-[#27500A]'}`}>
+        진행 제안: {getProgressionAdvice(previous, intensity)}
+      </p>
 
       {isTimed ? (
         <div className="mt-3 max-w-44">

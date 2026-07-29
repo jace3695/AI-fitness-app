@@ -32,8 +32,16 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
       {guide.target ? <div className="rounded-xl bg-[#EAF3DE] p-3 text-[12px] text-[#27500A]"><b>5) 자극 부위</b><p className="mt-1">{guide.target}</p></div> : null}
       <GuideBlock title="6) 자주 하는 실수" items={guide.commonMistakes} tone="mistake" />
       <GuideBlock title="7) 즉시 중단 기준" items={guide.stopCriteria} tone="stop" />
+      {guide.alternatives?.length ? (
+        <section className="rounded-xl border border-[#AFA9EC] bg-[#EEEDFE] p-3 text-[#3C3489]">
+          <p className="text-[12px] font-bold">통증·불안정 시 대체 운동</p>
+          <ul className="mt-1.5 space-y-1">
+            {guide.alternatives.map((alternative) => <li key={alternative} className="text-[12px] leading-relaxed">• {alternative}</li>)}
+          </ul>
+        </section>
+      ) : null}
       <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 어깨 통증도 있으면 즉시 중단하세요.</p>
-      {getExerciseVideoHref(exercise) ? <a href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">8) {getExerciseVideoLabel(exercise)}</a> : <button type="button" disabled className="block w-full rounded-xl bg-gray-100 px-3 py-2 text-center text-[13px] font-bold text-gray-400">8) 영상 준비중</button>}
+      {getExerciseVideoHref(exercise) ? <a href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white">8) 한국어 {getExerciseVideoLabel(exercise)}</a> : <button type="button" disabled className="block w-full rounded-xl bg-gray-100 px-3 py-2 text-center text-[13px] font-bold text-gray-400">8) 영상 준비중</button>}
     </div>
   );
 }

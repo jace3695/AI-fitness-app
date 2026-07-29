@@ -81,11 +81,12 @@ const createDetails = (exercise: WorkoutGroupExercise): Detail[] => {
 
 const toExercise = (exercise: WorkoutGroupExercise): Exercise => {
   const guide = getExerciseGuide(exercise.exerciseId, exercise.name, exercise.description);
+  const plannedSetCount = exercise.sets?.match(/(\d+)\s*세트/);
 
   return {
     name: exercise.name || guide.name || exercise.exerciseId,
     meta: exercise.sets || exercise.duration,
-    sets: exercise.sets ? 2 : 0,
+    sets: exercise.sets ? (plannedSetCount ? Number(plannedSetCount[1]) : 1) : 0,
     restSeconds: exercise.sets ? 30 : 0,
     abSlideGate: (exercise.name || guide.name || exercise.exerciseId).includes('AB 슬라이더'),
     details: createDetails(exercise),
