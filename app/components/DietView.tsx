@@ -365,6 +365,59 @@ export default function DietView() {
     setMessage('오늘 식단 기록을 저장했습니다.');
   };
 
+  const resetDiet = () => {
+    const nextDiet = { ...store };
+    const nextMeals = { ...mealStore };
+    const nextWater = { ...waterStore };
+    const nextLunchCarbs = { ...lunchCarbStore };
+    const nextDinnerCarbs = { ...dinnerCarbStore };
+    const nextLunchProteins = { ...lunchProteinStore };
+    const nextDinnerTimes = { ...dinnerTimeStore };
+    const nextSocial = { ...socialStore };
+    const nextProteinTotals = readJson<NumberStore>(PROTEIN_TOTAL_KEY, {});
+
+    delete nextDiet[todayKey];
+    delete nextMeals[todayKey];
+    delete nextWater[todayKey];
+    delete nextLunchCarbs[todayKey];
+    delete nextDinnerCarbs[todayKey];
+    delete nextLunchProteins[todayKey];
+    delete nextDinnerTimes[todayKey];
+    delete nextSocial[todayKey];
+    delete nextProteinTotals[todayKey];
+
+    setStore(nextDiet);
+    setMealStore(nextMeals);
+    setMealLog(DEFAULT_MEAL_LOG);
+    setWaterStore(nextWater);
+    setWater(0);
+    setLunchCarbStore(nextLunchCarbs);
+    setLunchCarb(EMPTY_LUNCH_CARB);
+    setDinnerCarbStore(nextDinnerCarbs);
+    setDinnerCarb(DEFAULT_DINNER_CARB_RECORD);
+    setLunchProteinStore(nextLunchProteins);
+    setLunchProtein(DEFAULT_LUNCH_PROTEIN_RECORD);
+    setDinnerTimeStore(nextDinnerTimes);
+    setSocialStore(nextSocial);
+    setSocialMeal('none');
+    setDietStatus('normal');
+    setFastingStatus('unrecorded');
+    setLastMealTime('');
+    setDietMemo('');
+
+    writeJson(DIET_COMPLETED_DAYS_KEY, nextDiet);
+    writeJson(DIET_MEAL_LOG_KEY, nextMeals);
+    writeJson(PROTEIN_TOTAL_KEY, nextProteinTotals);
+    writeJson(WATER_INTAKE_KEY, nextWater);
+    writeJson(LUNCH_CARB_CHOICE_KEY, nextLunchCarbs);
+    writeJson(DINNER_CARB_CHOICE_KEY, nextDinnerCarbs);
+    writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextLunchProteins);
+    writeJson(DINNER_COMPLETED_TIME_KEY, nextDinnerTimes);
+    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
+    window.localStorage.removeItem(FASTING_START_TIME_KEY);
+    setMessage('오늘 식단 기록을 초기화했습니다.');
+  };
+
   if (!hydrated) {
     return (
       <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">
@@ -814,20 +867,29 @@ export default function DietView() {
       </div>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
             <p className="text-[13px] font-bold text-gray-900">{plan.description}</p>
             <p className="mt-1 text-[11px] text-gray-500">
               입력값은 오늘 날짜의 기존 식단·달력 기록과 함께 저장됩니다.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={saveDiet}
-            className="rounded-xl bg-[#534AB7] px-6 py-3 text-[14px] font-bold text-white"
-          >
-            오늘 식단 저장
-          </button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={saveDiet}
+              className="rounded-xl bg-[#534AB7] px-6 py-3 text-[14px] font-bold text-white"
+            >
+              오늘 식단 저장
+            </button>
+            <button
+              type="button"
+              onClick={resetDiet}
+              className="rounded-xl bg-red-50 px-5 py-3 text-[14px] font-bold text-red-600"
+            >
+              오늘 기록 초기화
+            </button>
+          </div>
         </div>
         {message && (
           <p role="status" className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">
