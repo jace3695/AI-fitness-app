@@ -1,7 +1,7 @@
 export type DietPhaseId = 'week1' | 'week2' | 'week3' | 'week4' | 'maintenance';
 export type DietMode = 'auto' | 'manual';
 export type ProteinChoice = 'none' | 'half' | 'full';
-export type ProteinGramChoice = '20' | '25' | '30' | 'custom';
+export type ProteinGramChoice = 'none' | '20' | '25' | '30' | 'custom';
 export type DinnerCarbChoice = 'none' | '50' | '80' | '100' | 'third-bowl' | 'half-bowl' | 'two-third-bowl' | 'one-bowl' | 'custom';
 export type LunchCarbChoice = DinnerCarbChoice;
 export type DinnerRiceType = '흰쌀밥' | '잡곡밥' | '현미밥' | '통곡물밥' | '곤약밥' | '기타';
@@ -12,10 +12,10 @@ export type SocialMealMode = 'none' | 'lunch' | 'dinner';
 export type FastingMode = 'none';
 
 export type DietStatus = 'good' | 'normal' | 'shaky' | 'dining' | 'recovery';
-export type FastingRecordStatus = '14h' | '12h' | 'missed';
+export type FastingRecordStatus = 'unrecorded' | '14h' | '12h' | 'missed';
 export interface SimpleDietRecommendation { id: string; title: string; items: string[] }
 export const DIET_STATUS_LABELS: Record<DietStatus, string> = { good: '좋음', normal: '보통', shaky: '흔들림', dining: '회식/외식', recovery: '컨디션 조절' };
-export const FASTING_STATUS_LABELS: Record<FastingRecordStatus, string> = { '14h': '14시간 달성', '12h': '12시간 조절', missed: '미달성' };
+export const FASTING_STATUS_LABELS: Record<FastingRecordStatus, string> = { unrecorded: '미기록', '14h': '14시간 달성', '12h': '12시간 조절', missed: '미달성' };
 export const simpleDietRecommendations: SimpleDietRecommendation[] = [
   { id: 'breakfast', title: '아침 추천', items: ['퓨어프로틴7 1회', '물 1컵', '속이 불편하면 양을 줄이거나 천천히 섭취'] },
   { id: 'lunch', title: '점심 추천', items: ['통곡물밥 100~130g', '닭가슴살 / 생선 / 계란 / 두부 / 살코기 중 1개', '채소 반찬 1~2가지'] },
@@ -68,15 +68,15 @@ export type DietSymptomId = 'alcoholYesterday' | 'hangover' | 'afterSocialMeal' 
 export type DietSymptomMap = Partial<Record<DietSymptomId, boolean>>;
 
 export const DEFAULT_MEAL_LOG: DietMealLog = {
-  breakfastShake: true,
-  lunchRice: true,
-  lunchProteinChoice: '20',
-  lunchProteinCustom: 20,
-  afternoonShake: 'half',
-  dinnerProteinChoice: '20',
-  dinnerProteinCustom: 20,
+  breakfastShake: false,
+  lunchRice: false,
+  lunchProteinChoice: 'none',
+  lunchProteinCustom: 0,
+  afternoonShake: 'none',
+  dinnerProteinChoice: 'none',
+  dinnerProteinCustom: 0,
   dinnerCarb: 'none',
-  afterDinnerShake: 'half',
+  afterDinnerShake: 'none',
   lastMealTime: '18:30',
 };
 
@@ -204,6 +204,6 @@ export function getSwitchOnDay(startDate: string, today = new Date()) { const fa
 export function getAutoDietPhase(day: number): DietPhaseId { if (day <= 7) return 'week1'; if (day <= 14) return 'week2'; if (day <= 21) return 'week3'; if (day <= 28) return 'week4'; return 'maintenance'; }
 export function getDietStatusText(day: number, phase: DietPhaseId) { const plan = DIET_PLANS[phase]; if (phase === 'maintenance') return '스위치온 유지기'; return `${plan.label} ${day}일차 · ${plan.shortLabel}`; }
 export function proteinChoiceGrams(choice: ProteinChoice) { if (choice === 'full') return FULL_SHAKE_PROTEIN; if (choice === 'half') return HALF_SHAKE_PROTEIN; return 0; }
-export function mealProteinGrams(choice: ProteinGramChoice, custom: number) { return choice === 'custom' ? Math.max(0, Number(custom) || 0) : Number(choice); }
+export function mealProteinGrams(choice: ProteinGramChoice, custom: number) { if (choice === 'none') return 0; return choice === 'custom' ? Math.max(0, Number(custom) || 0) : Number(choice); }
 export function calculateProteinTotal(log: DietMealLog, lunchProteinSupplement = 0) { return (log.breakfastShake ? FULL_SHAKE_PROTEIN : 0) + proteinChoiceGrams(log.afternoonShake) + proteinChoiceGrams(log.afterDinnerShake) + mealProteinGrams(log.lunchProteinChoice, log.lunchProteinCustom) + lunchProteinSupplement + mealProteinGrams(log.dinnerProteinChoice, log.dinnerProteinCustom); }
-export function getProteinStatus(total: number) { if (total < 100) return { label: '단백질 보충 권장', color: 'text-amber-700', bg: 'bg-amber-50' }; if (total <= 135 && total >= 110) return { label: '목표 범위', color: 'text-green-700', bg: 'bg-green-50' }; if (total <= 150) return { label: '충분', color: 'text-blue-700', bg: 'bg-blue-50' }; return { label: '수분 섭취와 소화 상태를 확인하세요', color: 'text-red-700', bg: 'bg-red-50' }; }
+export function getProteinStatus(total: number) { if (total < 100) return { label: '단백질 보충 권장', color: 'text-amber-700', bg: 'bg-amber-50' }; if (total < 110) return { label: '목표에 근접', color: 'text-blue-700', bg: 'bg-blue-50' }; if (total <= 135) return { label: '목표 범위', color: 'text-green-700', bg: 'bg-green-50' }; if (total <= 150) return { label: '충분', color: 'text-blue-700', bg: 'bg-blue-50' }; return { label: '수분 섭취와 소화 상태를 확인하세요', color: 'text-red-700', bg: 'bg-red-50' }; }
