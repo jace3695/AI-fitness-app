@@ -12,6 +12,7 @@ import {
 } from "./data/workoutPlans";
 import {
   getWeeklyWorkoutCompletion,
+  getDateForWorkoutDay,
   getWorkoutDayForDate,
   getWorkoutRecord,
   readWorkoutCompletionStore,
@@ -417,6 +418,28 @@ export default function Page() {
   const selectedWeeklyWorkoutPlan = getWeeklyWorkoutPlanById(
     selectedWeeklyWorkoutPlanId,
   );
+  const requiredWorkoutDays = WORKOUT_DAY_IDS.filter((dayId) => {
+    const group = getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, dayId);
+    return group.category !== "rest" && group.type !== "choice";
+  });
+  const painDays = WORKOUT_DAY_IDS.reduce<Record<WorkoutDayId, boolean>>(
+    (result, dayId) => {
+      result[dayId] = Boolean(
+        getWorkoutRecord(completedStore[getDateForWorkoutDay(dayId)])
+          .workoutPain,
+      );
+      return result;
+    },
+    {
+      sun: false,
+      mon: false,
+      tue: false,
+      wed: false,
+      thu: false,
+      fri: false,
+      sat: false,
+    },
+  );
   const baseDayWorkout = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
     ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
     : undefined;
@@ -428,7 +451,9 @@ export default function Page() {
     ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay)
     : undefined;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
-  const weeklyCompletedCount = Object.values(completedDays).filter(Boolean).length;
+  const weeklyCompletedCount = requiredWorkoutDays.filter(
+    (dayId) => completedDays[dayId],
+  ).length;
   const activePrimaryNav =
     activeTab === "ov"
       ? "home"
@@ -539,7 +564,10 @@ export default function Page() {
                 <p className="text-[11px] text-gray-400">이번 주</p>
                 <p className="mt-1 text-[20px] font-bold text-gray-900">
                   {weeklyCompletedCount}
-                  <span className="text-[12px] font-medium text-gray-400"> / 7일</span>
+                  <span className="text-[12px] font-medium text-gray-400">
+                    {" "}
+                    / {requiredWorkoutDays.length}일
+                  </span>
                 </p>
               </div>
               <button
@@ -574,6 +602,8 @@ export default function Page() {
             <WeeklyView
               onTabChange={handleTabChange}
               completedDays={completedDays}
+              painDays={painDays}
+              todayDayId={todayWorkoutDay}
               plans={WEEKLY_WORKOUT_PLANS}
               selectedPlanId={selectedWeeklyWorkoutPlan.id}
               onPlanChange={handleWeeklyWorkoutPlanChange}
