@@ -23,7 +23,12 @@ import {
 } from "./data/workoutCompletion";
 import {
   assessRecoveryMode,
+  clearDailyCondition,
+  ConditionSignalId,
+  DailyConditionRecord,
+  readDailyCondition,
   RecoveryDayRecord,
+  saveDailyCondition,
   saveRecoveryRecord,
   RECOVERY_MODE_DAYS_KEY,
 } from "./data/recoveryMode";
@@ -37,6 +42,7 @@ import SwitchOnModePanel from "./components/SwitchOnModePanel";
 import PullupTrainingView from "./components/PullupTrainingView";
 import CloudSyncPanel from "./components/CloudSyncPanel";
 import TodayDashboard from "./components/TodayDashboard";
+import ConditionCheckCard from "./components/ConditionCheckCard";
 
 type TabId =
   | "ov"
@@ -108,6 +114,7 @@ export default function Page() {
   const [recoveryToday, setRecoveryToday] = useState<RecoveryDayRecord | null>(
     null,
   );
+  const [conditionToday, setConditionToday] = useState<DailyConditionRecord>();
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
 
   useEffect(() => {
@@ -130,6 +137,7 @@ export default function Page() {
     );
 
     setCompletedStore(readWorkoutCompletionStore());
+    setConditionToday(readDailyCondition());
     setRecoveryToday(
       assessRecoveryMode(
         getLocalDateKey(),
@@ -149,6 +157,19 @@ export default function Page() {
   const handleWeeklyWorkoutPlanChange = (planId: string) => {
     setSelectedWeeklyWorkoutPlanId(planId);
     window.localStorage.setItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY, planId);
+  };
+
+  const handleConditionSave = (signals: ConditionSignalId[], memo: string) => {
+    const dateKey = getLocalDateKey();
+    setConditionToday(saveDailyCondition(dateKey, signals, memo));
+    setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
+  };
+
+  const handleConditionClear = () => {
+    const dateKey = getLocalDateKey();
+    clearDailyCondition(dateKey);
+    setConditionToday(undefined);
+    setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
   };
 
   const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[]) => {
@@ -587,10 +608,16 @@ export default function Page() {
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 훈련 →</p>
               </button>
             </section>
+            <ConditionCheckCard
+              value={conditionToday}
+              onSave={handleConditionSave}
+              onClear={handleConditionClear}
+            />
             <TodayDashboard
               workoutDone={Boolean(todayRecord.workoutDone)}
               workoutPain={Boolean(todayRecord.workoutPain)}
-              recoveryMode={Boolean(displayedRecovery?.recoveryMode)}
+              recoveryRecommended={Boolean(displayedRecovery?.recoveryMode)}
+              recoveryCompleted={Boolean(displayedRecovery?.completedAsRecovery)}
               onOpenWorkout={() =>
                 handleTabChange(todayWorkoutDay || "mon")
               }
