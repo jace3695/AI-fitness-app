@@ -1,41 +1,124 @@
 "use client";
 
-import { WEEK_OVERVIEW } from "../data/workouts";
-import { WeeklyWorkoutPlan } from "../data/workoutPlans";
+import {
+  getWorkoutGroupForPlanDay,
+  WeeklyWorkoutPlan,
+} from "../data/workoutPlans";
+import { WorkoutDayId } from "../data/workoutCompletion";
 
 interface WeeklyViewProps {
   onTabChange: (id: string) => void;
-  completedDays: Record<
-    "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat",
-    boolean
-  >;
+  completedDays: Record<WorkoutDayId, boolean>;
+  painDays: Record<WorkoutDayId, boolean>;
+  todayDayId: WorkoutDayId | null;
   plans: WeeklyWorkoutPlan[];
   selectedPlanId: string;
   onPlanChange: (planId: string) => void;
 }
 
+const DAY_ITEMS: { id: WorkoutDayId; short: string; label: string }[] = [
+  { id: "mon", short: "월", label: "월요일" },
+  { id: "tue", short: "화", label: "화요일" },
+  { id: "wed", short: "수", label: "수요일" },
+  { id: "thu", short: "목", label: "목요일" },
+  { id: "fri", short: "금", label: "금요일" },
+  { id: "sat", short: "토", label: "토요일" },
+  { id: "sun", short: "일", label: "일요일" },
+];
+
+const CATEGORY_LABEL = {
+  cardio: "유산소",
+  core: "코어",
+  strength: "근력",
+  recovery: "회복",
+  rest: "휴식",
+} as const;
+
+const INTENSITY_LABEL = {
+  low: "저강도",
+  medium: "중강도",
+  high: "고강도",
+} as const;
+
+function getDayEmoji(category: keyof typeof CATEGORY_LABEL, optional: boolean) {
+  if (optional) return "🚶";
+  if (category === "rest") return "😴";
+  if (category === "recovery") return "🌿";
+  if (category === "strength") return "💪";
+  if (category === "core") return "🧘";
+  return "🏃";
+}
+
 export default function WeeklyView({
   onTabChange,
   completedDays,
+  painDays,
+  todayDayId,
   plans,
   selectedPlanId,
   onPlanChange,
 }: WeeklyViewProps) {
-  const { stats, days, dayTimes, afterMonth } = WEEK_OVERVIEW;
+  const selectedPlan =
+    plans.find((plan) => plan.id === selectedPlanId) ?? plans[0];
+  const schedule = DAY_ITEMS.map((day) => {
+    const group = getWorkoutGroupForPlanDay(selectedPlan, day.id);
+    return {
+      ...day,
+      group,
+      optional: group.type === "choice",
+      rest: group.category === "rest",
+      completed: completedDays[day.id],
+      pain: painDays[day.id],
+    };
+  });
+  const requiredDays = schedule.filter((day) => !day.rest && !day.optional);
+  const optionalDays = schedule.filter((day) => day.optional);
+  const completedRequired = requiredDays.filter((day) => day.completed).length;
+  const painCount = schedule.filter((day) => day.pain).length;
+  const progress =
+    requiredDays.length > 0
+      ? Math.round((completedRequired / requiredDays.length) * 100)
+      : 0;
+  const nextPlanIndex = plans.findIndex((plan) => plan.id === selectedPlan.id) + 1;
+  const nextPlan = plans[nextPlanIndex];
+  const recommendation =
+    painCount > 0
+      ? {
+          tone: "border-amber-100 bg-amber-50 text-amber-900",
+          title: "현재 계획 유지·회복 우선",
+          body: `이번 주 통증 기록이 ${painCount}일 있습니다. 다음 단계로 올리기보다 통증과 저림이 가라앉는지 먼저 확인하세요.`,
+        }
+      : completedRequired === requiredDays.length && requiredDays.length > 0
+        ? {
+            tone: "border-emerald-100 bg-emerald-50 text-emerald-900",
+            title: nextPlan ? "다음 단계 검토 가능" : "현재 리듬 유지",
+            body: nextPlan
+              ? `필수 계획을 모두 마쳤습니다. 다음 주에 몸 상태가 괜찮다면 ‘${nextPlan.weekLabel}’ 계획을 직접 선택할 수 있습니다.`
+              : "필수 계획을 모두 마쳤습니다. 같은 계획을 유지하며 무게와 횟수는 천천히 조절하세요.",
+          }
+        : {
+            tone: "border-blue-100 bg-blue-50 text-blue-900",
+            title: "현재 계획을 이어가세요",
+            body: `필수 운동 ${requiredDays.length}일 중 ${completedRequired}일을 완료했습니다. 남은 계획은 통증 없는 범위에서 진행하세요.`,
+          };
 
   return (
     <div className="min-w-0">
-
       <section className="mb-5 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
         <div className="mb-3">
-          <p className="text-[14px] font-bold text-[#3C3489]">이번 주 운동 계획</p>
-          <p className="mt-1 text-[12px] text-gray-500">컨디션과 목표에 맞춰 이번 주에 사용할 주간 운동 계획을 선택하세요.</p>
+          <p className="text-[14px] font-bold text-[#3C3489]">
+            이번 주 운동 계획
+          </p>
+          <p className="mt-1 text-[12px] text-gray-500">
+            컨디션과 목표에 맞춰 이번 주에 사용할 계획을 선택하세요.
+          </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {plans.map((plan) => (
             <button
               key={plan.id}
               type="button"
+              aria-pressed={selectedPlanId === plan.id}
               onClick={() => onPlanChange(plan.id)}
               className={`rounded-xl border px-3 py-3 text-left transition ${
                 selectedPlanId === plan.id
@@ -44,32 +127,144 @@ export default function WeeklyView({
               }`}
             >
               <span className="block text-[13px] font-bold">{plan.name}</span>
-              <span className="mt-1 block text-[11px] leading-relaxed opacity-80">{plan.recommendedFor}</span>
+              <span className="mt-1 block text-[11px] leading-relaxed opacity-80">
+                {plan.recommendedFor}
+              </span>
             </button>
           ))}
         </div>
-        {plans.find((plan) => plan.id === selectedPlanId)?.notice && (
+        {selectedPlan.notice && (
           <p className="mt-3 rounded-xl bg-[#EAF3DE] px-3 py-2 text-[12px] leading-relaxed text-[#27500A]">
-            {plans.find((plan) => plan.id === selectedPlanId)?.notice}
+            {selectedPlan.notice}
           </p>
         )}
       </section>
 
-      {/* Stats Grid */}
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        {stats.map((s, i) => (
-          <div key={i} className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[11px] text-gray-400 mb-0.5">{s.label}</p>
-            <p className="text-[19px] font-medium text-gray-800">
-              {s.value}
-              <span className="text-[12px] font-normal"> {s.unit}</span>
+      <section className="mb-5 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-bold text-[#534AB7]">
+              {selectedPlan.weekLabel} 진행률
             </p>
-            <p className="text-[11px] text-gray-400 mt-0.5">{s.sub}</p>
+            <p className="mt-1 text-[20px] font-bold text-gray-900">
+              필수 운동 {completedRequired}/{requiredDays.length}일
+            </p>
           </div>
+          <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[12px] font-bold text-[#3C3489]">
+            {progress}%
+          </span>
+        </div>
+        <div
+          role="progressbar"
+          aria-label={`${selectedPlan.weekLabel} 필수 운동 진행률`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+          className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"
+        >
+          <div
+            className="h-full rounded-full bg-[#534AB7] transition-[width]"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-xl bg-gray-50 p-3">
+            <p className="text-[10px] text-gray-400">필수 계획</p>
+            <p className="mt-1 text-[17px] font-bold text-gray-800">
+              {requiredDays.length}일
+            </p>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            <p className="text-[10px] text-gray-400">선택 운동</p>
+            <p className="mt-1 text-[17px] font-bold text-gray-800">
+              {optionalDays.length}일
+            </p>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            <p className="text-[10px] text-gray-400">통증 기록</p>
+            <p
+              className={`mt-1 text-[17px] font-bold ${
+                painCount > 0 ? "text-amber-700" : "text-gray-800"
+              }`}
+            >
+              {painCount}일
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <p className="mb-2 text-[12px] font-medium uppercase tracking-wide text-gray-400">
+        선택한 계획의 7일 일정
+      </p>
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+        {schedule.map((day) => (
+          <button
+            key={day.id}
+            type="button"
+            onClick={() => onTabChange(day.id)}
+            className={`min-w-0 rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+              day.id === todayDayId
+                ? "border-[#7F77DD] bg-[#EEEDFE]"
+                : "border-gray-100 bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-bold text-gray-500">
+                {day.short}
+                {day.id === todayDayId ? " · 오늘" : ""}
+              </span>
+              <span>{getDayEmoji(day.group.category, day.optional)}</span>
+            </div>
+            <p className="mt-2 min-h-10 break-keep text-[12px] font-bold leading-snug text-gray-900">
+              {day.group.name}
+            </p>
+            <p className="mt-1 text-[10px] text-gray-500">
+              {day.group.duration}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <span className="rounded-full bg-gray-100 px-2 py-1 text-[9px] font-semibold text-gray-600">
+                {day.optional
+                  ? "선택"
+                  : CATEGORY_LABEL[day.group.category]}
+              </span>
+              {!day.rest && (
+                <span className="rounded-full bg-gray-100 px-2 py-1 text-[9px] font-semibold text-gray-600">
+                  {INTENSITY_LABEL[day.group.intensity]}
+                </span>
+              )}
+            </div>
+            <p
+              className={`mt-2 text-[10px] font-bold ${
+                day.pain
+                  ? "text-amber-700"
+                  : day.completed
+                    ? "text-emerald-700"
+                    : "text-gray-400"
+              }`}
+            >
+              {day.pain
+                ? day.completed
+                  ? "완료 · 통증 확인"
+                  : "통증 확인"
+                : day.completed
+                  ? "완료"
+                  : day.rest
+                    ? "회복일"
+                    : day.optional
+                      ? "선택 가능"
+                      : "진행 전"}
+            </p>
+          </button>
         ))}
       </div>
 
-      {/* Pull-up Training Entry */}
+      <section
+        className={`mb-5 rounded-2xl border p-4 text-[12px] leading-relaxed ${recommendation.tone}`}
+      >
+        <p className="font-bold">{recommendation.title}</p>
+        <p className="mt-1">{recommendation.body}</p>
+      </section>
+
       <button
         type="button"
         onClick={() => onTabChange("pullup")}
@@ -90,187 +285,14 @@ export default function WeeklyView({
         </div>
       </button>
 
-      {/* 7-day Week Grid */}
-      <div className="mb-5 overflow-x-auto pb-2">
-      <div className="grid min-w-[680px] grid-cols-7 gap-2">
-        {days.map((d, i) => (
-          <div
-            key={i}
-            className={`rounded-xl py-2 px-1 text-center border transition-colors ${
-              d.active
-                ? "cursor-pointer hover:opacity-80"
-                : "bg-gray-50 cursor-default"
-            }`}
-            style={
-              d.active ? { borderColor: d.border } : { borderColor: "#E5E7EB" }
-            }
-            onClick={() => d.active && d.tabId && onTabChange(d.tabId)}
-          >
-            <p className="text-[10px] text-gray-400 mb-0.5">{d.day}</p>
-            <div className="text-[15px] my-0.5">{d.emoji}</div>
-            <p
-              className="text-[9px] font-medium leading-tight"
-              style={{ color: d.active ? d.color : "#9CA3AF" }}
-            >
-              {d.label}
-            </p>
-            <p className="text-[9px] text-gray-400 mt-0.5">{d.sub}</p>
-            <span
-              className="inline-block text-[9px] font-medium px-1.5 py-0.5 rounded-full mt-1"
-              style={
-                d.active
-                  ? { background: d.bg, color: d.color }
-                  : { background: "#F3F4F6", color: "#9CA3AF" }
-              }
-            >
-              {d.time}
-            </span>
-            {d.active && d.tabId && (
-              <p
-                className={`text-[9px] font-medium mt-1 ${
-                  completedDays[d.tabId as keyof typeof completedDays]
-                    ? "text-green-600"
-                    : "text-gray-300"
-                }`}
-              >
-                {completedDays[d.tabId as keyof typeof completedDays]
-                  ? "완료"
-                  : "미완료"}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-      </div>
-
-      {/* Day-time Grid */}
-      <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
-        요일별 운동 시간
-      </p>
-      <div className="mb-5 overflow-x-auto pb-2">
-      <div className="grid min-w-[680px] grid-cols-7 gap-2">
-        {dayTimes.map((dt, i) => (
-          <div
-            key={i}
-            className="rounded-xl p-2.5 text-center border"
-            style={
-              dt.color
-                ? { borderColor: dt.border }
-                : { background: "#F9FAFB", borderColor: "#E5E7EB" }
-            }
-          >
-            <p
-              className="text-[12px] font-medium mb-0.5"
-              style={{ color: dt.color || "#9CA3AF" }}
-            >
-              {dt.days}
-            </p>
-            <p
-              className="text-[17px] font-medium mb-0.5"
-              style={{
-                color: dt.color || "#9CA3AF",
-                fontSize: dt.total === "휴식" ? "14px" : undefined,
-              }}
-            >
-              {dt.total}
-            </p>
-            <p className="text-[10px] text-gray-400 whitespace-pre-line leading-relaxed">
-              {dt.detail}
-            </p>
-          </div>
-        ))}
-      </div>
-      </div>
-
-      {/* Flow Diagram */}
-      <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-2">
-        하루 운동 흐름
-      </p>
-      <div className="mb-3 overflow-x-auto pb-2">
-      <div className="flex min-w-[640px] items-stretch gap-0">
-        {[
-          {
-            icon: "📿",
-            label: "묵주기도 슬라이딩",
-            time: "15~20분",
-            bg: "#EEEDFE",
-            lc: "#3C3489",
-            tc: "#534AB7",
-          },
-          {
-            icon: "💪",
-            label: "근력/안정화 A/B/C",
-            time: "15~20분",
-            bg: "#E6F1FB",
-            lc: "#0C447C",
-            tc: "#185FA5",
-          },
-          {
-            icon: "🧗",
-            label: "턱걸이 초기자세",
-            time: "3~5분",
-            bg: "#FAEEDA",
-            lc: "#633806",
-            tc: "#854F0B",
-          },
-          {
-            icon: "🏂",
-            label: "슬라이딩보드 마무리",
-            time: "0~20분",
-            bg: "#EAF3DE",
-            lc: "#27500A",
-            tc: "#3B6D11",
-          },
-        ].map((s, i, arr) => (
-          <div key={i} className="flex items-center flex-1">
-            <div
-              className="flex-1 rounded-xl px-1.5 py-2 text-center"
-              style={{ background: s.bg }}
-            >
-              <div className="text-[13px] mb-0.5">{s.icon}</div>
-              <p
-                className="text-[9.5px] font-medium mb-0.5"
-                style={{ color: s.lc }}
-              >
-                {s.label}
-              </p>
-              <p className="text-[9.5px]" style={{ color: s.tc }}>
-                {s.time}
-              </p>
-            </div>
-            {i < arr.length - 1 && (
-              <div className="text-gray-300 text-[11px] px-0.5 shrink-0">→</div>
-            )}
-          </div>
-        ))}
-      </div>
-      </div>
-
-      <div className="flex justify-end items-center gap-2 mb-4">
-        <span className="text-[12px] text-gray-400">근력일 총 시간</span>
-        <span className="bg-[#534AB7] text-white text-[11px] font-medium px-2.5 py-1 rounded-full">
-          약 40분+
-        </span>
-      </div>
-
-      {/* Info Box */}
-      <div className="bg-[#E6F1FB] text-[#0C447C] border-l-[3px] border-[#378ADD] rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed">
-        💡 월~금은 1개월 감량 집중기 운동일입니다. 묵주기도 슬라이딩보드 → 근력/안정화 A/B/C/D/E →
-        턱걸이 초기자세 → 슬라이딩보드 마무리 순서로 진행하고, 토요일은 선택 유산소 또는 휴식, 일요일은 휴식입니다.
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-[#AFA9EC] bg-white p-4 text-[13px] text-gray-700 shadow-sm">
-        <p className="font-bold text-[#3C3489]">1개월 이후 유지/조절기 안내</p>
-        <ul className="mt-2 list-disc space-y-1 pl-4">
-          {afterMonth.map((item) => <li key={item}>{item}</li>)}
-        </ul>
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-4 text-[13px] leading-relaxed text-green-800">
-        <p className="font-bold">이번 달 감량 목표</p>
-        <p className="mt-1">현실 목표: 2~4kg · 공격 목표: 4~6kg</p>
-        <p className="mt-1">10kg 이상 감량은 2~3개월 이상 장기 목표로 관리합니다. 무리한 감량보다 허리 통증 없이 지속하는 것을 우선합니다.</p>
-      </div>
+      <section className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-[13px] leading-relaxed text-blue-900">
+        <p className="font-bold">{selectedPlan.name}</p>
+        <p className="mt-1">{selectedPlan.description}</p>
+        <p className="mt-2 text-[11px] text-blue-700">
+          단계는 자동 변경되지 않습니다. 한 주 기록과 통증 상태를 확인한 뒤
+          직접 선택하세요.
+        </p>
+      </section>
     </div>
   );
 }
