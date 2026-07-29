@@ -64,6 +64,19 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
         {day.optionalCardio && !selectedCardioOption ? '먼저 유산소를 선택하세요' : isCompleted ? '전체 운동 다시 시작' : '전체 운동 시작'}
       </button>
     </section>
+    <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+      <p className="text-[12px] font-bold text-[#534AB7]">다음 단계 판단 기준</p>
+      <p className="mt-1 text-[15px] font-bold text-gray-900">
+        {isRecoveryRecommended ? '오늘은 단계 상승 보류' : isAdjustedRecommended ? '오늘은 강도 유지보다 조절 우선' : '통증 없이 같은 계획을 반복하는 단계'}
+      </p>
+      <div className="mt-3 grid gap-1.5 text-[12px] text-gray-600">
+        <p>• 계획한 필수 운동을 통증 없이 완료</p>
+        <p>• 동작 중 허리 통증·다리 저림·발목 통증 없음</p>
+        <p>• 같은 강도를 2회 연속 안정적으로 완료</p>
+        <p>• 조건 충족 후에도 횟수·중량·시간 중 한 가지만 소폭 증가</p>
+      </div>
+      <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-600">앱이 계획을 자동으로 올리지는 않습니다. 기록과 컨디션을 확인한 뒤 직접 다음 단계를 선택합니다.</p>
+    </section>
     <button type="button" onClick={() => setWarning(true)} className="w-full mb-3 py-3 px-4 rounded-xl text-[14px] font-bold bg-[#FCEBEB] text-[#A32D2D] border border-red-200">통증·저림·어지러움 발생</button>
     {warning && <div className="mb-4 rounded-2xl bg-[#FCEBEB] border-2 border-[#E24B4A] p-4 text-[#791F1F]"><p className="text-[18px] font-bold mb-1">운동을 즉시 중단하세요.</p><p className="text-[13px] leading-relaxed">허리 통증, 다리 저림, 날카로운 무릎 통증 또는 어지러움이 지속되면 무리하지 말고 의료진과 상담하세요.</p><button className="mt-3 text-[12px] underline" onClick={() => setWarning(false)}>안내 접기</button></div>}
     {day.optionalCardio && <section className="mb-4 rounded-2xl border border-[#9CCAF0] bg-white p-4 shadow-sm"><p className="text-[12px] font-bold text-[#185FA5]">토요일 선택 유산소</p><h3 className="mt-1 text-lg font-bold text-gray-900">오늘은 아래 중 하나만 선택하세요.</h3><p className="mt-2 text-[13px] text-gray-600">무리하지 않고 활동량을 늘리는 날입니다.</p><div className="mt-4 rounded-xl bg-[#EEEDFE] p-3"><p className="text-[13px] font-bold text-[#3C3489]">준비운동</p>{day.optionalCardio.warmup.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#534AB7]">- {exercise.name} {exercise.meta || '3분'}</p>)}</div><p className="mt-4 text-[13px] font-bold text-gray-800">오늘 할 유산소를 하나 선택하세요</p><div className="mt-2 grid gap-2">{day.optionalCardio.options.map((option) => <button key={option.id} type="button" onClick={() => { setSelectedCardioOptionId(option.id); setSelectedCardioType(option.name); if (option.duration.includes('15')) setSelectedCardioMinutes(20); else if (option.duration.includes('30')) setSelectedCardioMinutes(30); else if (option.id === 'rest') setSelectedCardioMinutes(0); }} className={`rounded-xl border px-3 py-3 text-left ${selectedCardioOptionId === option.id ? 'border-[#378ADD] bg-[#E6F1FB] text-[#0C447C]' : 'border-gray-100 bg-gray-50 text-gray-700'}`}><span className="font-bold">○ {option.name} {option.duration}</span><span className="mt-1 block text-[12px]">{option.description}</span></button>)}</div><div className="mt-4 rounded-xl bg-[#EAF3DE] p-3"><p className="text-[13px] font-bold text-[#27500A]">마무리</p>{day.optionalCardio.cooldown.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#3B6D11]">- {exercise.name}{exercise.name.includes('폼롤러') ? ' 필요 시 5분' : ' 3분'}</p>)}</div>{selectedCardioOption ? <div className="mt-4 rounded-xl border border-gray-100 bg-white p-3"><p className="text-[13px] font-bold text-gray-800">선택한 유산소 따라하기 순서</p><div className="mt-2 flex flex-col gap-1.5">{selectedOptionExercises.map((exercise, index, list) => <ExerciseCard key={`${exercise.name}-${index}`} exercise={exercise} exercises={list} index={index} />)}</div></div> : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-800">따라하기 모드를 시작하려면 먼저 유산소를 선택하세요.</p>}</section>}
@@ -95,6 +108,7 @@ export default function DayView({ day, isCompleted, onSaveWorkout, onCancelWorko
     {sessionOpen && <WorkoutSession
       exercises={exercises}
       title={day.title}
+      intensity={recovery?.intensity || 'normal'}
       onClose={() => setSessionOpen(false)}
       onFinish={(result) => {
         const combinedMemo = [memo.trim(), result.memo].filter(Boolean).join('\n');
