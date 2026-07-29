@@ -35,6 +35,7 @@ import RecordCalendarView from "./components/RecordCalendarView";
 import SwitchOnModePanel from "./components/SwitchOnModePanel";
 import PullupTrainingView from "./components/PullupTrainingView";
 import CloudSyncPanel from "./components/CloudSyncPanel";
+import TodayDashboard from "./components/TodayDashboard";
 
 type TabId =
   | "ov"
@@ -558,6 +559,16 @@ export default function Page() {
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 훈련 →</p>
               </button>
             </section>
+            <TodayDashboard
+              workoutDone={Boolean(todayRecord.workoutDone)}
+              workoutPain={Boolean(todayRecord.workoutPain)}
+              recoveryMode={Boolean(displayedRecovery?.recoveryMode)}
+              onOpenWorkout={() =>
+                handleTabChange(todayWorkoutDay || "mon")
+              }
+              onOpenDiet={() => handleTabChange("diet")}
+              onOpenRecord={() => handleTabChange("record")}
+            />
             </div>
 
             <WeeklyView
