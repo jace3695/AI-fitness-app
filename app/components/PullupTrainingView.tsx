@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getLocalDateKey } from '../data/dietPlans';
 import { getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY } from '../data/workoutCompletion';
-import { createDefaultPullupProgress, getPullupVideoUrl, PULLUP_PROGRESS_KEY, PULLUP_STAGES, PullupProgress } from '../data/pullupTraining';
+import { createDefaultPullupProgress, getPullupVideoUrl, normalizePullupProgress, PULLUP_PROGRESS_KEY, PULLUP_STAGES, PullupProgress } from '../data/pullupTraining';
 
 const safetyRules = ['통증을 참고 진행하지 않기', '팔 저림, 어깨 통증, 목 통증이 있으면 즉시 중단', '허리가 꺾이거나 반동이 커지면 난이도를 낮추기', '밴드와 철봉 고정 상태를 매번 확인', '문틀 철봉의 허용 하중과 설치 상태를 확인'];
 
@@ -22,10 +22,13 @@ export default function PullupTrainingView() {
     const raw = window.localStorage.getItem(PULLUP_PROGRESS_KEY);
     if (raw) {
       try {
-        const parsed = JSON.parse(raw) as PullupProgress;
-        const merged = createDefaultPullupProgress();
-        setProgress({ ...merged, ...parsed, stageChecks: { ...merged.stageChecks, ...parsed.stageChecks } });
-        setSelectedStage(parsed.currentStage || 1);
+        const parsed = JSON.parse(raw) as unknown;
+        const normalized = normalizePullupProgress(parsed);
+        setProgress(normalized);
+        setSelectedStage(normalized.currentStage || 1);
+        if (JSON.stringify(normalized) !== JSON.stringify(parsed)) {
+          window.localStorage.setItem(PULLUP_PROGRESS_KEY, JSON.stringify(normalized));
+        }
       } catch {
         window.localStorage.setItem(PULLUP_PROGRESS_KEY, JSON.stringify(createDefaultPullupProgress()));
       }
@@ -40,10 +43,10 @@ export default function PullupTrainingView() {
   const stage = PULLUP_STAGES.find((item) => item.id === selectedStage) ?? PULLUP_STAGES[0];
   const check = progress.stageChecks[`stage${stage.id}`];
   const totalCount = useMemo(() => Object.values(progress.stageChecks).reduce((sum, item) => sum + (item.completedCount || 0), 0), [progress]);
-  const canPromote = check.promotionReady && check.painFree && stage.id < PULLUP_STAGES.length;
+  const canPromote = check.promotionReady && check.painFree && stage.id === progress.currentStage && stage.id < PULLUP_STAGES.length;
 
   const updateCheck = (key: keyof typeof check, value: boolean | number) => {
-    const next = { ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: { ...check, [key]: value } } };
+    const next = { ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: { ...check, [key]: value } } };
     save(next);
   };
 
@@ -67,14 +70,14 @@ export default function PullupTrainingView() {
   const completeToday = () => {
     const pullupDone = !check.todayCompleted;
     const nextCheck = { ...check, todayCompleted: pullupDone, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1, painFree: pullupDone ? !pullupPain : check.painFree };
-    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
     writeTodayPullupRecord(pullupPain, pullupMemo, pullupDone);
     setSaveMessage(pullupDone ? '오늘 철봉 완료 기록을 저장했습니다.' : '오늘 철봉 완료 기록을 해제했습니다.');
   };
 
   const saveTodayPullupRecord = () => {
     const nextCheck = { ...check, todayCompleted: true, completedCount: check.todayCompleted ? check.completedCount : check.completedCount + 1, painFree: !pullupPain };
-    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
     writeTodayPullupRecord(pullupPain, pullupMemo, true);
     setSaveMessage('오늘 철봉 완료 기록을 저장했습니다.');
   };
@@ -82,7 +85,7 @@ export default function PullupTrainingView() {
 
   const cancelTodayPullupRecord = () => {
     const nextCheck = { ...check, todayCompleted: false, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount };
-    save({ ...progress, updatedAt: new Date().toISOString().slice(0, 10), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
+    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
     writeTodayPullupRecord(false, '', false);
     setPullupPain(false);
     setPullupMemo('');
@@ -91,7 +94,7 @@ export default function PullupTrainingView() {
 
   const moveNext = () => {
     const nextStage = Math.min(PULLUP_STAGES.length, stage.id + 1);
-    save({ ...progress, currentStage: nextStage, updatedAt: new Date().toISOString().slice(0, 10) });
+    save({ ...progress, currentStage: nextStage, updatedAt: getLocalDateKey() });
     setSelectedStage(nextStage);
   };
 
@@ -104,7 +107,7 @@ export default function PullupTrainingView() {
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:col-span-2">{PULLUP_STAGES.map((item) => {
       const locked = item.id > progress.currentStage;
       const ready = progress.stageChecks[`stage${item.id}`]?.promotionReady;
-      return <button key={item.id} onClick={() => setSelectedStage(item.id)} className={`rounded-xl border p-2 text-left transition ${selectedStage === item.id ? 'border-[#534AB7] bg-[#EEEDFE] text-[#3C3489]' : locked ? 'border-gray-100 bg-gray-50 text-gray-400 opacity-70' : 'border-gray-200 bg-white text-gray-700'}`}>
+      return <button key={item.id} type="button" disabled={locked} aria-disabled={locked} onClick={() => setSelectedStage(item.id)} className={`rounded-xl border p-2 text-left transition ${selectedStage === item.id ? 'border-[#534AB7] bg-[#EEEDFE] text-[#3C3489]' : locked ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400 opacity-70' : 'border-gray-200 bg-white text-gray-700'}`}>
         <p className="text-[11px] font-bold">{item.id}단계</p><p className="mt-1 text-[10px] leading-tight">{item.title}</p>{item.id === progress.currentStage && <p className="mt-1 text-[9px] font-bold text-[#534AB7]">현재</p>}{ready && <p className="mt-1 text-[9px] font-bold text-green-600">진행 가능</p>}
       </button>;
     })}</div>

@@ -4,7 +4,8 @@ import { getWorkoutGroupById, workoutGroupToDayWorkout } from './workoutGroups';
 export type WeeklyWorkoutPlanDays = Record<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday', string>;
 export type WeeklyWorkoutPlan = { id: string; name: string; description: string; recommendedFor: string; weekLabel: string; days: WeeklyWorkoutPlanDays; notice?: string };
 
-export const SELECTED_WEEKLY_WORKOUT_PLAN_KEY = 'selectedWeeklyWorkoutPlanId';
+export const SELECTED_WEEKLY_WORKOUT_PLAN_KEY = 'ai-fitness-selected-weekly-workout-plan';
+export const LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY = 'selectedWeeklyWorkoutPlanId';
 export const DEFAULT_WEEKLY_WORKOUT_PLAN_ID = 'week1-cardio-back';
 
 export const WEEKLY_WORKOUT_PLANS: WeeklyWorkoutPlan[] = [
