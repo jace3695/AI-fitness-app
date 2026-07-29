@@ -89,7 +89,7 @@ export function getPainScore(value?: WorkoutCompletionValue) {
   if (typeof value !== "object" || !value) return undefined;
   const scores = (value.workoutExerciseRecords ?? [])
     .map((record) => record.painScore)
-    .filter((score): score is number => score !== undefined);
+    .filter((score): score is number => score !== undefined && score > 0);
   if (!scores.length) return undefined;
   return (
     Math.round(
@@ -257,6 +257,11 @@ export function getExerciseProgress(
         if (
           exercise.status !== "completed" &&
           exercise.status !== "partial"
+        )
+          return;
+        if (
+          exercise.status === "partial" &&
+          !(exercise.sets ?? []).some((set) => set.completed)
         )
           return;
         const metric = getMetric(exercise);
