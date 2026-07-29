@@ -13,6 +13,9 @@ export default function MonthlySummaryCard({ year, monthIndex, stores }: { year:
     ['물 2L 달성', `${keys.filter((key) => (stores.water[key] || 0) >= 2000).length}일`],
     ['체중 기록', `${monthWeights.length}회`],
     ['인바디 기록', `${keys.filter((key) => stores.inbody[key]).length}회`],
+    ['컨디션 기록', `${keys.filter((key) => stores.conditions[key]).length}일`],
+    ['70% 조절', `${keys.filter((key) => stores.conditions[key]?.recommendation === '70%').length}일`],
+    ['회복 우선', `${keys.filter((key) => stores.conditions[key]?.recommendation === 'recovery').length}일`],
     ['첫/마지막 체중', first === undefined || last === undefined ? '기록 없음' : `${first.toFixed(1)} → ${last.toFixed(1)}kg`],
     ['체중 변화', change === null ? '기록 없음' : `${change > 0 ? '+' : ''}${change.toFixed(1)}kg`],
   ];

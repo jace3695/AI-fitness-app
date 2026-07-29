@@ -5,10 +5,12 @@ import {
   WorkoutCompletionValue,
 } from "./workoutCompletion";
 import {
+  DailyConditionStore,
   InbodyRecordStore,
   WeightRecordStore,
   getMonthDateKeys,
 } from "./recordStorage";
+import type { ConditionSignalId } from "./recoveryMode";
 
 export interface TrendPoint {
   dateKey: string;
@@ -32,6 +34,14 @@ export interface ExerciseProgressItem {
   latestDateKey: string;
 }
 
+export interface RecentConditionSummary {
+  recordedDays: number;
+  normalDays: number;
+  adjustedDays: number;
+  recoveryDays: number;
+  topSignals: { signal: ConditionSignalId; count: number }[];
+}
+
 function parseDateKey(dateKey: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
   return new Date(year, month - 1, day);
@@ -48,6 +58,43 @@ function addDays(date: Date, days: number) {
   const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   next.setDate(next.getDate() + days);
   return next;
+}
+
+export function getRecentConditionSummary(
+  conditions: DailyConditionStore,
+  baseDate = new Date(),
+  dayCount = 7,
+): RecentConditionSummary {
+  const keys = Array.from({ length: dayCount }, (_, index) =>
+    toDateKey(addDays(baseDate, index - dayCount + 1)),
+  );
+  const records = keys.flatMap((key) =>
+    conditions[key] ? [conditions[key]] : [],
+  );
+  const signalCounts = new Map<ConditionSignalId, number>();
+
+  records.forEach((record) => {
+    record.signals.forEach((signal) => {
+      signalCounts.set(signal, (signalCounts.get(signal) ?? 0) + 1);
+    });
+  });
+
+  return {
+    recordedDays: records.length,
+    normalDays: records.filter((record) => record.recommendation === "normal")
+      .length,
+    adjustedDays: records.filter((record) => record.recommendation === "70%")
+      .length,
+    recoveryDays: records.filter(
+      (record) => record.recommendation === "recovery",
+    ).length,
+    topSignals: Array.from(signalCounts, ([signal, count]) => ({
+      signal,
+      count,
+    }))
+      .sort((a, b) => b.count - a.count || a.signal.localeCompare(b.signal))
+      .slice(0, 3),
+  };
 }
 
 function getSessionMinutes(value?: WorkoutCompletionValue) {

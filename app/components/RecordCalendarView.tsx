@@ -10,7 +10,10 @@ import {
   formatLunchProteinRecord,
   getLocalDateKey,
 } from "../data/dietPlans";
-import { RECOVERY_REASON_LABELS } from "../data/recoveryMode";
+import {
+  CONDITION_SIGNAL_OPTIONS,
+  RECOVERY_REASON_LABELS,
+} from "../data/recoveryMode";
 import { FOAM_ROLLER_TIMING_LABELS } from "../data/foamRoller";
 import {
   isCardioDone,
@@ -87,6 +90,13 @@ export default function RecordCalendarView() {
   };
   const selectedDiet = stores.diet[selected];
   const selectedRecovery = stores.recovery[selected];
+  const selectedCondition = stores.conditions[selected];
+  const conditionSignalLabels =
+    selectedCondition?.signals.map(
+      (signal) =>
+        CONDITION_SIGNAL_OPTIONS.find((option) => option.id === signal)?.label ??
+        signal,
+    ) ?? [];
   const selectedWorkout = stores.workouts[selected];
   const selectedWorkoutRecord =
     typeof selectedWorkout === "object" && selectedWorkout
@@ -118,6 +128,7 @@ export default function RecordCalendarView() {
     selectedDiet ||
     stores.workouts[selected] ||
     selectedRecovery ||
+    selectedCondition ||
     selectedWater ||
     selectedDinner ||
     stores.weights[selected] ||
@@ -163,6 +174,8 @@ export default function RecordCalendarView() {
             const isToday = key === todayKey;
             const isSelected = key === selected;
             const dietSuccess = isDietSuccess(stores.diet[key]);
+            const conditionRecommendation =
+              stores.conditions[key]?.recommendation;
             const badges = [
               stores.recovery[key]?.completedAsRecovery
                 ? "회"
@@ -179,6 +192,13 @@ export default function RecordCalendarView() {
               hasSafetyAlert(stores.diet[key]) ? "⚠" : "",
               isPullupDone(stores.workouts[key]) ? "철" : "",
               (typeof stores.workouts[key] === "object" && stores.workouts[key]?.foamRollerDone) ? "폼" : "",
+              conditionRecommendation === "normal"
+                ? "컨정"
+                : conditionRecommendation === "70%"
+                  ? "컨70"
+                  : conditionRecommendation === "recovery"
+                    ? "컨회"
+                    : "",
             ].filter(Boolean);
             return (
               <button
@@ -207,7 +227,8 @@ export default function RecordCalendarView() {
         </div>
         <p className="mt-3 text-[11px] text-gray-400">
           운=일반 운동, 유=유산소, 철=철봉, 회=회복 운동, 휴=회복 우선, 식=식단
-          목표 달성, 폼=폼롤러, 💧=물 2L, W=체중, I=인바디, ✎=메모, ⚠=안전 증상
+          목표 달성, 폼=폼롤러, 컨정·컨70·컨회=컨디션 판정, 💧=물 2L,
+          W=체중, I=인바디, ✎=메모, ⚠=안전 증상
         </p>
       </section>
       <MonthlySummaryCard
@@ -267,6 +288,35 @@ export default function RecordCalendarView() {
             {selectedRecovery?.recoveryMemo && (
               <p className="mt-1">메모: {selectedRecovery.recoveryMemo}</p>
             )}
+          </div>
+          <div
+            className={`rounded-xl p-3 sm:col-span-2 ${
+              !selectedCondition
+                ? "bg-gray-50 text-gray-700"
+                : selectedCondition.recommendation === "recovery"
+                ? "bg-red-50 text-red-900"
+                : selectedCondition.recommendation === "70%"
+                  ? "bg-amber-50 text-amber-900"
+                  : "bg-emerald-50 text-emerald-900"
+            }`}
+          >
+            운동 전 컨디션
+            <br />
+            <b>
+              {selectedCondition
+                ? selectedCondition.recommendation === "normal"
+                  ? "정상 강도"
+                  : selectedCondition.recommendation === "70%"
+                    ? "약 70%로 조절"
+                    : "회복 우선"
+                : "미기록"}
+            </b>
+            {conditionSignalLabels.length ? (
+              <p className="mt-1">선택 상태: {conditionSignalLabels.join(" · ")}</p>
+            ) : null}
+            {selectedCondition?.memo ? (
+              <p className="mt-1">메모: {selectedCondition.memo}</p>
+            ) : null}
           </div>
           {hasRosaryCardio && (
             <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">

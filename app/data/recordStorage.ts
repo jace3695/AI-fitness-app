@@ -1,9 +1,11 @@
 import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, LUNCH_CARB_CHOICE_KEY, LUNCH_PROTEIN_CHOICE_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey, normalizeDinnerCarbStore, normalizeLunchCarbStore, normalizeLunchProteinStore, DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './dietPlans';
 import { WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './workoutCompletion';
+import type { DailyConditionRecord } from './recoveryMode';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
 export const DAILY_NOTES_KEY = 'ai-fitness-daily-notes';
+export const DAILY_CONDITION_KEY_FOR_RECORDS = 'ai-fitness-daily-condition';
 
 export type DietDayRecord = Record<string, unknown> & { meals?: Record<string, boolean>; safetyAlert?: boolean; dietStatus?: string; fastingRecordStatus?: string; fastingHours?: number; fastingSuccess?: boolean; dietMemo?: string };
 export type DietCompletedStore = Record<string, DietDayRecord>;
@@ -44,6 +46,7 @@ export interface InbodyRecord {
 }
 export type InbodyRecordStore = Record<string, InbodyRecord>;
 export type DailyNotesStore = Record<string, string>;
+export type DailyConditionStore = Record<string, DailyConditionRecord>;
 export interface RecoveryDayRecord { recoveryMode: boolean; reasons: string[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; recoveryMemo?: string; intensity: 'normal' | '70%' | 'recovery'; updatedAt?: string }
 export type RecoveryModeStore = Record<string, RecoveryDayRecord>;
 export const RECOVERY_MODE_DAYS_KEY_FOR_RECORDS = 'ai-fitness-recovery-mode-days';
@@ -61,6 +64,7 @@ export interface RecordStores {
   inbody: InbodyRecordStore;
   notes: DailyNotesStore;
   recovery: RecoveryModeStore;
+  conditions: DailyConditionStore;
 }
 
 export function readJson<T>(key: string, fallback: T): T {
@@ -89,6 +93,7 @@ export function readRecordStores(): RecordStores {
     inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
     notes: readJson<DailyNotesStore>(DAILY_NOTES_KEY, {}),
     recovery: readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY_FOR_RECORDS, {}),
+    conditions: readJson<DailyConditionStore>(DAILY_CONDITION_KEY_FOR_RECORDS, {}),
   };
 }
 

@@ -5,9 +5,15 @@ import {
   getExerciseProgress,
   getMonthlyWorkoutStats,
   getPainTrend,
+  getRecentConditionSummary,
   getWeeklyActivity,
 } from "../data/recordAnalytics";
+import { CONDITION_SIGNAL_OPTIONS } from "../data/recoveryMode";
 import RecordTrendChart from "./RecordTrendChart";
+
+const CONDITION_LABEL_BY_ID = Object.fromEntries(
+  CONDITION_SIGNAL_OPTIONS.map((item) => [item.id, item.label]),
+);
 
 function formatMinutes(minutes: number) {
   if (minutes < 60) return `${minutes}분`;
@@ -38,6 +44,7 @@ export default function RecordDashboard({
   const body = getBodyTrends(stores.weights, stores.inbody);
   const pain = getPainTrend(stores.workouts);
   const progress = getExerciseProgress(stores.workouts);
+  const condition = getRecentConditionSummary(stores.conditions);
   const currentWeek = weekly.at(-1);
   const previousWeek = weekly.at(-2);
   const weeklyDifference =
@@ -236,6 +243,58 @@ export default function RecordDashboard({
           )}
         </section>
       </div>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[15px] font-bold text-gray-800">
+              최근 7일 운동 전 컨디션
+            </p>
+            <p className="mt-1 text-[11px] text-gray-500">
+              저장한 30초 체크만 집계하며 미기록일은 정상으로 계산하지 않습니다.
+            </p>
+          </div>
+          <p className="text-[12px] font-bold text-[#534AB7]">
+            기록 {condition.recordedDays}/7일
+          </p>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[
+            {
+              label: "정상",
+              value: condition.normalDays,
+              tone: "bg-emerald-50 text-emerald-800",
+            },
+            {
+              label: "70% 조절",
+              value: condition.adjustedDays,
+              tone: "bg-amber-50 text-amber-900",
+            },
+            {
+              label: "회복 우선",
+              value: condition.recoveryDays,
+              tone: "bg-red-50 text-red-800",
+            },
+          ].map((item) => (
+            <div key={item.label} className={`rounded-2xl p-3 ${item.tone}`}>
+              <p className="text-[10px] font-semibold opacity-70">
+                {item.label}
+              </p>
+              <p className="mt-1 text-[18px] font-extrabold">{item.value}일</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[11px] text-gray-600">
+          {condition.topSignals.length
+            ? `자주 기록된 상태: ${condition.topSignals
+                .map(
+                  (item) =>
+                    `${CONDITION_LABEL_BY_ID[item.signal] ?? item.signal} ${item.count}회`,
+                )
+                .join(" · ")}`
+            : "최근 7일에 선택한 불편 증상이 없습니다."}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
         <div>
