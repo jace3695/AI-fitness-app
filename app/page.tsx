@@ -7,6 +7,7 @@ import {
   getDayWorkoutForPlan,
   getWeeklyWorkoutPlanById,
   getWorkoutGroupForPlanDay,
+  LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
   SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
   WEEKLY_WORKOUT_PLANS,
 } from "./data/workoutPlans";
@@ -28,10 +29,12 @@ import {
   DailyConditionRecord,
   readDailyCondition,
   RecoveryDayRecord,
+  RecoveryModeStore,
   saveDailyCondition,
   saveRecoveryRecord,
   RECOVERY_MODE_DAYS_KEY,
 } from "./data/recoveryMode";
+import { readJson, writeJson } from "./data/recordStorage";
 import { getLocalDateKey } from "./data/dietPlans";
 import WeeklyView from "./components/WeeklyView";
 import DayView from "./components/DayView";
@@ -131,10 +134,22 @@ export default function Page() {
       window.localStorage.setItem(WORKOUT_ROUTINE_SELECTION_KEY, "base");
     }
 
-    setSelectedWeeklyWorkoutPlanId(
+    const savedWeeklyPlan =
       window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
-        DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
+      window.localStorage.getItem(LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
+      DEFAULT_WEEKLY_WORKOUT_PLAN_ID;
+    const validWeeklyPlan = WEEKLY_WORKOUT_PLANS.some(
+      (plan) => plan.id === savedWeeklyPlan,
     );
+    const weeklyPlanId = validWeeklyPlan
+      ? savedWeeklyPlan
+      : DEFAULT_WEEKLY_WORKOUT_PLAN_ID;
+    setSelectedWeeklyWorkoutPlanId(weeklyPlanId);
+    window.localStorage.setItem(
+      SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
+      weeklyPlanId,
+    );
+    window.localStorage.removeItem(LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY);
 
     setCompletedStore(readWorkoutCompletionStore());
     setConditionToday(readDailyCondition());
@@ -408,8 +423,7 @@ export default function Page() {
 
   const cancelRecoveryPriority = () => {
     const dateKey = getLocalDateKey();
-    const raw = window.localStorage.getItem(RECOVERY_MODE_DAYS_KEY);
-    const store = raw ? JSON.parse(raw) : {};
+    const store = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
     const current = store[dateKey] || {};
     const nextRecord = {
       ...current,
@@ -420,7 +434,7 @@ export default function Page() {
       updatedAt: new Date().toISOString(),
     };
     const next = { ...store, [dateKey]: nextRecord };
-    window.localStorage.setItem(RECOVERY_MODE_DAYS_KEY, JSON.stringify(next));
+    writeJson(RECOVERY_MODE_DAYS_KEY, next);
     setRecoveryToday(nextRecord);
   };
 

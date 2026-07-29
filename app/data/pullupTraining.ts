@@ -1,3 +1,5 @@
+import { getLocalDateKey } from './dietPlans';
+
 export const PULLUP_PROGRESS_KEY = 'ai-fitness-pullup-progress';
 
 export interface PullupStageCheck {
@@ -48,4 +50,54 @@ export const PULLUP_STAGES: PullupStage[] = [
 export const getPullupVideoUrl = (query: string) => youtubeSearchUrl(query);
 
 const makeDefaultStageCheck = (): PullupStageCheck => ({ todayCompleted: false, targetSetsCompleted: false, painFree: true, promotionReady: false, completedCount: 0, maxSeconds: 0, maxReps: 0 });
-export const createDefaultPullupProgress = (): PullupProgress => ({ currentStage: 1, stageChecks: Object.fromEntries(PULLUP_STAGES.map((stage) => [`stage${stage.id}`, makeDefaultStageCheck()])), updatedAt: new Date().toISOString().slice(0, 10) });
+export const createDefaultPullupProgress = (): PullupProgress => ({ currentStage: 1, stageChecks: Object.fromEntries(PULLUP_STAGES.map((stage) => [`stage${stage.id}`, makeDefaultStageCheck()])), updatedAt: getLocalDateKey() });
+
+export function normalizePullupProgress(saved: unknown): PullupProgress {
+  const defaults = createDefaultPullupProgress();
+  const savedRecord = saved && typeof saved === 'object'
+    ? saved as Partial<PullupProgress>
+    : {};
+  const savedChecks = savedRecord.stageChecks && typeof savedRecord.stageChecks === 'object'
+    ? savedRecord.stageChecks
+    : {};
+  const currentStage = Number(savedRecord.currentStage);
+  const merged: PullupProgress = {
+    ...defaults,
+    currentStage: Number.isInteger(currentStage)
+      ? Math.min(PULLUP_STAGES.length, Math.max(1, currentStage))
+      : defaults.currentStage,
+    updatedAt: typeof savedRecord.updatedAt === 'string'
+      ? savedRecord.updatedAt
+      : defaults.updatedAt,
+    stageChecks: Object.fromEntries(
+      PULLUP_STAGES.map((stage) => {
+        const key = `stage${stage.id}`;
+        const savedCheck = savedChecks[key];
+        return [
+          key,
+          savedCheck && typeof savedCheck === 'object'
+            ? { ...defaults.stageChecks[key], ...savedCheck }
+            : defaults.stageChecks[key],
+        ];
+      }),
+    ),
+  };
+
+  if (merged.updatedAt === defaults.updatedAt) return merged;
+
+  return {
+    ...merged,
+    updatedAt: defaults.updatedAt,
+    stageChecks: Object.fromEntries(
+      Object.entries(merged.stageChecks).map(([key, check]) => [
+        key,
+        {
+          ...check,
+          todayCompleted: false,
+          targetSetsCompleted: false,
+          painFree: true,
+        },
+      ]),
+    ),
+  };
+}
