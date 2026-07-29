@@ -18,7 +18,8 @@ interface DietDayRecord {
 interface TodayDashboardProps {
   workoutDone: boolean;
   workoutPain: boolean;
-  recoveryMode: boolean;
+  recoveryRecommended: boolean;
+  recoveryCompleted: boolean;
   onOpenWorkout: () => void;
   onOpenDiet: () => void;
   onOpenRecord: () => void;
@@ -90,7 +91,8 @@ function statusTone(done: boolean) {
 export default function TodayDashboard({
   workoutDone,
   workoutPain,
-  recoveryMode,
+  recoveryRecommended,
+  recoveryCompleted,
   onOpenWorkout,
   onOpenDiet,
   onOpenRecord,
@@ -117,7 +119,7 @@ export default function TodayDashboard({
   const fastingDone = diet.fastingStatus === "14h";
   const adjustedFasting = diet.fastingStatus === "12h";
   const completedCount = [
-    workoutDone || recoveryMode,
+    workoutDone || recoveryCompleted,
     proteinDone,
     waterDone,
     fastingDone || adjustedFasting,
@@ -127,10 +129,10 @@ export default function TodayDashboard({
   const items = [
     {
       label: "운동",
-      value: recoveryMode ? "회복 우선" : workoutDone ? "완료" : "진행 전",
-      sub: workoutPain ? "통증 기록 확인 필요" : "오늘 계획 기준",
-      done: workoutDone || recoveryMode,
-      onClick: recoveryMode || workoutPain ? onOpenRecord : onOpenWorkout,
+      value: recoveryCompleted ? "회복 완료" : workoutDone ? "완료" : recoveryRecommended ? "조절 필요" : "진행 전",
+      sub: workoutPain ? "통증 기록 확인 필요" : recoveryRecommended ? "상태 체크 결과 반영" : "오늘 계획 기준",
+      done: workoutDone || recoveryCompleted,
+      onClick: workoutPain ? onOpenRecord : onOpenWorkout,
     },
     {
       label: "단백질",
@@ -183,7 +185,7 @@ export default function TodayDashboard({
         />
       </div>
 
-      {(recoveryMode || workoutPain) && (
+      {(recoveryRecommended || workoutPain) && (
         <button
           type="button"
           onClick={onOpenRecord}
@@ -191,7 +193,7 @@ export default function TodayDashboard({
         >
           {workoutPain
             ? "통증 기록이 있습니다. 오늘 기록을 확인하고 운동 강도를 낮추세요."
-            : "오늘은 회복 우선으로 설정되어 있습니다. 12시간 공복 조절과 가벼운 회복을 우선하세요."}
+            : "오늘 상태 체크에 따라 운동 강도 조절 또는 회복이 권장됩니다. 운동 화면에서 권장 강도를 확인하세요."}
         </button>
       )}
 
