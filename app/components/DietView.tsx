@@ -22,6 +22,8 @@ import {
   LUNCH_PROTEIN_CHOICE_KEY,
   PROTEIN_TARGET_GRAMS,
   PROTEIN_TOTAL_KEY,
+  SOCIAL_MEAL_GUIDES,
+  SOCIAL_MEAL_MODE_LABELS,
   SOCIAL_MEAL_MODE_KEY,
   WATER_INTAKE_KEY,
   DietMealLog,
@@ -141,6 +143,25 @@ function getMondayKey(date: Date) {
   return getLocalDateKey(monday);
 }
 
+function getDateKeysInRange(start: string, end: string) {
+  if (!start || !end || end < start) return [];
+  const [startYear, startMonth, startDay] = start.split('-').map(Number);
+  const [endYear, endMonth, endDay] = end.split('-').map(Number);
+  const cursor = new Date(startYear, (startMonth || 1) - 1, startDay || 1);
+  const finalDate = new Date(endYear, (endMonth || 1) - 1, endDay || 1);
+  const dates: string[] = [];
+  while (cursor <= finalDate && dates.length < 31) {
+    dates.push(getLocalDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function formatScheduleDate(dateKey: string) {
+  const [, month, day] = dateKey.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
+}
+
 function getMealCompletion(log: DietMealLog, lunchSupplement: number): MealCompletion {
   return {
     breakfast: log.breakfastShake,
@@ -185,6 +206,8 @@ export default function DietView() {
   const [dinnerTimeStore, setDinnerTimeStore] = useState<StringStore>({});
   const [socialStore, setSocialStore] = useState<Record<string, SocialMealMode>>({});
   const [socialMeal, setSocialMeal] = useState<SocialMealMode>('none');
+  const [travelStart, setTravelStart] = useState(todayKey);
+  const [travelEnd, setTravelEnd] = useState(todayKey);
   const [dietStatus, setDietStatus] = useState<DietStatus>('normal');
   const [fastingStatus, setFastingStatus] = useState<FastingRecordStatus>('unrecorded');
   const [lastMealTime, setLastMealTime] = useState('');
@@ -271,6 +294,13 @@ export default function DietView() {
   ).length;
   const nextMeal12 = addHoursToTime(lastMealTime, 12);
   const nextMeal14 = addHoursToTime(lastMealTime, 14);
+  const scheduleGuide = SOCIAL_MEAL_GUIDES[socialMeal];
+  const awayLunch = socialMeal === 'lunch' || socialMeal === 'all-day' || socialMeal === 'travel';
+  const awayDinner = socialMeal === 'dinner' || socialMeal === 'all-day' || socialMeal === 'travel';
+  const upcomingSchedules = Object.entries(socialStore)
+    .filter(([date, schedule]) => date >= todayKey && schedule !== 'none')
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(0, 14);
 
   const updateLunchCarb = (patch: Partial<LunchCarbRecord>) => {
     const next = normalizeLunchCarbRecord({ ...lunchCarb, ...patch });
@@ -300,6 +330,44 @@ export default function DietView() {
     const value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     setLastMealTime(value);
     setMealLog((current) => ({ ...current, lastMealTime: value }));
+  };
+
+  const selectScheduleMode = (value: SocialMealMode) => {
+    setSocialMeal(value);
+    setDietStatus(value === 'none' ? 'normal' : 'dining');
+    if (value === 'dinner' || value === 'all-day' || value === 'travel') {
+      setMealLog((current) => ({ ...current, afterDinnerShake: 'none' }));
+    }
+    setMessage('');
+  };
+
+  const applyTravelSchedule = () => {
+    const dates = getDateKeysInRange(travelStart, travelEnd);
+    if (!dates.length) {
+      setMessage('여행 종료일을 시작일 이후로 선택해주세요.');
+      return;
+    }
+    const nextSocial = { ...socialStore };
+    dates.forEach((date) => {
+      nextSocial[date] = 'travel';
+    });
+    setSocialStore(nextSocial);
+    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
+    if (dates.includes(todayKey)) selectScheduleMode('travel');
+    setMessage(
+      dates.length === 31 && travelEnd > dates[dates.length - 1]
+        ? '여행 일정은 한 번에 최대 31일까지 등록할 수 있습니다.'
+        : `${formatScheduleDate(dates[0])}~${formatScheduleDate(dates[dates.length - 1])} 여행 일정을 저장했습니다.`,
+    );
+  };
+
+  const removePlannedSchedule = (date: string) => {
+    const nextSocial = { ...socialStore };
+    delete nextSocial[date];
+    setSocialStore(nextSocial);
+    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
+    if (date === todayKey) selectScheduleMode('none');
+    setMessage(`${formatScheduleDate(date)} 예외 일정을 삭제했습니다.`);
   };
 
   const saveDiet = () => {
@@ -458,6 +526,116 @@ export default function DietView() {
         </div>
       </section>
 
+      <section className="rounded-2xl border border-[#D9D6F5] bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-bold text-[#534AB7]">오늘 식사 일정</p>
+            <h3 className="mt-1 text-[17px] font-bold text-gray-900">
+              일정에 맞춰 식단 기준을 바꾸세요
+            </h3>
+            <p className="mt-1 text-[12px] text-gray-500">
+              외식이나 여행은 실패가 아니라 별도의 관리 방식으로 기록됩니다.
+            </p>
+          </div>
+          <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[11px] font-bold text-[#3C3489]">
+            {SOCIAL_MEAL_MODE_LABELS[socialMeal]}
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {(Object.entries(SOCIAL_MEAL_MODE_LABELS) as [SocialMealMode, string][]).map(
+            ([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => selectScheduleMode(id)}
+                className={`${choiceButton(socialMeal === id)} min-h-12`}
+              >
+                {label}
+              </button>
+            ),
+          )}
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-[#F7F6FF] p-4">
+          <p className="text-[13px] font-bold text-[#3C3489]">{scheduleGuide.summary}</p>
+          <ul className="mt-2 space-y-1 text-[12px] leading-relaxed text-gray-600">
+            {scheduleGuide.goals.map((goal) => (
+              <li key={goal}>• {goal}</li>
+            ))}
+          </ul>
+        </div>
+
+        {socialMeal === 'travel' && (
+          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-[13px] font-bold text-blue-900">여행 기간 한 번에 등록</p>
+            <p className="mt-1 text-[11px] text-blue-700">
+              선택한 기간은 기기 간 동기화되며, 각 날짜에 여행 식단 기준이 표시됩니다.
+            </p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <label className="text-[11px] font-bold text-blue-900">
+                시작일
+                <input
+                  type="date"
+                  value={travelStart}
+                  onChange={(event) => setTravelStart(event.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-[13px] text-gray-800"
+                />
+              </label>
+              <label className="text-[11px] font-bold text-blue-900">
+                종료일
+                <input
+                  type="date"
+                  min={travelStart}
+                  value={travelEnd}
+                  onChange={(event) => setTravelEnd(event.target.value)}
+                  className="mt-1 block w-full rounded-xl border border-blue-100 bg-white px-3 py-2 text-[13px] text-gray-800"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={applyTravelSchedule}
+                className="self-end rounded-xl bg-blue-700 px-4 py-2.5 text-[12px] font-bold text-white"
+              >
+                여행 기간 적용
+              </button>
+            </div>
+          </div>
+        )}
+
+        {upcomingSchedules.length > 0 && (
+          <details className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3">
+            <summary className="cursor-pointer text-[12px] font-bold text-gray-700">
+              예정된 외식·여행 {upcomingSchedules.length}일
+            </summary>
+            <div className="mt-3 space-y-2">
+              {upcomingSchedules.map(([date, schedule]) => (
+                <div
+                  key={date}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2"
+                >
+                  <div>
+                    <p className="text-[12px] font-bold text-gray-800">
+                      {formatScheduleDate(date)}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {SOCIAL_MEAL_MODE_LABELS[schedule]}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePlannedSchedule(date)}
+                    className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-600"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr] lg:items-start">
         <div className="space-y-4">
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
@@ -498,7 +676,9 @@ export default function DietView() {
               <article className="rounded-2xl bg-gray-50 p-4">
                 <p className="text-[14px] font-bold text-gray-900">점심</p>
                 <p className="mt-1 text-[11px] text-gray-500">
-                  통곡물밥 100~130g + 실제 식품 단백질 20g 이상
+                  {awayLunch
+                    ? '식당 식사 · 정확한 무게를 몰라도 가장 가까운 양으로 기록'
+                    : '통곡물밥 100~130g + 실제 식품 단백질 20g 이상'}
                 </p>
                 <div className="mt-3">
                   <p className="text-[11px] font-bold text-gray-600">밥량 · 조리 후 무게</p>
@@ -632,7 +812,9 @@ export default function DietView() {
               <article className="rounded-2xl bg-gray-50 p-4">
                 <p className="text-[14px] font-bold text-gray-900">저녁</p>
                 <p className="mt-1 text-[11px] text-gray-500">
-                  단백질 20g 이상 + 채소 · 밥은 기본 제외
+                  {awayDinner
+                    ? '외식·약속 식사 · 단백질과 채소를 먼저, 밥·면은 먹은 만큼 기록'
+                    : '단백질 20g 이상 + 채소 · 밥은 기본 제외'}
                 </p>
                 <label className="mt-3 block text-[11px] font-bold text-gray-600" htmlFor="dinner-food-protein">
                   식품 단백질
@@ -833,25 +1015,12 @@ export default function DietView() {
                 </button>
               ))}
             </div>
-            <label className="mt-4 block text-[11px] font-bold text-gray-600" htmlFor="social-meal">
-              회식·외식
-            </label>
-            <select
-              id="social-meal"
-              value={socialMeal}
-              onChange={(event) => {
-                const value = event.target.value as SocialMealMode;
-                setSocialMeal(value);
-                if (value === 'dinner') {
-                  setMealLog((current) => ({ ...current, afterDinnerShake: 'none' }));
-                }
-              }}
-              className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
-            >
-              <option value="none">없음</option>
-              <option value="lunch">점심 회식·외식</option>
-              <option value="dinner">저녁 회식·외식</option>
-            </select>
+            <div className="mt-4 rounded-xl bg-[#F7F6FF] px-3 py-2">
+              <p className="text-[10px] font-bold text-[#534AB7]">적용 중인 식사 일정</p>
+              <p className="mt-1 text-[13px] font-bold text-[#3C3489]">
+                {SOCIAL_MEAL_MODE_LABELS[socialMeal]}
+              </p>
+            </div>
             <label className="mt-4 block text-[11px] font-bold text-gray-600" htmlFor="diet-memo">
               메모
             </label>
