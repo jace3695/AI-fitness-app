@@ -33,6 +33,7 @@ import {
   DinnerCarbRecord,
   FastingRecordStatus,
   LunchCarbRecord,
+  LunchProteinAssessment,
   LunchProteinRecord,
   ProteinChoice,
   ProteinGramChoice,
@@ -86,6 +87,36 @@ const SHAKE_OPTIONS: { value: ProteinChoice; label: string }[] = [
   { value: 'none', label: '없음' },
   { value: 'half', label: '0.5회 · 16g' },
   { value: 'full', label: '1회 · 31g' },
+];
+
+const OUTSIDE_LUNCH_PROTEIN_OPTIONS: {
+  value: Exclude<LunchProteinAssessment, 'unrecorded'>;
+  label: string;
+  description: string;
+  supplement: ProteinChoice;
+  supplementLabel: string;
+}[] = [
+  {
+    value: 'sufficient',
+    label: '충분함',
+    description: '고기·생선·닭·두부 같은 메인 단백질을 충분히 먹음',
+    supplement: 'none',
+    supplementLabel: '추가 프로틴 없음',
+  },
+  {
+    value: 'uncertain',
+    label: '잘 모르겠음',
+    description: '찌개·국밥·비빔밥처럼 단백질 양이 애매함',
+    supplement: 'half',
+    supplementLabel: '프로틴 0.5회',
+  },
+  {
+    value: 'low',
+    label: '거의 없음',
+    description: '국수·냉면·떡볶이처럼 단백질 음식이 거의 없음',
+    supplement: 'full',
+    supplementLabel: '프로틴 1회',
+  },
 ];
 
 const EMPTY_LUNCH_CARB: LunchCarbRecord = {
@@ -320,10 +351,32 @@ export default function DietView() {
   const updateLunchProtein = (type: LunchProteinRecord['type'], custom?: number) => {
     setLunchProtein(
       normalizeLunchProteinRecord({
+        ...lunchProtein,
         type,
         customProtein: custom ?? lunchProtein.customProtein,
       }),
     );
+  };
+
+  const selectOutsideLunchProtein = (
+    assessment: Exclude<LunchProteinAssessment, 'unrecorded'>,
+  ) => {
+    const option = OUTSIDE_LUNCH_PROTEIN_OPTIONS.find(
+      (candidate) => candidate.value === assessment,
+    );
+    if (!option) return;
+    setLunchProtein(
+      normalizeLunchProteinRecord({
+        type: option.supplement,
+        assessment,
+        customProtein: 0,
+      }),
+    );
+    setMealLog((current) => ({
+      ...current,
+      lunchProteinChoice: assessment === 'sufficient' ? '25' : 'none',
+      lunchProteinCustom: 0,
+    }));
   };
 
   const recordCurrentTime = () => {
@@ -714,64 +767,109 @@ export default function DietView() {
                   )}
                 </div>
                 <div className="mt-3">
-                  <label className="text-[11px] font-bold text-gray-600" htmlFor="lunch-food-protein">
-                    식품 단백질
-                  </label>
-                  <select
-                    id="lunch-food-protein"
-                    value={mealLog.lunchProteinChoice}
-                    onChange={(event) =>
-                      setMealLog((current) => ({
-                        ...current,
-                        lunchProteinChoice: event.target.value as ProteinGramChoice,
-                      }))
-                    }
-                    className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px]"
-                  >
-                    {FOOD_PROTEIN_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {mealLog.lunchProteinChoice === 'custom' && (
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={mealLog.lunchProteinCustom || ''}
-                      onChange={(event) =>
-                        setMealLog((current) => ({
-                          ...current,
-                          lunchProteinCustom: Math.max(0, Number(event.target.value) || 0),
-                        }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px]"
-                      placeholder="단백질 g"
-                      aria-label="점심 식품 단백질 직접 입력"
-                    />
-                  )}
-                </div>
-                <div className="mt-3">
-                  <p className="text-[11px] font-bold text-gray-600">부족할 때 프로틴 보충</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      ['none', '없음'],
-                      ['half', '0.5회 · 16g'],
-                      ['full', '1회 · 31g'],
-                      ['custom', '직접 입력'],
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => updateLunchProtein(value as LunchProteinRecord['type'])}
-                        className={choiceButton(lunchProtein.type === value)}
+                  {awayLunch ? (
+                    <>
+                      <p className="text-[11px] font-bold text-gray-600">
+                        점심 단백질은 어땠나요?
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-gray-500">
+                        정확한 양을 계산하지 말고 가장 가까운 항목만 선택하세요.
+                      </p>
+                      <div className="mt-2 grid gap-2">
+                        {OUTSIDE_LUNCH_PROTEIN_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => selectOutsideLunchProtein(option.value)}
+                            className={`rounded-xl border px-3 py-3 text-left transition ${
+                              lunchProtein.assessment === option.value
+                                ? 'border-[#AFA9EC] bg-[#EEEDFE]'
+                                : 'border-gray-200 bg-white'
+                            }`}
+                          >
+                            <span className="block text-[13px] font-bold text-gray-900">
+                              {option.label}
+                              <span className="ml-2 text-[#5B52B6]">
+                                → {option.supplementLabel}
+                              </span>
+                            </span>
+                            <span className="mt-1 block text-[11px] leading-5 text-gray-500">
+                              {option.description}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      {lunchProtein.assessment !== 'unrecorded' && (
+                        <p className="mt-2 rounded-xl bg-[#F7F6FF] px-3 py-2 text-[12px] font-bold text-[#5148A5]">
+                          {
+                            OUTSIDE_LUNCH_PROTEIN_OPTIONS.find(
+                              (option) => option.value === lunchProtein.assessment,
+                            )?.supplementLabel
+                          }
+                          {lunchProtein.type !== 'none' && ' · 배가 부르면 2~3시간 뒤 섭취'}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-[11px] font-bold text-gray-600" htmlFor="lunch-food-protein">
+                        식품 단백질
+                      </label>
+                      <select
+                        id="lunch-food-protein"
+                        value={mealLog.lunchProteinChoice}
+                        onChange={(event) =>
+                          setMealLog((current) => ({
+                            ...current,
+                            lunchProteinChoice: event.target.value as ProteinGramChoice,
+                          }))
+                        }
+                        className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px]"
                       >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {lunchProtein.type === 'custom' && (
+                        {FOOD_PROTEIN_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      {mealLog.lunchProteinChoice === 'custom' && (
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={mealLog.lunchProteinCustom || ''}
+                          onChange={(event) =>
+                            setMealLog((current) => ({
+                              ...current,
+                              lunchProteinCustom: Math.max(0, Number(event.target.value) || 0),
+                            }))
+                          }
+                          className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px]"
+                          placeholder="단백질 g"
+                          aria-label="점심 식품 단백질 직접 입력"
+                        />
+                      )}
+                      <p className="mt-3 text-[11px] font-bold text-gray-600">부족할 때 프로틴 보충</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[
+                          ['none', '없음'],
+                          ['half', '0.5회 · 16g'],
+                          ['full', '1회 · 31g'],
+                          ['custom', '직접 입력'],
+                        ].map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => updateLunchProtein(value as LunchProteinRecord['type'])}
+                            className={choiceButton(lunchProtein.type === value)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {!awayLunch && lunchProtein.type === 'custom' && (
                     <input
                       type="number"
                       inputMode="numeric"
