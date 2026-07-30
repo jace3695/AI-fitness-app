@@ -7,7 +7,8 @@ export type LunchCarbChoice = DinnerCarbChoice;
 export type DinnerRiceType = '흰쌀밥' | '잡곡밥' | '현미밥' | '통곡물밥' | '곤약밥' | '기타';
 export interface DinnerCarbRecord { riceType: DinnerRiceType; amountType: DinnerCarbChoice; grams: number; customRiceType: string; estimatedCarbs: number }
 export type LunchCarbRecord = DinnerCarbRecord;
-export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: number; customProtein: number }
+export type LunchProteinAssessment = 'unrecorded' | 'sufficient' | 'uncertain' | 'low';
+export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: number; customProtein: number; assessment: LunchProteinAssessment }
 export type SocialMealMode = 'none' | 'lunch' | 'dinner' | 'all-day' | 'travel';
 export type FastingMode = 'none';
 
@@ -33,8 +34,8 @@ export const SOCIAL_MEAL_GUIDES: Record<
     goals: ['점심은 밥 100~130g과 식품 단백질 20g 이상', '저녁은 단백질과 채소 중심', '14시간 공복 주 5일 이상'],
   },
   lunch: {
-    summary: '식당 메뉴를 먹어도 괜찮습니다. 정확한 중량보다 구성을 먼저 봅니다.',
-    goals: ['단백질 반찬을 먼저 고르기', '밥·면은 평소 양에 가깝게 조절', '아침과 저녁은 평소 리듬으로 복귀'],
+    summary: '식당 메뉴의 단백질을 계산하지 않아도 됩니다. 식사 구성을 고르면 필요한 프로틴이 자동으로 정해집니다.',
+    goals: ['단백질이 충분하면 추가 없음', '잘 모르겠으면 프로틴 0.5회', '거의 없으면 프로틴 1회'],
   },
   dinner: {
     summary: '약속 전 식사를 거르지 않고, 저녁 한 끼를 편안하게 관리합니다.',
@@ -139,7 +140,7 @@ export const DINNER_CARB_OPTIONS: { id: DinnerCarbChoice; label: string; grams: 
 ];
 export const DEFAULT_DINNER_CARB_RECORD: DinnerCarbRecord = { riceType: '잡곡밥', amountType: 'none', grams: 0, customRiceType: '', estimatedCarbs: 0 };
 export const DEFAULT_LUNCH_CARB_RECORD: LunchCarbRecord = { riceType: '통곡물밥', amountType: '100', grams: 100, customRiceType: '', estimatedCarbs: 30 };
-export const DEFAULT_LUNCH_PROTEIN_RECORD: LunchProteinRecord = { type: 'none', protein: 0, customProtein: 0 };
+export const DEFAULT_LUNCH_PROTEIN_RECORD: LunchProteinRecord = { type: 'none', protein: 0, customProtein: 0, assessment: 'unrecorded' };
 export function estimateDinnerRiceCarbs(grams: number) { return Math.max(0, Math.round((Number(grams) || 0) * 0.3)); }
 export function getDinnerCarbOption(choice: DinnerCarbChoice) { return DINNER_CARB_OPTIONS.find((option) => option.id === choice) || DINNER_CARB_OPTIONS[0]; }
 function isDinnerCarbChoice(value: unknown): value is DinnerCarbChoice { return DINNER_CARB_OPTIONS.some((option) => option.id === value); }
@@ -176,9 +177,15 @@ export function normalizeLunchProteinRecord(value: unknown): LunchProteinRecord 
   if (value && typeof value === 'object') {
     const record = value as Partial<LunchProteinRecord>;
     const type = record.type === 'half' || record.type === 'full' || record.type === 'custom' || record.type === 'none' ? record.type : 'none';
+    const assessment =
+      record.assessment === 'sufficient' ||
+      record.assessment === 'uncertain' ||
+      record.assessment === 'low'
+        ? record.assessment
+        : 'unrecorded';
     const customProtein = Math.max(0, Math.floor(Number(record.customProtein ?? record.protein) || 0));
     const protein = type === 'custom' ? customProtein : proteinChoiceGrams(type);
-    return { type, protein, customProtein };
+    return { type, protein, customProtein, assessment };
   }
   if (typeof value === 'number') return normalizeLunchProteinRecord({ type: 'custom', protein: value, customProtein: value });
   if (typeof value === 'string') return normalizeLunchProteinRecord({ type: value });
