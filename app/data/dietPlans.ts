@@ -8,7 +8,7 @@ export type DinnerRiceType = '흰쌀밥' | '잡곡밥' | '현미밥' | '통곡�
 export interface DinnerCarbRecord { riceType: DinnerRiceType; amountType: DinnerCarbChoice; grams: number; customRiceType: string; estimatedCarbs: number }
 export type LunchCarbRecord = DinnerCarbRecord;
 export interface LunchProteinRecord { type: ProteinChoice | 'custom'; protein: number; customProtein: number }
-export type SocialMealMode = 'none' | 'lunch' | 'dinner';
+export type SocialMealMode = 'none' | 'lunch' | 'dinner' | 'all-day' | 'travel';
 export type FastingMode = 'none';
 
 export type DietStatus = 'good' | 'normal' | 'shaky' | 'dining' | 'recovery';
@@ -16,6 +16,39 @@ export type FastingRecordStatus = 'unrecorded' | '14h' | '12h' | 'missed';
 export interface SimpleDietRecommendation { id: string; title: string; items: string[] }
 export const DIET_STATUS_LABELS: Record<DietStatus, string> = { good: '좋음', normal: '보통', shaky: '흔들림', dining: '회식/외식', recovery: '컨디션 조절' };
 export const FASTING_STATUS_LABELS: Record<FastingRecordStatus, string> = { unrecorded: '미기록', '14h': '14시간 달성', '12h': '12시간 조절', missed: '미달성' };
+export const SOCIAL_MEAL_MODE_LABELS: Record<SocialMealMode, string> = {
+  none: '평소 식단',
+  lunch: '점심 외식',
+  dinner: '저녁 약속·회식',
+  'all-day': '종일 외식',
+  travel: '여행',
+};
+
+export const SOCIAL_MEAL_GUIDES: Record<
+  SocialMealMode,
+  { summary: string; goals: string[] }
+> = {
+  none: {
+    summary: '평소 식사 리듬과 하루 단백질·수분 목표를 관리합니다.',
+    goals: ['점심은 밥 100~130g과 식품 단백질 20g 이상', '저녁은 단백질과 채소 중심', '14시간 공복 주 5일 이상'],
+  },
+  lunch: {
+    summary: '식당 메뉴를 먹어도 괜찮습니다. 정확한 중량보다 구성을 먼저 봅니다.',
+    goals: ['단백질 반찬을 먼저 고르기', '밥·면은 평소 양에 가깝게 조절', '아침과 저녁은 평소 리듬으로 복귀'],
+  },
+  dinner: {
+    summary: '약속 전 식사를 거르지 않고, 저녁 한 끼를 편안하게 관리합니다.',
+    goals: ['아침·점심을 굶어서 보상하지 않기', '단백질·채소부터 먹고 밥·면은 하나만 선택', '늦은 저녁이나 음주 후 추가 프로틴 생략'],
+  },
+  'all-day': {
+    summary: '하루 종일 밖에 있어도 세 가지 기준만 지키면 관리한 날입니다.',
+    goals: ['두 끼 이상 단백질 음식 포함', '가능한 식사에 채소나 과일 추가', '물을 자주 마시고 과식 후 굶지 않기'],
+  },
+  travel: {
+    summary: '여행은 감량보다 유지와 복귀가 목표입니다. 매 끼니를 완벽하게 맞출 필요는 없습니다.',
+    goals: ['하루 두 끼 이상 단백질 음식 포함', '물 1.5~2L를 나누어 마시기', '즐기는 식사는 허용하고 다음 식사부터 평소대로 복귀'],
+  },
+};
 export const simpleDietRecommendations: SimpleDietRecommendation[] = [
   { id: 'breakfast', title: '아침 추천', items: ['퓨어프로틴7 1회', '물 1컵', '속이 불편하면 양을 줄이거나 천천히 섭취'] },
   { id: 'lunch', title: '점심 추천', items: ['통곡물밥 100~130g', '닭가슴살 / 생선 / 계란 / 두부 / 살코기 중 1개', '채소 반찬 1~2가지'] },
