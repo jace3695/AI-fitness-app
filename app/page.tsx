@@ -50,6 +50,7 @@ import ConditionCheckCard from "./components/ConditionCheckCard";
 import AuthGate from "./components/AuthGate";
 import WorkoutPlanEditor from "./components/WorkoutPlanEditor";
 import {
+  applyDayRoutineEdit,
   applyExerciseTargets,
   EMPTY_USER_WORKOUT_SETTINGS,
   readUserWorkoutSettings,
@@ -475,6 +476,8 @@ function FitnessApp() {
     days: WORKOUT_DAY_IDS.reduce((days, dayId) => {
       const customGroupId = userWorkoutSettings.weeklyGroups[dayId];
       if (customGroupId) days[dayIdToPlanKey[dayId]] = customGroupId;
+      const dateGroupId = userWorkoutSettings.dateOverrides[getDateForWorkoutDay(dayId)]?.groupId;
+      if (dateGroupId) days[dayIdToPlanKey[dayId]] = dateGroupId;
       return days;
     }, { ...selectedBaseWeeklyWorkoutPlan.days }),
   };
@@ -507,10 +510,22 @@ function FitnessApp() {
     ? getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
     : undefined;
   const dayWorkout = baseDayWorkout
-    ? applyExerciseTargets(baseDayWorkout, userWorkoutSettings.exerciseTargets)
+    ? applyExerciseTargets(
+        applyDayRoutineEdit(
+          baseDayWorkout,
+          userWorkoutSettings.dateOverrides[getDateForWorkoutDay(activeTab as WorkoutDayId)]?.edit || userWorkoutSettings.weeklyEdits[activeTab as WorkoutDayId],
+        ),
+        userWorkoutSettings.exerciseTargets,
+      )
     : undefined;
   const todayWorkout = todayWorkoutDay
-    ? applyExerciseTargets(getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay), userWorkoutSettings.exerciseTargets)
+    ? applyExerciseTargets(
+        applyDayRoutineEdit(
+          getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay),
+          userWorkoutSettings.dateOverrides[todayKey]?.edit || userWorkoutSettings.weeklyEdits[todayWorkoutDay],
+        ),
+        userWorkoutSettings.exerciseTargets,
+      )
     : undefined;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
   const weeklyCompletedCount = requiredWorkoutDays.filter(

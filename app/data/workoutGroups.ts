@@ -84,6 +84,7 @@ const toExercise = (exercise: WorkoutGroupExercise): Exercise => {
   const plannedSetCount = exercise.sets?.match(/(\d+)\s*세트/);
 
   return {
+    exerciseId: exercise.exerciseId,
     name: exercise.name || guide.name || exercise.exerciseId,
     meta: exercise.sets || exercise.duration,
     sets: exercise.sets ? (plannedSetCount ? Number(plannedSetCount[1]) : 1) : 0,

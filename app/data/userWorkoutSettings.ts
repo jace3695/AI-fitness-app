@@ -9,18 +9,44 @@ export interface ExerciseTarget {
   durationMinutes?: number;
 }
 
+export interface CustomExercise {
+  id: string;
+  name: string;
+  sets?: number;
+  reps?: number;
+  durationMinutes?: number;
+}
+
+export interface DayRoutineEdit {
+  order?: string[];
+  removed?: string[];
+  customExercises?: CustomExercise[];
+}
+
+export interface DateWorkoutOverride {
+  groupId?: string;
+  edit?: DayRoutineEdit;
+}
+
 export interface UserWorkoutSettings {
   weeklyGroups: Partial<Record<WorkoutDayId, string>>;
   exerciseTargets: Record<string, ExerciseTarget>;
+  weeklyEdits: Partial<Record<WorkoutDayId, DayRoutineEdit>>;
+  dateOverrides: Record<string, DateWorkoutOverride>;
 }
 
-export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {} };
+export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, dateOverrides: {} };
 
 export function readUserWorkoutSettings(): UserWorkoutSettings {
   if (typeof window === "undefined") return EMPTY_USER_WORKOUT_SETTINGS;
   try {
     const saved = JSON.parse(window.localStorage.getItem(USER_WORKOUT_SETTINGS_KEY) || "{}");
-    return { weeklyGroups: saved.weeklyGroups || {}, exerciseTargets: saved.exerciseTargets || {} };
+    return {
+      weeklyGroups: saved.weeklyGroups || {},
+      exerciseTargets: saved.exerciseTargets || {},
+      weeklyEdits: saved.weeklyEdits || {},
+      dateOverrides: saved.dateOverrides || {},
+    };
   } catch {
     return EMPTY_USER_WORKOUT_SETTINGS;
   }
@@ -45,6 +71,38 @@ export function applyExerciseTargets(day: DayWorkout, targets: Record<string, Ex
       warmup: day.optionalCardio.warmup.map((exercise) => applyTarget(exercise, targets[exercise.name])),
       options: day.optionalCardio.options.map((option) => ({ ...option, exercises: option.exercises.map((exercise) => applyTarget(exercise, targets[exercise.name])) })),
       cooldown: day.optionalCardio.cooldown.map((exercise) => applyTarget(exercise, targets[exercise.name])),
+    } : undefined,
+  };
+}
+
+function editExercises(exercises: Exercise[], edit?: DayRoutineEdit): Exercise[] {
+  if (!edit) return exercises;
+  const removed = new Set(edit.removed || []);
+  const existing = exercises.filter((exercise) => !removed.has(exercise.exerciseId || exercise.name));
+  const custom: Exercise[] = (edit.customExercises || []).map((exercise) => ({
+    exerciseId: exercise.id,
+    name: exercise.name,
+    sets: exercise.sets ?? (exercise.reps ? 1 : 0),
+    meta: exercise.durationMinutes ? `${exercise.durationMinutes}분` : [exercise.reps ? `${exercise.reps}회` : "", exercise.sets ? `${exercise.sets}세트` : ""].filter(Boolean).join(" × "),
+    restSeconds: exercise.sets ? 30 : 0,
+    details: [{ type: "purple", text: "사용자가 직접 추가한 운동입니다. 통증 없는 범위에서 진행하세요." }],
+  }));
+  const combined = [...existing, ...custom];
+  if (!edit.order?.length) return combined;
+  const rank = new Map(edit.order.map((id, index) => [id, index]));
+  return combined.sort((a, b) => (rank.get(a.exerciseId || a.name) ?? 999) - (rank.get(b.exerciseId || b.name) ?? 999));
+}
+
+export function applyDayRoutineEdit(day: DayWorkout, edit?: DayRoutineEdit): DayWorkout {
+  if (!edit) return day;
+  return {
+    ...day,
+    phases: day.phases.map((phase) => ({ ...phase, exercises: editExercises(phase.exercises, edit) })),
+    optionalCardio: day.optionalCardio ? {
+      ...day.optionalCardio,
+      warmup: editExercises(day.optionalCardio.warmup, edit),
+      options: day.optionalCardio.options.map((option) => ({ ...option, exercises: editExercises(option.exercises, edit) })),
+      cooldown: editExercises(day.optionalCardio.cooldown, edit),
     } : undefined,
   };
 }
