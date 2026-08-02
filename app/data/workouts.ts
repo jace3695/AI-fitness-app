@@ -49,6 +49,7 @@ export interface ExerciseGuide {
   videoSearchQuery?: string;
 }
 export interface Exercise {
+  exerciseId?: string;
   name: string;
   meta?: string;
   badge?: { label: string; variant: BadgeVariant };
