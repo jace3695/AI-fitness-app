@@ -672,7 +672,9 @@ function FitnessApp() {
               completedDays={completedDays}
               painDays={painDays}
               todayDayId={todayWorkoutDay}
-              plans={WEEKLY_WORKOUT_PLANS}
+              plans={WEEKLY_WORKOUT_PLANS.map((plan) =>
+                plan.id === selectedWeeklyWorkoutPlan.id ? selectedWeeklyWorkoutPlan : plan,
+              )}
               selectedPlanId={selectedWeeklyWorkoutPlan.id}
               onPlanChange={handleWeeklyWorkoutPlanChange}
             />
@@ -813,6 +815,7 @@ function FitnessApp() {
             />
             <WorkoutPlanEditor
               settings={userWorkoutSettings}
+              records={completedStore}
               defaultGroups={WORKOUT_DAY_IDS.reduce((result, dayId) => {
                 result[dayId] = selectedBaseWeeklyWorkoutPlan.days[dayIdToPlanKey[dayId]];
                 return result;
