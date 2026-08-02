@@ -34,6 +34,15 @@ export function readLocalCloudState(): CloudState {
   );
 }
 
+export function clearLocalCloudState() {
+  if (typeof window === "undefined") return;
+  const keys = Array.from(
+    { length: window.localStorage.length },
+    (_, index) => window.localStorage.key(index),
+  ).filter((key): key is string => Boolean(key) && key!.startsWith(SYNCED_STORAGE_PREFIX));
+  keys.forEach((key) => window.localStorage.removeItem(key));
+}
+
 export function mergeCloudState(remote: CloudState, local: CloudState) {
   const merged: CloudState = { ...remote };
   Object.entries(local).forEach(([key, localValue]) => {

@@ -7,6 +7,7 @@ import {
   getDayWorkoutForPlan,
   getWeeklyWorkoutPlanById,
   getWorkoutGroupForPlanDay,
+  dayIdToPlanKey,
   LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
   SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
   WEEKLY_WORKOUT_PLANS,
@@ -46,6 +47,15 @@ import PullupTrainingView from "./components/PullupTrainingView";
 import CloudSyncPanel from "./components/CloudSyncPanel";
 import TodayDashboard from "./components/TodayDashboard";
 import ConditionCheckCard from "./components/ConditionCheckCard";
+import AuthGate from "./components/AuthGate";
+import WorkoutPlanEditor from "./components/WorkoutPlanEditor";
+import {
+  applyExerciseTargets,
+  EMPTY_USER_WORKOUT_SETTINGS,
+  readUserWorkoutSettings,
+  saveUserWorkoutSettings,
+  UserWorkoutSettings,
+} from "./data/userWorkoutSettings";
 
 type TabId =
   | "ov"
@@ -104,7 +114,7 @@ const PRIMARY_NAV: {
   { id: "more", label: "더보기", emoji: "•••" },
 ];
 
-export default function Page() {
+function FitnessApp() {
   const [activeTab, setActiveTab] = useState<TabId>("ov");
   const [routineSelection, setRoutineSelection] =
     useState<RoutineSelection>("base");
@@ -119,6 +129,7 @@ export default function Page() {
   );
   const [conditionToday, setConditionToday] = useState<DailyConditionRecord>();
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
+  const [userWorkoutSettings, setUserWorkoutSettings] = useState<UserWorkoutSettings>(EMPTY_USER_WORKOUT_SETTINGS);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -152,6 +163,7 @@ export default function Page() {
     window.localStorage.removeItem(LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY);
 
     setCompletedStore(readWorkoutCompletionStore());
+    setUserWorkoutSettings(readUserWorkoutSettings());
     setConditionToday(readDailyCondition());
     setRecoveryToday(
       assessRecoveryMode(
@@ -174,6 +186,11 @@ export default function Page() {
     window.localStorage.setItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY, planId);
   };
 
+  const handleUserWorkoutSettingsChange = (settings: UserWorkoutSettings) => {
+    setUserWorkoutSettings(settings);
+    saveUserWorkoutSettings(settings);
+  };
+
   const handleConditionSave = (signals: ConditionSignalId[], memo: string) => {
     const dateKey = getLocalDateKey();
     setConditionToday(saveDailyCondition(dateKey, signals, memo));
@@ -187,7 +204,7 @@ export default function Page() {
     setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
   };
 
-  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[]) => {
+  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], selectedCardioMinutes?: number) => {
     const dateKey = getLocalDateKey();
     if (
       recoveryToday?.recoveryMode &&
@@ -233,7 +250,7 @@ export default function Page() {
           postWorkoutCardioMinutes: hasPostWorkoutCardio ? 5 : undefined,
           cardioDone: selectedOptionalCardio ? selectedOptionalCardio.id !== 'rest' : current.cardioDone,
           cardioType: selectedOptionalCardio?.id === 'rest' ? undefined : selectedOptionalCardio?.name || current.cardioType,
-          cardioMinutes: selectedOptionalCardio?.id === 'rest' ? undefined : selectedOptionalCardio ? (selectedOptionalCardio.duration.includes('15') ? 20 : selectedOptionalCardio.duration.includes('30') ? 30 : current.cardioMinutes) : current.cardioMinutes,
+          cardioMinutes: selectedOptionalCardio?.id === 'rest' ? undefined : selectedOptionalCardio ? (selectedCardioMinutes || current.cardioMinutes) : current.cardioMinutes,
         },
       };
       window.localStorage.setItem(
@@ -450,9 +467,17 @@ export default function Page() {
     "금요일",
     "토요일",
   ][new Date().getDay()];
-  const selectedWeeklyWorkoutPlan = getWeeklyWorkoutPlanById(
+  const selectedBaseWeeklyWorkoutPlan = getWeeklyWorkoutPlanById(
     selectedWeeklyWorkoutPlanId,
   );
+  const selectedWeeklyWorkoutPlan = {
+    ...selectedBaseWeeklyWorkoutPlan,
+    days: WORKOUT_DAY_IDS.reduce((days, dayId) => {
+      const customGroupId = userWorkoutSettings.weeklyGroups[dayId];
+      if (customGroupId) days[dayIdToPlanKey[dayId]] = customGroupId;
+      return days;
+    }, { ...selectedBaseWeeklyWorkoutPlan.days }),
+  };
   const requiredWorkoutDays = WORKOUT_DAY_IDS.filter((dayId) => {
     const group = getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, dayId);
     return group.category !== "rest" && group.type !== "choice";
@@ -481,9 +506,11 @@ export default function Page() {
   const selectedWorkoutGroup = baseDayWorkout
     ? getWorkoutGroupForPlanDay(selectedWeeklyWorkoutPlan, activeTab as WorkoutDayId)
     : undefined;
-  const dayWorkout = baseDayWorkout;
+  const dayWorkout = baseDayWorkout
+    ? applyExerciseTargets(baseDayWorkout, userWorkoutSettings.exerciseTargets)
+    : undefined;
   const todayWorkout = todayWorkoutDay
-    ? getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay)
+    ? applyExerciseTargets(getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay), userWorkoutSettings.exerciseTargets)
     : undefined;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
   const weeklyCompletedCount = requiredWorkoutDays.filter(
@@ -645,7 +672,9 @@ export default function Page() {
               completedDays={completedDays}
               painDays={painDays}
               todayDayId={todayWorkoutDay}
-              plans={WEEKLY_WORKOUT_PLANS}
+              plans={WEEKLY_WORKOUT_PLANS.map((plan) =>
+                plan.id === selectedWeeklyWorkoutPlan.id ? selectedWeeklyWorkoutPlan : plan,
+              )}
               selectedPlanId={selectedWeeklyWorkoutPlan.id}
               onPlanChange={handleWeeklyWorkoutPlanChange}
             />
@@ -685,8 +714,8 @@ export default function Page() {
                   getWorkoutRecord(completedStore[todayKey]).workoutDone ??
                   false
                 }
-                onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords) =>
-                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId, exerciseRecords)
+                onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords, cardioMinutes) =>
+                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId, exerciseRecords, cardioMinutes)
                 }
                 onCancelWorkout={() =>
                   cancelDayWorkout(activeTab as WorkoutDayId)
@@ -784,6 +813,15 @@ export default function Page() {
               selection={routineSelection}
               onSelectionChange={handleRoutineSelectionChange}
             />
+            <WorkoutPlanEditor
+              settings={userWorkoutSettings}
+              records={completedStore}
+              defaultGroups={WORKOUT_DAY_IDS.reduce((result, dayId) => {
+                result[dayId] = selectedBaseWeeklyWorkoutPlan.days[dayIdToPlanKey[dayId]];
+                return result;
+              }, {} as Record<WorkoutDayId, string>)}
+              onChange={handleUserWorkoutSettingsChange}
+            />
             <CloudSyncPanel />
           </div>
         )}
@@ -825,4 +863,8 @@ export default function Page() {
       <div className="h-20 md:h-4" />
     </div>
   );
+}
+
+export default function Page() {
+  return <AuthGate><FitnessApp /></AuthGate>;
 }
