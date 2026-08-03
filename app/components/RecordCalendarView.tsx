@@ -353,10 +353,14 @@ export default function RecordCalendarView() {
               </p>
             )}
             <b>
-              {isWorkoutDone(selectedWorkout)
+              {isWorkoutDone(selectedWorkout) || selectedWorkoutRecord?.workoutStatus
                 ? workoutExerciseNames.length
                   ? workoutExerciseNames.join(" · ")
-                  : "운동 이름 기록 없음"
+                  : selectedWorkoutRecord?.workoutStatus === "partial"
+                    ? "일부 완료 기록"
+                    : selectedWorkoutRecord?.workoutStatus === "stopped"
+                      ? "중단 기록"
+                      : "운동 이름 기록 없음"
                 : "미기록"}
             </b>
             {isWorkoutDone(selectedWorkout) &&
@@ -371,6 +375,13 @@ export default function RecordCalendarView() {
                   메모: {selectedWorkoutRecord.workoutMemo}
                 </p>
               )}
+            {selectedWorkoutRecord?.workoutStatus && (
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold">
+                <span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[#3C3489]">{selectedWorkoutRecord.workoutStatus === "partial" ? "일부 완료" : selectedWorkoutRecord.workoutStatus === "stopped" ? "중단" : "완료"}</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{selectedWorkoutRecord.workoutDifficulty === "easy" ? "쉬움" : selectedWorkoutRecord.workoutDifficulty === "hard" ? "힘듦" : "적당함"}</span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">피로도 {selectedWorkoutRecord.workoutFatigue ?? 2}/5</span>
+              </div>
+            )}
           </div>
           {workoutExerciseRecords.length ? (
             <div className="rounded-xl bg-[#F7F6FF] p-3 sm:col-span-2">
