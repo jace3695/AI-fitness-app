@@ -277,11 +277,27 @@ function getMetric(record: ExerciseRecord) {
   );
   if (Number.isFinite(maxDuration))
     return { label: "최장 시간", unit: "초", value: maxDuration };
+  const maxLeftRightReps = Math.max(
+    ...completedSets.map((set) =>
+      Math.min(
+        set.leftReps ?? Number.NEGATIVE_INFINITY,
+        set.rightReps ?? Number.NEGATIVE_INFINITY,
+      ),
+    ),
+  );
+  if (Number.isFinite(maxLeftRightReps))
+    return { label: "좌우 완료 횟수", unit: "회", value: maxLeftRightReps };
   const maxReps = Math.max(
     ...completedSets.map((set) => set.reps ?? Number.NEGATIVE_INFINITY),
   );
   if (Number.isFinite(maxReps))
     return { label: "최대 횟수", unit: "회", value: maxReps };
+  if (record.distanceKm !== undefined)
+    return { label: "이동 거리", unit: "km", value: record.distanceKm };
+  if (record.stepCount !== undefined)
+    return { label: "걸음 수", unit: "걸음", value: record.stepCount };
+  if (record.intervalRounds !== undefined)
+    return { label: "인터벌 반복", unit: "회", value: record.intervalRounds };
   if (record.durationMinutes !== undefined)
     return { label: "운동시간", unit: "분", value: record.durationMinutes };
   return undefined;
