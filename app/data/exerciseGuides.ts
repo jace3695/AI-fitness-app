@@ -136,6 +136,18 @@ const lumbarVideoTitles: Record<string, string> = {
   'foam-roller-recovery': '폼롤러 회복 · 허리 아래쪽 피하기',
 };
 
+const strengthVideoTitles: Record<string, string> = {
+  'dumbbell-goblet-squat': '고블릿 스쿼트 · 무릎 방향과 허리 중립',
+  'loopband-sidewalk': '루프밴드 사이드워크 · 작은 보폭과 골반 고정',
+  'loopband-monster-walk': '몬스터워크 · 밴드 장력과 무릎 정렬',
+  'longband-lat-pulldown': '롱밴드 랫풀다운 · 어깨를 내리고 팔꿈치 당기기',
+  'band-row': '밴드 로우 · 반동 없이 날개뼈 모으기',
+  'one-arm-dumbbell-row-supported': '원암 덤벨 로우 · 지지대와 허리 중립 확인',
+  'dumbbell-floor-press': '덤벨 플로어프레스 · 팔꿈치 45도와 안전한 내림',
+  'longband-face-pull': '롱밴드 페이스풀 · 목 힘을 빼고 어깨 뒤쪽 쓰기',
+  'band-pull-apart': '밴드 풀어파트 · 어깨를 내리고 등 위쪽 쓰기',
+};
+
 for (const [id, videoSearchQuery] of Object.entries(videoSearchQueries)) {
   const guide = exerciseGuides[id];
   if (guide) guide.videoSearchQuery = videoSearchQuery;
@@ -158,6 +170,52 @@ for (const [alias, sourceId] of Object.entries(exerciseIdAliases)) {
 for (const [id, videoTitle] of Object.entries(lumbarVideoTitles)) {
   const guide = exerciseGuides[id];
   if (guide) guide.videoTitle = videoTitle;
+}
+
+for (const [id, videoTitle] of Object.entries(strengthVideoTitles)) {
+  const guide = exerciseGuides[id];
+  if (guide) guide.videoTitle = videoTitle;
+}
+
+const strengthStopSignals: Record<string, string[]> = {
+  'dumbbell-goblet-squat': [
+    '무릎이 발끝 방향을 벗어나 안쪽으로 무너지면 반복을 멈추고 중량이나 깊이를 줄이세요.',
+    '허리 통증 또는 다리 저림이 생기면 의자 스쿼트로 바꾸거나 운동을 중단하세요.',
+  ],
+  'loopband-sidewalk': [
+    '무릎 또는 고관절에 날카로운 통증이 생기면 밴드 장력을 낮추거나 중단하세요.',
+  ],
+  'loopband-monster-walk': [
+    '무릎 또는 고관절에 날카로운 통증이 생기거나 균형이 무너지면 즉시 중단하세요.',
+  ],
+  'longband-lat-pulldown': [
+    '밴드 고정점이 흔들리거나 풀릴 가능성이 보이면 즉시 놓고 다시 고정하세요.',
+    '어깨 통증이나 팔 저림이 생기면 장력을 낮추고 계속되면 중단하세요.',
+  ],
+  'band-row': [
+    '밴드 고정점이 흔들리거나 풀릴 가능성이 보이면 즉시 놓고 다시 고정하세요.',
+    '어깨 앞쪽 통증이나 팔 저림이 생기면 장력을 낮추고 계속되면 중단하세요.',
+  ],
+  'one-arm-dumbbell-row-supported': [
+    '의자나 테이블이 흔들리면 즉시 중단하고 밴드 로우로 대체하세요.',
+    '허리 통증이나 다리 저림이 생기면 덤벨을 안전하게 내려놓고 중단하세요.',
+  ],
+  'dumbbell-floor-press': [
+    '어깨 또는 팔꿈치에 날카로운 통증이 생기면 덤벨을 안전하게 내려놓고 중단하세요.',
+  ],
+  'longband-face-pull': [
+    '밴드 고정점이 흔들리거나 어깨·목 통증, 팔 저림이 생기면 즉시 중단하세요.',
+  ],
+  'band-pull-apart': [
+    '어깨·목 통증이나 팔 저림이 생기면 밴드 장력을 낮추고 계속되면 중단하세요.',
+  ],
+};
+
+for (const [id, stopSignals] of Object.entries(strengthStopSignals)) {
+  const guide = exerciseGuides[id];
+  if (!guide) continue;
+  guide.stopCriteria = [...guide.stopCriteria, ...stopSignals.filter((signal) => !guide.stopCriteria.includes(signal))];
+  guide.cautions = guide.stopCriteria;
 }
 
 const lumbarSafetyGuideIds = [
