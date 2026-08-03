@@ -70,6 +70,17 @@ export function getProgressionAdvice(
   if ((previous.painScore || 0) > 0 || previous.status === 'partial') {
     return '직전 기록에 불편감 또는 부분 완료가 있습니다. 중량·횟수·시간 중 하나를 낮춰 진행하세요.';
   }
+  const completedSets = (previous.sets ?? []).filter((set) => set.completed);
+  const detailedBaseline = [
+    previous.distanceKm !== undefined ? `${previous.distanceKm}km` : '',
+    previous.stepCount !== undefined ? `${previous.stepCount.toLocaleString()}걸음` : '',
+    previous.intervalRounds !== undefined ? `인터벌 ${previous.intervalRounds}회` : '',
+    completedSets.some((set) => set.leftReps !== undefined || set.rightReps !== undefined) ? '좌우 횟수' : '',
+    completedSets.some((set) => set.durationSeconds !== undefined) ? '유지시간' : '',
+    completedSets.some((set) => set.restAfterSeconds !== undefined) ? '세트 휴식' : '',
+  ].filter(Boolean);
+  if (detailedBaseline.length) {
+    return `직전 ${detailedBaseline.join(' · ')} 기록을 기준으로 먼저 유지하세요. 통증 없이 2회 연속 완료한 뒤 한 항목만 소폭 올리세요.`;
+  }
   return '직전 기록을 먼저 유지하세요. 같은 계획을 통증 없이 2회 연속 마친 뒤 횟수 1~2회, 중량 0.5~1kg, 시간 1~2분 중 하나만 올리세요.';
 }
-

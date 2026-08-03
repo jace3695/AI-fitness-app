@@ -15,12 +15,20 @@ export interface ExerciseSetRecord {
   weightKg?: number;
   durationSeconds?: number;
   bandLevel?: string;
+  leftReps?: number;
+  rightReps?: number;
+  restAfterSeconds?: number;
 }
 export interface ExerciseRecord {
   exerciseName: string;
   status: "pending" | "completed" | "partial" | "skipped";
   durationMinutes?: number;
   sets?: ExerciseSetRecord[];
+  distanceKm?: number;
+  stepCount?: number;
+  intervalWorkSeconds?: number;
+  intervalRestSeconds?: number;
+  intervalRounds?: number;
   painScore?: number;
   summary?: string;
 }

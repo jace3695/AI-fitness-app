@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExerciseRecord, ExerciseSetRecord } from '../data/workoutCompletion';
 import { Exercise } from '../data/workouts';
-import { getProgressionAdvice, WorkoutIntensity } from '../data/workoutRecommendations';
+import { getExerciseRecommendation, getProgressionAdvice, WorkoutIntensity } from '../data/workoutRecommendations';
 
 function NumberInput({
   label,
@@ -55,10 +55,29 @@ export default function ExerciseRecordEditor({
   onChange: (record: ExerciseRecord) => void;
 }) {
   const [setRestSeconds, setSetRestSeconds] = useState(0);
+  const latestValueRef = useRef(value);
   const isDumbbell = exercise.name.includes('덤벨');
   const isBand = exercise.name.includes('밴드');
   const isPullup = ['턱걸이', '철봉', '매달리기'].some((keyword) => exercise.name.includes(keyword));
+  const isHold = isPullup || ['플랭크', '버티기', '유지'].some((keyword) => `${exercise.name} ${exercise.meta || ''}`.includes(keyword));
+  const isLeftRight = ['버드독', '사이드', '몬스터워크', '런지', '한쪽', '좌우'].some((keyword) => `${exercise.name} ${exercise.meta || ''}`.includes(keyword));
+  const isWalking = ['걷기', '산책', '워킹'].some((keyword) => exercise.name.includes(keyword));
+  const isInterval = Boolean(exercise.intervalPlan) || ['슬라이딩보드', '인터벌'].some((keyword) => exercise.name.includes(keyword));
   const isTimed = !exercise.sets && Boolean(value.durationMinutes !== undefined);
+  const target = getExerciseRecommendation(exercise, intensity);
+  const completedSetCount = (value.sets ?? []).filter((set) => set.completed).length;
+  const firstSet = value.sets?.[0];
+  const targetComparison = [
+    target.sets ? `세트 ${completedSetCount}/${target.sets}` : '',
+    target.reps && firstSet ? isLeftRight
+      ? `좌우 ${firstSet.leftReps ?? '-'}·${firstSet.rightReps ?? '-'} / 목표 각 ${target.reps}회`
+      : `횟수 ${firstSet.reps ?? '-'} / 목표 ${target.reps}회` : '',
+    target.durationMinutes ? `시간 ${value.durationMinutes ?? '-'} / 목표 ${target.durationMinutes}분` : '',
+  ].filter(Boolean);
+
+  useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
 
   useEffect(() => {
     if (setRestSeconds <= 0) return;
@@ -67,16 +86,26 @@ export default function ExerciseRecordEditor({
   }, [setRestSeconds]);
 
   const updateSet = (index: number, patch: Partial<ExerciseSetRecord>) => {
-    const sets = (value.sets || []).map((set, setIndex) => setIndex === index ? { ...set, ...patch } : set);
-    onChange({ ...value, sets });
+    const current = latestValueRef.current;
+    const sets = (current.sets || []).map((set, setIndex) => setIndex === index ? { ...set, ...patch } : set);
+    const next = { ...current, sets };
+    latestValueRef.current = next;
+    onChange(next);
   };
 
   const toggleSet = (index: number) => {
-    const set = value.sets?.[index];
+    const set = latestValueRef.current.sets?.[index];
     if (!set) return;
     const completed = !set.completed;
-    updateSet(index, { completed });
-    if (completed && index < (value.sets?.length || 0) - 1) {
+    updateSet(index, {
+      completed,
+      ...(completed && isLeftRight ? {
+        leftReps: set.leftReps ?? set.reps,
+        rightReps: set.rightReps ?? set.reps,
+      } : {}),
+      ...(completed ? { restAfterSeconds: set.restAfterSeconds ?? exercise.restSeconds } : {}),
+    });
+    if (completed && index < (latestValueRef.current.sets?.length || 0) - 1) {
       setSetRestSeconds(exercise.restSeconds || 45);
     }
   };
@@ -115,15 +144,29 @@ export default function ExerciseRecordEditor({
       <p className={`mt-2 rounded-xl px-3 py-2 text-[11px] font-semibold leading-relaxed ${intensity === 'recovery' ? 'bg-red-50 text-red-700' : intensity === '70%' ? 'bg-amber-50 text-amber-800' : 'bg-[#EAF3DE] text-[#27500A]'}`}>
         진행 제안: {getProgressionAdvice(previous, intensity)}
       </p>
+      {targetComparison.length ? <p className="mt-2 rounded-xl bg-[#E6F1FB] px-3 py-2 text-[11px] font-semibold text-[#0C447C]">목표 비교: {targetComparison.join(' · ')}</p> : null}
 
       {isTimed ? (
-        <div className="mt-3 max-w-44">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:max-w-sm">
           <NumberInput
             label="실제 운동시간"
             value={value.durationMinutes}
             unit="분"
             onChange={(durationMinutes) => onChange({ ...value, durationMinutes })}
           />
+          {isWalking ? <NumberInput label="실제 거리" value={value.distanceKm} unit="km" step={0.1} onChange={(distanceKm) => onChange({ ...value, distanceKm })} /> : null}
+          {isWalking ? <NumberInput label="걸음 수" value={value.stepCount} unit="걸음" onChange={(stepCount) => onChange({ ...value, stepCount })} /> : null}
+        </div>
+      ) : null}
+
+      {isInterval ? (
+        <div className="mt-3 rounded-2xl bg-[#F7F6FF] p-3">
+          <p className="text-[11px] font-bold text-[#534AB7]">실제 인터벌 기록</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <NumberInput label="운동" value={value.intervalWorkSeconds} unit="초" onChange={(intervalWorkSeconds) => onChange({ ...value, intervalWorkSeconds })} />
+            <NumberInput label="휴식" value={value.intervalRestSeconds} unit="초" onChange={(intervalRestSeconds) => onChange({ ...value, intervalRestSeconds })} />
+            <NumberInput label="반복" value={value.intervalRounds} unit="회" onChange={(intervalRounds) => onChange({ ...value, intervalRounds })} />
+          </div>
         </div>
       ) : null}
 
@@ -142,10 +185,16 @@ export default function ExerciseRecordEditor({
                   {set.completed ? '완료됨' : '세트 완료'}
                 </button>
               </div>
-              <div className={`mt-2 grid gap-2 ${isDumbbell || isPullup ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <NumberInput label="횟수" value={set.reps} unit="회" onChange={(reps) => updateSet(index, { reps })} />
+              <div className={`mt-2 grid gap-2 ${isDumbbell || isHold || isLeftRight ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {isLeftRight ? (
+                  <>
+                    <NumberInput label="왼쪽 횟수" value={set.leftReps ?? set.reps} unit="회" onChange={(leftReps) => updateSet(index, { leftReps })} />
+                    <NumberInput label="오른쪽 횟수" value={set.rightReps ?? set.reps} unit="회" onChange={(rightReps) => updateSet(index, { rightReps })} />
+                  </>
+                ) : <NumberInput label="횟수" value={set.reps} unit="회" onChange={(reps) => updateSet(index, { reps })} />}
                 {isDumbbell ? <NumberInput label="덤벨 중량" value={set.weightKg} unit="kg" step={0.5} onChange={(weightKg) => updateSet(index, { weightKg })} /> : null}
-                {isPullup ? <NumberInput label="매달리기/버티기" value={set.durationSeconds} unit="초" onChange={(durationSeconds) => updateSet(index, { durationSeconds })} /> : null}
+                {isHold ? <NumberInput label="유지시간" value={set.durationSeconds} unit="초" onChange={(durationSeconds) => updateSet(index, { durationSeconds })} /> : null}
+                <NumberInput label="실제 세트 휴식" value={set.restAfterSeconds ?? exercise.restSeconds} unit="초" onChange={(restAfterSeconds) => updateSet(index, { restAfterSeconds })} />
               </div>
               {isBand ? (
                 <label className="mt-2 block text-[11px] font-bold text-gray-500">

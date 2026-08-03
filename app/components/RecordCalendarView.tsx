@@ -109,6 +109,9 @@ export default function RecordCalendarView() {
     selectedWorkoutRecord?.workoutExerciseNames ?? [];
   const workoutExerciseRecords =
     selectedWorkoutRecord?.workoutExerciseRecords ?? [];
+  const partialCompletionPoint = selectedWorkoutRecord?.workoutStatus === "partial"
+    ? [...workoutExerciseRecords].reverse().find((record) => record.status === "completed" || record.status === "partial")?.exerciseName
+    : undefined;
   const pullupExerciseNames = selectedWorkoutRecord?.pullupExerciseNames ?? [];
   const selectedWater = stores.water[selected] || 0;
   const selectedDinner = stores.dinner[selected];
@@ -382,6 +385,7 @@ export default function RecordCalendarView() {
                 <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">피로도 {selectedWorkoutRecord.workoutFatigue ?? 2}/5</span>
               </div>
             )}
+            {partialCompletionPoint ? <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">일부 완료 지점: {partialCompletionPoint}까지 기록</p> : null}
           </div>
           {workoutExerciseRecords.length ? (
             <div className="rounded-xl bg-[#F7F6FF] p-3 sm:col-span-2">
@@ -402,13 +406,23 @@ export default function RecordCalendarView() {
                           const values = [
                             `${set.setNumber}세트${set.completed ? ' ✓' : ''}`,
                             set.reps !== undefined ? `${set.reps}회` : '',
+                            set.leftReps !== undefined || set.rightReps !== undefined ? `좌 ${set.leftReps ?? '-'}회 · 우 ${set.rightReps ?? '-'}회` : '',
                             set.weightKg !== undefined ? `${set.weightKg}kg` : '',
                             set.durationSeconds !== undefined ? `${set.durationSeconds}초` : '',
                             set.bandLevel ? `밴드 ${set.bandLevel}` : '',
+                            set.restAfterSeconds !== undefined ? `휴식 ${set.restAfterSeconds}초` : '',
                           ].filter(Boolean);
                           return values.join(' · ');
                         }).join(' / ')}
                       </p>
+                    ) : null}
+                    {record.durationMinutes !== undefined || record.distanceKm !== undefined || record.stepCount !== undefined ? (
+                      <p className="mt-1 text-[11px] text-gray-500">
+                        {[record.durationMinutes !== undefined ? `${record.durationMinutes}분` : '', record.distanceKm !== undefined ? `${record.distanceKm}km` : '', record.stepCount !== undefined ? `${record.stepCount.toLocaleString()}걸음` : ''].filter(Boolean).join(' · ')}
+                      </p>
+                    ) : null}
+                    {record.intervalWorkSeconds !== undefined || record.intervalRestSeconds !== undefined || record.intervalRounds !== undefined ? (
+                      <p className="mt-1 text-[11px] text-gray-500">인터벌 {record.intervalWorkSeconds ?? '-'}초 운동 · {record.intervalRestSeconds ?? '-'}초 휴식 · {record.intervalRounds ?? '-'}회</p>
                     ) : null}
                     {record.painScore !== undefined ? <p className="mt-1 font-bold text-red-600">불편감 {record.painScore}/10</p> : null}
                   </div>
