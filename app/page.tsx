@@ -50,6 +50,7 @@ import TodayDashboard from "./components/TodayDashboard";
 import ConditionCheckCard from "./components/ConditionCheckCard";
 import AuthGate from "./components/AuthGate";
 import WorkoutPlanEditor from "./components/WorkoutPlanEditor";
+import DevicePinPanel from "./components/DevicePinPanel";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -838,6 +839,7 @@ function FitnessApp() {
               selection={routineSelection}
               onSelectionChange={handleRoutineSelectionChange}
             />
+            <DevicePinPanel />
             <WorkoutPlanEditor
               settings={userWorkoutSettings}
               records={completedStore}
