@@ -121,6 +121,21 @@ const videoSearchQueries: Record<string, string> = {
   'loop-band-monster-walk': '루프밴드 몬스터워크 자세',
 };
 
+const lumbarVideoTitles: Record<string, string> = {
+  'foam-roller-prep': '폼롤러 준비 · 허리 직접 압박 없이 하기',
+  'basic-warmup': '허리 부담을 줄이는 기본 몸풀기',
+  'pre-rosary-sliding-board': '슬라이딩보드 초보 기본 자세',
+  'bird-dog': '버드독 · 허리 중립과 골반 고정',
+  'hip-bridge': '힙브릿지 · 허리 대신 엉덩이 쓰기',
+  'dead-bug': '데드버그 · 허리가 뜨지 않는 범위',
+  'cat-cow': '캣카우 · 통증 없는 작은 가동 범위',
+  'pelvic-tilt': '골반 기울이기 · 허리 중립 감각',
+  'pullup-basic-posture': '턱걸이 초기자세 · 발 보조와 견갑 하강',
+  'post-sliding-board': '슬라이딩보드 마무리 · 저강도 자세',
+  'basic-cooldown': '허리를 강하게 숙이지 않는 정리운동',
+  'foam-roller-recovery': '폼롤러 회복 · 허리 아래쪽 피하기',
+};
+
 for (const [id, videoSearchQuery] of Object.entries(videoSearchQueries)) {
   const guide = exerciseGuides[id];
   if (guide) guide.videoSearchQuery = videoSearchQuery;
@@ -138,6 +153,38 @@ const exerciseIdAliases: Record<string, string> = {
 for (const [alias, sourceId] of Object.entries(exerciseIdAliases)) {
   const source = exerciseGuides[sourceId];
   if (source) exerciseGuides[alias] = { ...source, id: alias, videoSearchQuery: videoSearchQueries[alias] || source.videoSearchQuery } as ExerciseGuideEntry;
+}
+
+for (const [id, videoTitle] of Object.entries(lumbarVideoTitles)) {
+  const guide = exerciseGuides[id];
+  if (guide) guide.videoTitle = videoTitle;
+}
+
+const lumbarSafetyGuideIds = [
+  'foam-roller-prep',
+  'basic-warmup',
+  'pre-rosary-sliding-board',
+  'bird-dog',
+  'hip-bridge',
+  'dead-bug',
+  'cat-cow',
+  'pelvic-tilt',
+  'pullup-basic-posture',
+  'post-sliding-board',
+  'basic-cooldown',
+  'foam-roller-recovery',
+];
+
+const lumbarStopSignals = [
+  '통증이 엉덩이 또는 다리 쪽으로 퍼지거나 새로운 저림이 생기면 즉시 중단하세요.',
+  '다리에 새로 힘이 빠지거나 감각이 둔해지면 운동을 재개하지 말고 진료를 받으세요.',
+];
+
+for (const id of lumbarSafetyGuideIds) {
+  const guide = exerciseGuides[id];
+  if (!guide) continue;
+  guide.stopCriteria = [...guide.stopCriteria, ...lumbarStopSignals.filter((signal) => !guide.stopCriteria.includes(signal))];
+  guide.cautions = guide.stopCriteria;
 }
 
 for (const guide of Object.values(exerciseGuides)) {
