@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExerciseRecord, ExerciseSetRecord } from '../data/workoutCompletion';
 import { Exercise } from '../data/workouts';
 import { getExerciseRecommendation, getProgressionAdvice, WorkoutIntensity } from '../data/workoutRecommendations';
@@ -55,6 +55,7 @@ export default function ExerciseRecordEditor({
   onChange: (record: ExerciseRecord) => void;
 }) {
   const [setRestSeconds, setSetRestSeconds] = useState(0);
+  const latestValueRef = useRef(value);
   const isDumbbell = exercise.name.includes('덤벨');
   const isBand = exercise.name.includes('밴드');
   const isPullup = ['턱걸이', '철봉', '매달리기'].some((keyword) => exercise.name.includes(keyword));
@@ -75,14 +76,21 @@ export default function ExerciseRecordEditor({
   ].filter(Boolean);
 
   useEffect(() => {
+    latestValueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
     if (setRestSeconds <= 0) return;
     const id = window.setInterval(() => setSetRestSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => window.clearInterval(id);
   }, [setRestSeconds]);
 
   const updateSet = (index: number, patch: Partial<ExerciseSetRecord>) => {
-    const sets = (value.sets || []).map((set, setIndex) => setIndex === index ? { ...set, ...patch } : set);
-    onChange({ ...value, sets });
+    const current = latestValueRef.current;
+    const sets = (current.sets || []).map((set, setIndex) => setIndex === index ? { ...set, ...patch } : set);
+    const next = { ...current, sets };
+    latestValueRef.current = next;
+    onChange(next);
   };
 
   const toggleSet = (index: number) => {
