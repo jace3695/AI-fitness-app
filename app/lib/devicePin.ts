@@ -86,6 +86,10 @@ export function lockPinSession(userId: string) {
   sessionStorage.removeItem(sessionKey(userId));
 }
 
+export function unlockPinSession(userId: string) {
+  sessionStorage.setItem(sessionKey(userId), "1");
+}
+
 export async function setDevicePin(userId: string, pin: string) {
   if (!isValidPin(pin)) throw new Error(`${PIN_LENGTH}자리 숫자를 입력해 주세요.`);
   const salt = crypto.getRandomValues(new Uint8Array(16));
