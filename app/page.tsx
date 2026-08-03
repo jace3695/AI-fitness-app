@@ -23,6 +23,7 @@ import {
   WorkoutDayRecord,
   ExerciseRecord,
   WorkoutFeedback,
+  WorkoutOverallStatus,
 } from "./data/workoutCompletion";
 import {
   assessRecoveryMode,
@@ -208,7 +209,7 @@ function FitnessApp() {
   };
 
   const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], selectedCardioMinutes?: number, feedback?: WorkoutFeedback) => {
-    const dateKey = getLocalDateKey();
+    const dateKey = getDateForWorkoutDay(dayId);
     if (
       recoveryToday?.recoveryMode &&
       !window.confirm(
@@ -217,7 +218,7 @@ function FitnessApp() {
     )
       return;
     const selectedOptionalCardio = dayWorkout?.optionalCardio?.options.find((option) => option.id === cardioOptionId);
-    const exerciseNames = selectedOptionalCardio
+    const plannedExerciseNames = selectedOptionalCardio
       ? selectedOptionalCardio.id === "rest"
         ? ["휴식"]
         : [
@@ -228,6 +229,20 @@ function FitnessApp() {
       : dayWorkout?.phases
           .flatMap((phase) => phase.exercises)
           .map((exercise) => exercise.name) ?? [];
+    const exerciseNames = exerciseRecords?.length
+      ? exerciseRecords.map((record) => record.exerciseName)
+      : plannedExerciseNames;
+    const completedExerciseCount = exerciseRecords?.filter((record) => record.status === "completed").length ?? 0;
+    const detailedWorkoutStatus: WorkoutOverallStatus | undefined = exerciseRecords?.length
+      ? completedExerciseCount === exerciseRecords.length
+        ? "completed"
+        : completedExerciseCount > 0
+          ? "partial"
+          : "stopped"
+      : undefined;
+    const recordedWorkoutStatus: WorkoutOverallStatus = feedback?.status === "stopped"
+      ? "stopped"
+      : detailedWorkoutStatus || feedback?.status || "completed";
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
       const hasRosaryCardio = exerciseNames.includes("운동 전 묵주기도 슬라이딩보드");
@@ -237,7 +252,7 @@ function FitnessApp() {
         ...prev,
         [dateKey]: {
           ...current,
-          workoutDone: feedback ? feedback.status === "completed" : true,
+          workoutDone: recordedWorkoutStatus === "completed",
           workoutRoutineName: selectedWorkoutGroup?.name || dayWorkout?.title,
           workoutPlanName: selectedWeeklyWorkoutPlan.name,
           workoutGroupId: selectedWorkoutGroup?.id,
@@ -245,7 +260,7 @@ function FitnessApp() {
           workoutSourceDay: baseDayWorkout?.tabLabel,
           workoutPain: pain,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
-          workoutStatus: feedback?.status || current.workoutStatus || "completed",
+          workoutStatus: recordedWorkoutStatus,
           workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
           workoutFatigue: feedback?.fatigue || current.workoutFatigue || 2,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
@@ -276,7 +291,7 @@ function FitnessApp() {
   };
 
   const cancelDayWorkout = (dayId: WorkoutDayId) => {
-    const dateKey = getLocalDateKey();
+    const dateKey = getDateForWorkoutDay(dayId);
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
       const next = {
@@ -466,6 +481,9 @@ function FitnessApp() {
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
   const todayKey = getLocalDateKey();
+  const activeWorkoutDateKey = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
+    ? getDateForWorkoutDay(activeTab as WorkoutDayId)
+    : todayKey;
   const todayWorkoutDay = getWorkoutDayForDate();
   const todayDayName = [
     "일요일",
@@ -536,6 +554,7 @@ function FitnessApp() {
       )
     : undefined;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
+  const activeWorkoutRecord = getWorkoutRecord(completedStore[activeWorkoutDateKey]);
   const weeklyCompletedCount = requiredWorkoutDays.filter(
     (dayId) => completedDays[dayId],
   ).length;
@@ -734,7 +753,7 @@ function FitnessApp() {
               <DayView
                 day={dayWorkout}
                 isCompleted={
-                  getWorkoutRecord(completedStore[todayKey]).workoutDone ??
+                  activeWorkoutRecord.workoutDone ??
                   false
                 }
                 onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords, cardioMinutes, feedback) =>
@@ -744,42 +763,43 @@ function FitnessApp() {
                   cancelDayWorkout(activeTab as WorkoutDayId)
                 }
                 workoutPain={
-                  getWorkoutRecord(completedStore[todayKey]).workoutPain
+                  activeWorkoutRecord.workoutPain
                 }
                 workoutMemo={
-                  getWorkoutRecord(completedStore[todayKey]).workoutMemo
+                  activeWorkoutRecord.workoutMemo
                 }
-                workoutStatus={getWorkoutRecord(completedStore[todayKey]).workoutStatus}
-                workoutDifficulty={getWorkoutRecord(completedStore[todayKey]).workoutDifficulty}
-                workoutFatigue={getWorkoutRecord(completedStore[todayKey]).workoutFatigue}
+                workoutStatus={activeWorkoutRecord.workoutStatus}
+                workoutDifficulty={activeWorkoutRecord.workoutDifficulty}
+                workoutFatigue={activeWorkoutRecord.workoutFatigue}
+                workoutExerciseRecords={activeWorkoutRecord.workoutExerciseRecords}
                 cardioDone={
-                  getWorkoutRecord(completedStore[todayKey]).cardioDone
+                  activeWorkoutRecord.cardioDone
                 }
                 cardioType={
-                  getWorkoutRecord(completedStore[todayKey]).cardioType
+                  activeWorkoutRecord.cardioType
                 }
                 cardioMinutes={
-                  getWorkoutRecord(completedStore[todayKey]).cardioMinutes
+                  activeWorkoutRecord.cardioMinutes
                 }
                 cardioMemo={
-                  getWorkoutRecord(completedStore[todayKey]).cardioMemo
+                  activeWorkoutRecord.cardioMemo
                 }
                 onSaveCardio={saveDayCardio}
                 onCancelCardio={cancelDayCardio}
                 foamRollerDone={
-                  getWorkoutRecord(completedStore[todayKey]).foamRollerDone
+                  activeWorkoutRecord.foamRollerDone
                 }
                 foamRollerTiming={
-                  getWorkoutRecord(completedStore[todayKey]).foamRollerTiming
+                  activeWorkoutRecord.foamRollerTiming
                 }
                 foamRollerAreas={
-                  getWorkoutRecord(completedStore[todayKey]).foamRollerAreas
+                  activeWorkoutRecord.foamRollerAreas
                 }
                 foamRollerPain={
-                  getWorkoutRecord(completedStore[todayKey]).foamRollerPain
+                  activeWorkoutRecord.foamRollerPain
                 }
                 foamRollerMemo={
-                  getWorkoutRecord(completedStore[todayKey]).foamRollerMemo
+                  activeWorkoutRecord.foamRollerMemo
                 }
                 onSaveFoamRoller={saveFoamRoller}
                 onCancelFoamRoller={cancelFoamRoller}
