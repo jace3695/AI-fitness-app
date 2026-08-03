@@ -22,7 +22,14 @@ export function readWorkoutNotificationSettings(): WorkoutNotificationSettings {
   if (typeof window === "undefined") return DEFAULT_WORKOUT_NOTIFICATION_SETTINGS;
   try {
     const saved = JSON.parse(localStorage.getItem(WORKOUT_NOTIFICATION_SETTINGS_KEY) || "null") as Partial<WorkoutNotificationSettings> | null;
-    return saved ? { ...DEFAULT_WORKOUT_NOTIFICATION_SETTINGS, ...saved } : DEFAULT_WORKOUT_NOTIFICATION_SETTINGS;
+    if (!saved) return DEFAULT_WORKOUT_NOTIFICATION_SETTINGS;
+    const merged = { ...DEFAULT_WORKOUT_NOTIFICATION_SETTINGS, ...saved };
+    return {
+      ...merged,
+      time: /^([01]\d|2[0-3]):[0-5]\d$/.test(merged.time)
+        ? merged.time
+        : DEFAULT_WORKOUT_NOTIFICATION_SETTINGS.time,
+    };
   } catch {
     return DEFAULT_WORKOUT_NOTIFICATION_SETTINGS;
   }
