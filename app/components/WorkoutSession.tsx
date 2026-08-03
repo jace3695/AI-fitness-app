@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Exercise } from '../data/workouts';
-import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore } from '../data/workoutCompletion';
+import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore, WorkoutDifficulty, WorkoutOverallStatus } from '../data/workoutCompletion';
 import { getExerciseRecommendation, WorkoutIntensity } from '../data/workoutRecommendations';
 import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from './ExerciseGuidePanel';
 import ExerciseRecordEditor from './ExerciseRecordEditor';
@@ -14,6 +14,9 @@ export interface WorkoutSessionResult {
   pain: boolean;
   memo: string;
   exerciseRecords: ExerciseRecord[];
+  status: WorkoutOverallStatus;
+  difficulty: WorkoutDifficulty;
+  fatigue: number;
 }
 
 const PAIN_SYMPTOMS = ['허리 통증', '다리 저림', '무릎 통증', '어지러움', '메스꺼움', '식은땀', '기타'];
@@ -171,6 +174,9 @@ export default function WorkoutSession({
   const [painScore, setPainScore] = useState(0);
   const [painSymptoms, setPainSymptoms] = useState<string[]>([]);
   const [painMemo, setPainMemo] = useState('');
+  const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>('completed');
+  const [difficulty, setDifficulty] = useState<WorkoutDifficulty>('moderate');
+  const [fatigue, setFatigue] = useState(2);
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => exercises.map((item) => buildExerciseRecord(item, intensity)));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
     const store = readWorkoutCompletionStore();
@@ -326,6 +332,9 @@ export default function WorkoutSession({
         painMemo,
       }),
       exerciseRecords,
+      status: painScore > 0 || painSymptoms.length > 0 ? 'stopped' : overallStatus,
+      difficulty,
+      fatigue,
     });
     onClose();
   };
@@ -465,6 +474,11 @@ export default function WorkoutSession({
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">건너뜀</p><p className="mt-1 text-[18px] font-bold">{skipped.size}개</p></div>
               </div>
               {painScore > 0 || painSymptoms.length ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-[13px] font-bold text-red-700">통증 {painScore}/10 · {painSymptoms.join(', ') || '증상 미선택'}</p> : null}
+              <div className="mt-4 space-y-4 rounded-2xl bg-white p-4 text-left">
+                <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={painScore > 0 || painSymptoms.length > 0} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${((painScore > 0 || painSymptoms.length > 0) ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
+                <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
+                <label className="block text-[12px] font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+              </div>
               <button type="button" onClick={completeSession} className="mt-5 w-full rounded-2xl bg-[#534AB7] px-4 py-3.5 text-[14px] font-bold text-white">
                 기록 저장하고 종료
               </button>

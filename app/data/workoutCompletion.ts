@@ -24,6 +24,13 @@ export interface ExerciseRecord {
   painScore?: number;
   summary?: string;
 }
+export type WorkoutOverallStatus = "completed" | "partial" | "stopped";
+export type WorkoutDifficulty = "easy" | "moderate" | "hard";
+export interface WorkoutFeedback {
+  status: WorkoutOverallStatus;
+  difficulty: WorkoutDifficulty;
+  fatigue: number;
+}
 export interface WorkoutDayRecord {
   workoutDone?: boolean;
   workoutRoutineName?: string;
@@ -33,6 +40,9 @@ export interface WorkoutDayRecord {
   workoutSourceDay?: string;
   workoutPain?: boolean;
   workoutMemo?: string;
+  workoutStatus?: WorkoutOverallStatus;
+  workoutDifficulty?: WorkoutDifficulty;
+  workoutFatigue?: number;
   workoutExerciseRecords?: ExerciseRecord[];
   cardioDone?: boolean;
   cardioType?: string;

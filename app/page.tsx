@@ -22,6 +22,7 @@ import {
   WorkoutCompletionStore,
   WorkoutDayRecord,
   ExerciseRecord,
+  WorkoutFeedback,
 } from "./data/workoutCompletion";
 import {
   assessRecoveryMode,
@@ -205,7 +206,7 @@ function FitnessApp() {
     setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
   };
 
-  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], selectedCardioMinutes?: number) => {
+  const saveDayWorkout = (dayId: WorkoutDayId, pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], selectedCardioMinutes?: number, feedback?: WorkoutFeedback) => {
     const dateKey = getLocalDateKey();
     if (
       recoveryToday?.recoveryMode &&
@@ -235,7 +236,7 @@ function FitnessApp() {
         ...prev,
         [dateKey]: {
           ...current,
-          workoutDone: true,
+          workoutDone: feedback ? feedback.status === "completed" : true,
           workoutRoutineName: selectedWorkoutGroup?.name || dayWorkout?.title,
           workoutPlanName: selectedWeeklyWorkoutPlan.name,
           workoutGroupId: selectedWorkoutGroup?.id,
@@ -243,6 +244,9 @@ function FitnessApp() {
           workoutSourceDay: baseDayWorkout?.tabLabel,
           workoutPain: pain,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
+          workoutStatus: feedback?.status || current.workoutStatus || "completed",
+          workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
+          workoutFatigue: feedback?.fatigue || current.workoutFatigue || 2,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           rosaryCardioDone: hasRosaryCardio || undefined,
           rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
@@ -286,6 +290,9 @@ function FitnessApp() {
           workoutSourceDay: undefined,
           workoutPain: undefined,
           workoutMemo: undefined,
+          workoutStatus: undefined,
+          workoutDifficulty: undefined,
+          workoutFatigue: undefined,
           workoutExerciseRecords: undefined,
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
@@ -729,8 +736,8 @@ function FitnessApp() {
                   getWorkoutRecord(completedStore[todayKey]).workoutDone ??
                   false
                 }
-                onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords, cardioMinutes) =>
-                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId, exerciseRecords, cardioMinutes)
+                onSaveWorkout={(pain, memo, cardioOptionId, exerciseRecords, cardioMinutes, feedback) =>
+                  saveDayWorkout(activeTab as WorkoutDayId, pain, memo, cardioOptionId, exerciseRecords, cardioMinutes, feedback)
                 }
                 onCancelWorkout={() =>
                   cancelDayWorkout(activeTab as WorkoutDayId)
@@ -741,6 +748,9 @@ function FitnessApp() {
                 workoutMemo={
                   getWorkoutRecord(completedStore[todayKey]).workoutMemo
                 }
+                workoutStatus={getWorkoutRecord(completedStore[todayKey]).workoutStatus}
+                workoutDifficulty={getWorkoutRecord(completedStore[todayKey]).workoutDifficulty}
+                workoutFatigue={getWorkoutRecord(completedStore[todayKey]).workoutFatigue}
                 cardioDone={
                   getWorkoutRecord(completedStore[todayKey]).cardioDone
                 }
