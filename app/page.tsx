@@ -51,6 +51,8 @@ import TodayDashboard from "./components/TodayDashboard";
 import ConditionCheckCard from "./components/ConditionCheckCard";
 import AuthGate from "./components/AuthGate";
 import WorkoutPlanEditor from "./components/WorkoutPlanEditor";
+import WorkoutNotificationManager from "./components/WorkoutNotificationManager";
+import WorkoutNotificationPanel from "./components/WorkoutNotificationPanel";
 import DevicePinPanel from "./components/DevicePinPanel";
 import {
   applyDayRoutineEdit,
@@ -593,6 +595,8 @@ function FitnessApp() {
     : recoveryToday || undefined;
 
   return (
+    <>
+      <WorkoutNotificationManager />
     <div className="min-h-dvh bg-[#F6F7FB]">
       {/* ── Top Header ── */}
       <header className="sticky top-0 z-30 border-b border-gray-100/80 bg-white/95 shadow-sm backdrop-blur">
@@ -860,6 +864,7 @@ function FitnessApp() {
               onSelectionChange={handleRoutineSelectionChange}
             />
             <DevicePinPanel />
+            <WorkoutNotificationPanel />
             <WorkoutPlanEditor
               settings={userWorkoutSettings}
               records={completedStore}
@@ -909,6 +914,7 @@ function FitnessApp() {
       {/* Bottom padding for mobile nav */}
       <div className="h-20 md:h-4" />
     </div>
+    </>
   );
 }
 
