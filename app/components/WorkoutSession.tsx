@@ -64,16 +64,26 @@ function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): E
 }
 
 function summarizeExerciseRecord(record: ExerciseRecord) {
-  if (record.durationMinutes !== undefined) return `${record.durationMinutes}분`;
+  const cardioDetails = [
+    record.durationMinutes !== undefined ? `${record.durationMinutes}분` : '',
+    record.distanceKm !== undefined ? `${record.distanceKm}km` : '',
+    record.stepCount !== undefined ? `${record.stepCount.toLocaleString()}걸음` : '',
+    record.intervalWorkSeconds !== undefined && record.intervalRestSeconds !== undefined
+      ? `${record.intervalWorkSeconds}초 운동/${record.intervalRestSeconds}초 휴식${record.intervalRounds ? ` × ${record.intervalRounds}회` : ''}`
+      : '',
+  ].filter(Boolean);
+  if (cardioDetails.length) return cardioDetails.join(' · ');
   if (!record.sets?.length) return undefined;
   const completedSets = record.sets.filter((set) => set.completed).length;
   const first = record.sets[0];
   const details = [
     `${completedSets || record.sets.length}세트`,
     first.reps !== undefined ? `${first.reps}회` : '',
+    first.leftReps !== undefined || first.rightReps !== undefined ? `좌 ${first.leftReps ?? '-'}회 · 우 ${first.rightReps ?? '-'}회` : '',
     first.weightKg !== undefined ? `${first.weightKg}kg` : '',
     first.durationSeconds !== undefined ? `${first.durationSeconds}초` : '',
     first.bandLevel ? `밴드 ${first.bandLevel}` : '',
+    first.restAfterSeconds !== undefined ? `휴식 ${first.restAfterSeconds}초` : '',
   ].filter(Boolean);
   return details.join(' · ');
 }
