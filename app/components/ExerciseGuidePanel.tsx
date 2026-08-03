@@ -40,7 +40,7 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
           </ul>
         </section>
       ) : null}
-      <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 어깨 통증도 있으면 즉시 중단하세요.</p>
+      <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE}</p>
       {getExerciseVideoHref(exercise) ? <a href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white"><span className="block">8) 한국어 {getExerciseVideoLabel(exercise)}</span>{guide.videoTitle ? <span className="mt-1 block text-[11px] font-medium text-gray-300">{guide.videoTitle}</span> : null}</a> : <button type="button" disabled className="block w-full rounded-xl bg-gray-100 px-3 py-2 text-center text-[13px] font-bold text-gray-400">8) 영상 준비중</button>}
     </div>
   );
