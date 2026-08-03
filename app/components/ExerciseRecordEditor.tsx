@@ -94,11 +94,18 @@ export default function ExerciseRecordEditor({
   };
 
   const toggleSet = (index: number) => {
-    const set = value.sets?.[index];
+    const set = latestValueRef.current.sets?.[index];
     if (!set) return;
     const completed = !set.completed;
-    updateSet(index, { completed });
-    if (completed && index < (value.sets?.length || 0) - 1) {
+    updateSet(index, {
+      completed,
+      ...(completed && isLeftRight ? {
+        leftReps: set.leftReps ?? set.reps,
+        rightReps: set.rightReps ?? set.reps,
+      } : {}),
+      ...(completed ? { restAfterSeconds: set.restAfterSeconds ?? exercise.restSeconds } : {}),
+    });
+    if (completed && index < (latestValueRef.current.sets?.length || 0) - 1) {
       setSetRestSeconds(exercise.restSeconds || 45);
     }
   };
