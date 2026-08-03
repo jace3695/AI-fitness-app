@@ -5,6 +5,7 @@ import { WORKOUT_GROUPS, getWorkoutGroupById } from "../data/workoutGroups";
 import { dayIdToKoreanLabel } from "../data/workoutPlans";
 import { getDateForWorkoutDay, getWorkoutDayForDate, getWorkoutRecord, WorkoutCompletionStore, WorkoutDayId } from "../data/workoutCompletion";
 import { DayRoutineEdit, ExerciseTarget, UserWorkoutSettings } from "../data/userWorkoutSettings";
+import { readJson, WEIGHT_RECORDS_KEY, WeightRecordStore } from "../data/recordStorage";
 
 const DAYS: WorkoutDayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 type EditScope = "weekly" | "week" | "today";
@@ -15,30 +16,48 @@ function numberFrom(text: string | undefined, unit: string) {
   return match[2] ? Math.round((Number(match[1]) + Number(match[2])) / 2) : Number(match[1]);
 }
 
-function getAiTarget(name: string, base: ExerciseTarget, records: WorkoutCompletionStore) {
-  const recent = Object.keys(records).sort((a, b) => b.localeCompare(a)).flatMap((date) => {
+function getAiTarget(name: string, base: ExerciseTarget, records: WorkoutCompletionStore, userTarget?: ExerciseTarget) {
+  const sortedDates = Object.keys(records).sort((a, b) => b.localeCompare(a));
+  const recent = sortedDates.flatMap((date) => {
     const day = getWorkoutRecord(records[date]);
-    return day.workoutExerciseRecords?.filter((item) => item.exerciseName === name) || [];
+    return day.workoutExerciseRecords?.filter((item) => item.exerciseName === name).map((item) => ({ ...item, date })) || [];
   }).slice(0, 3);
   if (!recent.length) return { target: base, reason: "아직 수행 기록이 없어 현재 주차 계획과 허리 안전 기준을 적용한 시작값입니다." };
 
-  const needsReduction = recent.some((item) => (item.painScore || 0) > 0 || item.status === "partial" || item.status === "skipped");
+  const recentDays = sortedDates.slice(0, 7).map((date) => ({ date, record: getWorkoutRecord(records[date]) }));
+  const latestDay = recentDays[0]?.record;
+  const completedDays = recentDays.filter(({ record }) => record.workoutDone).length;
+  const lastDate = recent[0]?.date;
+  const intervalDays = lastDate ? Math.floor((Date.now() - new Date(`${lastDate}T00:00:00`).getTime()) / 86400000) : 0;
+  const weights = readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {});
+  const recentWeights = Object.entries(weights).sort(([a], [b]) => b.localeCompare(a)).slice(0, 2);
+  const weightRecordGap = recentWeights.length === 2 ? Math.abs((new Date(`${recentWeights[0][0]}T00:00:00`).getTime() - new Date(`${recentWeights[1][0]}T00:00:00`).getTime()) / 86400000) : 0;
+  const weightChangeRate = recentWeights.length === 2 && weightRecordGap <= 14 ? ((recentWeights[0][1].weight - recentWeights[1][1].weight) / recentWeights[1][1].weight) * 100 : 0;
+  const userPrefersLower = (base.sets && userTarget?.sets && userTarget.sets < base.sets) || (base.reps && userTarget?.reps && userTarget.reps < base.reps) || (base.durationMinutes && userTarget?.durationMinutes && userTarget.durationMinutes < base.durationMinutes);
+  const needsReduction = recent.some((item) => (item.painScore || 0) > 0 || item.status === "partial" || item.status === "skipped") || latestDay?.workoutStatus === "stopped" || latestDay?.workoutDifficulty === "hard" || (latestDay?.workoutFatigue || 0) >= 4 || intervalDays >= 10;
   const completed = recent.filter((item) => item.status === "completed");
   if (needsReduction) {
     const reduce = (value: number | undefined) => value === undefined ? undefined : Math.max(1, Math.floor(value * 0.8));
+    const signals = [(latestDay?.workoutFatigue || 0) >= 4 ? "피로도" : "", latestDay?.workoutDifficulty === "hard" ? "체감 난이도" : "", latestDay?.workoutStatus === "stopped" ? "중단 기록" : "", intervalDays >= 10 ? "운동 간격" : "", recent.some((item) => (item.painScore || 0) > 0) ? "통증" : ""].filter(Boolean);
     return {
       target: { sets: reduce(base.sets), reps: reduce(base.reps), durationMinutes: reduce(base.durationMinutes) },
-      reason: `최근 ${recent.length}회 기록에 통증·부분 완료가 있어 기본 계획의 약 80%로 낮췄습니다.`,
+      reason: `최근 기록의 ${signals.join("·") || "부분 완료"}를 반영해 기본 계획의 약 80%로 낮췄습니다.`,
     };
   }
-  if (completed.length >= 2) {
+  if (userPrefersLower) {
+    return { target: userTarget || base, reason: "최근 직접 낮춘 운동량을 선호하는 경향을 반영해 현재 내 설정을 유지합니다." };
+  }
+  if (weightChangeRate <= -2 && (latestDay?.workoutFatigue || 0) >= 3) {
+    return { target: base, reason: `최근 체중 변화(${weightChangeRate.toFixed(1)}%)와 피로도를 함께 고려해 증량하지 않고 현재 계획을 유지합니다.` };
+  }
+  if (completed.length >= 2 && completedDays <= 5 && intervalDays <= 7 && latestDay?.workoutDifficulty !== "hard" && (latestDay?.workoutFatigue || 0) <= 3) {
     return {
       target: {
         sets: base.sets,
         reps: base.reps === undefined ? undefined : base.reps + 1,
         durationMinutes: base.durationMinutes === undefined ? undefined : base.durationMinutes + 1,
       },
-      reason: `최근 ${completed.length}회 연속 완료했고 통증 기록이 없어 횟수 또는 시간을 한 단계만 올렸습니다.`,
+      reason: `최근 ${completed.length}회 완료, 주간 ${completedDays}일 운동, 피로도와 운동 간격을 확인해 한 항목만 소폭 올렸습니다.`,
     };
   }
   return { target: base, reason: `최근 ${recent.length}회 기록을 확인했습니다. 기록이 더 쌓일 때까지 현재 계획을 유지합니다.` };
@@ -176,7 +195,7 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       {orderedExercises.map((exercise) => {
         const name = exercise.name || exercise.exerciseId;
         const baseAi: ExerciseTarget = { sets: numberFrom(exercise.sets, "세트"), reps: numberFrom(exercise.sets, "회"), durationMinutes: numberFrom(exercise.duration, "분") };
-        const recommendation = getAiTarget(name, baseAi, records);
+        const recommendation = getAiTarget(name, baseAi, records, settings.exerciseTargets[name]);
         const ai = recommendation.target;
         const target = settings.exerciseTargets[name] || {};
         const fields = ai.durationMinutes !== undefined ? [{ key: "durationMinutes" as const, label: "시간", suffix: "분", value: target.durationMinutes }] : [
