@@ -10,6 +10,26 @@ import { IntervalTimer } from './WorkoutControls';
 
 type SessionMode = 'exercise' | 'rest' | 'pain' | 'summary';
 
+interface WorkoutSessionDraft {
+  version: 1;
+  exerciseSignature: string;
+  savedAt: number;
+  currentIndex: number;
+  mode: SessionMode;
+  completed: number[];
+  skipped: number[];
+  elapsedSeconds: number;
+  timerSeconds: number;
+  restSeconds: number;
+  painScore: number;
+  painSymptoms: string[];
+  painMemo: string;
+  overallStatus: WorkoutOverallStatus;
+  difficulty: WorkoutDifficulty;
+  fatigue: number;
+  exerciseRecords: ExerciseRecord[];
+}
+
 export interface WorkoutSessionResult {
   pain: boolean;
   memo: string;
@@ -20,6 +40,37 @@ export interface WorkoutSessionResult {
 }
 
 const PAIN_SYMPTOMS = ['허리 통증', '다리 저림', '무릎 통증', '어지러움', '메스꺼움', '식은땀', '기타'];
+const SESSION_DRAFT_KEY_PREFIX = 'ai-fitness-workout-session-draft';
+
+function getSessionDateKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function getExerciseSignature(exercises: Exercise[]) {
+  return exercises.map((exercise) => exercise.name).join('|');
+}
+
+function getSessionDraftKey(exerciseSignature: string) {
+  let hash = 0;
+  for (let index = 0; index < exerciseSignature.length; index += 1) {
+    hash = ((hash << 5) - hash + exerciseSignature.charCodeAt(index)) | 0;
+  }
+  return `${SESSION_DRAFT_KEY_PREFIX}:${getSessionDateKey()}:${Math.abs(hash)}`;
+}
+
+function readSessionDraft(key: string, exerciseSignature: string, exerciseCount: number) {
+  if (typeof window === 'undefined') return null;
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || 'null') as WorkoutSessionDraft | null;
+    if (!parsed || parsed.version !== 1 || parsed.exerciseSignature !== exerciseSignature) return null;
+    if (parsed.currentIndex < 0 || parsed.currentIndex >= exerciseCount || !Array.isArray(parsed.exerciseRecords)) return null;
+    return parsed;
+  } catch {
+    window.localStorage.removeItem(key);
+    return null;
+  }
+}
 
 function getExerciseSeconds(exercise: Exercise) {
   const text = `${exercise.meta || ''} ${exercise.guide?.duration || ''}`;
@@ -170,24 +221,28 @@ export default function WorkoutSession({
   onFinish?: (result: WorkoutSessionResult) => void;
 }) {
   const safeStartIndex = Math.min(Math.max(0, startIndex), Math.max(0, exercises.length - 1));
-  const [currentIndex, setCurrentIndex] = useState(safeStartIndex);
-  const [mode, setMode] = useState<SessionMode>('exercise');
-  const [completed, setCompleted] = useState<Set<number>>(() => new Set());
-  const [skipped, setSkipped] = useState<Set<number>>(() => new Set());
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [timerSeconds, setTimerSeconds] = useState(() => getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
+  const exerciseSignature = useMemo(() => getExerciseSignature(exercises), [exercises]);
+  const draftKey = useMemo(() => getSessionDraftKey(`${exerciseSignature}:${intensity}`), [exerciseSignature, intensity]);
+  const [initialDraft] = useState(() => readSessionDraft(draftKey, exerciseSignature, exercises.length));
+  const [currentIndex, setCurrentIndex] = useState(initialDraft?.currentIndex ?? safeStartIndex);
+  const [mode, setMode] = useState<SessionMode>(initialDraft?.mode ?? 'exercise');
+  const [completed, setCompleted] = useState<Set<number>>(() => new Set(initialDraft?.completed ?? []));
+  const [skipped, setSkipped] = useState<Set<number>>(() => new Set(initialDraft?.skipped ?? []));
+  const [elapsedSeconds, setElapsedSeconds] = useState(initialDraft?.elapsedSeconds ?? 0);
+  const [timerSeconds, setTimerSeconds] = useState(() => initialDraft?.timerSeconds ?? getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
   const [timerRunning, setTimerRunning] = useState(false);
-  const [restSeconds, setRestSeconds] = useState(0);
+  const [restSeconds, setRestSeconds] = useState(initialDraft?.restSeconds ?? 0);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [painScore, setPainScore] = useState(0);
-  const [painSymptoms, setPainSymptoms] = useState<string[]>([]);
-  const [painMemo, setPainMemo] = useState('');
-  const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>('completed');
-  const [difficulty, setDifficulty] = useState<WorkoutDifficulty>('moderate');
-  const [fatigue, setFatigue] = useState(2);
-  const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => exercises.map((item) => buildExerciseRecord(item, intensity)));
+  const [painScore, setPainScore] = useState(initialDraft?.painScore ?? 0);
+  const [painSymptoms, setPainSymptoms] = useState<string[]>(initialDraft?.painSymptoms ?? []);
+  const [painMemo, setPainMemo] = useState(initialDraft?.painMemo ?? '');
+  const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>(initialDraft?.overallStatus ?? 'completed');
+  const [difficulty, setDifficulty] = useState<WorkoutDifficulty>(initialDraft?.difficulty ?? 'moderate');
+  const [fatigue, setFatigue] = useState(initialDraft?.fatigue ?? 2);
+  const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => initialDraft?.exerciseRecords ?? exercises.map((item) => buildExerciseRecord(item, intensity)));
+  const [restoredDraftVisible, setRestoredDraftVisible] = useState(Boolean(initialDraft));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
     const store = readWorkoutCompletionStore();
     return exercises.reduce<Record<string, ExerciseRecord>>((records, item) => {
@@ -284,6 +339,33 @@ export default function WorkoutSession({
   }, [releaseWakeLock, requestWakeLock]);
 
   useEffect(() => {
+    const draft: WorkoutSessionDraft = {
+      version: 1,
+      exerciseSignature,
+      savedAt: Date.now(),
+      currentIndex,
+      mode,
+      completed: Array.from(completed),
+      skipped: Array.from(skipped),
+      elapsedSeconds,
+      timerSeconds,
+      restSeconds,
+      painScore,
+      painSymptoms,
+      painMemo,
+      overallStatus,
+      difficulty,
+      fatigue,
+      exerciseRecords,
+    };
+    try {
+      window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    } catch {
+      // 사생활 보호 모드나 저장공간 제한에서는 세션을 중단하지 않고 자동저장만 생략합니다.
+    }
+  }, [completed, currentIndex, difficulty, draftKey, elapsedSeconds, exerciseRecords, exerciseSignature, fatigue, mode, overallStatus, painMemo, painScore, painSymptoms, restSeconds, skipped, timerSeconds]);
+
+  useEffect(() => {
     const id = window.setInterval(() => setElapsedSeconds((value) => value + 1), 1000);
     return () => window.clearInterval(id);
   }, []);
@@ -331,6 +413,7 @@ export default function WorkoutSession({
   };
 
   const completeSession = () => {
+    window.localStorage.removeItem(draftKey);
     onFinish?.({
       pain: painScore > 0 || painSymptoms.length > 0,
       memo: buildSessionMemo({
@@ -386,6 +469,12 @@ export default function WorkoutSession({
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+          {restoredDraftVisible && (
+            <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF] p-4 text-left">
+              <div><p className="text-[13px] font-bold text-[#3C3489]">이전 진행상태에서 이어서 시작했습니다.</p><p className="mt-1 text-[11px] text-gray-500">타이머는 안전을 위해 일시정지 상태로 복구됩니다.</p></div>
+              <button type="button" onClick={() => setRestoredDraftVisible(false)} className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold text-gray-600">확인</button>
+            </div>
+          )}
           {mode === 'exercise' && (
             <>
               <section className="rounded-3xl bg-gradient-to-br from-[#EEEDFE] to-[#F7F6FF] p-5 text-center sm:p-7">
@@ -514,10 +603,10 @@ export default function WorkoutSession({
           <div className="absolute inset-0 z-10 grid place-items-center bg-black/55 p-4">
             <section className="w-full max-w-sm rounded-3xl bg-white p-5 text-center shadow-2xl">
               <h2 className="text-[20px] font-bold text-gray-900">운동을 종료할까요?</h2>
-              <p className="mt-2 text-[13px] text-gray-500">아직 저장하지 않은 세션 진행 내용은 사라집니다.</p>
+              <p className="mt-2 text-[13px] text-gray-500">저장 없이 종료하면 자동 저장된 임시 진행상태도 삭제됩니다.</p>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowExitConfirm(false)} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-bold text-gray-700">계속 운동</button>
-                <button type="button" onClick={onClose} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
+                <button type="button" onClick={() => { window.localStorage.removeItem(draftKey); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
               </div>
             </section>
           </div>
