@@ -54,6 +54,7 @@ import WorkoutPlanEditor from "./components/WorkoutPlanEditor";
 import WorkoutNotificationManager from "./components/WorkoutNotificationManager";
 import WorkoutNotificationPanel from "./components/WorkoutNotificationPanel";
 import DevicePinPanel from "./components/DevicePinPanel";
+import DataBackupPanel from "./components/DataBackupPanel";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -864,6 +865,7 @@ function FitnessApp() {
               onSelectionChange={handleRoutineSelectionChange}
             />
             <DevicePinPanel />
+            <DataBackupPanel />
             <WorkoutNotificationPanel />
             <WorkoutPlanEditor
               settings={userWorkoutSettings}
