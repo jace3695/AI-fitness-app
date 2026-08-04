@@ -100,6 +100,9 @@ const videoSearchQueries: Record<string, string> = {
   'pelvic-tilt': '골반 기울이기 운동 허리 안정화',
   'pullup-basic-posture': '턱걸이 초보자 견갑 하강 연습',
   'post-sliding-board': '슬라이딩보드 운동 초보자 유산소',
+  'sliding-board-cardio': '슬라이딩보드 운동 초보자 유산소 균형',
+  'indoor-walk': '실내 걷기 제자리 걷기 올바른 자세',
+  'outdoor-walk': '걷기 운동 올바른 자세 초보자',
   'basic-cooldown': '운동 후 정리운동 스트레칭 초보자',
   'foam-roller-recovery': '폼롤러 회복 운동 종아리 허벅지 엉덩이 등',
   'knee-side-plank': '무릎 사이드 플랭크 자세 초보자',
@@ -175,6 +178,47 @@ for (const [id, videoTitle] of Object.entries(lumbarVideoTitles)) {
 for (const [id, videoTitle] of Object.entries(strengthVideoTitles)) {
   const guide = exerciseGuides[id];
   if (guide) guide.videoTitle = videoTitle;
+}
+
+const coreCardioVideoTitles: Record<string, string> = {
+  'knee-side-plank': '무릎 사이드 플랭크 · 어깨와 골반 정렬',
+  'ab-slider-ready-position': 'AB 슬라이더 준비 · 허리가 꺾이지 않는 시작 자세',
+  'sliding-board-cardio': '슬라이딩보드 · 균형과 안전한 좌우 이동',
+  'indoor-walk': '실내 걷기 · 안전한 보폭과 자세',
+  'outdoor-walk': '야외 산책 · 평지 보행과 적정 강도',
+};
+
+for (const [id, videoTitle] of Object.entries(coreCardioVideoTitles)) {
+  const guide = exerciseGuides[id];
+  if (guide) guide.videoTitle = videoTitle;
+}
+
+const coreCardioStopSignals: Record<string, string[]> = {
+  'knee-side-plank': [
+    '어깨나 허리에 날카로운 통증이 생기거나 몸통 정렬을 유지할 수 없으면 즉시 중단하세요.',
+  ],
+  'ab-slider-ready-position': [
+    '허리가 꺾이거나 허리 통증·다리 저림이 생기면 앞으로 밀지 말고 즉시 중단하세요.',
+  ],
+  'sliding-board-cardio': [
+    '균형을 잃거나 다리에 힘이 풀리면 즉시 멈추고 안전한 지지대를 잡으세요.',
+    '가슴 통증, 심한 호흡곤란 또는 어지럼이 생기면 즉시 중단하세요.',
+  ],
+  'indoor-walk': [
+    '균형이 흔들리거나 어지럼이 생기면 즉시 멈추고 안전하게 앉아 쉬세요.',
+    '가슴 통증이나 심한 호흡곤란이 생기면 즉시 중단하세요.',
+  ],
+  'outdoor-walk': [
+    '가슴 통증, 심한 호흡곤란 또는 어지럼이 생기면 즉시 멈추고 도움을 요청하세요.',
+    '통증 때문에 걸음걸이가 달라지거나 균형을 잃으면 산책을 중단하세요.',
+  ],
+};
+
+for (const [id, stopSignals] of Object.entries(coreCardioStopSignals)) {
+  const guide = exerciseGuides[id];
+  if (!guide) continue;
+  guide.stopCriteria = [...guide.stopCriteria, ...stopSignals.filter((signal) => !guide.stopCriteria.includes(signal))];
+  guide.cautions = guide.stopCriteria;
 }
 
 const strengthStopSignals: Record<string, string[]> = {
