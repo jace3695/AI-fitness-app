@@ -6,8 +6,12 @@ import {
   applyCloudState,
   getRemoteState,
   mergeCloudState,
+  mergeCloudStateFromBase,
   readLocalCloudState,
+  readSyncBase,
   saveRemoteState,
+  saveRemoteStateIfUnchanged,
+  saveSyncBase,
   stableState,
 } from "../data/cloudSync";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
@@ -44,36 +48,72 @@ export default function CloudSyncPanel() {
       syncing.current = true;
       setStatus("syncing");
       try {
-        const local = readLocalCloudState();
-        const remoteRow = await getRemoteState(user.id);
-        const remote = remoteRow?.state ?? {};
+        let local = readLocalCloudState();
+        let remoteRow = await getRemoteState(user.id);
+        let remote = remoteRow?.state ?? {};
         const localHash = stableState(local);
         const remoteHash = stableState(remote);
 
         if (!remoteRow) {
           await saveRemoteState(user.id, local);
           lastSynced.current = localHash;
+          saveSyncBase(user.id, local);
         } else if (!lastSynced.current || initial) {
-          const merged = mergeCloudState(remote, local);
-          const mergedHash = stableState(merged);
+          const base = readSyncBase(user.id);
+          let merged = base
+            ? mergeCloudStateFromBase(base, remote, local)
+            : mergeCloudState(remote, local);
+          let mergedHash = stableState(merged);
+          if (mergedHash !== remoteHash) {
+            let saved = false;
+            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+              saved = await saveRemoteStateIfUnchanged(
+                user.id,
+                merged,
+                remoteRow.updated_at,
+              );
+              if (!saved) {
+                remoteRow = await getRemoteState(user.id);
+                if (!remoteRow) break;
+                remote = remoteRow.state;
+                merged = mergeCloudStateFromBase(base ?? {}, remote, local);
+                mergedHash = stableState(merged);
+              }
+            }
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
+          }
           applyCloudState(merged);
-          if (mergedHash !== remoteHash) await saveRemoteState(user.id, merged);
           lastSynced.current = mergedHash;
+          saveSyncBase(user.id, merged);
           if (mergedHash !== localHash) window.location.reload();
         } else {
           const localChanged = localHash !== lastSynced.current;
           const remoteChanged = remoteHash !== lastSynced.current;
           if (localChanged && remoteChanged) {
-            const merged = mergeCloudState(remote, local);
+            const base = readSyncBase(user.id) ?? {};
+            let merged = mergeCloudStateFromBase(base, remote, local);
             applyCloudState(merged);
-            await saveRemoteState(user.id, merged);
+            let saved = false;
+            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+              saved = await saveRemoteStateIfUnchanged(user.id, merged, remoteRow.updated_at);
+              if (!saved) {
+                remoteRow = await getRemoteState(user.id);
+                if (!remoteRow) break;
+                merged = mergeCloudStateFromBase(base, remoteRow.state, local);
+              }
+            }
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             lastSynced.current = stableState(merged);
+            saveSyncBase(user.id, merged);
           } else if (localChanged) {
-            await saveRemoteState(user.id, local);
+            const saved = await saveRemoteStateIfUnchanged(user.id, local, remoteRow.updated_at);
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             lastSynced.current = localHash;
+            saveSyncBase(user.id, local);
           } else if (remoteChanged) {
             applyCloudState(remote);
             lastSynced.current = remoteHash;
+            saveSyncBase(user.id, remote);
             window.location.reload();
           }
         }
