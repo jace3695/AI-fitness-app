@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
+const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";
 
 export type CloudState = Record<string, unknown>;
 
@@ -15,6 +16,52 @@ function parseStoredValue(raw: string | null) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+const MISSING = Symbol("missing");
+
+function sameValue(left: unknown, right: unknown) {
+  return stableState({ value: left }) === stableState({ value: right });
+}
+
+function mergeValue(base: unknown, remote: unknown, local: unknown): unknown {
+  if (sameValue(local, remote)) return local;
+  if (sameValue(local, base)) return remote;
+  if (sameValue(remote, base)) return local;
+
+  if (isPlainObject(base) || isPlainObject(remote) || isPlainObject(local)) {
+    const baseObject = isPlainObject(base) ? base : {};
+    const remoteObject = isPlainObject(remote) ? remote : {};
+    const localObject = isPlainObject(local) ? local : {};
+    const result: Record<string, unknown> = {};
+    const keys = new Set([
+      ...Object.keys(baseObject),
+      ...Object.keys(remoteObject),
+      ...Object.keys(localObject),
+    ]);
+    keys.forEach((key) => {
+      const merged = mergeValue(
+        key in baseObject ? baseObject[key] : MISSING,
+        key in remoteObject ? remoteObject[key] : MISSING,
+        key in localObject ? localObject[key] : MISSING,
+      );
+      if (merged !== MISSING) result[key] = merged;
+    });
+    return result;
+  }
+
+  if (Array.isArray(remote) && Array.isArray(local)) {
+    const result = [...remote];
+    local.forEach((item) => {
+      if (!result.some((existing) => sameValue(existing, item))) result.push(item);
+    });
+    return result;
+  }
+
+  // A deletion only wins when the other device did not modify the same value.
+  if (local === MISSING) return remote;
+  if (remote === MISSING) return local;
+  return local;
 }
 
 export function readLocalCloudState(): CloudState {
@@ -53,6 +100,29 @@ export function mergeCloudState(remote: CloudState, local: CloudState) {
         : localValue;
   });
   return merged;
+}
+
+export function mergeCloudStateFromBase(
+  base: CloudState,
+  remote: CloudState,
+  local: CloudState,
+) {
+  return mergeValue(base, remote, local) as CloudState;
+}
+
+export function readSyncBase(userId: string): CloudState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(window.localStorage.getItem(`${SYNC_BASE_PREFIX}${userId}`) || "null") as CloudState | null;
+  } catch {
+    window.localStorage.removeItem(`${SYNC_BASE_PREFIX}${userId}`);
+    return null;
+  }
+}
+
+export function saveSyncBase(userId: string, state: CloudState) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(`${SYNC_BASE_PREFIX}${userId}`, JSON.stringify(state));
 }
 
 export function applyCloudState(state: CloudState) {
@@ -101,4 +171,21 @@ export async function saveRemoteState(userId: string, state: CloudState) {
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;
+}
+
+export async function saveRemoteStateIfUnchanged(
+  userId: string,
+  state: CloudState,
+  expectedUpdatedAt: string,
+) {
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("user_app_state")
+    .update({ state, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("updated_at", expectedUpdatedAt)
+    .select("updated_at")
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
 }
