@@ -107,10 +107,52 @@ const GENERAL_WORKOUT_FIELDS: (keyof WorkoutDayRecord)[] = [
   "workoutExerciseRecords",
 ];
 
-export function removeGeneralWorkoutRecord(record: WorkoutDayRecord) {
+const CARDIO_FIELDS: (keyof WorkoutDayRecord)[] = [
+  "cardioDone",
+  "cardioType",
+  "cardioMinutes",
+  "cardioMemo",
+];
+
+const PULLUP_FIELDS: (keyof WorkoutDayRecord)[] = [
+  "pullupDone",
+  "pullupStage",
+  "pullupExerciseNames",
+  "pullupPain",
+  "pullupMemo",
+];
+
+const FOAM_ROLLER_FIELDS: (keyof WorkoutDayRecord)[] = [
+  "foamRollerDone",
+  "foamRollerTiming",
+  "foamRollerAreas",
+  "foamRollerPain",
+  "foamRollerMemo",
+];
+
+function removeFields(
+  record: WorkoutDayRecord,
+  fields: (keyof WorkoutDayRecord)[],
+) {
   const preservedRecord = { ...record };
-  GENERAL_WORKOUT_FIELDS.forEach((key) => delete preservedRecord[key]);
+  fields.forEach((key) => delete preservedRecord[key]);
   return preservedRecord;
+}
+
+export function removeGeneralWorkoutRecord(record: WorkoutDayRecord) {
+  return removeFields(record, GENERAL_WORKOUT_FIELDS);
+}
+
+export function removeCardioRecord(record: WorkoutDayRecord) {
+  return removeFields(record, CARDIO_FIELDS);
+}
+
+export function removePullupRecord(record: WorkoutDayRecord) {
+  return removeFields(record, PULLUP_FIELDS);
+}
+
+export function removeFoamRollerRecord(record: WorkoutDayRecord) {
+  return removeFields(record, FOAM_ROLLER_FIELDS);
 }
 
 export function getWorkoutRecord(
