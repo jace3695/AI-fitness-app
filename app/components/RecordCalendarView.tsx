@@ -14,13 +14,20 @@ import {
   CONDITION_SIGNAL_OPTIONS,
   RECOVERY_REASON_LABELS,
 } from "../data/recoveryMode";
-import { FOAM_ROLLER_TIMING_LABELS } from "../data/foamRoller";
+import {
+  FOAM_ROLLER_AREAS,
+  FOAM_ROLLER_TIMING_LABELS,
+  FoamRollerTiming,
+} from "../data/foamRoller";
 import {
   isCardioDone,
   isPullupDone,
   isWorkoutDone,
   isWorkoutPerformed,
+  removeCardioRecord,
+  removeFoamRollerRecord,
   removeGeneralWorkoutRecord,
+  removePullupRecord,
   WorkoutDifficulty,
   WorkoutOverallStatus,
   WorkoutDayRecord,
@@ -78,6 +85,17 @@ export default function RecordCalendarView() {
   const [workoutMemoDraft, setWorkoutMemoDraft] = useState("");
   const [exerciseRecordsDraft, setExerciseRecordsDraft] = useState<WorkoutDayRecord["workoutExerciseRecords"]>([]);
   const [workoutNotice, setWorkoutNotice] = useState("");
+  const [editingSecondary, setEditingSecondary] = useState<"cardio" | "pullup" | "foam" | null>(null);
+  const [cardioTypeDraft, setCardioTypeDraft] = useState("");
+  const [cardioMinutesDraft, setCardioMinutesDraft] = useState(20);
+  const [cardioMemoDraft, setCardioMemoDraft] = useState("");
+  const [pullupStageDraft, setPullupStageDraft] = useState(1);
+  const [pullupPainDraft, setPullupPainDraft] = useState(false);
+  const [pullupMemoDraft, setPullupMemoDraft] = useState("");
+  const [foamTimingDraft, setFoamTimingDraft] = useState<FoamRollerTiming>("before");
+  const [foamAreasDraft, setFoamAreasDraft] = useState<string[]>([]);
+  const [foamPainDraft, setFoamPainDraft] = useState(false);
+  const [foamMemoDraft, setFoamMemoDraft] = useState("");
   useEffect(() => setStores(readRecordStores()), []);
   useEffect(
     () => setNoteDraft(stores?.notes[selected] || ""),
@@ -94,12 +112,23 @@ export default function RecordCalendarView() {
       : undefined;
   useEffect(() => {
     setEditingWorkout(false);
+    setEditingSecondary(null);
     setWorkoutStatusDraft(selectedWorkoutRecord?.workoutStatus || (selectedWorkoutRecord?.workoutDone ? "completed" : "stopped"));
     setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty || "moderate");
     setWorkoutFatigueDraft(selectedWorkoutRecord?.workoutFatigue || 2);
     setWorkoutPainDraft(Boolean(selectedWorkoutRecord?.workoutPain));
     setWorkoutMemoDraft(selectedWorkoutRecord?.workoutMemo || "");
     setExerciseRecordsDraft(selectedWorkoutRecord?.workoutExerciseRecords || []);
+    setCardioTypeDraft(selectedWorkoutRecord?.cardioType || "");
+    setCardioMinutesDraft(selectedWorkoutRecord?.cardioMinutes || 20);
+    setCardioMemoDraft(selectedWorkoutRecord?.cardioMemo || "");
+    setPullupStageDraft(selectedWorkoutRecord?.pullupStage || 1);
+    setPullupPainDraft(Boolean(selectedWorkoutRecord?.pullupPain));
+    setPullupMemoDraft(selectedWorkoutRecord?.pullupMemo || "");
+    setFoamTimingDraft(selectedWorkoutRecord?.foamRollerTiming || "before");
+    setFoamAreasDraft(selectedWorkoutRecord?.foamRollerAreas || []);
+    setFoamPainDraft(Boolean(selectedWorkoutRecord?.foamRollerPain));
+    setFoamMemoDraft(selectedWorkoutRecord?.foamRollerMemo || "");
   }, [selected, selectedWorkoutRecord]);
   if (!stores)
     return (
@@ -199,6 +228,36 @@ export default function RecordCalendarView() {
     else delete workouts[selected];
     writeWorkoutStore(workouts);
     setWorkoutNotice("일반 운동 기록을 삭제했습니다.");
+  };
+  const saveSecondaryEdit = (kind: "cardio" | "pullup" | "foam") => {
+    if (!selectedWorkoutRecord) return;
+    const patch: Partial<WorkoutDayRecord> = kind === "cardio"
+      ? { cardioDone: true, cardioType: cardioTypeDraft.trim() || "유산소", cardioMinutes: Math.max(1, cardioMinutesDraft), cardioMemo: cardioMemoDraft.trim() || undefined }
+      : kind === "pullup"
+        ? { pullupDone: true, pullupStage: Math.min(5, Math.max(1, pullupStageDraft)), pullupPain: pullupPainDraft, pullupMemo: pullupMemoDraft.trim() || undefined }
+        : { foamRollerDone: true, foamRollerTiming: foamTimingDraft, foamRollerAreas: foamAreasDraft, foamRollerPain: foamPainDraft, foamRollerMemo: foamMemoDraft.trim() || undefined };
+    writeWorkoutStore({
+      ...stores.workouts,
+      [selected]: { ...selectedWorkoutRecord, ...patch },
+    });
+    setEditingSecondary(null);
+    setWorkoutNotice(`${kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러"} 기록을 수정했습니다.`);
+  };
+  const deleteSecondaryRecord = (kind: "cardio" | "pullup" | "foam") => {
+    if (!selectedWorkoutRecord) return;
+    const label = kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러";
+    if (!window.confirm(`선택한 날짜의 ${label} 기록만 삭제할까요? 다른 기록은 유지됩니다.`)) return;
+    const nextRecord = kind === "cardio"
+      ? removeCardioRecord(selectedWorkoutRecord)
+      : kind === "pullup"
+        ? removePullupRecord(selectedWorkoutRecord)
+        : removeFoamRollerRecord(selectedWorkoutRecord);
+    const workouts = { ...stores.workouts };
+    if (Object.keys(nextRecord).length) workouts[selected] = nextRecord;
+    else delete workouts[selected];
+    writeWorkoutStore(workouts);
+    setEditingSecondary(null);
+    setWorkoutNotice(`${label} 기록을 삭제했습니다.`);
   };
   return (
     <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
@@ -528,6 +587,16 @@ export default function RecordCalendarView() {
                   메모: {selectedWorkoutRecord.cardioMemo}
                 </p>
               )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setEditingSecondary(editingSecondary === "cardio" ? null : "cardio")} className="rounded-lg bg-[#378ADD] px-3 py-2 text-[11px] font-bold text-white">유산소 기록 수정</button>
+                <button type="button" onClick={() => deleteSecondaryRecord("cardio")} className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">유산소 기록 삭제</button>
+              </div>
+              {editingSecondary === "cardio" ? <div className="mt-3 rounded-xl border border-blue-100 bg-white p-3">
+                <label className="block text-[11px] font-bold text-gray-600">유산소 종류<input value={cardioTypeDraft} onChange={(event) => setCardioTypeDraft(event.target.value)} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-normal" /></label>
+                <label className="mt-2 block text-[11px] font-bold text-gray-600">시간(분)<input type="number" min={1} max={300} value={cardioMinutesDraft} onChange={(event) => setCardioMinutesDraft(Number(event.target.value) || 1)} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-[12px] font-normal" /></label>
+                <label className="mt-2 block text-[11px] font-bold text-gray-600">메모<textarea value={cardioMemoDraft} onChange={(event) => setCardioMemoDraft(event.target.value)} className="mt-1 min-h-16 w-full rounded-lg border border-gray-200 px-3 py-2 font-normal" /></label>
+                <div className="mt-2 grid grid-cols-2 gap-2"><button type="button" onClick={() => saveSecondaryEdit("cardio")} className="rounded-lg bg-[#378ADD] px-3 py-2 font-bold text-white">수정 저장</button><button type="button" onClick={() => setEditingSecondary(null)} className="rounded-lg bg-gray-100 px-3 py-2 font-bold text-gray-600">취소</button></div>
+              </div> : null}
             </div>
           )}
 
@@ -543,6 +612,17 @@ export default function RecordCalendarView() {
               {selectedWorkoutRecord.foamRollerMemo && (
                 <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-gray-600">메모: {selectedWorkoutRecord.foamRollerMemo}</p>
               )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setEditingSecondary(editingSecondary === "foam" ? null : "foam")} className="rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white">폼롤러 기록 수정</button>
+                <button type="button" onClick={() => deleteSecondaryRecord("foam")} className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">폼롤러 기록 삭제</button>
+              </div>
+              {editingSecondary === "foam" ? <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 text-gray-700">
+                <p className="text-[11px] font-bold">진행 시점</p><div className="mt-1 flex flex-wrap gap-1">{(Object.keys(FOAM_ROLLER_TIMING_LABELS) as FoamRollerTiming[]).map((timing) => <button key={timing} type="button" onClick={() => setFoamTimingDraft(timing)} className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${foamTimingDraft === timing ? "bg-emerald-600 text-white" : "bg-gray-50 text-gray-600"}`}>{FOAM_ROLLER_TIMING_LABELS[timing]}</button>)}</div>
+                <p className="mt-2 text-[11px] font-bold">진행 부위</p><div className="mt-1 flex flex-wrap gap-1">{FOAM_ROLLER_AREAS.map((area) => <button key={area} type="button" onClick={() => setFoamAreasDraft((areas) => areas.includes(area) ? areas.filter((item) => item !== area) : [...areas, area])} className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${foamAreasDraft.includes(area) ? "bg-emerald-600 text-white" : "bg-gray-50 text-gray-600"}`}>{area}</button>)}</div>
+                <label className="mt-2 flex items-center gap-2 text-[11px] font-bold"><input type="checkbox" checked={foamPainDraft} onChange={(event) => setFoamPainDraft(event.target.checked)} className="h-4 w-4 accent-red-600" />통증 있음</label>
+                <label className="mt-2 block text-[11px] font-bold">메모<textarea value={foamMemoDraft} onChange={(event) => setFoamMemoDraft(event.target.value)} className="mt-1 min-h-16 w-full rounded-lg border border-gray-200 px-3 py-2 font-normal" /></label>
+                <div className="mt-2 grid grid-cols-2 gap-2"><button type="button" onClick={() => saveSecondaryEdit("foam")} className="rounded-lg bg-emerald-600 px-3 py-2 font-bold text-white">수정 저장</button><button type="button" onClick={() => setEditingSecondary(null)} className="rounded-lg bg-gray-100 px-3 py-2 font-bold text-gray-600">취소</button></div>
+              </div> : null}
             </div>
           )}
           <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
@@ -572,6 +652,15 @@ export default function RecordCalendarView() {
                   메모: {selectedWorkoutRecord.pullupMemo}
                 </p>
               )}
+            {isPullupDone(selectedWorkout) ? <>
+              <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => setEditingSecondary(editingSecondary === "pullup" ? null : "pullup")} className="rounded-lg bg-[#534AB7] px-3 py-2 text-[11px] font-bold text-white">철봉 기록 수정</button><button type="button" onClick={() => deleteSecondaryRecord("pullup")} className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">철봉 기록 삭제</button></div>
+              {editingSecondary === "pullup" ? <div className="mt-3 rounded-xl border border-[#D9D6FF] bg-white p-3">
+                <label className="block text-[11px] font-bold text-gray-600">철봉 단계<input type="number" min={1} max={5} value={pullupStageDraft} onChange={(event) => setPullupStageDraft(Number(event.target.value) || 1)} className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 font-normal" /></label>
+                <label className="mt-2 flex items-center gap-2 text-[11px] font-bold text-gray-600"><input type="checkbox" checked={pullupPainDraft} onChange={(event) => setPullupPainDraft(event.target.checked)} className="h-4 w-4 accent-red-600" />통증 있음</label>
+                <label className="mt-2 block text-[11px] font-bold text-gray-600">메모<textarea value={pullupMemoDraft} onChange={(event) => setPullupMemoDraft(event.target.value)} className="mt-1 min-h-16 w-full rounded-lg border border-gray-200 px-3 py-2 font-normal" /></label>
+                <div className="mt-2 grid grid-cols-2 gap-2"><button type="button" onClick={() => saveSecondaryEdit("pullup")} className="rounded-lg bg-[#534AB7] px-3 py-2 font-bold text-white">수정 저장</button><button type="button" onClick={() => setEditingSecondary(null)} className="rounded-lg bg-gray-100 px-3 py-2 font-bold text-gray-600">취소</button></div>
+              </div> : null}
+            </> : null}
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
             식단
