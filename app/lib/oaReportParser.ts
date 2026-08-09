@@ -137,7 +137,7 @@ function makeCrop(
   return canvas;
 }
 
-function numberFromText(text: string, row: ReportRow) {
+export function numberFromText(text: string, row: ReportRow) {
   const normalized = text
     .replace(/,/g, ".")
     .replace(/[Oo]/g, "0")
