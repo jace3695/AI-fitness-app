@@ -19,6 +19,10 @@ import {
   isCardioDone,
   isPullupDone,
   isWorkoutDone,
+  WorkoutDifficulty,
+  WorkoutOverallStatus,
+  WorkoutDayRecord,
+  WORKOUT_COMPLETED_DAYS_KEY,
 } from "../data/workoutCompletion";
 import {
   DAILY_NOTES_KEY,
@@ -64,6 +68,14 @@ export default function RecordCalendarView() {
   const [selected, setSelected] = useState(todayKey);
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [editingWorkout, setEditingWorkout] = useState(false);
+  const [workoutStatusDraft, setWorkoutStatusDraft] = useState<WorkoutOverallStatus>("completed");
+  const [workoutDifficultyDraft, setWorkoutDifficultyDraft] = useState<WorkoutDifficulty>("moderate");
+  const [workoutFatigueDraft, setWorkoutFatigueDraft] = useState(2);
+  const [workoutPainDraft, setWorkoutPainDraft] = useState(false);
+  const [workoutMemoDraft, setWorkoutMemoDraft] = useState("");
+  const [exerciseRecordsDraft, setExerciseRecordsDraft] = useState<WorkoutDayRecord["workoutExerciseRecords"]>([]);
+  const [workoutNotice, setWorkoutNotice] = useState("");
   useEffect(() => setStores(readRecordStores()), []);
   useEffect(
     () => setNoteDraft(stores?.notes[selected] || ""),
@@ -73,6 +85,20 @@ export default function RecordCalendarView() {
     () => getCalendarCells(visible.getFullYear(), visible.getMonth()),
     [visible],
   );
+  const selectedWorkout = stores?.workouts[selected];
+  const selectedWorkoutRecord =
+    typeof selectedWorkout === "object" && selectedWorkout
+      ? selectedWorkout
+      : undefined;
+  useEffect(() => {
+    setEditingWorkout(false);
+    setWorkoutStatusDraft(selectedWorkoutRecord?.workoutStatus || (selectedWorkoutRecord?.workoutDone ? "completed" : "stopped"));
+    setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty || "moderate");
+    setWorkoutFatigueDraft(selectedWorkoutRecord?.workoutFatigue || 2);
+    setWorkoutPainDraft(Boolean(selectedWorkoutRecord?.workoutPain));
+    setWorkoutMemoDraft(selectedWorkoutRecord?.workoutMemo || "");
+    setExerciseRecordsDraft(selectedWorkoutRecord?.workoutExerciseRecords || []);
+  }, [selected, selectedWorkoutRecord]);
   if (!stores)
     return (
       <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">
@@ -97,11 +123,6 @@ export default function RecordCalendarView() {
         CONDITION_SIGNAL_OPTIONS.find((option) => option.id === signal)?.label ??
         signal,
     ) ?? [];
-  const selectedWorkout = stores.workouts[selected];
-  const selectedWorkoutRecord =
-    typeof selectedWorkout === "object" && selectedWorkout
-      ? selectedWorkout
-      : undefined;
   const workoutPlanName = selectedWorkoutRecord?.workoutPlanName;
   const workoutGroupName = selectedWorkoutRecord?.workoutRoutineName;
   const workoutSourceDay = selectedWorkoutRecord?.workoutSourceDay;
@@ -141,6 +162,43 @@ export default function RecordCalendarView() {
     stores.lunchCarbs[selected] ||
     stores.lunchProteins[selected],
   );
+  const writeWorkoutStore = (workouts: RecordStores["workouts"]) => {
+    writeJson(WORKOUT_COMPLETED_DAYS_KEY, workouts);
+    setStores({ ...stores, workouts });
+  };
+  const saveWorkoutEdit = () => {
+    if (!selectedWorkoutRecord) return;
+    const exerciseRecords = exerciseRecordsDraft || [];
+    const workoutExerciseNames = exerciseRecords.length
+      ? exerciseRecords.map((record) => record.exerciseName)
+      : selectedWorkoutRecord.workoutExerciseNames;
+    writeWorkoutStore({
+      ...stores.workouts,
+      [selected]: {
+        ...selectedWorkoutRecord,
+        workoutDone: workoutStatusDraft === "completed",
+        workoutStatus: workoutStatusDraft,
+        workoutDifficulty: workoutDifficultyDraft,
+        workoutFatigue: workoutFatigueDraft,
+        workoutPain: workoutPainDraft,
+        workoutMemo: workoutMemoDraft.trim() || undefined,
+        workoutExerciseNames,
+        workoutExerciseRecords: exerciseRecords.length ? exerciseRecords : undefined,
+      },
+    });
+    setEditingWorkout(false);
+    setWorkoutNotice("운동 기록을 수정했습니다.");
+  };
+  const deleteWorkoutRecord = () => {
+    if (!selectedWorkoutRecord || !window.confirm("선택한 날짜의 일반 운동 기록을 삭제할까요? 유산소·폼롤러·철봉 기록은 유지됩니다.")) return;
+    const nextRecord: WorkoutDayRecord = { ...selectedWorkoutRecord };
+    (["workoutDone", "workoutRoutineName", "workoutPlanName", "workoutGroupId", "workoutExerciseNames", "workoutSourceDay", "workoutPain", "workoutMemo", "workoutStatus", "workoutDifficulty", "workoutFatigue", "workoutExerciseRecords", "rosaryCardioDone", "rosaryCardioMinutes", "rosaryDecades", "postWorkoutCardioDone", "postWorkoutCardioMinutes"] as (keyof WorkoutDayRecord)[]).forEach((key) => delete nextRecord[key]);
+    const workouts = { ...stores.workouts };
+    if (Object.keys(nextRecord).length) workouts[selected] = nextRecord;
+    else delete workouts[selected];
+    writeWorkoutStore(workouts);
+    setWorkoutNotice("일반 운동 기록을 삭제했습니다.");
+  };
   return (
     <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
       <RecordDashboard
@@ -206,7 +264,7 @@ export default function RecordCalendarView() {
             return (
               <button
                 key={key}
-                onClick={() => setSelected(key)}
+                onClick={() => { setSelected(key); setWorkoutNotice(""); }}
                 className={`min-h-[56px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
               >
                 <span
@@ -386,7 +444,24 @@ export default function RecordCalendarView() {
               </div>
             )}
             {partialCompletionPoint ? <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">일부 완료 지점: {partialCompletionPoint}까지 기록</p> : null}
+            {selectedWorkoutRecord?.workoutStatus ? <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" onClick={() => setEditingWorkout((value) => !value)} className="rounded-lg bg-[#534AB7] px-3 py-2 text-[11px] font-bold text-white">{editingWorkout ? "수정 닫기" : "운동 기록 수정"}</button>
+              <button type="button" onClick={deleteWorkoutRecord} className="rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">일반 운동 기록 삭제</button>
+            </div> : null}
+            {workoutNotice ? <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700">{workoutNotice}</p> : null}
           </div>
+          {editingWorkout && selectedWorkoutRecord ? <div className="rounded-xl border border-[#D9D6FF] bg-white p-3 sm:col-span-2">
+            <p className="font-bold text-[#3C3489]">선택 날짜 운동 기록 수정</p>
+            <p className="mt-3 text-[11px] font-bold text-gray-600">운동 결과</p>
+            <div className="mt-1 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutStatusDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutStatusDraft === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
+            <p className="mt-3 text-[11px] font-bold text-gray-600">난이도</p>
+            <div className="mt-1 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutDifficultyDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutDifficultyDraft === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
+            <label className="mt-3 block text-[11px] font-bold text-gray-600">피로도 {workoutFatigueDraft}/5<input type="range" min={1} max={5} value={workoutFatigueDraft} onChange={(event) => setWorkoutFatigueDraft(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+            <label className="mt-3 flex items-center gap-2 text-[11px] font-bold text-gray-600"><input type="checkbox" checked={workoutPainDraft} onChange={(event) => setWorkoutPainDraft(event.target.checked)} className="h-4 w-4 accent-red-600" />통증 있음</label>
+            <textarea value={workoutMemoDraft} onChange={(event) => setWorkoutMemoDraft(event.target.value)} placeholder="운동 메모" className="mt-2 min-h-16 w-full rounded-xl border border-gray-200 px-3 py-2 text-[12px]" />
+            {exerciseRecordsDraft?.length ? <div className="mt-3 space-y-2"><p className="text-[11px] font-bold text-gray-600">운동별 결과</p>{exerciseRecordsDraft.map((record, index) => <div key={`${record.exerciseName}-${index}`} className="rounded-xl bg-gray-50 p-2"><p className="text-[11px] font-bold text-gray-800">{record.exerciseName}</p><div className="mt-1 grid grid-cols-4 gap-1">{([['completed', '완료'], ['partial', '부분'], ['skipped', '건너뜀'], ['pending', '미완료']] as [typeof record.status, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setExerciseRecordsDraft((records) => records?.map((item, recordIndex) => recordIndex === index ? { ...item, status: value } : item))} className={`rounded-lg px-1 py-1.5 text-[10px] font-bold ${record.status === value ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-500'}`}>{label}</button>)}</div></div>)}</div> : null}
+            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={saveWorkoutEdit} className="rounded-xl bg-[#534AB7] px-3 py-2.5 text-[12px] font-bold text-white">수정 저장</button><button type="button" onClick={() => setEditingWorkout(false)} className="rounded-xl bg-gray-100 px-3 py-2.5 text-[12px] font-bold text-gray-600">취소</button></div>
+          </div> : null}
           {workoutExerciseRecords.length ? (
             <div className="rounded-xl bg-[#F7F6FF] p-3 sm:col-span-2">
               <p className="font-bold text-[#3C3489]">동작별 수행 기록</p>
