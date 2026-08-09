@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "node --import tsx --test app/data/cloudSync.merge.test.ts app/data/workoutCompletion.test.ts app/lib/oaReportParser.test.ts"
+    "lint": "next lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.52.1",
@@ -25,7 +24,6 @@
     "eslint-config-next": "^14.2.3",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
-    "tsx": "4.20.5",
     "typescript": "^5"
   }
 }
