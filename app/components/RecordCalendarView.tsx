@@ -20,6 +20,7 @@ import {
   isPullupDone,
   isWorkoutDone,
   isWorkoutPerformed,
+  removeGeneralWorkoutRecord,
   WorkoutDifficulty,
   WorkoutOverallStatus,
   WorkoutDayRecord,
@@ -192,8 +193,7 @@ export default function RecordCalendarView() {
   };
   const deleteWorkoutRecord = () => {
     if (!selectedWorkoutRecord || !window.confirm("선택한 날짜의 일반 운동 기록을 삭제할까요? 유산소·폼롤러·철봉 기록은 유지됩니다.")) return;
-    const nextRecord: WorkoutDayRecord = { ...selectedWorkoutRecord };
-    (["workoutDone", "workoutRoutineName", "workoutPlanName", "workoutGroupId", "workoutExerciseNames", "workoutSourceDay", "workoutPain", "workoutMemo", "workoutStatus", "workoutDifficulty", "workoutFatigue", "workoutExerciseRecords"] as (keyof WorkoutDayRecord)[]).forEach((key) => delete nextRecord[key]);
+    const nextRecord = removeGeneralWorkoutRecord(selectedWorkoutRecord);
     const workouts = { ...stores.workouts };
     if (Object.keys(nextRecord).length) workouts[selected] = nextRecord;
     else delete workouts[selected];

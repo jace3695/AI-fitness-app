@@ -92,6 +92,27 @@ export function isPullupDone(value?: WorkoutCompletionValue) {
   return typeof value === "object" && Boolean(value?.pullupDone);
 }
 
+const GENERAL_WORKOUT_FIELDS: (keyof WorkoutDayRecord)[] = [
+  "workoutDone",
+  "workoutRoutineName",
+  "workoutPlanName",
+  "workoutGroupId",
+  "workoutExerciseNames",
+  "workoutSourceDay",
+  "workoutPain",
+  "workoutMemo",
+  "workoutStatus",
+  "workoutDifficulty",
+  "workoutFatigue",
+  "workoutExerciseRecords",
+];
+
+export function removeGeneralWorkoutRecord(record: WorkoutDayRecord) {
+  const preservedRecord = { ...record };
+  GENERAL_WORKOUT_FIELDS.forEach((key) => delete preservedRecord[key]);
+  return preservedRecord;
+}
+
 export function getWorkoutRecord(
   value?: WorkoutCompletionValue,
 ): WorkoutDayRecord {
