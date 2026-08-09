@@ -6,8 +6,12 @@ import {
   applyCloudState,
   getRemoteState,
   mergeCloudState,
+  mergeCloudStateFromBase,
   readLocalCloudState,
+  readSyncBase,
   saveRemoteState,
+  saveRemoteStateIfUnchanged,
+  saveSyncBase,
   stableState,
 } from "../data/cloudSync";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
@@ -20,6 +24,8 @@ export default function CloudSyncPanel() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SyncStatus>("idle");
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncRequest, setSyncRequest] = useState(0);
   const lastSynced = useRef("");
   const syncing = useRef(false);
 
@@ -42,42 +48,79 @@ export default function CloudSyncPanel() {
       syncing.current = true;
       setStatus("syncing");
       try {
-        const local = readLocalCloudState();
-        const remoteRow = await getRemoteState(user.id);
-        const remote = remoteRow?.state ?? {};
+        let local = readLocalCloudState();
+        let remoteRow = await getRemoteState(user.id);
+        let remote = remoteRow?.state ?? {};
         const localHash = stableState(local);
         const remoteHash = stableState(remote);
 
         if (!remoteRow) {
           await saveRemoteState(user.id, local);
           lastSynced.current = localHash;
+          saveSyncBase(user.id, local);
         } else if (!lastSynced.current || initial) {
-          const merged = mergeCloudState(remote, local);
-          const mergedHash = stableState(merged);
+          const base = readSyncBase(user.id);
+          let merged = base
+            ? mergeCloudStateFromBase(base, remote, local)
+            : mergeCloudState(remote, local);
+          let mergedHash = stableState(merged);
+          if (mergedHash !== remoteHash) {
+            let saved = false;
+            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+              saved = await saveRemoteStateIfUnchanged(
+                user.id,
+                merged,
+                remoteRow.updated_at,
+              );
+              if (!saved) {
+                remoteRow = await getRemoteState(user.id);
+                if (!remoteRow) break;
+                remote = remoteRow.state;
+                merged = mergeCloudStateFromBase(base ?? {}, remote, local);
+                mergedHash = stableState(merged);
+              }
+            }
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
+          }
           applyCloudState(merged);
-          if (mergedHash !== remoteHash) await saveRemoteState(user.id, merged);
           lastSynced.current = mergedHash;
+          saveSyncBase(user.id, merged);
           if (mergedHash !== localHash) window.location.reload();
         } else {
           const localChanged = localHash !== lastSynced.current;
           const remoteChanged = remoteHash !== lastSynced.current;
           if (localChanged && remoteChanged) {
-            const merged = mergeCloudState(remote, local);
+            const base = readSyncBase(user.id) ?? {};
+            let merged = mergeCloudStateFromBase(base, remote, local);
             applyCloudState(merged);
-            await saveRemoteState(user.id, merged);
+            let saved = false;
+            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+              saved = await saveRemoteStateIfUnchanged(user.id, merged, remoteRow.updated_at);
+              if (!saved) {
+                remoteRow = await getRemoteState(user.id);
+                if (!remoteRow) break;
+                merged = mergeCloudStateFromBase(base, remoteRow.state, local);
+              }
+            }
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             lastSynced.current = stableState(merged);
+            saveSyncBase(user.id, merged);
           } else if (localChanged) {
-            await saveRemoteState(user.id, local);
+            const saved = await saveRemoteStateIfUnchanged(user.id, local, remoteRow.updated_at);
+            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             lastSynced.current = localHash;
+            saveSyncBase(user.id, local);
           } else if (remoteChanged) {
             applyCloudState(remote);
             lastSynced.current = remoteHash;
+            saveSyncBase(user.id, remote);
             window.location.reload();
           }
         }
         if (active) {
           setStatus("synced");
           setMessage("");
+          setLastSyncedAt(new Date());
         }
       } catch (error) {
         if (active) {
@@ -91,7 +134,7 @@ export default function CloudSyncPanel() {
       }
     };
 
-    void sync(true);
+    void sync(!lastSynced.current);
     const interval = window.setInterval(() => void sync(), 3000);
     const onVisibility = () => {
       if (document.visibilityState === "visible") void sync();
@@ -108,7 +151,7 @@ export default function CloudSyncPanel() {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("focus", onFocus);
     };
-  }, [user]);
+  }, [syncRequest, user]);
 
   if (!isSupabaseConfigured)
     return (
@@ -190,20 +233,50 @@ export default function CloudSyncPanel() {
 
   return (
     <div className="mt-3 w-full">
-      <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
-        <span>
-          {status === "syncing"
-            ? "기록 동기화 중…"
-            : status === "error"
-              ? `동기화 오류: ${message}`
-              : `기록 동기화 완료 · ${user.email}`}
-        </span>
-        <button
-          onClick={() => void supabase?.auth.signOut()}
-          className="font-bold text-emerald-900"
-        >
-          로그아웃
-        </button>
+      <div className={`rounded-2xl border p-3 text-[11px] ${status === "error" ? "border-red-100 bg-red-50 text-red-800" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-bold">
+              {status === "syncing"
+                ? "기록 동기화 중…"
+                : status === "error"
+                  ? "기록 동기화 실패"
+                  : "기록 동기화 완료"}
+            </p>
+            <p className="mt-0.5 truncate opacity-80">{user.email}</p>
+            {status === "error" ? (
+              <p className="mt-1 break-words">{message}</p>
+            ) : lastSyncedAt ? (
+              <p className="mt-1 opacity-80">
+                마지막 확인 {lastSyncedAt.toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </p>
+            ) : null}
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 font-bold ${status === "error" ? "bg-red-100 text-red-700" : status === "syncing" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : "안전하게 저장됨"}
+          </span>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            disabled={status === "syncing"}
+            onClick={() => setSyncRequest((current) => current + 1)}
+            className="flex-1 rounded-xl bg-white px-3 py-2 font-bold text-[#3C3489] shadow-sm disabled:cursor-wait disabled:opacity-50"
+          >
+            {status === "error" ? "다시 시도" : "지금 동기화"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void supabase?.auth.signOut()}
+            className="rounded-xl bg-white px-3 py-2 font-bold text-gray-600 shadow-sm"
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
     </div>
   );
