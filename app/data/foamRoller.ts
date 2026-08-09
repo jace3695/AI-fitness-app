@@ -1,6 +1,6 @@
 export type FoamRollerTiming = "before" | "after" | "both" | "recovery";
 
-export const FOAM_ROLLER_AREAS = ["종아리", "허벅지 앞", "허벅지 바깥쪽", "엉덩이", "등 위쪽"];
+export const FOAM_ROLLER_AREAS = ["종아리", "허벅지 앞", "허벅지 뒤", "허벅지 바깥쪽", "엉덩이", "등 위쪽", "광배·옆등", "어깨 뒤·견갑골"];
 
 export const FOAM_ROLLER_TIMING_LABELS: Record<FoamRollerTiming, string> = {
   before: "운동 전",
@@ -26,9 +26,10 @@ export const FOAM_ROLLER_BEFORE_ROUTINE = [
 export const FOAM_ROLLER_AFTER_ROUTINE = [
   "종아리 좌우 30초",
   "허벅지 앞 좌우 30초",
+  "허벅지 뒤 좌우 30초",
   "허벅지 바깥쪽 좌우 20~30초",
   "엉덩이 좌우 30초",
-  "등 위쪽 1분",
+  "등 위쪽·광배·어깨 주변 1~2분",
 ];
 
 export const FOAM_ROLLER_RECOVERY_ROUTINE = [
@@ -38,6 +39,20 @@ export const FOAM_ROLLER_RECOVERY_ROUTINE = [
 ];
 
 export const FOAM_ROLLER_AREA_GUIDES = [
+  {
+    id: "back-thigh",
+    area: "허벅지 뒤",
+    duration: "좌우 30초씩",
+    purpose: "슬라이딩보드와 하체 운동 후 햄스트링 긴장 완화",
+    steps: [
+      "바닥에 앉아 한쪽 허벅지 뒤에 폼롤러를 둡니다.",
+      "양손과 반대쪽 발로 몸을 지지합니다.",
+      "엉덩이 아래부터 무릎 위까지 천천히 굴립니다.",
+      "발끝 방향을 조금 바꿔 불편하지 않은 근육 부위만 찾습니다.",
+      "허리가 둥글게 무너지지 않도록 움직임 범위를 줄입니다.",
+    ],
+    cautions: ["무릎 뒤 오금은 직접 누르지 마세요.", "허리나 다리가 저리면 즉시 중단하세요."],
+  },
   {
     id: "calf",
     area: "종아리",
@@ -108,16 +123,44 @@ export const FOAM_ROLLER_AREA_GUIDES = [
     ],
     cautions: ["목을 꺾지 마세요.", "허리 중앙이나 허리 아래쪽을 직접 굴리지 마세요."],
   },
+  {
+    id: "lat-side-back",
+    area: "광배·옆등",
+    duration: "좌우 20~30초씩",
+    purpose: "밴드 로우, 랫풀다운, 턱걸이 자세 후 옆등과 겨드랑이 아래 긴장 완화",
+    steps: [
+      "옆으로 누워 폼롤러를 겨드랑이보다 조금 아래의 옆등에 둡니다.",
+      "아래쪽 팔은 머리 위로 편안하게 뻗습니다.",
+      "위쪽 손과 발로 체중을 충분히 지지합니다.",
+      "겨드랑이 아래부터 갈비뼈 중간 위쪽까지만 짧게 움직입니다.",
+      "강한 압박 대신 호흡이 편한 정도로만 진행합니다.",
+    ],
+    cautions: ["겨드랑이 안쪽과 갈비뼈를 강하게 누르지 마세요.", "찌릿함이나 호흡 불편이 생기면 중단하세요."],
+  },
+  {
+    id: "rear-shoulder-scapula",
+    area: "어깨 뒤·견갑골",
+    duration: "좌우 20~30초씩",
+    purpose: "말린 어깨와 견갑골 주변의 부드러운 이완",
+    steps: [
+      "등 위쪽을 폼롤러에 대고 몸을 한쪽으로 아주 조금 기울입니다.",
+      "같은 쪽 팔로 반대쪽 어깨를 감싸 날개뼈 사이를 넓힙니다.",
+      "어깨 뒤와 날개뼈 바깥쪽 근육 위에서 작은 범위로 움직입니다.",
+      "머리는 손으로 받치고 목은 중립을 유지합니다.",
+      "뼈가 아니라 주변 근육에 닿는 느낌으로 압력을 낮춥니다.",
+    ],
+    cautions: ["목뼈와 견갑골 뼈를 직접 누르지 마세요.", "어깨 관절 통증이 생기면 중단하세요."],
+  },
 ];
 
 export const foamRollerGuides = FOAM_ROLLER_AREA_GUIDES;
 
 export const foamRollerVideoLinks = [
   {
-    title: "초보자 폼롤러 사용법",
-    source: "HSS",
-    description: "폼롤러 기본 사용법과 주의사항을 참고할 수 있는 영상",
-    url: "https://www.youtube.com/watch?v=mntOW3zgVbU",
+    title: "전신순환 폼롤러 마사지",
+    source: "힙으뜸(심으뜸)",
+    description: "약 21분 전체 루틴 · 허리뼈와 목뼈를 직접 누르는 동작은 따라 하지 않습니다.",
+    url: "https://www.youtube.com/watch?v=VVy1lU-ZspI",
   },
   {
     title: "근육 부위별 폼롤러 사용법",
