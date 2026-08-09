@@ -1,6 +1,7 @@
 import {
   ExerciseRecord,
   getWorkoutRecord,
+  isWorkoutPerformed,
   WorkoutCompletionStore,
   WorkoutCompletionValue,
 } from "./workoutCompletion";
@@ -177,7 +178,7 @@ export function getWeeklyActivity(
       workoutDays: keys.filter((key) => {
         const record = getWorkoutRecord(workouts[key]);
         return Boolean(
-          record.workoutDone || record.cardioDone || record.pullupDone,
+          isWorkoutPerformed(workouts[key]) || record.cardioDone || record.pullupDone,
         );
       }).length,
       minutes: keys.reduce(
@@ -207,7 +208,7 @@ export function getMonthlyWorkoutStats(
   return {
     workoutDays: keys.filter((key) => {
       const record = getWorkoutRecord(workouts[key]);
-      return Boolean(record.workoutDone || record.cardioDone || record.pullupDone);
+      return Boolean(isWorkoutPerformed(workouts[key]) || record.cardioDone || record.pullupDone);
     }).length,
     minutes: keys.reduce(
       (total, key) => total + getSessionMinutes(workouts[key]),

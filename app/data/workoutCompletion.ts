@@ -79,6 +79,11 @@ export function isWorkoutDone(value?: WorkoutCompletionValue) {
   return typeof value === "boolean" ? value : Boolean(value?.workoutDone);
 }
 
+export function isWorkoutPerformed(value?: WorkoutCompletionValue) {
+  if (typeof value === "boolean") return value;
+  return value?.workoutStatus === "completed" || value?.workoutStatus === "partial" || Boolean(value?.workoutDone);
+}
+
 export function isCardioDone(value?: WorkoutCompletionValue) {
   return typeof value === "object" && Boolean(value?.cardioDone);
 }

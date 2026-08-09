@@ -19,6 +19,7 @@ import {
   isCardioDone,
   isPullupDone,
   isWorkoutDone,
+  isWorkoutPerformed,
   WorkoutDifficulty,
   WorkoutOverallStatus,
   WorkoutDayRecord,
@@ -192,7 +193,7 @@ export default function RecordCalendarView() {
   const deleteWorkoutRecord = () => {
     if (!selectedWorkoutRecord || !window.confirm("선택한 날짜의 일반 운동 기록을 삭제할까요? 유산소·폼롤러·철봉 기록은 유지됩니다.")) return;
     const nextRecord: WorkoutDayRecord = { ...selectedWorkoutRecord };
-    (["workoutDone", "workoutRoutineName", "workoutPlanName", "workoutGroupId", "workoutExerciseNames", "workoutSourceDay", "workoutPain", "workoutMemo", "workoutStatus", "workoutDifficulty", "workoutFatigue", "workoutExerciseRecords", "rosaryCardioDone", "rosaryCardioMinutes", "rosaryDecades", "postWorkoutCardioDone", "postWorkoutCardioMinutes"] as (keyof WorkoutDayRecord)[]).forEach((key) => delete nextRecord[key]);
+    (["workoutDone", "workoutRoutineName", "workoutPlanName", "workoutGroupId", "workoutExerciseNames", "workoutSourceDay", "workoutPain", "workoutMemo", "workoutStatus", "workoutDifficulty", "workoutFatigue", "workoutExerciseRecords"] as (keyof WorkoutDayRecord)[]).forEach((key) => delete nextRecord[key]);
     const workouts = { ...stores.workouts };
     if (Object.keys(nextRecord).length) workouts[selected] = nextRecord;
     else delete workouts[selected];
@@ -240,9 +241,13 @@ export default function RecordCalendarView() {
             const badges = [
               stores.recovery[key]?.completedAsRecovery
                 ? "회"
-                : isWorkoutDone(stores.workouts[key])
-                  ? "운"
-                  : "",
+                : typeof stores.workouts[key] === "object" && stores.workouts[key]?.workoutStatus === "partial"
+                  ? "부"
+                  : typeof stores.workouts[key] === "object" && stores.workouts[key]?.workoutStatus === "stopped"
+                    ? "중"
+                    : isWorkoutDone(stores.workouts[key])
+                      ? "운"
+                      : "",
               isCardioDone(stores.workouts[key]) ? "유" : "",
               stores.recovery[key]?.recoveryPriorityOnly ? "휴" : "",
               dietSuccess ? "식" : "",
@@ -287,7 +292,7 @@ export default function RecordCalendarView() {
           })}
         </div>
         <p className="mt-3 text-[11px] text-gray-400">
-          운=일반 운동, 유=유산소, 철=철봉, 회=회복 운동, 휴=회복 우선, 식=식단
+          운=일반 운동 완료, 부=일부 완료, 중=중단, 유=유산소, 철=철봉, 회=회복 운동, 휴=회복 우선, 식=식단
           목표 달성, 폼=폼롤러, 컨정·컨70·컨회=컨디션 판정, 💧=물 2L,
           W=체중, I=인바디, ✎=메모, ⚠=안전 증상
         </p>
@@ -318,10 +323,13 @@ export default function RecordCalendarView() {
                 ? "회복 운동 완료"
                 : selectedRecovery?.recoveryPriorityOnly
                   ? "회복 우선 기록"
-                  : isWorkoutDone(selectedWorkout)
-                    ? selectedWorkoutRecord?.workoutRoutineName ||
-                      "일반 운동 완료"
-                    : "미완료"}
+                  : selectedWorkoutRecord?.workoutStatus === "partial"
+                    ? "일부 완료"
+                    : selectedWorkoutRecord?.workoutStatus === "stopped"
+                      ? "중단"
+                      : isWorkoutDone(selectedWorkout)
+                        ? selectedWorkoutRecord?.workoutRoutineName || "일반 운동 완료"
+                        : "미완료"}
             </b>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
@@ -424,13 +432,13 @@ export default function RecordCalendarView() {
                       : "운동 이름 기록 없음"
                 : "미기록"}
             </b>
-            {isWorkoutDone(selectedWorkout) &&
+            {isWorkoutPerformed(selectedWorkout) &&
               selectedWorkoutRecord?.workoutPain && (
                 <p className="mt-1 font-bold text-red-600">
                   운동 통증 기록 있음 · 다음 운동은 강도를 낮추세요.
                 </p>
               )}
-            {isWorkoutDone(selectedWorkout) &&
+            {selectedWorkoutRecord?.workoutStatus &&
               selectedWorkoutRecord?.workoutMemo && (
                 <p className="mt-2 rounded-lg bg-white px-2 py-1 text-[11px] text-gray-600">
                   메모: {selectedWorkoutRecord.workoutMemo}
