@@ -109,6 +109,8 @@ const WORKOUT_DAY_IDS: WorkoutDayId[] = [
   "sat",
 ];
 
+const ACTIVE_TAB_SESSION_KEY = "ai-fitness-active-tab";
+
 const PRIMARY_NAV: {
   id: "home" | "workout" | "record" | "diet" | "more";
   label: string;
@@ -137,6 +139,13 @@ function FitnessApp() {
   const [conditionToday, setConditionToday] = useState<DailyConditionRecord>();
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
   const [userWorkoutSettings, setUserWorkoutSettings] = useState<UserWorkoutSettings>(EMPTY_USER_WORKOUT_SETTINGS);
+
+  useEffect(() => {
+    const savedTab = window.sessionStorage.getItem(ACTIVE_TAB_SESSION_KEY);
+    if (savedTab && TABS.some((tab) => tab.id === savedTab)) {
+      setActiveTab(savedTab as TabId);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -414,7 +423,9 @@ function FitnessApp() {
   };
 
   const handleTabChange = (id: string) => {
-    setActiveTab(id as TabId);
+    const nextTab = id as TabId;
+    window.sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, nextTab);
+    setActiveTab(nextTab);
     // Scroll to top when switching tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -876,9 +887,12 @@ function FitnessApp() {
               }, {} as Record<WorkoutDayId, string>)}
               onChange={handleUserWorkoutSettingsChange}
             />
-            <CloudSyncPanel />
           </div>
         )}
+
+        <div className={activeTab === "more" ? "mx-auto w-full max-w-5xl" : "hidden"}>
+          <CloudSyncPanel />
+        </div>
 
         {activeTab === "tips" && (
           <div className="mx-auto w-full max-w-5xl">

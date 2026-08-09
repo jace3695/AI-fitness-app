@@ -139,11 +139,17 @@ export default function CloudSyncPanel() {
     const onVisibility = () => {
       if (document.visibilityState === "visible") void sync();
     };
+    const onOnline = () => void sync();
+    const onFocus = () => void sync();
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("focus", onFocus);
     return () => {
       active = false;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("focus", onFocus);
     };
   }, [syncRequest, user]);
 
