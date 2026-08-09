@@ -14,7 +14,7 @@ export default function WorkoutNotificationManager() {
     window.addEventListener("workout-notification-settings-changed", onSettings);
 
     const check = () => {
-      if (!settings.enabled || !("Notification" in window) || Notification.permission !== "granted") return;
+      if (!settings.enabled || settings.serverPushActive || !("Notification" in window) || Notification.permission !== "granted") return;
       const now = new Date();
       const day = getWorkoutDayForDate(now);
       if (!day || !settings.days.includes(day)) return;
