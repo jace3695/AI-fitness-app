@@ -19,6 +19,35 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data?.json() || {};
+  } catch {
+    payload = { body: event.data?.text() };
+  }
+  event.waitUntil(self.registration.showNotification(payload.title || "AI 운동", {
+    body: payload.body || "오늘의 운동을 확인해 보세요.",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: payload.tag || "ai-fitness-workout",
+    data: { url: payload.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+    const existing = windows.find((client) => client.url.startsWith(self.location.origin));
+    if (existing) {
+      existing.navigate(target);
+      return existing.focus();
+    }
+    return clients.openWindow(target);
+  }));
+});
+
 const isCacheableStaticRequest = (request, url) => (
   request.method === "GET" &&
   url.origin === self.location.origin &&
