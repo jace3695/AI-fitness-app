@@ -1,4 +1,5 @@
 import { DayWorkout, Exercise } from "./workouts";
+import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups";
 import { WorkoutDayId } from "./workoutCompletion";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
@@ -76,10 +77,11 @@ export function applyExerciseTargets(day: DayWorkout, targets: Record<string, Ex
 }
 
 function editExercises(exercises: Exercise[], edit?: DayRoutineEdit): Exercise[] {
-  if (!edit) return exercises;
+  const allowedExercises = exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId || ""));
+  if (!edit) return allowedExercises;
   const removed = new Set(edit.removed || []);
-  const existing = exercises.filter((exercise) => !removed.has(exercise.exerciseId || exercise.name));
-  const custom: Exercise[] = (edit.customExercises || []).map((exercise) => ({
+  const existing = allowedExercises.filter((exercise) => !removed.has(exercise.exerciseId || exercise.name));
+  const custom: Exercise[] = (edit.customExercises || []).filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.id)).map((exercise) => ({
     exerciseId: exercise.id,
     name: exercise.name,
     sets: exercise.sets ?? (exercise.reps ? 1 : 0),
