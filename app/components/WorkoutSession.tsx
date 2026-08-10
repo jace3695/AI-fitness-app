@@ -171,18 +171,46 @@ function buildSessionMemo({
 }
 
 function TimerButton({
-  running,
-  seconds,
   initialSeconds,
-  onToggle,
-  onReset,
+  restoredSeconds,
+  onSecondsChange,
+  onComplete,
+  onStart,
 }: {
-  running: boolean;
-  seconds: number;
   initialSeconds: number;
-  onToggle: () => void;
-  onReset: () => void;
+  restoredSeconds?: number;
+  onSecondsChange: (seconds: number) => void;
+  onComplete: () => void;
+  onStart: () => void;
 }) {
+  const [seconds, setSeconds] = useState(restoredSeconds ?? initialSeconds);
+  const [running, setRunning] = useState(false);
+  const onSecondsChangeRef = useRef(onSecondsChange);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => { onSecondsChangeRef.current = onSecondsChange; }, [onSecondsChange]);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  useEffect(() => {
+    onSecondsChangeRef.current(seconds);
+  }, [seconds]);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = window.setInterval(() => {
+      setSeconds((current) => {
+        if (current <= 1) {
+          window.clearInterval(id);
+          setRunning(false);
+          queueMicrotask(() => onCompleteRef.current());
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [running]);
+
   if (!initialSeconds) return null;
   return (
     <section className="mt-4 rounded-2xl bg-[#111827] p-4 text-white">
@@ -192,16 +220,67 @@ function TimerButton({
           <p className="mt-1 font-mono text-[34px] font-bold tracking-tight">{formatClock(seconds)}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={onReset} className="rounded-xl bg-white/10 px-3 py-2 text-[12px] font-bold">
+          <button type="button" onClick={() => { setRunning(false); setSeconds(initialSeconds); }} className="rounded-xl bg-white/10 px-3 py-2 text-[12px] font-bold">
             초기화
           </button>
-          <button type="button" onClick={onToggle} className="min-w-20 rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-gray-900">
+          <button type="button" onClick={() => { setRunning((value) => !value); onStart(); }} className="min-w-20 rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-gray-900">
             {running ? '일시정지' : seconds === initialSeconds ? '시작' : '계속'}
           </button>
         </div>
       </div>
       <p className="mt-2 text-[11px] text-white/60">시간이 끝나면 다음 동작 또는 휴식으로 자동 전환됩니다.</p>
     </section>
+  );
+}
+
+function ElapsedClock({ initialSeconds, onSecondsChange }: { initialSeconds: number; onSecondsChange: (seconds: number) => void }) {
+  const [seconds, setSeconds] = useState(initialSeconds);
+  const onSecondsChangeRef = useRef(onSecondsChange);
+
+  useEffect(() => { onSecondsChangeRef.current = onSecondsChange; }, [onSecondsChange]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSeconds((current) => {
+        const next = current + 1;
+        onSecondsChangeRef.current(next);
+        return next;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return <>{formatClock(seconds)}</>;
+}
+
+function RestCountdown({ initialSeconds, onSecondsChange, onComplete, onSkip }: { initialSeconds: number; onSecondsChange: (seconds: number) => void; onComplete: () => void; onSkip: () => void }) {
+  const [seconds, setSeconds] = useState(initialSeconds);
+  const onSecondsChangeRef = useRef(onSecondsChange);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => { onSecondsChangeRef.current = onSecondsChange; }, [onSecondsChange]);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSeconds((current) => {
+        if (current <= 1) {
+          window.clearInterval(id);
+          queueMicrotask(() => onCompleteRef.current());
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => { onSecondsChangeRef.current(seconds); }, [seconds]);
+
+  return (
+    <>
+      <p className="mt-3 font-mono text-[64px] font-bold tracking-tight text-gray-900">{formatClock(seconds)}</p>
+      <button type="button" onClick={onSkip} className="mt-6 rounded-2xl bg-[#534AB7] px-6 py-3 text-[14px] font-bold text-white">
+        휴식 건너뛰고 다음
+      </button>
+    </>
   );
 }
 
@@ -228,10 +307,7 @@ export default function WorkoutSession({
   const [mode, setMode] = useState<SessionMode>(initialDraft?.mode ?? 'exercise');
   const [completed, setCompleted] = useState<Set<number>>(() => new Set(initialDraft?.completed ?? []));
   const [skipped, setSkipped] = useState<Set<number>>(() => new Set(initialDraft?.skipped ?? []));
-  const [elapsedSeconds, setElapsedSeconds] = useState(initialDraft?.elapsedSeconds ?? 0);
-  const [timerSeconds, setTimerSeconds] = useState(() => initialDraft?.timerSeconds ?? getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
-  const [timerRunning, setTimerRunning] = useState(false);
-  const [restSeconds, setRestSeconds] = useState(initialDraft?.restSeconds ?? 0);
+  const initialElapsedSeconds = initialDraft?.elapsedSeconds ?? 0;
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -252,7 +328,10 @@ export default function WorkoutSession({
     }, {});
   });
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
-  const autoAdvanceRef = useRef(false);
+  const shouldPersistDraftRef = useRef(true);
+  const elapsedSecondsRef = useRef(initialElapsedSeconds);
+  const timerSecondsRef = useRef(initialDraft?.timerSeconds ?? getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
+  const restSecondsRef = useRef(initialDraft?.restSeconds ?? 0);
   const exercise = exercises[currentIndex];
   const recommendation = useMemo(() => getExerciseRecommendation(exercise, intensity), [exercise, intensity]);
   const initialTimerSeconds = useMemo(() => getRecommendedExerciseSeconds(exercise, intensity), [exercise, intensity]);
@@ -298,8 +377,8 @@ export default function WorkoutSession({
     const nextExercise = exercises[boundedIndex];
     setCurrentIndex(boundedIndex);
     setMode('exercise');
-    setTimerRunning(false);
-    setTimerSeconds(getRecommendedExerciseSeconds(nextExercise, intensity));
+    timerSecondsRef.current = getRecommendedExerciseSeconds(nextExercise, intensity);
+    restSecondsRef.current = 0;
     speak(`다음 운동은 ${nextExercise.name}입니다.`);
   }, [exercises, intensity, speak]);
 
@@ -309,7 +388,6 @@ export default function WorkoutSession({
       next.add(currentIndex);
       return next;
     });
-    setTimerRunning(false);
     setExerciseRecords((records) => records.map((record, index) => index === currentIndex
       ? { ...record, status: 'completed', summary: summarizeExerciseRecord(record) }
       : record));
@@ -320,7 +398,7 @@ export default function WorkoutSession({
     }
     const nextRestSeconds = exercise.restSeconds || 0;
     if (nextRestSeconds > 0) {
-      setRestSeconds(nextRestSeconds);
+      restSecondsRef.current = nextRestSeconds;
       setMode('rest');
       speak(`${nextRestSeconds}초 휴식을 시작합니다.`);
     } else {
@@ -338,7 +416,8 @@ export default function WorkoutSession({
     };
   }, [releaseWakeLock, requestWakeLock]);
 
-  useEffect(() => {
+  const persistDraft = useCallback(() => {
+    if (!shouldPersistDraftRef.current) return;
     const draft: WorkoutSessionDraft = {
       version: 1,
       exerciseSignature,
@@ -347,9 +426,9 @@ export default function WorkoutSession({
       mode,
       completed: Array.from(completed),
       skipped: Array.from(skipped),
-      elapsedSeconds,
-      timerSeconds,
-      restSeconds,
+      elapsedSeconds: elapsedSecondsRef.current,
+      timerSeconds: timerSecondsRef.current,
+      restSeconds: restSecondsRef.current,
       painScore,
       painSymptoms,
       painMemo,
@@ -363,40 +442,26 @@ export default function WorkoutSession({
     } catch {
       // 사생활 보호 모드나 저장공간 제한에서는 세션을 중단하지 않고 자동저장만 생략합니다.
     }
-  }, [completed, currentIndex, difficulty, draftKey, elapsedSeconds, exerciseRecords, exerciseSignature, fatigue, mode, overallStatus, painMemo, painScore, painSymptoms, restSeconds, skipped, timerSeconds]);
+  }, [completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, overallStatus, painMemo, painScore, painSymptoms, skipped]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setElapsedSeconds((value) => value + 1), 1000);
-    return () => window.clearInterval(id);
-  }, []);
+    persistDraft();
+  }, [persistDraft]);
 
   useEffect(() => {
-    if (mode !== 'exercise' || !timerRunning || timerSeconds <= 0) return;
-    const id = window.setInterval(() => setTimerSeconds((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(id);
-  }, [mode, timerRunning, timerSeconds]);
-
-  useEffect(() => {
-    if (mode !== 'exercise' || !timerRunning || timerSeconds !== 0 || autoAdvanceRef.current) return;
-    autoAdvanceRef.current = true;
-    speak('동작 시간이 끝났습니다.');
-    finishOrAdvance();
-  }, [finishOrAdvance, mode, speak, timerRunning, timerSeconds]);
-
-  useEffect(() => {
-    autoAdvanceRef.current = false;
-  }, [currentIndex]);
-
-  useEffect(() => {
-    if (mode !== 'rest' || restSeconds <= 0) return;
-    const id = window.setInterval(() => setRestSeconds((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(id);
-  }, [mode, restSeconds]);
-
-  useEffect(() => {
-    if (mode !== 'rest' || restSeconds !== 0) return;
-    goToExercise(currentIndex + 1);
-  }, [currentIndex, goToExercise, mode, restSeconds]);
+    const checkpoint = window.setInterval(persistDraft, 15_000);
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') persistDraft();
+    };
+    window.addEventListener('pagehide', persistDraft);
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    return () => {
+      window.clearInterval(checkpoint);
+      window.removeEventListener('pagehide', persistDraft);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      persistDraft();
+    };
+  }, [persistDraft]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -413,11 +478,12 @@ export default function WorkoutSession({
   };
 
   const completeSession = () => {
+    shouldPersistDraftRef.current = false;
     window.localStorage.removeItem(draftKey);
     onFinish?.({
       pain: painScore > 0 || painSymptoms.length > 0,
       memo: buildSessionMemo({
-        elapsedSeconds,
+        elapsedSeconds: elapsedSecondsRef.current,
         completedCount: completed.size,
         skippedCount: skipped.size,
         painScore,
@@ -435,7 +501,6 @@ export default function WorkoutSession({
   const skipCurrent = () => {
     setSkipped((current) => new Set(current).add(currentIndex));
     setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, status: 'skipped' } : record));
-    setTimerRunning(false);
     if (isLastExercise) setMode('summary');
     else goToExercise(currentIndex + 1);
   };
@@ -448,7 +513,7 @@ export default function WorkoutSession({
             <div className="min-w-0">
               <p className="truncate text-[13px] font-bold text-[#534AB7]">{title}</p>
               <p className="mt-0.5 text-[12px] text-gray-400">
-                {currentIndex + 1} / {exercises.length} · {formatClock(elapsedSeconds)}
+                {currentIndex + 1} / {exercises.length} · <ElapsedClock initialSeconds={initialElapsedSeconds} onSecondsChange={(seconds) => { elapsedSecondsRef.current = seconds; }} />
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -496,17 +561,12 @@ export default function WorkoutSession({
                 </div>
               </section>
               <TimerButton
-                running={timerRunning}
-                seconds={timerSeconds}
+                key={`${currentIndex}:${initialTimerSeconds}`}
                 initialSeconds={initialTimerSeconds}
-                onToggle={() => {
-                  setTimerRunning((value) => !value);
-                  void requestWakeLock();
-                }}
-                onReset={() => {
-                  setTimerRunning(false);
-                  setTimerSeconds(initialTimerSeconds);
-                }}
+                restoredSeconds={timerSecondsRef.current}
+                onSecondsChange={(seconds) => { timerSecondsRef.current = seconds; }}
+                onStart={() => { void requestWakeLock(); }}
+                onComplete={() => { speak('동작 시간이 끝났습니다.'); finishOrAdvance(); }}
               />
               {exercise.intervalPlan ? <IntervalTimer plan={exercise.intervalPlan} /> : null}
               <ExerciseRecordEditor
@@ -524,11 +584,14 @@ export default function WorkoutSession({
             <section className="grid min-h-[55vh] place-items-center text-center">
               <div>
                 <p className="text-[13px] font-bold text-[#378ADD]">다음 동작 전 휴식</p>
-                <p className="mt-3 font-mono text-[64px] font-bold tracking-tight text-gray-900">{formatClock(restSeconds)}</p>
+                <RestCountdown
+                  key={`${currentIndex}:${restSecondsRef.current}`}
+                  initialSeconds={restSecondsRef.current}
+                  onSecondsChange={(seconds) => { restSecondsRef.current = seconds; }}
+                  onComplete={() => goToExercise(currentIndex + 1)}
+                  onSkip={() => goToExercise(currentIndex + 1)}
+                />
                 <p className="mt-3 text-[14px] text-gray-500">다음: {exercises[currentIndex + 1]?.name}</p>
-                <button type="button" onClick={() => goToExercise(currentIndex + 1)} className="mt-6 rounded-2xl bg-[#534AB7] px-6 py-3 text-[14px] font-bold text-white">
-                  휴식 건너뛰고 다음
-                </button>
               </div>
             </section>
           )}
@@ -568,7 +631,7 @@ export default function WorkoutSession({
               <p className="text-[13px] font-bold text-[#534AB7]">{painScore > 0 || painSymptoms.length ? '안전 종료 기록' : '세션 완료'}</p>
               <h2 className="mt-2 text-[26px] font-bold text-gray-900">{painScore > 0 || painSymptoms.length ? '회복을 우선하세요' : '오늘 운동을 마쳤습니다'}</h2>
               <div className="mt-5 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">운동시간</p><p className="mt-1 text-[18px] font-bold">{Math.max(1, Math.ceil(elapsedSeconds / 60))}분</p></div>
+                <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">운동시간</p><p className="mt-1 text-[18px] font-bold">{Math.max(1, Math.ceil(elapsedSecondsRef.current / 60))}분</p></div>
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">완료</p><p className="mt-1 text-[18px] font-bold">{completed.size}개</p></div>
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">건너뜀</p><p className="mt-1 text-[18px] font-bold">{skipped.size}개</p></div>
               </div>
@@ -587,7 +650,7 @@ export default function WorkoutSession({
 
         {mode === 'exercise' && (
           <footer className="shrink-0 border-t border-gray-100 bg-white/95 p-3 shadow-2xl sm:px-6">
-            <button type="button" onClick={() => { setTimerRunning(false); setMode('pain'); }} className="mb-2 w-full rounded-xl bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
+            <button type="button" onClick={() => setMode('pain')} className="mb-2 w-full rounded-xl bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
               통증·저림·어지러움 발생
             </button>
             <div className="grid grid-cols-[0.8fr_1.6fr_0.8fr] gap-2">
@@ -606,7 +669,7 @@ export default function WorkoutSession({
               <p className="mt-2 text-[13px] text-gray-500">저장 없이 종료하면 자동 저장된 임시 진행상태도 삭제됩니다.</p>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowExitConfirm(false)} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-bold text-gray-700">계속 운동</button>
-                <button type="button" onClick={() => { window.localStorage.removeItem(draftKey); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
+                <button type="button" onClick={() => { shouldPersistDraftRef.current = false; window.localStorage.removeItem(draftKey); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
               </div>
             </section>
           </div>
