@@ -10,6 +10,7 @@ export type OptionalCardioGroup = { id: 'optional-cardio'; name: '선택 유산�
 export type WorkoutGroup = BaseWorkoutGroup | OptionalCardioGroup;
 
 const COMMON_STOP_CAUTIONS = ['허리 통증', '다리 저림', '무릎 통증', '어지럼', '손떨림', '식은땀', '메스꺼움', '가슴 답답함'];
+export const EXCLUDED_EXERCISE_IDS = new Set(['hip-bridge']);
 
 export const WORKOUT_GROUPS: WorkoutGroup[] = [
   { id: 'cardio-back-basic-week1', name: '유산소 + 허리 안정화 1주차', category: 'cardio', goal: '1주차는 허리 안정화와 유산소 적응을 우선하는 주간입니다. AB 슬라이더와 사이드 플랭크는 허리 부담이 생길 수 있으므로 1주차 기본 루틴에서는 제외합니다.', duration: '약 50~60분', intensity: 'low', exercises: [
@@ -104,7 +105,7 @@ export function workoutGroupToDayWorkout(group: WorkoutGroup, dayId: string, tab
     const phase: Phase = { id: 'main', icon: '🚶', title: '유산소 선택', subtitle: '오늘은 아래 중 하나만 선택하세요.', alert: { variant: 'blue', text: '무리하지 않고 활동량을 늘리는 날입니다. 선택 전에는 모든 운동을 수행하지 마세요.' }, exercises: [] };
     return { id: dayId, tabLabel, emoji: '🚶', title: '토요일 선택 유산소', subtitle: group.goal, totalTime: group.duration, badgeBg: color, dayColor: color, flow, phases: [phase], optionalCardio: { warmup, options: group.options.map((option) => ({ ...option, exercises: option.exerciseIds.map(lookup).map(toExercise) })), cooldown } };
   }
-  const phase: Phase = { id: 'main', icon: '🏋️', title: '운동 그룹', subtitle: group.goal, alert: { variant: 'yellow', text: `${SAFETY_STOP_MESSAGE} 중단은 실패가 아니라 회복일 전환입니다.` }, exercises: group.exercises.map(toExercise) };
+  const phase: Phase = { id: 'main', icon: '🏋️', title: '운동 그룹', subtitle: group.goal, alert: { variant: 'yellow', text: `${SAFETY_STOP_MESSAGE} 중단은 실패가 아니라 회복일 전환입니다.` }, exercises: group.exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId)).map(toExercise) };
   return { id: dayId, tabLabel, emoji: group.category === 'rest' ? '😴' : group.category === 'recovery' ? '🌿' : '🏋️', title: group.name, subtitle: group.goal, totalTime: group.duration, badgeBg: color, dayColor: color, flow, phases: [phase] };
 }
 
