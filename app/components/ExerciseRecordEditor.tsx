@@ -41,6 +41,10 @@ function formatRest(seconds: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+function RepetitionCounter({ label, value = 0, target, onChange }: { label: string; value?: number; target?: number; onChange: (value: number) => void }) {
+  return <div className="rounded-2xl border border-[#D9D6FF] bg-white p-3 text-center"><p className="text-[11px] font-bold text-[#534AB7]">{label}</p><p className="mt-1 text-[26px] font-bold text-gray-900">{value}<span className="ml-1 text-[12px] text-gray-400">/ 목표 {target ?? '-'}회</span></p><div className="mt-2 grid grid-cols-2 gap-2"><button type="button" aria-label={`${label} 1회 줄이기`} onClick={() => onChange(Math.max(0, value - 1))} className="rounded-xl bg-gray-100 py-3 text-lg font-bold text-gray-700">−1</button><button type="button" aria-label={`${label} 1회 늘리기`} onClick={() => onChange(value + 1)} className="rounded-xl bg-[#534AB7] py-3 text-lg font-bold text-white">+1</button></div></div>;
+}
+
 export default function ExerciseRecordEditor({
   exercise,
   value,
@@ -188,10 +192,10 @@ export default function ExerciseRecordEditor({
               <div className={`mt-2 grid gap-2 ${isDumbbell || isHold || isLeftRight ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 {isLeftRight ? (
                   <>
-                    <NumberInput label="왼쪽 횟수" value={set.leftReps ?? set.reps} unit="회" onChange={(leftReps) => updateSet(index, { leftReps })} />
-                    <NumberInput label="오른쪽 횟수" value={set.rightReps ?? set.reps} unit="회" onChange={(rightReps) => updateSet(index, { rightReps })} />
+                    <RepetitionCounter label="왼쪽 횟수" value={set.leftReps ?? 0} target={target.reps ?? set.reps} onChange={(leftReps) => updateSet(index, { leftReps })} />
+                    <RepetitionCounter label="오른쪽 횟수" value={set.rightReps ?? 0} target={target.reps ?? set.reps} onChange={(rightReps) => updateSet(index, { rightReps })} />
                   </>
-                ) : <NumberInput label="횟수" value={set.reps} unit="회" onChange={(reps) => updateSet(index, { reps })} />}
+                ) : isHold ? null : <RepetitionCounter label="실제 횟수" value={set.reps ?? 0} target={target.reps} onChange={(reps) => updateSet(index, { reps })} />}
                 {isDumbbell ? <NumberInput label="덤벨 중량" value={set.weightKg} unit="kg" step={0.5} onChange={(weightKg) => updateSet(index, { weightKg })} /> : null}
                 {isHold ? <NumberInput label="유지시간" value={set.durationSeconds} unit="초" onChange={(durationSeconds) => updateSet(index, { durationSeconds })} /> : null}
                 <NumberInput label="실제 세트 휴식" value={set.restAfterSeconds ?? exercise.restSeconds} unit="초" onChange={(restAfterSeconds) => updateSet(index, { restAfterSeconds })} />

@@ -8,7 +8,7 @@ import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from 
 import ExerciseRecordEditor from './ExerciseRecordEditor';
 import { IntervalTimer } from './WorkoutControls';
 
-type SessionMode = 'exercise' | 'rest' | 'pain' | 'summary';
+type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
 
 interface WorkoutSessionDraft {
   version: 1;
@@ -108,7 +108,7 @@ function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): E
       ? Array.from({ length: setCount }, (_, index) => ({
           setNumber: index + 1,
           completed: false,
-          reps: suggestedReps,
+          reps: suggestedReps !== undefined ? 0 : undefined,
         }))
       : undefined,
   };
@@ -383,6 +383,19 @@ export default function WorkoutSession({
   }, [exercises, intensity, speak]);
 
   const finishOrAdvance = useCallback(() => {
+    const currentRecord = exerciseRecords[currentIndex];
+    const nextSetIndex = currentRecord?.sets?.findIndex((set) => !set.completed) ?? -1;
+    if (nextSetIndex >= 0 && currentRecord?.sets) {
+      const isFinalSet = nextSetIndex === currentRecord.sets.length - 1;
+      setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, sets: record.sets?.map((set, setIndex) => setIndex === nextSetIndex ? { ...set, completed: true, restAfterSeconds: isFinalSet ? undefined : (exercise.restSeconds || 45) } : set) } : record));
+      if (!isFinalSet) {
+        const setRestSeconds = exercise.restSeconds || 45;
+        restSecondsRef.current = setRestSeconds;
+        setMode('setRest');
+        speak(`${nextSetIndex + 1}세트를 완료했습니다. ${setRestSeconds}초 세트 휴식을 시작합니다.`);
+        return;
+      }
+    }
     setCompleted((current) => {
       const next = new Set(current);
       next.add(currentIndex);
@@ -404,7 +417,7 @@ export default function WorkoutSession({
     } else {
       goToExercise(currentIndex + 1);
     }
-  }, [currentIndex, exercise.restSeconds, goToExercise, isLastExercise, speak]);
+  }, [currentIndex, exercise.restSeconds, exerciseRecords, goToExercise, isLastExercise, speak]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -580,18 +593,18 @@ export default function WorkoutSession({
             </>
           )}
 
-          {mode === 'rest' && (
+          {(mode === 'rest' || mode === 'setRest') && (
             <section className="grid min-h-[55vh] place-items-center text-center">
               <div>
-                <p className="text-[13px] font-bold text-[#378ADD]">다음 동작 전 휴식</p>
+                <p className="text-[13px] font-bold text-[#378ADD]">{mode === 'setRest' ? '세트 사이 휴식' : '다음 동작 전 휴식'}</p>
                 <RestCountdown
-                  key={`${currentIndex}:${restSecondsRef.current}`}
+                  key={`${mode}:${currentIndex}:${restSecondsRef.current}`}
                   initialSeconds={restSecondsRef.current}
                   onSecondsChange={(seconds) => { restSecondsRef.current = seconds; }}
-                  onComplete={() => goToExercise(currentIndex + 1)}
-                  onSkip={() => goToExercise(currentIndex + 1)}
+                  onComplete={() => mode === 'setRest' ? setMode('exercise') : goToExercise(currentIndex + 1)}
+                  onSkip={() => mode === 'setRest' ? setMode('exercise') : goToExercise(currentIndex + 1)}
                 />
-                <p className="mt-3 text-[14px] text-gray-500">다음: {exercises[currentIndex + 1]?.name}</p>
+                <p className="mt-3 text-[14px] text-gray-500">{mode === 'setRest' ? `다음: ${exercise.name} ${(exerciseRecords[currentIndex]?.sets?.findIndex((set) => !set.completed) ?? 0) + 1}세트` : `다음: ${exercises[currentIndex + 1]?.name}`}</p>
               </div>
             </section>
           )}
@@ -655,7 +668,7 @@ export default function WorkoutSession({
             </button>
             <div className="grid grid-cols-[0.8fr_1.6fr_0.8fr] gap-2">
               <button type="button" disabled={currentIndex === 0} onClick={() => goToExercise(currentIndex - 1)} className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700 disabled:text-gray-300">이전</button>
-              <button type="button" onClick={finishOrAdvance} className="rounded-xl bg-[#534AB7] py-3 text-[13px] font-bold text-white">{isLastExercise ? '이 동작 완료' : '완료하고 다음'}</button>
+              <button type="button" onClick={finishOrAdvance} className="rounded-xl bg-[#534AB7] py-3 text-[13px] font-bold text-white">{exerciseRecords[currentIndex]?.sets?.some((set) => !set.completed) ? `${(exerciseRecords[currentIndex]?.sets?.findIndex((set) => !set.completed) ?? 0) + 1}세트 완료` : isLastExercise ? '이 동작 완료' : '완료하고 다음'}</button>
               <button type="button" onClick={skipCurrent} className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700">건너뛰기</button>
             </div>
             {getExerciseVideoHref(exercise) ? <a className="mt-2 block rounded-xl bg-[#111827] py-2.5 text-center text-[12px] font-bold text-white" href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer">{getExerciseVideoLabel(exercise)}</a> : null}
