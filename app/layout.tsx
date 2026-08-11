@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   title: 'AI 운동 — 재민님 맞춤 홈트 플랜',
   description: '재민님을 위한 AI 맞춤 홈 트레이닝 플랜. 준비운동부터 슬라이딩보드, 마무리 스트레칭까지.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -17,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#534AB7',
+  themeColor: '#0B5D4C',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -32,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
