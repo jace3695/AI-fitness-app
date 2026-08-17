@@ -24,6 +24,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [pinRequired, setPinRequired] = useState(false);
   const [pin, setPin] = useState("");
   const [pinMessage, setPinMessage] = useState("");
@@ -38,12 +41,19 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     }
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
+      if (data.user && new URLSearchParams(window.location.search).get("recovery") === "1") {
+        setRecoveryMode(true);
+      }
       setPinRequired(Boolean(data.user && hasDevicePin(data.user.id) && !isPinSessionUnlocked(data.user.id)));
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
       setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") clearLocalCloudState();
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "SIGNED_OUT") {
+        clearLocalCloudState();
+        setRecoveryMode(false);
+      }
       setUser(session?.user ?? null);
       setPinRequired(Boolean(session?.user && hasDevicePin(session.user.id) && !isPinSessionUnlocked(session.user.id)));
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
@@ -110,14 +120,55 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/?recovery=1`,
     });
     setMessage(error ? error.message : "비밀번호 재설정 이메일을 보냈습니다.");
+  };
+
+  const updateRecoveredPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setMessage("");
+    if (newPassword.length < 8) {
+      setMessage("새 비밀번호는 8자 이상으로 입력해 주세요.");
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setMessage("새 비밀번호와 확인 입력이 일치하지 않습니다.");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setMessage(error.message);
+      setSubmitting(false);
+      return;
+    }
+    await supabase.auth.signOut();
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setRecoveryMode(false);
+    setMessage("비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.");
+    window.history.replaceState({}, "", "/");
+    setSubmitting(false);
   };
 
   if (loading) return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB] text-sm font-semibold text-[#534AB7]">내 운동 불러오는 중…</div>;
   if (!isSupabaseConfigured)
     return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB] p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
+  if (user && recoveryMode) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
+    <section className="w-full max-w-sm rounded-[28px] bg-white p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
+      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#534AB7] text-2xl font-bold text-white">J</div>
+      <h1 className="mt-5 text-center text-xl font-bold text-gray-900">새 비밀번호 설정</h1>
+      <p className="mt-2 text-center text-sm text-gray-500">운동앱과 가계부에서 함께 사용할 비밀번호를 입력하세요.</p>
+      <form onSubmit={updateRecoveredPassword} className="mt-6 space-y-3">
+        <label className="block text-sm font-bold text-gray-700">새 비밀번호<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="8자 이상" /></label>
+        <label className="block text-sm font-bold text-gray-700">새 비밀번호 확인<input type="password" autoComplete="new-password" minLength={8} required value={newPasswordConfirm} onChange={(event) => setNewPasswordConfirm(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="한 번 더 입력" /></label>
+        <button disabled={submitting} className="w-full rounded-xl bg-[#534AB7] px-4 py-3.5 font-bold text-white disabled:bg-gray-300">{submitting ? "변경 중…" : "비밀번호 변경"}</button>
+      </form>
+      {message && <p role="status" className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
+    </section>
+  </main>;
   if (user && pinRequired) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#534AB7] text-2xl font-bold text-white">J</div>
@@ -147,7 +198,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       </div>
       <form onSubmit={authenticate} className="mt-5 space-y-3">
         <label className="block text-sm font-bold text-gray-700">이메일<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="name@example.com" /></label>
-        <label className="block text-sm font-bold text-gray-700">비밀번호<input type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="8자 이상" /></label>
+        <label className="block text-sm font-bold text-gray-700">비밀번호<input type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} minLength={mode === "signUp" ? 8 : 6} required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="8자 이상" /></label>
         <button disabled={submitting} className="w-full rounded-xl bg-[#534AB7] px-4 py-3.5 font-bold text-white disabled:bg-gray-300">{submitting ? "처리 중…" : mode === "signIn" ? "내 운동 보기" : "계정 만들기"}</button>
       </form>
       {mode === "signIn" && <button type="button" onClick={() => void resetPassword()} className="mt-3 w-full text-xs font-semibold text-gray-500 underline">비밀번호를 잊으셨나요?</button>}
