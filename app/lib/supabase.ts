@@ -18,8 +18,14 @@ const recoveryHashParams =
 // Capture it first so AuthGate can always render the password setup screen.
 export const isPasswordRecoveryRedirect = Boolean(
   recoverySearchParams?.get("recovery") === "1" ||
+  recoverySearchParams?.has("code") ||
   recoveryHashParams?.get("type") === "recovery",
 );
+
+export const passwordRecoveryRedirectSuffix =
+  typeof window !== "undefined" && isPasswordRecoveryRedirect
+    ? `${window.location.search}${window.location.hash}`
+    : null;
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseKey!, {
