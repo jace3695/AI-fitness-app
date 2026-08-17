@@ -24,7 +24,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(isPasswordRecoveryRedirect);
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [pinRequired, setPinRequired] = useState(false);
@@ -49,7 +49,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setLoading(false);
     });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) {
+        setRecoveryMode(true);
+      }
       if (event === "SIGNED_OUT") {
         clearLocalCloudState();
         setRecoveryMode(false);
