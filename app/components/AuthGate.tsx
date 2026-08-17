@@ -2,7 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { clearLocalCloudState } from "../data/cloudSync";
 import {
   hasDevicePin,
@@ -41,7 +41,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     }
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
-      if (data.user && new URLSearchParams(window.location.search).get("recovery") === "1") {
+      if (data.user && isPasswordRecoveryRedirect) {
         setRecoveryMode(true);
       }
       setPinRequired(Boolean(data.user && hasDevicePin(data.user.id) && !isPinSessionUnlocked(data.user.id)));
