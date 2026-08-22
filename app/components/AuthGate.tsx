@@ -10,7 +10,6 @@ import {
   MAX_PIN_FAILURES,
   PIN_LENGTH,
   PIN_LOCK_MS,
-  removeDevicePin,
   unlockPinSession,
   verifyDevicePin,
 } from "../lib/devicePin";
@@ -39,12 +38,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user);
       if (data.user && isPasswordRecoveryRedirect) {
         setRecoveryMode(true);
       }
-      setPinRequired(Boolean(data.user && hasDevicePin(data.user.id) && !isPinSessionUnlocked(data.user.id)));
+      const configured = data.user ? await hasDevicePin(data.user.id) : false;
+      setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
       setLoading(false);
     });
@@ -57,7 +57,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setRecoveryMode(false);
       }
       setUser(session?.user ?? null);
-      setPinRequired(Boolean(session?.user && hasDevicePin(session.user.id) && !isPinSessionUnlocked(session.user.id)));
+      if (session?.user) {
+        void hasDevicePin(session.user.id).then((configured) => {
+          setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
+        });
+      } else {
+        setPinRequired(false);
+      }
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
       setLoading(false);
     });
@@ -111,7 +117,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const resetDevicePin = async () => {
     if (!user || !supabase) return;
-    removeDevicePin(user.id);
     removeDeviceBiometric(user.id);
     await supabase.auth.signOut();
   };
