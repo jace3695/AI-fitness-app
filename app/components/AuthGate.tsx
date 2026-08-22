@@ -2,7 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { isPasswordRecoveryRedirect, isSupabaseConfigured, passwordRecoveryRedirectSuffix, supabase } from "../lib/supabase";
+import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { clearLocalCloudState } from "../data/cloudSync";
 import {
   hasDevicePin,
@@ -35,12 +35,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [biometricSubmitting, setBiometricSubmitting] = useState(false);
 
   useEffect(() => {
-    if (passwordRecoveryRedirectSuffix) {
-      window.location.replace(
-        `https://ai-budget-omega.vercel.app/reset-password${passwordRecoveryRedirectSuffix}`,
-      );
-      return;
-    }
     if (!supabase) {
       setLoading(false);
       return;
