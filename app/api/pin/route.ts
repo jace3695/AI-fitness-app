@@ -166,7 +166,11 @@ export async function POST(req: NextRequest) {
   const storedValue = settings?.simple_pin_hash || null
   const isConfigured = Boolean(settings?.simple_pin_enabled && storedValue)
 
-  if (action === 'status') {\n    return NextResponse.json({ configured: isConfigured })\n  }\n\n  if (action === 'verify') {
+  if (action === 'status') {
+    return NextResponse.json({ configured: isConfigured })
+  }
+
+  if (action === 'verify') {
     if (!/^\d{4,6}$/.test(pin)) {
       return NextResponse.json({ error: '간편비밀번호 4~6자리를 입력해주세요.' }, { status: 400 })
     }
