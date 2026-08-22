@@ -6,7 +6,7 @@ import { supabase } from "./lib/supabase";
 
 const modules = [
   { href: "/fitness", title: "운동 관리", description: "오늘 운동·기록·식단", status: "사용 가능", color: "bg-[#EDEBFF] text-[#493F96]" },
-  { href: "https://ai-budget-omega.vercel.app", title: "가계부", description: "지출·예산·소비 분석", status: "통합 이전 중", color: "bg-[#FFF0E8] text-[#985A39]" },
+  { href: "/budget", title: "가계부", description: "지출·예산·소비 분석", status: "사용 가능", color: "bg-[#FFF0E8] text-[#985A39]" },
   { href: "https://language-learning-app.vercel.app", title: "언어 학습", description: "일본어·복습·진도", status: "통합 이전 중", color: "bg-[#E7F7F1] text-[#276B56]" },
   { href: "#assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "구축 중", color: "bg-[#EEF3FF] text-[#355B9C]" },
 ] as const;
