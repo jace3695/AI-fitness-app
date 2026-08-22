@@ -38,10 +38,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
+    const authClient = supabase;
     const initializeAuth = async () => {
       const code = new URLSearchParams(window.location.search).get("code");
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        const { error } = await authClient.auth.exchangeCodeForSession(code);
         if (error) {
           setMessage("재설정 링크가 만료되었거나 이미 사용되었습니다. 새 이메일을 요청해 주세요.");
         } else {
@@ -50,7 +51,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         }
       }
 
-      const { data } = await supabase.auth.getUser();
+      const { data } = await authClient.auth.getUser();
       setUser(data.user);
       if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
         setRecoveryMode(true);
@@ -61,7 +62,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setLoading(false);
     };
     void initializeAuth();
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data } = authClient.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) {
         setRecoveryMode(true);
       }
