@@ -135,15 +135,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const resetPassword = async () => {
-    if (!supabase || !email) {
-      setMessage("비밀번호 재설정 이메일을 받을 주소를 먼저 입력해 주세요.");
-      return;
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/?recovery=1`,
-    });
-    setMessage(error ? error.message : "비밀번호 재설정 이메일을 보냈습니다.");
+  const resetPassword = () => {
+    window.location.assign("/forgot-password");
   };
 
   const updateRecoveredPassword = async (event: FormEvent) => {
