@@ -3,8 +3,8 @@ import './globals.css';
 import PwaManager from './components/PwaManager';
 
 export const metadata: Metadata = {
-  title: 'AI 운동 — 재민님 맞춤 홈트 플랜',
-  description: '재민님을 위한 AI 맞춤 홈 트레이닝 플랜. 준비운동부터 슬라이딩보드, 마무리 스트레칭까지.',
+  title: 'Jace AI Hub | 개인 AI 비서 플랫폼',
+  description: 'AI 비서를 중심으로 가계부·운동·언어 학습을 관리하는 Jace님의 개인 플랫폼.',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'AI 운동',
+    title: 'Jace AI Hub',
   },
   formatDetection: {
     telephone: false,
