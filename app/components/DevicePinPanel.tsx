@@ -31,9 +31,9 @@ export default function DevicePinPanel() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user);
-      setEnabled(Boolean(data.user && hasDevicePin(data.user.id)));
+      setEnabled(Boolean(data.user && await hasDevicePin(data.user.id)));
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
     });
     void isPlatformBiometricAvailable().then(setBiometricAvailable);
@@ -54,7 +54,7 @@ export default function DevicePinPanel() {
         return;
       }
     }
-    await setDevicePin(user.id, newPin);
+    await setDevicePin(user.id, newPin, currentPin);
     setEnabled(true);
     setCurrentPin("");
     setNewPin("");
@@ -73,7 +73,7 @@ export default function DevicePinPanel() {
       setSaving(false);
       return;
     }
-    removeDevicePin(user.id);
+    await removeDevicePin(user.id, currentPin);
     removeDeviceBiometric(user.id);
     setEnabled(false);
     setBiometricEnabled(false);
@@ -108,7 +108,7 @@ export default function DevicePinPanel() {
   return <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
     <p className="text-[12px] font-bold text-[#534AB7]">로그인 보안</p>
     <div className="mt-1 flex items-start justify-between gap-3">
-      <div><h2 className="text-lg font-bold text-gray-900">간편 PIN</h2><p className="mt-1 text-xs leading-relaxed text-gray-500">이 기기에서만 사용하는 6자리 잠금입니다. PIN 원문은 저장하거나 클라우드로 전송하지 않습니다.</p></div>
+      <div><h2 className="text-lg font-bold text-gray-900">Jace AI Hub 공통 PIN</h2><p className="mt-1 text-xs leading-relaxed text-gray-500">가계부와 운동 앱에서 함께 사용하는 6자리 잠금입니다. PIN 원문은 저장하지 않습니다.</p></div>
       <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${enabled ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>{enabled ? "사용 중" : "미설정"}</span>
     </div>
     <form onSubmit={savePin} className="mt-4 grid gap-3 sm:grid-cols-3">

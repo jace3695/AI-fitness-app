@@ -10,7 +10,6 @@ import {
   MAX_PIN_FAILURES,
   PIN_LENGTH,
   PIN_LOCK_MS,
-  removeDevicePin,
   unlockPinSession,
   verifyDevicePin,
 } from "../lib/devicePin";
@@ -39,12 +38,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user);
       if (data.user && isPasswordRecoveryRedirect) {
         setRecoveryMode(true);
       }
-      setPinRequired(Boolean(data.user && hasDevicePin(data.user.id) && !isPinSessionUnlocked(data.user.id)));
+      const configured = data.user ? await hasDevicePin(data.user.id) : false;
+      setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
       setLoading(false);
     });
@@ -57,7 +57,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setRecoveryMode(false);
       }
       setUser(session?.user ?? null);
-      setPinRequired(Boolean(session?.user && hasDevicePin(session.user.id) && !isPinSessionUnlocked(session.user.id)));
+      if (session?.user) {
+        void hasDevicePin(session.user.id).then((configured) => {
+          setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
+        });
+      } else {
+        setPinRequired(false);
+      }
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
       setLoading(false);
     });
@@ -111,7 +117,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   const resetDevicePin = async () => {
     if (!user || !supabase) return;
-    removeDevicePin(user.id);
     removeDeviceBiometric(user.id);
     await supabase.auth.signOut();
   };
@@ -175,12 +180,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     <section className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#534AB7] text-2xl font-bold text-white">J</div>
       <h1 className="mt-5 text-xl font-bold text-gray-900">간편 PIN 입력</h1>
-      <p className="mt-2 text-sm text-gray-500">이 기기에 설정한 {PIN_LENGTH}자리 숫자를 입력하세요.</p>
+      <p className="mt-2 text-sm text-gray-500">기존 4~6자리 또는 새 6자리 공통 PIN을 입력하세요.</p>
       {biometricEnabled && <button type="button" disabled={biometricSubmitting} onClick={() => void unlockWithBiometric()} className="mt-5 w-full rounded-xl border border-[#7F77DD] bg-[#F7F6FF] px-4 py-3 font-bold text-[#534AB7] disabled:opacity-50">{biometricSubmitting ? "생체인증 확인 중…" : "얼굴·지문으로 잠금 해제"}</button>}
       <form onSubmit={unlockWithPin} className="mt-5">
         <label className="sr-only" htmlFor="device-pin">간편 PIN</label>
         <input id="device-pin" autoFocus inputMode="numeric" autoComplete="current-password" type="password" maxLength={PIN_LENGTH} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-xl tracking-[0.45em] outline-none focus:border-[#7F77DD]" placeholder="••••••" />
-        <button disabled={pinSubmitting || pin.length !== PIN_LENGTH} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 font-bold text-white disabled:bg-gray-300">{pinSubmitting ? "확인 중…" : "잠금 해제"}</button>
+        <button disabled={pinSubmitting || pin.length < 4 || pin.length > PIN_LENGTH} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 font-bold text-white disabled:bg-gray-300">{pinSubmitting ? "확인 중…" : "잠금 해제"}</button>
       </form>
       {pinMessage && <p role="alert" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{pinMessage}</p>}
       <p className="mt-4 text-[11px] leading-relaxed text-gray-400">PIN을 {MAX_PIN_FAILURES}회 틀리면 {PIN_LOCK_MS / 1000}초 동안 입력이 제한됩니다.</p>
