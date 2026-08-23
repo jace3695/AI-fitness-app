@@ -9,7 +9,7 @@ import {
   isPinSessionUnlocked,
   MAX_PIN_FAILURES,
   PIN_LENGTH,
-  PIN_LOCK_MS,
+  reauthenticateDevicePin,
   unlockPinSession,
   verifyDevicePin,
 } from "../lib/devicePin";
@@ -30,6 +30,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [pin, setPin] = useState("");
   const [pinMessage, setPinMessage] = useState("");
   const [pinSubmitting, setPinSubmitting] = useState(false);
+  const [pinRequiresPassword, setPinRequiresPassword] = useState(false);
+  const [accountPassword, setAccountPassword] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSubmitting, setBiometricSubmitting] = useState(false);
 
@@ -122,9 +124,26 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setPinMessage("");
       setPinRequired(false);
     } else if (result.reason === "locked") {
-      setPinMessage(`입력 횟수를 초과했습니다. ${Math.ceil((result.retryAt - Date.now()) / 1000)}초 후 다시 시도해 주세요.`);
+      setPinRequiresPassword(true);
+      setPinMessage("입력 횟수를 초과했습니다. 계정 비밀번호로 잠금을 해제해 주세요.");
     } else {
       setPinMessage(`PIN이 맞지 않습니다. ${result.remaining}회 남았습니다.`);
+    }
+    setPinSubmitting(false);
+  };
+
+  const unlockWithAccountPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!user || pinSubmitting || !accountPassword) return;
+    setPinSubmitting(true);
+    setPinMessage("");
+    try {
+      await reauthenticateDevicePin(user.id, accountPassword);
+      setAccountPassword("");
+      setPinRequiresPassword(false);
+      setPinRequired(false);
+    } catch (error) {
+      setPinMessage(error instanceof Error ? error.message : "계정 비밀번호를 확인하지 못했습니다.");
     }
     setPinSubmitting(false);
   };
@@ -189,14 +208,17 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <h1 className="mt-5 text-xl font-bold text-gray-900">간편 PIN 입력</h1>
       <p className="mt-2 text-sm text-gray-500">기존 4~6자리 또는 새 6자리 공통 PIN을 입력하세요.</p>
       {biometricEnabled && <button type="button" disabled={biometricSubmitting} onClick={() => void unlockWithBiometric()} className="mt-5 w-full rounded-xl border border-[#7F77DD] bg-[#F7F6FF] px-4 py-3 font-bold text-[#534AB7] disabled:opacity-50">{biometricSubmitting ? "생체인증 확인 중…" : "얼굴·지문으로 잠금 해제"}</button>}
-      <form onSubmit={unlockWithPin} className="mt-5">
+      {!pinRequiresPassword ? <form onSubmit={unlockWithPin} className="mt-5">
         <label className="sr-only" htmlFor="device-pin">간편 PIN</label>
         <input id="device-pin" autoFocus inputMode="numeric" autoComplete="current-password" type="password" maxLength={PIN_LENGTH} value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-center text-xl tracking-[0.45em] outline-none focus:border-[#7F77DD]" placeholder="••••••" />
         <button disabled={pinSubmitting || pin.length < 4 || pin.length > PIN_LENGTH} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 font-bold text-white disabled:bg-gray-300">{pinSubmitting ? "확인 중…" : "잠금 해제"}</button>
-      </form>
+      </form> : <form onSubmit={unlockWithAccountPassword} className="mt-5">
+        <label className="block text-left text-sm font-bold text-gray-700">계정 비밀번호<input autoFocus type="password" autoComplete="current-password" required value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="공통 계정 비밀번호" /></label>
+        <button disabled={pinSubmitting || !accountPassword} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 font-bold text-white disabled:bg-gray-300">{pinSubmitting ? "확인 중…" : "PIN 잠금 해제"}</button>
+      </form>}
       {pinMessage && <p role="alert" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{pinMessage}</p>}
-      <p className="mt-4 text-[11px] leading-relaxed text-gray-400">PIN을 {MAX_PIN_FAILURES}회 틀리면 {PIN_LOCK_MS / 1000}초 동안 입력이 제한됩니다.</p>
-      <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">PIN을 잊으셨나요? 이메일로 다시 로그인</button>
+      <p className="mt-4 text-[11px] leading-relaxed text-gray-400">PIN을 {MAX_PIN_FAILURES}회 틀리면 계정 비밀번호 확인이 필요합니다.</p>
+      <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">다른 계정으로 로그인</button>
     </section>
   </main>;
   if (user) return <>{children}</>;

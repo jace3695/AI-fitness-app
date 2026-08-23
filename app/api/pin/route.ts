@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'set') {
-    if (!/^\d{4,6}$/.test(newPin)) {
+    if (!/^\d{6}$/.test(newPin)) {
       return NextResponse.json({ error: '새 공통 PIN은 6자리 숫자로 입력해주세요.' }, { status: 400 })
     }
 
