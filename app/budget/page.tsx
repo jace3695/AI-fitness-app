@@ -441,11 +441,9 @@ function BudgetDashboard() {
 
         const settings = await loadUserSettings(user.id)
 
-        if (settings?.simple_pin_enabled) {
-          setIsUnlocked(false)
-        } else {
-          setIsUnlocked(true)
-        }
+        // AuthGate already verifies the shared Jace AI Hub PIN before this
+        // dashboard mounts. Do not ask for the same PIN again inside budget.
+        setIsUnlocked(true)
 
         setIsLockReady(true)
 
@@ -2837,7 +2835,10 @@ function BudgetDashboard() {
 
 
   const shouldShowAppSplash = loading || !appReady || showSplash
-  const shouldShowLockScreen = !shouldShowAppSplash && isLockReady && user && simplePinEnabled && hasSimplePin && !isUnlocked
+  // The shared AuthGate is the single lock screen for every Hub module.
+  // Keep the legacy budget lock implementation unreachable while its PIN
+  // settings controls continue to manage the shared credential.
+  const shouldShowLockScreen = false
   
   useEffect(() => {
     if (!shouldShowLockScreen) return
