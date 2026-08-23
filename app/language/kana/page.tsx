@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 
-const LANGUAGE_ASSET_ORIGIN = "https://language-learning-app-drab.vercel.app";
+const LANGUAGE_ASSET_ORIGIN = "";
 
 function resolveLanguageAssetUrl(src: string) {
   return src.replace("https://language-learning-app.vercel.app", LANGUAGE_ASSET_ORIGIN);
