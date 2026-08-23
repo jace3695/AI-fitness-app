@@ -28,6 +28,10 @@ export const supabase = isSupabaseConfigured
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        // Recovery emails are often requested on one device and opened on another.
+        // The implicit flow keeps that cross-device password-reset path working;
+        // PKCE would require the original browser's locally stored verifier.
+        flowType: "implicit",
       },
     })
   : null;
