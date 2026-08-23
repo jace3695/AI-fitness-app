@@ -59,7 +59,7 @@ export default function DevicePinPanel() {
     setCurrentPin("");
     setNewPin("");
     setConfirmPin("");
-    setMessage(enabled ? "간편 PIN을 변경했습니다." : "이 기기에 간편 PIN을 설정했습니다.");
+    setMessage(enabled ? "공통 PIN을 변경했습니다." : "Jace AI Hub 공통 PIN을 설정했습니다.");
     setSaving(false);
   };
 
@@ -78,7 +78,7 @@ export default function DevicePinPanel() {
     setEnabled(false);
     setBiometricEnabled(false);
     setCurrentPin("");
-    setMessage("이 기기의 간편 PIN을 해제했습니다.");
+    setMessage("Jace AI Hub 공통 PIN을 해제했습니다.");
     setSaving(false);
   };
 

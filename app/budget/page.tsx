@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
-import { createClient } from '@/lib/supabase'
+import { authenticatedFetch, createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ChevronDown, ChevronUp, CircleDollarSign, PiggyBank, ReceiptText, Sparkles } from 'lucide-react'
 import FixedSpaceBackground from './components/fixed-space-background'
@@ -296,7 +296,7 @@ function BudgetDashboard() {
     (typeof window !== 'undefined' ? window.location.origin : '')
 
   const callPinApi = async (payload: Record<string, string>) => {
-    const response = await fetch(`${API_BASE_URL}/api/pin`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/pin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1415,7 +1415,7 @@ function BudgetDashboard() {
     try {
       const system = PARSE_SYSTEM.replace('DATE_PLACEHOLDER', new Date().toISOString().split('T')[0])
 
-      const res = await fetch(`${API_BASE_URL}/api/claude`, {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/claude`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1721,7 +1721,7 @@ function BudgetDashboard() {
         .replace(/[_~`]/g, '')
         .trim()
 
-      const res = await fetch(`${API_BASE_URL}/api/tts`, {
+      const res = await authenticatedFetch(`${API_BASE_URL}/api/tts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText })
@@ -2739,7 +2739,7 @@ function BudgetDashboard() {
       return
     }
 
-    const res = await fetch(`${API_BASE_URL}/api/analyze`, {
+    const res = await authenticatedFetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
