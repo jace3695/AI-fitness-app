@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import AuthGate from "../components/AuthGate";
 import TopNav from "@/components/TopNav";
 import ScrollTopButton from "@/components/ScrollTopButton";
+import LanguageCloudSync from "@/components/LanguageCloudSync";
 import "./language.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function LanguageLayout({ children }: Readonly<{ children: React.
         <header className="app-shell"><TopNav /></header>
         <main className="app-main">{children}</main>
         <ScrollTopButton />
+        <LanguageCloudSync />
       </div>
     </AuthGate>
   );
