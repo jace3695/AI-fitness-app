@@ -8,7 +8,7 @@ const modules = [
   { href: "/fitness", title: "운동 관리", description: "오늘 운동·기록·식단", status: "사용 가능", color: "bg-[#EDEBFF] text-[#493F96]" },
   { href: "/budget", title: "가계부", description: "지출·예산·소비 분석", status: "사용 가능", color: "bg-[#FFF0E8] text-[#985A39]" },
   { href: "/language", title: "언어 학습", description: "일본어·복습·진도", status: "사용 가능", color: "bg-[#E7F7F1] text-[#276B56]" },
-  { href: "#assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "구축 중", color: "bg-[#EEF3FF] text-[#355B9C]" },
+  { href: "/assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "사용 가능", color: "bg-[#EEF3FF] text-[#355B9C]" },
 ] as const;
 
 function HubHome() {
@@ -37,10 +37,7 @@ function HubHome() {
           <p className="text-sm font-semibold text-white/75">안녕하세요, Jace님</p>
           <h2 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">무엇을 도와드릴까요?</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">운동·가계부·언어 학습과 일정을 하나의 AI 비서에서 관리하는 개인 플랫폼입니다.</p>
-          <div id="assistant" className="mt-6 flex rounded-2xl bg-white/12 p-2 ring-1 ring-white/20">
-            <input aria-label="AI 비서에게 요청" disabled placeholder="AI 비서 입력창은 다음 단계에서 연결됩니다" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white placeholder:text-white/60 outline-none" />
-            <button disabled className="rounded-xl bg-white/20 px-4 py-2 text-sm font-bold text-white/75">요청</button>
-          </div>
+          <Link href="/assistant" className="mt-6 flex items-center justify-between rounded-2xl bg-white/12 p-4 text-sm font-semibold ring-1 ring-white/20 transition hover:bg-white/20"><span>AI 비서에서 오늘 할 일을 정리하세요</span><span className="font-bold">열기 →</span></Link>
         </section>
 
         <section className="mt-7">
