@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
@@ -23,7 +23,7 @@ export const isPasswordRecoveryRedirect = Boolean(
 );
 
 export const supabase = isSupabaseConfigured
-  ? createBrowserClient(supabaseUrl!, supabaseKey!, {
+  ? createClient(supabaseUrl!, supabaseKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
