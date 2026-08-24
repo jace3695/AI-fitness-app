@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ai-fitness-v1";
+const CACHE_VERSION = "jace-ai-hub-v2";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const APP_SHELL = ["/", "/offline", "/manifest.json", "/icon-192.png", "/icon-512.png"];
@@ -26,8 +26,8 @@ self.addEventListener("push", (event) => {
   } catch {
     payload = { body: event.data?.text() };
   }
-  event.waitUntil(self.registration.showNotification(payload.title || "AI 운동", {
-    body: payload.body || "오늘의 운동을 확인해 보세요.",
+  event.waitUntil(self.registration.showNotification(payload.title || "Jace AI Hub", {
+    body: payload.body || "오늘의 브리핑을 확인해 보세요.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: payload.tag || "ai-fitness-workout",
