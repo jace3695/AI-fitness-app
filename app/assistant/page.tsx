@@ -110,7 +110,7 @@ export default function AssistantPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 자연스럽게 물어보세요." },
+    { id: "welcome", role: "assistant", text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 조회하고 기록할 수 있어요." },
   ]);
 
   const sendChat = async (command?: string) => {
@@ -264,12 +264,12 @@ export default function AssistantPage() {
       </section>
 
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div><p className="text-xs font-bold text-[#766DB8]">JACE AI CHAT</p><h2 className="mt-1 text-xl font-bold">AI 비서에게 말하기</h2><p className="mt-1 text-sm text-gray-500">할 일 등록·완료·마감일·우선순위 변경도 바로 처리합니다.</p></div>
+        <div><p className="text-xs font-bold text-[#766DB8]">JACE AI CHAT</p><h2 className="mt-1 text-xl font-bold">AI 비서에게 말하기</h2><p className="mt-1 text-sm text-gray-500">할 일 관리와 오늘 운동 조회·완료 기록을 바로 처리합니다.</p></div>
         <div aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">{["이번 달 지출 알려줘", "오늘 할 일 알려줘", "내일 긴급 할 일로 보고서 작성 추가해줘", "일본어 복습 시작해줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{["오늘 운동 계획 보여줘", "오늘 운동 완료했어", "오늘 할 일 알려줘", "일본어 복습 시작해줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
           <label htmlFor="assistant-chat-input" className="sr-only">AI 비서 명령</label><input id="assistant-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <button disabled={chatSending || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>

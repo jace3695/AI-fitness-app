@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
+import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,57 @@ function parseState(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
   if (typeof value !== "string") return {};
   try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; }
+}
+
+function getTodayWorkout(state: Record<string, unknown>, today: string) {
+  const planId = typeof state["ai-fitness-selected-weekly-workout-plan"] === "string" ? state["ai-fitness-selected-weekly-workout-plan"] as string : undefined;
+  const plan = getWeeklyWorkoutPlanById(planId);
+  const localNoon = new Date(`${today}T12:00:00+09:00`);
+  const dayId = getWorkoutDayForDate(localNoon);
+  if (!dayId) return null;
+  const group = getWorkoutGroupForPlanDay(plan, dayId);
+  const workout = getDayWorkoutForPlan(plan, dayId);
+  const exerciseNames = workout.phases.flatMap((phase) => phase.exercises.map((exercise) => exercise.name));
+  const cardioOptions = workout.optionalCardio?.options.map((option) => `${option.name} ${option.duration}`) ?? [];
+  const completedStore = parseState(state["ai-fitness-workout-completed-days"]) as WorkoutCompletionStore;
+  return { plan, dayId, group, workout, exerciseNames, cardioOptions, completedStore, completed: isWorkoutPerformed(completedStore[today]) };
+}
+
+async function saveWorkoutCompletion(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, today: string) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { data, error } = await supabase.from("user_app_state").select("state,updated_at").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    const state = parseState(data?.state);
+    const workoutInfo = getTodayWorkout(state, today);
+    if (!workoutInfo) throw new Error("오늘 운동 정보를 확인하지 못했습니다.");
+    if (workoutInfo.completed || workoutInfo.group.category === "rest") return workoutInfo;
+    const current = getWorkoutRecord(workoutInfo.completedStore[today]);
+    const nextStore: WorkoutCompletionStore = {
+      ...workoutInfo.completedStore,
+      [today]: {
+        ...current,
+        workoutDone: true,
+        workoutStatus: "completed",
+        workoutRoutineName: workoutInfo.group.name,
+        workoutPlanName: workoutInfo.plan.name,
+        workoutGroupId: workoutInfo.group.id,
+        workoutExerciseNames: workoutInfo.exerciseNames,
+        workoutSourceDay: workoutInfo.dayId,
+        workoutExerciseRecords: workoutInfo.exerciseNames.map((exerciseName) => ({ exerciseName, status: "completed" as const })),
+        workoutMemo: current.workoutMemo || "AI 비서에서 완료 기록",
+      },
+    };
+    const nextState = { ...state, "ai-fitness-workout-completed-days": nextStore };
+    if (!data) {
+      const { error: insertError } = await supabase.from("user_app_state").insert({ user_id: userId, state: nextState, updated_at: new Date().toISOString() });
+      if (insertError) throw insertError;
+      return workoutInfo;
+    }
+    const { data: updated, error: updateError } = await supabase.from("user_app_state").update({ state: nextState, updated_at: new Date().toISOString() }).eq("user_id", userId).eq("updated_at", data.updated_at).select("updated_at").maybeSingle();
+    if (updateError) throw updateError;
+    if (updated) return workoutInfo;
+  }
+  throw new Error("다른 기기에서 운동 기록이 변경되었습니다. 다시 시도해 주세요.");
 }
 
 async function generativeFallback(message: string): Promise<string> {
@@ -167,12 +220,23 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase.from("assistant_items").select("title").eq("user_id", user.id).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5);
     if (error) return NextResponse.json({ error: "할 일을 불러오지 못했습니다." }, { status: 500 });
     result = { reply: data?.length ? `오늘 할 일은 ${data.length}건입니다. ${data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ")}` : "오늘 마감인 미완료 할 일이 없습니다.", action: { label: "할 일 목록 보기", href: "#assistant-list" } };
+  } else if (/(오늘\s*)?운동.*(완료|끝|마쳤|했어|했어요)/.test(message)) {
+    try {
+      const workoutInfo = await saveWorkoutCompletion(supabase, user.id, today);
+      result = { reply: workoutInfo.group.category === "rest" ? "오늘은 회복일이라 별도의 운동 완료 기록을 만들지 않았습니다. 충분히 쉬고 몸 상태를 확인해 주세요." : workoutInfo.completed ? "오늘 운동은 이미 완료로 기록되어 있습니다." : `오늘 ‘${workoutInfo.group.name}’ 운동을 완료로 기록했습니다. 운동 페이지에도 자동으로 동기화됩니다.`, action: { label: "운동 기록 확인", href: "/fitness" }, changed: workoutInfo.group.category !== "rest" && !workoutInfo.completed };
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "운동 완료 기록을 저장하지 못했습니다." }, { status: 500 });
+    }
   } else if (/(운동).*(계획|일정|뭐|보여|알려)|(오늘).*(운동)/.test(message)) {
     const { data, error } = await supabase.from("user_app_state").select("state").eq("user_id", user.id).maybeSingle();
     if (error) return NextResponse.json({ error: "운동 데이터를 불러오지 못했습니다." }, { status: 500 });
-    const state = parseState(data?.state);
-    const selectedPlan = typeof state["ai-fitness-selected-weekly-workout-plan"] === "string" ? state["ai-fitness-selected-weekly-workout-plan"] : null;
-    result = { reply: selectedPlan ? `오늘 운동 계획을 확인할 준비가 됐어요. 현재 선택된 주간 플랜은 ‘${selectedPlan}’입니다. 운동 앱에서 오늘의 세부 종목을 바로 확인하세요.` : "아직 선택된 주간 운동 플랜이 없습니다. 운동 앱에서 먼저 플랜을 선택해 주세요.", action: { label: "오늘 운동 보기", href: "/fitness" } };
+    const workoutInfo = getTodayWorkout(parseState(data?.state), today);
+    if (!workoutInfo) result = { reply: "오늘 운동 계획을 확인하지 못했습니다.", action: { label: "운동 앱 열기", href: "/fitness" } };
+    else if (workoutInfo.group.category === "rest") result = { reply: `오늘 ${dayIdToKoreanLabel[workoutInfo.dayId]}은 회복일입니다. ${workoutInfo.exerciseNames.join(" · ")}`, action: { label: "회복 계획 보기", href: "/fitness" } };
+    else {
+      const details = workoutInfo.exerciseNames.length ? workoutInfo.exerciseNames.map((name, index) => `${index + 1}. ${name}`).join(" · ") : workoutInfo.cardioOptions.join(" · ");
+      result = { reply: `오늘은 ‘${workoutInfo.group.name}’ 계획이며 예상 시간은 ${workoutInfo.group.duration}입니다.${workoutInfo.completed ? " 이미 완료로 기록되어 있어요." : ""} ${details}`, action: { label: "운동 세부 화면 열기", href: "/fitness" } };
+    }
   } else if (/(일본어|언어).*(복습|학습).*(시작|해|보여)|(복습).*(시작)/.test(message)) {
     result = { reply: "일본어 복습 화면을 준비했습니다. 아래 버튼을 눌러 바로 시작하세요.", action: { label: "일본어 복습 시작", href: "/language/review" } };
   } else {
