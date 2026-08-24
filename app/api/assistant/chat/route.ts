@@ -179,23 +179,39 @@ async function saveWorkoutCompletion(supabase: Awaited<ReturnType<typeof createS
   throw new Error("다른 기기에서 운동 기록이 변경되었습니다. 다시 시도해 주세요.");
 }
 
+const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘일본어 복습 시작해줘’처럼 말씀해 주세요.";
+
+function normalizeGenerativeReply(value: unknown) {
+  const reply = typeof value === "string" ? value.trim() : "";
+  if (!reply) return ASSISTANT_CAPABILITY_GUIDE;
+  if (/(제\s*능력\s*밖|저의\s*능력\s*밖|지금으로써.{0,12}능력\s*밖)/.test(reply)) {
+    console.warn("Assistant replaced a vague model refusal");
+    return ASSISTANT_CAPABILITY_GUIDE;
+  }
+  return reply;
+}
+
 async function generativeFallback(message: string): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) return "지금은 월 지출 조회, 오늘 할 일 조회·추가, 운동 계획 확인, 일본어 복습 시작을 도와드릴 수 있어요.";
+  if (!process.env.GEMINI_API_KEY) return ASSISTANT_CAPABILITY_GUIDE;
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: "당신은 Jace AI Hub의 한국어 개인 비서입니다. 2~3문장으로 간결히 답하세요. 개인정보를 추측하지 마세요. 현재 월 지출 조회, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인, 일본어 복습 시작을 지원합니다." }] },
+        system_instruction: { parts: [{ text: "당신은 Jace AI Hub의 친절한 한국어 개인 비서입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요." }] },
         contents: [{ role: "user", parts: [{ text: message }] }],
         generationConfig: { maxOutputTokens: 220 },
       }),
     });
-    if (!response.ok) throw new Error("Gemini request failed");
+    if (!response.ok) {
+      console.error("Gemini assistant request failed", { status: response.status });
+      throw new Error("Gemini request failed");
+    }
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "요청을 이해하지 못했어요. 조금 다르게 말씀해 주세요.";
-  } catch {
-    return "요청을 이해하지 못했어요. 월 지출, 오늘 할 일, 운동 계획, 일본어 복습 중 하나로 말씀해 주세요.";
+    return normalizeGenerativeReply(data.candidates?.[0]?.content?.parts?.[0]?.text);
+  } catch (error) {
+    console.error("Gemini assistant fallback failed", { message: error instanceof Error ? error.message : "unknown" });
+    return ASSISTANT_CAPABILITY_GUIDE;
   }
 }
 
@@ -247,25 +263,8 @@ export async function POST(request: NextRequest) {
         result = { reply: `‘${matches[0].title}’의 ${[dueDate && `마감일을 ${dueDate}로`, hasPriority && `우선순위를 ${parsePriority(message)}로`].filter(Boolean).join(", ")} 변경했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
       }
     }
-  } else if (/((오늘|아침)\s*)?(통합\s*)?브리핑/.test(message)) {
-    const start = `${today}T00:00:00+09:00`;
-    const end = `${today}T23:59:59+09:00`;
-    const [taskResult, budgetResult, fitnessResult, languageResult] = await Promise.all([
-      supabase.from("assistant_items").select("title").eq("user_id", user.id).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5),
-      supabase.from("budget_transactions").select("amount").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
-      supabase.from("user_app_state").select("state").eq("user_id", user.id).maybeSingle(),
-      supabase.from("language_user_state").select("state").eq("user_id", user.id).maybeSingle(),
-    ]);
-    const error = taskResult.error || budgetResult.error || fitnessResult.error || languageResult.error;
-    if (error) return NextResponse.json({ error: "통합 브리핑 데이터를 불러오지 못했습니다." }, { status: 500 });
-    const spent = (budgetResult.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const workoutInfo = getTodayWorkout(parseState(fitnessResult.data?.state), today);
-    const workoutText = !workoutInfo ? "운동 계획 확인 필요" : workoutInfo.group.category === "rest" ? "오늘은 회복일" : workoutInfo.completed ? `${workoutInfo.group.name} 완료` : `${workoutInfo.group.name} 예정`;
-    const language = getLanguageSnapshot(parseState(languageResult.data?.state), today);
-    const taskText = taskResult.data?.length ? taskResult.data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ") : "오늘 마감 할 일 없음";
-    result = { reply: `오늘 브리핑입니다. 할 일: ${taskText}. 이번 달 지출은 ${won(spent)}입니다. 운동: ${workoutText}. 언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다.`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
   } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
-    const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", user.id).gte("date", monthStart).lte("date", today);
+    const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", user.id).eq("type", "expense").gte("date", monthStart).lte("date", today);
     if (error) return NextResponse.json({ error: "가계부 데이터를 불러오지 못했습니다." }, { status: 500 });
     const rows = data ?? [];
     const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
