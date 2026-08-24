@@ -14,10 +14,11 @@ type Item = {
   kind: "task" | "waiting" | "reminder";
   status: "open" | "in_progress" | "waiting" | "completed" | "cancelled";
   priority: number;
+  project_id: string | null;
   due_at: string | null;
   created_at: string;
 };
-type Project = { id: string; name: string; status: string; priority: number; created_at: string };
+type Project = { id: string; name: string; status: string; priority: number; due_date: string | null; created_at: string };
 type Memory = { id: string; topic: string; content: string; created_at: string };
 type BudgetTransaction = { amount: number | string; date: string };
 type BriefingSnapshot = {
@@ -100,6 +101,9 @@ export default function AssistantPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<Exclude<Filter, "all">>("task");
+  const [entryPriority, setEntryPriority] = useState(3);
+  const [entryDueDate, setEntryDueDate] = useState("");
+  const [entryProjectId, setEntryProjectId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -140,8 +144,8 @@ export default function AssistantPage() {
     const todayKey = getLocalDateKey(now);
     const monthKey = `${todayKey.slice(0, 7)}-01`;
     const [itemResult, projectResult, memoryResult, budgetResult, monthlyBudgetResult, fitnessResult, languageResult] = await Promise.all([
-      supabase.from("assistant_items").select("id,title,kind,status,priority,due_at,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
-      supabase.from("assistant_projects").select("id,name,status,priority,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+      supabase.from("assistant_items").select("id,title,kind,status,priority,project_id,due_at,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+      supabase.from("assistant_projects").select("id,name,status,priority,due_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("assistant_memories").select("id,topic,content,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("budget_transactions").select("amount,date").eq("user_id", auth.user.id).gte("date", monthKey).lte("date", todayKey),
       supabase.from("budget_monthly_budgets").select("total_amount").eq("user_id", auth.user.id).eq("budget_month", monthKey).maybeSingle(),
@@ -179,9 +183,9 @@ export default function AssistantPage() {
       ? await supabase.from("assistant_projects").insert({ user_id: auth.user.id, name: value, status: "active", priority: 3 })
       : kind === "memory"
         ? await supabase.from("assistant_memories").insert({ user_id: auth.user.id, topic: "일반", content: value, source: "manual", tags: [] })
-      : await supabase.from("assistant_items").insert({ user_id: auth.user.id, title: value, kind, status: kind === "waiting" ? "waiting" : "open", priority: 3 });
+      : await supabase.from("assistant_items").insert({ user_id: auth.user.id, title: value, kind, status: kind === "waiting" ? "waiting" : "open", priority: entryPriority, due_at: entryDueDate ? `${entryDueDate}T23:59:00+09:00` : null, project_id: entryProjectId || null });
     if (result.error) setMessage("저장하지 못했습니다. 입력 내용을 확인해 주세요.");
-    else { setTitle(""); await load(); }
+    else { setTitle(""); setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); await load(); }
     setSaving(false);
   };
 
@@ -226,6 +230,8 @@ export default function AssistantPage() {
   const todayKey = getLocalDateKey();
   const todayItems = items.filter((item) => item.status !== "completed" && item.due_at && getLocalDateKey(new Date(item.due_at)) === todayKey).length;
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
+  const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
+  const priorityLabel = (priority: number) => priority >= 5 ? "긴급" : priority === 4 ? "중요" : priority <= 2 ? "낮음" : "보통";
 
   return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
     <header className="border-b border-white/80 bg-white/90 backdrop-blur">
@@ -258,12 +264,12 @@ export default function AssistantPage() {
       </section>
 
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div><p className="text-xs font-bold text-[#766DB8]">JACE AI CHAT</p><h2 className="mt-1 text-xl font-bold">AI 비서에게 말하기</h2><p className="mt-1 text-sm text-gray-500">조회뿐 아니라 할 일 등록도 바로 처리합니다.</p></div>
+        <div><p className="text-xs font-bold text-[#766DB8]">JACE AI CHAT</p><h2 className="mt-1 text-xl font-bold">AI 비서에게 말하기</h2><p className="mt-1 text-sm text-gray-500">할 일 등록·완료·마감일·우선순위 변경도 바로 처리합니다.</p></div>
         <div aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">{["이번 달 지출 알려줘", "오늘 할 일 알려줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{["이번 달 지출 알려줘", "오늘 할 일 알려줘", "내일 긴급 할 일로 보고서 작성 추가해줘", "일본어 복습 시작해줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
           <label htmlFor="assistant-chat-input" className="sr-only">AI 비서 명령</label><input id="assistant-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <button disabled={chatSending || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
@@ -272,9 +278,12 @@ export default function AssistantPage() {
 
       <section id="assistant-list" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>
-        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-[#F5F4FA] p-2 sm:grid-cols-[1fr_auto_auto]">
+        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-[#F5F4FA] p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto]">
           <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <select value={kind} onChange={(event) => setKind(event.target.value as Exclude<Filter, "all">)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm font-semibold outline-none ring-1 ring-gray-100"><option value="task">할 일</option><option value="project">프로젝트</option><option value="waiting">회신 대기</option><option value="memory">기억</option></select>
+          <select aria-label="우선순위" value={entryPriority} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryPriority(Number(event.target.value))} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value={5}>긴급</option><option value={4}>중요</option><option value={3}>보통</option><option value={2}>낮음</option></select>
+          <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
+          <select aria-label="연결 프로젝트" value={entryProjectId} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryProjectId(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="">프로젝트 없음</option>{projects.filter((project) => project.status !== "completed" && project.status !== "archived").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
           <button disabled={saving || !title.trim()} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
         </form>
         {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
@@ -282,7 +291,7 @@ export default function AssistantPage() {
         <div className="mt-5 grid gap-2">
           {loading ? <p className="py-10 text-center text-sm text-gray-400">동기화 중…</p> : rows.length === 0 ? <p className="py-10 text-center text-sm leading-6 text-gray-400">등록된 항목이 없습니다.<br />떠오르는 일을 자연스럽게 적어보세요.</p> : rows.map((row) => <article key={`${row.kind}-${row.id}`} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-gray-100 p-4 ${row.done ? "opacity-50" : ""}`}>
             {row.kind === "memory" ? <span aria-hidden="true" className="h-3 w-3 justify-self-center rounded-full bg-amber-400" /> : <button type="button" aria-label="완료 전환" onClick={() => void (row.kind === "project" ? toggleProject(row.source as Project) : toggleItem(row.source as Item))} className={`h-6 w-6 rounded-full border-2 ${row.done ? "border-[#5146A6] bg-[#5146A6]" : "border-gray-300"}`}>{row.done && <span className="text-xs text-white">✓</span>}</button>}
-            <div className="min-w-0"><p className={`truncate font-bold ${row.done ? "line-through" : ""}`}>{row.title}</p><p className="mt-1 text-xs text-gray-400">{new Date(row.created).toLocaleString("ko-KR")}</p></div>
+            <div className="min-w-0"><p className={`truncate font-bold ${row.done ? "line-through" : ""}`}>{row.title}</p><div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400"><span>{new Date(row.created).toLocaleString("ko-KR")}</span>{row.kind === "task" || row.kind === "waiting" ? <><span className={(row.source as Item).priority >= 4 ? "font-bold text-red-500" : ""}>우선순위 {priorityLabel((row.source as Item).priority)}</span>{(row.source as Item).due_at && <span className={!row.done && new Date((row.source as Item).due_at as string) < new Date() ? "font-bold text-red-500" : ""}>마감 {new Date((row.source as Item).due_at as string).toLocaleDateString("ko-KR")}</span>}{(row.source as Item).project_id && <span>프로젝트 {projectNames.get((row.source as Item).project_id as string)}</span>}</> : null}</div></div>
             <div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${row.kind === "waiting" ? "bg-orange-50 text-orange-700" : row.kind === "project" ? "bg-blue-50 text-blue-700" : row.kind === "memory" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{filterLabels[row.kind]}</span><button type="button" aria-label="삭제" onClick={() => void remove(row.kind === "project" ? "assistant_projects" : row.kind === "memory" ? "assistant_memories" : "assistant_items", row.id)} className="px-1 text-xl text-gray-300 hover:text-red-500">×</button></div>
           </article>)}
         </div>
