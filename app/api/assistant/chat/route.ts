@@ -61,6 +61,73 @@ function parseState(value: unknown): Record<string, unknown> {
   try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; }
 }
 
+const LANGUAGE_ROUTINES = ["kana", "words", "sentences", "grammar", "review"] as const;
+const LANGUAGE_LABELS: Record<typeof LANGUAGE_ROUTINES[number], string> = { kana: "가나", words: "단어", sentences: "문장", grammar: "문법", review: "복습" };
+
+function parseStoredValue<T>(value: unknown, fallback: T): T {
+  if (typeof value === "string") {
+    try { return JSON.parse(value) as T; } catch { return fallback; }
+  }
+  return value && typeof value === "object" ? value as T : fallback;
+}
+
+function storedArrayLength(value: unknown) {
+  const parsed = parseStoredValue<unknown>(value, []);
+  return Array.isArray(parsed) ? parsed.length : 0;
+}
+
+function getLanguageSnapshot(state: Record<string, unknown>, today: string) {
+  const routine = parseStoredValue<{ date?: unknown; completedIds?: unknown }>(state.dailyRoutineProgress, {});
+  const completedIds = routine.date === today && Array.isArray(routine.completedIds)
+    ? Array.from(new Set(routine.completedIds.filter((id): id is typeof LANGUAGE_ROUTINES[number] => typeof id === "string" && LANGUAGE_ROUTINES.includes(id as typeof LANGUAGE_ROUTINES[number]))))
+    : [];
+  const grammarProgress = parseStoredValue<unknown>(state.grammarProgress, []);
+  const grammarReview = Array.isArray(grammarProgress) ? grammarProgress.filter((item) => item && typeof item === "object" && (("wrongCount" in item && Number(item.wrongCount) > 0) || ("lastResult" in item && item.lastResult === "wrong"))).length : 0;
+  const counts = {
+    kana: storedArrayLength(state.wrongKana) + storedArrayLength(state.wrongKanaChars),
+    words: storedArrayLength(state.wrongWords) + storedArrayLength(state.savedWords),
+    sentences: storedArrayLength(state.wrongSentences) + storedArrayLength(state.savedSentences),
+    grammar: grammarReview,
+    course: storedArrayLength(state.japaneseCurriculumReviewV1),
+  };
+  return { completedIds, counts, totalReview: Object.values(counts).reduce((sum, count) => sum + count, 0) };
+}
+
+function detectLanguageRoutine(message: string): typeof LANGUAGE_ROUTINES[number] | null {
+  if (/(가나|히라가나|카타카나)/.test(message)) return "kana";
+  if (/단어/.test(message)) return "words";
+  if (/문장/.test(message)) return "sentences";
+  if (/문법/.test(message)) return "grammar";
+  if (/복습/.test(message)) return "review";
+  return null;
+}
+
+async function saveLanguageRoutineCompletion(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, today: string, routineId: typeof LANGUAGE_ROUTINES[number]) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { data, error } = await supabase.from("language_user_state").select("state,updated_at").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    const state = parseState(data?.state);
+    const snapshot = getLanguageSnapshot(state, today);
+    if (snapshot.completedIds.includes(routineId)) return { alreadyCompleted: true, snapshot };
+    const completedIds = [...snapshot.completedIds, routineId];
+    const history = parseStoredValue<Record<string, unknown>>(state.dailyLearningHistory, {});
+    const nextState = {
+      ...state,
+      dailyRoutineProgress: JSON.stringify({ date: today, completedIds }),
+      dailyLearningHistory: JSON.stringify({ ...history, [today]: { completedIds, completedCount: completedIds.length, totalCount: LANGUAGE_ROUTINES.length, updatedAt: new Date().toISOString() } }),
+    };
+    if (!data) {
+      const { error: insertError } = await supabase.from("language_user_state").insert({ user_id: userId, state: nextState, updated_at: new Date().toISOString() });
+      if (insertError) throw insertError;
+      return { alreadyCompleted: false, snapshot };
+    }
+    const { data: updated, error: updateError } = await supabase.from("language_user_state").update({ state: nextState, updated_at: new Date().toISOString() }).eq("user_id", userId).eq("updated_at", data.updated_at).select("updated_at").maybeSingle();
+    if (updateError) throw updateError;
+    if (updated) return { alreadyCompleted: false, snapshot };
+  }
+  throw new Error("다른 기기에서 학습 기록이 변경되었습니다. 다시 시도해 주세요.");
+}
+
 function getTodayWorkout(state: Record<string, unknown>, today: string) {
   const planId = typeof state["ai-fitness-selected-weekly-workout-plan"] === "string" ? state["ai-fitness-selected-weekly-workout-plan"] as string : undefined;
   const plan = getWeeklyWorkoutPlanById(planId);
@@ -237,6 +304,23 @@ export async function POST(request: NextRequest) {
       const details = workoutInfo.exerciseNames.length ? workoutInfo.exerciseNames.map((name, index) => `${index + 1}. ${name}`).join(" · ") : workoutInfo.cardioOptions.join(" · ");
       result = { reply: `오늘은 ‘${workoutInfo.group.name}’ 계획이며 예상 시간은 ${workoutInfo.group.duration}입니다.${workoutInfo.completed ? " 이미 완료로 기록되어 있어요." : ""} ${details}`, action: { label: "운동 세부 화면 열기", href: "/fitness" } };
     }
+  } else if (/(일본어|언어|가나|히라가나|카타카나|단어|문장|문법|복습).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
+    const routineId = detectLanguageRoutine(message);
+    if (!routineId) result = { reply: "완료한 학습 종류를 함께 말해 주세요. 예: ‘단어 학습 완료했어’" };
+    else {
+      try {
+        const saved = await saveLanguageRoutineCompletion(supabase, user.id, today, routineId);
+        result = { reply: saved.alreadyCompleted ? `오늘 ${LANGUAGE_LABELS[routineId]} 학습은 이미 완료로 기록되어 있습니다.` : `오늘 ${LANGUAGE_LABELS[routineId]} 학습을 완료로 기록했습니다. 언어 앱에도 자동으로 동기화됩니다.`, action: { label: "오늘 학습 현황 보기", href: "/language" }, changed: !saved.alreadyCompleted };
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "학습 완료 기록을 저장하지 못했습니다." }, { status: 500 });
+      }
+    }
+  } else if (/(일본어|언어).*(진도|복습|틀린|학습).*(알려|보여|뭐|몇)|(복습).*(할|남은|몇)/.test(message)) {
+    const { data, error } = await supabase.from("language_user_state").select("state").eq("user_id", user.id).maybeSingle();
+    if (error) return NextResponse.json({ error: "언어 학습 데이터를 불러오지 못했습니다." }, { status: 500 });
+    const snapshot = getLanguageSnapshot(parseState(data?.state), today);
+    const nextRoutine = LANGUAGE_ROUTINES.find((id) => !snapshot.completedIds.includes(id));
+    result = { reply: `오늘 학습은 ${snapshot.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했습니다.${nextRoutine ? ` 다음 추천은 ${LANGUAGE_LABELS[nextRoutine]}입니다.` : " 오늘 루틴을 모두 마쳤습니다."} 복습 대기는 총 ${snapshot.totalReview}개이며, 가나 ${snapshot.counts.kana}개·단어 ${snapshot.counts.words}개·문장 ${snapshot.counts.sentences}개·문법 ${snapshot.counts.grammar}개·과정 복습 ${snapshot.counts.course}개입니다.`, action: { label: snapshot.totalReview ? "복습 시작" : "언어 학습 열기", href: snapshot.totalReview ? "/language/review" : "/language" } };
   } else if (/(일본어|언어).*(복습|학습).*(시작|해|보여)|(복습).*(시작)/.test(message)) {
     result = { reply: "일본어 복습 화면을 준비했습니다. 아래 버튼을 눌러 바로 시작하세요.", action: { label: "일본어 복습 시작", href: "/language/review" } };
   } else {
