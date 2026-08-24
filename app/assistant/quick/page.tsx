@@ -70,10 +70,10 @@ function QuickCommandContent() {
             <li><b className="text-[#242231]">1.</b> 단축어 앱에서 새 단축어를 만들고 ‘입력 요청’을 추가합니다. 질문은 ‘무엇을 도와드릴까요?’로 설정하고 입력 유형은 텍스트로 둡니다.</li>
             <li><b className="text-[#242231]">2.</b> ‘URL 인코딩’을 추가하고 ‘제공된 입력’을 입력으로 지정합니다. Siri 실행 중에는 ‘텍스트 받아쓰기’ 대신 ‘입력 요청’을 사용해야 음성 명령이 안정적으로 전달됩니다.</li>
             <li><b className="text-[#242231]">3.</b> ‘텍스트’ 동작을 추가하고 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다. ‘URL’ 동작의 + 버튼으로 별도 항목을 만들면 안 됩니다.</li>
-            <li><b className="text-[#242231]">4.</b> ‘URL 열기’를 추가하고 바로 앞의 ‘텍스트’를 입력으로 지정한 뒤, 단축어 이름을 ‘Jace AI’로 저장합니다.</li>
-            <li><b className="text-[#242231]">5.</b> 이후 “Siri야, Jace AI”라고 말하고 명령을 받아쓰면 이 확인 화면이 열립니다.</li>
+            <li><b className="text-[#242231]">4.</b> ‘URL 열기’를 추가하고 바로 앞의 ‘텍스트’를 입력으로 지정한 뒤, 단축어 이름을 Siri가 잘 알아듣는 한글 이름 ‘제이스 비서’로 저장합니다.</li>
+            <li><b className="text-[#242231]">5.</b> 이후 “Siri야, 제이스 비서”라고 말하고, Siri가 질문한 다음 명령을 말하면 이 확인 화면이 열립니다.</li>
           </ol>
-          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />명령 입력칸이 비어 있으면 ‘텍스트 받아쓰기’를 ‘입력 요청’으로 교체하세요. ‘유효하지 않은 URL: %EC…’가 나오면 기존 ‘URL’ 동작을 삭제하고 위 3번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
+          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />Siri가 단축어를 실행하지 않고 ‘능력 밖’이라고 답하면 영어 이름 ‘Jace AI’를 ‘제이스 비서’로 변경하세요. 명령 입력칸이 비어 있으면 ‘텍스트 받아쓰기’를 ‘입력 요청’으로 교체하세요. ‘유효하지 않은 URL: %EC…’가 나오면 기존 ‘URL’ 동작을 삭제하고 위 3번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
         </section>
       </div>
     </main>
