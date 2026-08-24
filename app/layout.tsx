@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
+import HubBottomNav from './components/HubBottomNav';
 
 export const metadata: Metadata = {
   title: 'Jace AI Hub | 개인 AI 비서 플랫폼',
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body>
         <PwaManager />
         {children}
+        <HubBottomNav />
       </body>
     </html>
   );

@@ -135,7 +135,9 @@ export default function CloudSyncPanel() {
     };
 
     void sync(!lastSynced.current);
-    const interval = window.setInterval(() => void sync(), 3000);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void sync();
+    }, 30000);
     const onVisibility = () => {
       if (document.visibilityState === "visible") void sync();
     };

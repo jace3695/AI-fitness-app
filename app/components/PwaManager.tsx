@@ -2,22 +2,37 @@
 
 import { useEffect, useState } from "react";
 
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
 export default function PwaManager() {
   const [online, setOnline] = useState(true);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
 
   useEffect(() => {
     setOnline(window.navigator.onLine);
 
     const handleOnline = () => setOnline(true);
     const handleOffline = () => setOnline(false);
+    const handleInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const handleInstalled = () => setInstallPrompt(null);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+    window.addEventListener("appinstalled", handleInstalled);
 
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") {
       return () => {
         window.removeEventListener("online", handleOnline);
         window.removeEventListener("offline", handleOffline);
+        window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+        window.removeEventListener("appinstalled", handleInstalled);
       };
     }
 
@@ -54,26 +69,41 @@ export default function PwaManager() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
       navigator.serviceWorker.removeEventListener("controllerchange", reloadForUpdate);
       if (registration && updateTimer) window.clearInterval(updateTimer);
     };
   }, []);
 
   const applyUpdate = () => waitingWorker?.postMessage({ type: "SKIP_WAITING" });
+  const install = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
-  if (online && !waitingWorker) return null;
+  if (online && !waitingWorker && !installPrompt) return null;
 
   return (
     <div className="fixed inset-x-0 top-0 z-[100] flex justify-center p-3" aria-live="polite">
       <div className={`flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${online ? "bg-[#EEEDFE] text-[#3C3489]" : "bg-amber-50 text-amber-900"}`}>
         <span>
           {online
-            ? "새 버전이 준비되었습니다. 갱신하면 최신 화면으로 바뀝니다."
+            ? waitingWorker
+              ? "새 버전이 준비되었습니다. 갱신하면 최신 화면으로 바뀝니다."
+              : "Jace AI Hub를 홈 화면에 설치하면 더 빠르게 열 수 있습니다."
             : "인터넷 연결이 끊겼습니다. 저장된 화면을 사용 중이며 연결되면 동기화를 다시 시도합니다."}
         </span>
         {online && waitingWorker && (
           <button type="button" onClick={applyUpdate} className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
             지금 갱신
+          </button>
+        )}
+        {online && !waitingWorker && installPrompt && (
+          <button type="button" onClick={() => void install()} className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
+            설치
           </button>
         )}
       </div>

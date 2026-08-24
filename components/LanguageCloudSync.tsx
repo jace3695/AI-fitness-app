@@ -35,6 +35,7 @@ export default function LanguageCloudSync() {
     let syncing = false;
     let lastSnapshot = "";
     let interval: ReturnType<typeof setInterval> | undefined;
+    let syncVisibleChanges: (() => void) | undefined;
 
     const upload = async (userId: string, state: LanguageState) => {
       if (syncing) return;
@@ -75,20 +76,30 @@ export default function LanguageCloudSync() {
       if (!data || stableState(localState) !== lastSnapshot) await upload(auth.user.id, mergedState);
       else setStatus("synced");
 
-      interval = setInterval(() => {
+      syncVisibleChanges = () => {
+        if (document.visibilityState !== "visible") return;
         const nextState = readLanguageState();
         const nextSnapshot = stableState(nextState);
         if (nextSnapshot !== lastSnapshot) {
           lastSnapshot = nextSnapshot;
           void upload(auth.user.id, nextState);
         }
-      }, 2000);
+      };
+      interval = setInterval(syncVisibleChanges, 30000);
+      document.addEventListener("visibilitychange", syncVisibleChanges);
+      window.addEventListener("focus", syncVisibleChanges);
+      window.addEventListener("online", syncVisibleChanges);
     };
 
     void initialize();
     return () => {
       active = false;
       if (interval) clearInterval(interval);
+      if (syncVisibleChanges) {
+        document.removeEventListener("visibilitychange", syncVisibleChanges);
+        window.removeEventListener("focus", syncVisibleChanges);
+        window.removeEventListener("online", syncVisibleChanges);
+      }
     };
   }, []);
 
