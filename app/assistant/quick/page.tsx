@@ -1,0 +1,84 @@
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { supabase } from "@/app/lib/supabase";
+
+type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string } };
+
+const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘", "오늘 할 일에 우유 사기 추가해줘"];
+
+function QuickCommandContent() {
+  const searchParams = useSearchParams();
+  const initialCommand = searchParams.get("command")?.slice(0, 500) ?? "";
+  const [command, setCommand] = useState(initialCommand);
+  const [result, setResult] = useState<ShortcutResponse | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const run = async () => {
+    const value = command.trim();
+    if (!value || !supabase || sending) return;
+    setSending(true);
+    setResult(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("로그인이 필요합니다.");
+      const response = await fetch("/api/assistant/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: value }),
+      });
+      const body = await response.json() as ShortcutResponse;
+      if (!response.ok) throw new Error(body.error || "명령을 처리하지 못했습니다.");
+      setResult(body);
+    } catch (error) {
+      setResult({ error: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요." });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <main className="min-h-dvh bg-[#F5F4FA] px-4 pb-28 pt-6 text-[#242231] sm:px-6 sm:pt-10">
+      <div className="mx-auto max-w-2xl">
+        <header className="flex items-center justify-between gap-3">
+          <Link href="/assistant" className="text-sm font-bold text-[#5146A6]">← AI 비서</Link>
+          <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-xs font-bold text-[#5146A6]">iPhone 빠른 명령</span>
+        </header>
+
+        <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
+          <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
+          <h1 className="mt-2 text-3xl font-bold">Jace AI에게 명령하기</h1>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri가 받아 적은 명령을 확인한 뒤 실행합니다. 공통 로그인과 PIN, 사용자별 데이터 보호가 그대로 적용됩니다.</p>
+        </section>
+
+        <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
+          <label htmlFor="quick-command" className="text-sm font-bold">실행할 명령</label>
+          <textarea id="quick-command" value={command} onChange={(event) => setCommand(event.target.value)} maxLength={500} rows={3} placeholder="예: 오늘 할 일에 거래처 전화 추가해줘" className="mt-2 w-full resize-none rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {samples.map((sample) => <button key={sample} type="button" onClick={() => setCommand(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">{sample}</button>)}
+          </div>
+          <button type="button" onClick={() => void run()} disabled={sending || !command.trim()} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : "명령 실행"}</button>
+          {result && <div role="status" aria-live="polite" className={`mt-4 rounded-2xl p-4 text-sm leading-6 ${result.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-900"}`}><p>{result.error || result.reply}</p>{result.action && <Link href={result.action.href} className="mt-2 inline-block font-bold text-[#5146A6]">{result.action.label} →</Link>}</div>}
+        </section>
+
+        <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-lg font-bold">아이폰 단축어 설정</h2>
+          <ol className="mt-3 space-y-3 text-sm leading-6 text-gray-600">
+            <li><b className="text-[#242231]">1.</b> 단축어 앱에서 새 단축어를 만들고 ‘텍스트 받아쓰기’를 추가합니다.</li>
+            <li><b className="text-[#242231]">2.</b> ‘URL 인코딩’을 추가하고 받아쓴 텍스트를 입력으로 지정합니다.</li>
+            <li><b className="text-[#242231]">3.</b> URL 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?command=인코딩된 텍스트</code>를 설정합니다.</li>
+            <li><b className="text-[#242231]">4.</b> ‘URL 열기’를 추가하고 단축어 이름을 ‘Jace AI’로 저장합니다.</li>
+            <li><b className="text-[#242231]">5.</b> 이후 “Siri야, Jace AI”라고 말하고 명령을 받아쓰면 이 확인 화면이 열립니다.</li>
+          </ol>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+export default function QuickCommandPage() {
+  return <Suspense fallback={<main className="grid min-h-dvh place-items-center bg-[#F5F4FA] text-sm text-gray-500">빠른 명령 준비 중…</main>}><QuickCommandContent /></Suspense>;
+}

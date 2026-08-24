@@ -7,6 +7,11 @@
   "background_color": "#F5F4FA",
   "theme_color": "#5146A6",
   "orientation": "portrait-primary",
+  "shortcuts": [
+    { "name": "오늘 브리핑", "short_name": "브리핑", "url": "/assistant/quick?command=%EC%98%A4%EB%8A%98%20%EB%B8%8C%EB%A6%AC%ED%95%91%20%EB%B3%B4%EC%97%AC%EC%A4%98" },
+    { "name": "오늘 운동", "short_name": "운동", "url": "/assistant/quick?command=%EC%98%A4%EB%8A%98%20%EC%9A%B4%EB%8F%99%20%EA%B3%84%ED%9A%8D%20%EB%B3%B4%EC%97%AC%EC%A4%98" },
+    { "name": "언어 복습", "short_name": "복습", "url": "/language/review" }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
