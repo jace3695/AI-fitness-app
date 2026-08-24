@@ -16,8 +16,40 @@ function won(value: number) {
 
 function taskTitle(message: string) {
   return message
-    .replace(/^(오늘|내일)?\s*(할\s*일|일정)(에|로)?\s*/, "")
+    .replace(/^((오늘|내일|모레|긴급|중요|높은\s*우선순위|낮은\s*우선순위)\s*)*(할\s*일|일정)(에|로|으로)?\s*/, "")
     .replace(/\s*(추가|등록|기록)(해\s*줘|해줘|해|해주세요|해요)?[.!?]?$/, "")
+    .replace(/\s*(오늘|내일|모레|긴급|중요|높은\s*우선순위|낮은\s*우선순위)(로|까지|으로)?\s*/g, " ")
+    .replace(/\s*\d{1,2}월\s*\d{1,2}일(까지|로)?\s*/g, " ")
+    .replace(/\s*\d{4}-\d{2}-\d{2}(까지|로)?\s*/g, " ")
+    .replace(/\s*['“”]?[^'“”]+['“”]?\s*프로젝트에\s*/, " ")
+    .trim();
+}
+
+function parsePriority(message: string) {
+  if (/(긴급|최우선|매우\s*중요|우선순위\s*5)/.test(message)) return 5;
+  if (/(중요|높은\s*우선순위|우선순위\s*4)/.test(message)) return 4;
+  if (/(낮은\s*우선순위|여유|우선순위\s*1)/.test(message)) return 1;
+  if (/(보통|우선순위\s*2)/.test(message)) return 2;
+  return 3;
+}
+
+function parseDueDate(message: string, today: string) {
+  const explicit = message.match(/(20\d{2})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})일?/);
+  if (explicit) return `${explicit[1]}-${explicit[2].padStart(2, "0")}-${explicit[3].padStart(2, "0")}`;
+  const monthDay = message.match(/(\d{1,2})월\s*(\d{1,2})일/);
+  if (monthDay) return `${today.slice(0, 4)}-${monthDay[1].padStart(2, "0")}-${monthDay[2].padStart(2, "0")}`;
+  if (/모레/.test(message)) return seoulDate(2);
+  if (/내일/.test(message)) return seoulDate(1);
+  if (/오늘/.test(message)) return today;
+  return null;
+}
+
+function cleanTaskTarget(message: string) {
+  return message
+    .replace(/^(할\s*일|일정)\s*/, "")
+    .replace(/\s*(오늘|내일|모레|\d{1,2}월\s*\d{1,2}일)(로|까지)?\s*(마감|날짜)?\s*/, " ")
+    .replace(/\s*(긴급|중요|높은\s*우선순위|낮은\s*우선순위)(로)?\s*/, " ")
+    .replace(/\s*(할\s*일|일정)?(을|를)?\s*(완료|끝|수정|변경)(\s*처리)?(해\s*줘|해주세요|해)?[.!?]?$/, "")
     .trim();
 }
 
@@ -34,7 +66,7 @@ async function generativeFallback(message: string): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: "당신은 Jace AI Hub의 한국어 개인 비서입니다. 2~3문장으로 간결히 답하세요. 개인정보를 추측하지 말고, 현재 실행 가능한 기능은 월 지출 조회, 오늘 할 일 조회·추가, 운동 계획 확인, 일본어 복습 시작이라고 안내하세요." }] },
+        system_instruction: { parts: [{ text: "당신은 Jace AI Hub의 한국어 개인 비서입니다. 2~3문장으로 간결히 답하세요. 개인정보를 추측하지 마세요. 현재 월 지출 조회, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인, 일본어 복습 시작을 지원합니다." }] },
         contents: [{ role: "user", parts: [{ text: message }] }],
         generationConfig: { maxOutputTokens: 220 },
       }),
@@ -60,7 +92,42 @@ export async function POST(request: NextRequest) {
   const monthStart = `${today.slice(0, 7)}-01`;
   let result: AssistantReply;
 
-  if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
+  if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
+    const target = cleanTaskTarget(message);
+    if (!target) {
+      result = { reply: "완료할 할 일 제목을 함께 말해 주세요. 예: ‘우유 사기 할 일 완료해줘’" };
+    } else {
+      const { data, error } = await supabase.from("assistant_items").select("id,title").eq("user_id", user.id).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
+      if (error) return NextResponse.json({ error: "할 일을 확인하지 못했습니다." }, { status: 500 });
+      const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
+      if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요: ${matches.slice(0, 3).map((item) => item.title).join(" · ")}` : `‘${target}’과 일치하는 미완료 할 일을 찾지 못했습니다.` };
+      else {
+        const { error: updateError } = await supabase.from("assistant_items").update({ status: "completed", completed_at: new Date().toISOString() }).eq("user_id", user.id).eq("id", matches[0].id);
+        if (updateError) return NextResponse.json({ error: "완료 상태를 저장하지 못했습니다." }, { status: 500 });
+        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+      }
+    }
+  } else if (/(할\s*일|일정).*(수정|변경)|(수정|변경).*(할\s*일|일정)/.test(message)) {
+    const target = cleanTaskTarget(message);
+    const dueDate = parseDueDate(message, today);
+    const hasPriority = /(긴급|최우선|중요|우선순위|여유)/.test(message);
+    if (!target || (!dueDate && !hasPriority)) {
+      result = { reply: "수정할 제목과 변경 내용을 말해 주세요. 예: ‘보고서 작성 할 일을 내일로 변경해줘’" };
+    } else {
+      const { data, error } = await supabase.from("assistant_items").select("id,title").eq("user_id", user.id).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
+      if (error) return NextResponse.json({ error: "할 일을 확인하지 못했습니다." }, { status: 500 });
+      const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
+      if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요.` : `‘${target}’과 일치하는 할 일을 찾지 못했습니다.` };
+      else {
+        const updates: { due_at?: string; priority?: number } = {};
+        if (dueDate) updates.due_at = `${dueDate}T23:59:00+09:00`;
+        if (hasPriority) updates.priority = parsePriority(message);
+        const { error: updateError } = await supabase.from("assistant_items").update(updates).eq("user_id", user.id).eq("id", matches[0].id);
+        if (updateError) return NextResponse.json({ error: "할 일을 수정하지 못했습니다." }, { status: 500 });
+        result = { reply: `‘${matches[0].title}’의 ${[dueDate && `마감일을 ${dueDate}로`, hasPriority && `우선순위를 ${parsePriority(message)}로`].filter(Boolean).join(", ")} 변경했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+      }
+    }
+  } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
     const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", user.id).eq("type", "expense").gte("date", monthStart).lte("date", today);
     if (error) return NextResponse.json({ error: "가계부 데이터를 불러오지 못했습니다." }, { status: 500 });
     const rows = data ?? [];
@@ -73,11 +140,26 @@ export async function POST(request: NextRequest) {
     if (!title || /^(추가|등록|기록)$/.test(title)) {
       result = { reply: "추가할 내용을 함께 말해 주세요. 예: ‘오늘 할 일에 우유 사기 추가해줘’" };
     } else {
-      const dueDate = /내일/.test(message) ? seoulDate(1) : /오늘/.test(message) ? today : null;
+      const dueDate = parseDueDate(message, today);
       const dueAt = dueDate ? `${dueDate}T23:59:00+09:00` : null;
-      const { error } = await supabase.from("assistant_items").insert({ user_id: user.id, title, kind: "task", status: "open", priority: 3, due_at: dueAt, source: "assistant_chat" });
+      const projectHint = message.match(/['“”]?([^'“”]+?)['“”]?\s*프로젝트에/);
+      let projectId: string | null = null;
+      let projectName = "";
+      if (projectHint) {
+        const hint = projectHint[1].trim().replace(/^(오늘|내일|모레)\s*할\s*일에?\s*/, "");
+        const { data: projectRows } = await supabase.from("assistant_projects").select("id,name").eq("user_id", user.id).neq("status", "archived");
+        const projectMatches = (projectRows ?? []).filter((project) => project.name.includes(hint) || hint.includes(project.name));
+        if (projectMatches.length !== 1) {
+          result = { reply: projectMatches.length ? `‘${hint}’과 비슷한 프로젝트가 여러 개예요. 프로젝트 이름을 정확히 말씀해 주세요.` : `‘${hint}’ 프로젝트를 찾지 못했습니다. 프로젝트를 먼저 등록해 주세요.` };
+          return NextResponse.json(result);
+        }
+        projectId = projectMatches[0].id;
+        projectName = projectMatches[0].name;
+      }
+      const priority = parsePriority(message);
+      const { error } = await supabase.from("assistant_items").insert({ user_id: user.id, title, kind: "task", status: "open", priority, due_at: dueAt, project_id: projectId, source: "assistant_chat" });
       if (error) return NextResponse.json({ error: "할 일을 저장하지 못했습니다." }, { status: 500 });
-      result = { reply: `‘${title}’을${dueDate ? ` ${/내일/.test(message) ? "내일" : "오늘"} 할 일로` : " 할 일에"} 추가했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+      result = { reply: `‘${title}’을 할 일에 추가했습니다.${dueDate ? ` 마감일은 ${dueDate}` : ""}${priority !== 3 ? `, 우선순위는 ${priority}` : ""}${projectName ? `, 프로젝트는 ‘${projectName}’` : ""}${dueDate || priority !== 3 || projectName ? "로 설정했습니다." : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
     }
   } else if (/(오늘).*(할\s*일|일정)|(할\s*일|일정).*(오늘)/.test(message)) {
     const start = `${today}T00:00:00+09:00`;
