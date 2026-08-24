@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { getLocalDateKey } from "@/utils/dateKey";
+import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "../data/workoutCompletion";
+import { dayIdToKoreanLabel, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "../data/workoutPlans";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
 type Item = {
@@ -11,11 +14,80 @@ type Item = {
   kind: "task" | "waiting" | "reminder";
   status: "open" | "in_progress" | "waiting" | "completed" | "cancelled";
   priority: number;
+  due_at: string | null;
   created_at: string;
 };
 type Project = { id: string; name: string; status: string; priority: number; created_at: string };
 type Memory = { id: string; topic: string; content: string; created_at: string };
-type AppSnapshot = { budgetEntries: number; fitnessSynced: boolean; languageSynced: boolean };
+type BudgetTransaction = { amount: number | string; date: string };
+type BriefingSnapshot = {
+  budget: { spent: number; budget: number | null; remaining: number | null; entries: number };
+  fitness: { synced: boolean; title: string; detail: string; completed: boolean };
+  language: { synced: boolean; completed: number; total: number; nextLabel: string };
+};
+
+const EMPTY_BRIEFING: BriefingSnapshot = {
+  budget: { spent: 0, budget: null, remaining: null, entries: 0 },
+  fitness: { synced: false, title: "운동 기록 연결 대기", detail: "운동 앱에서 오늘 계획을 확인하세요.", completed: false },
+  language: { synced: false, completed: 0, total: 5, nextLabel: "학습 기록 연결 대기" },
+};
+
+const LANGUAGE_ROUTINES = [
+  { id: "kana", label: "가나" },
+  { id: "words", label: "단어" },
+  { id: "sentences", label: "문장" },
+  { id: "grammar", label: "문법" },
+  { id: "review", label: "복습" },
+] as const;
+
+function parseObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value !== "string") return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildFitnessBriefing(state: Record<string, unknown>, todayKey: string): BriefingSnapshot["fitness"] {
+  const planId = typeof state["ai-fitness-selected-weekly-workout-plan"] === "string"
+    ? state["ai-fitness-selected-weekly-workout-plan"] as string
+    : undefined;
+  const plan = getWeeklyWorkoutPlanById(planId);
+  const dayId = getWorkoutDayForDate(new Date());
+  if (!dayId) return EMPTY_BRIEFING.fitness;
+
+  const group = getWorkoutGroupForPlanDay(plan, dayId);
+  const completedStore = parseObject(state["ai-fitness-workout-completed-days"]) as WorkoutCompletionStore;
+  const completed = isWorkoutPerformed(completedStore[todayKey]);
+  const isRest = group.id === "rest";
+  return {
+    synced: true,
+    title: isRest ? "오늘은 회복일" : group.name,
+    detail: completed ? "오늘 운동을 완료했습니다." : isRest ? "가볍게 쉬며 몸 상태를 확인하세요." : `${dayIdToKoreanLabel[dayId]} 계획 · ${plan.weekLabel}`,
+    completed,
+  };
+}
+
+function buildLanguageBriefing(state: Record<string, unknown>, todayKey: string): BriefingSnapshot["language"] {
+  const routine = parseObject(state.dailyRoutineProgress);
+  const completedIds = routine.date === todayKey && Array.isArray(routine.completedIds)
+    ? routine.completedIds.filter((value): value is string => typeof value === "string")
+    : [];
+  const next = LANGUAGE_ROUTINES.find((item) => !completedIds.includes(item.id));
+  return {
+    synced: true,
+    completed: completedIds.length,
+    total: LANGUAGE_ROUTINES.length,
+    nextLabel: next ? `다음 학습: ${next.label}` : "오늘 학습 완료",
+  };
+}
+
+function formatWon(value: number) {
+  return `${Math.abs(Math.round(value)).toLocaleString("ko-KR")}원`;
+}
 
 const filterLabels: Record<Filter, string> = { all: "전체", task: "할 일", project: "프로젝트", waiting: "회신 대기", memory: "기억" };
 
@@ -23,7 +95,7 @@ export default function AssistantPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [snapshot, setSnapshot] = useState<AppSnapshot>({ budgetEntries: 0, fitnessSynced: false, languageSynced: false });
+  const [briefing, setBriefing] = useState<BriefingSnapshot>(EMPTY_BRIEFING);
   const [filter, setFilter] = useState<Filter>("all");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<Exclude<Filter, "all">>("task");
@@ -34,22 +106,35 @@ export default function AssistantPage() {
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const [itemResult, projectResult, memoryResult, budgetResult, fitnessResult, languageResult] = await Promise.all([
-      supabase.from("assistant_items").select("id,title,kind,status,priority,created_at").order("created_at", { ascending: false }),
-      supabase.from("assistant_projects").select("id,name,status,priority,created_at").order("created_at", { ascending: false }),
-      supabase.from("assistant_memories").select("id,topic,content,created_at").order("created_at", { ascending: false }),
-      supabase.from("budget_transactions").select("id", { count: "exact", head: true }),
-      supabase.from("user_app_state").select("user_id").maybeSingle(),
-      supabase.from("language_user_state").select("user_id").maybeSingle(),
+    setMessage("");
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setLoading(false); return; }
+
+    const now = new Date();
+    const todayKey = getLocalDateKey(now);
+    const monthKey = `${todayKey.slice(0, 7)}-01`;
+    const [itemResult, projectResult, memoryResult, budgetResult, monthlyBudgetResult, fitnessResult, languageResult] = await Promise.all([
+      supabase.from("assistant_items").select("id,title,kind,status,priority,due_at,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+      supabase.from("assistant_projects").select("id,name,status,priority,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+      supabase.from("assistant_memories").select("id,topic,content,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+      supabase.from("budget_transactions").select("amount,date").eq("user_id", auth.user.id).gte("date", monthKey).lte("date", todayKey),
+      supabase.from("budget_monthly_budgets").select("total_amount").eq("user_id", auth.user.id).eq("budget_month", monthKey).maybeSingle(),
+      supabase.from("user_app_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
+      supabase.from("language_user_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
     ]);
-    if (itemResult.error || projectResult.error || memoryResult.error) setMessage("비서 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    if (itemResult.error || projectResult.error || memoryResult.error || budgetResult.error || monthlyBudgetResult.error || fitnessResult.error || languageResult.error) {
+      setMessage("일부 브리핑 데이터를 불러오지 못했습니다. 새로고침해 주세요.");
+    }
     setItems((itemResult.data ?? []) as Item[]);
     setProjects((projectResult.data ?? []) as Project[]);
     setMemories((memoryResult.data ?? []) as Memory[]);
-    setSnapshot({
-      budgetEntries: budgetResult.count ?? 0,
-      fitnessSynced: Boolean(fitnessResult.data),
-      languageSynced: Boolean(languageResult.data),
+    const transactions = (budgetResult.data ?? []) as BudgetTransaction[];
+    const spent = transactions.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const monthlyBudget = monthlyBudgetResult.data ? Number(monthlyBudgetResult.data.total_amount) : null;
+    setBriefing({
+      budget: { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
+      fitness: fitnessResult.data?.state ? buildFitnessBriefing(parseObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
+      language: languageResult.data?.state ? buildLanguageBriefing(parseObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
     });
     setLoading(false);
   }, []);
@@ -112,6 +197,8 @@ export default function AssistantPage() {
   const openTasks = items.filter((item) => item.kind !== "waiting" && item.status !== "completed").length;
   const openProjects = projects.filter((project) => project.status !== "completed" && project.status !== "archived").length;
   const waiting = items.filter((item) => item.kind === "waiting" && item.status !== "completed").length;
+  const todayKey = getLocalDateKey();
+  const todayItems = items.filter((item) => item.status !== "completed" && item.due_at && getLocalDateKey(new Date(item.due_at)) === todayKey).length;
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
 
   return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
@@ -134,13 +221,17 @@ export default function AssistantPage() {
         </div>
       </section>
 
-      <section className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Link href="/budget" className="rounded-3xl border border-white bg-white p-5 shadow-sm"><p className="text-xs font-bold text-gray-400">가계부</p><p className="mt-2 text-lg font-bold text-[#5146A6]">기록 {snapshot.budgetEntries}건</p><p className="mt-1 text-xs text-gray-500">소비·예산 확인하기</p></Link>
-        <Link href="/fitness" className="rounded-3xl border border-white bg-white p-5 shadow-sm"><p className="text-xs font-bold text-gray-400">운동</p><p className="mt-2 text-lg font-bold text-[#5146A6]">{snapshot.fitnessSynced ? "계정 동기화 중" : "첫 기록 대기"}</p><p className="mt-1 text-xs text-gray-500">오늘 운동 확인하기</p></Link>
-        <Link href="/language" className="rounded-3xl border border-white bg-white p-5 shadow-sm"><p className="text-xs font-bold text-gray-400">언어 학습</p><p className="mt-2 text-lg font-bold text-[#5146A6]">{snapshot.languageSynced ? "학습 기록 동기화 중" : "첫 학습 대기"}</p><p className="mt-1 text-xs text-gray-500">오늘 복습 시작하기</p></Link>
+      <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href="#assistant-list" className="rounded-3xl bg-[#F7F6FF] p-5 ring-1 ring-[#ECE9FF]"><p className="text-xs font-bold text-[#766DB8]">일정·할 일</p><p className="mt-2 text-xl font-bold text-[#312B67]">오늘 {todayItems}건</p><p className="mt-1 text-xs text-gray-500">미완료 전체 {openTasks + waiting}건</p></Link>
+          <Link href="/budget" className="rounded-3xl bg-emerald-50/70 p-5 ring-1 ring-emerald-100"><p className="text-xs font-bold text-emerald-700">이번 달 가계부</p><p className="mt-2 text-xl font-bold text-emerald-950">{formatWon(briefing.budget.spent)} 지출</p><p className={`mt-1 text-xs ${briefing.budget.remaining !== null && briefing.budget.remaining < 0 ? "font-bold text-red-600" : "text-gray-500"}`}>{briefing.budget.remaining === null ? `예산 미설정 · ${briefing.budget.entries}건` : briefing.budget.remaining >= 0 ? `${formatWon(briefing.budget.remaining)} 남음` : `${formatWon(briefing.budget.remaining)} 초과`}</p></Link>
+          <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
+          <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
+        </div>
       </section>
 
-      <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+      <section id="assistant-list" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>
         <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-[#F5F4FA] p-2 sm:grid-cols-[1fr_auto_auto]">
           <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
