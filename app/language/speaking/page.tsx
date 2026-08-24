@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import FuriganaText from "@/components/FuriganaText";
 import type { RubySegment } from "@/data/sentences";
+import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 
 type Question = {
   korean: string;
@@ -113,7 +114,7 @@ async function speakJapanese(text: string, settings: AppSettings) {
   try {
     const res = await fetch("/api/language/tts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authenticatedJsonHeaders(),
       body: JSON.stringify({ text }),
     });
     if (!res.ok) throw new Error("TTS API error");
@@ -464,4 +465,3 @@ function btnStyle(bg: string, color: string): React.CSSProperties {
     cursor: "pointer",
   };
 }
-

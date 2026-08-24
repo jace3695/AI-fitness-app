@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -192,6 +193,9 @@ const VALID_SITUATIONS: Situation[] = ["카페", "여행", "일상", "업무", "
 
 export async function POST(req: Request) {
   try {
+    const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     const body = (await req.json()) as RequestBody;
     const { situation, message, history = [] } = body;
 
@@ -210,4 +214,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

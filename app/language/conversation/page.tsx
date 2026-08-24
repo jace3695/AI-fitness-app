@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { RubySegment } from "@/data/sentences";
+import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -71,7 +72,7 @@ async function speakJapanese(text: string, settings: AppSettings) {
   try {
     const res = await fetch("/api/language/tts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authenticatedJsonHeaders(),
       body: JSON.stringify({ text }),
     });
     if (!res.ok) throw new Error("TTS API error");
@@ -143,7 +144,7 @@ export default function ConversationPage() {
     try {
       const res = await fetch("/api/language/conversation", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authenticatedJsonHeaders(),
         body: JSON.stringify({
           situation,
           message: text,
@@ -536,4 +537,3 @@ export default function ConversationPage() {
     </section>
   );
 }
-
