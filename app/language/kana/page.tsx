@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 
 function getStrokeSvgPaths(char: string, tab: "hiragana" | "katakana") {
   return Array.from(char).map((part) => {
@@ -1306,7 +1307,7 @@ async function speakKana(
     if (onStart) onStart();
     const res = await fetch("/api/language/tts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authenticatedJsonHeaders(),
       body: JSON.stringify({ text: char }),
     });
     if (!res.ok) throw new Error("TTS API error");
@@ -1881,7 +1882,7 @@ export default function KanaPage() {
       const imageDataUrl = canvas.toDataURL("image/png");
       const response = await fetch("/api/language/handwriting-feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authenticatedJsonHeaders(),
         body: JSON.stringify({
           targetChar: writingQuizQuestion.char,
           romaji: writingQuizQuestion.roman,
