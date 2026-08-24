@@ -263,8 +263,25 @@ export async function POST(request: NextRequest) {
         result = { reply: `‘${matches[0].title}’의 ${[dueDate && `마감일을 ${dueDate}로`, hasPriority && `우선순위를 ${parsePriority(message)}로`].filter(Boolean).join(", ")} 변경했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
       }
     }
+  } else if (/브리핑/.test(message)) {
+    const start = `${today}T00:00:00+09:00`;
+    const end = `${today}T23:59:59+09:00`;
+    const [taskResult, budgetResult, fitnessResult, languageResult] = await Promise.all([
+      supabase.from("assistant_items").select("title").eq("user_id", user.id).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5),
+      supabase.from("budget_transactions").select("amount").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
+      supabase.from("user_app_state").select("state").eq("user_id", user.id).maybeSingle(),
+      supabase.from("language_user_state").select("state").eq("user_id", user.id).maybeSingle(),
+    ]);
+    const error = taskResult.error || budgetResult.error || fitnessResult.error || languageResult.error;
+    if (error) return NextResponse.json({ error: "통합 브리핑 데이터를 불러오지 못했습니다." }, { status: 500 });
+    const spent = (budgetResult.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const workoutInfo = getTodayWorkout(parseState(fitnessResult.data?.state), today);
+    const workoutText = !workoutInfo ? "운동 계획 확인 필요" : workoutInfo.group.category === "rest" ? "오늘은 회복일" : workoutInfo.completed ? `${workoutInfo.group.name} 완료` : `${workoutInfo.group.name} 예정`;
+    const language = getLanguageSnapshot(parseState(languageResult.data?.state), today);
+    const taskText = taskResult.data?.length ? taskResult.data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ") : "오늘 마감 할 일 없음";
+    result = { reply: `오늘 브리핑입니다. 할 일: ${taskText}. 이번 달 지출은 ${won(spent)}입니다. 운동: ${workoutText}. 언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다.`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
   } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
-    const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", user.id).eq("type", "expense").gte("date", monthStart).lte("date", today);
+    const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", user.id).gte("date", monthStart).lte("date", today);
     if (error) return NextResponse.json({ error: "가계부 데이터를 불러오지 못했습니다." }, { status: 500 });
     const rows = data ?? [];
     const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
