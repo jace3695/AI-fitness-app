@@ -25,6 +25,7 @@ type BriefingSnapshot = {
   fitness: { synced: boolean; title: string; detail: string; completed: boolean };
   language: { synced: boolean; completed: number; total: number; nextLabel: string };
 };
+type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string } };
 
 const EMPTY_BRIEFING: BriefingSnapshot = {
   budget: { spent: 0, budget: null, remaining: null, entries: 0 },
@@ -102,6 +103,31 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { id: "welcome", role: "assistant", text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 자연스럽게 물어보세요." },
+  ]);
+
+  const sendChat = async (command?: string) => {
+    const value = (command ?? chatInput).trim();
+    if (!value || !supabase || chatSending) return;
+    setChatInput("");
+    setChatSending(true);
+    setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value }]);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("로그인이 필요합니다.");
+      const response = await fetch("/api/assistant/chat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: value }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "응답을 받지 못했습니다.");
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.action }]);
+      if (data.changed) await load();
+    } catch (error) {
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요." }]);
+    } finally { setChatSending(false); }
+  };
 
   const load = useCallback(async () => {
     if (!supabase) return;
@@ -229,6 +255,19 @@ export default function AssistantPage() {
           <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
           <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
         </div>
+      </section>
+
+      <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div><p className="text-xs font-bold text-[#766DB8]">JACE AI CHAT</p><h2 className="mt-1 text-xl font-bold">AI 비서에게 말하기</h2><p className="mt-1 text-sm text-gray-500">조회뿐 아니라 할 일 등록도 바로 처리합니다.</p></div>
+        <div aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
+          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
+          {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">{["이번 달 지출 알려줘", "오늘 할 일 알려줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
+          <label htmlFor="assistant-chat-input" className="sr-only">AI 비서 명령</label><input id="assistant-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <button disabled={chatSending || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
+        </form>
       </section>
 
       <section id="assistant-list" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
