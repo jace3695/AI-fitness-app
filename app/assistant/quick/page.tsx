@@ -51,7 +51,7 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
           <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
           <h1 className="mt-2 text-3xl font-bold">Jace AI에게 명령하기</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">Siri가 질문한 뒤 받은 명령을 확인하고 실행합니다. 공통 로그인과 PIN, 사용자별 데이터 보호가 그대로 적용됩니다.</p>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 음성 명령을 받아 확인하고 실행합니다. 공통 로그인과 PIN, 사용자별 데이터 보호가 그대로 적용됩니다.</p>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
@@ -67,13 +67,13 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-lg font-bold">아이폰 단축어 설정</h2>
           <ol className="mt-3 space-y-3 text-sm leading-6 text-gray-600">
-            <li><b className="text-[#242231]">1.</b> 단축어 앱에서 새 단축어를 만들고 ‘입력 요청’을 추가합니다. 질문은 ‘무엇을 도와드릴까요?’로 설정하고 입력 유형은 텍스트로 둡니다.</li>
-            <li><b className="text-[#242231]">2.</b> ‘URL 인코딩’을 추가하고 ‘제공된 입력’을 입력으로 지정합니다. Siri 실행 중에는 ‘텍스트 받아쓰기’ 대신 ‘입력 요청’을 사용해야 음성 명령이 안정적으로 전달됩니다.</li>
-            <li><b className="text-[#242231]">3.</b> ‘텍스트’ 동작을 추가하고 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다. ‘URL’ 동작의 + 버튼으로 별도 항목을 만들면 안 됩니다.</li>
-            <li><b className="text-[#242231]">4.</b> ‘URL 열기’를 추가하고 바로 앞의 ‘텍스트’를 입력으로 지정한 뒤, 단축어 이름을 Siri가 잘 알아듣는 한글 이름 ‘제이스 비서’로 저장합니다.</li>
-            <li><b className="text-[#242231]">5.</b> 이후 “Siri야, 제이스 비서”라고 말하고, Siri가 질문한 다음 명령을 말하면 이 확인 화면이 열립니다.</li>
+            <li><b className="text-[#242231]">1.</b> 맨 위에 ‘Siri 닫기 및 계속’ 동작을 추가합니다. 동작 검색에서 ‘Siri’를 검색하면 찾을 수 있습니다.</li>
+            <li><b className="text-[#242231]">2.</b> 그 아래에 ‘텍스트 받아쓰기’를 추가합니다. 이 동작이 Siri 화면을 닫은 다음 실제 명령을 듣습니다.</li>
+            <li><b className="text-[#242231]">3.</b> ‘URL 인코딩’을 추가하고 ‘받아쓰기한 텍스트’를 입력으로 지정합니다.</li>
+            <li><b className="text-[#242231]">4.</b> ‘텍스트’ 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다.</li>
+            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘제이스 비서’로 저장합니다. “Siri야, 제이스 비서”라고 말한 뒤 듣기 화면이 나오면 명령을 말합니다.</li>
           </ol>
-          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />Siri가 단축어를 실행하지 않고 ‘능력 밖’이라고 답하면 영어 이름 ‘Jace AI’를 ‘제이스 비서’로 변경하세요. 명령 입력칸이 비어 있으면 ‘텍스트 받아쓰기’를 ‘입력 요청’으로 교체하세요. ‘유효하지 않은 URL: %EC…’가 나오면 기존 ‘URL’ 동작을 삭제하고 위 3번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
+          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />단축어 실행 후 말한 명령을 Siri가 자기 질문으로 처리하면 맨 위에 ‘Siri 닫기 및 계속’이 빠진 것입니다. ‘유효하지 않은 URL: %EC…’가 나오면 ‘URL’ 동작 대신 위 4번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
         </section>
       </div>
     </main>
