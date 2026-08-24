@@ -51,7 +51,7 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
           <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
           <h1 className="mt-2 text-3xl font-bold">Jace AI에게 명령하기</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">Siri가 받아 적은 명령을 확인한 뒤 실행합니다. 공통 로그인과 PIN, 사용자별 데이터 보호가 그대로 적용됩니다.</p>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri가 질문한 뒤 받은 명령을 확인하고 실행합니다. 공통 로그인과 PIN, 사용자별 데이터 보호가 그대로 적용됩니다.</p>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
@@ -67,12 +67,13 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-lg font-bold">아이폰 단축어 설정</h2>
           <ol className="mt-3 space-y-3 text-sm leading-6 text-gray-600">
-            <li><b className="text-[#242231]">1.</b> 단축어 앱에서 새 단축어를 만들고 ‘텍스트 받아쓰기’를 추가합니다.</li>
-            <li><b className="text-[#242231]">2.</b> ‘URL 인코딩’을 추가하고 받아쓴 텍스트를 입력으로 지정합니다.</li>
+            <li><b className="text-[#242231]">1.</b> 단축어 앱에서 새 단축어를 만들고 ‘입력 요청’을 추가합니다. 질문은 ‘무엇을 도와드릴까요?’로 설정하고 입력 유형은 텍스트로 둡니다.</li>
+            <li><b className="text-[#242231]">2.</b> ‘URL 인코딩’을 추가하고 ‘제공된 입력’을 입력으로 지정합니다. Siri 실행 중에는 ‘텍스트 받아쓰기’ 대신 ‘입력 요청’을 사용해야 음성 명령이 안정적으로 전달됩니다.</li>
             <li><b className="text-[#242231]">3.</b> URL 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?command=인코딩된 텍스트</code>를 설정합니다.</li>
             <li><b className="text-[#242231]">4.</b> ‘URL 열기’를 추가하고 단축어 이름을 ‘Jace AI’로 저장합니다.</li>
             <li><b className="text-[#242231]">5.</b> 이후 “Siri야, Jace AI”라고 말하고 명령을 받아쓰면 이 확인 화면이 열립니다.</li>
           </ol>
+          <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>명령 입력칸이 비어 있다면</b><br />첫 번째 동작이 ‘텍스트 받아쓰기’로 되어 있는지 확인하고 ‘입력 요청’으로 교체해 주세요.</div>
         </section>
       </div>
     </main>
