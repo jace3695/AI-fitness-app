@@ -18,13 +18,6 @@
   --font-geist-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: "Pretendard", "Noto Sans KR", Arial, Helvetica, sans-serif;
-  --font-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
-}
-
 * {
   box-sizing: border-box;
 }
