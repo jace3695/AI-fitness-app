@@ -14,6 +14,7 @@ import {
   verifyDevicePin,
 } from "../lib/devicePin";
 import { hasDeviceBiometric, removeDeviceBiometric, verifyDeviceBiometric } from "../lib/deviceBiometric";
+import { PASSWORD_POLICY_HINT, strongPasswordError } from "../lib/passwordPolicy";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -89,6 +90,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const authenticate = async (event: FormEvent) => {
     event.preventDefault();
     if (!supabase) return;
+    if (mode === "signUp") {
+      const passwordError = strongPasswordError(password);
+      if (passwordError) {
+        setMessage(passwordError);
+        return;
+      }
+    }
     setSubmitting(true);
     setMessage("");
     const result = mode === "signIn"
@@ -162,8 +170,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     event.preventDefault();
     if (!supabase) return;
     setMessage("");
-    if (newPassword.length < 8) {
-      setMessage("새 비밀번호는 8자 이상으로 입력해 주세요.");
+    const passwordError = strongPasswordError(newPassword);
+    if (passwordError) {
+      setMessage(passwordError);
       return;
     }
     if (newPassword !== newPasswordConfirm) {
@@ -195,7 +204,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <h1 className="mt-5 text-center text-xl font-bold text-gray-900">새 비밀번호 설정</h1>
       <p className="mt-2 text-center text-sm text-gray-500">모든 Jace AI Hub 앱에서 함께 사용할 비밀번호를 입력하세요.</p>
       <form onSubmit={updateRecoveredPassword} className="mt-6 space-y-3">
-        <label className="block text-sm font-bold text-gray-700">새 비밀번호<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="8자 이상" /></label>
+        <label className="block text-sm font-bold text-gray-700">새 비밀번호<input type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder={PASSWORD_POLICY_HINT} /></label>
         <label className="block text-sm font-bold text-gray-700">새 비밀번호 확인<input type="password" autoComplete="new-password" minLength={8} required value={newPasswordConfirm} onChange={(event) => setNewPasswordConfirm(event.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="한 번 더 입력" /></label>
         <button disabled={submitting} className="w-full rounded-xl bg-[#534AB7] px-4 py-3.5 font-bold text-white disabled:bg-gray-300">{submitting ? "변경 중…" : "비밀번호 변경"}</button>
       </form>
@@ -234,7 +243,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       </div>
       <form onSubmit={authenticate} className="mt-5 space-y-3">
         <label className="block text-sm font-bold text-gray-700">이메일<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="name@example.com" /></label>
-        <label className="block text-sm font-bold text-gray-700">비밀번호<input type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} minLength={mode === "signUp" ? 8 : 6} required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder="8자 이상" /></label>
+        <label className="block text-sm font-bold text-gray-700">비밀번호<input type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} minLength={mode === "signUp" ? 8 : 6} required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal outline-none focus:border-[#7F77DD]" placeholder={mode === "signUp" ? PASSWORD_POLICY_HINT : "공통 계정 비밀번호"} /></label>
         <button disabled={submitting} className="w-full rounded-xl bg-[#534AB7] px-4 py-3.5 font-bold text-white disabled:bg-gray-300">{submitting ? "처리 중…" : mode === "signIn" ? "Jace AI Hub 시작" : "계정 만들기"}</button>
       </form>
       {mode === "signIn" && <button type="button" onClick={() => void resetPassword()} className="mt-3 w-full text-xs font-semibold text-gray-500 underline">비밀번호를 잊으셨나요?</button>}
