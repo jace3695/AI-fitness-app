@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { PASSWORD_POLICY_HINT, strongPasswordError } from "../lib/passwordPolicy";
 
 export default function ResetPasswordPage() {
   const [ready, setReady] = useState(false);
@@ -61,8 +62,9 @@ export default function ResetPasswordPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase || loading) return;
-    if (password.length < 8) {
-      setMessage("새 비밀번호는 8자 이상으로 입력해 주세요.");
+    const passwordError = strongPasswordError(password);
+    if (passwordError) {
+      setMessage(passwordError);
       return;
     }
     if (password !== confirm) {
@@ -93,7 +95,7 @@ export default function ResetPasswordPage() {
         <p role="status" className="mt-2 text-center text-sm leading-6 text-gray-500">{message}</p>
         {ready && (
           <form onSubmit={submit} className="mt-6 space-y-4">
-            <label className="block text-sm font-bold text-gray-700">새 비밀번호<input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3.5 font-normal outline-none focus:border-[#6E65B8]" placeholder="8자 이상" /></label>
+            <label className="block text-sm font-bold text-gray-700">새 비밀번호<input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3.5 font-normal outline-none focus:border-[#6E65B8]" placeholder={PASSWORD_POLICY_HINT} /></label>
             <label className="block text-sm font-bold text-gray-700">새 비밀번호 확인<input type="password" autoComplete="new-password" minLength={8} required value={confirm} onChange={(event) => setConfirm(event.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3.5 font-normal outline-none focus:border-[#6E65B8]" placeholder="한 번 더 입력" /></label>
             <button disabled={loading} className="w-full rounded-xl bg-[#5146A6] px-4 py-3.5 font-bold text-white disabled:bg-gray-300">{loading ? "변경 중…" : "공통 비밀번호 변경"}</button>
           </form>
