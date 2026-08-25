@@ -15,6 +15,7 @@ import {
   stableState,
 } from "../data/cloudSync";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import { strongPasswordError } from "../lib/passwordPolicy";
 
 type SyncStatus = "idle" | "syncing" | "synced" | "error";
 
@@ -171,6 +172,13 @@ export default function CloudSyncPanel() {
     event.preventDefault();
     if (!supabase) return;
     setMessage("");
+    if (mode === "signUp") {
+      const passwordError = strongPasswordError(password);
+      if (passwordError) {
+        setMessage(passwordError);
+        return;
+      }
+    }
     const result =
       mode === "signIn"
         ? await supabase.auth.signInWithPassword({ email, password })
@@ -207,7 +215,7 @@ export default function CloudSyncPanel() {
               minLength={6}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="비밀번호(6자 이상)"
+              placeholder="로그인 비밀번호"
               className="rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
               required
             />
@@ -226,6 +234,7 @@ export default function CloudSyncPanel() {
               계정 만들기
             </button>
           </div>
+          <p className="mt-2 text-[10px] leading-relaxed text-gray-400">새 계정은 8자 이상이며 영문 대문자·소문자·숫자·특수문자를 모두 포함해야 합니다.</p>
           {message && (
             <p className="mt-2 text-[11px] text-amber-700">{message}</p>
           )}
