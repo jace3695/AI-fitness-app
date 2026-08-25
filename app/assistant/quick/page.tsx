@@ -17,7 +17,9 @@ function isIncompleteVoiceCommand(value: string) {
 function QuickCommandContent() {
   const searchParams = useSearchParams();
   const initialCommand = searchParams.get("command")?.slice(0, 500) ?? "";
-  const shouldAutoRun = searchParams.get("autorun") === "1";
+  // 기존 iPhone 단축어는 `command`만 전달하므로 URL 명령은 기본 자동 실행한다.
+  // 브라우저에서 수동 확인이 필요할 때만 `autorun=0`으로 명시적으로 끈다.
+  const shouldAutoRun = initialCommand.trim().length > 0 && searchParams.get("autorun") !== "0";
   const [command, setCommand] = useState(initialCommand);
   const [result, setResult] = useState<ShortcutResponse | null>(null);
   const [sending, setSending] = useState(false);
