@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { numberFromText } from "./oaReportParser";
+import { numberFromText } from "./oaReportParser.ts";
 
 test("오아 OCR의 쉼표 소수점과 유사 문자를 숫자로 보정한다", () => {
   assert.equal(

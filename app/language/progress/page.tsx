@@ -408,15 +408,15 @@ export default function ProgressPage() {
   });
 
 
-  const wordOptionPool = {
+  const wordOptionPool = useMemo(() => ({
     meaning: Array.from(new Set(WORDS.map((item) => item.meaning).filter(Boolean))),
     word: Array.from(new Set(WORDS.map((item) => item.word).filter(Boolean))),
-  };
+  }), []);
 
-  const sentenceOptionPool = {
+  const sentenceOptionPool = useMemo(() => ({
     meaning: Array.from(new Set(SENTENCES.map((item) => item.meaning).filter(Boolean))),
     japanese: Array.from(new Set(SENTENCES.map((item) => item.japanese).filter(Boolean))),
-  };
+  }), []);
 
   // Kana Quiz state
   const [quizItems, setQuizItems] = useState<KanaQuizItem[]>([]);
@@ -473,7 +473,7 @@ export default function ProgressPage() {
     } else {
       setWordOptions([]);
     }
-  }, []);
+  }, [wordOptionPool]);
 
   const buildSentenceQuiz = useCallback((items: AnyItem[]) => {
     const qi = getSentenceQuizItems(items);
@@ -490,7 +490,7 @@ export default function ProgressPage() {
     } else {
       setSentenceOptions([]);
     }
-  }, []);
+  }, [sentenceOptionPool]);
 
   useEffect(() => {
     const wrongKana = loadFromStorage("wrongKana");

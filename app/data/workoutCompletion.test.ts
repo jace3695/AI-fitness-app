@@ -8,8 +8,8 @@ import {
   removeFoamRollerRecord,
   removeGeneralWorkoutRecord,
   removePullupRecord,
-  WorkoutDayRecord,
-} from "./workoutCompletion";
+  type WorkoutDayRecord,
+} from "./workoutCompletion.ts";
 
 test("일반 운동 삭제 시 다른 운동 종류의 기록을 모두 보존한다", () => {
   const record: WorkoutDayRecord = {
