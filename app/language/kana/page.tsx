@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 
@@ -1438,7 +1439,7 @@ export default function KanaPage() {
     () => selectedKanaGroupIds.slice().sort().join("|"),
     [selectedKanaGroupIds]
   );
-  const selectedGroupSet = useMemo(() => new Set(selectedKanaGroupIds), [selectedGroupKey]);
+  const selectedGroupSet = useMemo(() => new Set(selectedKanaGroupIds), [selectedKanaGroupIds]);
   const baseKanaGroups = availableGroups.filter((group) =>
     ["a", "ka", "sa", "ta", "na", "ha", "ma", "ya", "ra", "wa"].includes(group.id)
   );
@@ -1464,11 +1465,11 @@ export default function KanaPage() {
     () => selectedKanaGroupIds
       .filter((groupId) => groupId !== "all")
       .flatMap((groupId) => availableGroups.find((group) => group.id === groupId)?.matchedChars ?? []),
-    [availableGroups, selectedGroupKey]
+    [availableGroups, selectedKanaGroupIds]
   );
   const selectedGroups = useMemo(
     () => availableGroups.filter((group) => selectedGroupSet.has(group.id)),
-    [availableGroups, selectedGroupKey]
+    [availableGroups, selectedGroupSet]
   );
   const selectedSpecialTypes = useMemo(() => new Set(
     selectedGroups
@@ -1489,7 +1490,7 @@ export default function KanaPage() {
     );
 
     return uniqueKanaItems([...regularSelectedData, ...specialSelectedData]);
-  }, [allData, includesNSoundSpecial, selectedGroupChars, selectedGroupKey, selectedSpecialTypes]);
+  }, [allData, includesNSoundSpecial, selectedGroupChars, selectedGroupSet, selectedSpecialTypes]);
   const dataKey = useMemo(() => data.map((item) => item.id ?? `${item.kind ?? "kana"}-${item.char}-${item.roman}`).join("|"), [data]);
   const dataRef = useRef<KanaItem[]>([]);
   const selectedGroupLabels = selectedGroupSet.has("all")
@@ -2510,7 +2511,7 @@ export default function KanaPage() {
                 <div style={{ marginBottom: "0.5rem", fontSize: "0.82rem", color: "#4b5563" }}>획순 애니메이션의 글자 모양을 보며 직접 써보세요.</div>
                 <div ref={writingAreaRef} style={{ width: "100%", height: "340px", borderRadius: "10px", border: "1px solid #e5e7eb", background: "#fff", position: "relative", overflow: "hidden" }}>
                   {hasPngGuide ? (
-                    <img src={currentGuideSrc} alt={`${currentChar} 따라쓰기 PNG 가이드`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0.2, pointerEvents: "none", zIndex: 1 }} />
+                    <Image fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" src={currentGuideSrc} alt={`${currentChar} 따라쓰기 PNG 가이드`} style={{ objectFit: "contain", opacity: 0.2, pointerEvents: "none", zIndex: 1 }} />
                   ) : (
                     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}>
                       <span style={{ fontSize: "140px", fontWeight: 700, color: "#d1d5db", opacity: 0.28, lineHeight: 1 }}>{currentChar}</span>
@@ -2557,7 +2558,7 @@ export default function KanaPage() {
               }}
             />
             {writingSubMode === "trace" && writingGuideMode === "faint" && (
-              (hasPngGuide ? <img src={currentGuideSrc} alt={`${currentChar} 흐린 PNG 가이드`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", opacity: 0.2, pointerEvents: "none", zIndex: 1 }} /> : <div
+              (hasPngGuide ? <Image fill unoptimized sizes="100vw" src={currentGuideSrc} alt={`${currentChar} 흐린 PNG 가이드`} style={{ objectFit: "contain", opacity: 0.2, pointerEvents: "none", zIndex: 1 }} /> : <div
                 style={{
                   position: "absolute",
                   inset: 0,

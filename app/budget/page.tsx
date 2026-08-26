@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
@@ -289,7 +289,7 @@ function BudgetDashboard() {
   }
   const audioContextRef = useRef<AudioContext | null>(null)
   const unlockPinInputRef = useRef<HTMLInputElement | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
   const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -488,6 +488,8 @@ function BudgetDashboard() {
     }
 
     checkUser()
+    // This bootstrap intentionally uses the initial authenticated session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -555,7 +557,7 @@ function BudgetDashboard() {
     return () => {
       cancelled = true
     }
-  }, [user?.id, selectedMonth])
+  }, [user?.id, selectedMonth, supabase])
 
   useEffect(() => {
     if (!user?.id || !passkeySupported) {
@@ -564,6 +566,8 @@ function BudgetDashboard() {
     }
 
     refreshPasskeys()
+    // refreshPasskeys is an action over the current user, not render input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, passkeySupported])
 
   useEffect(() => {
@@ -1774,6 +1778,8 @@ function BudgetDashboard() {
 
     handleSuggestedQuestion(autoQuestion)
     setAutoAnalyzeRan(true)
+    // Run once for each meaningful auto-analysis state transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, analysisView, autoAnalyzeEnabled, autoQuestion, autoAnalyzeRan, transactions.length, incomeList.length, savings.length])
 
   const runWebSpeechRecognition = (onText: (text: string) => Promise<void> | void) => {
@@ -1978,15 +1984,16 @@ function BudgetDashboard() {
             localStorage.setItem(storageKey, new Date().toISOString())
             void showBrowserNotification(
               threshold >= 100 ? '월 예산을 초과했어요' : '월 예산의 90%를 사용했어요',
-              `${selectedMonthLabel} 지출은 ${formatKRW(currentMonthExpenses)} / 예산 ${formatKRW(budget)}예요.`,
+              `${selectedMonthLabel} 지출은 ${formatDisplayCurrency(currentMonthExpenses, currency)} / 예산 ${formatDisplayCurrency(budget, currency)}예요.`,
               `budget-${monthKey}-${threshold}`
             )
           }
         }
       }
 
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-      if (today.getDate() === lastDay) {
+      const notificationToday = new Date()
+      const lastDay = new Date(notificationToday.getFullYear(), notificationToday.getMonth() + 1, 0).getDate()
+      if (notificationToday.getDate() === lastDay) {
         const storageKey = `ai-budget:notification:month-end:${monthKey}`
         if (!localStorage.getItem(storageKey)) {
           localStorage.setItem(storageKey, new Date().toISOString())
@@ -1999,6 +2006,7 @@ function BudgetDashboard() {
       }
     }, [
       budgetAlertEnabled,
+      currency,
       currentMonthExpenses,
       isCurrentMonthSelected,
       monthlyBudget,

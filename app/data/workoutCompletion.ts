@@ -1,4 +1,4 @@
-import { getLocalDateKey } from "./dietPlans";
+import { getLocalDateKey } from "./dietPlans.ts";
 
 export type WorkoutDayId =
   | "sun"

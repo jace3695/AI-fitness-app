@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";

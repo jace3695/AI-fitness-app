@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeCloudStateFromBase } from "./cloudSync";
+import { mergeCloudStateFromBase } from "./cloudSync.ts";
 
 test("서로 다른 날짜의 기록을 함께 보존한다", () => {
   assert.deepEqual(
