@@ -4,6 +4,7 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { clearLocalCloudState } from "../data/cloudSync";
+import { clearLanguageLocalState } from "../data/languageCloudSync";
 import {
   hasDevicePin,
   isPinSessionUnlocked,
@@ -71,6 +72,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       }
       if (event === "SIGNED_OUT") {
         clearLocalCloudState();
+        clearLanguageLocalState();
         setRecoveryMode(false);
       }
       setUser(session?.user ?? null);
