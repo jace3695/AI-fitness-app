@@ -2,28 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
-
-const LANGUAGE_STORAGE_KEYS = [
-  "dailyRoutineProgress", "dailyLearningHistory", "integratedLearningSettingsV1",
-  "japaneseCurriculumProgressV1", "japaneseCurriculumReviewV1", "japaneseAppSettings",
-  "learningSettings", "savedWords", "savedSentences", "wrongKana", "wrongKanaChars",
-  "wrongWords", "wrongSentences", "grammarProgress", "reviewCompletedItemsByDate",
-] as const;
-
-type LanguageState = Record<string, string>;
-
-function readLanguageState(): LanguageState {
-  const state: LanguageState = {};
-  for (const key of LANGUAGE_STORAGE_KEYS) {
-    const value = window.localStorage.getItem(key);
-    if (value !== null) state[key] = value;
-  }
-  return state;
-}
-
-function stableState(state: LanguageState) {
-  return JSON.stringify(Object.fromEntries(Object.entries(state).sort(([a], [b]) => a.localeCompare(b))));
-}
+import { mergeCloudState, mergeCloudStateFromBase, stableState } from "@/app/data/cloudSync";
+import { applyLanguageState, prepareLanguageLocalState, readLanguageState, readLanguageSyncBase, saveLanguageSyncBase } from "@/app/data/languageCloudSync";
 
 export default function LanguageCloudSync() {
   const [status, setStatus] = useState<"loading" | "synced" | "error">("loading");
@@ -37,55 +17,80 @@ export default function LanguageCloudSync() {
     let interval: ReturnType<typeof setInterval> | undefined;
     let syncVisibleChanges: (() => void) | undefined;
 
-    const upload = async (userId: string, state: LanguageState) => {
-      if (syncing) return;
-      syncing = true;
-      const { error } = await authClient.from("language_user_state").upsert({
-        user_id: userId,
-        state,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
-      if (active) setStatus(error ? "error" : "synced");
-      syncing = false;
-    };
-
     const initialize = async () => {
       const { data: auth } = await authClient.auth.getUser();
       if (!auth.user || !active) return;
+      prepareLanguageLocalState(auth.user.id);
 
-      const localState = readLanguageState();
-      const { data, error } = await authClient
-        .from("language_user_state")
-        .select("state")
-        .eq("user_id", auth.user.id)
-        .maybeSingle();
-      if (error) {
-        setStatus("error");
-        return;
-      }
+      const sync = async (initial = false) => {
+        if (syncing || !active || document.visibilityState !== "visible") return;
+        syncing = true;
+        setStatus("loading");
+        try {
+          const local = readLanguageState();
+          const { data, error } = await authClient.from("language_user_state")
+            .select("state, updated_at").eq("user_id", auth.user.id).maybeSingle();
+          if (error) throw error;
 
-      const remoteState = data?.state && typeof data.state === "object" ? data.state as LanguageState : {};
-      const mergedState = { ...localState, ...remoteState };
-      for (const [key, value] of Object.entries(remoteState)) {
-        if (LANGUAGE_STORAGE_KEYS.includes(key as typeof LANGUAGE_STORAGE_KEYS[number]) && typeof value === "string") {
-          window.localStorage.setItem(key, value);
-        }
-      }
+          const remote = data?.state && typeof data.state === "object" ? data.state : {};
+          const localHash = stableState(local);
+          const remoteHash = stableState(remote);
 
-      lastSnapshot = stableState(mergedState);
-      if (!data || stableState(localState) !== lastSnapshot) await upload(auth.user.id, mergedState);
-      else setStatus("synced");
-
-      syncVisibleChanges = () => {
-        if (document.visibilityState !== "visible") return;
-        const nextState = readLanguageState();
-        const nextSnapshot = stableState(nextState);
-        if (nextSnapshot !== lastSnapshot) {
-          lastSnapshot = nextSnapshot;
-          void upload(auth.user.id, nextState);
+          if (!data) {
+            const { error: saveError } = await authClient.from("language_user_state").insert({
+              user_id: auth.user.id, state: local, updated_at: new Date().toISOString(),
+            });
+            if (saveError) throw saveError;
+            lastSnapshot = localHash;
+            saveLanguageSyncBase(auth.user.id, local);
+          } else if (!lastSnapshot || initial) {
+            const base = readLanguageSyncBase(auth.user.id);
+            const merged = base ? mergeCloudStateFromBase(base, remote, local) : mergeCloudState(remote, local);
+            const mergedHash = stableState(merged);
+            if (mergedHash !== remoteHash) {
+              const { data: saved, error: saveError } = await authClient.from("language_user_state")
+                .update({ state: merged, updated_at: new Date().toISOString() })
+                .eq("user_id", auth.user.id).eq("updated_at", data.updated_at)
+                .select("updated_at").maybeSingle();
+              if (saveError) throw saveError;
+              if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
+            }
+            applyLanguageState(merged);
+            lastSnapshot = mergedHash;
+            saveLanguageSyncBase(auth.user.id, merged);
+          } else {
+            const localChanged = localHash !== lastSnapshot;
+            const remoteChanged = remoteHash !== lastSnapshot;
+            if (localChanged || remoteChanged) {
+              const base = readLanguageSyncBase(auth.user.id) ?? {};
+              const merged = localChanged && remoteChanged
+                ? mergeCloudStateFromBase(base, remote, local)
+                : localChanged ? local : remote;
+              const mergedHash = stableState(merged);
+              if (localChanged) {
+                const { data: saved, error: saveError } = await authClient.from("language_user_state")
+                  .update({ state: merged, updated_at: new Date().toISOString() })
+                  .eq("user_id", auth.user.id).eq("updated_at", data.updated_at)
+                  .select("updated_at").maybeSingle();
+                if (saveError) throw saveError;
+                if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
+              }
+              if (remoteChanged) applyLanguageState(merged);
+              lastSnapshot = mergedHash;
+              saveLanguageSyncBase(auth.user.id, merged);
+            }
+          }
+          if (active) setStatus("synced");
+        } catch {
+          if (active) setStatus("error");
+        } finally {
+          syncing = false;
         }
       };
-      interval = setInterval(syncVisibleChanges, 30000);
+
+      await sync(true);
+      syncVisibleChanges = () => void sync();
+      interval = setInterval(syncVisibleChanges, 30_000);
       document.addEventListener("visibilitychange", syncVisibleChanges);
       window.addEventListener("focus", syncVisibleChanges);
       window.addEventListener("online", syncVisibleChanges);
