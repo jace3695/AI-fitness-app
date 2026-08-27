@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
+  { href: "/", label: "홈", icon: "J✦" },
   { href: "/assistant", label: "AI 비서", icon: "✦" },
   { href: "/budget", label: "가계부", icon: "₩" },
   { href: "/fitness", label: "운동", icon: "◒" },
@@ -20,7 +21,7 @@ export default function HubBottomNav() {
     <nav className="hub-bottom-nav" aria-label="Jace AI Hub 공통 메뉴">
       <div className="hub-bottom-nav-inner">
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
           return (
             <Link key={item.href} href={item.href} className={active ? "hub-bottom-nav-link is-active" : "hub-bottom-nav-link"} aria-current={active ? "page" : undefined}>
               <span className="hub-bottom-nav-icon" aria-hidden="true">{item.icon}</span>

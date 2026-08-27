@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY } from "../data/workouts";
 import {
@@ -41,7 +42,6 @@ import { readJson, writeJson } from "../data/recordStorage";
 import { getLocalDateKey } from "../data/dietPlans";
 import WeeklyView from "../components/WeeklyView";
 import DayView from "../components/DayView";
-import DietView from "../components/DietView";
 import SafetyView from "../components/SafetyView";
 import RecordCalendarView from "../components/RecordCalendarView";
 import SwitchOnModePanel from "../components/SwitchOnModePanel";
@@ -53,7 +53,6 @@ import AuthGate from "../components/AuthGate";
 import WorkoutPlanEditor from "../components/WorkoutPlanEditor";
 import WorkoutNotificationManager from "../components/WorkoutNotificationManager";
 import WorkoutNotificationPanel from "../components/WorkoutNotificationPanel";
-import DevicePinPanel from "../components/DevicePinPanel";
 import DataBackupPanel from "../components/DataBackupPanel";
 import {
   applyDayRoutineEdit,
@@ -590,7 +589,7 @@ function FitnessApp() {
     else if (id === "workout")
       handleTabChange(todayWorkoutDay || "mon");
     else if (id === "record") handleTabChange("record");
-    else if (id === "diet") handleTabChange("diet");
+    else if (id === "diet") window.location.assign("/diet");
     else handleTabChange("more");
   };
   const selectedRecovery = routineSelection === "recovery";
@@ -615,7 +614,7 @@ function FitnessApp() {
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           {/* Title Row */}
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <Link href="/" className="relative z-10 flex items-center gap-2" aria-label="제이스 비서 홈으로 이동">
               <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#534AB7] text-xl text-white">
                 J
               </span>
@@ -627,8 +626,8 @@ function FitnessApp() {
                   허리를 지키며 꾸준히
               </p>
               </div>
-            </div>
-            <div className="hidden items-center gap-1 md:flex">
+            </Link>
+            <div className="relative z-10 hidden items-center gap-1 md:flex">
               {PRIMARY_NAV.map((item) => (
               <button
                   key={item.id}
@@ -720,7 +719,7 @@ function FitnessApp() {
               onOpenWorkout={() =>
                 handleTabChange(todayWorkoutDay || "mon")
               }
-              onOpenDiet={() => handleTabChange("diet")}
+              onOpenDiet={() => window.location.assign("/diet")}
               onOpenRecord={() => handleTabChange("record")}
             />
             </div>
@@ -840,8 +839,10 @@ function FitnessApp() {
         )}
 
         {activeTab === "diet" && (
-          <div className="mx-auto w-full max-w-6xl">
-            <DietView />
+          <div className="mx-auto max-w-xl rounded-3xl bg-white p-6 text-center shadow-sm">
+            <h2 className="text-xl font-bold">식단 앱이 분리되었습니다</h2>
+            <p className="mt-2 text-sm text-gray-500">기존 기록은 그대로 연동됩니다.</p>
+            <button type="button" onClick={() => window.location.assign("/diet")} className="mt-4 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white">식단 앱 열기</button>
           </div>
         )}
 
@@ -875,7 +876,6 @@ function FitnessApp() {
               selection={routineSelection}
               onSelectionChange={handleRoutineSelectionChange}
             />
-            <DevicePinPanel />
             <DataBackupPanel />
             <WorkoutNotificationPanel />
             <WorkoutPlanEditor
