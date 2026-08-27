@@ -4327,7 +4327,7 @@ return (
           />
 
           <div style={{ background: 'rgba(83,74,183,0.16)', border: '1px solid rgba(127,119,221,0.45)', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-            <p style={{ color: '#E6E1FF', fontSize: 14, fontWeight: 800, margin: '0 0 6px' }}>보안 설정은 제이스 비서에서 통합 관리합니다</p>
+            <p style={{ color: '#E6E1FF', fontSize: 14, fontWeight: 800, margin: '0 0 6px' }}>보안 설정은 제이스비서에서 통합 관리합니다</p>
             <p style={{ color: '#A9A4C7', fontSize: 12, lineHeight: 1.6, margin: '0 0 12px' }}>공통 비밀번호·PIN·Face ID 설정이 모든 앱에 함께 적용됩니다.</p>
             <Link href="/settings" style={{ display: 'inline-block', borderRadius: 10, background: '#7F77DD', padding: '9px 13px', color: '#fff', fontSize: 12, fontWeight: 800 }}>통합 설정 열기 →</Link>
           </div>
