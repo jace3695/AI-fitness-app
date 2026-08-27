@@ -14,6 +14,7 @@ import SettingsUtilityCards from './components/settings-utility-cards'
 import UserGuide from './components/user-guide'
 import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
 import AuthGate from '../components/AuthGate'
+import { AppIcon } from '../components/AppIdentity'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -2879,15 +2880,7 @@ function BudgetDashboard() {
             padding: '32px 24px',
             boxShadow: '0 18px 50px rgba(0,0,0,0.32)'
           }}>
-            <div style={{
-              width: 64,
-              height: 64,
-              margin: '0 auto 16px',
-              borderRadius: '50%',
-              border: '3px solid rgba(232,168,124,0.18)',
-              borderTop: '3px solid #E8A87C',
-              animation: 'appSpin 0.9s linear infinite'
-            }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><AppIcon kind="budget" className="h-16 w-16" /></div>
 
             <h2 style={{
               color: '#F0EDE8',
@@ -2895,7 +2888,7 @@ function BudgetDashboard() {
               fontWeight: 700,
               margin: '0 0 8px'
             }}>
-              AI 가계부
+              생활 금융을 준비하고 있어요
             </h2>
 
             <p style={{
@@ -2903,15 +2896,13 @@ function BudgetDashboard() {
               fontSize: 13,
               margin: 0
             }}>
-              {showSessionCheckingHint ? '로그인 상태를 확인하고 있어요…' : '앱을 준비하고 있어요'}
+              {showSessionCheckingHint ? '안전한 로그인 상태를 확인하고 있어요…' : '이번 달 수입·지출·예산을 정리하고 있어요'}
             </p>
 
             <style>{`
-              @keyframes appSpin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
+              @keyframes budgetPulse { 0%,100% { opacity:.35; transform:scale(.85) } 50% { opacity:1; transform:scale(1) } }
             `}</style>
+            <div aria-hidden="true" style={{ display:'flex', justifyContent:'center', gap:8, marginTop:20 }}>{[0,1,2].map((index) => <span key={index} style={{ width:8, height:8, borderRadius:'50%', background:'#E8A87C', animation:`budgetPulse 1.2s ${index * .18}s infinite` }} />)}</div>
           </div>
         </div>
       )
@@ -3302,7 +3293,7 @@ return (
           <header className="home-header">
             <div className="home-title-copy">
               <div className="home-title-row">
-                <p className="home-eyebrow">AI 가계부</p>
+                <Link href="/" aria-label="제이스 비서 홈으로 이동" style={{ display:'inline-flex', alignItems:'center', gap:10, textDecoration:'none' }}><AppIcon kind="budget" /><p className="home-eyebrow">AI 가계부</p></Link>
                 <label className="home-month-picker">
                   <span>조회 월</span>
                   <input
