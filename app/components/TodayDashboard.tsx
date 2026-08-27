@@ -1,19 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  DIET_COMPLETED_DAYS_KEY,
-  FastingRecordStatus,
-  getLocalDateKey,
-  PROTEIN_TARGET_GRAMS,
-  PROTEIN_TOTAL_KEY,
-  WATER_INTAKE_KEY,
-} from "../data/dietPlans";
-
-interface DietDayRecord {
-  fastingRecordStatus?: FastingRecordStatus;
-  fasting14h?: boolean;
-}
 
 interface TodayDashboardProps {
   workoutDone: boolean;
@@ -21,65 +7,7 @@ interface TodayDashboardProps {
   recoveryRecommended: boolean;
   recoveryCompleted: boolean;
   onOpenWorkout: () => void;
-  onOpenDiet: () => void;
   onOpenRecord: () => void;
-}
-
-interface TodayDietSummary {
-  protein: number;
-  water: number;
-  fastingStatus: FastingRecordStatus;
-  weeklyFastingCount: number;
-}
-
-const EMPTY_SUMMARY: TodayDietSummary = {
-  protein: 0,
-  water: 0,
-  fastingStatus: "unrecorded",
-  weeklyFastingCount: 0,
-};
-
-function readStore<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function getMondayKey(date = new Date()) {
-  const monday = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const offset = monday.getDay() === 0 ? -6 : 1 - monday.getDay();
-  monday.setDate(monday.getDate() + offset);
-  return getLocalDateKey(monday);
-}
-
-function readTodayDietSummary(): TodayDietSummary {
-  const todayKey = getLocalDateKey();
-  const dietStore = readStore<Record<string, DietDayRecord>>(
-    DIET_COMPLETED_DAYS_KEY,
-    {},
-  );
-  const proteinStore = readStore<Record<string, number>>(PROTEIN_TOTAL_KEY, {});
-  const waterStore = readStore<Record<string, number>>(WATER_INTAKE_KEY, {});
-  const todayDiet = dietStore[todayKey];
-  const weekStart = getMondayKey();
-  const weeklyFastingCount = Object.entries(dietStore).filter(
-    ([dateKey, record]) =>
-      dateKey >= weekStart &&
-      dateKey <= todayKey &&
-      (record.fastingRecordStatus === "14h" || record.fasting14h === true),
-  ).length;
-
-  return {
-    protein: Math.max(0, Number(proteinStore[todayKey]) || 0),
-    water: Math.max(0, Number(waterStore[todayKey]) || 0),
-    fastingStatus:
-      todayDiet?.fastingRecordStatus ??
-      (todayDiet?.fasting14h ? "14h" : "unrecorded"),
-    weeklyFastingCount,
-  };
 }
 
 function statusTone(done: boolean) {
@@ -94,37 +22,12 @@ export default function TodayDashboard({
   recoveryRecommended,
   recoveryCompleted,
   onOpenWorkout,
-  onOpenDiet,
   onOpenRecord,
 }: TodayDashboardProps) {
-  const [diet, setDiet] = useState<TodayDietSummary>(EMPTY_SUMMARY);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const refresh = () => {
-      setDiet(readTodayDietSummary());
-      setHydrated(true);
-    };
-    refresh();
-    window.addEventListener("focus", refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
-
-  const proteinDone = diet.protein >= 110;
-  const waterDone = diet.water >= 2000;
-  const fastingDone = diet.fastingStatus === "14h";
-  const adjustedFasting = diet.fastingStatus === "12h";
   const completedCount = [
     workoutDone || recoveryCompleted,
-    proteinDone,
-    waterDone,
-    fastingDone || adjustedFasting,
   ].filter(Boolean).length;
-  const progress = Math.round((completedCount / 4) * 100);
+  const progress = completedCount * 100;
 
   const items = [
     {
@@ -134,34 +37,6 @@ export default function TodayDashboard({
       done: workoutDone || recoveryCompleted,
       onClick: workoutPain ? onOpenRecord : onOpenWorkout,
     },
-    {
-      label: "단백질",
-      value: hydrated ? `${diet.protein}g` : "불러오는 중",
-      sub: `목표 약 ${PROTEIN_TARGET_GRAMS}g`,
-      done: proteinDone,
-      onClick: onOpenDiet,
-    },
-    {
-      label: "물",
-      value: hydrated ? `${diet.water.toLocaleString()}mL` : "불러오는 중",
-      sub: "목표 2,000mL",
-      done: waterDone,
-      onClick: onOpenDiet,
-    },
-    {
-      label: "공복",
-      value:
-        diet.fastingStatus === "14h"
-          ? "14시간 달성"
-          : diet.fastingStatus === "12h"
-            ? "12시간 조절"
-            : diet.fastingStatus === "missed"
-              ? "미달성"
-              : "미기록",
-      sub: `이번 주 ${diet.weeklyFastingCount}/5일`,
-      done: fastingDone || adjustedFasting,
-      onClick: onOpenDiet,
-    },
   ];
 
   return (
@@ -170,7 +45,7 @@ export default function TodayDashboard({
         <div>
           <p className="text-[12px] font-bold text-[#534AB7]">오늘 체크</p>
           <h3 className="mt-1 text-[18px] font-bold text-gray-900">
-            {completedCount}/4 항목 관리
+            오늘 운동 상태
           </h3>
         </div>
         <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[12px] font-bold text-[#3C3489]">

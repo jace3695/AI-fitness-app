@@ -54,6 +54,7 @@ import WorkoutPlanEditor from "../components/WorkoutPlanEditor";
 import WorkoutNotificationManager from "../components/WorkoutNotificationManager";
 import WorkoutNotificationPanel from "../components/WorkoutNotificationPanel";
 import DataBackupPanel from "../components/DataBackupPanel";
+import AppIdentity from "../components/AppIdentity";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -73,7 +74,6 @@ type TabId =
   | "fri"
   | "sat"
   | "pullup"
-  | "diet"
   | "record"
   | "more"
   | "tips";
@@ -92,7 +92,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "fri", label: "금요일" },
   { id: "sat", label: "토요일" },
   { id: "pullup", label: "철봉 훈련" },
-  { id: "diet", label: "식단" },
   { id: "record", label: "기록" },
   { id: "more", label: "더보기" },
   { id: "tips", label: "주의사항" },
@@ -111,14 +110,13 @@ const WORKOUT_DAY_IDS: WorkoutDayId[] = [
 const ACTIVE_TAB_SESSION_KEY = "ai-fitness-active-tab";
 
 const PRIMARY_NAV: {
-  id: "home" | "workout" | "record" | "diet" | "more";
+  id: "home" | "workout" | "record" | "more";
   label: string;
   emoji: string;
 }[] = [
   { id: "home", label: "홈", emoji: "⌂" },
   { id: "workout", label: "운동", emoji: "▶" },
   { id: "record", label: "기록", emoji: "▦" },
-  { id: "diet", label: "식단", emoji: "◉" },
   { id: "more", label: "더보기", emoji: "•••" },
 ];
 
@@ -579,9 +577,7 @@ function FitnessApp() {
         ? "workout"
         : activeTab === "record"
           ? "record"
-          : activeTab === "diet"
-            ? "diet"
-            : "more";
+          : "more";
   const handlePrimaryNavigation = (
     id: (typeof PRIMARY_NAV)[number]["id"],
   ) => {
@@ -589,7 +585,6 @@ function FitnessApp() {
     else if (id === "workout")
       handleTabChange(todayWorkoutDay || "mon");
     else if (id === "record") handleTabChange("record");
-    else if (id === "diet") window.location.assign("/diet");
     else handleTabChange("more");
   };
   const selectedRecovery = routineSelection === "recovery";
@@ -614,19 +609,7 @@ function FitnessApp() {
         <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
           {/* Title Row */}
           <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="relative z-10 flex items-center gap-2" aria-label="제이스 비서 홈으로 이동">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#534AB7] text-xl text-white">
-                J
-              </span>
-              <div>
-              <h1 className="text-[20px] font-semibold text-gray-800 leading-tight">
-                  재민님의 운동
-              </h1>
-              <p className="text-[12px] text-gray-400 leading-tight">
-                  허리를 지키며 꾸준히
-              </p>
-              </div>
-            </Link>
+            <AppIdentity kind="fitness" title="재민님의 운동" subtitle="허리를 지키며 꾸준히" />
             <div className="relative z-10 hidden items-center gap-1 md:flex">
               {PRIMARY_NAV.map((item) => (
               <button
@@ -719,7 +702,6 @@ function FitnessApp() {
               onOpenWorkout={() =>
                 handleTabChange(todayWorkoutDay || "mon")
               }
-              onOpenDiet={() => window.location.assign("/diet")}
               onOpenRecord={() => handleTabChange("record")}
             />
             </div>
@@ -835,14 +817,6 @@ function FitnessApp() {
         {activeTab === "pullup" && (
           <div className="mx-auto w-full max-w-6xl">
             <PullupTrainingView />
-          </div>
-        )}
-
-        {activeTab === "diet" && (
-          <div className="mx-auto max-w-xl rounded-3xl bg-white p-6 text-center shadow-sm">
-            <h2 className="text-xl font-bold">식단 앱이 분리되었습니다</h2>
-            <p className="mt-2 text-sm text-gray-500">기존 기록은 그대로 연동됩니다.</p>
-            <button type="button" onClick={() => window.location.assign("/diet")} className="mt-4 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white">식단 앱 열기</button>
           </div>
         )}
 

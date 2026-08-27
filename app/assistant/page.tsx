@@ -7,6 +7,7 @@ import { getLocalDateKey } from "@/utils/dateKey";
 import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "../data/workoutCompletion";
 import { dayIdToKoreanLabel, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "../data/workoutPlans";
 import { nextRecurringDueAt, recurrenceLabel, type RecurrenceRule } from "../lib/assistantRecurrence";
+import AppIdentity from "../components/AppIdentity";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
 type Item = {
@@ -245,7 +246,7 @@ export default function AssistantPage() {
   return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
     <header className="border-b border-white/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-3"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#5146A6] text-xl font-bold text-white">J</span><div><p className="text-xs font-bold tracking-[0.14em] text-[#766DB8]">JACE AI HUB</p><h1 className="text-lg font-bold">AI 비서</h1></div></Link>
+        <AppIdentity kind="assistant" title="제이스 비서" subtitle="Jace AI Hub" />
         <span className="text-xs text-gray-500 sm:text-sm">{today}</span>
       </div>
     </header>
