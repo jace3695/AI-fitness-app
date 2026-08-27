@@ -16,7 +16,7 @@ const APPS = {
 export function AppIcon({ kind, className = "h-10 w-10" }: { kind: AppKind; className?: string }) {
   const { Icon, tone } = APPS[kind];
   const image = kind === "assistant" ? "/app-icons/assistant.png" : kind === "budget" ? "/app-icons/budget.png" : kind === "fitness" ? "/app-icons/fitness.png" : kind === "language" ? "/app-icons/language.png" : null;
-  return <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-2xl ${tone} ${className}`}>{image ? <Image src={image} alt="" fill sizes="64px" className="object-cover" /> : <Icon aria-hidden="true" size={22} strokeWidth={2.2} />}</span>;
+  return <span className={`grid shrink-0 place-items-center overflow-hidden rounded-2xl ${tone} ${className}`}>{image ? <Image src={image} alt="" width={64} height={64} className="block h-full w-full object-contain" /> : <Icon aria-hidden="true" size={22} strokeWidth={2.2} />}</span>;
 }
 
 export default function AppIdentity({ kind, title, subtitle }: { kind: AppKind; title?: string; subtitle?: string }) {

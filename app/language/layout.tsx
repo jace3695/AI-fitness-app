@@ -15,7 +15,7 @@ export default function LanguageLayout({ children }: Readonly<{ children: React.
   return (
     <AuthGate>
       <div className="language-app-shell">
-        <header className="app-shell"><div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-2"><AppIdentity kind="language" title="일본어 학습" /><div className="min-w-0 flex-1"><TopNav /></div></div></header>
+        <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="language" title="일본어 학습" subtitle="매일 이어가는 언어 훈련" /><TopNav /></div></header>
         <main className="app-main">{children}</main>
         <ScrollTopButton />
         <LanguageCloudSync />
