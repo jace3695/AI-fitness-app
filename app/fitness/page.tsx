@@ -604,27 +604,24 @@ function FitnessApp() {
       <WorkoutNotificationManager />
     <div className="min-h-dvh bg-[#F6F7FB]">
       {/* ── Top Header ── */}
-      <header className="sticky top-0 z-30 border-b border-gray-100/80 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+      <header className="app-module-header">
+        <div className="app-module-header-inner">
           {/* Title Row */}
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex w-full items-center justify-between gap-3">
             <AppIdentity kind="fitness" title="재민님의 운동" subtitle="허리를 지키며 꾸준히" />
-            <div className="relative z-10 hidden items-center gap-1 rounded-[18px] border border-gray-200 bg-white/90 p-1 shadow-[0_8px_28px_rgba(32,61,48,0.07)] md:flex">
+            <nav className="app-module-nav app-module-nav-desktop" aria-label="운동 주요 메뉴">
               {PRIMARY_NAV.map((item) => (
               <button
                   key={item.id}
                   type="button"
                   onClick={() => handlePrimaryNavigation(item.id)}
-                  className={`rounded-xl px-3 py-2 text-[12px] font-bold transition-colors ${
-                    activePrimaryNav === item.id
-                      ? "bg-[#534AB7] text-white shadow-[0_5px_14px_rgba(83,74,183,0.2)]"
-                      : "text-gray-500 hover:bg-gray-50"
-                }`}
+                  className={`app-module-nav-item ${activePrimaryNav === item.id ? "is-active" : ""}`}
               >
-                  {item.label}
+                  <span className="app-module-nav-icon" aria-hidden="true">{item.emoji}</span>
+                  <span className="app-module-nav-label">{item.label}</span>
               </button>
             ))}
-            </div>
+            </nav>
           </div>
         </div>
       </header>
@@ -877,24 +874,20 @@ function FitnessApp() {
       {/* ── Bottom Navigation (Mobile) ── */}
       <nav
         aria-label="주요 메뉴"
-        className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur md:hidden safe-area-bottom"
+        className="app-module-nav app-module-nav-mobile safe-area-bottom"
       >
-        <div className="mx-auto grid max-w-md grid-cols-5 px-2 py-2">
+        <div className="app-module-nav-mobile-inner">
           {PRIMARY_NAV.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => handlePrimaryNavigation(item.id)}
-              className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
-                activePrimaryNav === item.id
-                  ? "bg-[#EEEDFE] text-[#3C3489]"
-                  : "text-gray-400"
-              }`}
+              className={`app-module-nav-item ${activePrimaryNav === item.id ? "is-active" : ""}`}
             >
-              <span className="text-[17px] font-bold leading-none" aria-hidden="true">
+              <span className="app-module-nav-icon" aria-hidden="true">
                 {item.emoji}
               </span>
-              <span className="text-[10px] font-bold">{item.label}</span>
+              <span className="app-module-nav-label">{item.label}</span>
             </button>
           ))}
         </div>

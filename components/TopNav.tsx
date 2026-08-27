@@ -22,7 +22,7 @@ export default function TopNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="top-nav" aria-label="주요 메뉴">
+    <nav className="app-module-nav" aria-label="언어 주요 메뉴">
       {navItems.map((item) => {
         const active =
           pathname === item.href || learningPaths[item.href]?.includes(pathname);
@@ -30,11 +30,11 @@ export default function TopNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={active ? "top-nav-link is-active" : "top-nav-link"}
+            className={active ? "app-module-nav-item is-active" : "app-module-nav-item"}
             aria-current={active ? "page" : undefined}
           >
-            <span className="top-nav-icon" aria-hidden="true">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="app-module-nav-icon" aria-hidden="true">{item.icon}</span>
+            <span className="app-module-nav-label">{item.label}</span>
           </Link>
         );
       })}

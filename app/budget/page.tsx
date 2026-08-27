@@ -3288,22 +3288,22 @@ return (
       `}</style>
 
 
-      <header className="budget-app-header">
-        <div className="budget-app-header-inner">
+      <header className="app-module-header">
+        <div className="app-module-header-inner">
           <AppIdentity kind="budget" title="AI 가계부" subtitle="생활 금융 기록" />
-          <nav className="living-finance-nav" aria-label="가계부 주요 메뉴">
+          <nav className="app-module-nav" aria-label="가계부 주요 메뉴">
             {TABS.map(t => (
               <button
                 key={t.id}
-                className={`living-finance-nav-item ${tab === t.id ? 'is-active' : ''}`}
+                className={`app-module-nav-item ${tab === t.id ? 'is-active' : ''}`}
                 aria-current={tab === t.id ? 'page' : undefined}
                 onClick={() => {
                   setTab(t.id)
                   if (t.id !== 'analysis') setAutoAnalyzeRan(false)
                 }}
               >
-                <span className="living-finance-nav-icon" aria-hidden="true">{t.icon}</span>
-                <span className="living-finance-nav-label">{t.label}</span>
+                <span className="app-module-nav-icon" aria-hidden="true">{t.icon}</span>
+                <span className="app-module-nav-label">{t.label}</span>
               </button>
             ))}
           </nav>
