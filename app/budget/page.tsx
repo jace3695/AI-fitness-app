@@ -3558,19 +3558,14 @@ return (
 
       {tab === 'input' && (
         <main className="record-screen app-safe-top" style={{ padding: '24px 20px 88px' }}>
-          <div className="record-intro">
-            <div>
-              <p className="record-eyebrow">AI 기록 · {showConfirm ? '내용 확인' : '자연어 입력'}</p>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>말하듯 입력하세요</h2>
-              <p style={{ color: '#B8B8C8', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
-                여러 건도 한 번에 해석하고, 저장 전 모든 내용을 직접 고칠 수 있어요.
-              </p>
-            </div>
-            <ol className="record-progress" aria-label="기록 진행 단계">
-              <li className={!showConfirm ? 'is-active' : 'is-complete'}>입력</li>
-              <li className={showConfirm ? 'is-active' : ''}>확인</li>
-            </ol>
-          </div>
+          <header className="record-header">
+            <h2>{showConfirm ? '기록 내용을 확인하세요' : '말하듯 입력하세요'}</h2>
+            <p>
+              {showConfirm
+                ? '날짜·금액·분류를 확인하고 필요한 내용을 수정한 뒤 저장하세요.'
+                : '여러 건도 한 번에 해석하고, 저장하기 전에 모든 내용을 직접 고칠 수 있어요.'}
+            </p>
+          </header>
 
           {!showConfirm ? (
             <>

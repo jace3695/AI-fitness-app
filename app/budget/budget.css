@@ -1662,6 +1662,9 @@ button {
 }
 
 .analysis-header {
+  width: min(calc(100% - 96px), 1040px) !important;
+  max-width: 1040px !important;
+  margin-inline: auto !important;
   padding: 36px 0 0 !important;
 }
 .analysis-tabs {
@@ -1710,50 +1713,18 @@ button {
   background: #f6f3ed !important;
 }
 
-.record-intro {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end !important;
-  gap: 20px !important;
-  margin-bottom: 18px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+.record-header {
+  margin-bottom: 20px;
 }
-.record-eyebrow {
-  margin: 0 0 7px !important;
-  color: var(--sage-dark) !important;
-  font-size: 12px !important;
-  font-weight: 750 !important;
-  letter-spacing: .04em !important;
+.record-header h2 {
+  margin-bottom: 7px !important;
 }
-.record-progress {
-  display: flex;
-  gap: 6px;
+.record-header p {
+  max-width: 650px;
   margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.record-progress li {
-  min-width: 58px;
-  padding: 7px 11px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--foreground-muted);
-  background: var(--surface-muted);
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-}
-.record-progress li.is-active {
-  border-color: rgba(83, 74, 183, .26);
-  color: #3c3489;
-  background: #eeedfe;
-}
-.record-progress li.is-complete {
-  color: var(--sage-dark);
-  background: rgba(102, 138, 115, .1);
+  color: var(--foreground-muted) !important;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .history-search-field {
@@ -1788,8 +1759,8 @@ button {
 }
 
 @media (max-width: 767px) {
-  .analysis-header { padding: 24px 16px 0 !important; }
-  .record-intro { grid-template-columns: 1fr; align-items: start !important; }
-  .record-progress { width: 100%; }
-  .record-progress li { flex: 1; }
+  .analysis-header {
+    width: 100% !important;
+    padding: 24px 16px 0 !important;
+  }
 }
