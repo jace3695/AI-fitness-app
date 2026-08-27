@@ -1651,3 +1651,145 @@ button {
 .settings-screen [style*="color: #e0e0ea"] {
   color: var(--foreground) !important;
 }
+
+/* 2026-08 visual consistency pass: align every budget view with the light Hub UI. */
+@media (min-width: 1200px) {
+  .living-finance-home {
+    width: min(calc(100% - 96px), 1040px);
+    max-width: 1040px;
+    margin-inline: auto;
+  }
+}
+
+.analysis-header {
+  padding: 36px 0 0 !important;
+}
+.analysis-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+.analysis-tabs button {
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--foreground-muted);
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.analysis-tabs button.is-active {
+  border-color: rgba(83, 74, 183, .22);
+  color: #3c3489;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.stats-screen section,
+.stats-screen > div,
+.settings-screen > div,
+.settings-screen > section {
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.stats-screen div[style*="background: rgba"],
+.settings-screen div[style*="background: rgba"] {
+  border-color: var(--border) !important;
+  background: #f6f3ed !important;
+}
+.stats-screen details,
+.stats-screen summary {
+  border-color: var(--border) !important;
+  color: var(--foreground-muted) !important;
+  background: #f6f3ed !important;
+}
+
+.record-intro {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end !important;
+  gap: 20px !important;
+  margin-bottom: 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.record-eyebrow {
+  margin: 0 0 7px !important;
+  color: var(--sage-dark) !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+  letter-spacing: .04em !important;
+}
+.record-progress {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.record-progress li {
+  min-width: 58px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--foreground-muted);
+  background: var(--surface-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.record-progress li.is-active {
+  border-color: rgba(83, 74, 183, .26);
+  color: #3c3489;
+  background: #eeedfe;
+}
+.record-progress li.is-complete {
+  color: var(--sage-dark);
+  background: rgba(102, 138, 115, .1);
+}
+
+.history-search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 620px;
+  min-height: 50px;
+  margin-bottom: 12px;
+  padding: 0 15px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  color: var(--foreground-muted);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.history-search-field:focus-within {
+  border-color: rgba(102, 138, 115, .55);
+  box-shadow: 0 0 0 4px rgba(102, 138, 115, .1);
+}
+.history-search-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0;
+  color: var(--foreground) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 767px) {
+  .analysis-header { padding: 24px 16px 0 !important; }
+  .record-intro { grid-template-columns: 1fr; align-items: start !important; }
+  .record-progress { width: 100%; }
+  .record-progress li { flex: 1; }
+}

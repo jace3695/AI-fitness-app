@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Search } from 'lucide-react'
 
 type HistoryType = 'all' | 'income' | 'expense' | 'saving'
 
@@ -93,7 +94,10 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
     <main className="living-finance-view history-screen app-safe-top" style={{ padding: '24px 20px 80px' }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 16px' }}>상세 내역</h2>
     
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="상세 내역 검색 (장소, 카테고리, 결제수단, 메모...)" style={{ width: '100%', background: 'rgba(8,8,12,0.38)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 10, padding: '10px 14px', color: '#FFFFFF', fontSize: 14, marginBottom: 12, boxSizing: 'border-box', outline: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.45)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(0,0,0,0.08)' }} />
+              <label className="history-search-field">
+                <Search size={18} aria-hidden="true" />
+                <input aria-label="상세 내역 검색" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="장소, 카테고리, 결제수단, 메모 검색" />
+              </label>
     
               <section aria-label="상세 내역 필터" style={{ ...getCardStyle(), padding: 12, marginBottom: 16 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 10 }}>
@@ -240,4 +244,3 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
             </main>
   )
 }
-

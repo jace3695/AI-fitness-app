@@ -3558,17 +3558,18 @@ return (
 
       {tab === 'input' && (
         <main className="record-screen app-safe-top" style={{ padding: '24px 20px 88px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
+          <div className="record-intro">
             <div>
-              <p style={{ color: '#E8A87C', fontSize: 12, fontWeight: 700, margin: '0 0 6px', letterSpacing: 1 }}>AI 기록</p>
+              <p className="record-eyebrow">AI 기록 · {showConfirm ? '내용 확인' : '자연어 입력'}</p>
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>말하듯 입력하세요</h2>
               <p style={{ color: '#B8B8C8', fontSize: 13, lineHeight: 1.6, margin: 0 }}>
                 여러 건도 한 번에 해석하고, 저장 전 모든 내용을 직접 고칠 수 있어요.
               </p>
             </div>
-            <span style={{ flexShrink: 0, color: showConfirm ? '#4ECDC4' : '#F6C9AA', fontSize: 11, fontWeight: 700, background: showConfirm ? 'rgba(78,205,196,0.12)' : 'rgba(232,168,124,0.12)', border: '1px solid ' + (showConfirm ? 'rgba(78,205,196,0.32)' : 'rgba(232,168,124,0.32)'), borderRadius: 999, padding: '6px 9px' }}>
-              {showConfirm ? '2 · 확인' : '1 · 입력'}
-            </span>
+            <ol className="record-progress" aria-label="기록 진행 단계">
+              <li className={!showConfirm ? 'is-active' : 'is-complete'}>입력</li>
+              <li className={showConfirm ? 'is-active' : ''}>확인</li>
+            </ol>
           </div>
 
           {!showConfirm ? (
@@ -3837,23 +3838,14 @@ return (
       )}
 
       {tab === 'analysis' && (
-        <header className="app-safe-top" style={{ padding: '24px 20px 0' }}>
+        <header className="living-finance-view analysis-header app-safe-top">
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>분석</h2>
           <p style={{ color: '#9CA3AF', fontSize: 13, lineHeight: 1.6, margin: '0 0 14px' }}>
             숫자로 흐름을 확인하고, 궁금한 내용은 AI에게 바로 물어보세요.
           </p>
-          <div
+          <div className="analysis-tabs"
             role="tablist"
             aria-label="분석 화면 선택"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 6,
-              padding: 5,
-              borderRadius: 14,
-              background: 'rgba(19,19,28,0.78)',
-              border: '1px solid #2A2A3E'
-            }}
           >
             {([
               { id: 'stats', label: '소비 분석' },
@@ -3870,16 +3862,7 @@ return (
                     setAnalysisView(item.id)
                     if (item.id !== 'ai') setAutoAnalyzeRan(false)
                   }}
-                  style={{
-                    minHeight: 44,
-                    border: isActive ? '1px solid rgba(232,168,124,0.48)' : '1px solid transparent',
-                    borderRadius: 10,
-                    background: isActive ? 'rgba(232,168,124,0.14)' : 'transparent',
-                    color: isActive ? '#F6C9AA' : '#B8B8C8',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
+                  className={isActive ? 'is-active' : ''}
                 >
                   {item.label}
                 </button>
