@@ -1318,6 +1318,78 @@ button {
 .stats-screen span[style*="#FF6B6B"] {
   color: var(--expense) !important;
 }
+
+/* Shared app navigation: desktop header, mobile bottom bar. */
+.budget-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  border-bottom: 1px solid rgba(226, 232, 223, .9);
+  background: rgba(255, 253, 249, .95);
+  box-shadow: 0 4px 18px rgba(32, 61, 48, .05);
+  backdrop-filter: blur(16px);
+}
+.budget-app-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  width: min(calc(100% - 32px), 1180px);
+  min-height: 72px;
+  margin-inline: auto;
+}
+.budget-app-header .living-finance-nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 100;
+  display: flex;
+  width: 100%;
+}
+.stats-screen > div:first-of-type {
+  padding: 20px 22px !important;
+}
+
+@media (min-width: 768px) {
+  .budget-app-header .living-finance-nav {
+    position: static;
+    inset: auto;
+    width: auto !important;
+    min-height: 0;
+    padding: 5px;
+    transform: none;
+    flex-direction: row;
+    gap: 4px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: rgba(255,255,255,.92);
+    box-shadow: 0 8px 28px rgba(32,61,48,.07);
+  }
+  .budget-app-header .living-finance-nav::before { content: none; }
+  .budget-app-header .living-finance-nav-item {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 40px;
+    padding: 8px 12px;
+    flex-direction: row;
+    justify-content: center;
+    gap: 7px;
+    border-radius: 13px;
+  }
+  .budget-app-header .living-finance-nav-item.is-active {
+    color: #fff;
+    background: #534ab7;
+    box-shadow: 0 5px 14px rgba(83,74,183,.2);
+  }
+  .budget-app-header .living-finance-nav-icon { width: auto; height: auto; font-size: 16px; }
+  .budget-app-header .living-finance-nav-label { font-size: 13px; font-weight: 700; }
+  .living-finance-app { padding-left: 0; }
+  .living-finance-view { margin-inline: auto; }
+}
+
+@media (max-width: 767px) {
+  .budget-app-header-inner { min-height: 68px; }
+  .stats-screen > div:first-of-type { padding: 17px 16px !important; }
+}
 .stats-screen p[style*="#45B7D1"],
 .stats-screen span[style*="#45B7D1"] {
   color: #4f7180 !important;

@@ -609,7 +609,7 @@ function FitnessApp() {
           {/* Title Row */}
           <div className="flex items-center justify-between gap-3">
             <AppIdentity kind="fitness" title="재민님의 운동" subtitle="허리를 지키며 꾸준히" />
-            <div className="relative z-10 hidden items-center gap-1 md:flex">
+            <div className="relative z-10 hidden items-center gap-1 rounded-[18px] border border-gray-200 bg-white/90 p-1 shadow-[0_8px_28px_rgba(32,61,48,0.07)] md:flex">
               {PRIMARY_NAV.map((item) => (
               <button
                   key={item.id}
@@ -617,7 +617,7 @@ function FitnessApp() {
                   onClick={() => handlePrimaryNavigation(item.id)}
                   className={`rounded-xl px-3 py-2 text-[12px] font-bold transition-colors ${
                     activePrimaryNav === item.id
-                      ? "bg-[#EEEDFE] text-[#3C3489]"
+                      ? "bg-[#534AB7] text-white shadow-[0_5px_14px_rgba(83,74,183,0.2)]"
                       : "text-gray-500 hover:bg-gray-50"
                 }`}
               >
