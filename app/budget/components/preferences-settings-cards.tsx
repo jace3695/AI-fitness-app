@@ -12,15 +12,15 @@ type PreferencesSettingsCardsProps = {
 }
 
 const cardStyle = {
-  background: 'rgba(19,19,28,0.75)',
-  border: '1px solid #1A1A24',
+  background: '#fffdf9',
+  border: '1px solid #e4ded3',
   borderRadius: 16,
   padding: 16,
   marginBottom: 16,
 }
 
 const headingStyle = {
-  color: '#9CA3AF',
+  color: '#4f705c',
   fontSize: 12,
   margin: '0 0 12px',
   letterSpacing: 1,
@@ -53,11 +53,11 @@ export default function PreferencesSettingsCards({
           onChange={(event) => onCurrencyChange(event.target.value)}
           style={{
             width: '100%',
-            background: 'rgba(15,15,20,0.75)',
-            border: '1px solid #2A2A3A',
+            background: '#fffdf9',
+            border: '1px solid #d8d2c7',
             borderRadius: 8,
             padding: '10px 12px',
-            color: '#FFFFFF',
+            color: '#302e2a',
             fontSize: 13,
             outline: 'none',
             boxSizing: 'border-box',
@@ -72,7 +72,7 @@ export default function PreferencesSettingsCards({
       <section style={cardStyle} aria-labelledby="notification-settings-heading">
         <p id="notification-settings-heading" style={headingStyle}>알림 설정</p>
         <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ color: '#E0E0EA', fontSize: 13 }}>알림 사용</span>
+          <span style={{ color: '#302e2a', fontSize: 13 }}>알림 사용</span>
           <input
             type="checkbox"
             checked={notificationsEnabled}
@@ -81,7 +81,7 @@ export default function PreferencesSettingsCards({
         </label>
 
         <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: '#E0E0EA', fontSize: 13 }}>예산 초과 알림</span>
+          <span style={{ color: '#302e2a', fontSize: 13 }}>예산 초과 알림</span>
           <input
             type="checkbox"
             checked={budgetAlertEnabled}
@@ -89,11 +89,10 @@ export default function PreferencesSettingsCards({
           />
         </label>
 
-        <p aria-live="polite" style={{ color: '#9CA3AF', fontSize: 11, lineHeight: 1.6, margin: '12px 0 0' }}>
+        <p aria-live="polite" style={{ color: '#77736c', fontSize: 11, lineHeight: 1.6, margin: '12px 0 0' }}>
           {permissionMessage}
         </p>
       </section>
     </>
   )
 }
-
