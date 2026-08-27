@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY } from "../data/workouts";
 import {

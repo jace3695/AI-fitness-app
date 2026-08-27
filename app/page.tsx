@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AuthGate from "./components/AuthGate";
 import { supabase } from "./lib/supabase";
+import { AppIcon } from "./components/AppIdentity";
 
 const modules = [
   { href: "/assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "메인", color: "bg-[#EEF3FF] text-[#355B9C]" },
@@ -25,7 +26,7 @@ function HubHome() {
       <header className="border-b border-white/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#5146A6] text-xl font-bold text-white">J</span>
+            <AppIcon kind="assistant" className="h-11 w-11" />
             <div>
               <p className="text-xs font-bold tracking-[0.14em] text-[#766DB8]">PERSONAL AI PLATFORM</p>
               <h1 className="text-lg font-bold">Jace AI Hub</h1>
@@ -55,7 +56,7 @@ function HubHome() {
             {modules.map((module) => (
               <Link key={module.title} href={module.href} className="rounded-3xl border border-white bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
-                  <span className={`rounded-2xl px-3 py-2 text-sm font-bold ${module.color}`}>{module.title.slice(0, 2)}</span>
+                  <AppIcon kind={module.href === "/assistant" ? "assistant" : module.href === "/budget" ? "budget" : module.href === "/fitness" ? "fitness" : module.href === "/diet" ? "diet" : module.href === "/language" ? "language" : module.href === "/calendar" ? "calendar" : "settings"} />
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-500">{module.status}</span>
                 </div>
                 <h3 className="mt-5 text-xl font-bold">{module.title}</h3>

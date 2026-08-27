@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
-import HubBottomNav from './components/HubBottomNav';
 import HubHomeButton from './components/HubHomeButton';
 
 export const metadata: Metadata = {
@@ -45,7 +44,6 @@ export default function RootLayout({
         <PwaManager />
         <HubHomeButton />
         {children}
-        <HubBottomNav />
       </body>
     </html>
   );

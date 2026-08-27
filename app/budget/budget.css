@@ -671,11 +671,75 @@ button {
   background: transparent;
   cursor: pointer;
 }
-.living-finance-nav-item:hover { color: var(--sage-dark); background: rgba(102,138,115,.07); }
-.living-finance-nav-item.is-active { color: var(--sage-dark); background: rgba(102,138,115,.12); }
+.living-finance-nav-item:hover { color: #5146A6; background: #F7F6FF; }
+.living-finance-nav-item.is-active { color: #3C3489; background: #EEEDFE; }
 .living-finance-nav-icon { display: grid; place-items: center; width: 30px; height: 28px; font-size: 21px; line-height: 1; }
 .living-finance-nav-label { font-size: 12px; font-weight: 680; line-height: 1.2; white-space: nowrap; }
-.living-finance-nav-indicator { width: 18px; height: 3px; border-radius: 999px; background: var(--sage); }
+.living-finance-nav-indicator { width: 18px; height: 3px; border-radius: 999px; background: #534AB7; }
+
+/* All budget sections share the Hub's light, high-contrast visual language. */
+.record-screen,
+.ai-screen,
+.stats-screen,
+.settings-screen,
+.history-screen { color: var(--foreground) !important; }
+.record-screen section,
+.ai-screen section,
+.stats-screen section,
+.settings-screen > div[style*="background"],
+.history-screen section,
+.history-screen div[style*="background"] {
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: var(--shadow-sm) !important;
+  backdrop-filter: none !important;
+}
+.record-screen h2,
+.record-screen h3,
+.record-screen label,
+.record-screen strong,
+.ai-screen h2,
+.ai-screen h3,
+.ai-screen strong,
+.stats-screen h2,
+.stats-screen h3,
+.stats-screen strong,
+.settings-screen h2,
+.settings-screen h3,
+.settings-screen p,
+.settings-screen strong,
+.history-screen h2,
+.history-screen h3,
+.history-screen p,
+.history-screen strong { color: var(--foreground) !important; text-shadow: none !important; }
+.record-screen p,
+.record-screen span,
+.ai-screen p,
+.ai-screen span,
+.stats-screen p,
+.stats-screen span,
+.history-screen span { color: var(--foreground-muted) !important; text-shadow: none !important; }
+.record-screen input,
+.record-screen textarea,
+.record-screen select,
+.ai-screen input,
+.ai-screen textarea,
+.settings-screen input,
+.settings-screen select,
+.history-screen input,
+.history-screen select {
+  border-color: var(--border) !important;
+  background: #fff !important;
+  color: var(--foreground) !important;
+  color-scheme: light !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+.record-screen input::placeholder,
+.record-screen textarea::placeholder,
+.ai-screen input::placeholder,
+.ai-screen textarea::placeholder,
+.history-screen input::placeholder { color: #9b978f !important; text-shadow: none !important; }
 
 /* The recent-transactions section still comes from the legacy renderer.
    These scoped rules make it part of the approved light home surface without
