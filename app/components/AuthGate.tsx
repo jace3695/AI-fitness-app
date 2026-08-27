@@ -16,6 +16,7 @@ import {
 } from "../lib/devicePin";
 import { hasDeviceBiometric, removeDeviceBiometric, verifyDeviceBiometric } from "../lib/deviceBiometric";
 import { PASSWORD_POLICY_HINT, strongPasswordError } from "../lib/passwordPolicy";
+import { AppIcon } from "./AppIdentity";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -197,12 +198,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB] text-sm font-semibold text-[#534AB7]">Jace AI Hub 불러오는 중…</div>;
+  if (loading) return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB]"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />Jace AI Hub 불러오는 중…</div></div>;
   if (!isSupabaseConfigured)
     return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB] p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
   if (user && recoveryMode) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-sm rounded-[28px] bg-white p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#534AB7] text-2xl font-bold text-white">J</div>
+      <div className="flex justify-center"><AppIcon kind="assistant" className="h-14 w-14" /></div>
       <h1 className="mt-5 text-center text-xl font-bold text-gray-900">새 비밀번호 설정</h1>
       <p className="mt-2 text-center text-sm text-gray-500">모든 Jace AI Hub 앱에서 함께 사용할 비밀번호를 입력하세요.</p>
       <form onSubmit={updateRecoveredPassword} className="mt-6 space-y-3">
@@ -215,7 +216,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   </main>;
   if (user && pinRequired) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#534AB7] text-2xl font-bold text-white">J</div>
+      <div className="flex justify-center"><AppIcon kind="assistant" className="h-14 w-14" /></div>
       <h1 className="mt-5 text-xl font-bold text-gray-900">간편 PIN 입력</h1>
       <p className="mt-2 text-sm text-gray-500">기존 4~6자리 또는 새 6자리 공통 PIN을 입력하세요.</p>
       {biometricEnabled && <button type="button" disabled={biometricSubmitting} onClick={() => void unlockWithBiometric()} className="mt-5 w-full rounded-xl border border-[#7F77DD] bg-[#F7F6FF] px-4 py-3 font-bold text-[#534AB7] disabled:opacity-50">{biometricSubmitting ? "생체인증 확인 중…" : "얼굴·지문으로 잠금 해제"}</button>}

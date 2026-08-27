@@ -272,14 +272,14 @@ button {
 }
 
 .top-nav-link:hover {
-  background: #edf5ff;
-  color: #2d5d95;
+  background: #f7f6ff;
+  color: #5146a6;
 }
 
 .top-nav-link.is-active {
   color: #ffffff;
-  background: #256b52;
-  box-shadow: 0 5px 14px rgba(37,107,82,.2);
+  background: #534ab7;
+  box-shadow: 0 5px 14px rgba(83,74,183,.2);
 }
 
 .top-nav-icon { font-size: 16px; font-weight: 800; }

@@ -69,7 +69,7 @@ body {
   font-weight: 800;
   backdrop-filter: blur(14px);
 }
-.hub-home-button-mark { display: grid; height: 26px; min-width: 30px; place-items: center; border-radius: 10px; background: #534ab7; color: white; font-size: 11px; }
+.hub-home-button-mark { display: grid; width: 26px; height: 26px; place-items: center; overflow: hidden; border-radius: 9px; }
 
 @media (max-width: 767px) {
   .hub-home-button { top: max(8px, env(safe-area-inset-top)); right: 8px; }
@@ -94,10 +94,6 @@ body {
 
 @media (min-width: 768px) {
   .hub-bottom-nav { display: none; }
-}
-
-@media (max-width: 767px) {
-  body { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
 }
 
 img,
