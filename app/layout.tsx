@@ -2,13 +2,14 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
 import HubBottomNav from './components/HubBottomNav';
+import HubHomeButton from './components/HubHomeButton';
 
 export const metadata: Metadata = {
   title: 'Jace AI Hub | 개인 AI 비서 플랫폼',
   description: 'AI 비서를 중심으로 가계부·운동·언어 학습을 관리하는 Jace님의 개인 플랫폼.',
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.png',
     apple: '/apple-touch-icon.png',
   },
   appleWebApp: {
@@ -42,6 +43,7 @@ export default function RootLayout({
       </head>
       <body>
         <PwaManager />
+        <HubHomeButton />
         {children}
         <HubBottomNav />
       </body>

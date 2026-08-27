@@ -38,7 +38,7 @@ body {
 
 .hub-bottom-nav-inner {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   max-width: 520px;
   margin: 0 auto;
   padding: 7px;
@@ -48,6 +48,31 @@ body {
   box-shadow: 0 12px 35px rgba(36, 34, 49, 0.16);
   backdrop-filter: blur(18px);
   pointer-events: auto;
+}
+
+.hub-home-button {
+  position: fixed;
+  z-index: 45;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(83, 74, 183, 0.18);
+  border-radius: 999px;
+  padding: 7px 12px 7px 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(36, 34, 49, 0.14);
+  color: #3c3489;
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(14px);
+}
+.hub-home-button-mark { display: grid; height: 26px; min-width: 30px; place-items: center; border-radius: 10px; background: #534ab7; color: white; font-size: 11px; }
+
+@media (max-width: 767px) {
+  .hub-home-button { top: max(8px, env(safe-area-inset-top)); right: 8px; }
 }
 
 .hub-bottom-nav-link {

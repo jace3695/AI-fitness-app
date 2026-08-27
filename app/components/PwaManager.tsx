@@ -96,7 +96,7 @@ export default function PwaManager() {
   if (online && !waitingWorker && !installPrompt && !showIosInstallHint) return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[100] flex justify-center p-3" aria-live="polite">
+    <div className="fixed inset-x-0 bottom-[82px] z-[100] flex justify-center p-3 md:bottom-3" aria-live="polite">
       <div className={`flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${online ? "bg-[#EEEDFE] text-[#3C3489]" : "bg-amber-50 text-amber-900"}`}>
         <span>
           {online

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Jace AI assistant icon">
+  <defs>
+    <linearGradient id="bg" x1="70" y1="40" x2="450" y2="472" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#766EE5"/><stop offset="1" stop-color="#382F86"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(360 142) rotate(128) scale(250)">
+      <stop stop-color="#B8F4E1" stop-opacity=".62"/><stop offset="1" stop-color="#B8F4E1" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="118" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="118" fill="url(#glow)"/>
+  <path d="M152 128h72v201c0 45-30 75-78 75-20 0-38-5-54-15l25-59c8 5 16 7 24 7 8 0 11-5 11-15V128Z" fill="white"/>
+  <path d="M330 93c8 46 34 72 80 80-46 8-72 34-80 80-8-46-34-72-80-80 46-8 72-34 80-80Z" fill="#B8F4E1"/>
+  <circle cx="360" cy="318" r="64" fill="none" stroke="white" stroke-width="18" opacity=".95"/>
+  <path d="M360 286v64M328 318h64" stroke="#B8F4E1" stroke-width="16" stroke-linecap="round"/>
+</svg>

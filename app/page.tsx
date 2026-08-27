@@ -7,8 +7,11 @@ import { supabase } from "./lib/supabase";
 const modules = [
   { href: "/assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "메인", color: "bg-[#EEF3FF] text-[#355B9C]" },
   { href: "/budget", title: "가계부", description: "지출·예산·소비 분석", status: "사용 가능", color: "bg-[#FFF0E8] text-[#985A39]" },
-  { href: "/fitness", title: "운동 관리", description: "오늘 운동·기록·식단", status: "사용 가능", color: "bg-[#EDEBFF] text-[#493F96]" },
+  { href: "/fitness", title: "운동 관리", description: "오늘 운동·운동 기록", status: "사용 가능", color: "bg-[#EDEBFF] text-[#493F96]" },
+  { href: "/diet", title: "식단 관리", description: "식사·단백질·수분·공복", status: "운동 연동", color: "bg-[#E7F7F1] text-[#276B56]" },
   { href: "/language", title: "언어 학습", description: "일본어·복습·진도", status: "사용 가능", color: "bg-[#E7F7F1] text-[#276B56]" },
+  { href: "/calendar", title: "통합 달력", description: "할 일·운동·식단·언어", status: "통합", color: "bg-[#FFF5D6] text-[#805D13]" },
+  { href: "/settings", title: "통합 설정", description: "비밀번호·PIN·Face ID", status: "공통", color: "bg-[#F1EFFF] text-[#5146A6]" },
 ] as const;
 
 function HubHome() {
