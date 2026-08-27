@@ -14,7 +14,7 @@ import SettingsUtilityCards from './components/settings-utility-cards'
 import UserGuide from './components/user-guide'
 import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
 import AuthGate from '../components/AuthGate'
-import { AppIcon } from '../components/AppIdentity'
+import AppIdentity, { AppIcon } from '../components/AppIdentity'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -3288,6 +3288,29 @@ return (
       `}</style>
 
 
+      <header className="budget-app-header">
+        <div className="budget-app-header-inner">
+          <AppIdentity kind="budget" title="AI 가계부" subtitle="생활 금융 기록" />
+          <nav className="living-finance-nav" aria-label="가계부 주요 메뉴">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                className={`living-finance-nav-item ${tab === t.id ? 'is-active' : ''}`}
+                aria-current={tab === t.id ? 'page' : undefined}
+                onClick={() => {
+                  setTab(t.id)
+                  if (t.id !== 'analysis') setAutoAnalyzeRan(false)
+                }}
+              >
+                <span className="living-finance-nav-icon" aria-hidden="true">{t.icon}</span>
+                <span className="living-finance-nav-label">{t.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+
       {tab === 'home' && (
         <main className="living-finance-view living-finance-home app-safe-top" style={{ padding: '24px 20px 96px' }}>
           <header className="home-header">
@@ -4577,23 +4600,6 @@ return (
 
       <UserGuide open={showUserGuide} onClose={() => setShowUserGuide(false)} />
 
-      <nav className="living-finance-nav" aria-label="주요 메뉴" style={{ display: 'flex', position: 'fixed', bottom: 0, left: 0, width: '100%', zIndex: 100 }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            className={`living-finance-nav-item ${tab === t.id ? 'is-active' : ''}`}
-            aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => {
-              setTab(t.id)
-              if (t.id !== 'analysis') setAutoAnalyzeRan(false)
-            }}
-          >
-            <span className="living-finance-nav-icon" aria-hidden="true">{t.icon}</span>
-            <span className="living-finance-nav-label">{t.label}</span>
-            {tab === t.id && <span className="living-finance-nav-indicator" aria-hidden="true" />}
-          </button>
-        ))}
-      </nav>
     </div>
     </>
   )

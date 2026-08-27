@@ -57,6 +57,20 @@ function UnifiedCalendar() {
     return () => { active = false; };
   }, [month, monthKey]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelected("");
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [selected]);
+
   const days = useMemo(() => [...Array(new Date(month.getFullYear(), month.getMonth(), 1).getDay()).fill(null), ...Array.from({ length: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate() }, (_, index) => index + 1)], [month]);
   const row = selected ? info[selected] : undefined;
   const workout = row?.workout ? [row.workout.workoutRoutineName || row.workout.workoutPlanName, ...(row.workout.workoutExerciseNames || []), row.workout.cardioDone ? `${row.workout.cardioType || "유산소"} ${row.workout.cardioMinutes || 0}분` : "", row.workout.workoutMemo || row.note].filter(Boolean) as string[] : [];
@@ -66,15 +80,15 @@ function UnifiedCalendar() {
     <AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" />
     <section className="mt-4 rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => { if (!day) return <span key={`empty-${index}`} />; const date = `${monthKey}-${String(day).padStart(2, "0")}`; const record = info[date]; return <button key={date} onClick={() => setSelected(date)} className={`min-h-20 rounded-2xl border p-2 text-left ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50"}`}><b>{day}</b><span className="mt-1 flex flex-wrap gap-1 text-[10px]">{record?.tasks?.length ? <i className="not-italic text-violet-700">할{record.tasks.length}</i> : null}{record?.workout ? <i className="not-italic text-blue-700">운</i> : null}{record?.diet ? <i className="not-italic text-emerald-700">식</i> : null}{record?.language ? <i className="not-italic text-amber-700">언{record.language.count}</i> : null}{record?.budget?.length ? <i className="not-italic text-orange-700">가{record.budget.length}</i> : null}</span></button>; })}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => { if (!day) return <span key={`empty-${index}`} />; const date = `${monthKey}-${String(day).padStart(2, "0")}`; const record = info[date]; return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}><b className="block leading-none">{day}</b><span className="mt-2 flex flex-wrap gap-1 text-[10px] leading-none">{record?.tasks?.length ? <i className="rounded-full bg-violet-100 px-1.5 py-1 not-italic text-violet-700">할{record.tasks.length}</i> : null}{record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}{record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}{record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}{record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}</span></button>; })}</div>
     </section>
-    {selected ? <section className="mt-4 rounded-3xl bg-white p-5 shadow-sm"><h2 className="text-lg font-bold">{selected} 기록 상세</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">
+    {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">
       {row?.tasks?.length ? <CalendarCard title="제이스 비서" href="/assistant" tone="border-violet-100 bg-violet-50">{row.tasks.map((item) => <p key={item.id}>• {item.title} · {item.status === "completed" ? "완료" : "진행 중"}</p>)}</CalendarCard> : null}
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.diet ? <CalendarCard title="식단" href="/diet" tone="border-emerald-100 bg-emerald-50">{(diet.length ? diet : ["식단 기록 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
-      {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-orange-100 bg-orange-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
-    </div>{!row ? <p className="mt-4 text-sm text-gray-400">이 날짜에 저장된 기록이 없습니다.</p> : null}</section> : null}
+      {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
+    </div>{!row ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">이 날짜에 저장된 기록이 없습니다.</p> : null}</section></div> : null}
   </div></main>;
 }
 
