@@ -166,7 +166,7 @@ async function saveWorkoutCompletion(supabase: Awaited<ReturnType<typeof createS
         workoutExerciseNames: workoutInfo.exerciseNames,
         workoutSourceDay: workoutInfo.dayId,
         workoutExerciseRecords: workoutInfo.exerciseNames.map((exerciseName) => ({ exerciseName, status: "completed" as const })),
-        workoutMemo: current.workoutMemo || "AI 비서에서 완료 기록",
+        workoutMemo: current.workoutMemo || "제이스비서에서 완료 기록",
       },
     };
     const nextState = { ...state, "ai-fitness-workout-completed-days": nextStore };

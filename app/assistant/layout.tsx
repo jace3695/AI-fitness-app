@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import AuthGate from "../components/AuthGate";
 
 export const metadata = {
-  title: "AI 비서 | Jace AI Hub",
+  title: "제이스비서 | Jace AI Hub",
   description: "할 일·프로젝트·회신 대기를 관리하는 Jace AI 비서",
 };
 

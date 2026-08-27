@@ -6,7 +6,7 @@ import { supabase } from "./lib/supabase";
 import { AppIcon } from "./components/AppIdentity";
 
 const modules = [
-  { href: "/assistant", title: "AI 비서", description: "일정·할 일·통합 브리핑", status: "메인", color: "bg-[#EEF3FF] text-[#355B9C]" },
+  { href: "/assistant", title: "제이스비서", description: "일정·할 일·통합 브리핑", status: "메인", color: "bg-[#EEF3FF] text-[#355B9C]" },
   { href: "/budget", title: "가계부", description: "지출·예산·소비 분석", status: "사용 가능", color: "bg-[#FFF0E8] text-[#985A39]" },
   { href: "/fitness", title: "운동 관리", description: "오늘 운동·운동 기록", status: "사용 가능", color: "bg-[#EDEBFF] text-[#493F96]" },
   { href: "/diet", title: "식단 관리", description: "식사·단백질·수분·공복", status: "운동 연동", color: "bg-[#E7F7F1] text-[#276B56]" },
@@ -41,7 +41,7 @@ function HubHome() {
           <p className="text-sm font-semibold text-white/75">안녕하세요, Jace님</p>
           <h2 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl">무엇을 도와드릴까요?</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">오늘 할 일부터 소비·운동·언어 복습까지 AI 비서 한 화면에서 확인하세요.</p>
-          <Link href="/assistant" className="mt-6 flex items-center justify-between rounded-2xl bg-white/12 p-4 text-sm font-semibold ring-1 ring-white/20 transition hover:bg-white/20"><span>AI 비서에서 오늘 할 일을 정리하세요</span><span className="font-bold">열기 →</span></Link>
+          <Link href="/assistant" className="mt-6 flex items-center justify-between rounded-2xl bg-white/12 p-4 text-sm font-semibold ring-1 ring-white/20 transition hover:bg-white/20"><span>제이스비서에서 오늘 할 일을 정리하세요</span><span className="font-bold">열기 →</span></Link>
         </section>
 
         <section className="mt-7">
