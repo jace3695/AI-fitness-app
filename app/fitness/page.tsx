@@ -274,6 +274,8 @@ function FitnessApp() {
           workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
           workoutFatigue: feedback?.fatigue || current.workoutFatigue || 2,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
+          workoutMethod: dayWorkout?.optionalCardio ? undefined : { ...activeWorkoutMethod },
+          workoutRecordedAt: new Date().toISOString(),
           rosaryCardioDone: hasRosaryCardio || undefined,
           rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
           rosaryDecades: hasRosaryCardio ? 5 : undefined,
