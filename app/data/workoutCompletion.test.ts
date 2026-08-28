@@ -20,6 +20,8 @@ test("일반 운동 삭제 시 다른 운동 종류의 기록을 모두 보존�
     workoutExerciseRecords: [
       { exerciseName: "버드독", status: "completed" },
     ],
+    workoutMethod: { method: "circuit", rounds: 3, restSeconds: 60, workSeconds: 30 },
+    workoutRecordedAt: "2026-08-28T07:30:00.000Z",
     cardioDone: true,
     cardioType: "슬라이딩보드",
     cardioMinutes: 30,
