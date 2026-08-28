@@ -35,6 +35,7 @@ const RECOMMENDATION_COPY = {
 export default function ConditionCheckCard({ value, onSave, onClear }: ConditionCheckCardProps) {
   const [signals, setSignals] = useState<ConditionSignalId[]>(value?.signals ?? []);
   const [memo, setMemo] = useState(value?.memo ?? '');
+  const [isOpen, setIsOpen] = useState(Boolean(value));
 
   useEffect(() => {
     setSignals(value?.signals ?? []);
@@ -78,7 +79,17 @@ export default function ConditionCheckCard({ value, onSave, onClear }: Condition
   );
 
   return (
-    <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+    <details className="mb-4 rounded-3xl border border-gray-100 bg-white shadow-sm" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer list-none p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-bold text-[#534AB7]">몸이 불편할 때만</p>
+            <h3 className="mt-1 text-[16px] font-bold text-gray-900">오늘 몸 상태 확인하기</h3>
+          </div>
+          <span className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${copy.tone}`}>{copy.label}</span>
+        </div>
+      </summary>
+      <section className="border-t border-gray-100 p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[12px] font-bold text-[#534AB7]">운동 전 30초 체크</p>
@@ -133,6 +144,7 @@ export default function ConditionCheckCard({ value, onSave, onClear }: Condition
       <p className="mt-3 text-[10px] leading-relaxed text-red-600">
         양쪽 다리의 심해지는 저림·무력, 대소변 변화, 회음부 감각 저하는 앱 판단 대상이 아닙니다. 이런 증상은 운동하지 말고 즉시 응급 진료를 받으세요.
       </p>
-    </section>
+      </section>
+    </details>
   );
 }

@@ -39,6 +39,7 @@ export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, i
   const [checklistRecords, setChecklistRecords] = useState<ExerciseRecord[]>(workoutExerciseRecords);
   const [checklistEdited, setChecklistEdited] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
+  const [recordOpen, setRecordOpen] = useState(isCompleted);
   const onSaveWorkout: DayViewProps["onSaveWorkout"] = (painValue, memoValue, cardioOptionId, exerciseRecords, minutes, feedback) => persistWorkout(painValue, memoValue, cardioOptionId, exerciseRecords, minutes, feedback);
   useEffect(() => { setPain(workoutPain); setMemo(workoutMemo); setOverallStatus(workoutStatus); setDifficulty(workoutDifficulty); setFatigue(workoutFatigue); setChecklistRecords(workoutExerciseRecords); setChecklistEdited(false); }, [workoutPain, workoutMemo, workoutStatus, workoutDifficulty, workoutFatigue, workoutExerciseRecords]);
   useEffect(() => { setRecoveryMemo(recovery?.recoveryMemo || ''); }, [recovery?.recoveryMemo]);
@@ -69,22 +70,13 @@ export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, i
     setSaveNotice('운동 기록을 저장했습니다.');
   };
   return <div>
-    <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
-      <p className="text-[12px] font-bold text-[#534AB7]">오늘 운동 · 간편 기록</p>
-      <p className="mt-1 text-base font-bold text-gray-900">{day.title}</p>
-      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">{exercises.map((exercise, index) => <span key={`${exercise.name}-${index}`} className="shrink-0 rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[11px] font-semibold text-[#3C3489]">{index + 1}. {exercise.name}</span>)}</div>
-      <p className="mt-3 text-xs font-bold text-gray-700">운동 결과</p>
-      <div className="mt-3 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-xs font-bold ${overallStatus === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
-      <div className="mt-3 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-xs font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
-      <label className="mt-3 block text-xs font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
-      <details className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
-        <summary className="cursor-pointer font-bold text-gray-700">통증·메모 입력(선택)</summary>
-        <label className="mt-3 flex items-center gap-2"><input type="checkbox" checked={pain} onChange={(event) => setPain(event.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
-        <textarea value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="운동 느낌 입력" className="mt-2 min-h-16 w-full rounded-xl border border-gray-200 bg-white px-3 py-2" />
-      </details>
-      <button type="button" onClick={saveWorkoutResult} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white">{isCompleted ? '운동 기록 수정 저장' : '오늘 운동 저장'}</button>
-      {saveNotice && <p role="status" aria-live="polite" className={`mt-2 rounded-lg px-3 py-2 text-center text-xs font-bold ${saveNotice.includes('먼저') ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{saveNotice}</p>}
-      <p className="mt-2 text-[11px] text-gray-400">운동별로 다르게 기록할 때만 아래의 세부 체크를 펼치세요.</p>
+    <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_14px_34px_rgba(83,74,183,0.2)] sm:p-6">
+      <p className="text-[12px] font-bold text-white/70">오늘 할 운동</p>
+      <h2 className="mt-1 text-[22px] font-bold">{day.title}</h2>
+      <p className="mt-2 text-[13px] text-white/80">{sessionExercises.length}단계 · {day.totalTime} · {getWorkoutMethodLabel(methodConfig.method)}</p>
+      <button type="button" disabled={!sessionExercises.length || Boolean(day.optionalCardio && !selectedCardioOption)} onClick={() => setSessionOpen(true)} className="mt-5 w-full rounded-2xl bg-white px-4 py-4 text-[16px] font-bold text-[#3C3489] shadow-sm disabled:bg-white/40 disabled:text-white/70">
+        {day.optionalCardio && !selectedCardioOption ? '아래에서 유산소를 먼저 골라 주세요' : isCompleted ? '운동 다시 시작하기' : '운동 시작하기'}
+      </button>
     </section>
     {recovery && <section className={`mb-4 rounded-2xl border p-4 shadow-sm ${isRecoveryRecommended ? 'border-red-200 bg-red-50 text-red-900' : isAdjustedRecommended ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-100 bg-green-50 text-green-800'}`}>
       <div className="flex items-start justify-between gap-3"><div><p className="text-[12px] font-semibold">오늘 상태</p><h2 className="mt-1 text-[18px] font-bold">{isRecoveryRecommended ? '회복 운동 권장' : isAdjustedRecommended ? '강도 70% 조절 권장' : '일반 운동'}</h2></div><span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold">권장 강도: {recovery.intensity === '70%' ? '70%' : recovery.intensity === 'recovery' ? '회복' : '정상'}</span></div>
@@ -95,19 +87,24 @@ export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, i
     </section>}
     {isRecoveryRecommended && !showBaseRoutine && <section className="mb-4 rounded-2xl border border-green-100 bg-white p-4 shadow-sm"><p className="text-[16px] font-bold text-gray-900">회복 운동 루틴 · 20~25분</p><div className="mt-3 space-y-2">{RECOVERY_ROUTINE.map((item, idx) => <div key={item} className="rounded-xl bg-green-50 px-3 py-2 text-[13px] text-green-800">{idx + 1}) {item}</div>)}</div><p className="mt-3 text-[12px] font-bold text-red-700">중단 기준: {RECOVERY_STOP_CRITERIA.join(' · ')}</p></section>}
     {(!isRecoveryRecommended || showBaseRoutine) && <><div className="flex justify-between items-start mb-4"><div><p className="text-[17px] font-medium text-gray-800">{day.title}</p><p className="text-[12px] text-gray-400 mt-0.5">{day.subtitle}</p></div><span className="text-white text-[11px] font-medium px-3 py-1 rounded-full shrink-0 ml-2" style={{ background: day.badgeBg }}>{day.totalTime}</span></div>
-    <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-4 text-white shadow-[0_14px_34px_rgba(83,74,183,0.2)] sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[12px] font-bold text-white/70">전체 루틴 따라하기 · {getWorkoutMethodLabel(methodConfig.method)}</p>
-          <h3 className="mt-1 text-[20px] font-bold">{sessionExercises.length}개 진행 단계</h3>
-          <p className="mt-2 text-[12px] leading-relaxed text-white/75">준비운동과 마무리는 한 번만 진행하며, 본운동은 선택한 방식과 휴식 설정에 맞춰 안내합니다.</p>
-        </div>
-        <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">{day.totalTime}</span>
-      </div>
-      <button type="button" disabled={!sessionExercises.length || Boolean(day.optionalCardio && !selectedCardioOption)} onClick={() => setSessionOpen(true)} className="mt-4 w-full rounded-2xl bg-white px-4 py-3.5 text-[15px] font-bold text-[#3C3489] shadow-sm disabled:bg-white/40 disabled:text-white/70">
-        {day.optionalCardio && !selectedCardioOption ? '먼저 유산소를 선택하세요' : isCompleted ? '전체 운동 다시 시작' : '전체 운동 시작'}
-      </button>
-    </section>
+    <details className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white shadow-sm" open={recordOpen} onToggle={(event) => setRecordOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-[#3C3489]">운동이 끝났다면 기록하기</summary>
+      <section className="border-t border-[#EEEDFE] p-4">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">{exercises.map((exercise, index) => <span key={`${exercise.name}-${index}`} className="shrink-0 rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[11px] font-semibold text-[#3C3489]">{index + 1}. {exercise.name}</span>)}</div>
+        <p className="mt-3 text-xs font-bold text-gray-700">얼마나 했나요?</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '다 했어요'], ['partial', '조금 했어요'], ['stopped', '그만했어요']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2.5 text-xs font-bold ${overallStatus === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
+        <p className="mt-3 text-xs font-bold text-gray-700">어땠나요?</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬웠어요'], ['moderate', '괜찮았어요'], ['hard', '힘들었어요']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2.5 text-xs font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
+        <details className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <summary className="cursor-pointer font-bold text-gray-700">피로도·통증·메모 더 적기</summary>
+          <label className="mt-3 block font-bold">피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+          <label className="mt-3 flex items-center gap-2"><input type="checkbox" checked={pain} onChange={(event) => setPain(event.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />아픈 곳이 있었어요</label>
+          <textarea value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="운동 느낌 입력" className="mt-2 min-h-16 w-full rounded-xl border border-gray-200 bg-white px-3 py-2" />
+        </details>
+        <button type="button" onClick={saveWorkoutResult} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white">{isCompleted ? '기록 고쳐서 저장하기' : '운동 기록 저장하기'}</button>
+        {saveNotice && <p role="status" aria-live="polite" className={`mt-2 rounded-lg px-3 py-2 text-center text-xs font-bold ${saveNotice.includes('먼저') ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{saveNotice}</p>}
+      </section>
+    </details>
     <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
       <p className="text-[12px] font-bold text-[#534AB7]">다음 단계 판단 기준</p>
       <p className="mt-1 text-[15px] font-bold text-gray-900">
