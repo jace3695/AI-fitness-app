@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
 import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
@@ -217,9 +218,18 @@ function splitCompoundCommands(message: string) {
   return parts.length > 1 ? parts.slice(0, 3) : [message];
 }
 
-async function generativeFallback(message: string, history: ChatHistoryItem[]): Promise<string> {
+async function generativeFallback(
+  message: string,
+  history: ChatHistoryItem[],
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+): Promise<string> {
   if (!process.env.GEMINI_API_KEY) return ASSISTANT_CAPABILITY_GUIDE;
+  let reservation: Awaited<ReturnType<typeof reserveAiBudget>> | null = null;
   try {
+    const model = "gemini-2.5-flash-lite";
+    const promptText = `${history.map((item) => item.text).join("\n")}\n${message}`;
+    reservation = await reserveAiBudget(supabase, userId, { provider: "google", model, feature: "assistant-fallback", estimatedCostKrw: conservativeTokenEstimate(promptText, 220, model) });
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -237,8 +247,13 @@ async function generativeFallback(message: string, history: ChatHistoryItem[]): 
       throw new Error("Gemini request failed");
     }
     const data = await response.json();
+    const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? promptText.length);
+    const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
+    await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) });
     return normalizeGenerativeReply(data.candidates?.[0]?.content?.parts?.[0]?.text);
   } catch (error) {
+    if (reservation) await cancelAiBudgetReservation(supabase, reservation.id);
+    if (error instanceof AiBudgetExceededError) return "이번 달 AI 사용 한도 10,000원에 도달했어요. 기록 조회·할 일·운동·언어 명령은 계속 사용할 수 있고, 일반 AI 답변은 다음 달에 자동으로 다시 열립니다.";
     console.error("Gemini assistant fallback failed", { message: error instanceof Error ? error.message : "unknown" });
     return ASSISTANT_CAPABILITY_GUIDE;
   }
@@ -394,7 +409,7 @@ async function processSingleCommand(
   } else if (/(일본어|언어).*(복습|학습).*(시작|해|보여)|(복습).*(시작)/.test(message)) {
     result = { reply: "일본어 복습 화면을 준비했습니다. 아래 버튼을 눌러 바로 시작하세요.", action: { label: "일본어 복습 시작", href: "/language/review" } };
   } else {
-    result = { reply: await generativeFallback(message, history) };
+    result = { reply: await generativeFallback(message, history, supabase, userId) };
   }
 
   return result;

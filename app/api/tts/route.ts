@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { AiBudgetExceededError, cancelAiBudgetReservation, finalizeAiUsage, reserveAiBudget, ttsCostKrw } from '@/lib/ai-budget'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '읽을 문장은 1자 이상 1,200자 이하로 입력해주세요.' }, { status: 400 })
   }
 
+  let reservation
+  try {
+    reservation = await reserveAiBudget(supabase, user.id, { provider: 'google', model: 'chirp-3-hd', feature: 'korean-tts', estimatedCostKrw: ttsCostKrw(text.length), usageKind: 'characters' })
+  } catch (error) {
+    if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 })
+    throw error
+  }
   const response = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${process.env.GOOGLE_TTS_API_KEY}`,
     {
@@ -42,15 +50,18 @@ export async function POST(req: NextRequest) {
   )
 
   if (!response.ok) {
+    await cancelAiBudgetReservation(supabase, reservation.id)
     console.error('Google TTS 요청 실패:', response.status)
     return NextResponse.json({ error: '음성 생성 실패' }, { status: 502 })
   }
 
   const data = await response.json()
   if (!data.audioContent) {
+    await cancelAiBudgetReservation(supabase, reservation.id)
     return NextResponse.json({ error: '음성 생성 실패' }, { status: 502 })
   }
 
+  await finalizeAiUsage(supabase, reservation.id, { inputUnits: text.length, actualCostKrw: ttsCostKrw(text.length) })
+
   return NextResponse.json({ audioContent: data.audioContent })
 }
-
