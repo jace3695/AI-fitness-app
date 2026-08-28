@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AppModuleNav from "@/app/components/AppModuleNav";
 
 const navItems = [
   { href: "/language", label: "홈", icon: "⌂" },
@@ -20,24 +20,6 @@ const learningPaths: Record<string, string[]> = {
 
 export default function TopNav() {
   const pathname = usePathname();
-
-  return (
-    <nav className="app-module-nav" aria-label="언어 주요 메뉴">
-      {navItems.map((item) => {
-        const active =
-          pathname === item.href || learningPaths[item.href]?.includes(pathname);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={active ? "app-module-nav-item is-active" : "app-module-nav-item"}
-            aria-current={active ? "page" : undefined}
-          >
-            <span className="app-module-nav-icon" aria-hidden="true">{item.icon}</span>
-            <span className="app-module-nav-label">{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  const active = navItems.find((item) => pathname === item.href || learningPaths[item.href]?.includes(pathname))?.href || "/language";
+  return <AppModuleNav items={navItems.map((item) => ({ ...item, id: item.href }))} activeId={active} ariaLabel="언어 주요 메뉴" />;
 }
