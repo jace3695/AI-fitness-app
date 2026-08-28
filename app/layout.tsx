@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
 import HubHomeButton from './components/HubHomeButton';
+import AiBudgetNotifier from './components/AiBudgetNotifier';
 
 export const metadata: Metadata = {
   title: 'AI 연이 | 개인 AI 비서',
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body>
         <PwaManager />
         <HubHomeButton />
+        <AiBudgetNotifier />
         {children}
       </body>
     </html>

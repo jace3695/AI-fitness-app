@@ -4,6 +4,7 @@ import AuthGate from "../components/AuthGate";
 import AccountPasswordPanel from "../components/AccountPasswordPanel";
 import DevicePinPanel from "../components/DevicePinPanel";
 import AppIdentity from "../components/AppIdentity";
+import AiBudgetPanel from "../components/AiBudgetPanel";
 
 function SettingsPage() {
   return (
@@ -23,6 +24,7 @@ function SettingsPage() {
               </div>
             </div>
           </section>
+          <AiBudgetPanel />
           <AccountPasswordPanel />
           <DevicePinPanel />
           <section className="rounded-3xl bg-[#EEEDFE] p-5 text-sm leading-6 text-[#3C3489]">

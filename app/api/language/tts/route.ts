@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { AiBudgetExceededError, cancelAiBudgetReservation, finalizeAiUsage, reserveAiBudget, standardTtsCostKrw } from "@/lib/ai-budget";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,13 +23,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const safeText = String(text).trim().slice(0, 1200);
+    let reservation;
+    try {
+      reservation = await reserveAiBudget(supabase, user.id, { provider: "google", model: "google-standard-tts", feature: "japanese-tts", estimatedCostKrw: standardTtsCostKrw(safeText.length), usageKind: "characters" });
+    } catch (error) {
+      if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
+      throw error;
+    }
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          input: { text },
+          input: { text: safeText },
           voice: { languageCode: "ja-JP" },
           audioConfig: { audioEncoding: "MP3" },
         }),
@@ -36,6 +45,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (!response.ok) {
+      await cancelAiBudgetReservation(supabase, reservation.id);
       const error = await response.json();
       return NextResponse.json(
         { error: error.error?.message || "TTS request failed" },
@@ -44,6 +54,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
+    await finalizeAiUsage(supabase, reservation.id, { inputUnits: safeText.length, actualCostKrw: standardTtsCostKrw(safeText.length) });
     return NextResponse.json({ audioContent: data.audioContent });
   } catch {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

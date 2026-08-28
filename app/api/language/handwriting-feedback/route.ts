@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
 
 type RequestBody = {
   targetChar?: string;
@@ -130,6 +131,8 @@ export async function POST(req: Request) {
 
     const prompt = buildPrompt(targetChar, body.romaji);
 
+    const model = "gpt-4o-mini";
+    const reservation = await reserveAiBudget(supabase, user.id, { provider: "openai", model, feature: "handwriting-feedback", estimatedCostKrw: conservativeTokenEstimate(prompt, 1250, model) });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -137,7 +140,7 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         messages: [
           {
             role: "user",
@@ -159,6 +162,7 @@ export async function POST(req: Request) {
     });
 
     if (!response.ok) {
+      await cancelAiBudgetReservation(supabase, reservation.id);
       const errorText = await response.text().catch(() => "");
       return NextResponse.json(
         {
@@ -170,6 +174,9 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
+    const inputTokens = Number(data?.usage?.prompt_tokens ?? prompt.length);
+    const outputTokens = Number(data?.usage?.completion_tokens ?? 0);
+    await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) });
     const content = (data?.choices?.[0]?.message?.content as string | undefined) ?? "";
     const parsed = safeParseFeedback(content);
     const result = normalizeFeedback(parsed);
@@ -177,6 +184,10 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
+
+    if (error instanceof AiBudgetExceededError) {
+      return NextResponse.json({ error: message, budgetLimited: true }, { status: 402 });
+    }
 
     return NextResponse.json(
       {
