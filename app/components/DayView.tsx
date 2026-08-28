@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { COMMON_INTENSITY, DayWorkout, SAFETY_STOP_MESSAGE } from '../data/workouts';
 import { FOAM_ROLLER_AFTER_ROUTINE, FOAM_ROLLER_AREA_GUIDES, FOAM_ROLLER_AREAS, FOAM_ROLLER_BEFORE_ROUTINE, FOAM_ROLLER_DISC_WARNING, FOAM_ROLLER_FORBIDDEN, FOAM_ROLLER_INTRO, FOAM_ROLLER_RECOVERY_ROUTINE, FOAM_ROLLER_TIMING_LABELS, foamRollerVideoLinks, FoamRollerTiming } from '../data/foamRoller';
 import { RECOVERY_REASON_LABELS, RECOVERY_ROUTINE, RECOVERY_STOP_CRITERIA, RecoveryDayRecord } from '../data/recoveryMode';
@@ -10,14 +10,16 @@ import ExerciseCard from './ExerciseCard';
 import WorkoutSession from './WorkoutSession';
 import DailyExerciseChecklist from './DailyExerciseChecklist';
 import { ExerciseRecord, WorkoutDifficulty, WorkoutFeedback, WorkoutOverallStatus } from '../data/workoutCompletion';
+import { DEFAULT_WORKOUT_METHOD, getWorkoutMethodLabel, normalizeWorkoutMethod, prepareMethodExercises } from '../data/workoutMethods';
+import type { WorkoutMethodConfig } from '../data/workoutMethods';
 
-interface DayViewProps { day: DayWorkout; isCompleted: boolean; onSaveWorkout: (pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], cardioMinutes?: number, feedback?: WorkoutFeedback) => void; onCancelWorkout: () => void; workoutPain?: boolean; workoutMemo?: string; workoutStatus?: WorkoutOverallStatus; workoutDifficulty?: WorkoutDifficulty; workoutFatigue?: number; cardioDone?: boolean; cardioType?: string; cardioMinutes?: number; cardioMemo?: string; onSaveCardio?: (type: string, minutes: number, memo: string) => void; onCancelCardio?: () => void; foamRollerDone?: boolean; foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string; onSaveFoamRoller?: (record: { foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string }) => void; onCancelFoamRoller?: () => void; onPullupTraining?: () => void; recovery?: RecoveryDayRecord; onRecordRecovery?: (memo: string) => void; onCancelRecovery?: () => void; showBaseRoutine?: boolean; onShowRecommended?: () => void; onShowBaseRoutine?: () => void }
+interface DayViewProps { day: DayWorkout; workoutMethod?: WorkoutMethodConfig; isCompleted: boolean; onSaveWorkout: (pain: boolean, memo: string, cardioOptionId?: string, exerciseRecords?: ExerciseRecord[], cardioMinutes?: number, feedback?: WorkoutFeedback) => void; onCancelWorkout: () => void; workoutPain?: boolean; workoutMemo?: string; workoutStatus?: WorkoutOverallStatus; workoutDifficulty?: WorkoutDifficulty; workoutFatigue?: number; cardioDone?: boolean; cardioType?: string; cardioMinutes?: number; cardioMemo?: string; onSaveCardio?: (type: string, minutes: number, memo: string) => void; onCancelCardio?: () => void; foamRollerDone?: boolean; foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string; onSaveFoamRoller?: (record: { foamRollerTiming?: FoamRollerTiming; foamRollerAreas?: string[]; foamRollerPain?: boolean; foamRollerMemo?: string }) => void; onCancelFoamRoller?: () => void; onPullupTraining?: () => void; recovery?: RecoveryDayRecord; onRecordRecovery?: (memo: string) => void; onCancelRecovery?: () => void; showBaseRoutine?: boolean; onShowRecommended?: () => void; onShowBaseRoutine?: () => void }
 
 interface DayViewProps { workoutExerciseRecords?: ExerciseRecord[] }
 
 const EMPTY_EXERCISE_RECORDS: ExerciseRecord[] = [];
 
-export default function DayView({ day, isCompleted, onSaveWorkout: persistWorkout, onCancelWorkout, workoutPain = false, workoutMemo = '', workoutStatus = 'completed', workoutDifficulty = 'moderate', workoutFatigue = 2, workoutExerciseRecords = EMPTY_EXERCISE_RECORDS, cardioDone = false, cardioType = '슬라이딩보드', cardioMinutes = 15, cardioMemo = '', onSaveCardio, onCancelCardio, foamRollerDone = false, foamRollerTiming = 'before', foamRollerAreas = [], foamRollerPain = false, foamRollerMemo = '', onSaveFoamRoller, onCancelFoamRoller, onPullupTraining, recovery, onRecordRecovery, onCancelRecovery, showBaseRoutine = true, onShowRecommended, onShowBaseRoutine }: DayViewProps) {
+export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, isCompleted, onSaveWorkout: persistWorkout, onCancelWorkout, workoutPain = false, workoutMemo = '', workoutStatus = 'completed', workoutDifficulty = 'moderate', workoutFatigue = 2, workoutExerciseRecords = EMPTY_EXERCISE_RECORDS, cardioDone = false, cardioType = '슬라이딩보드', cardioMinutes = 15, cardioMemo = '', onSaveCardio, onCancelCardio, foamRollerDone = false, foamRollerTiming = 'before', foamRollerAreas = [], foamRollerPain = false, foamRollerMemo = '', onSaveFoamRoller, onCancelFoamRoller, onPullupTraining, recovery, onRecordRecovery, onCancelRecovery, showBaseRoutine = true, onShowRecommended, onShowBaseRoutine }: DayViewProps) {
   const [warning, setWarning] = useState(false);
   const [pain, setPain] = useState(workoutPain);
   const [memo, setMemo] = useState(workoutMemo);
@@ -42,9 +44,14 @@ export default function DayView({ day, isCompleted, onSaveWorkout: persistWorkou
   useEffect(() => { setRecoveryMemo(recovery?.recoveryMemo || ''); }, [recovery?.recoveryMemo]);
   useEffect(() => { setSelectedCardioType(cardioType || '슬라이딩보드'); setSelectedCardioMinutes(cardioMinutes || 15); setCardioMemoDraft(cardioMemo || ''); }, [cardioType, cardioMinutes, cardioMemo]);
   useEffect(() => { setSelectedFoamTiming(foamRollerTiming || 'before'); setSelectedFoamAreas(foamRollerAreas || []); setFoamPain(foamRollerPain); setFoamMemoDraft(foamRollerMemo || ''); }, [foamRollerTiming, foamRollerAreas, foamRollerPain, foamRollerMemo]);
-  const selectedCardioOption = day.optionalCardio?.options.find((option) => option.id === selectedCardioOptionId || option.name === selectedCardioType);
-  const selectedOptionExercises = selectedCardioOption ? (selectedCardioOption.id === 'rest' ? [{ name: '휴식', details: [{ type: 'good' as const, text: selectedCardioOption.description }] }] : [...(day.optionalCardio?.warmup || []), ...selectedCardioOption.exercises, ...(day.optionalCardio?.cooldown || [])]) : [];
+  const selectedCardioOption = useMemo(() => day.optionalCardio?.options.find((option) => option.id === selectedCardioOptionId || option.name === selectedCardioType), [day.optionalCardio?.options, selectedCardioOptionId, selectedCardioType]);
+  const selectedOptionExercises = useMemo(() => selectedCardioOption ? (selectedCardioOption.id === 'rest' ? [{ name: '휴식', details: [{ type: 'good' as const, text: selectedCardioOption.description }] }] : [...(day.optionalCardio?.warmup || []), ...selectedCardioOption.exercises, ...(day.optionalCardio?.cooldown || [])]) : [], [day.optionalCardio?.cooldown, day.optionalCardio?.warmup, selectedCardioOption]);
   const exercises = day.optionalCardio ? selectedOptionExercises : day.phases.flatMap((p) => p.exercises);
+  const methodConfig = useMemo(() => normalizeWorkoutMethod(day.optionalCardio ? DEFAULT_WORKOUT_METHOD : workoutMethod), [day.optionalCardio, workoutMethod]);
+  const sessionExercises = useMemo(() => {
+    if (day.optionalCardio) return selectedOptionExercises;
+    return day.phases.flatMap((phase) => phase.id === 'main' ? prepareMethodExercises(phase.exercises, methodConfig) : phase.exercises);
+  }, [day, methodConfig, selectedOptionExercises]);
   const highRiskNames = ['슬라이딩보드', '고블릿 스쿼트', '매달리기', '런지', '무리한 코어 운동'];
   const isRecoveryRecommended = recovery?.intensity === 'recovery';
   const isAdjustedRecommended = recovery?.intensity === '70%';
@@ -91,13 +98,13 @@ export default function DayView({ day, isCompleted, onSaveWorkout: persistWorkou
     <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-4 text-white shadow-[0_14px_34px_rgba(83,74,183,0.2)] sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[12px] font-bold text-white/70">전체 루틴 따라하기</p>
-          <h3 className="mt-1 text-[20px] font-bold">{exercises.length}개 동작을 순서대로 진행</h3>
-          <p className="mt-2 text-[12px] leading-relaxed text-white/75">운동·휴식 타이머, 음성 안내, 화면 꺼짐 방지와 완료 기록을 한 화면에서 사용합니다.</p>
+          <p className="text-[12px] font-bold text-white/70">전체 루틴 따라하기 · {getWorkoutMethodLabel(methodConfig.method)}</p>
+          <h3 className="mt-1 text-[20px] font-bold">{sessionExercises.length}개 진행 단계</h3>
+          <p className="mt-2 text-[12px] leading-relaxed text-white/75">준비운동과 마무리는 한 번만 진행하며, 본운동은 선택한 방식과 휴식 설정에 맞춰 안내합니다.</p>
         </div>
         <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">{day.totalTime}</span>
       </div>
-      <button type="button" disabled={!exercises.length || Boolean(day.optionalCardio && !selectedCardioOption)} onClick={() => setSessionOpen(true)} className="mt-4 w-full rounded-2xl bg-white px-4 py-3.5 text-[15px] font-bold text-[#3C3489] shadow-sm disabled:bg-white/40 disabled:text-white/70">
+      <button type="button" disabled={!sessionExercises.length || Boolean(day.optionalCardio && !selectedCardioOption)} onClick={() => setSessionOpen(true)} className="mt-4 w-full rounded-2xl bg-white px-4 py-3.5 text-[15px] font-bold text-[#3C3489] shadow-sm disabled:bg-white/40 disabled:text-white/70">
         {day.optionalCardio && !selectedCardioOption ? '먼저 유산소를 선택하세요' : isCompleted ? '전체 운동 다시 시작' : '전체 운동 시작'}
       </button>
     </section>
@@ -156,8 +163,8 @@ export default function DayView({ day, isCompleted, onSaveWorkout: persistWorkou
     })}</div>
     </details>
     {sessionOpen && <WorkoutSession
-      exercises={exercises}
-      title={day.title}
+      exercises={sessionExercises}
+      title={`${day.title} · ${getWorkoutMethodLabel(methodConfig.method)}`}
       intensity={recovery?.intensity || 'normal'}
       onClose={() => setSessionOpen(false)}
       onFinish={(result) => {
