@@ -41,6 +41,28 @@ export function getWorkoutMethodLabel(method: WorkoutMethod) {
   return WORKOUT_METHOD_OPTIONS.find((option) => option.id === method)?.label || "일반 세트";
 }
 
+function withExecutionContext(
+  exercise: Exercise,
+  config: WorkoutMethodConfig,
+  sourceExerciseIndex: number,
+  sequenceIndex: number,
+  extra?: { roundNumber?: number; groupNumber?: number },
+): Exercise {
+  return {
+    ...exercise,
+    executionContext: {
+      method: config.method,
+      sourceExerciseIndex,
+      sequenceIndex,
+      roundNumber: extra?.roundNumber,
+      groupNumber: extra?.groupNumber,
+      plannedSets: exercise.sets,
+      plannedRestSeconds: config.method === "interval" ? config.restSeconds : exercise.restSeconds ?? config.restSeconds,
+      plannedWorkSeconds: config.method === "interval" ? config.workSeconds : undefined,
+    },
+  };
+}
+
 function asSingleSet(exercise: Exercise, metaPrefix: string, restSeconds: number): Exercise {
   return {
     ...exercise,
@@ -52,10 +74,10 @@ function asSingleSet(exercise: Exercise, metaPrefix: string, restSeconds: number
 
 export function prepareMethodExercises(exercises: Exercise[], rawConfig?: Partial<WorkoutMethodConfig> | null): Exercise[] {
   const config = normalizeWorkoutMethod(rawConfig);
-  if (config.method === "standard") return exercises;
-  if (config.method === "free") return exercises.map((exercise) => ({ ...exercise, restSeconds: 0 }));
+  if (config.method === "standard") return exercises.map((exercise, index) => withExecutionContext(exercise, config, index, index));
+  if (config.method === "free") return exercises.map((exercise, index) => withExecutionContext({ ...exercise, restSeconds: 0 }, config, index, index));
   if (config.method === "interval") {
-    return exercises.map((exercise) => ({
+    return exercises.map((exercise, index) => withExecutionContext({
       ...exercise,
       sets: exercise.sets ? 1 : exercise.sets,
       meta: [`${config.workSeconds}초 운동 · ${config.restSeconds}초 휴식 × ${config.rounds}라운드`, exercise.meta].filter(Boolean).join(" · "),
@@ -67,15 +89,30 @@ export function prepareMethodExercises(exercises: Exercise[], rawConfig?: Partia
           { label: "휴식", seconds: config.restSeconds, intensity: "호흡 정리" },
         ],
       },
-    }));
+    }, config, index, index));
   }
   if (config.method === "circuit") {
+    let sequenceIndex = 0;
     return Array.from({ length: config.rounds }, (_, round) => exercises.map((exercise, index) =>
-      asSingleSet(exercise, `${round + 1}/${config.rounds} 라운드`, index === exercises.length - 1 ? config.restSeconds : 0),
+      withExecutionContext(
+        asSingleSet(exercise, `${round + 1}/${config.rounds} 라운드`, index === exercises.length - 1 ? config.restSeconds : 0),
+        config,
+        index,
+        sequenceIndex++,
+        { roundNumber: round + 1 },
+      ),
     )).flat();
   }
   const pairs = Array.from({ length: Math.ceil(exercises.length / 2) }, (_, index) => exercises.slice(index * 2, index * 2 + 2));
-  return pairs.flatMap((pair, pairIndex) => Array.from({ length: config.rounds }, (_, round) => pair.map((exercise, index) =>
-    asSingleSet(exercise, `${pairIndex + 1}번 묶음 · ${round + 1}/${config.rounds} 세트`, index === pair.length - 1 ? config.restSeconds : 0),
-  )).flat());
+  let sequenceIndex = 0;
+  return pairs.flatMap((pair, pairIndex) => Array.from({ length: config.rounds }, (_, round) => pair.map((exercise, index) => {
+    const sourceExerciseIndex = pairIndex * 2 + index;
+    return withExecutionContext(
+      asSingleSet(exercise, `${pairIndex + 1}번 묶음 · ${round + 1}/${config.rounds} 세트`, index === pair.length - 1 ? config.restSeconds : 0),
+      config,
+      sourceExerciseIndex,
+      sequenceIndex++,
+      { roundNumber: round + 1, groupNumber: pairIndex + 1 },
+    );
+  })).flat());
 }

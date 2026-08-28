@@ -61,6 +61,16 @@ export interface Exercise {
   restSeconds?: number;
   intervalPlan?: IntervalPlan;
   abSlideGate?: boolean;
+  executionContext?: {
+    method: "standard" | "circuit" | "superset" | "interval" | "free";
+    sourceExerciseIndex: number;
+    sequenceIndex: number;
+    roundNumber?: number;
+    groupNumber?: number;
+    plannedSets?: number;
+    plannedRestSeconds?: number;
+    plannedWorkSeconds?: number;
+  };
 }
 export interface Phase {
   id: PhaseType;

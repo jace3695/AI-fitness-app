@@ -9,12 +9,17 @@ test("서킷은 본운동 전체를 라운드 수만큼 반복하고 라운드 �
   assert.equal(result.length, 6);
   assert.deepEqual(result.map((item) => item.restSeconds), [0, 0, 90, 0, 0, 90]);
   assert.ok(result.every((item) => item.sets === 1));
+  assert.deepEqual(result.map((item) => item.executionContext?.roundNumber), [1, 1, 1, 2, 2, 2]);
+  assert.deepEqual(result.map((item) => item.executionContext?.sourceExerciseIndex), [0, 1, 2, 0, 1, 2]);
+  assert.deepEqual(result.map((item) => item.executionContext?.sequenceIndex), [0, 1, 2, 3, 4, 5]);
 });
 
 test("슈퍼세트는 운동을 두 개씩 묶어 반복한다", () => {
   const result = prepareMethodExercises(exercises, { method: "superset", rounds: 2, restSeconds: 60 });
   assert.deepEqual(result.map((item) => item.name), ["스쿼트", "로우", "스쿼트", "로우", "푸시업", "푸시업"]);
   assert.deepEqual(result.map((item) => item.restSeconds), [0, 60, 0, 60, 60, 60]);
+  assert.deepEqual(result.map((item) => item.executionContext?.groupNumber), [1, 1, 1, 1, 2, 2]);
+  assert.deepEqual(result.map((item) => item.executionContext?.roundNumber), [1, 1, 2, 2, 1, 2]);
 });
 
 test("인터벌 설정은 안전 범위로 보정된다", () => {
@@ -22,6 +27,13 @@ test("인터벌 설정은 안전 범위로 보정된다", () => {
   assert.deepEqual(config, { method: "interval", rounds: 8, workSeconds: 10, restSeconds: 300 });
   const result = prepareMethodExercises(exercises.slice(0, 1), config);
   assert.equal(result[0].intervalPlan?.rounds, 8);
+  assert.equal(result[0].executionContext?.plannedWorkSeconds, 10);
+});
+
+test("일반 세트도 원본 순서와 계획 세트 수를 기록한다", () => {
+  const result = prepareMethodExercises(exercises, { method: "standard" });
+  assert.deepEqual(result.map((item) => item.executionContext?.sourceExerciseIndex), [0, 1, 2]);
+  assert.deepEqual(result.map((item) => item.executionContext?.plannedSets), [3, 3, 3]);
 });
 
 test("휴식 0초 설정은 사용자의 선택을 유지한다", () => {
