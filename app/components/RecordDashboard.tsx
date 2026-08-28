@@ -2,6 +2,7 @@ import { RecordStores } from "../data/recordStorage";
 import {
   formatShortDate,
   getBodyTrends,
+  getBodyPartSetBreakdown,
   getExerciseProgress,
   getMonthlyWorkoutStats,
   getPainTrend,
@@ -45,6 +46,8 @@ export default function RecordDashboard({
   const body = getBodyTrends(stores.weights, stores.inbody);
   const pain = getPainTrend(stores.workouts);
   const progress = getExerciseProgress(stores.workouts);
+  const bodyPartSets = getBodyPartSetBreakdown(stores.workouts, year, monthIndex);
+  const maxBodyPartSets = Math.max(1, ...bodyPartSets.map((item) => item.sets));
   const condition = getRecentConditionSummary(stores.conditions);
   const currentWeek = weekly.at(-1);
   const previousWeek = weekly.at(-2);
@@ -114,6 +117,28 @@ export default function RecordDashboard({
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+          <p className="text-[15px] font-bold text-gray-800">이번 달 실제 운동량</p>
+          <p className="mt-1 text-[11px] text-gray-500">완료한 세트의 실제 입력값만 계산합니다.</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {[
+              ["완료 세트", `${monthly.completedSets}세트`],
+              ["총 반복", `${monthly.totalReps.toLocaleString()}회`],
+              ["중량 볼륨", monthly.volumeKg ? `${monthly.volumeKg.toLocaleString()}kg` : "기록 없음"],
+              ["수행 운동", `${monthly.activeExerciseCount}종`],
+            ].map(([label, value]) => <div key={label} className="rounded-xl bg-[#F7F6FF] p-3"><p className="text-[10px] font-semibold text-gray-500">{label}</p><p className="mt-1 text-[16px] font-extrabold text-gray-900">{value}</p></div>)}
+          </div>
+          <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[10px] leading-4 text-gray-500">중량 볼륨은 중량 × 실제 반복 횟수입니다. 맨몸·밴드 운동은 세트와 반복에만 포함됩니다.</p>
+        </section>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+          <p className="text-[15px] font-bold text-gray-800">부위별 완료 세트</p>
+          <p className="mt-1 text-[11px] text-gray-500">운동 이름과 완료된 실제 세트를 기준으로 분류합니다.</p>
+          {bodyPartSets.length ? <div className="mt-4 space-y-3">{bodyPartSets.map((item) => <div key={item.bodyPart}><div className="flex items-center justify-between text-[11px]"><span className="font-bold text-gray-700">{item.bodyPart}</span><span className="font-extrabold text-[#534AB7]">{item.sets}세트</span></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-[#766EE5]" style={{ width: `${Math.max(8, item.sets / maxBodyPartSets * 100)}%` }} /></div></div>)}</div> : <p className="mt-4 rounded-xl bg-gray-50 p-3 text-[12px] text-gray-400">세트별 완료 기록이 쌓이면 표시됩니다.</p>}
+        </section>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
