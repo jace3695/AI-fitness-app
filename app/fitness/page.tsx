@@ -54,6 +54,7 @@ import WorkoutNotificationManager from "../components/WorkoutNotificationManager
 import WorkoutNotificationPanel from "../components/WorkoutNotificationPanel";
 import DataBackupPanel from "../components/DataBackupPanel";
 import AppIdentity from "../components/AppIdentity";
+import AppModuleNav from "../components/AppModuleNav";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -607,22 +608,8 @@ function FitnessApp() {
       <header className="app-module-header">
         <div className="app-module-header-inner">
           {/* Title Row */}
-          <div className="flex w-full items-center justify-between gap-3">
-            <AppIdentity kind="fitness" title="재민님의 운동" subtitle="허리를 지키며 꾸준히" />
-            <nav className="app-module-nav app-module-nav-desktop" aria-label="운동 주요 메뉴">
-              {PRIMARY_NAV.map((item) => (
-              <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handlePrimaryNavigation(item.id)}
-                  className={`app-module-nav-item ${activePrimaryNav === item.id ? "is-active" : ""}`}
-              >
-                  <span className="app-module-nav-icon" aria-hidden="true">{item.emoji}</span>
-                  <span className="app-module-nav-label">{item.label}</span>
-              </button>
-            ))}
-            </nav>
-          </div>
+          <AppIdentity kind="fitness" title="재민님의 운동" subtitle="허리를 지키며 꾸준히" />
+          <AppModuleNav items={PRIMARY_NAV.map((item) => ({ ...item, icon: item.emoji }))} activeId={activePrimaryNav} ariaLabel="운동 주요 메뉴" onSelect={(id) => handlePrimaryNavigation(id as (typeof PRIMARY_NAV)[number]["id"])} />
         </div>
       </header>
 
@@ -870,28 +857,6 @@ function FitnessApp() {
           </div>
         )}
       </main>
-
-      {/* ── Bottom Navigation (Mobile) ── */}
-      <nav
-        aria-label="주요 메뉴"
-        className="app-module-nav app-module-nav-mobile safe-area-bottom"
-      >
-        <div className="app-module-nav-mobile-inner">
-          {PRIMARY_NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handlePrimaryNavigation(item.id)}
-              className={`app-module-nav-item ${activePrimaryNav === item.id ? "is-active" : ""}`}
-            >
-              <span className="app-module-nav-icon" aria-hidden="true">
-                {item.emoji}
-              </span>
-              <span className="app-module-nav-label">{item.label}</span>
-            </button>
-          ))}
-        </div>
-      </nav>
 
       {/* Bottom padding for mobile nav */}
       <div className="h-20 md:h-4" />

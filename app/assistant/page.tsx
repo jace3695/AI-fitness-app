@@ -244,8 +244,8 @@ export default function AssistantPage() {
   const priorityLabel = (priority: number) => priority >= 5 ? "긴급" : priority === 4 ? "중요" : priority <= 2 ? "낮음" : "보통";
 
   return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
-    <header className="border-b border-white/80 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+    <header className="app-module-header">
+      <div className="app-module-header-inner">
         <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />
         <span className="text-xs text-gray-500 sm:text-sm">{today}</span>
       </div>

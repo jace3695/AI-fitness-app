@@ -15,6 +15,7 @@ import UserGuide from './components/user-guide'
 import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
 import AuthGate from '../components/AuthGate'
 import AppIdentity, { AppIcon } from '../components/AppIdentity'
+import AppModuleNav from '../components/AppModuleNav'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -3291,22 +3292,10 @@ return (
       <header className="app-module-header">
         <div className="app-module-header-inner">
           <AppIdentity kind="budget" title="AI 가계부" subtitle="생활 금융 기록" />
-          <nav className="app-module-nav" aria-label="가계부 주요 메뉴">
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                className={`app-module-nav-item ${tab === t.id ? 'is-active' : ''}`}
-                aria-current={tab === t.id ? 'page' : undefined}
-                onClick={() => {
-                  setTab(t.id)
-                  if (t.id !== 'analysis') setAutoAnalyzeRan(false)
-                }}
-              >
-                <span className="app-module-nav-icon" aria-hidden="true">{t.icon}</span>
-                <span className="app-module-nav-label">{t.label}</span>
-              </button>
-            ))}
-          </nav>
+          <AppModuleNav items={TABS} activeId={tab} ariaLabel="가계부 주요 메뉴" onSelect={(id) => {
+            setTab(id)
+            if (id !== 'analysis') setAutoAnalyzeRan(false)
+          }} />
         </div>
       </header>
 
