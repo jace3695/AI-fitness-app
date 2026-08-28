@@ -1,6 +1,8 @@
-import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, LUNCH_CARB_CHOICE_KEY, LUNCH_PROTEIN_CHOICE_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey, normalizeDinnerCarbStore, normalizeLunchCarbStore, normalizeLunchProteinStore, DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './dietPlans';
-import { WORKOUT_COMPLETED_DAYS_KEY, WorkoutCompletionStore } from './workoutCompletion';
-import type { DailyConditionRecord } from './recoveryMode';
+import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, LUNCH_CARB_CHOICE_KEY, LUNCH_PROTEIN_CHOICE_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey, normalizeDinnerCarbStore, normalizeLunchCarbStore, normalizeLunchProteinStore } from './dietPlans.ts';
+import type { DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './dietPlans.ts';
+import { WORKOUT_COMPLETED_DAYS_KEY } from './workoutCompletion.ts';
+import type { WorkoutCompletionStore } from './workoutCompletion.ts';
+import type { DailyConditionRecord } from './recoveryMode.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
