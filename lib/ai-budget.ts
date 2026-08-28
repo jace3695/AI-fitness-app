@@ -10,7 +10,8 @@ export type AiUsageKind = "tokens" | "characters";
 type TokenPricing = { inputUsdPerMillion: number; outputUsdPerMillion: number };
 
 const TOKEN_PRICING: Record<string, TokenPricing> = {
-  "gemini-2.5-flash-lite": { inputUsdPerMillion: 0.05, outputUsdPerMillion: 0.2 },
+  "gemini-2.5-flash-lite": { inputUsdPerMillion: 0.1, outputUsdPerMillion: 0.4 },
+  "gemini-3.7-flash": { inputUsdPerMillion: 0.75, outputUsdPerMillion: 3.75 },
   "gpt-4o-mini": { inputUsdPerMillion: 0.15, outputUsdPerMillion: 0.6 },
 };
 
