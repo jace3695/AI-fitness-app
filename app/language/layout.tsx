@@ -7,8 +7,8 @@ import AppIdentity from "../components/AppIdentity";
 import "./language.css";
 
 export const metadata: Metadata = {
-  title: "언어 학습 | Jace AI Hub",
-  description: "Jace AI Hub 일본어 학습 모듈",
+  title: "언어 학습 | AI 연이",
+  description: "AI 연이의 일본어 학습 기능",
 };
 
 export default function LanguageLayout({ children }: Readonly<{ children: React.ReactNode }>) {

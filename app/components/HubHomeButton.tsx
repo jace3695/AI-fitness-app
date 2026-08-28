@@ -10,9 +10,9 @@ export default function HubHomeButton() {
   const pathname = usePathname();
   if (pathname === "/" || hidden.some((route) => pathname.startsWith(route))) return null;
   return (
-    <Link href="/" className="hub-home-button" aria-label="Jace AI Hub 홈으로 이동">
+    <Link href="/" className="hub-home-button" aria-label="AI 연이 홈으로 이동">
       <span className="hub-home-button-mark" aria-hidden="true"><Image src="/app-icons/assistant.png" alt="" width={24} height={24} /></span>
-      <span>제이스 홈</span>
+      <span>연이 홈</span>
     </Link>
   );
 }

@@ -9,7 +9,7 @@ function SettingsPage() {
   return (
     <main className="min-h-dvh bg-[#F6F7FB] pb-28 text-[#242231]">
       <div className="mx-auto max-w-3xl px-4 py-7 sm:px-6 sm:py-10">
-        <AppIdentity kind="settings" title="통합 설정" subtitle="Jace AI Hub 공통 보안" />
+        <AppIdentity kind="settings" title="통합 설정" subtitle="AI 연이 공통 보안" />
         <p className="mt-2 text-sm leading-6 text-gray-500">계정 보안과 기기 잠금은 여기에서 한 번만 설정하면 가계부·운동·식단·언어 앱에 함께 적용됩니다.</p>
         <div className="mt-6 grid gap-4">
           <section className="rounded-3xl border border-violet-100 bg-gradient-to-br from-white to-[#F1EFFF] p-5 shadow-sm sm:p-6">

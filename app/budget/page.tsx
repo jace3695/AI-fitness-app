@@ -443,7 +443,7 @@ function BudgetDashboard() {
 
         const settings = await loadUserSettings(user.id)
 
-        // AuthGate already verifies the shared Jace AI Hub PIN before this
+        // AuthGate already verifies the shared AI Yeoni PIN before this
         // dashboard mounts. Do not ask for the same PIN again inside budget.
         setIsUnlocked(true)
 

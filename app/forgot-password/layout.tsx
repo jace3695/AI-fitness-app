@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Jace AI Hub | 공통 계정",
-  description: "Jace AI Hub 개인 앱 공통 계정 인증",
+  title: "비밀번호 찾기 | AI 연이",
+  description: "AI 연이 공통 계정의 비밀번호 재설정",
 };
 
 export default function SharedAuthLayout({ children }: { children: React.ReactNode }) {

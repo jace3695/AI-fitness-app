@@ -1,7 +1,7 @@
 {
-  "name": "Jace AI Hub | 개인 AI 비서",
-  "short_name": "Jace AI",
-  "description": "가계부·운동·언어 학습·할 일을 연결한 개인 AI 비서",
+  "name": "AI 연이 | 개인 AI 비서",
+  "short_name": "AI 연이",
+  "description": "운동·식단·가계·언어 학습·일정을 하나의 흐름으로 이어주는 개인 AI 비서",
   "start_url": "/assistant",
   "display": "standalone",
   "background_color": "#F5F4FA",

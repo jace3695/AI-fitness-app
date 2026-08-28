@@ -224,7 +224,7 @@ async function generativeFallback(message: string, history: ChatHistoryItem[]): 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: "당신은 Jace AI Hub의 친절한 한국어 개인 비서입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요." }] },
+        system_instruction: { parts: [{ text: "당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요." }] },
         contents: [
           ...history.map((item) => ({ role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.text }] })),
           { role: "user", parts: [{ text: message }] },

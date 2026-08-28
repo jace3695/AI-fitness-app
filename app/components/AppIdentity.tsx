@@ -4,7 +4,7 @@ import { Bot, CalendarDays, Dumbbell, Languages, Salad, Settings, WalletCards } 
 export type AppKind = "assistant" | "budget" | "fitness" | "diet" | "language" | "calendar" | "settings";
 
 const APPS = {
-  assistant: { label: "연이", Icon: Bot, tone: "bg-violet-100 text-violet-700", image: "/app-icons/assistant.png" },
+  assistant: { label: "AI 연이", Icon: Bot, tone: "bg-violet-100 text-violet-700", image: "/app-icons/assistant.png" },
   budget: { label: "가계부", Icon: WalletCards, tone: "bg-blue-100 text-blue-700", image: "/app-icons/budget-ai-ledger-v3.png" },
   fitness: { label: "운동", Icon: Dumbbell, tone: "bg-indigo-100 text-indigo-700", image: "/app-icons/fitness.png" },
   diet: { label: "식단", Icon: Salad, tone: "bg-emerald-100 text-emerald-700" },

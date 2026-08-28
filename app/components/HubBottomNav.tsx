@@ -18,7 +18,7 @@ export default function HubBottomNav() {
   if (hiddenRoutes.some((route) => pathname.startsWith(route))) return null;
 
   return (
-    <nav className="hub-bottom-nav" aria-label="Jace AI Hub 공통 메뉴">
+    <nav className="hub-bottom-nav" aria-label="AI 연이 공통 메뉴">
       <div className="hub-bottom-nav-inner">
         {items.map((item) => {
           const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
