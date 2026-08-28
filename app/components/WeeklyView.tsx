@@ -104,7 +104,12 @@ export default function WeeklyView({
 
   return (
     <div className="min-w-0">
-      <section className="mb-5 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
+      <details className="mb-5 rounded-2xl border border-[#D9D6FF] bg-white shadow-sm">
+        <summary className="cursor-pointer list-none p-4">
+          <p className="text-[14px] font-bold text-[#3C3489]">이번 주 운동 계획 바꾸기</p>
+          <p className="mt-1 text-[12px] text-gray-500">현재 계획: {selectedPlan.name}</p>
+        </summary>
+        <section className="border-t border-[#EEEDFE] p-4">
         <div className="mb-3">
           <p className="text-[14px] font-bold text-[#3C3489]">
             이번 주 운동 계획
@@ -138,7 +143,8 @@ export default function WeeklyView({
             {selectedPlan.notice}
           </p>
         )}
-      </section>
+        </section>
+      </details>
 
       <section className="mb-5 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
