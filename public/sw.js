@@ -26,7 +26,7 @@ self.addEventListener("push", (event) => {
   } catch {
     payload = { body: event.data?.text() };
   }
-  event.waitUntil(self.registration.showNotification(payload.title || "Jace AI Hub", {
+  event.waitUntil(self.registration.showNotification(payload.title || "AI 연이", {
     body: payload.body || "오늘의 브리핑을 확인해 보세요.",
     icon: "/icon-192.png",
     badge: "/icon-192.png",

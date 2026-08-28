@@ -104,7 +104,7 @@ export default function PwaManager() {
               ? "새 버전이 준비되었습니다. 갱신하면 최신 화면으로 바뀝니다."
               : showIosInstallHint
                 ? "iPhone Safari의 공유 버튼을 누른 뒤 ‘홈 화면에 추가’를 선택하세요."
-                : "Jace AI Hub를 홈 화면에 설치하면 더 빠르게 열 수 있습니다."
+                : "AI 연이를 홈 화면에 설치하면 더 빠르게 열 수 있습니다."
             : "인터넷 연결이 끊겼습니다. 저장된 화면을 사용 중이며 연결되면 동기화를 다시 시도합니다."}
         </span>
         {online && waitingWorker && (

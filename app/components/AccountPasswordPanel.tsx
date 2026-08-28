@@ -21,7 +21,7 @@ export default function AccountPasswordPanel() {
     setSaving(false);
     if (error) return setMessage(error.message || "비밀번호를 변경하지 못했습니다.");
     setPassword(""); setConfirm("");
-    setMessage("Jace AI Hub 공통 비밀번호를 변경했습니다.");
+    setMessage("AI 연이 공통 비밀번호를 변경했습니다.");
   };
 
   return (

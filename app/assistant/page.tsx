@@ -246,7 +246,7 @@ export default function AssistantPage() {
   return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
     <header className="border-b border-white/80 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <AppIdentity kind="assistant" title="연이" subtitle="Jace AI Hub · AI 비서" />
+        <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />
         <span className="text-xs text-gray-500 sm:text-sm">{today}</span>
       </div>
     </header>

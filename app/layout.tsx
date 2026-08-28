@@ -4,8 +4,8 @@ import PwaManager from './components/PwaManager';
 import HubHomeButton from './components/HubHomeButton';
 
 export const metadata: Metadata = {
-  title: 'Jace AI Hub | 개인 AI 비서 플랫폼',
-  description: 'AI 비서를 중심으로 가계부·운동·언어 학습을 관리하는 Jace님의 개인 플랫폼.',
+  title: 'AI 연이 | 개인 AI 비서',
+  description: '운동·식단·가계·언어 학습·일정을 하나의 흐름으로 이어주는 Jace님의 개인 AI 비서.',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.png',
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Jace AI Hub',
+    title: 'AI 연이',
   },
   formatDetection: {
     telephone: false,
