@@ -1,17 +1,16 @@
-import {
+import { getWorkoutRecord, isWorkoutPerformed } from "./workoutCompletion.ts";
+import type {
   ExerciseRecord,
-  getWorkoutRecord,
-  isWorkoutPerformed,
   WorkoutCompletionStore,
   WorkoutCompletionValue,
-} from "./workoutCompletion";
-import {
+} from "./workoutCompletion.ts";
+import { getMonthDateKeys } from "./recordStorage.ts";
+import type {
   DailyConditionStore,
   InbodyRecordStore,
   WeightRecordStore,
-  getMonthDateKeys,
-} from "./recordStorage";
-import type { ConditionSignalId } from "./recoveryMode";
+} from "./recordStorage.ts";
+import type { ConditionSignalId } from "./recoveryMode.ts";
 
 export interface TrendPoint {
   dateKey: string;
