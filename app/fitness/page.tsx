@@ -63,6 +63,7 @@ import {
   saveUserWorkoutSettings,
   UserWorkoutSettings,
 } from "../data/userWorkoutSettings";
+import { DEFAULT_WORKOUT_METHOD, normalizeWorkoutMethod } from "../data/workoutMethods";
 
 type TabId =
   | "ov"
@@ -566,6 +567,13 @@ function FitnessApp() {
     : undefined;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
   const activeWorkoutRecord = getWorkoutRecord(completedStore[activeWorkoutDateKey]);
+  const activeWorkoutMethod = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
+    ? normalizeWorkoutMethod(
+        userWorkoutSettings.dateOverrides[getDateForWorkoutDay(activeTab as WorkoutDayId)]?.method ||
+        userWorkoutSettings.weeklyMethods[activeTab as WorkoutDayId] ||
+        DEFAULT_WORKOUT_METHOD,
+      )
+    : DEFAULT_WORKOUT_METHOD;
   const weeklyCompletedCount = requiredWorkoutDays.filter(
     (dayId) => completedDays[dayId],
   ).length;
@@ -732,6 +740,7 @@ function FitnessApp() {
               </section>
               <DayView
                 day={dayWorkout}
+                workoutMethod={activeWorkoutMethod}
                 isCompleted={
                   activeWorkoutRecord.workoutDone ??
                   false

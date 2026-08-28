@@ -6,6 +6,8 @@ import { dayIdToKoreanLabel } from "../data/workoutPlans";
 import { getDateForWorkoutDay, getWorkoutDayForDate, getWorkoutRecord, WorkoutCompletionStore, WorkoutDayId } from "../data/workoutCompletion";
 import { DayRoutineEdit, ExerciseTarget, UserWorkoutSettings } from "../data/userWorkoutSettings";
 import { readJson, WEIGHT_RECORDS_KEY, WeightRecordStore } from "../data/recordStorage";
+import { DEFAULT_WORKOUT_METHOD, getWorkoutMethodLabel, normalizeWorkoutMethod, WORKOUT_METHOD_OPTIONS } from "../data/workoutMethods";
+import type { WorkoutMethodConfig } from "../data/workoutMethods";
 
 const DAYS: WorkoutDayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 type EditScope = "weekly" | "week" | "today";
@@ -135,8 +137,9 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
   const group = getWorkoutGroupById(groupId);
   const exercises = group.type === "choice" ? [] : group.exercises;
   const routineGroups = WORKOUT_GROUPS.filter((item) => item.type !== "choice" || effectiveDay === "sat");
-  const changedDays = useMemo(() => DAYS.filter((day) => settings.weeklyGroups[day]), [settings.weeklyGroups]);
+  const changedDays = useMemo(() => DAYS.filter((day) => settings.weeklyGroups[day] || settings.weeklyEdits[day] || settings.weeklyMethods[day]), [settings.weeklyEdits, settings.weeklyGroups, settings.weeklyMethods]);
   const currentEdit = scope === "weekly" ? settings.weeklyEdits[effectiveDay] || {} : dateOverride?.edit || settings.weeklyEdits[effectiveDay] || {};
+  const currentMethod = normalizeWorkoutMethod(scope === "weekly" ? settings.weeklyMethods[effectiveDay] : dateOverride?.method || settings.weeklyMethods[effectiveDay]);
 
   const changeGroup = (nextGroupId: string) => {
     if (scope === "weekly") {
@@ -152,6 +155,15 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       return;
     }
     onChange({ ...settings, dateOverrides: { ...settings.dateOverrides, [dateKey]: { ...dateOverride, edit } } });
+  };
+
+  const updateMethod = (patch: Partial<WorkoutMethodConfig>) => {
+    const method = normalizeWorkoutMethod({ ...currentMethod, ...patch });
+    if (scope === "weekly") {
+      onChange({ ...settings, weeklyMethods: { ...settings.weeklyMethods, [effectiveDay]: method } });
+      return;
+    }
+    onChange({ ...settings, dateOverrides: { ...settings.dateOverrides, [dateKey]: { ...dateOverride, method } } });
   };
 
   const visibleExercises = [
@@ -194,6 +206,7 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
         ...settings,
         weeklyGroups: { ...settings.weeklyGroups, [effectiveDay]: targetId, [moveTarget]: sourceId },
         weeklyEdits: { ...settings.weeklyEdits, [effectiveDay]: settings.weeklyEdits[moveTarget] || {}, [moveTarget]: settings.weeklyEdits[effectiveDay] || {} },
+        weeklyMethods: { ...settings.weeklyMethods, [effectiveDay]: settings.weeklyMethods[moveTarget] || DEFAULT_WORKOUT_METHOD, [moveTarget]: settings.weeklyMethods[effectiveDay] || DEFAULT_WORKOUT_METHOD },
       });
       return;
     }
@@ -203,8 +216,8 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       ...settings,
       dateOverrides: {
         ...settings.dateOverrides,
-        [dateKey]: { groupId: targetOverride?.groupId || targetId, edit: targetOverride?.edit || settings.weeklyEdits[moveTarget] },
-        [targetDate]: { groupId: dateOverride?.groupId || sourceId, edit: dateOverride?.edit || settings.weeklyEdits[effectiveDay] },
+        [dateKey]: { groupId: targetOverride?.groupId || targetId, edit: targetOverride?.edit || settings.weeklyEdits[moveTarget], method: targetOverride?.method || settings.weeklyMethods[moveTarget] },
+        [targetDate]: { groupId: dateOverride?.groupId || sourceId, edit: dateOverride?.edit || settings.weeklyEdits[effectiveDay], method: dateOverride?.method || settings.weeklyMethods[effectiveDay] },
       },
     });
   };
@@ -235,10 +248,22 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       </select>
     </label>
     <div className="mt-2 flex gap-2"><button type="button" onClick={() => changeGroup("cardio-foam-recovery")} className="flex-1 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700">🌿 회복 루틴으로 변경</button><button type="button" onClick={() => changeGroup("rest")} className="rounded-xl bg-gray-100 px-3 py-2.5 text-xs font-bold text-gray-600">휴식</button></div>
-    {scope === "weekly" && <div className="mt-2 flex items-center justify-between rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs text-[#3C3489]"><span>변경한 요일: {changedDays.length ? changedDays.map((day) => dayIdToKoreanLabel[day]).join(", ") : "없음"}</span><button type="button" onClick={() => onChange({ ...settings, weeklyGroups: {}, weeklyEdits: {} })} className="font-bold underline">주간 루틴 초기화</button></div>}
+    {scope === "weekly" && <div className="mt-2 flex items-center justify-between rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs text-[#3C3489]"><span>변경한 요일: {changedDays.length ? changedDays.map((day) => dayIdToKoreanLabel[day]).join(", ") : "없음"}</span><button type="button" onClick={() => onChange({ ...settings, weeklyGroups: {}, weeklyEdits: {}, weeklyMethods: {} })} className="font-bold underline">주간 루틴 초기화</button></div>}
     {scope !== "weekly" && dateOverride && <button type="button" onClick={() => { const next = { ...settings.dateOverrides }; delete next[dateKey]; onChange({ ...settings, dateOverrides: next }); }} className="mt-2 w-full rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs font-bold text-[#3C3489]">{scope === "today" ? "오늘" : "이 날짜"} 변경 취소</button>}
 
     {scope !== "today" && <div className="mt-3 rounded-2xl border border-gray-100 p-3"><p className="text-xs font-bold text-gray-700">운동일 이동·교환</p><div className="mt-2 flex gap-2"><select aria-label="교환할 요일" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value as WorkoutDayId)} className="min-w-0 flex-1 rounded-xl bg-gray-50 px-3 py-2 text-sm">{DAYS.filter((day) => day !== effectiveDay).map((day) => <option key={day} value={day}>{dayIdToKoreanLabel[day]}</option>)}</select><button type="button" onClick={swapDays} className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-bold text-white">서로 교환</button></div><p className="mt-1 text-[11px] text-gray-400">놓친 운동을 옮길 때 대상 요일과 계획을 서로 바꿉니다.</p></div>}
+
+    <section className="mt-4 rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF] p-4">
+      <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#534AB7]">운동 수행 방식</p><h3 className="mt-1 text-base font-bold text-gray-900">{getWorkoutMethodLabel(currentMethod.method)}</h3></div><button type="button" onClick={() => updateMethod(DEFAULT_WORKOUT_METHOD)} className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold text-gray-500">기본값</button></div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{WORKOUT_METHOD_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => updateMethod({ method: option.id })} className={`rounded-xl px-2 py-2.5 text-xs font-bold ${currentMethod.method === option.id ? "bg-[#534AB7] text-white" : "bg-white text-gray-600"}`}>{option.label}</button>)}</div>
+      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">{WORKOUT_METHOD_OPTIONS.find((option) => option.id === currentMethod.method)?.description}</p>
+      {currentMethod.method !== "standard" && currentMethod.method !== "free" ? <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <label className="text-[11px] font-bold text-gray-600">{currentMethod.method === "superset" ? "반복 세트" : "라운드"}<span className="mt-1 flex items-center rounded-xl bg-white px-3"><input aria-label="라운드 수" type="number" min={1} max={8} value={currentMethod.rounds} onChange={(event) => updateMethod({ rounds: Number(event.target.value) })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">회</span></span></label>
+        {currentMethod.method === "interval" ? <label className="text-[11px] font-bold text-gray-600">운동 시간<span className="mt-1 flex items-center rounded-xl bg-white px-3"><input aria-label="인터벌 운동 시간" type="number" min={10} max={600} step={5} value={currentMethod.workSeconds} onChange={(event) => updateMethod({ workSeconds: Number(event.target.value) })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">초</span></span></label> : null}
+        <label className="text-[11px] font-bold text-gray-600">{currentMethod.method === "interval" ? "구간 휴식" : "묶음 후 휴식"}<span className="mt-1 flex items-center rounded-xl bg-white px-3"><input aria-label="운동 방식 휴식 시간" type="number" min={0} max={300} step={5} value={currentMethod.restSeconds} onChange={(event) => updateMethod({ restSeconds: Number(event.target.value) })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">초</span></span></label>
+      </div> : null}
+      <p className="mt-3 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-gray-600">준비운동과 마무리는 한 번만 진행하고 선택한 방식은 본운동에만 적용됩니다. 통증·저림이 있으면 방식과 관계없이 즉시 중단하세요.</p>
+    </section>
 
     {group.type === "choice" ? <p className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">선택 유산소의 시간은 운동 화면에서 직접 입력할 수 있습니다.</p> : <div className="mt-5 space-y-3">
       <div><h3 className="font-bold text-gray-900">운동 순서·추가·삭제</h3><p className="mt-1 text-xs text-gray-500">화살표로 순서를 바꾸고, 오늘 하지 않을 운동은 삭제할 수 있습니다.</p></div>

@@ -1,6 +1,7 @@
 import { DayWorkout, Exercise } from "./workouts";
 import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups";
 import { WorkoutDayId } from "./workoutCompletion";
+import type { WorkoutMethodConfig } from "./workoutMethods";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -27,16 +28,18 @@ export interface DayRoutineEdit {
 export interface DateWorkoutOverride {
   groupId?: string;
   edit?: DayRoutineEdit;
+  method?: WorkoutMethodConfig;
 }
 
 export interface UserWorkoutSettings {
   weeklyGroups: Partial<Record<WorkoutDayId, string>>;
   exerciseTargets: Record<string, ExerciseTarget>;
   weeklyEdits: Partial<Record<WorkoutDayId, DayRoutineEdit>>;
+  weeklyMethods: Partial<Record<WorkoutDayId, WorkoutMethodConfig>>;
   dateOverrides: Record<string, DateWorkoutOverride>;
 }
 
-export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, dateOverrides: {} };
+export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, weeklyMethods: {}, dateOverrides: {} };
 
 export function readUserWorkoutSettings(): UserWorkoutSettings {
   if (typeof window === "undefined") return EMPTY_USER_WORKOUT_SETTINGS;
@@ -46,6 +49,7 @@ export function readUserWorkoutSettings(): UserWorkoutSettings {
       weeklyGroups: saved.weeklyGroups || {},
       exerciseTargets: saved.exerciseTargets || {},
       weeklyEdits: saved.weeklyEdits || {},
+      weeklyMethods: saved.weeklyMethods || {},
       dateOverrides: saved.dateOverrides || {},
     };
   } catch {
