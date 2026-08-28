@@ -101,6 +101,7 @@ function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): E
   return {
     exerciseName: exercise.name,
     status: 'pending',
+    executionContext: exercise.executionContext,
     durationMinutes: !exercise.sets && seconds
       ? recommendation.durationMinutes ?? Math.ceil(seconds / 60)
       : undefined,
@@ -109,6 +110,9 @@ function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): E
           setNumber: index + 1,
           completed: false,
           reps: suggestedReps !== undefined ? 0 : undefined,
+          plannedReps: suggestedReps,
+          plannedDurationSeconds: recommendation.durationMinutes ? recommendation.durationMinutes * 60 : getExerciseSeconds(exercise) || undefined,
+          plannedRestSeconds: exercise.restSeconds,
         }))
       : undefined,
   };
