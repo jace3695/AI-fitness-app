@@ -42,6 +42,47 @@ export interface RecentConditionSummary {
   topSignals: { signal: ConditionSignalId; count: number }[];
 }
 
+export interface BodyPartSetItem {
+  bodyPart: "코어" | "하체" | "등" | "가슴·어깨" | "전신·유산소" | "기타";
+  sets: number;
+}
+
+const BODY_PART_RULES: { bodyPart: BodyPartSetItem["bodyPart"]; keywords: string[] }[] = [
+  { bodyPart: "코어", keywords: ["버드독", "데드버그", "플랭크", "복부", "코어", "골반 기울", "AB 슬라이더"] },
+  { bodyPart: "하체", keywords: ["스쿼트", "런지", "사이드워크", "몬스터워크", "종아리", "하체", "엉덩이"] },
+  { bodyPart: "등", keywords: ["로우", "랫풀", "풀다운", "풀어파트", "페이스풀", "턱걸이", "매달리기", "철봉"] },
+  { bodyPart: "가슴·어깨", keywords: ["프레스", "푸시업", "가슴", "어깨"] },
+  { bodyPart: "전신·유산소", keywords: ["슬라이딩보드", "걷기", "산책", "자전거", "유산소", "몸풀기", "정리운동", "폼롤러"] },
+];
+
+function getBodyPart(exerciseName: string): BodyPartSetItem["bodyPart"] {
+  return BODY_PART_RULES.find((rule) => rule.keywords.some((keyword) => exerciseName.includes(keyword)))?.bodyPart ?? "기타";
+}
+
+function getCompletedSets(record: ExerciseRecord) {
+  return (record.sets ?? []).filter((set) => set.completed);
+}
+
+function getSetReps(set: NonNullable<ExerciseRecord["sets"]>[number]) {
+  if (set.leftReps !== undefined || set.rightReps !== undefined) return (set.leftReps ?? 0) + (set.rightReps ?? 0);
+  return set.reps ?? 0;
+}
+
+function getRecordTrainingTotals(record: ExerciseRecord) {
+  const sets = getCompletedSets(record);
+  return sets.reduce(
+    (total, set) => {
+      const reps = getSetReps(set);
+      return {
+        completedSets: total.completedSets + 1,
+        totalReps: total.totalReps + reps,
+        volumeKg: total.volumeKg + (set.weightKg !== undefined && reps > 0 ? set.weightKg * reps : 0),
+      };
+    },
+    { completedSets: 0, totalReps: 0, volumeKg: 0 },
+  );
+}
+
 function parseDateKey(dateKey: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
   return new Date(year, month - 1, day);
@@ -204,6 +245,17 @@ export function getMonthlyWorkoutStats(
   const completedRecords = decidedRecords.filter(
     (record) => record.status === "completed",
   );
+  const trainingTotals = exerciseRecords.reduce(
+    (total, record) => {
+      const next = getRecordTrainingTotals(record);
+      return {
+        completedSets: total.completedSets + next.completedSets,
+        totalReps: total.totalReps + next.totalReps,
+        volumeKg: total.volumeKg + next.volumeKg,
+      };
+    },
+    { completedSets: 0, totalReps: 0, volumeKg: 0 },
+  );
   return {
     workoutDays: keys.filter((key) => {
       const record = getWorkoutRecord(workouts[key]);
@@ -217,7 +269,34 @@ export function getMonthlyWorkoutStats(
       ? Math.round((completedRecords.length / decidedRecords.length) * 100)
       : undefined,
     painDays: keys.filter((key) => hasPain(workouts[key])).length,
+    completedSets: trainingTotals.completedSets,
+    totalReps: trainingTotals.totalReps,
+    volumeKg: Math.round(trainingTotals.volumeKg * 10) / 10,
+    activeExerciseCount: new Set(
+      exerciseRecords
+        .filter((record) => getCompletedSets(record).length > 0 || record.status === "completed")
+        .map((record) => record.exerciseName),
+    ).size,
   };
+}
+
+export function getBodyPartSetBreakdown(
+  workouts: WorkoutCompletionStore,
+  year: number,
+  monthIndex: number,
+): BodyPartSetItem[] {
+  const counts = new Map<BodyPartSetItem["bodyPart"], number>();
+  getMonthDateKeys(year, monthIndex).forEach((key) => {
+    const record = getWorkoutRecord(workouts[key]);
+    (record.workoutExerciseRecords ?? []).forEach((exercise) => {
+      const completedSets = getCompletedSets(exercise).length;
+      if (!completedSets) return;
+      const bodyPart = getBodyPart(exercise.exerciseName);
+      counts.set(bodyPart, (counts.get(bodyPart) ?? 0) + completedSets);
+    });
+  });
+  return Array.from(counts, ([bodyPart, sets]) => ({ bodyPart, sets }))
+    .sort((a, b) => b.sets - a.sets || a.bodyPart.localeCompare(b.bodyPart));
 }
 
 export function getBodyTrends(
@@ -316,6 +395,7 @@ export function getExerciseProgress(
     .sort(([a], [b]) => a.localeCompare(b))
     .forEach(([dateKey, value]) => {
       const record = getWorkoutRecord(value);
+      const dailyMetrics = new Map<string, { label: string; unit: string; value: number }>();
       (record.workoutExerciseRecords ?? []).forEach((exercise) => {
         if (
           exercise.status !== "completed" &&
@@ -329,9 +409,15 @@ export function getExerciseProgress(
           return;
         const metric = getMetric(exercise);
         if (!metric) return;
-        const current = byExercise.get(exercise.exerciseName) ?? [];
+        const metricKey = `${exercise.exerciseName}\u0000${metric.label}\u0000${metric.unit}`;
+        const existing = dailyMetrics.get(metricKey);
+        if (!existing || metric.value > existing.value) dailyMetrics.set(metricKey, metric);
+      });
+      dailyMetrics.forEach((metric, metricKey) => {
+        const exerciseName = metricKey.split("\u0000", 1)[0];
+        const current = byExercise.get(exerciseName) ?? [];
         current.push({ dateKey, ...metric });
-        byExercise.set(exercise.exerciseName, current);
+        byExercise.set(exerciseName, current);
       });
     });
 
