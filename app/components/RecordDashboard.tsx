@@ -10,6 +10,7 @@ import {
 } from "../data/recordAnalytics";
 import { CONDITION_SIGNAL_OPTIONS } from "../data/recoveryMode";
 import RecordTrendChart from "./RecordTrendChart";
+import FitnessAiCoachPanel from "./FitnessAiCoachPanel";
 
 const CONDITION_LABEL_BY_ID = Object.fromEntries(
   CONDITION_SIGNAL_OPTIONS.map((item) => [item.id, item.label]),
@@ -80,6 +81,7 @@ export default function RecordDashboard({
 
   return (
     <section className="space-y-4 xl:col-span-2">
+      <FitnessAiCoachPanel stores={stores} />
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
