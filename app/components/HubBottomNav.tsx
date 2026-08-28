@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/", label: "홈", icon: "J✦" },
-  { href: "/assistant", label: "제이스비서", icon: "✦" },
+  { href: "/assistant", label: "연이", icon: "✦" },
   { href: "/budget", label: "가계부", icon: "₩" },
   { href: "/fitness", label: "운동", icon: "◒" },
   { href: "/language", label: "언어", icon: "あ" },

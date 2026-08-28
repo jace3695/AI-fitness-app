@@ -63,7 +63,7 @@ function QuickCommandContent() {
     <main className="min-h-dvh bg-[#F5F4FA] px-4 pb-28 pt-6 text-[#242231] sm:px-6 sm:pt-10">
       <div className="mx-auto max-w-2xl">
         <header className="flex items-center justify-between gap-3">
-          <Link href="/assistant" className="text-sm font-bold text-[#5146A6]">← 제이스비서</Link>
+          <Link href="/assistant" className="text-sm font-bold text-[#5146A6]">← 연이</Link>
           <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-xs font-bold text-[#5146A6]">iPhone 빠른 명령</span>
         </header>
 
@@ -90,7 +90,7 @@ function QuickCommandContent() {
             <li><b className="text-[#242231]">2.</b> 그 아래에 ‘텍스트 받아쓰기’를 추가합니다. 이 동작이 Siri 화면을 닫은 다음 실제 명령을 듣습니다.</li>
             <li><b className="text-[#242231]">3.</b> ‘URL 인코딩’을 추가하고 ‘받아쓰기한 텍스트’를 입력으로 지정합니다.</li>
             <li><b className="text-[#242231]">4.</b> ‘텍스트’ 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?autorun=1&amp;command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다.</li>
-            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘제이스비서’로 저장합니다. “Siri야, 제이스비서”라고 말한 뒤 명령을 끝까지 말하면, 잠금 해제 후 별도로 버튼을 누르지 않아도 자동 실행됩니다.</li>
+            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘연이’로 저장합니다. “Siri야, 연이”라고 말한 뒤 명령을 끝까지 말하면, 잠금 해제 후 별도로 버튼을 누르지 않아도 자동 실행됩니다.</li>
           </ol>
           <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />단축어 실행 후 말한 명령을 Siri가 자기 질문으로 처리하면 맨 위에 ‘Siri 닫기 및 계속’이 빠진 것입니다. ‘유효하지 않은 URL: %EC…’가 나오면 ‘URL’ 동작 대신 위 4번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요. 명령이 ‘오늘’처럼 중간에서 끊기면 앱이 실행하지 않고 다시 말하라고 안내합니다.</div>
         </section>
