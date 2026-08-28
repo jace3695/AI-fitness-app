@@ -18,6 +18,9 @@ export interface ExerciseSetRecord {
   leftReps?: number;
   rightReps?: number;
   restAfterSeconds?: number;
+  plannedReps?: number;
+  plannedDurationSeconds?: number;
+  plannedRestSeconds?: number;
 }
 export interface ExerciseRecord {
   exerciseName: string;
@@ -31,6 +34,16 @@ export interface ExerciseRecord {
   intervalRounds?: number;
   painScore?: number;
   summary?: string;
+  executionContext?: {
+    method: "standard" | "circuit" | "superset" | "interval" | "free";
+    sourceExerciseIndex: number;
+    sequenceIndex: number;
+    roundNumber?: number;
+    groupNumber?: number;
+    plannedSets?: number;
+    plannedRestSeconds?: number;
+    plannedWorkSeconds?: number;
+  };
 }
 export type WorkoutOverallStatus = "completed" | "partial" | "stopped";
 export type WorkoutDifficulty = "easy" | "moderate" | "hard";
@@ -52,6 +65,13 @@ export interface WorkoutDayRecord {
   workoutDifficulty?: WorkoutDifficulty;
   workoutFatigue?: number;
   workoutExerciseRecords?: ExerciseRecord[];
+  workoutMethod?: {
+    method: "standard" | "circuit" | "superset" | "interval" | "free";
+    rounds: number;
+    restSeconds: number;
+    workSeconds: number;
+  };
+  workoutRecordedAt?: string;
   cardioDone?: boolean;
   cardioType?: string;
   cardioMinutes?: number;
@@ -105,6 +125,8 @@ const GENERAL_WORKOUT_FIELDS: (keyof WorkoutDayRecord)[] = [
   "workoutDifficulty",
   "workoutFatigue",
   "workoutExerciseRecords",
+  "workoutMethod",
+  "workoutRecordedAt",
 ];
 
 const CARDIO_FIELDS: (keyof WorkoutDayRecord)[] = [
