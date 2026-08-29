@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
+import { AiBudgetExceededError } from "@/lib/ai-budget";
+import { generateAiText } from "@/lib/ai-router";
+import type { AiTextFeature } from "@/lib/ai-router-policy";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { sanitizeWorkoutPlanProposal } from "@/app/data/workoutPlanProposal";
 import { WORKOUT_GROUPS } from "@/app/data/workoutGroups";
 
 export const dynamic = "force-dynamic";
-const MODEL = "gemini-3.7-flash";
 const MAX_OUTPUT_TOKENS = 1400;
 const PLAN_MAX_OUTPUT_TOKENS = 2400;
 type AnalysisType = "latest" | "weekly" | "monthly" | "plan";
@@ -24,7 +25,7 @@ const PLAN_ALLOW_LIST = {
   exerciseNames: new Set(PLAN_CATALOG.flatMap((group) => group.exercises)),
 };
 
-const ANALYSIS_GUIDES: Record<AnalysisType, { label: string; focus: string; feature: string }> = {
+const ANALYSIS_GUIDES: Record<AnalysisType, { label: string; focus: string; feature: AiTextFeature }> = {
   latest: {
     label: "운동 직후 피드백",
     focus: "가장 최근에 실제 수행한 운동 1회만 중심으로 세트별 목표 대비 실제 중량·횟수·시간·휴식, 운동 방식, 통증, 난이도와 피로도를 평가하세요. 다음 운동에서는 유지·감소·소폭 증가 중 무엇이 안전한지 구체적으로 제안하세요.",
@@ -104,30 +105,17 @@ ${JSON.stringify(planCatalog)}
 반드시 JSON 객체 하나만 반환하세요:
 ${outputSchema}`;
   const maxOutputTokens = analysisType === "plan" ? PLAN_MAX_OUTPUT_TOKENS : MAX_OUTPUT_TOKENS;
-  let reservation;
   try {
-    reservation = await reserveAiBudget(supabase, user.id, { provider: "google", model: MODEL, feature: analysisGuide.feature, estimatedCostKrw: conservativeTokenEstimate(prompt, maxOutputTokens, MODEL) });
-  } catch (error) {
-    if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
-    throw error;
-  }
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0.25, maxOutputTokens } }),
+    const generated = await generateAiText({
+      supabase,
+      userId: user.id,
+      feature: analysisGuide.feature,
+      promptText: prompt,
+      maxOutputTokens,
+      responseFormat: "json",
+      temperature: 0.25,
     });
-    if (!response.ok) {
-      await cancelAiBudgetReservation(supabase, reservation.id);
-      console.error("Fitness AI request failed", { status: response.status });
-      return NextResponse.json({ error: "AI 코치 분석에 실패했습니다." }, { status: 502 });
-    }
-    const data = await response.json();
-    const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? prompt.length);
-    const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
-    await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(MODEL, inputTokens, outputTokens) });
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    const parsed = JSON.parse(typeof raw === "string" ? raw : "{}");
+    const parsed = JSON.parse(generated.text || "{}");
     const result = {
       overview: safeText(parsed.overview, 700), positives: safeList(parsed.positives), cautions: safeList(parsed.cautions),
       nextSession: safeList(parsed.nextSession, 6), rationale: safeText(parsed.rationale, 500), safety: safeText(parsed.safety, 400),
@@ -137,8 +125,8 @@ ${outputSchema}`;
     if (!result.overview || (analysisType === "plan" && !result.planProposal)) return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
     return NextResponse.json({ ...result, analysisType, analysisLabel: analysisGuide.label });
   } catch (error) {
-    await cancelAiBudgetReservation(supabase, reservation.id);
-    console.error("Fitness AI analysis error", { message: error instanceof Error ? error.message : "unknown" });
+    if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
+    console.error("Fitness AI Router analysis error", { message: error instanceof Error ? error.message : "unknown" });
     return NextResponse.json({ error: "AI 코치 분석 중 오류가 발생했습니다." }, { status: 502 });
   }
 }
