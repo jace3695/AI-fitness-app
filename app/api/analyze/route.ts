@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from '@/lib/ai-budget'
+import { AiBudgetExceededError } from '@/lib/ai-budget'
+import { generateAiText } from '@/lib/ai-router'
 
 export const dynamic = 'force-dynamic'
 
@@ -219,40 +220,23 @@ answer 안에도 마크다운 기호는 사용하지 말고 일반 텍스트로�
 followUpQuestions는 현재 답변 근거에서 이어서 확인할 수 있는 짧은 질문 2~3개로 작성해.
 `
 
-  const model = 'gemini-2.5-flash-lite'
-  let reservation
+  let rawResult = ''
   try {
-    reservation = await reserveAiBudget(supabase, user.id, { provider: 'google', model, feature: 'budget-analysis', estimatedCostKrw: conservativeTokenEstimate(prompt, 1200, model) })
+    const generated = await generateAiText({
+      supabase,
+      userId: user.id,
+      feature: 'budget-analysis',
+      promptText: prompt,
+      maxOutputTokens: 1200,
+      responseFormat: 'json',
+      temperature: 0.2,
+    })
+    rawResult = generated.text
   } catch (error) {
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 })
-    throw error
-  }
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2
-        }
-      })
-    }
-  )
-
-  if (!response.ok) {
-    await cancelAiBudgetReservation(supabase, reservation.id)
-    console.error('Gemini 분석 요청 실패:', response.status)
+    console.error('가계부 AI Router 요청 실패:', error instanceof Error ? error.message : 'unknown')
     return NextResponse.json({ error: 'AI 분석에 실패했습니다.' }, { status: 502 })
   }
-
-  const data = await response.json()
-  const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? prompt.length)
-  const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0)
-  await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) })
-  const rawResult = data.candidates?.[0]?.content?.parts?.[0]?.text
 
   if (!rawResult) {
     return NextResponse.json({ error: 'AI 분석 결과를 받지 못했습니다.' }, { status: 502 })
