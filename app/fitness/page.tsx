@@ -653,12 +653,12 @@ function FitnessApp() {
             </section>
 
             <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[12px] font-bold text-[#534AB7]">이렇게 하면 돼요</p>
+              <p className="text-[12px] font-bold text-[#534AB7]">딱 3가지만 하면 돼요</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {[
-                  ["1", "몸 상태 확인", "아픈 곳이 있을 때만"],
-                  ["2", "운동 시작", "화면 안내대로 천천히"],
-                  ["3", "운동 저장", "끝나면 느낌만 선택"],
+                  ["1", "시작 누르기", "오늘 운동은 이미 골라뒀어요"],
+                  ["2", "하나씩 따라하기", "횟수와 쉬는 시간을 알려줘요"],
+                  ["3", "느낌 고르고 저장", "쉬움·괜찮음·힘듦 중 선택"],
                 ].map(([step, title, description]) => (
                   <div key={step} className="flex items-center gap-3 rounded-2xl bg-[#F6F7FB] p-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#534AB7] text-[13px] font-bold text-white">
@@ -701,23 +701,35 @@ function FitnessApp() {
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 연습 →</p>
               </button>
             </section>
-            <ConditionCheckCard
-              value={conditionToday}
-              onSave={handleConditionSave}
-              onClear={handleConditionClear}
-            />
+            <details className="mb-3 rounded-2xl border border-amber-100 bg-white shadow-sm">
+              <summary className="cursor-pointer list-none p-4">
+                <span className="block text-[14px] font-bold text-gray-900">몸이 아프거나 피곤한가요?</span>
+                <span className="mt-1 block text-[11px] text-gray-500">그럴 때만 눌러서 알려주세요</span>
+              </summary>
+              <div className="border-t border-amber-100 px-3 pt-3 sm:px-4">
+                <ConditionCheckCard value={conditionToday} onSave={handleConditionSave} onClear={handleConditionClear} />
+              </div>
+            </details>
 
-            <WeeklyView
-              onTabChange={handleTabChange}
-              completedDays={completedDays}
-              painDays={painDays}
-              todayDayId={todayWorkoutDay}
-              plans={WEEKLY_WORKOUT_PLANS.map((plan) =>
-                plan.id === selectedWeeklyWorkoutPlan.id ? selectedWeeklyWorkoutPlan : plan,
-              )}
-              selectedPlanId={selectedWeeklyWorkoutPlan.id}
-              onPlanChange={handleWeeklyWorkoutPlanChange}
-            />
+            <details className="mb-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <summary className="cursor-pointer list-none p-4">
+                <span className="block text-[14px] font-bold text-gray-900">이번 주 운동표 보기</span>
+                <span className="mt-1 block text-[11px] text-gray-500">다른 요일 운동이나 주간 계획을 볼 수 있어요</span>
+              </summary>
+              <div className="border-t border-gray-100 px-3 pt-4 sm:px-4">
+                <WeeklyView
+                  onTabChange={handleTabChange}
+                  completedDays={completedDays}
+                  painDays={painDays}
+                  todayDayId={todayWorkoutDay}
+                  plans={WEEKLY_WORKOUT_PLANS.map((plan) =>
+                    plan.id === selectedWeeklyWorkoutPlan.id ? selectedWeeklyWorkoutPlan : plan,
+                  )}
+                  selectedPlanId={selectedWeeklyWorkoutPlan.id}
+                  onPlanChange={handleWeeklyWorkoutPlanChange}
+                />
+              </div>
+            </details>
           </div>
         )}
 
@@ -827,8 +839,27 @@ function FitnessApp() {
         {activeTab === "more" && (
           <div className="mx-auto w-full max-w-5xl">
             <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-              <p className="text-[12px] font-bold text-[#534AB7]">필요할 때만 열어보세요</p>
-              <h2 className="mt-1 text-[22px] font-bold text-gray-900">운동 설정</h2>
+              <p className="text-[12px] font-bold text-[#534AB7]">쉬운 설정</p>
+              <h2 className="mt-1 text-[22px] font-bold text-gray-900">큰 것만 먼저 고르세요</h2>
+              <p className="mt-2 text-[13px] text-gray-500">아래 두 가지만 정하면 바로 운동할 수 있어요. 나머지는 앱이 추천값으로 준비합니다.</p>
+              <div className="mt-4 rounded-2xl bg-[#F6F7FB] p-3">
+                <p className="text-[12px] font-bold text-gray-700">1. 운동 계획</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {WEEKLY_WORKOUT_PLANS.map((plan) => (
+                    <button key={plan.id} type="button" onClick={() => handleWeeklyWorkoutPlanChange(plan.id)} className={`rounded-xl border px-3 py-3 text-left ${selectedWeeklyWorkoutPlanId === plan.id ? "border-[#7F77DD] bg-white text-[#3C3489] shadow-sm" : "border-transparent bg-gray-100 text-gray-600"}`}>
+                      <span className="block text-[13px] font-bold">{selectedWeeklyWorkoutPlanId === plan.id ? "✓ " : ""}{plan.name}</span>
+                      <span className="mt-1 block text-[10px] opacity-70">{plan.recommendedFor}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 rounded-2xl bg-[#F6F7FB] p-3">
+                <p className="text-[12px] font-bold text-gray-700">2. 오늘 강도</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => handleRoutineSelectionChange("base")} className={`rounded-xl px-3 py-3 text-[13px] font-bold ${routineSelection === "base" ? "bg-[#534AB7] text-white" : "bg-white text-gray-600"}`}>보통 운동</button>
+                  <button type="button" onClick={() => handleRoutineSelectionChange("recovery")} className={`rounded-xl px-3 py-3 text-[13px] font-bold ${routineSelection === "recovery" ? "bg-emerald-600 text-white" : "bg-white text-gray-600"}`}>가볍게 회복</button>
+                </div>
+              </div>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                 <button
                   type="button"
@@ -850,7 +881,7 @@ function FitnessApp() {
             </section>
             <div className="space-y-3">
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">1. 운동 계획 바꾸기 <span className="ml-1 text-[12px] font-normal text-gray-500">요일·횟수·무게</span></summary>
+                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">세부 운동 편집 <span className="ml-1 text-[12px] font-normal text-gray-500">필요할 때만 · 요일·횟수·무게</span></summary>
                 <div className="px-3 pb-3 sm:px-4 sm:pb-4"><WorkoutPlanEditor
                   settings={userWorkoutSettings}
                   records={completedStore}
@@ -862,15 +893,15 @@ function FitnessApp() {
                 /></div>
               </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">2. 운동 강도 선택 <span className="ml-1 text-[12px] font-normal text-gray-500">기본·회복 모드</span></summary>
+                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">강도 상세 설명 <span className="ml-1 text-[12px] font-normal text-gray-500">기본·회복 모드 안내</span></summary>
                 <div className="px-3 pb-3 sm:px-4 sm:pb-4"><SwitchOnModePanel selection={routineSelection} onSelectionChange={handleRoutineSelectionChange} /></div>
               </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">3. 운동 알림 <span className="ml-1 text-[12px] font-normal text-gray-500">요일과 시간</span></summary>
+                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">운동 알림 <span className="ml-1 text-[12px] font-normal text-gray-500">요일과 시간</span></summary>
                 <div className="px-3 pb-3 sm:px-4 sm:pb-4"><WorkoutNotificationPanel /></div>
               </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">4. 기록 백업·기기 연결 <span className="ml-1 text-[12px] font-normal text-gray-500">필요할 때만</span></summary>
+                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">기록 백업·기기 연결 <span className="ml-1 text-[12px] font-normal text-gray-500">고급 기능</span></summary>
                 <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4"><DataBackupPanel /><CloudSyncPanel /></div>
               </details>
             </div>
