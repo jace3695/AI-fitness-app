@@ -5,11 +5,12 @@ import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
+import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
 
 export const dynamic = "force-dynamic";
 
 type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean };
-type ChatHistoryItem = { role: "user" | "assistant"; text: string };
+type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
   const date = new Date(Date.now() + offsetDays * 86_400_000);
@@ -196,16 +197,6 @@ function normalizeGenerativeReply(value: unknown) {
   return reply;
 }
 
-function validatedHistory(value: unknown): ChatHistoryItem[] {
-  if (!Array.isArray(value)) return [];
-  return value.slice(-8).flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const role = "role" in item && (item.role === "user" || item.role === "assistant") ? item.role : null;
-    const text = "text" in item && typeof item.text === "string" ? item.text.trim().slice(0, 500) : "";
-    return role && text ? [{ role, text }] : [];
-  });
-}
-
 function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
   if (!/(그거|그것|그\s*일|방금\s*말한)/.test(message)) return message;
   const previous = [...history].reverse().find((item) => item.role === "user" && /(할\s*일|일정)/.test(item.text));
@@ -227,6 +218,14 @@ async function generativeFallback(
 ): Promise<string> {
   if (!isAiFeatureAvailable("assistant-fallback")) return ASSISTANT_CAPABILITY_GUIDE;
   try {
+    const { data: memories, error: memoryError } = await supabase
+      .from("assistant_memories")
+      .select("topic,content")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (memoryError) throw new Error("개인 기억을 불러오지 못했습니다.");
+    const personalContext = buildPersonalMemoryContext(memories);
     const promptText = `${history.map((item) => item.text).join("\n")}\n${message}`;
     const result = await generateAiText({
       supabase,
@@ -234,7 +233,7 @@ async function generativeFallback(
       feature: "assistant-fallback",
       promptText,
       maxOutputTokens: 220,
-      systemInstruction: "당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요.",
+      systemInstruction: `당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요.${personalContext ? `\n\nJace님이 직접 저장한 개인 기억입니다. 관련 질문에만 자연스럽게 반영하고, 기억에 없는 사실은 추측하지 마세요.\n${personalContext}` : ""}`,
       geminiContents: [
         ...history.map((item) => ({ role: item.role === "assistant" ? "model" as const : "user" as const, parts: [{ text: item.text }] })),
         { role: "user", parts: [{ text: message }] },
@@ -412,22 +411,37 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as { message?: unknown; history?: unknown } | null;
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 500) : "";
   if (!message) return NextResponse.json({ error: "명령을 입력해 주세요." }, { status: 400 });
-  const history = validatedHistory(body?.history);
 
   try {
+    const { data: storedMessages, error: historyLoadError } = await supabase
+      .from("assistant_chat_messages")
+      .select("role,content")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(8);
+    if (historyLoadError) throw new Error("지난 대화를 불러오지 못했습니다.");
+    const history = selectConversationHistory([...(storedMessages ?? [])].reverse(), body?.history);
     const replies: AssistantReply[] = [];
-    for (const command of splitCompoundCommands(message)) {
+    const commands = splitCompoundCommands(message);
+    for (const command of commands) {
       const compoundHistory = replies.flatMap((reply, index) => [
-        { role: "user" as const, text: splitCompoundCommands(message)[index] },
+        { role: "user" as const, text: commands[index] },
         { role: "assistant" as const, text: reply.reply },
       ]);
       replies.push(await processSingleCommand(supabase, user.id, command, [...history, ...compoundHistory]));
     }
     const lastAction = [...replies].reverse().find((reply) => reply.action)?.action;
+    const reply = replies.map((item, index) => replies.length > 1 ? `${index + 1}. ${item.reply}` : item.reply).join("\n");
+    const { error: historySaveError } = await supabase.from("assistant_chat_messages").insert([
+      { user_id: user.id, role: "user", content: message },
+      { user_id: user.id, role: "assistant", content: reply, action_label: lastAction?.label ?? null, action_href: lastAction?.href ?? null },
+    ]);
+    if (historySaveError) console.error("Assistant history save failed", { message: historySaveError.message });
     return NextResponse.json({
-      reply: replies.map((reply, index) => replies.length > 1 ? `${index + 1}. ${reply.reply}` : reply.reply).join("\n"),
+      reply,
       action: lastAction,
       changed: replies.some((reply) => reply.changed),
+      historySaved: !historySaveError,
     });
   } catch (error) {
     console.error("Assistant command failed", { message: error instanceof Error ? error.message : "unknown" });
