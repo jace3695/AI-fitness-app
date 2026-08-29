@@ -10,12 +10,23 @@ const BADGE_STYLES: Record<string, string> = {
   yellow: 'bg-[#FAEEDA] text-[#854F0B]', green: 'bg-[#EAF3DE] text-[#3B6D11]', blue: 'bg-[#E6F1FB] text-[#185FA5]', purple: 'bg-[#EEEDFE] text-[#3C3489]', red: 'bg-[#FCEBEB] text-[#A32D2D]',
 };
 
+function renderDetailText(text: string) {
+  return text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .filter(Boolean)
+    .map((part, index) =>
+      part.startsWith('**') && part.endsWith('**')
+        ? <strong key={`${part}-${index}`} className="text-gray-800">{part.slice(2, -2)}</strong>
+        : <span key={`${part}-${index}`}>{part}</span>,
+    );
+}
+
 function renderDetail(d: Detail, i: number) {
   const text = d.text;
   if (d.type === 'warn') return <div key={i} className="bg-[#FCEBEB] rounded-lg px-3 py-2 my-1 text-[12px] text-[#791F1F]">{text}</div>;
   if (d.type === 'good') return <div key={i} className="bg-[#EAF3DE] rounded-lg px-3 py-2 my-1 text-[12px] text-[#27500A]">{text}</div>;
   const dotColor = d.type === 'red' ? '#E24B4A' : d.type === 'green' ? '#639922' : '#7F77DD';
-  return <div key={i} className="flex gap-2 my-1 text-[13px] text-gray-500 leading-relaxed"><span style={{ color: dotColor }} className="shrink-0 mt-0.5">•</span><span dangerouslySetInnerHTML={{ __html: text.replace(/\*\*(.*?)\*\*/g, '<strong class="text-gray-800">$1</strong>') }} /></div>;
+  return <div key={i} className="flex gap-2 my-1 text-[13px] text-gray-500 leading-relaxed"><span style={{ color: dotColor }} className="shrink-0 mt-0.5">•</span><span>{renderDetailText(text)}</span></div>;
 }
 
 function IntervalGrid({ intervals }: { intervals: NonNullable<Exercise['intervals']> }) {
