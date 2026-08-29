@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getLocalDateKey } from "@/utils/dateKey";
 import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "../data/workoutCompletion";
@@ -31,6 +31,7 @@ type BriefingSnapshot = {
   language: { synced: boolean; completed: number; total: number; nextLabel: string };
 };
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string } };
+type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
 
 const EMPTY_BRIEFING: BriefingSnapshot = {
   budget: { spent: 0, budget: null, remaining: null, entries: 0 },
@@ -45,6 +46,12 @@ const LANGUAGE_ROUTINES = [
   { id: "grammar", label: "문법" },
   { id: "review", label: "복습" },
 ] as const;
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 조회하고 기록할 수 있어요.",
+};
 
 function parseObject(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
@@ -114,13 +121,40 @@ export default function AssistantPage() {
   const [message, setMessage] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { id: "welcome", role: "assistant", text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 조회하고 기록할 수 있어요." },
-  ]);
+  const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
+  const [chatHistoryNotice, setChatHistoryNotice] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const chatBoxRef = useRef<HTMLDivElement>(null);
+
+  const loadChatHistory = useCallback(async () => {
+    if (!supabase) return;
+    setChatHistoryLoading(true);
+    setChatHistoryNotice("");
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) { setChatHistoryLoading(false); return; }
+    const { data, error } = await supabase
+      .from("assistant_chat_messages")
+      .select("id,role,content,action_label,action_href")
+      .eq("user_id", auth.user.id)
+      .order("created_at", { ascending: false })
+      .limit(40);
+    if (error) {
+      setChatHistoryNotice("지난 대화를 불러오지 못했어요. 새 대화는 계속할 수 있습니다.");
+    } else {
+      const restored = ([...(data ?? [])].reverse() as StoredChatMessage[]).map((row) => ({
+        id: row.id,
+        role: row.role,
+        text: row.content,
+        action: row.action_label && row.action_href ? { label: row.action_label, href: row.action_href } : undefined,
+      }));
+      setChatMessages([WELCOME_MESSAGE, ...restored]);
+    }
+    setChatHistoryLoading(false);
+  }, []);
 
   const sendChat = async (command?: string) => {
     const value = (command ?? chatInput).trim();
-    if (!value || !supabase || chatSending) return;
+    if (!value || !supabase || chatSending || chatHistoryLoading) return;
     setChatInput("");
     setChatSending(true);
     const history = chatMessages.filter((chat) => chat.id !== "welcome").slice(-8).map(({ role, text }) => ({ role, text }));
@@ -175,7 +209,11 @@ export default function AssistantPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); void loadChatHistory(); }, [load, loadChatHistory]);
+  useEffect(() => {
+    const box = chatBoxRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
+  }, [chatHistoryLoading, chatMessages, chatSending]);
 
   const addEntry = async (event: FormEvent) => {
     event.preventDefault();
@@ -219,6 +257,18 @@ export default function AssistantPage() {
     if (!supabase) return;
     await supabase.from(table).delete().eq("id", id);
     await load();
+  };
+
+  const clearChatHistory = async () => {
+    if (!supabase || chatMessages.length <= 1 || !window.confirm("연이와 나눈 지난 대화를 모두 지울까요? 할 일·기억·운동 기록은 지워지지 않습니다.")) return;
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    const { error } = await supabase.from("assistant_chat_messages").delete().eq("user_id", auth.user.id);
+    if (error) setChatHistoryNotice("대화 기록을 지우지 못했어요. 잠시 후 다시 시도해 주세요.");
+    else {
+      setChatMessages([WELCOME_MESSAGE]);
+      setChatHistoryNotice("대화 기록을 지웠습니다.");
+    }
   };
 
   const rows = useMemo(() => {
@@ -274,15 +324,17 @@ export default function AssistantPage() {
       </section>
 
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">할 일·운동·일본어 학습의 조회와 완료 기록을 바로 처리합니다.</p></div><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div>
-        <div aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">지난 대화를 기억하고, 직접 저장한 기억을 관련 답변에 반영합니다.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div></div>
+        <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
+          {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
           {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">{["오늘 일본어 학습 진도 알려줘", "일본어 복습할 거 알려줘", "단어 학습 완료했어", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
+        <div className="mt-3 flex flex-wrap gap-2">{["오늘 일본어 학습 진도 알려줘", "일본어 복습할 거 알려줘", "단어 학습 완료했어", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
-          <button disabled={chatSending || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <button disabled={chatSending || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
         </form>
       </section>
 
