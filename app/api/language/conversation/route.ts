@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
+import { AiBudgetExceededError } from "@/lib/ai-budget";
+import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -108,9 +109,7 @@ async function callOpenAI(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ): Promise<AIResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
+  if (!isAiFeatureAvailable("language-conversation")) {
     return {
       reply: "（モック）こんにちは！何かお手伝いできますか？",
       replyReading: "（モック）こんにちは！なにかおてつだいできますか？",
@@ -132,41 +131,23 @@ async function callOpenAI(
     }
   }
 
-  const model = "gpt-4o-mini";
   const systemPrompt = buildSystemPrompt(situation);
   const promptText = `${systemPrompt}\n${pastMessages.map((item) => item.content).join("\n")}\n${message}`;
-  const reservation = await reserveAiBudget(supabase, userId, { provider: "openai", model, feature: "language-conversation", estimatedCostKrw: conservativeTokenEstimate(promptText, 300, model) });
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...pastMessages,
-        { role: "user", content: message },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.75,
-      max_tokens: 300,
-    }),
+  const generated = await generateAiText({
+    supabase,
+    userId,
+    feature: "language-conversation",
+    promptText,
+    maxOutputTokens: 300,
+    responseFormat: "json",
+    temperature: 0.75,
+    openAiMessages: [
+      { role: "system", content: systemPrompt },
+      ...pastMessages,
+      { role: "user", content: message },
+    ],
   });
-
-  if (!res.ok) {
-    await cancelAiBudgetReservation(supabase, reservation.id);
-    const errText = await res.text().catch(() => "");
-    throw new Error(`OpenAI API 오류: ${res.status}${errText ? ` - ${errText.slice(0, 200)}` : ""}`);
-  }
-
-  const data = await res.json();
-  const inputTokens = Number(data?.usage?.prompt_tokens ?? promptText.length);
-  const outputTokens = Number(data?.usage?.completion_tokens ?? 0);
-  await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) });
-  const content: string = data?.choices?.[0]?.message?.content ?? "{}";
-  const parsed = safeParseJSON(content);
+  const parsed = safeParseJSON(generated.text);
 
   return {
     reply:
