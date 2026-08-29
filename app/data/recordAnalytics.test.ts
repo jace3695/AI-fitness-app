@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getBodyPartSetBreakdown, getExerciseProgress, getMonthlyWorkoutStats } from "./recordAnalytics.ts";
+import { getBodyPartSetBreakdown, getExerciseProgress, getLongTermWorkoutSummary, getMonthlyWorkoutStats } from "./recordAnalytics.ts";
 import type { WorkoutCompletionStore } from "./workoutCompletion.ts";
 
 const workouts: WorkoutCompletionStore = {
@@ -45,4 +45,24 @@ test("같은 날짜의 서킷 라운드는 성장 비교의 직전 날짜로 취
   assert.equal(squat?.latestValue, 8);
   assert.equal(squat?.previousValue, 7);
   assert.equal(squat?.latestDateKey, "2026-08-17");
+});
+
+test("장기 요약은 최근 28일과 직전 28일을 같은 기준으로 비교한다", () => {
+  const longTermWorkouts: WorkoutCompletionStore = {
+    "2026-07-10": workouts["2026-08-10"],
+    "2026-08-17": workouts["2026-08-17"],
+  };
+  const summary = getLongTermWorkoutSummary(
+    longTermWorkouts,
+    new Date("2026-08-24T12:00:00Z"),
+  );
+  assert.equal(summary.totalWorkoutDays, 2);
+  assert.equal(summary.previous28Days.workoutDays, 1);
+  assert.equal(summary.recent28Days.workoutDays, 1);
+  assert.equal(summary.changes.workoutDays, 0);
+  assert.equal(summary.recent28Days.completedSets, 2);
+  assert.equal(summary.previous28Days.completedSets, 3);
+  assert.equal(summary.changes.completedSets, -1);
+  assert.equal(summary.weekly.length, 12);
+  assert.equal(summary.exerciseProgress[0].latestDateKey, "2026-08-17");
 });

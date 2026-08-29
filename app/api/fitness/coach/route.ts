@@ -9,7 +9,7 @@ import { WORKOUT_GROUPS } from "@/app/data/workoutGroups";
 export const dynamic = "force-dynamic";
 const MAX_OUTPUT_TOKENS = 1400;
 const PLAN_MAX_OUTPUT_TOKENS = 2400;
-type AnalysisType = "latest" | "weekly" | "monthly" | "plan";
+type AnalysisType = "latest" | "weekly" | "monthly" | "longTerm" | "plan";
 
 const PLAN_CATALOG = WORKOUT_GROUPS.map((group) => ({
   id: group.id,
@@ -40,6 +40,11 @@ const ANALYSIS_GUIDES: Record<AnalysisType, { label: string; focus: string; feat
     label: "월간 운동 리포트",
     focus: "현재 달의 월간 통계와 부위별 세트, 체중·체지방·골격근 추세, 통증일, 완료율을 분석하세요. 체지방 감량과 근육 유지 관점의 흐름을 설명하고 다음 달에 유지할 점과 한 가지만 조정할 점을 제안하세요.",
     feature: "fitness-monthly-report",
+  },
+  longTerm: {
+    label: "장기 운동 변화 분석",
+    focus: "최근 28일과 직전 28일의 운동일·시간·완료율·완료 세트·통증일 차이, 최근 12주 운동 빈도, 운동별 중량·반복·유지시간 변화와 신체 추세를 함께 분석하세요. 향상·정체·감소는 수치가 충분할 때만 판단하고, 현재 프로그램에서 유지할 점과 다음 4주 동안 한 가지만 바꿀 점을 제안하세요.",
+    feature: "fitness-long-term-report",
   },
   plan: {
     label: "다음 주 운동 계획안",
@@ -74,7 +79,7 @@ export async function POST(request: NextRequest) {
   if (contentLength > 45_000) return NextResponse.json({ error: "분석 기록이 너무 큽니다." }, { status: 413 });
   const body = await request.json().catch(() => null);
   if (!body?.snapshot || typeof body.snapshot !== "object") return NextResponse.json({ error: "운동 기록이 필요합니다." }, { status: 400 });
-  const analysisType: AnalysisType = ["latest", "weekly", "monthly", "plan"].includes(body.analysisType) ? body.analysisType : "latest";
+  const analysisType: AnalysisType = ["latest", "weekly", "monthly", "longTerm", "plan"].includes(body.analysisType) ? body.analysisType : "latest";
   const analysisGuide = ANALYSIS_GUIDES[analysisType];
   const snapshot = cleanValue(body.snapshot);
   const currentSettings = cleanValue(body.currentSettings || {});

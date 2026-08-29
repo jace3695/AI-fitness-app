@@ -1,4 +1,4 @@
-import { getBodyPartSetBreakdown, getBodyTrends, getMonthlyWorkoutStats, getPainScore, getRecentConditionSummary, getWeeklyActivity } from "./recordAnalytics.ts";
+import { getBodyPartSetBreakdown, getBodyTrends, getLongTermWorkoutSummary, getMonthlyWorkoutStats, getPainScore, getRecentConditionSummary, getWeeklyActivity } from "./recordAnalytics.ts";
 import { getWorkoutRecord, isWorkoutPerformed } from "./workoutCompletion.ts";
 import type { RecordStores } from "./recordStorage.ts";
 
@@ -47,6 +47,7 @@ export function buildFitnessAiSnapshot(stores: RecordStores, now = new Date()) {
   const condition = getRecentConditionSummary(stores.conditions, now, 14);
   const monthly = getMonthlyWorkoutStats(stores.workouts, now.getFullYear(), now.getMonth());
   const bodyPartSets = getBodyPartSetBreakdown(stores.workouts, now.getFullYear(), now.getMonth());
+  const longTerm = getLongTermWorkoutSummary(stores.workouts, now);
   return {
     generatedFor: now.toISOString().slice(0, 10),
     goal: "체지방 감량과 근육 유지·소폭 증가, 허리 안전 우선",
@@ -56,6 +57,7 @@ export function buildFitnessAiSnapshot(stores: RecordStores, now = new Date()) {
     condition,
     weekly,
     body,
+    longTerm,
     recentSessions,
   };
 }

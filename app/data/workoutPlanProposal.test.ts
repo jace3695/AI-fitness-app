@@ -51,3 +51,23 @@ test("사용자가 적용했을 때만 기존 설정에 AI 계획을 합친다",
   assert.equal(next.exerciseTargets["묵주기도 슬라이딩보드"].durationMinutes, 15);
   assert.equal(original.weeklyGroups.tue, undefined);
 });
+
+test("일부 적용은 사용자가 고른 요일과 운동량만 변경한다", () => {
+  const proposal = sanitizeWorkoutPlanProposal({
+    title: "일부 적용 계획",
+    days: allDays("back-band-dumbbell-row"),
+    exerciseTargets: [
+      { exerciseName: "밴드 로우", sets: 2, reps: 10 },
+      { exerciseName: "묵주기도 슬라이딩보드", durationMinutes: 12 },
+    ],
+  }, allowList);
+  assert.ok(proposal);
+  const next = applyWorkoutPlanProposal(emptySettings(), proposal, {
+    dayIds: ["wed"],
+    exerciseNames: ["밴드 로우"],
+  });
+  assert.equal(next.weeklyGroups.wed, "back-band-dumbbell-row");
+  assert.equal(next.weeklyGroups.mon, undefined);
+  assert.equal(next.exerciseTargets["밴드 로우"].reps, 10);
+  assert.equal(next.exerciseTargets["묵주기도 슬라이딩보드"], undefined);
+});

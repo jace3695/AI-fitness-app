@@ -15,7 +15,7 @@ test("저비용 일반 분석은 Gemini 경량 모델로 연결한다", () => {
 
 test("운동 코치 기능은 정밀 분석 모델로 일관되게 연결한다", () => {
   const fitnessFeatures = Object.keys(AI_ROUTE_POLICIES).filter((feature) => feature.startsWith("fitness-"));
-  assert.equal(fitnessFeatures.length, 4);
+  assert.equal(fitnessFeatures.length, 5);
   for (const feature of fitnessFeatures) {
     const route = AI_ROUTE_POLICIES[feature as keyof typeof AI_ROUTE_POLICIES];
     assert.equal(route.provider, "google");
