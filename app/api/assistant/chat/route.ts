@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
+import { AiBudgetExceededError } from "@/lib/ai-budget";
+import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
@@ -224,37 +225,25 @@ async function generativeFallback(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   userId: string,
 ): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) return ASSISTANT_CAPABILITY_GUIDE;
-  let reservation: Awaited<ReturnType<typeof reserveAiBudget>> | null = null;
+  if (!isAiFeatureAvailable("assistant-fallback")) return ASSISTANT_CAPABILITY_GUIDE;
   try {
-    const model = "gemini-2.5-flash-lite";
     const promptText = `${history.map((item) => item.text).join("\n")}\n${message}`;
-    reservation = await reserveAiBudget(supabase, userId, { provider: "google", model, feature: "assistant-fallback", estimatedCostKrw: conservativeTokenEstimate(promptText, 220, model) });
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: "당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요." }] },
-        contents: [
-          ...history.map((item) => ({ role: item.role === "assistant" ? "model" : "user", parts: [{ text: item.text }] })),
-          { role: "user", parts: [{ text: message }] },
-        ],
-        generationConfig: { maxOutputTokens: 220 },
-      }),
+    const result = await generateAiText({
+      supabase,
+      userId,
+      feature: "assistant-fallback",
+      promptText,
+      maxOutputTokens: 220,
+      systemInstruction: "당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요.",
+      geminiContents: [
+        ...history.map((item) => ({ role: item.role === "assistant" ? "model" as const : "user" as const, parts: [{ text: item.text }] })),
+        { role: "user", parts: [{ text: message }] },
+      ],
     });
-    if (!response.ok) {
-      console.error("Gemini assistant request failed", { status: response.status });
-      throw new Error("Gemini request failed");
-    }
-    const data = await response.json();
-    const inputTokens = Number(data.usageMetadata?.promptTokenCount ?? promptText.length);
-    const outputTokens = Number(data.usageMetadata?.candidatesTokenCount ?? 0);
-    await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) });
-    return normalizeGenerativeReply(data.candidates?.[0]?.content?.parts?.[0]?.text);
+    return normalizeGenerativeReply(result.text);
   } catch (error) {
-    if (reservation) await cancelAiBudgetReservation(supabase, reservation.id);
     if (error instanceof AiBudgetExceededError) return "이번 달 AI 사용 한도 10,000원에 도달했어요. 기록 조회·할 일·운동·언어 명령은 계속 사용할 수 있고, 일반 AI 답변은 다음 달에 자동으로 다시 열립니다.";
-    console.error("Gemini assistant fallback failed", { message: error instanceof Error ? error.message : "unknown" });
+    console.error("Assistant AI Router fallback failed", { message: error instanceof Error ? error.message : "unknown" });
     return ASSISTANT_CAPABILITY_GUIDE;
   }
 }
