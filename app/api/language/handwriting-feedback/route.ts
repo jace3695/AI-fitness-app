@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { AiBudgetExceededError, cancelAiBudgetReservation, conservativeTokenEstimate, finalizeAiUsage, reserveAiBudget, tokenCostKrw } from "@/lib/ai-budget";
+import { AiBudgetExceededError } from "@/lib/ai-budget";
+import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 
 type RequestBody = {
   targetChar?: string;
@@ -114,9 +115,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
+    if (!isAiFeatureAvailable("handwriting-feedback")) {
       return NextResponse.json(
         {
           error: "OPENAI_API_KEY가 설정되어 있지 않습니다.",
@@ -131,54 +130,25 @@ export async function POST(req: Request) {
 
     const prompt = buildPrompt(targetChar, body.romaji);
 
-    const model = "gpt-4o-mini";
-    const reservation = await reserveAiBudget(supabase, user.id, { provider: "openai", model, feature: "handwriting-feedback", estimatedCostKrw: conservativeTokenEstimate(prompt, 1250, model) });
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageDataUrl,
-                },
-              },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.5,
-        max_tokens: 250,
-      }),
-    });
-
-    if (!response.ok) {
-      await cancelAiBudgetReservation(supabase, reservation.id);
-      const errorText = await response.text().catch(() => "");
-      return NextResponse.json(
+    const generated = await generateAiText({
+      supabase,
+      userId: user.id,
+      feature: "handwriting-feedback",
+      promptText: prompt,
+      maxOutputTokens: 250,
+      responseFormat: "json",
+      temperature: 0.5,
+      openAiMessages: [
         {
-          error: `OpenAI API 요청 실패 (${response.status})`,
-          detail: errorText.slice(0, 300),
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageDataUrl } },
+          ],
         },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
-    const inputTokens = Number(data?.usage?.prompt_tokens ?? prompt.length);
-    const outputTokens = Number(data?.usage?.completion_tokens ?? 0);
-    await finalizeAiUsage(supabase, reservation.id, { inputUnits: inputTokens, outputUnits: outputTokens, actualCostKrw: tokenCostKrw(model, inputTokens, outputTokens) });
-    const content = (data?.choices?.[0]?.message?.content as string | undefined) ?? "";
-    const parsed = safeParseFeedback(content);
+      ],
+    });
+    const parsed = safeParseFeedback(generated.text);
     const result = normalizeFeedback(parsed);
 
     return NextResponse.json(result);
