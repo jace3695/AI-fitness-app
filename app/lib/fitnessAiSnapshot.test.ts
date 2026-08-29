@@ -16,6 +16,9 @@ test("AI 운동 스냅샷은 최근 기록·운동 방식·세트 상세와 통�
   assert.equal(snapshot.recentSessions[0].exercises[0].setDetails[0].plannedReps, 8);
   assert.equal(snapshot.recentSessions[0].exercises[0].setDetails[0].restAfterSeconds, 45);
   assert.deepEqual(snapshot.bodyPartSets, [{ bodyPart: "하체", sets: 1 }]);
+  assert.equal(snapshot.longTerm.recent28Days.workoutDays, 1);
+  assert.equal(snapshot.longTerm.recent28Days.completedSets, 1);
+  assert.equal(snapshot.longTerm.weekly.length, 12);
 });
 
 test("AI 운동 스냅샷은 전송 기록을 최근 28건으로 제한한다", () => {

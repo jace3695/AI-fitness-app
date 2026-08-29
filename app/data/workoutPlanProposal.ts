@@ -44,6 +44,11 @@ export interface WorkoutPlanProposal {
   cautions: string[];
 }
 
+export interface WorkoutPlanSelection {
+  dayIds: WorkoutDayId[];
+  exerciseNames: string[];
+}
+
 interface ProposalAllowList {
   groupIds: ReadonlySet<string>;
   exerciseNames: ReadonlySet<string>;
@@ -118,15 +123,22 @@ export function sanitizeWorkoutPlanProposal(value: unknown, allowList: ProposalA
 export function applyWorkoutPlanProposal(
   settings: UserWorkoutSettings,
   proposal: WorkoutPlanProposal,
+  selection?: WorkoutPlanSelection,
 ): UserWorkoutSettings {
+  const selectedDayIds = selection ? new Set(selection.dayIds) : null;
+  const selectedExerciseNames = selection
+    ? new Set(selection.exerciseNames)
+    : null;
   const weeklyGroups = { ...settings.weeklyGroups };
   const weeklyMethods = { ...settings.weeklyMethods };
   proposal.days.forEach((day) => {
+    if (selectedDayIds && !selectedDayIds.has(day.dayId)) return;
     weeklyGroups[day.dayId] = day.groupId;
     weeklyMethods[day.dayId] = normalizeWorkoutMethod(day.method);
   });
   const exerciseTargets = { ...settings.exerciseTargets };
   proposal.exerciseTargets.forEach(({ exerciseName, reason: _reason, ...target }) => {
+    if (selectedExerciseNames && !selectedExerciseNames.has(exerciseName)) return;
     exerciseTargets[exerciseName] = target;
   });
   return { ...settings, weeklyGroups, weeklyMethods, exerciseTargets };

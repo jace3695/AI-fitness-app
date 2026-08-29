@@ -7,6 +7,7 @@ export type AiTextFeature =
   | "fitness-post-workout-feedback"
   | "fitness-weekly-report"
   | "fitness-monthly-report"
+  | "fitness-long-term-report"
   | "fitness-weekly-plan-proposal"
   | "language-conversation"
   | "handwriting-feedback";
@@ -46,6 +47,7 @@ export const AI_ROUTE_POLICIES: Record<AiTextFeature, AiRoutePolicy> = {
   "fitness-post-workout-feedback": GEMINI_COACH,
   "fitness-weekly-report": GEMINI_COACH,
   "fitness-monthly-report": GEMINI_COACH,
+  "fitness-long-term-report": GEMINI_COACH,
   "fitness-weekly-plan-proposal": GEMINI_COACH,
   "language-conversation": OPENAI_LANGUAGE,
   "handwriting-feedback": OPENAI_LANGUAGE,

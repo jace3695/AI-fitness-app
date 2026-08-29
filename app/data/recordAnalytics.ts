@@ -47,6 +47,34 @@ export interface BodyPartSetItem {
   sets: number;
 }
 
+export interface WorkoutPeriodSummary {
+  workoutDays: number;
+  minutes: number;
+  completionRate?: number;
+  painDays: number;
+  completedSets: number;
+  totalReps: number;
+  volumeKg: number;
+  activeExerciseCount: number;
+}
+
+export interface LongTermWorkoutSummary {
+  firstWorkoutDate?: string;
+  latestWorkoutDate?: string;
+  totalWorkoutDays: number;
+  recent28Days: WorkoutPeriodSummary;
+  previous28Days: WorkoutPeriodSummary;
+  changes: {
+    workoutDays: number;
+    minutes: number;
+    completionRate?: number;
+    completedSets: number;
+    painDays: number;
+  };
+  weekly: WeeklyActivity[];
+  exerciseProgress: ExerciseProgressItem[];
+}
+
 const BODY_PART_RULES: { bodyPart: BodyPartSetItem["bodyPart"]; keywords: string[] }[] = [
   { bodyPart: "코어", keywords: ["버드독", "데드버그", "플랭크", "복부", "코어", "골반 기울", "AB 슬라이더"] },
   { bodyPart: "하체", keywords: ["스쿼트", "런지", "사이드워크", "몬스터워크", "종아리", "하체", "엉덩이"] },
@@ -229,12 +257,16 @@ export function getWeeklyActivity(
   });
 }
 
-export function getMonthlyWorkoutStats(
+function getPeriodDateKeys(endDate: Date, dayCount: number) {
+  return Array.from({ length: dayCount }, (_, index) =>
+    toDateKey(addDays(endDate, index - dayCount + 1)),
+  );
+}
+
+function getWorkoutStatsForKeys(
   workouts: WorkoutCompletionStore,
-  year: number,
-  monthIndex: number,
-) {
-  const keys = getMonthDateKeys(year, monthIndex);
+  keys: string[],
+): WorkoutPeriodSummary {
   const exerciseRecords = keys.flatMap((key) => {
     const record = getWorkoutRecord(workouts[key]);
     return record.workoutExerciseRecords ?? [];
@@ -256,10 +288,13 @@ export function getMonthlyWorkoutStats(
     },
     { completedSets: 0, totalReps: 0, volumeKg: 0 },
   );
+
   return {
     workoutDays: keys.filter((key) => {
       const record = getWorkoutRecord(workouts[key]);
-      return Boolean(isWorkoutPerformed(workouts[key]) || record.cardioDone || record.pullupDone);
+      return Boolean(
+        isWorkoutPerformed(workouts[key]) || record.cardioDone || record.pullupDone,
+      );
     }).length,
     minutes: keys.reduce(
       (total, key) => total + getSessionMinutes(workouts[key]),
@@ -274,9 +309,62 @@ export function getMonthlyWorkoutStats(
     volumeKg: Math.round(trainingTotals.volumeKg * 10) / 10,
     activeExerciseCount: new Set(
       exerciseRecords
-        .filter((record) => getCompletedSets(record).length > 0 || record.status === "completed")
+        .filter(
+          (record) =>
+            getCompletedSets(record).length > 0 || record.status === "completed",
+        )
         .map((record) => record.exerciseName),
     ).size,
+  };
+}
+
+export function getMonthlyWorkoutStats(
+  workouts: WorkoutCompletionStore,
+  year: number,
+  monthIndex: number,
+) {
+  const keys = getMonthDateKeys(year, monthIndex);
+  return getWorkoutStatsForKeys(workouts, keys);
+}
+
+export function getLongTermWorkoutSummary(
+  workouts: WorkoutCompletionStore,
+  baseDate = new Date(),
+): LongTermWorkoutSummary {
+  const recentKeys = getPeriodDateKeys(baseDate, 28);
+  const previousEnd = addDays(baseDate, -28);
+  const previousKeys = getPeriodDateKeys(previousEnd, 28);
+  const recent28Days = getWorkoutStatsForKeys(workouts, recentKeys);
+  const previous28Days = getWorkoutStatsForKeys(workouts, previousKeys);
+  const performedDateKeys = Object.keys(workouts)
+    .filter((key) => {
+      const record = getWorkoutRecord(workouts[key]);
+      return Boolean(
+        isWorkoutPerformed(workouts[key]) || record.cardioDone || record.pullupDone,
+      );
+    })
+    .sort((a, b) => a.localeCompare(b));
+
+  return {
+    firstWorkoutDate: performedDateKeys[0],
+    latestWorkoutDate: performedDateKeys[performedDateKeys.length - 1],
+    totalWorkoutDays: performedDateKeys.length,
+    recent28Days,
+    previous28Days,
+    changes: {
+      workoutDays: recent28Days.workoutDays - previous28Days.workoutDays,
+      minutes: recent28Days.minutes - previous28Days.minutes,
+      completionRate:
+        recent28Days.completionRate !== undefined &&
+        previous28Days.completionRate !== undefined
+          ? recent28Days.completionRate - previous28Days.completionRate
+          : undefined,
+      completedSets:
+        recent28Days.completedSets - previous28Days.completedSets,
+      painDays: recent28Days.painDays - previous28Days.painDays,
+    },
+    weekly: getWeeklyActivity(workouts, baseDate, 12),
+    exerciseProgress: getExerciseProgress(workouts, 8),
   };
 }
 
