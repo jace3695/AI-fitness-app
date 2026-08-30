@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "../components/AuthGate";
 import AppIdentity from "../components/AppIdentity";
+import GoogleCalendarPanel from "../components/GoogleCalendarPanel";
+import type { GoogleCalendarEvent } from "@/lib/google-calendar";
 import { supabase } from "../lib/supabase";
 import { readRecordStores, type DietDayRecord } from "../data/recordStorage";
 import { getWorkoutRecord, isWorkoutPerformed, type WorkoutDayRecord } from "../data/workoutCompletion";
@@ -22,6 +24,7 @@ function CalendarCard({ title, href, tone, children }: { title: string; href: st
 function UnifiedCalendar() {
   const [month, setMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
   const [info, setInfo] = useState<Record<string, DayInfo>>({});
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
   const [selected, setSelected] = useState("");
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
 
@@ -72,22 +75,29 @@ function UnifiedCalendar() {
   }, [selected]);
 
   const days = useMemo(() => [...Array(new Date(month.getFullYear(), month.getMonth(), 1).getDay()).fill(null), ...Array.from({ length: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate() }, (_, index) => index + 1)], [month]);
+  const googleByDate = useMemo(() => googleEvents.reduce<Record<string, GoogleCalendarEvent[]>>((grouped, event) => {
+    grouped[event.date] = [...(grouped[event.date] || []), event];
+    return grouped;
+  }, {}), [googleEvents]);
   const row = selected ? info[selected] : undefined;
+  const selectedGoogleEvents = selected ? googleByDate[selected] || [] : [];
   const workout = row?.workout ? [row.workout.workoutRoutineName || row.workout.workoutPlanName, ...(row.workout.workoutExerciseNames || []), row.workout.cardioDone ? `${row.workout.cardioType || "유산소"} ${row.workout.cardioMinutes || 0}분` : "", row.workout.workoutMemo || row.note].filter(Boolean) as string[] : [];
   const diet = row?.diet ? [row.diet.dietStatus, row.diet.fastingRecordStatus ? `공복 ${row.diet.fastingRecordStatus}` : "", row.water ? `물 ${row.water.toLocaleString()}mL` : "", row.diet.dietMemo].filter((value): value is string => typeof value === "string" && Boolean(value)) : [];
 
   return <main className="min-h-dvh bg-[#F6F7FB] pb-28 text-[#242231]"><header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" /></div></header><div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 sm:py-10">
     <section className="rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => { if (!day) return <span key={`empty-${index}`} />; const date = `${monthKey}-${String(day).padStart(2, "0")}`; const record = info[date]; return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}><b className="block leading-none">{day}</b><span className="mt-2 flex flex-wrap gap-1 text-[10px] leading-none">{record?.tasks?.length ? <i className="rounded-full bg-violet-100 px-1.5 py-1 not-italic text-violet-700">할{record.tasks.length}</i> : null}{record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}{record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}{record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}{record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}</span></button>; })}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => { if (!day) return <span key={`empty-${index}`} />; const date = `${monthKey}-${String(day).padStart(2, "0")}`; const record = info[date]; const google = googleByDate[date]; return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}><b className="block leading-none">{day}</b><span className="mt-2 flex flex-wrap gap-1 text-[10px] leading-none">{google?.length ? <i className="rounded-full bg-sky-100 px-1.5 py-1 not-italic text-sky-700">구{google.length}</i> : null}{record?.tasks?.length ? <i className="rounded-full bg-violet-100 px-1.5 py-1 not-italic text-violet-700">할{record.tasks.length}</i> : null}{record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}{record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}{record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}{record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}</span></button>; })}</div>
     </section>
+    <GoogleCalendarPanel monthKey={monthKey} onEvents={setGoogleEvents} />
     {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">
       {row?.tasks?.length ? <CalendarCard title="AI 연이" href="/assistant" tone="border-violet-100 bg-violet-50">{row.tasks.map((item) => <p key={item.id}>• {item.title} · {item.status === "completed" ? "완료" : "진행 중"}</p>)}</CalendarCard> : null}
+      {selectedGoogleEvents.length ? <article className="rounded-2xl border border-sky-100 bg-sky-50 p-4"><div className="flex justify-between"><b>Google Calendar</b><span className="text-xs font-bold text-sky-700">{selectedGoogleEvents.length}개</span></div><div className="mt-2 space-y-2 text-sm text-gray-700">{selectedGoogleEvents.map((item) => <p key={item.id}>• {item.htmlLink ? <a href={item.htmlLink} target="_blank" rel="noreferrer" className="font-medium underline decoration-sky-300 underline-offset-2">{item.title}</a> : item.title} · {item.allDay ? "종일" : `${item.startLabel}${item.endLabel ? `–${item.endLabel}` : ""}`}</p>)}</div></article> : null}
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.diet ? <CalendarCard title="식단" href="/diet" tone="border-emerald-100 bg-emerald-50">{(diet.length ? diet : ["식단 기록 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
       {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
-    </div>{!row ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">이 날짜에 저장된 기록이 없습니다.</p> : null}</section></div> : null}
+    </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">이 날짜에 저장된 기록이 없습니다.</p> : null}</section></div> : null}
   </div></main>;
 }
 
