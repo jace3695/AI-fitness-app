@@ -66,6 +66,12 @@ function HubHome() {
             ))}
           </div>
         </section>
+
+        <footer className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-2 border-t border-white/80 pt-6 text-xs font-semibold text-gray-500">
+          <Link href="/about" className="hover:text-[#5146A6]">앱 소개</Link>
+          <Link href="/privacy" className="hover:text-[#5146A6]">개인정보처리방침</Link>
+          <Link href="/terms" className="hover:text-[#5146A6]">서비스 이용약관</Link>
+        </footer>
       </div>
     </main>
   );
