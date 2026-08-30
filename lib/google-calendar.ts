@@ -22,6 +22,15 @@ export type GoogleCalendarEventInput = {
   description?: string;
 };
 
+export function getGoogleCalendarDayPreview(events: GoogleCalendarEvent[]) {
+  const first = events[0];
+  if (!first) return null;
+  return {
+    title: first.title,
+    additionalCount: Math.max(0, events.length - 1),
+  };
+}
+
 type GoogleEventDate = { date?: string; dateTime?: string; timeZone?: string };
 
 export type GoogleEventResource = {

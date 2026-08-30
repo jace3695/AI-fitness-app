@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import AuthGate from "../components/AuthGate";
 import AppIdentity from "../components/AppIdentity";
 import GoogleCalendarPanel from "../components/GoogleCalendarPanel";
-import type { GoogleCalendarEvent } from "@/lib/google-calendar";
+import { getGoogleCalendarDayPreview, type GoogleCalendarEvent } from "@/lib/google-calendar";
 import { supabase } from "../lib/supabase";
 import { readRecordStores, type DietDayRecord } from "../data/recordStorage";
 import { getWorkoutRecord, isWorkoutPerformed, type WorkoutDayRecord } from "../data/workoutCompletion";
@@ -87,7 +87,28 @@ function UnifiedCalendar() {
   return <main className="min-h-dvh bg-[#F6F7FB] pb-28 text-[#242231]"><header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" /></div></header><div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 sm:py-10">
     <section className="rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
-      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => { if (!day) return <span key={`empty-${index}`} />; const date = `${monthKey}-${String(day).padStart(2, "0")}`; const record = info[date]; const google = googleByDate[date]; return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}><b className="block leading-none">{day}</b><span className="mt-2 flex flex-wrap gap-1 text-[10px] leading-none">{google?.length ? <i className="rounded-full bg-sky-100 px-1.5 py-1 not-italic text-sky-700">구{google.length}</i> : null}{record?.tasks?.length ? <i className="rounded-full bg-violet-100 px-1.5 py-1 not-italic text-violet-700">할{record.tasks.length}</i> : null}{record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}{record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}{record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}{record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}</span></button>; })}</div>
+      <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => {
+        if (!day) return <span key={`empty-${index}`} />;
+        const date = `${monthKey}-${String(day).padStart(2, "0")}`;
+        const record = info[date];
+        const googlePreview = getGoogleCalendarDayPreview(googleByDate[date] || []);
+        return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기${googlePreview ? `, Google 일정 ${googlePreview.title}` : ""}`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}>
+          <b className="block leading-none">{day}</b>
+          <div className="mt-2 space-y-1">
+            {googlePreview ? <span title={googlePreview.title} className="block rounded-lg bg-sky-100 px-1.5 py-1 text-[10px] font-semibold leading-tight text-sky-800">
+              <span className="line-clamp-2 break-words">{googlePreview.title}</span>
+              {googlePreview.additionalCount ? <span className="mt-0.5 block text-[9px] text-sky-600">+{googlePreview.additionalCount}개 더</span> : null}
+            </span> : null}
+            <span className="flex flex-wrap gap-1 text-[10px] leading-none">
+              {record?.tasks?.length ? <i className="rounded-full bg-violet-100 px-1.5 py-1 not-italic text-violet-700">할{record.tasks.length}</i> : null}
+              {record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}
+              {record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}
+              {record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}
+              {record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}
+            </span>
+          </div>
+        </button>;
+      })}</div>
     </section>
     <GoogleCalendarPanel monthKey={monthKey} onEvents={setGoogleEvents} />
     {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">

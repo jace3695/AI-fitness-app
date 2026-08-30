@@ -3,10 +3,21 @@ import test from "node:test";
 import {
   buildGoogleEventResource,
   getCalendarMonthBounds,
+  getGoogleCalendarDayPreview,
   isSameGoogleCalendarEvent,
   mapGoogleCalendarEvent,
   parseGoogleCalendarEventInput,
 } from "../../lib/google-calendar.ts";
+
+test("달력 칸에는 첫 Google 일정 제목과 나머지 개수를 보여준다", () => {
+  const preview = getGoogleCalendarDayPreview([
+    { id: "event-1", title: "Google 연동 테스트", date: "2026-08-30", startLabel: "종일", allDay: true },
+    { id: "event-2", title: "저녁 운동", date: "2026-08-30", startLabel: "20:00", allDay: false },
+  ]);
+
+  assert.deepEqual(preview, { title: "Google 연동 테스트", additionalCount: 1 });
+  assert.equal(getGoogleCalendarDayPreview([]), null);
+});
 
 test("시간 일정 입력을 검증하고 Google 일정 형식으로 바꾼다", () => {
   const parsed = parseGoogleCalendarEventInput({
