@@ -22,6 +22,21 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
 ```
 
+### Google Calendar 연동
+
+Google Cloud에서 **웹 애플리케이션** OAuth 클라이언트를 만든 뒤 Calendar API를
+활성화합니다. 승인된 리디렉션 URI에는 로컬과 운영 주소를 각각 등록합니다.
+
+```text
+http://localhost:3000/api/google-calendar/callback
+https://ai-fitness-app-ten.vercel.app/api/google-calendar/callback
+```
+
+서버 환경변수에 `GOOGLE_CALENDAR_CLIENT_ID`,
+`GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REDIRECT_URI`를 설정합니다.
+운영 환경의 리디렉션 URI는 위 운영 주소와 정확히 같아야 합니다. 토큰은 서버에서
+암호화되어 Supabase의 사용자별 RLS 행에 저장되며 브라우저 저장소에는 남지 않습니다.
+
 ### 3. 개발 서버 실행
 ```bash
 npm run dev
