@@ -337,6 +337,10 @@ export default function WorkoutSession({
   const timerSecondsRef = useRef(initialDraft?.timerSeconds ?? getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
   const restSecondsRef = useRef(initialDraft?.restSeconds ?? 0);
   const exercise = exercises[currentIndex];
+  const currentRecord = exerciseRecords[currentIndex];
+  const currentSetIndex = currentRecord?.sets?.findIndex((set) => !set.completed) ?? -1;
+  const currentSetNumber = currentSetIndex >= 0 ? currentSetIndex + 1 : currentRecord?.sets?.length;
+  const currentSetCount = currentRecord?.sets?.length ?? 0;
   const recommendation = useMemo(() => getExerciseRecommendation(exercise, intensity), [exercise, intensity]);
   const initialTimerSeconds = useMemo(() => getRecommendedExerciseSeconds(exercise, intensity), [exercise, intensity]);
   const isLastExercise = currentIndex === exercises.length - 1;
@@ -530,7 +534,7 @@ export default function WorkoutSession({
             <div className="min-w-0">
               <p className="truncate text-[13px] font-bold text-[#534AB7]">{title}</p>
               <p className="mt-0.5 text-[12px] text-gray-400">
-                {currentIndex + 1} / {exercises.length} · <ElapsedClock initialSeconds={initialElapsedSeconds} onSecondsChange={(seconds) => { elapsedSecondsRef.current = seconds; }} />
+                운동 {currentIndex + 1}/{exercises.length}{currentSetCount ? ` · 세트 ${currentSetNumber}/${currentSetCount}` : ''} · <ElapsedClock initialSeconds={initialElapsedSeconds} onSecondsChange={(seconds) => { elapsedSecondsRef.current = seconds; }} />
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -546,7 +550,7 @@ export default function WorkoutSession({
             <div className="h-full rounded-full bg-[#534AB7] transition-all" style={{ width: `${progress}%` }} />
           </div>
           <p className="mt-2 text-[11px] text-gray-400">
-            화면 꺼짐 방지 {wakeLockActive ? '작동 중' : '미지원 또는 대기 중'}
+            {Math.round(progress)}% 완료 · 화면 꺼짐 방지 {wakeLockActive ? '작동 중' : '대기 중'}
           </p>
         </header>
 
@@ -560,23 +564,24 @@ export default function WorkoutSession({
           {mode === 'exercise' && (
             <>
               <section className="rounded-3xl bg-gradient-to-br from-[#EEEDFE] to-[#F7F6FF] p-5 text-center sm:p-7">
-                <p className="text-[12px] font-bold text-[#534AB7]">현재 동작</p>
+                <p className="text-[12px] font-bold text-[#534AB7]">지금 할 일</p>
                 <h2 className="mt-2 text-[26px] font-bold text-gray-900 sm:text-[32px]">{exercise.name}</h2>
+                {currentSetCount ? <p className="mt-2 text-[18px] font-extrabold text-[#3C3489]">{currentSetNumber}세트 진행</p> : null}
                 {exercise.meta ? <p className="mt-2 text-[14px] font-semibold text-gray-600">{exercise.meta}</p> : null}
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {exercise.sets ? <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-gray-700">{exercise.sets}세트</span> : null}
                   {exercise.restSeconds ? <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-gray-700">휴식 {exercise.restSeconds}초</span> : null}
                 </div>
               </section>
-              <section className={`mt-4 rounded-2xl border p-4 text-left ${intensity === 'recovery' ? 'border-red-200 bg-red-50 text-red-900' : intensity === '70%' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-100 bg-green-50 text-green-900'}`}>
-                <p className="text-[12px] font-bold">{recommendation.headline}</p>
-                <p className="mt-1 text-[12px] leading-relaxed">{recommendation.detail}</p>
+              <details className={`mt-4 rounded-2xl border text-left ${intensity === 'recovery' ? 'border-red-200 bg-red-50 text-red-900' : intensity === '70%' ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-green-100 bg-green-50 text-green-900'}`} open={intensity !== 'normal' || undefined}>
+                <summary className="cursor-pointer list-none p-4"><span className="block text-[12px] font-bold">AI 추천 · {recommendation.headline}</span><span className="mt-1 block text-[11px] opacity-70">추천 이유가 궁금할 때 펼쳐보세요</span></summary>
+                <div className="border-t border-black/5 p-4 pt-3"><p className="text-[12px] leading-relaxed">{recommendation.detail}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {recommendation.sets ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.sets}세트</span> : null}
                   {recommendation.reps ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.reps}회</span> : null}
                   {recommendation.durationMinutes ? <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold">추천 {recommendation.durationMinutes}분</span> : null}
-                </div>
-              </section>
+                </div></div>
+              </details>
               <TimerButton
                 key={`${currentIndex}:${initialTimerSeconds}`}
                 initialSeconds={initialTimerSeconds}
@@ -593,7 +598,10 @@ export default function WorkoutSession({
                 intensity={intensity}
                 onChange={(record) => setExerciseRecords((records) => records.map((item, index) => index === currentIndex ? record : item))}
               />
-              <ExerciseGuidePanel exercise={exercise} />
+              <details className="mt-4 rounded-2xl border border-gray-100 bg-white">
+                <summary className="cursor-pointer list-none p-4"><span className="block text-[13px] font-bold text-gray-800">자세와 주의사항 보기</span><span className="mt-1 block text-[11px] text-gray-500">동작 방법이 헷갈릴 때만 펼쳐보세요</span></summary>
+                <div className="border-t border-gray-100 px-3 pb-3"><ExerciseGuidePanel exercise={exercise} /></div>
+              </details>
             </>
           )}
 
@@ -656,7 +664,7 @@ export default function WorkoutSession({
               <div className="mt-4 space-y-4 rounded-2xl bg-white p-4 text-left">
                 <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={painScore > 0 || painSymptoms.length > 0} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${((painScore > 0 || painSymptoms.length > 0) ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
                 <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
-                <label className="block text-[12px] font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+                <details className="rounded-xl bg-gray-50 p-3"><summary className="cursor-pointer text-[12px] font-bold text-gray-700">피로도 상세 기록</summary><label className="mt-3 block text-[12px] font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label></details>
               </div>
               <button type="button" onClick={completeSession} className="mt-5 w-full rounded-2xl bg-[#534AB7] px-4 py-3.5 text-[14px] font-bold text-white">
                 기록 저장하고 종료
@@ -667,13 +675,13 @@ export default function WorkoutSession({
 
         {mode === 'exercise' && (
           <footer className="shrink-0 border-t border-gray-100 bg-white/95 p-3 shadow-2xl sm:px-6">
-            <button type="button" onClick={() => setMode('pain')} className="mb-2 w-full rounded-xl bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
+            <button type="button" onClick={() => setMode('pain')} className="mb-2 w-full rounded-xl border border-red-100 bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
               통증·저림·어지러움 발생
             </button>
             <div className="grid grid-cols-[0.8fr_1.6fr_0.8fr] gap-2">
-              <button type="button" disabled={currentIndex === 0} onClick={() => goToExercise(currentIndex - 1)} className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700 disabled:text-gray-300">이전</button>
-              <button type="button" onClick={finishOrAdvance} className="rounded-xl bg-[#534AB7] py-3 text-[13px] font-bold text-white">{exerciseRecords[currentIndex]?.sets?.some((set) => !set.completed) ? `${(exerciseRecords[currentIndex]?.sets?.findIndex((set) => !set.completed) ?? 0) + 1}세트 완료` : isLastExercise ? '이 동작 완료' : '완료하고 다음'}</button>
-              <button type="button" onClick={skipCurrent} className="rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700">건너뛰기</button>
+              <button type="button" disabled={currentIndex === 0} onClick={() => goToExercise(currentIndex - 1)} className="min-h-14 rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700 disabled:text-gray-300">이전</button>
+              <button type="button" onClick={finishOrAdvance} className="min-h-14 rounded-xl bg-[#534AB7] py-3 text-[15px] font-extrabold text-white shadow-lg shadow-violet-200">{exerciseRecords[currentIndex]?.sets?.some((set) => !set.completed) ? `${(exerciseRecords[currentIndex]?.sets?.findIndex((set) => !set.completed) ?? 0) + 1}세트 완료` : isLastExercise ? '이 동작 완료' : '완료하고 다음'}</button>
+              <button type="button" onClick={skipCurrent} className="min-h-14 rounded-xl bg-gray-100 py-3 text-[12px] font-bold text-gray-700">건너뛰기</button>
             </div>
             {getExerciseVideoHref(exercise) ? <a className="mt-2 block rounded-xl bg-[#111827] py-2.5 text-center text-[12px] font-bold text-white" href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer">{getExerciseVideoLabel(exercise)}</a> : null}
           </footer>
