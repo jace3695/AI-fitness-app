@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { buildFitnessAiSnapshot } from "../data/fitnessAiSnapshot";
+import { readRecordStores } from "../data/recordStorage";
 import type { RecordStores } from "../data/recordStorage";
 import { getWorkoutGroupById } from "../data/workoutGroups";
 import { getWorkoutMethodLabel } from "../data/workoutMethods";
@@ -11,6 +12,7 @@ import { readWorkoutPlanDecisionHistory, saveWorkoutPlanDecision } from "../data
 import type { WorkoutDayId } from "../data/workoutCompletion";
 import { SELECTED_WEEKLY_WORKOUT_PLAN_KEY } from "../data/workoutPlans";
 import { readUserWorkoutSettings, saveUserWorkoutSettings } from "../data/userWorkoutSettings";
+import type { UserWorkoutSettings } from "../data/userWorkoutSettings";
 import { authenticatedFetch } from "@/lib/supabase";
 
 type AnalysisType = "latest" | "weekly" | "monthly" | "longTerm" | "plan";
@@ -24,7 +26,7 @@ const ANALYSIS_OPTIONS: { id: AnalysisType; title: string; description: string; 
   { id: "plan", title: "다음 주 계획", description: "누적 기록으로 7일 계획안 만들기", action: "계획안 받기" },
 ];
 
-export default function FitnessAiCoachPanel({ stores }: { stores: RecordStores }) {
+export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanApplied }: { stores?: RecordStores; mode?: "full" | "plan"; onPlanApplied?: (settings: UserWorkoutSettings) => void }) {
   const [result, setResult] = useState<CoachResult | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType>("latest");
   const [loading, setLoading] = useState(false);
@@ -41,7 +43,7 @@ export default function FitnessAiCoachPanel({ stores }: { stores: RecordStores }
         recentPlanDecisions: readWorkoutPlanDecisionHistory().slice(0, 10),
       } : undefined;
       const snapshot = {
-        ...buildFitnessAiSnapshot(stores),
+        ...buildFitnessAiSnapshot(stores ?? readRecordStores()),
         recentPlanDecisions: readWorkoutPlanDecisionHistory().slice(0, 10),
       };
       const response = await authenticatedFetch("/api/fitness/coach", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysisType: type, snapshot, currentSettings }) });
@@ -61,6 +63,7 @@ export default function FitnessAiCoachPanel({ stores }: { stores: RecordStores }
     if (!window.confirm(message)) return;
     const next = applyWorkoutPlanProposal(readUserWorkoutSettings(), proposal, selection);
     saveUserWorkoutSettings(next);
+    onPlanApplied?.(next);
     saveWorkoutPlanDecision(partial ? "partial" : "applied", proposal, selection);
     setApplyNotice(partial ? "고른 항목만 적용했습니다. 나머지 설정은 그대로예요." : "AI 계획 전체를 적용했습니다. 운동하기에서 새 계획을 확인할 수 있어요.");
   };
@@ -72,8 +75,8 @@ export default function FitnessAiCoachPanel({ stores }: { stores: RecordStores }
 
   return (
     <section className="rounded-3xl border border-violet-100 bg-gradient-to-br from-white to-[#F3F1FF] p-4 shadow-sm sm:p-5">
-      <div><p className="text-[12px] font-bold text-[#534AB7]">AI 연이 운동 코치</p><h2 className="mt-1 text-[20px] font-extrabold text-gray-900">분석하고 다음 운동계획도 제안해요</h2><p className="mt-1 text-[11px] leading-5 text-gray-500">버튼을 누를 때만 AI 비용이 발생합니다. 계획안은 내용을 확인하고 ‘적용하기’를 눌러야만 바뀝니다.</p></div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{ANALYSIS_OPTIONS.map((option) => <button key={option.id} type="button" disabled={loading} onClick={() => void analyze(option.id)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-50 ${analysisType === option.id ? "border-[#534AB7] bg-[#534AB7] text-white" : "border-violet-100 bg-white text-gray-800"}`}><span className="block text-[13px] font-extrabold">{loading && analysisType === option.id ? "분석 중…" : option.action}</span><span className={`mt-1 block text-[10px] leading-4 ${analysisType === option.id ? "text-white/75" : "text-gray-500"}`}>{option.description}</span></button>)}</div>
+      <div><p className="text-[12px] font-bold text-[#534AB7]">AI 연이 운동 코치</p><h2 className="mt-1 text-[20px] font-extrabold text-gray-900">{mode === "plan" ? "내 기록으로 다음 주 계획 만들기" : "분석하고 다음 운동계획도 제안해요"}</h2><p className="mt-1 text-[11px] leading-5 text-gray-500">버튼을 누를 때만 AI 비용이 발생합니다. 계획은 미리보기만 보여주며 Jace님이 선택하기 전에는 절대 바뀌지 않습니다.</p></div>
+      <div className={`mt-4 grid gap-2 ${mode === "full" ? "sm:grid-cols-2 lg:grid-cols-5" : ""}`}>{ANALYSIS_OPTIONS.filter((option) => mode === "full" || option.id === "plan").map((option) => <button key={option.id} type="button" disabled={loading} onClick={() => void analyze(option.id)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-50 ${mode === "plan" || analysisType === option.id ? "border-[#534AB7] bg-[#534AB7] text-white" : "border-violet-100 bg-white text-gray-800"}`}><span className="block text-[13px] font-extrabold">{loading && analysisType === option.id ? "기록을 분석하는 중…" : mode === "plan" ? "AI 계획안 만들기" : option.action}</span><span className={`mt-1 block text-[10px] leading-4 ${mode === "plan" || analysisType === option.id ? "text-white/75" : "text-gray-500"}`}>{option.description}</span></button>)}</div>
       {error ? <p className="mt-4 rounded-2xl bg-red-50 p-3 text-[12px] font-semibold text-red-700">{error}</p> : null}
       {result ? <div className="mt-5 space-y-3" aria-live="polite">
         <div className="rounded-2xl bg-white p-4"><div className="flex items-center justify-between gap-3"><p className="text-[12px] font-bold text-gray-500">{result.analysisLabel}</p><span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[10px] font-bold text-[#534AB7]">확신도 {result.confidence}</span></div><p className="mt-2 text-[13px] leading-6 text-gray-800">{result.overview}</p></div>
@@ -110,7 +113,7 @@ function PlanProposalCard({ proposal, onApply, onKeep, appliedNotice }: { propos
     {proposal.changes.length ? <div className="mt-3 rounded-xl bg-blue-50 p-3 text-[11px] leading-5 text-blue-900"><b>달라지는 점</b>{proposal.changes.map((item) => <p key={item}>• {item}</p>)}</div> : null}
     {proposal.cautions.length ? <div className="mt-2 rounded-xl bg-amber-50 p-3 text-[11px] leading-5 text-amber-900"><b>적용 전 확인</b>{proposal.cautions.map((item) => <p key={item}>• {item}</p>)}</div> : null}
     {partialMode ? <div className="mt-4 rounded-xl border border-violet-100 bg-[#FAF9FF] p-3"><p className="text-[11px] font-bold text-[#534AB7]">바꿀 요일과 운동량만 체크하세요.</p><button type="button" disabled={!hasPartialSelection} onClick={() => onApply({ dayIds: selectedDayIds, exerciseNames: selectedExerciseNames })} className="mt-3 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-[13px] font-extrabold text-white disabled:bg-gray-300">체크한 항목만 적용</button></div> : null}
-    <div className="mt-4 grid gap-2 sm:grid-cols-3"><button type="button" onClick={() => onApply()} className="rounded-xl bg-[#534AB7] px-3 py-3 text-[13px] font-extrabold text-white">전체 적용</button><button type="button" onClick={() => setPartialMode((current) => !current)} className="rounded-xl bg-[#EEEDFE] px-3 py-3 text-[13px] font-extrabold text-[#443B97]">{partialMode ? "일부 선택 닫기" : "일부만 골라 적용"}</button><button type="button" onClick={onKeep} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-extrabold text-gray-600">기존 계획 유지</button></div>
+    <div className="mt-4 grid gap-2 sm:grid-cols-3"><button type="button" onClick={() => onApply()} className="rounded-xl bg-[#534AB7] px-3 py-3 text-[13px] font-extrabold text-white">추천 적용</button><button type="button" onClick={() => setPartialMode((current) => !current)} className="rounded-xl bg-[#EEEDFE] px-3 py-3 text-[13px] font-extrabold text-[#443B97]">{partialMode ? "일부 수정 닫기" : "일부 수정"}</button><button type="button" onClick={onKeep} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-extrabold text-gray-600">기존 계획 유지</button></div>
     <p className="mt-2 text-center text-[10px] text-gray-400">선택하기 전에는 현재 운동 설정이 바뀌지 않습니다.</p>
     {appliedNotice ? <p role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-[11px] font-bold text-emerald-700">{appliedNotice}</p> : null}
   </section>;
