@@ -54,6 +54,7 @@ import WorkoutNotificationPanel from "../components/WorkoutNotificationPanel";
 import DataBackupPanel from "../components/DataBackupPanel";
 import AppIdentity from "../components/AppIdentity";
 import AppModuleNav from "../components/AppModuleNav";
+import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -701,6 +702,9 @@ function FitnessApp() {
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 연습 →</p>
               </button>
             </section>
+            <div className="mb-4">
+              <FitnessAiCoachPanel mode="plan" onPlanApplied={handleUserWorkoutSettingsChange} />
+            </div>
             <details className="mb-3 rounded-2xl border border-amber-100 bg-white shadow-sm">
               <summary className="cursor-pointer list-none p-4">
                 <span className="block text-[14px] font-bold text-gray-900">몸이 아프거나 피곤한가요?</span>
