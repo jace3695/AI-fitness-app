@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
-import { generateAiText } from "@/lib/ai-router";
+import { AiRouterConfigurationError, generateAiText } from "@/lib/ai-router";
 import type { AiTextFeature } from "@/lib/ai-router-policy";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { sanitizeWorkoutPlanProposal } from "@/app/data/workoutPlanProposal";
 import { WORKOUT_GROUPS } from "@/app/data/workoutGroups";
+import { buildLocalWorkoutPlanResult } from "@/app/data/localWorkoutPlanProposal";
 
 export const dynamic = "force-dynamic";
 const MAX_OUTPUT_TOKENS = 1400;
@@ -132,6 +133,15 @@ ${outputSchema}`;
     return NextResponse.json({ ...result, analysisType, analysisLabel: analysisGuide.label });
   } catch (error) {
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
+    if (analysisType === "plan" && error instanceof AiRouterConfigurationError) {
+      console.warn("Fitness AI plan using local safety fallback", { reason: "provider_not_configured" });
+      return NextResponse.json({
+        ...buildLocalWorkoutPlanResult(snapshot, currentSettings),
+        analysisType,
+        analysisLabel: "다음 주 운동 계획안 · 로컬 안전 분석",
+        source: "local",
+      });
+    }
     console.error("Fitness AI Router analysis error", { message: error instanceof Error ? error.message : "unknown" });
     return NextResponse.json({ error: "AI 코치 분석 중 오류가 발생했습니다." }, { status: 502 });
   }

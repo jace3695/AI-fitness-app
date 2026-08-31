@@ -1,5 +1,5 @@
-import { WorkoutDayId } from './workoutCompletion';
-import { getWorkoutGroupById, workoutGroupToDayWorkout } from './workoutGroups';
+import type { WorkoutDayId } from './workoutCompletion.ts';
+import { getWorkoutGroupById, workoutGroupToDayWorkout } from './workoutGroups.ts';
 
 export type WeeklyWorkoutPlanDays = Record<'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday', string>;
 export type WeeklyWorkoutPlan = { id: string; name: string; description: string; recommendedFor: string; weekLabel: string; days: WeeklyWorkoutPlanDays; notice?: string };

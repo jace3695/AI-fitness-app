@@ -1,4 +1,4 @@
-import { ExerciseGuide } from './workouts';
+import type { ExerciseGuide } from './workouts.ts';
 
 export type ExerciseGuideEntry = ExerciseGuide & { summary: string; purpose: string; homeTips?: string[]; alternatives?: string[]; videoTitle?: string };
 

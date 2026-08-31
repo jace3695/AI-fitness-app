@@ -1,5 +1,6 @@
-import { DayWorkout, Detail, Exercise, FlowItem, Phase, SAFETY_STOP_MESSAGE } from './workouts';
-import { getExerciseGuide } from './exerciseGuides';
+import { SAFETY_STOP_MESSAGE } from './workouts.ts';
+import type { DayWorkout, Detail, Exercise, FlowItem, Phase } from './workouts.ts';
+import { getExerciseGuide } from './exerciseGuides.ts';
 
 export type WorkoutGroupCategory = 'cardio' | 'core' | 'strength' | 'recovery' | 'rest';
 export type WorkoutIntensity = 'low' | 'medium' | 'high';
