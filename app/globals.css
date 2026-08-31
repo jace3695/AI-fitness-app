@@ -262,10 +262,15 @@ html {
   .app-module-nav-mobile-inner .app-module-nav-item,
   .app-module-header .app-module-nav .app-module-nav-item {
     flex: 1 1 0;
-    min-height: 52px;
+    min-height: 56px;
     padding: 6px 3px;
     flex-direction: column;
     gap: 3px;
   }
-  .app-module-nav-label { font-size: 10px; }
+  .app-module-nav-label { font-size: 11px; }
+
+  .fitness-mobile-shell button,
+  .fitness-mobile-shell summary {
+    min-height: 44px;
+  }
 }
