@@ -360,7 +360,7 @@ export default function RecordCalendarView() {
               <button
                 key={key}
                 onClick={() => { setSelected(key); setWorkoutNotice(""); }}
-                className={`min-h-[56px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
+                className={`min-h-[60px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
               >
                 <span
                   className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold ${isToday ? "bg-[#534AB7] text-white" : "text-gray-700"}`}
@@ -371,7 +371,7 @@ export default function RecordCalendarView() {
                   {badges.map((badge, i) => (
                     <span
                       key={`${badge}-${i}`}
-                      className="rounded-full bg-white px-1 text-[9px] font-bold text-gray-600 shadow-sm"
+                      className="rounded-full bg-white px-1 text-[10px] font-bold text-gray-600 shadow-sm"
                     >
                       {badge}
                     </span>
@@ -410,7 +410,7 @@ export default function RecordCalendarView() {
             기록이 없습니다.
           </p>
         )}
-        <div className="mt-3 grid grid-cols-1 gap-2 text-[12px] text-gray-700 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 text-[13px] text-gray-700 sm:grid-cols-2">
           <div className="rounded-xl bg-gray-50 p-3">
             운동
             <br />
