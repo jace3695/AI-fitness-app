@@ -228,10 +228,10 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
     onChange({ ...settings, exerciseTargets: { ...settings.exerciseTargets, [name]: next } });
   };
 
-  return <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-5 shadow-sm sm:p-6">
-    <p className="text-[12px] font-bold text-[#534AB7]">내 운동 설정</p>
-    <h2 className="mt-1 text-xl font-bold text-gray-900">요일과 운동량 직접 바꾸기</h2>
-    <p className="mt-2 text-sm text-gray-500">AI 기본값은 안전 기준과 현재 계획을 바탕으로 표시됩니다. 실제 적용값은 언제든 직접 바꿀 수 있습니다.</p>
+  return <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-6">
+    <p className="text-[12px] font-bold text-[#534AB7]">필요한 것만 바꾸기</p>
+    <h2 className="mt-1 text-xl font-bold text-gray-900">어느 날 운동을 바꿀까요?</h2>
+    <p className="mt-2 text-sm text-gray-500">기간과 요일을 고른 뒤 운동만 선택하면 끝입니다. 횟수와 방식은 바꾸고 싶을 때만 열어보세요.</p>
 
     <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-gray-50 p-1.5">
       {([['weekly', '매주'], ['week', '이번 주만'], ['today', '오늘만']] as [EditScope, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setScope(value)} className={`rounded-xl px-2 py-2 text-xs font-bold ${scope === value ? "bg-white text-[#534AB7] shadow-sm" : "text-gray-500"}`}>{label}</button>)}
@@ -253,7 +253,12 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
 
     {scope !== "today" && <div className="mt-3 rounded-2xl border border-gray-100 p-3"><p className="text-xs font-bold text-gray-700">운동일 이동·교환</p><div className="mt-2 flex gap-2"><select aria-label="교환할 요일" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value as WorkoutDayId)} className="min-w-0 flex-1 rounded-xl bg-gray-50 px-3 py-2 text-sm">{DAYS.filter((day) => day !== effectiveDay).map((day) => <option key={day} value={day}>{dayIdToKoreanLabel[day]}</option>)}</select><button type="button" onClick={swapDays} className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-bold text-white">서로 교환</button></div><p className="mt-1 text-[11px] text-gray-400">놓친 운동을 옮길 때 대상 요일과 계획을 서로 바꿉니다.</p></div>}
 
-    <section className="mt-4 rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF] p-4">
+    <details className="mt-4 rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF]">
+      <summary className="cursor-pointer list-none p-4">
+        <span className="block text-sm font-bold text-gray-900">운동 방식 바꾸기</span>
+        <span className="mt-1 block text-[11px] text-gray-500">지금은 {getWorkoutMethodLabel(currentMethod.method)} · 서킷·슈퍼세트·인터벌은 여기서 선택</span>
+      </summary>
+      <section className="border-t border-[#D9D6FF] p-4">
       <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#534AB7]">운동 수행 방식</p><h3 className="mt-1 text-base font-bold text-gray-900">{getWorkoutMethodLabel(currentMethod.method)}</h3></div><button type="button" onClick={() => updateMethod(DEFAULT_WORKOUT_METHOD)} className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold text-gray-500">기본값</button></div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">{WORKOUT_METHOD_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => updateMethod({ method: option.id })} className={`rounded-xl px-2 py-2.5 text-xs font-bold ${currentMethod.method === option.id ? "bg-[#534AB7] text-white" : "bg-white text-gray-600"}`}>{option.label}</button>)}</div>
       <p className="mt-2 text-[11px] leading-relaxed text-gray-500">{WORKOUT_METHOD_OPTIONS.find((option) => option.id === currentMethod.method)?.description}</p>
@@ -263,13 +268,16 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
         <label className="text-[11px] font-bold text-gray-600">{currentMethod.method === "interval" ? "구간 휴식" : "묶음 후 휴식"}<span className="mt-1 flex items-center rounded-xl bg-white px-3"><input aria-label="운동 방식 휴식 시간" type="number" min={0} max={300} step={5} value={currentMethod.restSeconds} onChange={(event) => updateMethod({ restSeconds: Number(event.target.value) })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">초</span></span></label>
       </div> : null}
       <p className="mt-3 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-gray-600">준비운동과 마무리는 한 번만 진행하고 선택한 방식은 본운동에만 적용됩니다. 통증·저림이 있으면 방식과 관계없이 즉시 중단하세요.</p>
-    </section>
+      </section>
+    </details>
 
     {group.type === "choice" ? <p className="mt-4 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">선택 유산소의 시간은 운동 화면에서 직접 입력할 수 있습니다.</p> : <div className="mt-5 space-y-3">
-      <div><h3 className="font-bold text-gray-900">운동 순서·추가·삭제</h3><p className="mt-1 text-xs text-gray-500">화살표로 순서를 바꾸고, 오늘 하지 않을 운동은 삭제할 수 있습니다.</p></div>
-      <div className="space-y-2">{orderedExercises.map((exercise, index) => <div key={exercise.exerciseId} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2"><span className="min-w-0 flex-1 truncate text-sm font-medium">{index + 1}. {exercise.name}</span><button type="button" disabled={index === 0} onClick={() => moveExercise(exercise.exerciseId, -1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 위로 이동`}>↑</button><button type="button" disabled={index === orderedExercises.length - 1} onClick={() => moveExercise(exercise.exerciseId, 1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 아래로 이동`}>↓</button><button type="button" onClick={() => removeExercise(exercise.exerciseId)} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-600">삭제</button></div>)}</div>
-      <div className="flex gap-2"><input aria-label="추가할 운동 이름" value={newExerciseName} onChange={(e) => setNewExerciseName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExercise(); } }} placeholder="추가할 운동 이름" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm" /><button type="button" onClick={addExercise} className="rounded-xl bg-[#534AB7] px-4 py-2 text-xs font-bold text-white">운동 추가</button></div>
-      <div><h3 className="font-bold text-gray-900">운동별 내 설정</h3><p className="mt-1 text-xs text-gray-500">비워 두면 AI 기본값이 적용됩니다. 추천은 자동 변경이 아니며, 추천값 적용을 눌렀을 때만 내 설정에 복사됩니다.</p></div>
+      <details className="rounded-2xl border border-gray-100 bg-white">
+        <summary className="cursor-pointer list-none p-4"><span className="block text-sm font-bold text-gray-900">운동 순서·추가·삭제</span><span className="mt-1 block text-[11px] text-gray-500">필요할 때만 운동 목록을 직접 편집하세요</span></summary>
+        <div className="space-y-2 border-t border-gray-100 p-3">{orderedExercises.map((exercise, index) => <div key={exercise.exerciseId} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2"><span className="min-w-0 flex-1 truncate text-sm font-medium">{index + 1}. {exercise.name}</span><button type="button" disabled={index === 0} onClick={() => moveExercise(exercise.exerciseId, -1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 위로 이동`}>↑</button><button type="button" disabled={index === orderedExercises.length - 1} onClick={() => moveExercise(exercise.exerciseId, 1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 아래로 이동`}>↓</button><button type="button" onClick={() => removeExercise(exercise.exerciseId)} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-600">삭제</button></div>)}</div>
+        <div className="flex gap-2 px-3 pb-3"><input aria-label="추가할 운동 이름" value={newExerciseName} onChange={(e) => setNewExerciseName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExercise(); } }} placeholder="추가할 운동 이름" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm" /><button type="button" onClick={addExercise} className="rounded-xl bg-[#534AB7] px-4 py-2 text-xs font-bold text-white">운동 추가</button></div>
+      </details>
+      <div><h3 className="font-bold text-gray-900">횟수와 시간 바꾸기</h3><p className="mt-1 text-xs text-gray-500">AI 추천을 확인하고 원하는 운동만 바꿀 수 있습니다. 바꾸지 않으면 안전한 기본값이 그대로 적용됩니다.</p></div>
       <div className="rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF] p-3 text-xs leading-relaxed text-[#3C3489]">
         <p className="font-bold">AI 추천을 읽는 방법</p>
         <p className="mt-1">최근 3회 수행과 통증·난이도·피로도·운동 간격을 먼저 보고, 체중 변화와 직접 바꾼 운동량을 함께 확인합니다.</p>
