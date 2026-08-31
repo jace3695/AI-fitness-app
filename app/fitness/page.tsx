@@ -612,7 +612,7 @@ function FitnessApp() {
   return (
     <>
       <WorkoutNotificationManager />
-    <div className="min-h-dvh bg-[#F6F7FB]">
+    <div className="fitness-mobile-shell min-h-dvh bg-[#F6F7FB]">
       {/* ── Top Header ── */}
       <header className="app-module-header">
         <div className="app-module-header-inner">
@@ -623,7 +623,7 @@ function FitnessApp() {
       </header>
 
       {/* ── Main Content ── */}
-      <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+      <main className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
         {activeTab === "ov" && (
           <div className="mx-auto w-full max-w-5xl">
             <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
@@ -674,8 +674,8 @@ function FitnessApp() {
             </section>
 
             <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
-                <p className="text-[11px] text-gray-400">이번 주</p>
+              <div className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                <p className="text-[12px] text-gray-500">이번 주</p>
                 <p className="mt-1 text-[20px] font-bold text-gray-900">
                   {weeklyCompletedCount}
                   <span className="text-[12px] font-medium text-gray-400">
@@ -687,17 +687,17 @@ function FitnessApp() {
               <button
                 type="button"
                 onClick={() => handleTabChange("record")}
-                className="rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
+                className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
               >
-                <p className="text-[11px] text-gray-400">지난 기록</p>
+                <p className="text-[12px] text-gray-500">지난 기록</p>
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">달력 보기 →</p>
               </button>
               <button
                 type="button"
                 onClick={() => handleTabChange("pullup")}
-                className="rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
+                className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 text-left shadow-sm"
               >
-                <p className="text-[11px] text-gray-400">3분 운동</p>
+                <p className="text-[12px] text-gray-500">3분 운동</p>
                 <p className="mt-1 text-[14px] font-bold text-[#534AB7]">철봉 연습 →</p>
               </button>
             </section>
@@ -916,7 +916,7 @@ function FitnessApp() {
       </main>
 
       {/* Bottom padding for mobile nav */}
-      <div className="h-20 md:h-4" />
+      <div className="h-24 md:h-4" />
     </div>
     </>
   );

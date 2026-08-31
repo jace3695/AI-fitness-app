@@ -16,6 +16,7 @@ const hiddenRoutes = ["/login", "/forgot-password", "/reset-password", "/offline
 export default function HubBottomNav() {
   const pathname = usePathname();
   if (hiddenRoutes.some((route) => pathname.startsWith(route))) return null;
+  if (pathname.startsWith("/fitness")) return null;
 
   return (
     <nav className="hub-bottom-nav" aria-label="AI 연이 공통 메뉴">
