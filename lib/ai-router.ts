@@ -15,8 +15,10 @@ import {
 } from "@/lib/ai-router-policy";
 import {
   buildGeminiGenerationConfig,
+  extractGeminiResponse,
   readAiProviderFailure,
   type AiProviderFailureDetails,
+  type AiProviderResponseDiagnostics,
 } from "@/lib/ai-provider-protocol";
 
 type GeminiContent = {
@@ -49,6 +51,8 @@ export type AiTextResult = {
   text: string;
   inputTokens: number;
   outputTokens: number;
+  billableOutputTokens: number;
+  diagnostics: AiProviderResponseDiagnostics;
   provider: "google" | "openai";
   model: string;
   budgetMode: "standard" | "economy";
@@ -126,6 +130,7 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
             system_instruction: input.systemInstruction ? { parts: [{ text: input.systemInstruction }] } : undefined,
             contents: input.geminiContents ?? [{ role: "user", parts: [{ text: input.promptText }] }],
             generationConfig: buildGeminiGenerationConfig({
+              model: route.model,
               responseFormat: input.responseFormat,
               jsonSchema: input.jsonSchema,
               temperature: input.temperature,
@@ -156,26 +161,28 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
       throw new AiProviderRequestError(route.provider, route.model, response.status, details);
     }
     const data = await response.json();
-    const inputTokens = Number(
-      route.provider === "google"
-        ? data?.usageMetadata?.promptTokenCount ?? input.promptText.length
-        : data?.usage?.prompt_tokens ?? input.promptText.length,
-    );
-    const outputTokens = Number(
-      route.provider === "google"
-        ? data?.usageMetadata?.candidatesTokenCount ?? 0
-        : data?.usage?.completion_tokens ?? 0,
-    );
-    const text = route.provider === "google"
-      ? String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "")
-      : String(data?.choices?.[0]?.message?.content ?? "");
+    const geminiOutput = route.provider === "google" ? extractGeminiResponse(data, input.responseFormat) : undefined;
+    const inputTokens = geminiOutput?.inputTokens ?? Number(data?.usage?.prompt_tokens ?? input.promptText.length);
+    const outputTokens = geminiOutput?.outputTokens ?? Number(data?.usage?.completion_tokens ?? 0);
+    const billableOutputTokens = geminiOutput?.billableOutputTokens ?? outputTokens;
+    const text = geminiOutput?.text ?? String(data?.choices?.[0]?.message?.content ?? "");
+    const openAiFinishReason = typeof data?.choices?.[0]?.finish_reason === "string"
+      ? String(data.choices[0].finish_reason).trim().toUpperCase().slice(0, 64)
+      : undefined;
+    const diagnostics = geminiOutput?.diagnostics ?? {
+      finishReason: openAiFinishReason,
+      thoughtTokens: 0,
+      partCount: text ? 1 : 0,
+      answerTextPartCount: text ? 1 : 0,
+      thoughtTextPartCount: 0,
+    };
 
     await finalizeAiUsage(input.supabase, reservation.id, {
       inputUnits: inputTokens,
-      outputUnits: outputTokens,
-      actualCostKrw: tokenCostKrw(route.model, inputTokens, outputTokens),
+      outputUnits: billableOutputTokens,
+      actualCostKrw: tokenCostKrw(route.model, inputTokens, billableOutputTokens),
     });
-    return { text, inputTokens, outputTokens, provider: route.provider, model: route.model, budgetMode };
+    return { text, inputTokens, outputTokens, billableOutputTokens, diagnostics, provider: route.provider, model: route.model, budgetMode };
   } catch (error) {
     if (reservation) await cancelAiBudgetReservation(input.supabase, reservation.id);
     throw error;
