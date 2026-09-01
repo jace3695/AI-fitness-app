@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
-import { AiRouterConfigurationError, generateAiText } from "@/lib/ai-router";
+import { AiProviderRequestError, AiRouterConfigurationError, generateAiText } from "@/lib/ai-router";
+import { parseAiJsonObject } from "@/lib/ai-json";
 import type { AiTextFeature } from "@/lib/ai-router-policy";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { sanitizeWorkoutPlanProposal } from "@/app/data/workoutPlanProposal";
@@ -28,6 +29,81 @@ const PLAN_ALLOW_LIST = {
   groupIds: new Set(PLAN_CATALOG.map((group) => group.id)),
   exerciseNames: new Set(PLAN_CATALOG.flatMap((group) => group.exercises)),
 };
+
+const STRING_SCHEMA = { type: "STRING" };
+const WORKOUT_METHOD_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    method: { type: "STRING", enum: ["standard", "circuit", "superset", "interval", "free"] },
+    rounds: { type: "INTEGER" },
+    restSeconds: { type: "INTEGER" },
+    workSeconds: { type: "INTEGER" },
+  },
+  required: ["method", "rounds", "restSeconds", "workSeconds"],
+};
+const PLAN_PROPOSAL_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    title: STRING_SCHEMA,
+    summary: STRING_SCHEMA,
+    days: {
+      type: "ARRAY",
+      minItems: 7,
+      maxItems: 7,
+      items: {
+        type: "OBJECT",
+        properties: { dayId: { type: "STRING", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }, groupId: STRING_SCHEMA, method: WORKOUT_METHOD_SCHEMA, reason: STRING_SCHEMA },
+        required: ["dayId", "groupId", "method", "reason"],
+      },
+    },
+    exerciseTargets: { type: "ARRAY", maxItems: 3, items: { type: "OBJECT", properties: { exerciseName: STRING_SCHEMA, sets: { type: "INTEGER" }, reps: { type: "INTEGER" }, durationMinutes: { type: "INTEGER" }, reason: STRING_SCHEMA }, required: ["exerciseName", "reason"] } },
+    changes: { type: "ARRAY", maxItems: 3, items: STRING_SCHEMA },
+    cautions: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+  },
+  required: ["title", "summary", "days", "exerciseTargets", "changes", "cautions"],
+};
+
+function getFitnessResponseSchema(analysisType: AnalysisType) {
+  const properties: Record<string, unknown> = {
+    overview: STRING_SCHEMA,
+    positives: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+    cautions: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+    nextSession: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+    rationale: STRING_SCHEMA,
+    safety: STRING_SCHEMA,
+    confidence: { type: "STRING", enum: ["높음", "보통", "낮음"] },
+  };
+  const required = ["overview", "positives", "cautions", "nextSession", "rationale", "safety", "confidence"];
+  if (analysisType === "plan" || analysisType === "program") {
+    properties.planProposal = PLAN_PROPOSAL_SCHEMA;
+    required.push("planProposal");
+  }
+  if (analysisType === "program") {
+    properties.programReview = { type: "OBJECT", properties: { status: { type: "STRING", enum: ["기본 계획 유지", "조정 확인", "회복 우선", "기록 확인 필요"] }, summary: STRING_SCHEMA, priorities: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA } }, required: ["status", "summary", "priorities"] };
+    required.push("programReview");
+  }
+  return { type: "OBJECT", properties, required };
+}
+
+function localPlanFallback(input: {
+  snapshot: unknown;
+  currentSettings: unknown;
+  analysisType: AnalysisType;
+  programContext?: ReturnType<typeof getProgramContext>;
+  reason: "budget_protected" | "provider_unavailable" | "model_response_unusable";
+  source?: "local" | "recovered";
+}) {
+  const recovered = input.source === "recovered";
+  return NextResponse.json({
+    ...buildLocalWorkoutPlanResult(input.snapshot, input.currentSettings, input.reason),
+    ...(input.analysisType === "program" && input.programContext ? { programReview: buildLocalWorkoutProgramReview(input.programContext, input.snapshot) } : {}),
+    analysisType: input.analysisType,
+    analysisLabel: input.analysisType === "program"
+      ? recovered ? "내 운동계획 정밀 점검 · 응답 보정" : "내 운동계획 정밀 점검 · 로컬 안전 분석"
+      : recovered ? "다음 주 운동 계획안 · 응답 보정" : "다음 주 운동 계획안 · 로컬 안전 분석",
+    source: input.source ?? "local",
+  });
+}
 
 const ANALYSIS_GUIDES: Record<AnalysisType, { label: string; focus: string; feature: AiTextFeature }> = {
   latest: {
@@ -108,7 +184,7 @@ export async function POST(request: NextRequest) {
   const planCatalog = needsPlanContext ? PLAN_CATALOG : undefined;
   const programContext = analysisType === "program" ? getProgramContext(currentSettings) : undefined;
   const planProposalSchema = `{"title":"계획 이름","summary":"쉬운 설명","days":[{"dayId":"mon|tue|wed|thu|fri|sat|sun","groupId":"허용된 그룹 ID","method":{"method":"standard|circuit|superset|interval|free","rounds":1,"restSeconds":60,"workSeconds":30},"reason":"이유"}],"exerciseTargets":[{"exerciseName":"허용된 운동 이름","sets":2,"reps":10,"durationMinutes":15,"reason":"변경 이유"}],"changes":["현재 계획과 달라지는 점"],"cautions":["적용 후 주의할 점"]}`;
-  const programReviewSchema = `{"status":"기본 계획 유지|조정 확인|회복 우선|기록 확인 필요","summary":"현재 구성의 쉬운 요약","cards":[{"label":"주간 구성·상체 균형·하체/코어·예상 운동량 중 하나","value":"짧은 수치 또는 결론","detail":"근거","tone":"good|watch|adjust"}],"priorities":["지금 확인할 우선순위"]}`;
+  const programReviewSchema = `{"status":"기본 계획 유지|조정 확인|회복 우선|기록 확인 필요","summary":"현재 구성의 쉬운 요약","priorities":["지금 확인할 우선순위"]}`;
   const baseOutputSchema = `{"overview":"분석 범위에 맞는 핵심 요약 2~3문장","positives":["잘한 점 또는 유지할 점"],"cautions":["주의 신호 또는 기록이 부족한 부분"],"nextSession":["다음 운동 또는 다음 기간의 구체적 제안"],"rationale":"수치와 기록에 근거한 설명","safety":"안전 안내","confidence":"높음|보통|낮음"}`;
   const outputSchema = analysisType === "program"
     ? `${baseOutputSchema.slice(0, -1)},"programReview":${programReviewSchema},"planProposal":${planProposalSchema}}`
@@ -134,13 +210,15 @@ ${JSON.stringify(currentSettings)}
 사용 가능한 운동 그룹과 운동 이름 JSON:
 ${JSON.stringify(planCatalog)}
 
-계획안은 월요일부터 일요일까지 7일을 정확히 한 번씩 포함하세요. 반드시 제공된 groupId와 exerciseName만 사용하세요. 운동별 목표는 실제 변경이 필요한 항목만 최대 8개 작성하고 sets 1~5, reps 1~30, durationMinutes 1~60 범위로 제한하세요. 중량은 현재 설정 구조에 없으므로 임의로 만들지 마세요.` : ""}
+계획안은 월요일부터 일요일까지 7일을 정확히 한 번씩 포함하세요. 반드시 제공된 groupId와 exerciseName만 사용하세요. 운동별 목표는 실제 변경이 필요한 항목만 최대 3개 작성하고 sets 1~5, reps 1~30, durationMinutes 1~60 범위로 제한하세요. 중량은 현재 설정 구조에 없으므로 임의로 만들지 마세요.` : ""}
 ${analysisType === "program" ? `
 
 현재 주간 프로그램 계산 JSON:
 ${JSON.stringify(programContext)}
 
-programReview는 반드시 status, 1~4개 cards, priorities를 포함하세요. cards에는 현재 프로그램의 숫자와 균형을 쉬운 말로 보여주세요. 상체·하체·코어 균형은 programContext.summary.focusSets의 본운동 세트 수를 기준으로 쓰고, '며칠'이 아니라 '몇 세트'로 표시하세요. plannedSets가 0인 준비·정리·폼롤러·턱걸이 자세 연습은 근력 당기기·밀기·하체·코어 운동량에 절대 포함하지 마세요. 전신 운동은 포함된 실제 본운동을 부위별로 나누어 계산한 값만 사용하세요. 현재 계획이 안전하고 목표에 맞으면 status를 '기본 계획 유지'로 하고 planProposal도 현재 설정을 유지하세요. 최근 통증·높은 피로·운동 중단이 있으면 status를 '회복 우선'으로 하고 강도를 올리지 마세요. planProposal은 자동 적용되지 않는 미리보기입니다.` : ""}
+programReview는 status, summary, priorities만 포함하세요. 수치 카드는 앱이 programContext.summary에서 직접 계산해 표시하므로 cards는 만들지 마세요. 현재 계획이 안전하고 목표에 맞으면 status를 '기본 계획 유지'로 하고 planProposal도 현재 설정을 유지하세요. 최근 통증·높은 피로·운동 중단이 있으면 status를 '회복 우선'으로 하고 강도를 올리지 마세요. planProposal은 자동 적용되지 않는 미리보기입니다.` : ""}
+
+모든 설명은 짧게 작성하세요. overview·rationale·safety·summary는 각각 2문장 이내, 목록은 각각 2개 이내, 계획의 요일별 reason은 25자 이내로 제한하세요. exerciseTargets는 실제 변경이 필요할 때만 최대 3개 작성하세요.
 
 반드시 JSON 객체 하나만 반환하세요:
 ${outputSchema}`;
@@ -153,20 +231,34 @@ ${outputSchema}`;
       promptText: prompt,
       maxOutputTokens,
       responseFormat: "json",
+      jsonSchema: needsPlanContext ? getFitnessResponseSchema(analysisType) : undefined,
       temperature: 0.25,
     });
-    const parsed = JSON.parse(generated.text || "{}");
-    const parsedProgramReview = analysisType === "program" ? sanitizeWorkoutProgramReview(parsed.programReview) : undefined;
+    const parsed = parseAiJsonObject(generated.text);
+    if (!parsed) {
+      if (needsPlanContext) {
+        console.warn("Fitness AI plan using local safety fallback", { reason: "malformed_model_json", analysisType, provider: generated.provider, model: generated.model, outputTokens: generated.outputTokens });
+        return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
+      }
+      throw new Error("AI 응답의 JSON 형식이 완전하지 않습니다.");
+    }
+    const parsedProgramReview = analysisType === "program" && programContext
+      ? sanitizeWorkoutProgramReview({ ...objectValue(parsed.programReview), cards: buildWorkoutProgramReviewCards(programContext, snapshot) })
+      : undefined;
     const result = {
       overview: safeText(parsed.overview, 700), positives: safeList(parsed.positives), cautions: safeList(parsed.cautions),
       nextSession: safeList(parsed.nextSession, 6), rationale: safeText(parsed.rationale, 500), safety: safeText(parsed.safety, 400),
-      confidence: ["높음", "보통", "낮음"].includes(parsed.confidence) ? parsed.confidence : "낮음",
-      programReview: parsedProgramReview && programContext
-        ? { ...parsedProgramReview, cards: buildWorkoutProgramReviewCards(programContext, snapshot) }
-        : parsedProgramReview,
+      confidence: typeof parsed.confidence === "string" && ["높음", "보통", "낮음"].includes(parsed.confidence) ? parsed.confidence : "낮음",
+      programReview: parsedProgramReview,
       planProposal: needsPlanContext ? sanitizeWorkoutPlanProposal(parsed.planProposal, PLAN_ALLOW_LIST) : undefined,
     };
-    if (!result.overview || (needsPlanContext && !result.planProposal) || (analysisType === "program" && !result.programReview)) return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
+    if (!result.overview || (needsPlanContext && !result.planProposal) || (analysisType === "program" && !result.programReview)) {
+      if (needsPlanContext) {
+        console.warn("Fitness AI plan using local safety fallback", { reason: "invalid_model_payload", analysisType, provider: generated.provider, model: generated.model, outputTokens: generated.outputTokens });
+        return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
+      }
+      return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
+    }
     return NextResponse.json({
       ...result,
       analysisType,
@@ -176,24 +268,12 @@ ${outputSchema}`;
   } catch (error) {
     if (needsPlanContext && error instanceof AiBudgetExceededError && ["paid_ai_paused", "monthly_limit"].includes(error.restriction)) {
       console.warn("Fitness AI plan using local safety fallback", { reason: "budget_protected", analysisType });
-      return NextResponse.json({
-        ...buildLocalWorkoutPlanResult(snapshot, currentSettings, "budget_protected"),
-        ...(analysisType === "program" && programContext ? { programReview: buildLocalWorkoutProgramReview(programContext, snapshot) } : {}),
-        analysisType,
-        analysisLabel: analysisType === "program" ? "내 운동계획 정밀 점검 · 로컬 안전 분석" : "다음 주 운동 계획안 · 로컬 안전 분석",
-        source: "local",
-      });
+      return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "budget_protected" });
     }
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
-    if (needsPlanContext && error instanceof AiRouterConfigurationError) {
-      console.warn("Fitness AI plan using local safety fallback", { reason: "provider_not_configured", analysisType });
-      return NextResponse.json({
-        ...buildLocalWorkoutPlanResult(snapshot, currentSettings),
-        ...(analysisType === "program" && programContext ? { programReview: buildLocalWorkoutProgramReview(programContext, snapshot) } : {}),
-        analysisType,
-        analysisLabel: analysisType === "program" ? "내 운동계획 정밀 점검 · 로컬 안전 분석" : "다음 주 운동 계획안 · 로컬 안전 분석",
-        source: "local",
-      });
+    if (needsPlanContext && (error instanceof AiRouterConfigurationError || error instanceof AiProviderRequestError)) {
+      console.warn("Fitness AI plan using local safety fallback", { reason: error instanceof AiRouterConfigurationError ? "provider_not_configured" : "provider_request_failed", analysisType });
+      return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "provider_unavailable" });
     }
     console.error("Fitness AI Router analysis error", { message: error instanceof Error ? error.message : "unknown" });
     return NextResponse.json({ error: "AI 코치 분석 중 오류가 발생했습니다." }, { status: 502 });

@@ -14,7 +14,7 @@ type LocalPlanResult = {
   planProposal: WorkoutPlanProposal;
 };
 
-type LocalPlanFallbackReason = "provider_unavailable" | "budget_protected";
+type LocalPlanFallbackReason = "provider_unavailable" | "budget_protected" | "model_response_unusable";
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -72,10 +72,14 @@ export function buildLocalWorkoutPlanResult(
     : ["현재 요일별 운동 구성을 유지", "운동별 세트·횟수는 임의로 늘리지 않음"];
   const sourceText = fallbackReason === "budget_protected"
     ? "이번 달 유료 AI 예산을 보호하기 위해 비용 없는 로컬 안전 규칙으로 기록을 분석했습니다."
-    : "클라우드 AI 연결 없이 기기 기록을 안전 규칙으로 분석했습니다.";
+    : fallbackReason === "model_response_unusable"
+      ? "AI 응답을 끝까지 읽지 못해 추가 호출 없이 로컬 안전 규칙으로 기록을 분석했습니다."
+      : "클라우드 AI 연결을 사용할 수 없어 기기 기록을 안전 규칙으로 분석했습니다.";
   const planSummary = fallbackReason === "budget_protected"
     ? "월 AI 예산을 보호하기 위해 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다."
-    : "AI 키가 없어 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다.";
+    : fallbackReason === "model_response_unusable"
+      ? "AI 응답 형식이 완전하지 않아 다시 호출하지 않고 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다."
+      : "클라우드 AI 연결을 사용할 수 없어 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다.";
 
   return {
     overview: `${sourceText} ${signalText} 아래 계획은 미리보기이며 선택하기 전에는 적용되지 않습니다.`,

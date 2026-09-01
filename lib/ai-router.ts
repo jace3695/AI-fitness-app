@@ -34,6 +34,7 @@ type GenerateAiTextInput = {
   maxOutputTokens: number;
   temperature?: number;
   responseFormat?: "text" | "json";
+  jsonSchema?: Record<string, unknown>;
   systemInstruction?: string;
   geminiContents?: GeminiContent[];
   openAiMessages?: OpenAiMessage[];
@@ -115,6 +116,7 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
             contents: input.geminiContents ?? [{ role: "user", parts: [{ text: input.promptText }] }],
             generationConfig: {
               responseMimeType: input.responseFormat === "json" ? "application/json" : undefined,
+              responseSchema: input.responseFormat === "json" ? input.jsonSchema : undefined,
               temperature: input.temperature,
               maxOutputTokens,
             },
