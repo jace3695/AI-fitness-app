@@ -14,6 +14,8 @@ type LocalPlanResult = {
   planProposal: WorkoutPlanProposal;
 };
 
+type LocalPlanFallbackReason = "provider_unavailable" | "budget_protected";
+
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
@@ -28,7 +30,11 @@ function recentSafetySignals(snapshot: unknown) {
   return { sessionCount: sessions.length, painCount, highFatigueCount, stoppedCount, needsRecovery: painCount + highFatigueCount + stoppedCount > 0 };
 }
 
-export function buildLocalWorkoutPlanResult(snapshot: unknown, currentSettings: unknown): LocalPlanResult {
+export function buildLocalWorkoutPlanResult(
+  snapshot: unknown,
+  currentSettings: unknown,
+  fallbackReason: LocalPlanFallbackReason = "provider_unavailable",
+): LocalPlanResult {
   const settings = objectValue(currentSettings);
   const userSettings = objectValue(settings.userSettings);
   const weeklyGroups = objectValue(userSettings.weeklyGroups);
@@ -64,9 +70,15 @@ export function buildLocalWorkoutPlanResult(snapshot: unknown, currentSettings: 
   const changes = recoveryDayChanged
     ? ["근력 운동일 1일을 저강도 유산소·회복 운동으로 변경", "운동별 세트·횟수는 임의로 늘리지 않음"]
     : ["현재 요일별 운동 구성을 유지", "운동별 세트·횟수는 임의로 늘리지 않음"];
+  const sourceText = fallbackReason === "budget_protected"
+    ? "이번 달 유료 AI 예산을 보호하기 위해 비용 없는 로컬 안전 규칙으로 기록을 분석했습니다."
+    : "클라우드 AI 연결 없이 기기 기록을 안전 규칙으로 분석했습니다.";
+  const planSummary = fallbackReason === "budget_protected"
+    ? "월 AI 예산을 보호하기 위해 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다."
+    : "AI 키가 없어 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다.";
 
   return {
-    overview: `클라우드 AI 연결 없이 기기 기록을 안전 규칙으로 분석했습니다. ${signalText} 아래 계획은 미리보기이며 선택하기 전에는 적용되지 않습니다.`,
+    overview: `${sourceText} ${signalText} 아래 계획은 미리보기이며 선택하기 전에는 적용되지 않습니다.`,
     positives: ["현재 선택한 주간 계획과 직접 수정한 요일 설정을 우선 반영했습니다."],
     cautions: signals.needsRecovery ? ["최근 회복 신호가 있어 운동 강도를 올리지 않았습니다."] : ["기록이 더 쌓일 때까지 운동량 증가는 보류했습니다."],
     nextSession: recoveryDayChanged ? ["회복일을 먼저 소화한 뒤 통증과 피로를 다시 기록하세요."] : ["현재 계획을 유지하며 운동 후 통증과 피로를 기록하세요."],
@@ -75,7 +87,7 @@ export function buildLocalWorkoutPlanResult(snapshot: unknown, currentSettings: 
     confidence: signals.sessionCount ? "보통" : "낮음",
     planProposal: {
       title: "기록 기반 안전 계획안",
-      summary: "AI 키가 없어 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다.",
+      summary: planSummary,
       days,
       exerciseTargets: [],
       changes,

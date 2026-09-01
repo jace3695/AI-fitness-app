@@ -241,7 +241,7 @@ async function generativeFallback(
     });
     return normalizeGenerativeReply(result.text);
   } catch (error) {
-    if (error instanceof AiBudgetExceededError) return "이번 달 AI 사용 한도 10,000원에 도달했어요. 기록 조회·할 일·운동·언어 명령은 계속 사용할 수 있고, 일반 AI 답변은 다음 달에 자동으로 다시 열립니다.";
+    if (error instanceof AiBudgetExceededError) return `${error.message} 기록 조회·할 일·운동·언어 명령은 계속 사용할 수 있어요.`;
     console.error("Assistant AI Router fallback failed", { message: error instanceof Error ? error.message : "unknown" });
     return ASSISTANT_CAPABILITY_GUIDE;
   }

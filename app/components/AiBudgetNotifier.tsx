@@ -19,9 +19,11 @@ export default function AiBudgetNotifier() {
       const key = `ai-budget-notice-${month}-${summary.reachedThreshold}`;
       if (window.localStorage.getItem(key)) return;
       window.localStorage.setItem(key, "shown");
-      setNotice(summary.reachedThreshold >= 100
-        ? "이번 달 AI 비용 한도 10,000원에 도달해 유료 AI 호출을 멈췄습니다."
-        : `이번 달 AI 비용이 ${summary.reachedThreshold}%에 도달했습니다. (${Math.ceil(summary.spentKrw).toLocaleString()}원)`);
+      setNotice(summary.reachedThreshold >= 95
+        ? "이번 달 AI 비용이 95%에 도달해 유료 AI 호출을 멈췄습니다. 기록 조회·직접 입력은 계속 사용할 수 있어요."
+        : summary.reachedThreshold >= 85
+          ? `이번 달 AI 비용이 85%에 도달해 고성능 AI를 절약 AI로 전환했습니다. (${Math.ceil(summary.spentKrw).toLocaleString()}원)`
+          : `이번 달 AI 비용이 70%에 도달했습니다. (${Math.ceil(summary.spentKrw).toLocaleString()}원)`);
     };
     void check();
     const timer = window.setInterval(() => void check(), 5 * 60 * 1000);

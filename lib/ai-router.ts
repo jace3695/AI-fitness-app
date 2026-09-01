@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  AiBudgetExceededError,
   cancelAiBudgetReservation,
   conservativeTokenEstimate,
   finalizeAiUsage,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/ai-budget";
 import {
   clampAiOutputTokens,
+  getEconomyFallbackRoute,
   resolveAiRoute,
   type AiTextFeature,
 } from "@/lib/ai-router-policy";
@@ -43,6 +45,7 @@ export type AiTextResult = {
   outputTokens: number;
   provider: "google" | "openai";
   model: string;
+  budgetMode: "standard" | "economy";
 };
 
 export class AiRouterConfigurationError extends Error {
@@ -70,19 +73,39 @@ export function isAiFeatureAvailable(feature: AiTextFeature) {
 }
 
 export async function generateAiText(input: GenerateAiTextInput): Promise<AiTextResult> {
-  const route = resolveAiRoute(input.feature);
-  const apiKey = process.env[route.environmentVariable];
-  if (!apiKey) throw new AiRouterConfigurationError(route.environmentVariable);
+  const primaryRoute = resolveAiRoute(input.feature);
+  const apiKey = process.env[primaryRoute.environmentVariable];
+  if (!apiKey) throw new AiRouterConfigurationError(primaryRoute.environmentVariable);
 
-  const maxOutputTokens = clampAiOutputTokens(input.feature, input.maxOutputTokens);
-  const reservation = await reserveAiBudget(input.supabase, input.userId, {
-    provider: route.provider,
-    model: route.model,
-    feature: input.feature,
-    estimatedCostKrw: conservativeTokenEstimate(input.promptText, maxOutputTokens, route.model),
-  });
+  let route = primaryRoute;
+  let maxOutputTokens = clampAiOutputTokens(input.feature, input.maxOutputTokens);
+  let budgetMode: AiTextResult["budgetMode"] = "standard";
+  let reservation: Awaited<ReturnType<typeof reserveAiBudget>> | undefined;
+
+  const reserve = async () => {
+    reservation = await reserveAiBudget(input.supabase, input.userId, {
+      provider: route.provider,
+      model: route.model,
+      feature: input.feature,
+      estimatedCostKrw: conservativeTokenEstimate(input.promptText, maxOutputTokens, route.model),
+    });
+  };
 
   try {
+    try {
+      await reserve();
+    } catch (error) {
+      const fallbackRoute = error instanceof AiBudgetExceededError && error.restriction === "high_performance_limited"
+        ? getEconomyFallbackRoute(primaryRoute)
+        : null;
+      if (!fallbackRoute) throw error;
+      route = fallbackRoute;
+      maxOutputTokens = Math.min(maxOutputTokens, fallbackRoute.maxOutputTokens);
+      budgetMode = "economy";
+      await reserve();
+    }
+    if (!reservation) throw new Error("AI 비용 예약을 만들지 못했습니다.");
+
     const response = route.provider === "google"
       ? await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${route.model}:generateContent?key=${apiKey}`, {
           method: "POST",
@@ -136,9 +159,9 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
       outputUnits: outputTokens,
       actualCostKrw: tokenCostKrw(route.model, inputTokens, outputTokens),
     });
-    return { text, inputTokens, outputTokens, provider: route.provider, model: route.model };
+    return { text, inputTokens, outputTokens, provider: route.provider, model: route.model, budgetMode };
   } catch (error) {
-    await cancelAiBudgetReservation(input.supabase, reservation.id);
+    if (reservation) await cancelAiBudgetReservation(input.supabase, reservation.id);
     throw error;
   }
 }

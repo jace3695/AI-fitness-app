@@ -57,6 +57,10 @@ export function resolveAiRoute(feature: AiTextFeature): AiRoutePolicy {
   return AI_ROUTE_POLICIES[feature];
 }
 
+export function getEconomyFallbackRoute(route: AiRoutePolicy): AiRoutePolicy | null {
+  return route.provider === "google" && route.model === GEMINI_COACH.model ? GEMINI_ECONOMY : null;
+}
+
 export function clampAiOutputTokens(feature: AiTextFeature, requested: number) {
   const policy = resolveAiRoute(feature);
   const normalized = Number.isFinite(requested) ? Math.round(requested) : policy.maxOutputTokens;
