@@ -21,8 +21,12 @@ const STATUS_COPY: Record<BudgetStatus, { label: string; detail: string; color: 
   paid_ai_paused: { label: "95% 유료 AI 중지", detail: "다음 달까지 유료 AI 호출을 멈췄어요.", color: "bg-red-50 text-red-800", bar: "bg-red-500" },
 };
 
+function roundUpKrw(value: number) {
+  return Math.ceil(Math.max(0, value));
+}
+
 function formatKrw(value: number) {
-  return `${Math.ceil(Math.max(0, value)).toLocaleString()}원`;
+  return `${roundUpKrw(value).toLocaleString()}원`;
 }
 
 export default function AiBudgetPanel() {
@@ -43,6 +47,8 @@ export default function AiBudgetPanel() {
   const percentage = summary?.percentage ?? 0;
   const status = summary?.status ?? "normal";
   const copy = STATUS_COPY[status];
+  const displayedSpentKrw = roundUpKrw(summary?.spentKrw ?? 0);
+  const displayedRemainingKrw = Math.max(0, (summary?.limitKrw ?? 10_000) - displayedSpentKrw);
 
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm sm:p-6">
@@ -57,7 +63,7 @@ export default function AiBudgetPanel() {
 
       <div className="mt-5" role="progressbar" aria-label="이번 달 AI 비용 사용률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentage}>
         <div className="h-3 overflow-hidden rounded-full bg-[#EFEEF7]"><div className={`h-full rounded-full transition-[width] ${copy.bar}`} style={{ width: `${Math.min(100, percentage)}%` }} /></div>
-        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm"><span>사용 {formatKrw(summary?.spentKrw ?? 0)} ({percentage}%)</span><span className="font-semibold">남음 {formatKrw(summary?.remainingKrw ?? 10_000)}</span></div>
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm"><span>사용 {formatKrw(displayedSpentKrw)} ({percentage}%)</span><span className="font-semibold">남음 {formatKrw(displayedRemainingKrw)}</span></div>
       </div>
 
       <div className={`mt-4 rounded-2xl px-3.5 py-3 text-sm ${copy.color}`}><b>{copy.label}</b><span className="ml-2">{copy.detail}</span></div>
