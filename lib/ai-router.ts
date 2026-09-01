@@ -115,8 +115,9 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
             system_instruction: input.systemInstruction ? { parts: [{ text: input.systemInstruction }] } : undefined,
             contents: input.geminiContents ?? [{ role: "user", parts: [{ text: input.promptText }] }],
             generationConfig: {
-              responseMimeType: input.responseFormat === "json" ? "application/json" : undefined,
-              responseSchema: input.responseFormat === "json" ? input.jsonSchema : undefined,
+              responseFormat: input.responseFormat === "json"
+                ? { text: { mimeType: "application/json", ...(input.jsonSchema ? { schema: input.jsonSchema } : {}) } }
+                : undefined,
               temperature: input.temperature,
               maxOutputTokens,
             },

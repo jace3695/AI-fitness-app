@@ -30,35 +30,35 @@ const PLAN_ALLOW_LIST = {
   exerciseNames: new Set(PLAN_CATALOG.flatMap((group) => group.exercises)),
 };
 
-const STRING_SCHEMA = { type: "STRING" };
+const STRING_SCHEMA = { type: "string" };
 const WORKOUT_METHOD_SCHEMA = {
-  type: "OBJECT",
+  type: "object",
   properties: {
-    method: { type: "STRING", enum: ["standard", "circuit", "superset", "interval", "free"] },
-    rounds: { type: "INTEGER" },
-    restSeconds: { type: "INTEGER" },
-    workSeconds: { type: "INTEGER" },
+    method: { type: "string", enum: ["standard", "circuit", "superset", "interval", "free"] },
+    rounds: { type: "integer" },
+    restSeconds: { type: "integer" },
+    workSeconds: { type: "integer" },
   },
   required: ["method", "rounds", "restSeconds", "workSeconds"],
 };
 const PLAN_PROPOSAL_SCHEMA = {
-  type: "OBJECT",
+  type: "object",
   properties: {
     title: STRING_SCHEMA,
     summary: STRING_SCHEMA,
     days: {
-      type: "ARRAY",
+      type: "array",
       minItems: 7,
       maxItems: 7,
       items: {
-        type: "OBJECT",
-        properties: { dayId: { type: "STRING", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }, groupId: STRING_SCHEMA, method: WORKOUT_METHOD_SCHEMA, reason: STRING_SCHEMA },
+        type: "object",
+        properties: { dayId: { type: "string", enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] }, groupId: STRING_SCHEMA, method: WORKOUT_METHOD_SCHEMA, reason: STRING_SCHEMA },
         required: ["dayId", "groupId", "method", "reason"],
       },
     },
-    exerciseTargets: { type: "ARRAY", maxItems: 3, items: { type: "OBJECT", properties: { exerciseName: STRING_SCHEMA, sets: { type: "INTEGER" }, reps: { type: "INTEGER" }, durationMinutes: { type: "INTEGER" }, reason: STRING_SCHEMA }, required: ["exerciseName", "reason"] } },
-    changes: { type: "ARRAY", maxItems: 3, items: STRING_SCHEMA },
-    cautions: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+    exerciseTargets: { type: "array", maxItems: 3, items: { type: "object", properties: { exerciseName: STRING_SCHEMA, sets: { type: "integer" }, reps: { type: "integer" }, durationMinutes: { type: "integer" }, reason: STRING_SCHEMA }, required: ["exerciseName", "reason"] } },
+    changes: { type: "array", maxItems: 3, items: STRING_SCHEMA },
+    cautions: { type: "array", maxItems: 2, items: STRING_SCHEMA },
   },
   required: ["title", "summary", "days", "exerciseTargets", "changes", "cautions"],
 };
@@ -66,12 +66,12 @@ const PLAN_PROPOSAL_SCHEMA = {
 function getFitnessResponseSchema(analysisType: AnalysisType) {
   const properties: Record<string, unknown> = {
     overview: STRING_SCHEMA,
-    positives: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
-    cautions: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
-    nextSession: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA },
+    positives: { type: "array", maxItems: 2, items: STRING_SCHEMA },
+    cautions: { type: "array", maxItems: 2, items: STRING_SCHEMA },
+    nextSession: { type: "array", maxItems: 2, items: STRING_SCHEMA },
     rationale: STRING_SCHEMA,
     safety: STRING_SCHEMA,
-    confidence: { type: "STRING", enum: ["높음", "보통", "낮음"] },
+    confidence: { type: "string", enum: ["높음", "보통", "낮음"] },
   };
   const required = ["overview", "positives", "cautions", "nextSession", "rationale", "safety", "confidence"];
   if (analysisType === "plan" || analysisType === "program") {
@@ -79,10 +79,10 @@ function getFitnessResponseSchema(analysisType: AnalysisType) {
     required.push("planProposal");
   }
   if (analysisType === "program") {
-    properties.programReview = { type: "OBJECT", properties: { status: { type: "STRING", enum: ["기본 계획 유지", "조정 확인", "회복 우선", "기록 확인 필요"] }, summary: STRING_SCHEMA, priorities: { type: "ARRAY", maxItems: 2, items: STRING_SCHEMA } }, required: ["status", "summary", "priorities"] };
+    properties.programReview = { type: "object", properties: { status: { type: "string", enum: ["기본 계획 유지", "조정 확인", "회복 우선", "기록 확인 필요"] }, summary: STRING_SCHEMA, priorities: { type: "array", maxItems: 2, items: STRING_SCHEMA } }, required: ["status", "summary", "priorities"] };
     required.push("programReview");
   }
-  return { type: "OBJECT", properties, required };
+  return { type: "object", properties, required };
 }
 
 function localPlanFallback(input: {
