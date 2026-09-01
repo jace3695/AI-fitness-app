@@ -9,6 +9,12 @@ import { WORKOUT_GROUPS } from "@/app/data/workoutGroups";
 import { buildLocalWorkoutPlanResult } from "@/app/data/localWorkoutPlanProposal";
 import { buildLocalWorkoutProgramReview, buildWorkoutProgramContext, buildWorkoutProgramReviewCards, sanitizeWorkoutProgramReview } from "@/app/data/workoutProgramReview";
 import type { UserWorkoutSettings } from "@/app/data/userWorkoutSettings";
+import {
+  buildFitnessAiReviewSummary,
+  normalizeWorkoutOutcomeBaseline,
+  type FitnessAiReviewSource,
+  type WorkoutOutcomeBaseline,
+} from "@/app/data/fitnessAiReviewHistory";
 
 export const dynamic = "force-dynamic";
 const MAX_OUTPUT_TOKENS = 1400;
@@ -85,16 +91,19 @@ function getFitnessResponseSchema(analysisType: AnalysisType) {
   return { type: "object", properties, required };
 }
 
-function localPlanFallback(input: {
+async function localPlanFallback(input: {
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  userId: string;
   snapshot: unknown;
   currentSettings: unknown;
   analysisType: AnalysisType;
   programContext?: ReturnType<typeof getProgramContext>;
   reason: "budget_protected" | "provider_unavailable" | "model_response_unusable";
   source?: "local" | "recovered";
+  baseline: WorkoutOutcomeBaseline;
 }) {
   const recovered = input.source === "recovered";
-  return NextResponse.json({
+  const result = {
     ...buildLocalWorkoutPlanResult(input.snapshot, input.currentSettings, input.reason),
     ...(input.analysisType === "program" && input.programContext ? { programReview: buildLocalWorkoutProgramReview(input.programContext, input.snapshot) } : {}),
     analysisType: input.analysisType,
@@ -102,7 +111,8 @@ function localPlanFallback(input: {
       ? recovered ? "내 운동계획 정밀 점검 · 응답 보정" : "내 운동계획 정밀 점검 · 로컬 안전 분석"
       : recovered ? "다음 주 운동 계획안 · 응답 보정" : "다음 주 운동 계획안 · 로컬 안전 분석",
     source: input.source ?? "local",
-  });
+  };
+  return respondWithSavedReview(input.supabase, input.userId, result, input.baseline);
 }
 
 const ANALYSIS_GUIDES: Record<AnalysisType, { label: string; focus: string; feature: AiTextFeature }> = {
@@ -168,6 +178,57 @@ function getProgramContext(currentSettings: unknown) {
   });
 }
 
+type PersistableCoachResult = Record<string, unknown> & {
+  analysisType: AnalysisType;
+  analysisLabel: string;
+  source: FitnessAiReviewSource;
+};
+
+async function saveFitnessAiReview(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  result: PersistableCoachResult,
+  baseline: WorkoutOutcomeBaseline,
+) {
+  try {
+    const { data, error } = await supabase
+      .from("fitness_ai_review_history")
+      .insert({
+        user_id: userId,
+        analysis_type: result.analysisType,
+        analysis_label: safeText(result.analysisLabel, 100),
+        source: result.source,
+        result_summary: buildFitnessAiReviewSummary(result),
+        baseline_7d: baseline.oneWeek,
+        baseline_28d: baseline.fourWeeks,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("Fitness AI review history save failed", { code: error.code });
+      return null;
+    }
+    return typeof data?.id === "string" ? data.id : null;
+  } catch {
+    console.error("Fitness AI review history save failed", { code: "REQUEST_FAILED" });
+    return null;
+  }
+}
+
+async function respondWithSavedReview(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  result: PersistableCoachResult,
+  baseline: WorkoutOutcomeBaseline,
+) {
+  const historyId = await saveFitnessAiReview(supabase, userId, result, baseline);
+  return NextResponse.json({
+    ...result,
+    historyId,
+    historySaved: Boolean(historyId),
+  });
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -180,6 +241,7 @@ export async function POST(request: NextRequest) {
   const analysisGuide = ANALYSIS_GUIDES[analysisType];
   const snapshot = cleanValue(body.snapshot);
   const currentSettings = cleanValue(body.currentSettings || {});
+  const outcomeBaseline = normalizeWorkoutOutcomeBaseline(body.outcomeBaseline);
   const needsPlanContext = analysisType === "plan" || analysisType === "program";
   const planCatalog = needsPlanContext ? PLAN_CATALOG : undefined;
   const programContext = analysisType === "program" ? getProgramContext(currentSettings) : undefined;
@@ -246,7 +308,7 @@ ${outputSchema}`;
           billableOutputTokens: generated.billableOutputTokens,
           ...generated.diagnostics,
         });
-        return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
+        return localPlanFallback({ supabase, userId: user.id, snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered", baseline: outcomeBaseline });
       }
       throw new Error("AI 응답의 JSON 형식이 완전하지 않습니다.");
     }
@@ -271,20 +333,20 @@ ${outputSchema}`;
           billableOutputTokens: generated.billableOutputTokens,
           ...generated.diagnostics,
         });
-        return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
+        return localPlanFallback({ supabase, userId: user.id, snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered", baseline: outcomeBaseline });
       }
       return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
     }
-    return NextResponse.json({
+    return respondWithSavedReview(supabase, user.id, {
       ...result,
       analysisType,
       analysisLabel: analysisGuide.label,
       source: generated.budgetMode === "economy" ? "economy" : "cloud",
-    });
+    }, outcomeBaseline);
   } catch (error) {
     if (needsPlanContext && error instanceof AiBudgetExceededError && ["paid_ai_paused", "monthly_limit"].includes(error.restriction)) {
       console.warn("Fitness AI plan using local safety fallback", { reason: "budget_protected", analysisType });
-      return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "budget_protected" });
+      return localPlanFallback({ supabase, userId: user.id, snapshot, currentSettings, analysisType, programContext, reason: "budget_protected", baseline: outcomeBaseline });
     }
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
     if (needsPlanContext && (error instanceof AiRouterConfigurationError || error instanceof AiProviderRequestError)) {
@@ -299,7 +361,7 @@ ${outputSchema}`;
           providerMessage: error.providerMessage ?? "No structured provider description",
         } : {}),
       });
-      return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "provider_unavailable" });
+      return localPlanFallback({ supabase, userId: user.id, snapshot, currentSettings, analysisType, programContext, reason: "provider_unavailable", baseline: outcomeBaseline });
     }
     console.error("Fitness AI Router analysis error", { message: error instanceof Error ? error.message : "unknown" });
     return NextResponse.json({ error: "AI 코치 분석 중 오류가 발생했습니다." }, { status: 502 });
