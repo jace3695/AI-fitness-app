@@ -272,7 +272,17 @@ ${outputSchema}`;
     }
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
     if (needsPlanContext && (error instanceof AiRouterConfigurationError || error instanceof AiProviderRequestError)) {
-      console.warn("Fitness AI plan using local safety fallback", { reason: error instanceof AiRouterConfigurationError ? "provider_not_configured" : "provider_request_failed", analysisType });
+      console.warn("Fitness AI plan using local safety fallback", {
+        reason: error instanceof AiRouterConfigurationError ? "provider_not_configured" : "provider_request_failed",
+        analysisType,
+        ...(error instanceof AiProviderRequestError ? {
+          provider: error.provider,
+          model: error.model,
+          providerStatus: error.status,
+          providerCode: error.providerCode ?? "UNKNOWN",
+          providerMessage: error.providerMessage ?? "No structured provider description",
+        } : {}),
+      });
       return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "provider_unavailable" });
     }
     console.error("Fitness AI Router analysis error", { message: error instanceof Error ? error.message : "unknown" });

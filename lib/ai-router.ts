@@ -13,6 +13,11 @@ import {
   resolveAiRoute,
   type AiTextFeature,
 } from "@/lib/ai-router-policy";
+import {
+  buildGeminiGenerationConfig,
+  readAiProviderFailure,
+  type AiProviderFailureDetails,
+} from "@/lib/ai-provider-protocol";
 
 type GeminiContent = {
   role?: "user" | "model";
@@ -58,13 +63,19 @@ export class AiRouterConfigurationError extends Error {
 
 export class AiProviderRequestError extends Error {
   provider: "google" | "openai";
+  model: string;
   status: number;
+  providerCode?: string;
+  providerMessage?: string;
 
-  constructor(provider: "google" | "openai", status: number) {
+  constructor(provider: "google" | "openai", model: string, status: number, details: AiProviderFailureDetails = {}) {
     super(`${provider} AI 요청에 실패했습니다. (${status})`);
     this.name = "AiProviderRequestError";
     this.provider = provider;
+    this.model = model;
     this.status = status;
+    this.providerCode = details.code;
+    this.providerMessage = details.message;
   }
 }
 
@@ -114,13 +125,12 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
           body: JSON.stringify({
             system_instruction: input.systemInstruction ? { parts: [{ text: input.systemInstruction }] } : undefined,
             contents: input.geminiContents ?? [{ role: "user", parts: [{ text: input.promptText }] }],
-            generationConfig: {
-              responseFormat: input.responseFormat === "json"
-                ? { text: { mimeType: "application/json", ...(input.jsonSchema ? { schema: input.jsonSchema } : {}) } }
-                : undefined,
+            generationConfig: buildGeminiGenerationConfig({
+              responseFormat: input.responseFormat,
+              jsonSchema: input.jsonSchema,
               temperature: input.temperature,
               maxOutputTokens,
-            },
+            }),
           }),
         })
       : await fetch("https://api.openai.com/v1/chat/completions", {
@@ -141,7 +151,10 @@ export async function generateAiText(input: GenerateAiTextInput): Promise<AiText
           }),
         });
 
-    if (!response.ok) throw new AiProviderRequestError(route.provider, response.status);
+    if (!response.ok) {
+      const details = await readAiProviderFailure(response);
+      throw new AiProviderRequestError(route.provider, route.model, response.status, details);
+    }
     const data = await response.json();
     const inputTokens = Number(
       route.provider === "google"
