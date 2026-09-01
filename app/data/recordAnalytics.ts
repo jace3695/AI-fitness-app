@@ -52,6 +52,8 @@ export interface WorkoutPeriodSummary {
   minutes: number;
   completionRate?: number;
   painDays: number;
+  highFatigueDays: number;
+  stoppedDays: number;
   completedSets: number;
   totalReps: number;
   volumeKg: number;
@@ -263,6 +265,30 @@ function getPeriodDateKeys(endDate: Date, dayCount: number) {
   );
 }
 
+export function getWorkoutPeriodSummary(
+  workouts: WorkoutCompletionStore,
+  startDateKey: string,
+  endDateKey: string,
+) {
+  const start = parseDateKey(startDateKey);
+  const end = parseDateKey(endDateKey);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(startDateKey) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(endDateKey) ||
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start > end
+  ) {
+    return getWorkoutStatsForKeys(workouts, []);
+  }
+
+  const keys: string[] = [];
+  for (let cursor = start; cursor <= end && keys.length < 366; cursor = addDays(cursor, 1)) {
+    keys.push(toDateKey(cursor));
+  }
+  return getWorkoutStatsForKeys(workouts, keys);
+}
+
 function getWorkoutStatsForKeys(
   workouts: WorkoutCompletionStore,
   keys: string[],
@@ -304,6 +330,12 @@ function getWorkoutStatsForKeys(
       ? Math.round((completedRecords.length / decidedRecords.length) * 100)
       : undefined,
     painDays: keys.filter((key) => hasPain(workouts[key])).length,
+    highFatigueDays: keys.filter(
+      (key) => (getWorkoutRecord(workouts[key]).workoutFatigue ?? 0) >= 4,
+    ).length,
+    stoppedDays: keys.filter(
+      (key) => getWorkoutRecord(workouts[key]).workoutStatus === "stopped",
+    ).length,
     completedSets: trainingTotals.completedSets,
     totalReps: trainingTotals.totalReps,
     volumeKg: Math.round(trainingTotals.volumeKg * 10) / 10,
