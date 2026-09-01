@@ -12,6 +12,7 @@ export default function PwaManager() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showIosInstallHint, setShowIosInstallHint] = useState(false);
+  const [showIosInstallGuide, setShowIosInstallGuide] = useState(false);
 
   useEffect(() => {
     setOnline(window.navigator.onLine);
@@ -91,38 +92,62 @@ export default function PwaManager() {
   const dismissIosHint = () => {
     window.sessionStorage.setItem("jace-ios-install-hint-dismissed", "true");
     setShowIosInstallHint(false);
+    setShowIosInstallGuide(false);
   };
 
-  if (online && !waitingWorker && !installPrompt && !showIosInstallHint) return null;
-
-  return (
-    <div className="fixed inset-x-0 bottom-[82px] z-[100] flex justify-center p-3 md:bottom-3" aria-live="polite">
-      <div className={`flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${online ? "bg-[#EEEDFE] text-[#3C3489]" : "bg-amber-50 text-amber-900"}`}>
-        <span>
-          {online
-            ? waitingWorker
+  if (!online || waitingWorker) {
+    return (
+      <div className="fixed inset-x-0 bottom-[82px] z-[100] flex justify-center p-3 md:bottom-3" aria-live="polite">
+        <div className={`flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${online ? "bg-[#EEEDFE] text-[#3C3489]" : "bg-amber-50 text-amber-900"}`}>
+          <span>
+            {online
               ? "새 버전이 준비되었습니다. 갱신하면 최신 화면으로 바뀝니다."
-              : showIosInstallHint
-                ? "iPhone Safari의 공유 버튼을 누른 뒤 ‘홈 화면에 추가’를 선택하세요."
-                : "AI 연이를 홈 화면에 설치하면 더 빠르게 열 수 있습니다."
-            : "인터넷 연결이 끊겼습니다. 저장된 화면을 사용 중이며 연결되면 동기화를 다시 시도합니다."}
-        </span>
-        {online && waitingWorker && (
-          <button type="button" onClick={applyUpdate} className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
-            지금 갱신
-          </button>
-        )}
-        {online && !waitingWorker && installPrompt && (
-          <button type="button" onClick={() => void install()} className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
-            설치
-          </button>
-        )}
-        {online && !waitingWorker && !installPrompt && showIosInstallHint && (
-          <button type="button" onClick={dismissIosHint} className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-bold text-[#534AB7] ring-1 ring-[#D9D6FE]">
-            확인
-          </button>
-        )}
+              : "인터넷 연결이 끊겼습니다. 저장된 화면을 사용 중이며 연결되면 동기화를 다시 시도합니다."}
+          </span>
+          {online && waitingWorker && (
+            <button type="button" onClick={applyUpdate} className="min-h-11 shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
+              지금 갱신
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (installPrompt) {
+    return (
+      <div className="fixed bottom-[88px] right-3 z-[100] md:bottom-4 md:right-4">
+        <button type="button" onClick={() => void install()} title="AI 연이를 홈 화면에 설치" className="min-h-11 rounded-full bg-[#534AB7] px-4 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/70">
+          앱 설치
+        </button>
+      </div>
+    );
+  }
+
+  if (showIosInstallHint) {
+    return (
+      <div className="fixed bottom-[88px] right-3 z-[100] flex flex-col items-end gap-2 md:bottom-4 md:right-4">
+        {showIosInstallGuide && (
+          <div id="ios-install-guide" role="status" className="w-72 rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-xl ring-1 ring-[#D9D6FE]">
+            <p className="font-bold text-[#3C3489]">iPhone에서 홈 화면에 추가하기</p>
+            <p className="mt-1 leading-5">Safari의 공유 버튼을 누른 뒤 <strong>‘홈 화면에 추가’</strong>를 선택하세요.</p>
+            <button type="button" onClick={dismissIosHint} className="mt-3 min-h-11 rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs font-bold text-[#3C3489]">
+              다음에 할게요
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowIosInstallGuide((visible) => !visible)}
+          aria-expanded={showIosInstallGuide}
+          aria-controls="ios-install-guide"
+          className="min-h-11 rounded-full bg-[#534AB7] px-4 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/70"
+        >
+          홈 화면 추가
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }

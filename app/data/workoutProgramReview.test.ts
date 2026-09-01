@@ -24,7 +24,36 @@ test("현재 주간 설정을 7일 프로그램 구성표로 안전하게 계산
   assert.equal(context.days.find((day) => day.dayId === "mon")?.rounds, 2);
   assert.equal(context.days.find((day) => day.dayId === "mon")?.exercises.find((exercise) => exercise.name === "밴드 로우")?.plannedSets, 3);
   assert.equal(context.days.some((day) => day.exercises.some((exercise) => exercise.id === "hip-bridge")), false);
+  assert.ok(context.summary.focusSets.upperPull > 0);
+  assert.ok(context.summary.focusExerciseCount.upperPull > 0);
   assert.ok(context.summary.estimatedMinutes > 0);
+});
+
+test("준비·자세 연습은 근력 균형 세트에 포함하지 않는다", () => {
+  const context = buildWorkoutProgramContext({ selectedPlanId: "week1-cardio-back" });
+  const review = buildLocalWorkoutProgramReview(context, { recentSessions: [{ pain: false, fatigue: 2, status: "completed" }] });
+  const upperBodyCard = review.cards.find((card) => card.label === "상체 균형");
+
+  assert.equal(context.summary.focusSets.upperPull, 0);
+  assert.equal(context.summary.focusDays.upperPull, 0);
+  assert.equal(context.summary.focusExerciseCount.upperPull, 0);
+  assert.match(upperBodyCard?.value || "", /당기기 0세트/);
+  assert.match(upperBodyCard?.detail || "", /준비·자세 연습/);
+});
+
+test("전신 루틴은 실제 본운동을 부위별 세트로 나누어 계산한다", () => {
+  const context = buildWorkoutProgramContext({
+    selectedPlanId: "week1-cardio-back",
+    userSettings: {
+      weeklyGroups: { mon: "rest", tue: "rest", wed: "rest", thu: "rest", fri: "fullbody-light-circuit", sat: "rest", sun: "rest" },
+      exerciseTargets: {},
+      weeklyEdits: {},
+      weeklyMethods: {},
+      dateOverrides: {},
+    },
+  });
+
+  assert.deepEqual(context.summary.focusSets, { upperPush: 2, upperPull: 2, lowerBody: 4, core: 2, cardio: 0 });
 });
 
 test("통증·높은 피로·중단 기록이 있으면 로컬 점검도 회복을 우선한다", () => {
