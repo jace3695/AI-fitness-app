@@ -15,7 +15,7 @@ test("저비용 일반 분석은 Gemini 경량 모델로 연결한다", () => {
 
 test("운동 코치 기능은 정밀 분석 모델로 일관되게 연결한다", () => {
   const fitnessFeatures = Object.keys(AI_ROUTE_POLICIES).filter((feature) => feature.startsWith("fitness-"));
-  assert.equal(fitnessFeatures.length, 5);
+  assert.equal(fitnessFeatures.length, 6);
   for (const feature of fitnessFeatures) {
     const route = AI_ROUTE_POLICIES[feature as keyof typeof AI_ROUTE_POLICIES];
     assert.equal(route.provider, "google");
@@ -32,6 +32,7 @@ test("기능별 출력 토큰 한도를 넘지 않도록 보정한다", () => {
   assert.equal(clampAiOutputTokens("assistant-fallback", 0), 1);
   assert.equal(clampAiOutputTokens("assistant-fallback", 9_999), 2_000);
   assert.equal(clampAiOutputTokens("fitness-weekly-plan-proposal", 2_400), 2_400);
+  assert.equal(clampAiOutputTokens("fitness-program-review", 9_999), 2_600);
   assert.equal(clampAiOutputTokens("language-conversation", Number.NaN), 600);
 });
 
