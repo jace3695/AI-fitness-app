@@ -1,4 +1,5 @@
 type GeminiGenerationConfigInput = {
+  model: string;
   responseFormat?: "text" | "json";
   jsonSchema?: Record<string, unknown>;
   temperature?: number;
@@ -10,6 +11,26 @@ export type AiProviderFailureDetails = {
   message?: string;
 };
 
+export type AiProviderResponseDiagnostics = {
+  finishReason?: string;
+  thoughtTokens: number;
+  partCount: number;
+  answerTextPartCount: number;
+  thoughtTextPartCount: number;
+};
+
+export type GeminiResponseOutput = {
+  text: string;
+  inputTokens?: number;
+  outputTokens: number;
+  billableOutputTokens: number;
+  diagnostics: AiProviderResponseDiagnostics;
+};
+
+function usesGeminiThreeThinking(model: string) {
+  return /^gemini-3(?:\.|-|$)/i.test(model.trim());
+}
+
 export function buildGeminiGenerationConfig(input: GeminiGenerationConfigInput) {
   return {
     responseFormat: input.responseFormat === "json"
@@ -20,9 +41,23 @@ export function buildGeminiGenerationConfig(input: GeminiGenerationConfigInput) 
           },
         }
       : undefined,
+    thinkingConfig: input.responseFormat === "json" && usesGeminiThreeThinking(input.model)
+      ? { thinkingLevel: "low", includeThoughts: false }
+      : undefined,
     temperature: input.temperature,
     maxOutputTokens: input.maxOutputTokens,
   };
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function tokenCount(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : undefined;
 }
 
 function safeProviderCode(value: unknown) {
@@ -41,6 +76,35 @@ function safeProviderMessage(value: unknown) {
     .replace(/\s+/g, " ")
     .trim();
   return normalized ? normalized.slice(0, 240) : undefined;
+}
+
+export function extractGeminiResponse(data: unknown, responseFormat?: "text" | "json"): GeminiResponseOutput {
+  const root = objectValue(data);
+  const usage = objectValue(root.usageMetadata);
+  const candidates = Array.isArray(root.candidates) ? root.candidates : [];
+  const candidate = objectValue(candidates[0]);
+  const content = objectValue(candidate.content);
+  const parts = Array.isArray(content.parts) ? content.parts.map(objectValue) : [];
+  const answerTextParts = parts
+    .filter((part) => part.thought !== true && typeof part.text === "string")
+    .map((part) => String(part.text));
+  const thoughtTextPartCount = parts.filter((part) => part.thought === true && typeof part.text === "string").length;
+  const outputTokens = tokenCount(usage.candidatesTokenCount) ?? 0;
+  const thoughtTokens = tokenCount(usage.thoughtsTokenCount) ?? 0;
+
+  return {
+    text: answerTextParts.join(responseFormat === "json" ? "" : "\n"),
+    inputTokens: tokenCount(usage.promptTokenCount),
+    outputTokens,
+    billableOutputTokens: outputTokens + thoughtTokens,
+    diagnostics: {
+      finishReason: safeProviderCode(candidate.finishReason),
+      thoughtTokens,
+      partCount: parts.length,
+      answerTextPartCount: answerTextParts.length,
+      thoughtTextPartCount,
+    },
+  };
 }
 
 export async function readAiProviderFailure(response: Response): Promise<AiProviderFailureDetails> {

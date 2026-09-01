@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildGeminiGenerationConfig, readAiProviderFailure } from "../../lib/ai-provider-protocol.ts";
+import { buildGeminiGenerationConfig, extractGeminiResponse, readAiProviderFailure } from "../../lib/ai-provider-protocol.ts";
 
 test("Gemini 구조화 출력은 REST enum MIME 형식을 사용한다", () => {
   const schema = { type: "object", properties: { answer: { type: "string" } }, required: ["answer"] };
   const config = buildGeminiGenerationConfig({
+    model: "gemini-3.7-flash",
     responseFormat: "json",
     jsonSchema: schema,
     temperature: 0.25,
@@ -14,7 +15,52 @@ test("Gemini 구조화 출력은 REST enum MIME 형식을 사용한다", () => {
   assert.deepEqual(config.responseFormat, {
     text: { mimeType: "APPLICATION_JSON", schema },
   });
+  assert.deepEqual(config.thinkingConfig, { thinkingLevel: "low", includeThoughts: false });
   assert.doesNotMatch(JSON.stringify(config), /application\/json/);
+});
+
+test("Gemini 2.5 절약 모델에는 3세대 사고 수준을 보내지 않는다", () => {
+  const config = buildGeminiGenerationConfig({
+    model: "gemini-2.5-flash-lite",
+    responseFormat: "json",
+    maxOutputTokens: 900,
+  });
+
+  assert.equal(config.thinkingConfig, undefined);
+});
+
+test("Gemini의 여러 답변 조각을 합치고 사고 조각은 제외한다", () => {
+  const output = extractGeminiResponse({
+    candidates: [{
+      finishReason: "MAX_TOKENS",
+      content: {
+        parts: [
+          { thought: true, text: "private reasoning" },
+          { text: "{\"answer\":" },
+          { thoughtSignature: "opaque" },
+          { text: "\"완료\"}" },
+        ],
+      },
+    }],
+    usageMetadata: {
+      promptTokenCount: 420,
+      candidatesTokenCount: 180,
+      thoughtsTokenCount: 75,
+    },
+  }, "json");
+
+  assert.equal(output.text, "{\"answer\":\"완료\"}");
+  assert.equal(output.inputTokens, 420);
+  assert.equal(output.outputTokens, 180);
+  assert.equal(output.billableOutputTokens, 255);
+  assert.deepEqual(output.diagnostics, {
+    finishReason: "MAX_TOKENS",
+    thoughtTokens: 75,
+    partCount: 4,
+    answerTextPartCount: 2,
+    thoughtTextPartCount: 1,
+  });
+  assert.doesNotMatch(output.text, /private reasoning/);
 });
 
 test("AI 제공자 오류에서 안전한 상태와 설명만 추출한다", async () => {

@@ -237,7 +237,15 @@ ${outputSchema}`;
     const parsed = parseAiJsonObject(generated.text);
     if (!parsed) {
       if (needsPlanContext) {
-        console.warn("Fitness AI plan using local safety fallback", { reason: "malformed_model_json", analysisType, provider: generated.provider, model: generated.model, outputTokens: generated.outputTokens });
+        console.warn("Fitness AI plan using local safety fallback", {
+          reason: "malformed_model_json",
+          analysisType,
+          provider: generated.provider,
+          model: generated.model,
+          outputTokens: generated.outputTokens,
+          billableOutputTokens: generated.billableOutputTokens,
+          ...generated.diagnostics,
+        });
         return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
       }
       throw new Error("AI 응답의 JSON 형식이 완전하지 않습니다.");
@@ -254,7 +262,15 @@ ${outputSchema}`;
     };
     if (!result.overview || (needsPlanContext && !result.planProposal) || (analysisType === "program" && !result.programReview)) {
       if (needsPlanContext) {
-        console.warn("Fitness AI plan using local safety fallback", { reason: "invalid_model_payload", analysisType, provider: generated.provider, model: generated.model, outputTokens: generated.outputTokens });
+        console.warn("Fitness AI plan using local safety fallback", {
+          reason: "invalid_model_payload",
+          analysisType,
+          provider: generated.provider,
+          model: generated.model,
+          outputTokens: generated.outputTokens,
+          billableOutputTokens: generated.billableOutputTokens,
+          ...generated.diagnostics,
+        });
         return localPlanFallback({ snapshot, currentSettings, analysisType, programContext, reason: "model_response_unusable", source: "recovered" });
       }
       return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
