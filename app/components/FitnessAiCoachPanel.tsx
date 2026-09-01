@@ -13,22 +13,25 @@ import type { WorkoutDayId } from "../data/workoutCompletion";
 import { SELECTED_WEEKLY_WORKOUT_PLAN_KEY } from "../data/workoutPlans";
 import { readUserWorkoutSettings, saveUserWorkoutSettings } from "../data/userWorkoutSettings";
 import type { UserWorkoutSettings } from "../data/userWorkoutSettings";
+import { buildWorkoutProgramContext } from "../data/workoutProgramReview";
+import type { WorkoutProgramAiReview } from "../data/workoutProgramReview";
 import { authenticatedFetch } from "@/lib/supabase";
 
-type AnalysisType = "latest" | "weekly" | "monthly" | "longTerm" | "plan";
-type CoachResult = { analysisType: AnalysisType; analysisLabel: string; overview: string; positives: string[]; cautions: string[]; nextSession: string[]; rationale: string; safety: string; confidence: "높음" | "보통" | "낮음"; planProposal?: WorkoutPlanProposal; source?: "cloud" | "economy" | "local" };
+type AnalysisType = "latest" | "weekly" | "monthly" | "longTerm" | "plan" | "program";
+type CoachResult = { analysisType: AnalysisType; analysisLabel: string; overview: string; positives: string[]; cautions: string[]; nextSession: string[]; rationale: string; safety: string; confidence: "높음" | "보통" | "낮음"; planProposal?: WorkoutPlanProposal; programReview?: WorkoutProgramAiReview; source?: "cloud" | "economy" | "local" };
 
 const ANALYSIS_OPTIONS: { id: AnalysisType; title: string; description: string; action: string }[] = [
   { id: "latest", title: "운동 직후", description: "최근 1회 세트·통증·피로 분석", action: "직후 피드백" },
   { id: "weekly", title: "주간 리포트", description: "최근 7일 운동량과 회복 흐름", action: "주간 분석" },
   { id: "monthly", title: "월간 리포트", description: "이번 달 변화와 다음 달 제안", action: "월간 분석" },
   { id: "longTerm", title: "장기 변화", description: "최근 8주 비교와 12주 흐름", action: "장기 분석" },
+  { id: "program", title: "내 계획 점검", description: "균형·운동량·허리 안전 먼저 확인", action: "계획 점검" },
   { id: "plan", title: "다음 주 계획", description: "누적 기록으로 7일 계획안 만들기", action: "계획안 받기" },
 ];
 
 export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanApplied }: { stores?: RecordStores; mode?: "full" | "plan"; onPlanApplied?: (settings: UserWorkoutSettings) => void }) {
   const [result, setResult] = useState<CoachResult | null>(null);
-  const [analysisType, setAnalysisType] = useState<AnalysisType>("latest");
+  const [analysisType, setAnalysisType] = useState<AnalysisType>(mode === "plan" ? "program" : "latest");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [applyNotice, setApplyNotice] = useState("");
@@ -37,10 +40,14 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
     setAnalysisType(type);
     setLoading(true); setError(""); setApplyNotice(""); setResult(null);
     try {
-      const currentSettings = type === "plan" ? {
-        selectedPlanId: window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY),
-        userSettings: readUserWorkoutSettings(),
+      const needsCurrentPlan = type === "plan" || type === "program";
+      const selectedPlanId = needsCurrentPlan ? window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) : null;
+      const userSettings = needsCurrentPlan ? readUserWorkoutSettings() : undefined;
+      const currentSettings = needsCurrentPlan ? {
+        selectedPlanId,
+        userSettings,
         recentPlanDecisions: readWorkoutPlanDecisionHistory().slice(0, 10),
+        ...(type === "program" && userSettings ? { currentProgram: buildWorkoutProgramContext({ selectedPlanId, userSettings }) } : {}),
       } : undefined;
       const snapshot = {
         ...buildFitnessAiSnapshot(stores ?? readRecordStores()),
@@ -75,20 +82,43 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
 
   return (
     <section className="rounded-3xl border border-violet-100 bg-gradient-to-br from-white to-[#F3F1FF] p-4 shadow-sm sm:p-5">
-      <div><p className="text-[12px] font-bold text-[#534AB7]">AI 연이 운동 코치</p><h2 className="mt-1 text-[20px] font-extrabold text-gray-900">{mode === "plan" ? "내 기록으로 다음 주 계획 만들기" : "분석하고 다음 운동계획도 제안해요"}</h2><p className="mt-1 text-[11px] leading-5 text-gray-500">버튼을 누를 때만 AI 비용이 발생합니다. 계획은 미리보기만 보여주며 Jace님이 선택하기 전에는 절대 바뀌지 않습니다.</p></div>
-      <div className={`mt-4 grid gap-2 ${mode === "full" ? "sm:grid-cols-2 lg:grid-cols-5" : ""}`}>{ANALYSIS_OPTIONS.filter((option) => mode === "full" || option.id === "plan").map((option) => <button key={option.id} type="button" disabled={loading} onClick={() => void analyze(option.id)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-50 ${mode === "plan" || analysisType === option.id ? "border-[#534AB7] bg-[#534AB7] text-white" : "border-violet-100 bg-white text-gray-800"}`}><span className="block text-[13px] font-extrabold">{loading && analysisType === option.id ? "기록을 분석하는 중…" : mode === "plan" ? "AI 계획안 만들기" : option.action}</span><span className={`mt-1 block text-[10px] leading-4 ${mode === "plan" || analysisType === option.id ? "text-white/75" : "text-gray-500"}`}>{option.description}</span></button>)}</div>
+      <div><p className="text-[12px] font-bold text-[#534AB7]">AI 연이 운동 코치</p><h2 className="mt-1 text-[20px] font-extrabold text-gray-900">{mode === "plan" ? "내 운동계획을 먼저 점검해요" : "분석하고 다음 운동계획도 제안해요"}</h2><p className="mt-1 text-[11px] leading-5 text-gray-500">버튼을 누를 때만 AI 비용이 발생합니다. 점검과 계획은 미리보기만 보여주며 Jace님이 선택하기 전에는 절대 바뀌지 않습니다.</p></div>
+      <div className={`mt-4 grid gap-2 ${mode === "full" ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}>{ANALYSIS_OPTIONS.filter((option) => mode === "full" || option.id === "program" || option.id === "plan").map((option) => <button key={option.id} type="button" disabled={loading} onClick={() => void analyze(option.id)} className={`min-h-20 rounded-2xl border p-3 text-left transition disabled:opacity-50 ${analysisType === option.id ? "border-[#534AB7] bg-[#534AB7] text-white" : "border-violet-100 bg-white text-gray-800"}`}><span className="block text-[13px] font-extrabold">{loading && analysisType === option.id ? "기록을 분석하는 중…" : option.action}</span><span className={`mt-1 block text-[10px] leading-4 ${analysisType === option.id ? "text-white/75" : "text-gray-500"}`}>{option.description}</span></button>)}</div>
       {error ? <p className="mt-4 rounded-2xl bg-red-50 p-3 text-[12px] font-semibold text-red-700">{error}</p> : null}
       {result ? <div className="mt-5 space-y-3" aria-live="polite">
         <div className="rounded-2xl bg-white p-4"><div className="flex items-center justify-between gap-3"><p className="text-[12px] font-bold text-gray-500">{result.analysisLabel}</p><div className="flex items-center gap-2">{result.source === "local" ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">비용 0원 · 로컬</span> : null}{result.source === "economy" ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">85% · 절약 AI</span> : null}<span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[10px] font-bold text-[#534AB7]">확신도 {result.confidence}</span></div></div><p className="mt-2 text-[13px] leading-6 text-gray-800">{result.overview}</p></div>
+        {result.programReview ? <ProgramReviewCard review={result.programReview} /> : null}
         {result.planProposal ? <PlanProposalCard key={`${result.planProposal.title}-${result.planProposal.summary}`} proposal={result.planProposal} onApply={(selection) => applyPlan(result.planProposal!, selection)} onKeep={() => keepPlan(result.planProposal!)} appliedNotice={applyNotice} /> : null}
         <div className="grid gap-3 md:grid-cols-2"><ResultList title="잘하고 있는 점" items={result.positives} tone="bg-emerald-50 text-emerald-900" /><ResultList title="주의해서 볼 점" items={result.cautions} tone="bg-amber-50 text-amber-950" /></div>
-        <ResultList title={result.analysisType === "latest" ? "다음 1회 운동 제안" : result.analysisType === "weekly" ? "다음 7일 제안" : result.analysisType === "longTerm" ? "다음 4주 제안" : "다음 달 제안"} items={result.nextSession} tone="bg-white text-gray-800" numbered />
+        <ResultList title={result.analysisType === "latest" ? "다음 1회 운동 제안" : result.analysisType === "weekly" ? "다음 7일 제안" : result.analysisType === "longTerm" ? "다음 4주 제안" : result.analysisType === "program" ? "다음 확인 순서" : result.analysisType === "plan" ? "다음 주 계획 핵심" : "다음 달 제안"} items={result.nextSession} tone="bg-white text-gray-800" numbered />
         <details className="rounded-2xl bg-white p-4 text-[12px] text-gray-600"><summary className="cursor-pointer font-bold text-gray-800">추천 근거 보기</summary><p className="mt-2 leading-5">{result.rationale}</p></details>
         <p className="rounded-2xl bg-red-50 p-3 text-[11px] leading-5 text-red-700"><b>안전 안내</b> · {result.safety}</p>
         <p className="text-[10px] text-gray-400">AI 제안은 참고용입니다. 적용 여부와 실제 운동량은 Jace님이 최종 결정합니다.</p>
       </div> : null}
     </section>
   );
+}
+
+function ProgramReviewCard({ review }: { review: WorkoutProgramAiReview }) {
+  const toneStyles = {
+    good: "border-emerald-100 bg-emerald-50 text-emerald-950",
+    watch: "border-amber-100 bg-amber-50 text-amber-950",
+    adjust: "border-violet-100 bg-[#F7F6FF] text-[#302E63]",
+  } as const;
+  const statusStyle = review.status === "회복 우선"
+    ? "bg-red-50 text-red-700"
+    : review.status === "기본 계획 유지"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-[#EEEDFE] text-[#534AB7]";
+  return <section className="rounded-2xl border border-violet-100 bg-white p-4">
+    <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-bold text-[#534AB7]">현재 프로그램 요약</p><h3 className="mt-1 text-[17px] font-extrabold text-gray-900">계획을 바꾸기 전 먼저 확인했어요</h3></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${statusStyle}`}>{review.status}</span></div>
+    {review.summary ? <p className="mt-2 text-[12px] leading-5 text-gray-600">{review.summary}</p> : null}
+    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      {review.cards.map((card) => <div key={`${card.label}-${card.value}`} className={`rounded-xl border p-3 ${toneStyles[card.tone]}`}><p className="text-[10px] font-bold opacity-75">{card.label}</p><p className="mt-1 text-[13px] font-extrabold">{card.value}</p><p className="mt-1 text-[10px] leading-4 opacity-80">{card.detail}</p></div>)}
+    </div>
+    {review.priorities.length ? <div className="mt-3 rounded-xl bg-gray-50 p-3"><p className="text-[11px] font-bold text-gray-800">먼저 확인할 점</p><ul className="mt-1.5 space-y-1 text-[11px] leading-5 text-gray-600">{review.priorities.map((item, index) => <li key={`${item}-${index}`}>• {item}</li>)}</ul></div> : null}
+    <p className="mt-3 text-[10px] leading-4 text-gray-400">아래 조정안은 미리보기입니다. 추천 적용 또는 일부 수정을 확인하기 전에는 운동 설정이 바뀌지 않습니다.</p>
+  </section>;
 }
 
 function PlanProposalCard({ proposal, onApply, onKeep, appliedNotice }: { proposal: WorkoutPlanProposal; onApply: (selection?: WorkoutPlanSelection) => void; onKeep: () => void; appliedNotice: string }) {

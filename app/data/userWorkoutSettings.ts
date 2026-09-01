@@ -1,6 +1,6 @@
-import { DayWorkout, Exercise } from "./workouts";
-import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups";
-import { WorkoutDayId } from "./workoutCompletion";
+import type { DayWorkout, Exercise } from "./workouts";
+import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups.ts";
+import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";

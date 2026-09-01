@@ -9,6 +9,7 @@ export type AiTextFeature =
   | "fitness-monthly-report"
   | "fitness-long-term-report"
   | "fitness-weekly-plan-proposal"
+  | "fitness-program-review"
   | "language-conversation"
   | "handwriting-feedback";
 
@@ -49,6 +50,7 @@ export const AI_ROUTE_POLICIES: Record<AiTextFeature, AiRoutePolicy> = {
   "fitness-monthly-report": GEMINI_COACH,
   "fitness-long-term-report": GEMINI_COACH,
   "fitness-weekly-plan-proposal": GEMINI_COACH,
+  "fitness-program-review": GEMINI_COACH,
   "language-conversation": OPENAI_LANGUAGE,
   "handwriting-feedback": OPENAI_LANGUAGE,
 };
