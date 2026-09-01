@@ -29,5 +29,11 @@ test("통증 신호가 있으면 근력일 하나를 회복일로 바꾼다", ()
 test("높은 피로나 중단 기록도 회복 신호로 처리한다", () => {
     const result = buildLocalWorkoutPlanResult({ recentSessions: [{ pain: false, fatigue: 4, status: "stopped" }] }, currentSettings);
     assert.equal(result.planProposal.days.filter((day) => day.groupId === "cardio-foam-recovery").length, 1);
-    assert.match(result.cautions[0], /강도/);
+  assert.match(result.cautions[0], /강도/);
+});
+
+test("월 예산 보호 시에도 비용 없는 로컬 계획의 이유를 정확히 알린다", () => {
+  const result = buildLocalWorkoutPlanResult({ recentSessions: [] }, currentSettings, "budget_protected");
+  assert.match(result.overview, /예산을 보호/);
+  assert.match(result.planProposal.summary, /월 AI 예산/);
 });

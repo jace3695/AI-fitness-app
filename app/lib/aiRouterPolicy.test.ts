@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AI_ROUTE_POLICIES, clampAiOutputTokens, resolveAiRoute } from "../../lib/ai-router-policy.ts";
+import { AI_ROUTE_POLICIES, clampAiOutputTokens, getEconomyFallbackRoute, resolveAiRoute } from "../../lib/ai-router-policy.ts";
 
 test("저비용 일반 분석은 Gemini 경량 모델로 연결한다", () => {
   for (const feature of ["assistant-fallback", "budget-analysis", "legacy-ai-analysis"] as const) {
@@ -33,4 +33,11 @@ test("기능별 출력 토큰 한도를 넘지 않도록 보정한다", () => {
   assert.equal(clampAiOutputTokens("assistant-fallback", 9_999), 2_000);
   assert.equal(clampAiOutputTokens("fitness-weekly-plan-proposal", 2_400), 2_400);
   assert.equal(clampAiOutputTokens("language-conversation", Number.NaN), 600);
+});
+
+test("85% 절약 모드에서는 운동 코치만 경량 Gemini로 전환한다", () => {
+  const fitnessFallback = getEconomyFallbackRoute(resolveAiRoute("fitness-weekly-plan-proposal"));
+  assert.equal(fitnessFallback?.provider, "google");
+  assert.equal(fitnessFallback?.model, "gemini-2.5-flash-lite");
+  assert.equal(getEconomyFallbackRoute(resolveAiRoute("language-conversation")), null);
 });

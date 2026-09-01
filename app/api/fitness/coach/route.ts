@@ -130,8 +130,22 @@ ${outputSchema}`;
       planProposal: analysisType === "plan" ? sanitizeWorkoutPlanProposal(parsed.planProposal, PLAN_ALLOW_LIST) : undefined,
     };
     if (!result.overview || (analysisType === "plan" && !result.planProposal)) return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });
-    return NextResponse.json({ ...result, analysisType, analysisLabel: analysisGuide.label });
+    return NextResponse.json({
+      ...result,
+      analysisType,
+      analysisLabel: analysisGuide.label,
+      source: generated.budgetMode === "economy" ? "economy" : "cloud",
+    });
   } catch (error) {
+    if (analysisType === "plan" && error instanceof AiBudgetExceededError && ["paid_ai_paused", "monthly_limit"].includes(error.restriction)) {
+      console.warn("Fitness AI plan using local safety fallback", { reason: "budget_protected" });
+      return NextResponse.json({
+        ...buildLocalWorkoutPlanResult(snapshot, currentSettings, "budget_protected"),
+        analysisType,
+        analysisLabel: "다음 주 운동 계획안 · 로컬 안전 분석",
+        source: "local",
+      });
+    }
     if (error instanceof AiBudgetExceededError) return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
     if (analysisType === "plan" && error instanceof AiRouterConfigurationError) {
       console.warn("Fitness AI plan using local safety fallback", { reason: "provider_not_configured" });
