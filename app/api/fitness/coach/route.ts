@@ -6,7 +6,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { sanitizeWorkoutPlanProposal } from "@/app/data/workoutPlanProposal";
 import { WORKOUT_GROUPS } from "@/app/data/workoutGroups";
 import { buildLocalWorkoutPlanResult } from "@/app/data/localWorkoutPlanProposal";
-import { buildLocalWorkoutProgramReview, buildWorkoutProgramContext, sanitizeWorkoutProgramReview } from "@/app/data/workoutProgramReview";
+import { buildLocalWorkoutProgramReview, buildWorkoutProgramContext, buildWorkoutProgramReviewCards, sanitizeWorkoutProgramReview } from "@/app/data/workoutProgramReview";
 import type { UserWorkoutSettings } from "@/app/data/userWorkoutSettings";
 
 export const dynamic = "force-dynamic";
@@ -140,7 +140,7 @@ ${analysisType === "program" ? `
 현재 주간 프로그램 계산 JSON:
 ${JSON.stringify(programContext)}
 
-programReview는 반드시 status, 1~4개 cards, priorities를 포함하세요. cards에는 현재 프로그램의 숫자와 균형을 쉬운 말로 보여주세요. 현재 계획이 안전하고 목표에 맞으면 status를 '기본 계획 유지'로 하고 planProposal도 현재 설정을 유지하세요. 최근 통증·높은 피로·운동 중단이 있으면 status를 '회복 우선'으로 하고 강도를 올리지 마세요. planProposal은 자동 적용되지 않는 미리보기입니다.` : ""}
+programReview는 반드시 status, 1~4개 cards, priorities를 포함하세요. cards에는 현재 프로그램의 숫자와 균형을 쉬운 말로 보여주세요. 상체·하체·코어 균형은 programContext.summary.focusSets의 본운동 세트 수를 기준으로 쓰고, '며칠'이 아니라 '몇 세트'로 표시하세요. plannedSets가 0인 준비·정리·폼롤러·턱걸이 자세 연습은 근력 당기기·밀기·하체·코어 운동량에 절대 포함하지 마세요. 전신 운동은 포함된 실제 본운동을 부위별로 나누어 계산한 값만 사용하세요. 현재 계획이 안전하고 목표에 맞으면 status를 '기본 계획 유지'로 하고 planProposal도 현재 설정을 유지하세요. 최근 통증·높은 피로·운동 중단이 있으면 status를 '회복 우선'으로 하고 강도를 올리지 마세요. planProposal은 자동 적용되지 않는 미리보기입니다.` : ""}
 
 반드시 JSON 객체 하나만 반환하세요:
 ${outputSchema}`;
@@ -156,11 +156,14 @@ ${outputSchema}`;
       temperature: 0.25,
     });
     const parsed = JSON.parse(generated.text || "{}");
+    const parsedProgramReview = analysisType === "program" ? sanitizeWorkoutProgramReview(parsed.programReview) : undefined;
     const result = {
       overview: safeText(parsed.overview, 700), positives: safeList(parsed.positives), cautions: safeList(parsed.cautions),
       nextSession: safeList(parsed.nextSession, 6), rationale: safeText(parsed.rationale, 500), safety: safeText(parsed.safety, 400),
       confidence: ["높음", "보통", "낮음"].includes(parsed.confidence) ? parsed.confidence : "낮음",
-      programReview: analysisType === "program" ? sanitizeWorkoutProgramReview(parsed.programReview) : undefined,
+      programReview: parsedProgramReview && programContext
+        ? { ...parsedProgramReview, cards: buildWorkoutProgramReviewCards(programContext, snapshot) }
+        : parsedProgramReview,
       planProposal: needsPlanContext ? sanitizeWorkoutPlanProposal(parsed.planProposal, PLAN_ALLOW_LIST) : undefined,
     };
     if (!result.overview || (needsPlanContext && !result.planProposal) || (analysisType === "program" && !result.programReview)) return NextResponse.json({ error: "AI 분석 결과를 읽지 못했습니다." }, { status: 502 });

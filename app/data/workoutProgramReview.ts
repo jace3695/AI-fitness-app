@@ -24,8 +24,6 @@ const PROGRAM_FOCUS_BY_EXERCISE: Record<string, ProgramFocus[]> = {
   "one-arm-dumbbell-row-supported": ["upperPull"],
   "longband-face-pull": ["upperPull"],
   "band-pull-apart": ["upperPull"],
-  "pullup-basic-posture": ["upperPull"],
-  "pullup-posture-only": ["upperPull"],
   "dumbbell-goblet-squat": ["lowerBody"],
   "loopband-sidewalk": ["lowerBody"],
   "loopband-monster-walk": ["lowerBody"],
@@ -78,6 +76,8 @@ export interface WorkoutProgramContext {
     estimatedMinutes: number;
     plannedWorkBlocks: number;
     focusDays: Record<ProgramFocus, number>;
+    focusSets: Record<ProgramFocus, number>;
+    focusExerciseCount: Record<ProgramFocus, number>;
   };
   days: Array<{
     dayId: WorkoutDayId;
@@ -122,7 +122,7 @@ function getFocus(exerciseId: string, name: string): ProgramFocus[] {
   const byId = PROGRAM_FOCUS_BY_EXERCISE[exerciseId];
   if (byId) return byId;
   const source = `${exerciseId} ${name}`.toLowerCase();
-  if (/로우|랫풀|페이스풀|풀어파트|턱걸이/.test(source)) return ["upperPull"];
+  if (/로우|랫풀|페이스풀|풀어파트/.test(source)) return ["upperPull"];
   if (/프레스/.test(source)) return ["upperPush"];
   if (/스쿼트|사이드워크|몬스터워크/.test(source)) return ["lowerBody"];
   if (/버드독|데드버그|플랭크|골반|캣카우|ab 슬라이더/.test(source)) return ["core"];
@@ -152,6 +152,8 @@ export function buildWorkoutProgramContext(input: {
   const selectedPlan = getWeeklyWorkoutPlanById(input.selectedPlanId);
   const settings = baseSettings(input.userSettings);
   const focusDays: Record<ProgramFocus, number> = { upperPush: 0, upperPull: 0, lowerBody: 0, core: 0, cardio: 0 };
+  const focusSets: Record<ProgramFocus, number> = { upperPush: 0, upperPull: 0, lowerBody: 0, core: 0, cardio: 0 };
+  const focusExerciseCount: Record<ProgramFocus, number> = { upperPush: 0, upperPull: 0, lowerBody: 0, core: 0, cardio: 0 };
   let plannedWorkoutDays = 0;
   let strengthDays = 0;
   let cardioDays = 0;
@@ -168,18 +170,30 @@ export function buildWorkoutProgramContext(input: {
     const baseDay = workoutGroupToDayWorkout(group, dayId, dayIdToKoreanLabel[dayId]);
     const editedDay = applyDayRoutineEdit(baseDay, settings.weeklyEdits[dayId]);
     const day = applyExerciseTargets(editedDay, settings.exerciseTargets);
-    const exercises = day.phases.flatMap((phase) => phase.exercises).map((exercise, index) => ({
-      order: index + 1,
-      id: exercise.exerciseId || exercise.name,
-      name: exercise.name,
-      plannedSets: Math.max(0, Number(exercise.sets) || 0),
-      restSeconds: Math.max(0, Number(exercise.restSeconds) || 0),
-      meta: safeText(exercise.meta, 100),
-      focus: getFocus(exercise.exerciseId || "", exercise.name).map((item) => PROGRAM_FOCUS_LABELS[item]),
-      focusIds: getFocus(exercise.exerciseId || "", exercise.name),
-    }));
-    const activeFocus = new Set(exercises.flatMap((exercise) => exercise.focusIds));
+    const exercises = day.phases.flatMap((phase) => phase.exercises).map((exercise, index) => {
+      const plannedSets = Math.max(0, Number(exercise.sets) || 0);
+      const focusIds = getFocus(exercise.exerciseId || "", exercise.name);
+      return {
+        order: index + 1,
+        id: exercise.exerciseId || exercise.name,
+        name: exercise.name,
+        plannedSets,
+        restSeconds: Math.max(0, Number(exercise.restSeconds) || 0),
+        meta: safeText(exercise.meta, 100),
+        focus: focusIds.map((item) => PROGRAM_FOCUS_LABELS[item]),
+        focusIds,
+      };
+    });
+    const activeExercises = exercises.filter((exercise) => exercise.plannedSets > 0);
+    const activeFocus = new Set(activeExercises.flatMap((exercise) => exercise.focusIds));
     activeFocus.forEach((focus) => { focusDays[focus] += 1; });
+    activeExercises.forEach((exercise) => {
+      const effectiveSets = method.method === "standard" || method.method === "free" ? exercise.plannedSets : method.rounds;
+      exercise.focusIds.forEach((focus) => {
+        focusSets[focus] += effectiveSets;
+        focusExerciseCount[focus] += 1;
+      });
+    });
     const workExerciseCount = exercises.filter((exercise) => exercise.plannedSets > 0).length;
     const baseBlocks = exercises.reduce((sum, exercise) => sum + exercise.plannedSets, 0);
     const dayWorkBlocks = method.method === "standard" || method.method === "free"
@@ -238,6 +252,8 @@ export function buildWorkoutProgramContext(input: {
       estimatedMinutes: totalMinutes,
       plannedWorkBlocks,
       focusDays,
+      focusSets,
+      focusExerciseCount,
     },
     days,
     notes,
@@ -254,6 +270,29 @@ function recentSafetySignals(snapshot: unknown) {
   return { sessionCount: normalized.length, pain, fatigue, stopped, needsRecovery: pain + fatigue + stopped > 0 };
 }
 
+export function buildWorkoutProgramReviewCards(
+  context: WorkoutProgramContext,
+  snapshot?: unknown,
+): WorkoutProgramReviewCard[] {
+  const signals = recentSafetySignals(snapshot);
+  const summary = context.summary;
+  const adaptationWeek = context.selectedPlan.id === "week1-cardio-back";
+  const pullPushTone: WorkoutProgramReviewTone = adaptationWeek || summary.focusSets.upperPull === summary.focusSets.upperPush
+    ? "good"
+    : summary.focusSets.upperPull === 0 || summary.focusSets.upperPush === 0 ? "watch" : "adjust";
+  const lowerCoreTone: WorkoutProgramReviewTone = adaptationWeek || (summary.focusSets.lowerBody > 0 && summary.focusSets.core > 0)
+    ? "good"
+    : "watch";
+  const weeklyComposition = `근력 ${summary.strengthDays}일 · 유산소 ${summary.cardioDays}일 · 코어 ${summary.coreDays}일`;
+
+  return [
+    { label: "주간 구성", value: weeklyComposition, detail: `휴식 ${summary.restDays}일 · 회복 ${summary.recoveryDays}일`, tone: signals.needsRecovery ? "watch" : "good" },
+    { label: "상체 균형", value: `당기기 ${summary.focusSets.upperPull}세트 · 밀기 ${summary.focusSets.upperPush}세트`, detail: "준비·자세 연습을 제외한 본운동 세트 기준", tone: pullPushTone },
+    { label: "하체·코어", value: `하체 ${summary.focusSets.lowerBody}세트 · 코어 ${summary.focusSets.core}세트`, detail: "준비·자세 연습을 제외한 본운동 세트 기준", tone: lowerCoreTone },
+    { label: "예상 운동량", value: `${summary.plannedWorkoutDays}일 · 약 ${summary.estimatedMinutes}분`, detail: `계획 작업 묶음 ${summary.plannedWorkBlocks}개`, tone: summary.plannedWorkoutDays ? "good" : "watch" },
+  ];
+}
+
 export function buildLocalWorkoutProgramReview(
   context: WorkoutProgramContext,
   snapshot?: unknown,
@@ -261,17 +300,16 @@ export function buildLocalWorkoutProgramReview(
   const signals = recentSafetySignals(snapshot);
   const summary = context.summary;
   const adaptationWeek = context.selectedPlan.id === "week1-cardio-back";
-  const pullPushTone: WorkoutProgramReviewTone = adaptationWeek || summary.focusDays.upperPull === summary.focusDays.upperPush
+  const pullPushTone: WorkoutProgramReviewTone = adaptationWeek || summary.focusSets.upperPull === summary.focusSets.upperPush
     ? "good"
-    : summary.focusDays.upperPull === 0 || summary.focusDays.upperPush === 0 ? "watch" : "adjust";
-  const lowerCoreTone: WorkoutProgramReviewTone = adaptationWeek || (summary.focusDays.lowerBody > 0 && summary.focusDays.core > 0)
+    : summary.focusSets.upperPull === 0 || summary.focusSets.upperPush === 0 ? "watch" : "adjust";
+  const lowerCoreTone: WorkoutProgramReviewTone = adaptationWeek || (summary.focusSets.lowerBody > 0 && summary.focusSets.core > 0)
     ? "good"
     : "watch";
   const needsBalanceCheck = pullPushTone !== "good" || lowerCoreTone !== "good";
   const status: WorkoutProgramReviewStatus = signals.needsRecovery
     ? "회복 우선"
     : needsBalanceCheck ? "조정 확인" : "기본 계획 유지";
-  const weeklyComposition = `근력 ${summary.strengthDays}일 · 유산소 ${summary.cardioDays}일 · 코어 ${summary.coreDays}일`;
   const priorities = signals.needsRecovery
     ? ["최근 통증·높은 피로·중단 기록이 있어 이번 주는 강도 증가보다 회복일 확보를 먼저 확인하세요."]
     : adaptationWeek
@@ -284,12 +322,7 @@ export function buildLocalWorkoutProgramReview(
       : adaptationWeek
         ? "현재 1주차 적응 계획은 허리 안정화와 저강도 유산소를 우선하도록 설계되어 있습니다."
         : "현재 주간 기본 계획의 운동 구성과 방식입니다. 실제 기록과 함께 보면 더 정확한 조정이 가능합니다.",
-    cards: [
-      { label: "주간 구성", value: weeklyComposition, detail: `휴식 ${summary.restDays}일 · 회복 ${summary.recoveryDays}일`, tone: signals.needsRecovery ? "watch" : "good" },
-      { label: "상체 균형", value: `당기기 ${summary.focusDays.upperPull}일 · 밀기 ${summary.focusDays.upperPush}일`, detail: "계획에 포함된 운동일 기준", tone: pullPushTone },
-      { label: "하체·코어", value: `하체 ${summary.focusDays.lowerBody}일 · 코어 ${summary.focusDays.core}일`, detail: "허리 안정화 동작 포함 기준", tone: lowerCoreTone },
-      { label: "예상 운동량", value: `${summary.plannedWorkoutDays}일 · 약 ${summary.estimatedMinutes}분`, detail: `계획 작업 묶음 ${summary.plannedWorkBlocks}개`, tone: summary.plannedWorkoutDays ? "good" : "watch" },
-    ],
+    cards: buildWorkoutProgramReviewCards(context, snapshot),
     priorities,
   };
 }
