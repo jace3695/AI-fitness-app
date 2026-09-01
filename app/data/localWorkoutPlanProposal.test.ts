@@ -37,3 +37,9 @@ test("월 예산 보호 시에도 비용 없는 로컬 계획의 이유를 정�
   assert.match(result.overview, /예산을 보호/);
   assert.match(result.planProposal.summary, /월 AI 예산/);
 });
+
+test("AI 응답이 완전하지 않아도 재호출 없이 로컬 계획으로 전환한다", () => {
+  const result = buildLocalWorkoutPlanResult({ recentSessions: [] }, currentSettings, "model_response_unusable");
+  assert.match(result.overview, /추가 호출 없이/);
+  assert.match(result.planProposal.summary, /다시 호출하지 않고/);
+});
