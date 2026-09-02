@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Bot, CalendarDays, Dumbbell, Languages, Salad, Settings, WalletCards } from "lucide-react";
+import { Bot, CalendarDays, Dumbbell, Languages, Salad, Settings, Target, WalletCards } from "lucide-react";
 
-export type AppKind = "assistant" | "budget" | "fitness" | "diet" | "language" | "calendar" | "settings";
+export type AppKind = "assistant" | "budget" | "fitness" | "diet" | "language" | "growth" | "calendar" | "settings";
 
 const APPS = {
   assistant: { label: "AI 연이", Icon: Bot, tone: "bg-violet-100 text-violet-700", image: "/app-icons/assistant.png" },
@@ -9,6 +9,7 @@ const APPS = {
   fitness: { label: "운동", Icon: Dumbbell, tone: "bg-indigo-100 text-indigo-700", image: "/app-icons/fitness.png" },
   diet: { label: "식단", Icon: Salad, tone: "bg-emerald-100 text-emerald-700" },
   language: { label: "언어", Icon: Languages, tone: "bg-teal-100 text-teal-700", image: "/app-icons/language.png" },
+  growth: { label: "자기계발", Icon: Target, tone: "bg-violet-100 text-violet-700" },
   calendar: { label: "달력", Icon: CalendarDays, tone: "bg-amber-100 text-amber-700" },
   settings: { label: "설정", Icon: Settings, tone: "bg-slate-100 text-slate-700" },
 } as const;

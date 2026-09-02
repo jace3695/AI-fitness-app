@@ -45,6 +45,7 @@ test("손상된 브라우저 설정은 안전한 기본 메뉴로 복구한다",
 
 test("하위 화면에서도 해당 앱을 활성 상태로 인식한다", () => {
   assert.equal(isHubAppActive("/language/review", "/language"), true);
+  assert.equal(isHubAppActive("/growth", "/growth"), true);
   assert.equal(isHubAppActive("/assistant/quick", "/"), true);
   assert.equal(isHubAppActive("/fitness", "/fitness"), true);
   assert.equal(isHubAppActive("/budget", "/"), false);

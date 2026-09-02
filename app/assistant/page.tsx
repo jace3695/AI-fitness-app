@@ -4,10 +4,17 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getLocalDateKey } from "@/utils/dateKey";
-import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "../data/workoutCompletion";
-import { dayIdToKoreanLabel, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "../data/workoutPlans";
 import { nextRecurringDueAt, recurrenceLabel, type RecurrenceRule } from "../lib/assistantRecurrence";
 import AppIdentity from "../components/AppIdentity";
+import {
+  buildFitnessDailyStatus,
+  buildLanguageDailyStatus,
+  EMPTY_FITNESS_DAILY_STATUS,
+  EMPTY_LANGUAGE_DAILY_STATUS,
+  parseStateObject,
+  type FitnessDailyStatus,
+  type LanguageDailyStatus,
+} from "../data/dailyAppStatus";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
 type Item = {
@@ -27,76 +34,23 @@ type Memory = { id: string; topic: string; content: string; created_at: string }
 type BudgetTransaction = { amount: number | string; date: string };
 type BriefingSnapshot = {
   budget: { spent: number; budget: number | null; remaining: number | null; entries: number };
-  fitness: { synced: boolean; title: string; detail: string; completed: boolean };
-  language: { synced: boolean; completed: number; total: number; nextLabel: string };
+  fitness: FitnessDailyStatus;
+  language: LanguageDailyStatus;
 };
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string } };
 type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
 
 const EMPTY_BRIEFING: BriefingSnapshot = {
   budget: { spent: 0, budget: null, remaining: null, entries: 0 },
-  fitness: { synced: false, title: "운동 기록 연결 대기", detail: "운동 앱에서 오늘 계획을 확인하세요.", completed: false },
-  language: { synced: false, completed: 0, total: 5, nextLabel: "학습 기록 연결 대기" },
+  fitness: EMPTY_FITNESS_DAILY_STATUS,
+  language: EMPTY_LANGUAGE_DAILY_STATUS,
 };
-
-const LANGUAGE_ROUTINES = [
-  { id: "kana", label: "가나" },
-  { id: "words", label: "단어" },
-  { id: "sentences", label: "문장" },
-  { id: "grammar", label: "문법" },
-  { id: "review", label: "복습" },
-] as const;
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 조회하고 기록할 수 있어요.",
 };
-
-function parseObject(value: unknown): Record<string, unknown> {
-  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
-  if (typeof value !== "string") return {};
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
-  } catch {
-    return {};
-  }
-}
-
-function buildFitnessBriefing(state: Record<string, unknown>, todayKey: string): BriefingSnapshot["fitness"] {
-  const planId = typeof state["ai-fitness-selected-weekly-workout-plan"] === "string"
-    ? state["ai-fitness-selected-weekly-workout-plan"] as string
-    : undefined;
-  const plan = getWeeklyWorkoutPlanById(planId);
-  const dayId = getWorkoutDayForDate(new Date());
-  if (!dayId) return EMPTY_BRIEFING.fitness;
-
-  const group = getWorkoutGroupForPlanDay(plan, dayId);
-  const completedStore = parseObject(state["ai-fitness-workout-completed-days"]) as WorkoutCompletionStore;
-  const completed = isWorkoutPerformed(completedStore[todayKey]);
-  const isRest = group.id === "rest";
-  return {
-    synced: true,
-    title: isRest ? "오늘은 회복일" : group.name,
-    detail: completed ? "오늘 운동을 완료했습니다." : isRest ? "가볍게 쉬며 몸 상태를 확인하세요." : `${dayIdToKoreanLabel[dayId]} 계획 · ${plan.weekLabel}`,
-    completed,
-  };
-}
-
-function buildLanguageBriefing(state: Record<string, unknown>, todayKey: string): BriefingSnapshot["language"] {
-  const routine = parseObject(state.dailyRoutineProgress);
-  const completedIds = routine.date === todayKey && Array.isArray(routine.completedIds)
-    ? routine.completedIds.filter((value): value is string => typeof value === "string")
-    : [];
-  const next = LANGUAGE_ROUTINES.find((item) => !completedIds.includes(item.id));
-  return {
-    synced: true,
-    completed: completedIds.length,
-    total: LANGUAGE_ROUTINES.length,
-    nextLabel: next ? `다음 학습: ${next.label}` : "오늘 학습 완료",
-  };
-}
 
 function formatWon(value: number) {
   return `${Math.abs(Math.round(value)).toLocaleString("ko-KR")}원`;
@@ -208,8 +162,8 @@ export default function AssistantPage() {
     const monthlyBudget = monthlyBudgetResult.data ? Number(monthlyBudgetResult.data.total_amount) : null;
     setBriefing({
       budget: { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
-      fitness: fitnessResult.data?.state ? buildFitnessBriefing(parseObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
-      language: languageResult.data?.state ? buildLanguageBriefing(parseObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
+      fitness: fitnessResult.data?.state ? buildFitnessDailyStatus(parseStateObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
+      language: languageResult.data?.state ? buildLanguageDailyStatus(parseStateObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
     });
     setLoading(false);
   }, []);
@@ -329,7 +283,8 @@ export default function AssistantPage() {
           <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
           <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
         </div>
-        <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-3 gap-2">
+        <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Link href="/growth" className="rounded-2xl bg-violet-50 px-3 py-3 text-center text-xs font-bold text-violet-700">자기계발</Link>
           <Link href="/diet" className="rounded-2xl bg-emerald-50 px-3 py-3 text-center text-xs font-bold text-emerald-700">식단</Link>
           <Link href="/calendar" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-700">통합 달력</Link>
           <Link href="/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">통합 설정</Link>

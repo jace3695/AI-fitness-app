@@ -7,6 +7,7 @@ export const HUB_APPS = [
   { id: "budget", href: "/budget", label: "가계부", menuLabel: "가계부", icon: "₩", required: false },
   { id: "diet", href: "/diet", label: "식단", menuLabel: "식단", icon: "🥗", required: false },
   { id: "language", href: "/language", label: "언어", menuLabel: "언어 학습", icon: "あ", required: false },
+  { id: "growth", href: "/growth", label: "성장", menuLabel: "자기계발", icon: "↗", required: false },
   { id: "calendar", href: "/calendar", label: "달력", menuLabel: "통합 달력", icon: "▦", required: false },
   { id: "settings", href: "/settings", label: "설정", menuLabel: "통합 설정", icon: "⚙", required: false },
 ] as const;
