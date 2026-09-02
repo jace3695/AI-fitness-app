@@ -285,7 +285,6 @@ button {
 .top-nav-icon { font-size: 16px; font-weight: 800; }
 
 @media (max-width: 767px) {
-  .language-app-shell { padding-bottom: 82px; }
   .language-app-shell .app-shell > div { min-height: 68px; }
   .top-nav {
     position: fixed;

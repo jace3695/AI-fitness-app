@@ -7,7 +7,7 @@ import AppIdentity from "../components/AppIdentity";
 
 function DietApp() {
   return (
-    <main className="min-h-dvh bg-[#F6F7FB] pb-28">
+    <main className="min-h-dvh bg-[#F6F7FB]">
       <header className="app-module-header">
         <div className="app-module-header-inner"><AppIdentity kind="diet" title="재민님의 식단" subtitle="운동 기록과 연동되는 독립 식단 앱" /></div>
       </header>
