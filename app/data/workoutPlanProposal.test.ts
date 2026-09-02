@@ -5,7 +5,7 @@ import type { UserWorkoutSettings } from "./userWorkoutSettings.ts";
 
 const allowList = {
   groupIds: new Set(["back-band-dumbbell-row", "cardio-foam-recovery"]),
-  exerciseNames: new Set(["밴드 로우", "묵주기도 슬라이딩보드"]),
+  exerciseNames: new Set(["밴드 로우", "운동 전 슬라이딩보드"]),
 };
 
 const emptySettings = (): UserWorkoutSettings => ({ weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, weeklyMethods: {}, dateOverrides: {} });
@@ -41,14 +41,14 @@ test("사용자가 적용했을 때만 기존 설정에 AI 계획을 합친다",
   const proposal = sanitizeWorkoutPlanProposal({
     title: "다음 주 계획",
     days: allDays("cardio-foam-recovery").map((day) => day.dayId === "tue" ? { ...day, method: { method: "free", rounds: 1, restSeconds: 0, workSeconds: 30 } } : day),
-    exerciseTargets: [{ exerciseName: "묵주기도 슬라이딩보드", durationMinutes: 15 }],
+    exerciseTargets: [{ exerciseName: "운동 전 슬라이딩보드", durationMinutes: 15 }],
   }, allowList);
   assert.ok(proposal);
   const original = emptySettings();
   const next = applyWorkoutPlanProposal(original, proposal);
   assert.equal(next.weeklyGroups.tue, "cardio-foam-recovery");
   assert.equal(next.weeklyMethods.tue?.method, "free");
-  assert.equal(next.exerciseTargets["묵주기도 슬라이딩보드"].durationMinutes, 15);
+  assert.equal(next.exerciseTargets["운동 전 슬라이딩보드"].durationMinutes, 15);
   assert.equal(original.weeklyGroups.tue, undefined);
 });
 
@@ -58,7 +58,7 @@ test("일부 적용은 사용자가 고른 요일과 운동량만 변경한다",
     days: allDays("back-band-dumbbell-row"),
     exerciseTargets: [
       { exerciseName: "밴드 로우", sets: 2, reps: 10 },
-      { exerciseName: "묵주기도 슬라이딩보드", durationMinutes: 12 },
+      { exerciseName: "운동 전 슬라이딩보드", durationMinutes: 12 },
     ],
   }, allowList);
   assert.ok(proposal);
@@ -69,5 +69,5 @@ test("일부 적용은 사용자가 고른 요일과 운동량만 변경한다",
   assert.equal(next.weeklyGroups.wed, "back-band-dumbbell-row");
   assert.equal(next.weeklyGroups.mon, undefined);
   assert.equal(next.exerciseTargets["밴드 로우"].reps, 10);
-  assert.equal(next.exerciseTargets["묵주기도 슬라이딩보드"], undefined);
+  assert.equal(next.exerciseTargets["운동 전 슬라이딩보드"], undefined);
 });

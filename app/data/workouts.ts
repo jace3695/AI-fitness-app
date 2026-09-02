@@ -193,14 +193,14 @@ const GUIDE_LIBRARY: Record<string, ExerciseGuide> = {
       "속도보다 엉덩이와 다리로 밀어내는 자세를 우선한다.",
     ],
     breathing:
-      "묵주기도를 이어갈 수 있을 정도로 자연스럽게 유지하고 숨을 참지 않는다.",
+      "대화가 가능할 정도로 자연스럽게 유지하고 숨을 참지 않는다.",
     target:
-      "묵주기도 5단, 저강도 유산소, 체온 올리기, 운동 전 몸 깨우기, 감량 보조, 식욕 조절",
+      "저강도 유산소, 체온 올리기, 운동 전 몸 깨우기, 감량 보조, 식욕 조절",
     commonMistakes: [
       "허리를 과하게 숙임",
       "무릎이 안쪽으로 모임",
       "발이 패드에서 들림",
-      "기도가 끊길 정도로 빠르게 진행함",
+      "대화하기 어려울 정도로 빠르게 진행함",
       "상체 반동으로 속도를 냄",
     ],
     stopCriteria: [
@@ -210,7 +210,7 @@ const GUIDE_LIBRARY: Record<string, ExerciseGuide> = {
       "어지러움",
     ],
     keyPoint:
-      "운동 전 20분은 저강도 유산소 기준입니다. 묵주기도를 이어갈 수 있고 균형이 흔들리지 않는 가벼운 속도를 우선합니다.",
+      "운동 전 20분은 저강도 유산소 기준입니다. 대화가 가능하고 균형이 흔들리지 않는 가벼운 속도를 우선합니다.",
     videoUrl: "https://www.youtube.com/watch?v=YHEJeqRnmzc",
     videoSearchQuery: "슬라이딩보드 초보 자세",
   },
@@ -678,18 +678,18 @@ const FOAM_ROLLER_RECOVERY = () =>
     0,
   );
 
-const ROSARY_CARDIO_GUIDE =
-  "운동 전 묵주기도 슬라이딩보드는 고강도 운동이 아니라, 기도와 저강도 유산소를 함께하는 시간입니다. 묵주기도를 이어갈 수 있을 정도의 가벼운 속도로 진행하세요. 목표는 묵주기도 5단이지만 컨디션 저하 시 1~3단만 진행해도 되며, 5단 완료보다 안전한 자세와 꾸준함이 중요합니다.";
+const WARMUP_SLIDING_BOARD_GUIDE =
+  "운동 전 슬라이딩보드는 고강도 운동이 아닙니다. 대화가 가능한 가벼운 속도로 진행하고, 컨디션이 좋지 않으면 시간을 줄이세요. 정해진 시간을 채우는 것보다 안전한 자세와 꾸준함이 중요합니다.";
 const POST_WORKOUT_CARDIO_GUIDE =
   "운동 후 슬라이딩보드는 감량 보조용입니다. 처음 1~2주는 5분만 진행하거나 생략하고, 허리/무릎 통증이 없을 때 10분 이상으로 늘립니다.";
-const ROSARY_CARDIO = () =>
+const WARMUP_SLIDING_BOARD = () =>
   sliding(
-    "묵주기도 슬라이딩보드",
+    "운동 전 슬라이딩보드",
     "1주차 15분 · 2주차 15~20분 · 3주차 이후 20분",
-    ROSARY_CARDIO_GUIDE,
+    WARMUP_SLIDING_BOARD_GUIDE,
     {
       segments: [
-        { label: "저강도 · 기도 가능", seconds: 1200, intensity: "가볍게" },
+        { label: "저강도 · 대화 가능", seconds: 1200, intensity: "가볍게" },
       ],
     },
   );
@@ -779,7 +779,7 @@ const WORKOUT_D = day(
   "목요일 권장 · 상체와 코어 안정화",
   [
     FOAM_ROLLER_PREP(),
-    ROSARY_CARDIO(),
+    WARMUP_SLIDING_BOARD(),
     mk("덤벨 플로어프레스", "10회 × 2세트 · 한 손 3~5kg부터", "바닥에서 팔꿈치가 닿으면 멈추고 가벼운 무게로 시작합니다.", 2, 45),
     mk("롱밴드 페이스풀", "12회 × 2세트", "얼굴 방향으로 당기며 어깨를 내리고 등 위쪽을 사용합니다.", 2, 45),
     mk("밴드 풀어파트", "12~15회 × 2세트", "어깨가 올라가지 않게 밴드를 가슴 앞에서 천천히 벌립니다.", 2, 30),
@@ -800,7 +800,7 @@ const WORKOUT_E = day(
   "금요일 권장 · 강한 서킷이 아닌 가벼운 전신 반복",
   [
     FOAM_ROLLER_PREP(),
-    ROSARY_CARDIO(),
+    WARMUP_SLIDING_BOARD(),
     mk("덤벨 고블릿 스쿼트", "8회 × 2세트 · 5~7kg부터", "속도보다 자세를 우선하고 허리 통증 없는 범위만 진행합니다.", 2, 45),
     mk("밴드 로우", "12회 × 2세트", "허리는 중립으로 고정하고 팔꿈치를 뒤로 당깁니다.", 2, 45),
     mk("덤벨 플로어프레스", "10회 × 2세트", "가벼운 무게로 바닥에서 안전하게 밀어 올립니다.", 2, 45),
@@ -821,7 +821,7 @@ export const WORKOUTS: DayWorkout[] = [
 export const WEEK_OVERVIEW = {
   stats: [
     { label: "1개월 감량 집중", value: "5", unit: "일", sub: "월~금 운동" },
-    { label: "묵주기도 유산소", value: "15~20", unit: "분", sub: "운동 전" },
+    { label: "준비 유산소", value: "15~20", unit: "분", sub: "운동 전" },
     { label: "마무리 유산소", value: "5", unit: "분", sub: "기본값" },
     { label: "턱걸이 초기자세", value: "3~5", unit: "분", sub: "현재 단계 1개" },
   ],
@@ -835,7 +835,7 @@ export const WEEK_OVERVIEW = {
     { day: "일", emoji: "😴", label: "휴식", sub: "자세 1~2분", time: "휴식", active: true, tabId: "sun", color: "#6B7280", bg: "#F3F4F6", border: "#D1D5DB" },
   ],
   dayTimes: [
-    { days: "월", total: "약 40분", detail: "운동 A\n묵주기도+근력+마무리", color: "#534AB7", border: "#AFA9EC" },
+    { days: "월", total: "약 40분", detail: "운동 A\n준비 유산소+근력+마무리", color: "#534AB7", border: "#AFA9EC" },
     { days: "화", total: "약 40분", detail: "운동 B\n하체+루프밴드", color: "#639922", border: "#B7D88B" },
     { days: "수", total: "가볍게", detail: "운동 C\n회복+AB 준비", color: "#378ADD", border: "#9CCAF0" },
     { days: "목", total: "약 40분", detail: "운동 D\n상체+AB 준비", color: "#EF9F27", border: "#F3C276" },

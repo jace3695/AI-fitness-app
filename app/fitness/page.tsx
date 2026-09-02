@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RoutineSelection, WORKOUT_ROUTINE_SELECTION_KEY } from "../data/workouts";
+import type { DayWorkout } from "../data/workouts";
 import {
   DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
   getDayWorkoutForPlan,
@@ -43,7 +43,6 @@ import WeeklyView from "../components/WeeklyView";
 import DayView from "../components/DayView";
 import SafetyView from "../components/SafetyView";
 import RecordCalendarView from "../components/RecordCalendarView";
-import SwitchOnModePanel from "../components/SwitchOnModePanel";
 import PullupTrainingView from "../components/PullupTrainingView";
 import CloudSyncPanel from "../components/CloudSyncPanel";
 import ConditionCheckCard from "../components/ConditionCheckCard";
@@ -55,6 +54,7 @@ import DataBackupPanel from "../components/DataBackupPanel";
 import AppIdentity from "../components/AppIdentity";
 import AppModuleNav from "../components/AppModuleNav";
 import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
+import DailyWorkoutEditor from "../components/DailyWorkoutEditor";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
@@ -76,6 +76,7 @@ type TabId =
   | "sat"
   | "pullup"
   | "record"
+  | "plan"
   | "more"
   | "tips";
 type WorkoutDayId = Extract<
@@ -94,6 +95,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "sat", label: "토요일" },
   { id: "pullup", label: "철봉 훈련" },
   { id: "record", label: "기록" },
+  { id: "plan", label: "주간 운동표" },
   { id: "more", label: "더보기" },
   { id: "tips", label: "주의사항" },
 ];
@@ -118,13 +120,21 @@ const PRIMARY_NAV: {
   { id: "home", label: "오늘", emoji: "⌂" },
   { id: "workout", label: "운동하기", emoji: "▶" },
   { id: "record", label: "기록보기", emoji: "▦" },
-  { id: "more", label: "설정", emoji: "⚙" },
+  { id: "more", label: "더보기", emoji: "⋯" },
 ];
+
+function getWorkoutPreviewItems(day?: DayWorkout) {
+  if (!day) return ["편하게 쉬기"];
+  const names = day.optionalCardio
+    ? day.optionalCardio.options.map((option) => option.name)
+    : day.phases.flatMap((phase) =>
+        phase.exercises.map((exercise) => exercise.name),
+      );
+  return Array.from(new Set(names));
+}
 
 function FitnessApp() {
   const [activeTab, setActiveTab] = useState<TabId>("ov");
-  const [routineSelection, setRoutineSelection] =
-    useState<RoutineSelection>("base");
   const [selectedWeeklyWorkoutPlanId, setSelectedWeeklyWorkoutPlanId] = useState(
     DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
   );
@@ -136,6 +146,7 @@ function FitnessApp() {
   );
   const [conditionToday, setConditionToday] = useState<DailyConditionRecord>();
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
+  const [showDailyEditor, setShowDailyEditor] = useState(false);
   const [userWorkoutSettings, setUserWorkoutSettings] = useState<UserWorkoutSettings>(EMPTY_USER_WORKOUT_SETTINGS);
 
   useEffect(() => {
@@ -148,15 +159,6 @@ function FitnessApp() {
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
-    }
-
-    const savedRoutine = window.localStorage.getItem(
-      WORKOUT_ROUTINE_SELECTION_KEY,
-    ) as RoutineSelection | null;
-    const validRoutine = savedRoutine === "base" || savedRoutine === "recovery";
-    setRoutineSelection(validRoutine ? savedRoutine : "base");
-    if (savedRoutine && !validRoutine) {
-      window.localStorage.setItem(WORKOUT_ROUTINE_SELECTION_KEY, "base");
     }
 
     const savedWeeklyPlan =
@@ -188,12 +190,6 @@ function FitnessApp() {
       ),
     );
   }, [activeTab]);
-
-  const handleRoutineSelectionChange = (value: RoutineSelection) => {
-    setRoutineSelection(value);
-    window.localStorage.setItem(WORKOUT_ROUTINE_SELECTION_KEY, value);
-    if (value === "recovery") setShowBaseRoutine(false);
-  };
 
   const handleWeeklyWorkoutPlanChange = (planId: string) => {
     setSelectedWeeklyWorkoutPlanId(planId);
@@ -255,7 +251,7 @@ function FitnessApp() {
       : detailedWorkoutStatus || feedback?.status || "completed";
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
-      const hasRosaryCardio = exerciseNames.includes("운동 전 묵주기도 슬라이딩보드");
+      const hasWarmupSlidingBoard = exerciseNames.includes("운동 전 슬라이딩보드");
       const hasPostWorkoutCardio =
         exerciseNames.includes("운동 후 슬라이딩보드 마무리");
       const next = {
@@ -276,9 +272,9 @@ function FitnessApp() {
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           workoutMethod: dayWorkout?.optionalCardio ? undefined : { ...activeWorkoutMethod },
           workoutRecordedAt: new Date().toISOString(),
-          rosaryCardioDone: hasRosaryCardio || undefined,
-          rosaryCardioMinutes: hasRosaryCardio ? 20 : undefined,
-          rosaryDecades: hasRosaryCardio ? 5 : undefined,
+          rosaryCardioDone: hasWarmupSlidingBoard || undefined,
+          rosaryCardioMinutes: hasWarmupSlidingBoard ? 20 : undefined,
+          rosaryDecades: undefined,
           postWorkoutCardioDone: hasPostWorkoutCardio || undefined,
           postWorkoutCardioMinutes: hasPostWorkoutCardio ? 5 : undefined,
           cardioDone: selectedOptionalCardio ? selectedOptionalCardio.id !== 'rest' : current.cardioDone,
@@ -425,6 +421,7 @@ function FitnessApp() {
   const handleTabChange = (id: string) => {
     const nextTab = id as TabId;
     window.sessionStorage.setItem(ACTIVE_TAB_SESSION_KEY, nextTab);
+    setShowDailyEditor(false);
     setActiveTab(nextTab);
     // Scroll to top when switching tabs
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -567,6 +564,24 @@ function FitnessApp() {
         userWorkoutSettings.exerciseTargets,
       )
     : undefined;
+  const todayPreviewItems = getWorkoutPreviewItems(todayWorkout);
+  const activeWorkoutDay = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
+    ? (activeTab as WorkoutDayId)
+    : undefined;
+  const activeDefaultGroupId = activeWorkoutDay
+    ? selectedBaseWeeklyWorkoutPlan.days[dayIdToPlanKey[activeWorkoutDay]]
+    : selectedBaseWeeklyWorkoutPlan.days.monday;
+  const activeRecommendationGroupId =
+    activeWorkoutDay &&
+    getDateForWorkoutDay(activeWorkoutDay) === todayKey &&
+    recoveryToday?.recoveryMode
+      ? "cardio-foam-recovery"
+      : activeDefaultGroupId;
+  const activeRecommendationReason = recoveryToday?.recoveryMode &&
+    activeWorkoutDay &&
+    getDateForWorkoutDay(activeWorkoutDay) === todayKey
+    ? "오늘 몸 상태를 반영해 회복 루틴을 추천합니다."
+    : `${selectedBaseWeeklyWorkoutPlan.weekLabel} 기본 운동표를 기준으로 추천합니다.`;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
   const activeWorkoutRecord = getWorkoutRecord(completedStore[activeWorkoutDateKey]);
   const activeWorkoutMethod = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
@@ -583,7 +598,8 @@ function FitnessApp() {
     activeTab === "ov"
       ? "home"
       : WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId) ||
-          activeTab === "pullup"
+          activeTab === "pullup" ||
+          activeTab === "plan"
         ? "workout"
         : activeTab === "record"
           ? "record"
@@ -597,18 +613,12 @@ function FitnessApp() {
     else if (id === "record") handleTabChange("record");
     else handleTabChange("more");
   };
-  const selectedRecovery = routineSelection === "recovery";
-  const displayedRecovery = selectedRecovery
-    ? {
-        recoveryMode: true,
-        reasons: [],
-        completedAsRecovery: recoveryToday?.completedAsRecovery,
-        recoveryPriorityOnly: recoveryToday?.recoveryPriorityOnly,
-        recoveryMemo: recoveryToday?.recoveryMemo,
-        intensity: "recovery" as const,
-        updatedAt: recoveryToday?.updatedAt,
-      }
-    : recoveryToday || undefined;
+  const displayedRecovery = recoveryToday || undefined;
+
+  const openDailyEditor = (dayId: WorkoutDayId) => {
+    handleTabChange(dayId);
+    setShowDailyEditor(true);
+  };
 
   return (
     <>
@@ -654,23 +664,32 @@ function FitnessApp() {
             </section>
 
             <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-[12px] font-bold text-[#534AB7]">딱 3가지만 하면 돼요</p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {[
-                  ["1", "시작 누르기", "오늘 운동은 이미 골라뒀어요"],
-                  ["2", "하나씩 따라하기", "횟수와 쉬는 시간을 알려줘요"],
-                  ["3", "느낌 고르고 저장", "쉬움·괜찮음·힘듦 중 선택"],
-                ].map(([step, title, description]) => (
-                  <div key={step} className="flex items-center gap-3 rounded-2xl bg-[#F6F7FB] p-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#534AB7] text-[13px] font-bold text-white">
-                      {step}
-                    </span>
-                    <div>
-                      <p className="text-[13px] font-bold text-gray-900">{title}</p>
-                      <p className="mt-0.5 text-[11px] text-gray-500">{description}</p>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[12px] font-bold text-[#534AB7]">오늘 추천 운동</p>
+                  <p className="mt-1 text-[11px] text-gray-500">운동표와 오늘 설정을 반영했습니다.</p>
+                </div>
+                {todayWorkoutDay && (
+                  <button
+                    type="button"
+                    onClick={() => openDailyEditor(todayWorkoutDay)}
+                    className="shrink-0 rounded-xl bg-[#EEEDFE] px-3 py-2 text-[12px] font-bold text-[#3C3489]"
+                  >
+                    오늘 운동 바꾸기
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {todayPreviewItems.slice(0, 7).map((name, index) => (
+                  <span key={`${name}-${index}`} className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-[11px] font-semibold text-gray-700">
+                    {index + 1}. {name}
+                  </span>
                 ))}
+                {todayPreviewItems.length > 7 && (
+                  <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[11px] font-bold text-[#534AB7]">
+                    +{todayPreviewItems.length - 7}개
+                  </span>
+                )}
               </div>
             </section>
 
@@ -721,6 +740,13 @@ function FitnessApp() {
                 <span className="mt-1 block text-[11px] text-gray-500">다른 요일 운동이나 주간 계획을 볼 수 있어요</span>
               </summary>
               <div className="border-t border-gray-100 px-3 pt-4 sm:px-4">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("plan")}
+                  className="mb-3 w-full rounded-xl bg-[#EEEDFE] px-4 py-3 text-[13px] font-bold text-[#3C3489]"
+                >
+                  주간 운동표 편집하기
+                </button>
                 <WeeklyView
                   onTabChange={handleTabChange}
                   completedDays={completedDays}
@@ -743,27 +769,43 @@ function FitnessApp() {
           ) && (
             <div className="mx-auto w-full max-w-5xl">
               <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-[12px] font-bold text-[#534AB7]">
-                      {TABS.find((tab) => tab.id === activeTab)?.label} 운동
+                      {TABS.find((tab) => tab.id === activeTab)?.label} · {selectedWeeklyWorkoutPlan.weekLabel}
                     </p>
-                    <h2 className="mt-1 text-[20px] font-bold text-gray-900">
-                      {dayWorkout.title}
-                    </h2>
+                    <p className="mt-1 text-[12px] text-gray-500">운동을 바꾸고 싶으면 여기서 바로 고르세요.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleTabChange("ov")}
-                    className="rounded-xl bg-gray-50 px-3 py-2 text-[12px] font-bold text-gray-600"
-                  >
-                    홈
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowDailyEditor((visible) => !visible)}
+                      className={`rounded-xl px-3 py-2 text-[12px] font-bold ${showDailyEditor ? "bg-[#534AB7] text-white" : "bg-[#EEEDFE] text-[#3C3489]"}`}
+                    >
+                      {showDailyEditor ? "편집 닫기" : "오늘 운동 바꾸기"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("ov")}
+                      className="rounded-xl bg-gray-50 px-3 py-2 text-[12px] font-bold text-gray-600"
+                    >
+                      홈
+                    </button>
+                  </div>
                 </div>
-                <p className="mt-2 text-[12px] text-gray-500">
-                  {selectedWeeklyWorkoutPlan.name} · {dayWorkout.totalTime}
-                </p>
               </section>
+              {showDailyEditor && activeWorkoutDay && (
+                <DailyWorkoutEditor
+                  dayId={activeWorkoutDay}
+                  dateKey={getDateForWorkoutDay(activeWorkoutDay)}
+                  defaultGroupId={activeDefaultGroupId}
+                  recommendedGroupId={activeRecommendationGroupId}
+                  recommendationReason={activeRecommendationReason}
+                  settings={userWorkoutSettings}
+                  onChange={handleUserWorkoutSettingsChange}
+                  onClose={() => setShowDailyEditor(false)}
+                />
+              )}
               <DayView
                 day={dayWorkout}
                 workoutMethod={activeWorkoutMethod}
@@ -823,8 +865,7 @@ function FitnessApp() {
                 onRecordRecovery={recordRecoveryPriority}
                 onCancelRecovery={cancelRecoveryPriority}
                 showBaseRoutine={
-                  !selectedRecovery &&
-                  (showBaseRoutine || !displayedRecovery?.recoveryMode)
+                  showBaseRoutine || !displayedRecovery?.recoveryMode
                 }
                 onShowRecommended={() => setShowBaseRoutine(false)}
                 onShowBaseRoutine={() => setShowBaseRoutine(true)}
@@ -840,30 +881,44 @@ function FitnessApp() {
 
         {activeTab === "record" && <RecordCalendarView />}
 
+        {activeTab === "plan" && (
+          <div className="mx-auto w-full max-w-5xl">
+            <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[12px] font-bold text-[#534AB7]">주간 운동표</p>
+                  <h2 className="mt-1 text-[22px] font-bold text-gray-900">일주일 운동을 정해요</h2>
+                  <p className="mt-2 text-[13px] text-gray-500">먼저 기본 계획을 고르세요. 요일별 세부 변경은 아래에서 필요할 때만 하면 됩니다.</p>
+                </div>
+                <button type="button" onClick={() => handleTabChange("ov")} className="rounded-xl bg-gray-100 px-3 py-2 text-[12px] font-bold text-gray-600">운동 홈</button>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {WEEKLY_WORKOUT_PLANS.map((plan) => (
+                  <button key={plan.id} type="button" onClick={() => handleWeeklyWorkoutPlanChange(plan.id)} className={`rounded-2xl border px-4 py-3 text-left ${selectedWeeklyWorkoutPlanId === plan.id ? "border-[#7F77DD] bg-[#F7F6FF] text-[#3C3489] shadow-sm" : "border-gray-100 bg-gray-50 text-gray-600"}`}>
+                    <span className="block text-[13px] font-bold">{selectedWeeklyWorkoutPlanId === plan.id ? "✓ " : ""}{plan.name}</span>
+                    <span className="mt-1 block text-[10px] leading-relaxed opacity-75">{plan.recommendedFor}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <WorkoutPlanEditor
+              settings={userWorkoutSettings}
+              records={completedStore}
+              defaultGroups={WORKOUT_DAY_IDS.reduce((result, dayId) => {
+                result[dayId] = selectedBaseWeeklyWorkoutPlan.days[dayIdToPlanKey[dayId]];
+                return result;
+              }, {} as Record<WorkoutDayId, string>)}
+              onChange={handleUserWorkoutSettingsChange}
+            />
+          </div>
+        )}
+
         {activeTab === "more" && (
           <div className="mx-auto w-full max-w-5xl">
             <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-              <p className="text-[12px] font-bold text-[#534AB7]">쉬운 설정</p>
-              <h2 className="mt-1 text-[22px] font-bold text-gray-900">큰 것만 먼저 고르세요</h2>
-              <p className="mt-2 text-[13px] text-gray-500">아래 두 가지만 정하면 바로 운동할 수 있어요. 나머지는 앱이 추천값으로 준비합니다.</p>
-              <div className="mt-4 rounded-2xl bg-[#F6F7FB] p-3">
-                <p className="text-[12px] font-bold text-gray-700">1. 운동 계획</p>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {WEEKLY_WORKOUT_PLANS.map((plan) => (
-                    <button key={plan.id} type="button" onClick={() => handleWeeklyWorkoutPlanChange(plan.id)} className={`rounded-xl border px-3 py-3 text-left ${selectedWeeklyWorkoutPlanId === plan.id ? "border-[#7F77DD] bg-white text-[#3C3489] shadow-sm" : "border-transparent bg-gray-100 text-gray-600"}`}>
-                      <span className="block text-[13px] font-bold">{selectedWeeklyWorkoutPlanId === plan.id ? "✓ " : ""}{plan.name}</span>
-                      <span className="mt-1 block text-[10px] opacity-70">{plan.recommendedFor}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl bg-[#F6F7FB] p-3">
-                <p className="text-[12px] font-bold text-gray-700">2. 오늘 강도</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => handleRoutineSelectionChange("base")} className={`rounded-xl px-3 py-3 text-[13px] font-bold ${routineSelection === "base" ? "bg-[#534AB7] text-white" : "bg-white text-gray-600"}`}>보통 운동</button>
-                  <button type="button" onClick={() => handleRoutineSelectionChange("recovery")} className={`rounded-xl px-3 py-3 text-[13px] font-bold ${routineSelection === "recovery" ? "bg-emerald-600 text-white" : "bg-white text-gray-600"}`}>가볍게 회복</button>
-                </div>
-              </div>
+              <p className="text-[12px] font-bold text-[#534AB7]">더보기</p>
+              <h2 className="mt-1 text-[22px] font-bold text-gray-900">알림과 기록 관리</h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-gray-500">운동 선택과 편집은 각 요일의 <b className="text-gray-700">오늘 운동 바꾸기</b> 또는 <b className="text-gray-700">주간 운동표</b>에서 할 수 있어요.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                 <button
                   type="button"
@@ -884,22 +939,6 @@ function FitnessApp() {
               </div>
             </section>
             <div className="space-y-3">
-              <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">세부 운동 편집 <span className="ml-1 text-[12px] font-normal text-gray-500">필요할 때만 · 요일·횟수·무게</span></summary>
-                <div className="px-3 pb-3 sm:px-4 sm:pb-4"><WorkoutPlanEditor
-                  settings={userWorkoutSettings}
-                  records={completedStore}
-                  defaultGroups={WORKOUT_DAY_IDS.reduce((result, dayId) => {
-                    result[dayId] = selectedBaseWeeklyWorkoutPlan.days[dayIdToPlanKey[dayId]];
-                    return result;
-                  }, {} as Record<WorkoutDayId, string>)}
-                  onChange={handleUserWorkoutSettingsChange}
-                /></div>
-              </details>
-              <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">강도 상세 설명 <span className="ml-1 text-[12px] font-normal text-gray-500">기본·회복 모드 안내</span></summary>
-                <div className="px-3 pb-3 sm:px-4 sm:pb-4"><SwitchOnModePanel selection={routineSelection} onSelectionChange={handleRoutineSelectionChange} /></div>
-              </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">운동 알림 <span className="ml-1 text-[12px] font-normal text-gray-500">요일과 시간</span></summary>
                 <div className="px-3 pb-3 sm:px-4 sm:pb-4"><WorkoutNotificationPanel /></div>

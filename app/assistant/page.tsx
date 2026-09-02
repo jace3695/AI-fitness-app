@@ -126,6 +126,11 @@ export default function AssistantPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const chatBoxRef = useRef<HTMLDivElement>(null);
 
+  const signOut = async () => {
+    await supabase?.auth.signOut();
+    window.location.reload();
+  };
+
   const loadChatHistory = useCallback(async () => {
     if (!supabase) return;
     setChatHistoryLoading(true);
@@ -297,7 +302,10 @@ export default function AssistantPage() {
     <header className="app-module-header">
       <div className="app-module-header-inner">
         <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />
-        <span className="text-xs text-gray-500 sm:text-sm">{today}</span>
+        <div className="flex items-center gap-2">
+          <span className="hidden text-xs text-gray-500 sm:inline sm:text-sm">{today}</span>
+          <button type="button" onClick={() => void signOut()} className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">로그아웃</button>
+        </div>
       </div>
     </header>
 
@@ -321,6 +329,11 @@ export default function AssistantPage() {
           <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
           <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
         </div>
+        <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-3 gap-2">
+          <Link href="/diet" className="rounded-2xl bg-emerald-50 px-3 py-3 text-center text-xs font-bold text-emerald-700">식단</Link>
+          <Link href="/calendar" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-700">통합 달력</Link>
+          <Link href="/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">통합 설정</Link>
+        </nav>
       </section>
 
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
@@ -359,6 +372,11 @@ export default function AssistantPage() {
           </article>)}
         </div>
       </section>
+      <footer className="mt-7 flex flex-wrap justify-center gap-x-4 gap-y-2 border-t border-white/80 pt-5 text-xs font-semibold text-gray-500">
+        <Link href="/about">앱 소개</Link>
+        <Link href="/privacy">개인정보처리방침</Link>
+        <Link href="/terms">서비스 이용약관</Link>
+      </footer>
     </div>
   </main>;
 }

@@ -86,8 +86,7 @@ export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, i
       {recovery.completedAsRecovery && <p className="mt-2 rounded-xl bg-white/80 px-3 py-2 text-[12px] font-bold text-green-700">회복 운동 완료/회복 우선으로 기록됨</p>}
     </section>}
     {isRecoveryRecommended && !showBaseRoutine && <section className="mb-4 rounded-2xl border border-green-100 bg-white p-4 shadow-sm"><p className="text-[16px] font-bold text-gray-900">회복 운동 루틴 · 20~25분</p><div className="mt-3 space-y-2">{RECOVERY_ROUTINE.map((item, idx) => <div key={item} className="rounded-xl bg-green-50 px-3 py-2 text-[13px] text-green-800">{idx + 1}) {item}</div>)}</div><p className="mt-3 text-[12px] font-bold text-red-700">중단 기준: {RECOVERY_STOP_CRITERIA.join(' · ')}</p></section>}
-    {(!isRecoveryRecommended || showBaseRoutine) && <><div className="flex justify-between items-start mb-4"><div><p className="text-[17px] font-medium text-gray-800">{day.title}</p><p className="text-[12px] text-gray-400 mt-0.5">{day.subtitle}</p></div><span className="text-white text-[11px] font-medium px-3 py-1 rounded-full shrink-0 ml-2" style={{ background: day.badgeBg }}>{day.totalTime}</span></div>
-    <details className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white shadow-sm" open={recordOpen} onToggle={(event) => setRecordOpen(event.currentTarget.open)}>
+    {(!isRecoveryRecommended || showBaseRoutine) && <><details className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white shadow-sm" open={recordOpen} onToggle={(event) => setRecordOpen(event.currentTarget.open)}>
       <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-[#3C3489]">운동이 끝났다면 기록하기</summary>
       <section className="border-t border-[#EEEDFE] p-4">
         <div className="flex gap-1.5 overflow-x-auto pb-1">{exercises.map((exercise, index) => <span key={`${exercise.name}-${index}`} className="shrink-0 rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[11px] font-semibold text-[#3C3489]">{index + 1}. {exercise.name}</span>)}</div>
@@ -105,26 +104,28 @@ export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, i
         {saveNotice && <p role="status" aria-live="polite" className={`mt-2 rounded-lg px-3 py-2 text-center text-xs font-bold ${saveNotice.includes('먼저') ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{saveNotice}</p>}
       </section>
     </details>
-    <section className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white p-4 shadow-sm">
-      <p className="text-[12px] font-bold text-[#534AB7]">다음 단계 판단 기준</p>
-      <p className="mt-1 text-[15px] font-bold text-gray-900">
-        {isRecoveryRecommended ? '오늘은 단계 상승 보류' : isAdjustedRecommended ? '오늘은 강도 유지보다 조절 우선' : '통증 없이 같은 계획을 반복하는 단계'}
-      </p>
-      <div className="mt-3 grid gap-1.5 text-[12px] text-gray-600">
-        <p>• 계획한 필수 운동을 통증 없이 완료</p>
-        <p>• 동작 중 허리 통증·다리 저림·발목 통증 없음</p>
-        <p>• 같은 강도를 2회 연속 안정적으로 완료</p>
-        <p>• 조건 충족 후에도 횟수·중량·시간 중 한 가지만 소폭 증가</p>
+    <details className="mb-4 rounded-2xl border border-[#D9D6FF] bg-white shadow-sm">
+      <summary className="cursor-pointer list-none p-4 text-[13px] font-bold text-[#534AB7]">운동량을 늘려도 되는 기준</summary>
+      <div className="border-t border-[#EEEDFE] p-4">
+        <p className="text-[15px] font-bold text-gray-900">
+          {isRecoveryRecommended ? '오늘은 단계 상승 보류' : isAdjustedRecommended ? '오늘은 강도 유지보다 조절 우선' : '통증 없이 같은 계획을 반복하는 단계'}
+        </p>
+        <div className="mt-3 grid gap-1.5 text-[12px] text-gray-600">
+          <p>• 계획한 필수 운동을 통증 없이 완료</p>
+          <p>• 동작 중 허리 통증·다리 저림·발목 통증 없음</p>
+          <p>• 같은 강도를 2회 연속 안정적으로 완료</p>
+          <p>• 조건 충족 후에도 횟수·중량·시간 중 한 가지만 소폭 증가</p>
+        </div>
+        <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-600">앱이 계획을 자동으로 올리지는 않습니다. 기록과 컨디션을 확인한 뒤 직접 다음 단계를 선택합니다.</p>
       </div>
-      <p className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-600">앱이 계획을 자동으로 올리지는 않습니다. 기록과 컨디션을 확인한 뒤 직접 다음 단계를 선택합니다.</p>
-    </section>
+    </details>
     <button type="button" onClick={() => setWarning(true)} className="w-full mb-3 py-3 px-4 rounded-xl text-[14px] font-bold bg-[#FCEBEB] text-[#A32D2D] border border-red-200">통증·저림·어지러움 발생</button>
     {warning && <div className="mb-4 rounded-2xl bg-[#FCEBEB] border-2 border-[#E24B4A] p-4 text-[#791F1F]"><p className="text-[18px] font-bold mb-1">운동을 즉시 중단하세요.</p><p className="text-[13px] leading-relaxed">허리 통증, 다리 저림, 날카로운 무릎 통증 또는 어지러움이 지속되면 무리하지 말고 의료진과 상담하세요.</p><button className="mt-3 text-[12px] underline" onClick={() => setWarning(false)}>안내 접기</button></div>}
     {day.optionalCardio && <section className="mb-4 rounded-2xl border border-[#9CCAF0] bg-white p-4 shadow-sm"><p className="text-[12px] font-bold text-[#185FA5]">토요일 선택 유산소</p><h3 className="mt-1 text-lg font-bold text-gray-900">오늘은 아래 중 하나만 선택하세요.</h3><p className="mt-2 text-[13px] text-gray-600">무리하지 않고 활동량을 늘리는 날입니다.</p><div className="mt-4 rounded-xl bg-[#EEEDFE] p-3"><p className="text-[13px] font-bold text-[#3C3489]">준비운동</p>{day.optionalCardio.warmup.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#534AB7]">- {exercise.name} {exercise.meta || '3분'}</p>)}</div><p className="mt-4 text-[13px] font-bold text-gray-800">오늘 할 유산소를 하나 선택하세요</p><div className="mt-2 grid gap-2">{day.optionalCardio.options.map((option) => <button key={option.id} type="button" onClick={() => { setSelectedCardioOptionId(option.id); setSelectedCardioType(option.name); if (option.duration.includes('15')) setSelectedCardioMinutes(20); else if (option.duration.includes('30')) setSelectedCardioMinutes(30); else if (option.id === 'rest') setSelectedCardioMinutes(0); }} className={`rounded-xl border px-3 py-3 text-left ${selectedCardioOptionId === option.id ? 'border-[#378ADD] bg-[#E6F1FB] text-[#0C447C]' : 'border-gray-100 bg-gray-50 text-gray-700'}`}><span className="font-bold">○ {option.name} {option.duration}</span><span className="mt-1 block text-[12px]">{option.description}</span></button>)}</div><div className="mt-4 rounded-xl bg-[#EAF3DE] p-3"><p className="text-[13px] font-bold text-[#27500A]">마무리</p>{day.optionalCardio.cooldown.map((exercise) => <p key={exercise.name} className="mt-1 text-[12px] text-[#3B6D11]">- {exercise.name}{exercise.name.includes('폼롤러') ? ' 필요 시 5분' : ' 3분'}</p>)}</div>{selectedCardioOption ? <div className="mt-4 rounded-xl border border-gray-100 bg-white p-3"><p className="text-[13px] font-bold text-gray-800">선택한 유산소 따라하기 순서</p><div className="mt-2 flex flex-col gap-1.5">{selectedOptionExercises.map((exercise, index, list) => <ExerciseCard key={`${exercise.name}-${index}`} exercise={exercise} exercises={list} index={index} />)}</div></div> : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-800">따라하기 모드를 시작하려면 먼저 유산소를 선택하세요.</p>}</section>}
     {day.optionalCardio && selectedCardioOption && selectedCardioOption.id !== 'rest' && <section className="mb-4 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-[12px] font-bold text-[#185FA5]">유산소 시간 설정</p><p className="mt-1 text-sm font-bold text-gray-900">내가 진행할 시간을 정하세요</p></div><div className="rounded-xl bg-[#E6F1FB] px-3 py-2 text-right"><p className="text-[10px] font-bold text-[#185FA5]">AI 추천</p><p className="text-sm font-bold text-[#0C447C]">{selectedCardioOption.duration}</p></div></div><label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm font-bold text-gray-700">내 설정<input type="number" min={1} max={120} value={selectedCardioMinutes} onChange={(e) => setSelectedCardioMinutes(Math.max(1, Number(e.target.value) || 1))} className="ml-auto w-20 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-right" />분</label><p className="mt-2 text-[11px] text-gray-500">최근 컨디션과 현재 적응 주차를 고려해 무리하지 않는 범위를 먼저 추천합니다.</p></section>}
     <details className="mb-4 rounded-2xl border border-blue-100 bg-white shadow-sm">
       <summary className="cursor-pointer list-none p-4 text-[13px] font-bold text-[#185FA5]">운동 강도·안전 기준 보기</summary>
-      <div className="mx-4 mb-4 grid gap-1.5 rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><p className="font-semibold">운동 강도 기준</p>{COMMON_INTENSITY.map((x) => <p key={x}>• {x}</p>)}<p>• 최근 약 3개월 정도 운동을 쉬었기 때문에 처음 2주는 2세트 기준으로 진행합니다.</p><p>• 덤벨 고블릿 스쿼트는 5~7kg부터 시작하고, 자세가 무너지면 무게를 낮춥니다.</p><p>• 덤벨과 밴드 운동은 가벼운 강도로 다시 시작합니다.</p><p>• AB 슬라이더는 처음 1~2주차에는 준비 자세만 진행하고, 허리 통증이나 다리 저림이 있으면 즉시 제외합니다.</p><p>• 묵주기도 슬라이딩보드는 기도를 이어갈 수 있을 정도의 저강도로 진행합니다.</p><p className="font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 중단은 실패가 아니라 회복일 전환입니다.</p></div>
+      <div className="mx-4 mb-4 grid gap-1.5 rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><p className="font-semibold">운동 강도 기준</p>{COMMON_INTENSITY.map((x) => <p key={x}>• {x}</p>)}<p>• 최근 약 3개월 정도 운동을 쉬었기 때문에 처음 2주는 2세트 기준으로 진행합니다.</p><p>• 덤벨 고블릿 스쿼트는 5~7kg부터 시작하고, 자세가 무너지면 무게를 낮춥니다.</p><p>• 덤벨과 밴드 운동은 가벼운 강도로 다시 시작합니다.</p><p>• AB 슬라이더는 처음 1~2주차에는 준비 자세만 진행하고, 허리 통증이나 다리 저림이 있으면 즉시 제외합니다.</p><p>• 슬라이딩보드는 대화가 가능한 저강도로 진행합니다.</p><p className="font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE} 중단은 실패가 아니라 회복일 전환입니다.</p></div>
     </details>
 
     <details className="mb-4 rounded-2xl border border-emerald-100 bg-white shadow-sm">
