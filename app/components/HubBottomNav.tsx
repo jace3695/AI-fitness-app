@@ -90,7 +90,7 @@ export default function HubBottomNav() {
 
     if (visibleIds.includes(appId)) return;
     if (visibleIds.length >= HUB_NAV_MAX_VISIBLE_APPS) {
-      setNotice("하단에는 앱을 5개까지 둘 수 있어요. 먼저 하나를 ‘전체만’으로 바꿔주세요.");
+      setNotice("하단에는 앱을 6개까지 둘 수 있어요. 먼저 하나를 ‘전체만’으로 바꿔주세요.");
       return;
     }
 
@@ -173,7 +173,7 @@ export default function HubBottomNav() {
 
               {editing && (
                 <div className="hub-nav-editor">
-                  <p className="hub-nav-editor-help">AI 연이는 항상 표시되며, 다른 앱은 하단에 최대 4개까지 더 둘 수 있어요.</p>
+                  <p className="hub-nav-editor-help">AI 연이는 항상 표시되며, 다른 앱은 하단에 최대 5개까지 더 둘 수 있어요.</p>
                   <div className="hub-nav-editor-list">
                     {HUB_APPS.map((app) => {
                       const visible = visibleIds.includes(app.id);
