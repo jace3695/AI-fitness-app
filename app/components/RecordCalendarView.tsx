@@ -485,11 +485,9 @@ export default function RecordCalendarView() {
           </div>
           {hasRosaryCardio && (
             <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
-              운동 전: 묵주기도 슬라이딩보드
+              운동 전: 슬라이딩보드
               <br />
               <b>시간: {selectedWorkoutRecord?.rosaryCardioMinutes ?? 20}분</b>
-              <br />
-              <b>묵주기도: {selectedWorkoutRecord?.rosaryDecades ?? 5}단</b>
             </div>
           )}
           {hasPostWorkoutCardio && (
