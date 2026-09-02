@@ -36,6 +36,7 @@ type BriefingSnapshot = {
   budget: { spent: number; budget: number | null; remaining: number | null; entries: number };
   fitness: FitnessDailyStatus;
   language: LanguageDailyStatus;
+  growth: { completed: number; total: number; minutes: number };
 };
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string } };
 type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
@@ -44,6 +45,7 @@ const EMPTY_BRIEFING: BriefingSnapshot = {
   budget: { spent: 0, budget: null, remaining: null, entries: 0 },
   fitness: EMPTY_FITNESS_DAILY_STATUS,
   language: EMPTY_LANGUAGE_DAILY_STATUS,
+  growth: { completed: 0, total: 0, minutes: 0 },
 };
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -142,7 +144,7 @@ export default function AssistantPage() {
     const now = new Date();
     const todayKey = getLocalDateKey(now);
     const monthKey = `${todayKey.slice(0, 7)}-01`;
-    const [itemResult, projectResult, memoryResult, budgetResult, monthlyBudgetResult, fitnessResult, languageResult] = await Promise.all([
+    const [itemResult, projectResult, memoryResult, budgetResult, monthlyBudgetResult, fitnessResult, languageResult, growthRoutineResult, growthSessionResult] = await Promise.all([
       supabase.from("assistant_items").select("id,user_id,title,kind,status,priority,project_id,due_at,recurrence_rule,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("assistant_projects").select("id,name,status,priority,due_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("assistant_memories").select("id,topic,content,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
@@ -150,8 +152,10 @@ export default function AssistantPage() {
       supabase.from("budget_monthly_budgets").select("total_amount").eq("user_id", auth.user.id).eq("budget_month", monthKey).maybeSingle(),
       supabase.from("user_app_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
+      supabase.from("growth_routines").select("id", { count: "exact", head: true }).eq("user_id", auth.user.id).eq("enabled", true),
+      supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", auth.user.id).eq("session_date", todayKey),
     ]);
-    if (itemResult.error || projectResult.error || memoryResult.error || budgetResult.error || monthlyBudgetResult.error || fitnessResult.error || languageResult.error) {
+    if (itemResult.error || projectResult.error || memoryResult.error || budgetResult.error || monthlyBudgetResult.error || fitnessResult.error || languageResult.error || growthRoutineResult.error || growthSessionResult.error) {
       setMessage("일부 브리핑 데이터를 불러오지 못했습니다. 새로고침해 주세요.");
     }
     setItems((itemResult.data ?? []) as Item[]);
@@ -164,6 +168,11 @@ export default function AssistantPage() {
       budget: { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
       fitness: fitnessResult.data?.state ? buildFitnessDailyStatus(parseStateObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
       language: languageResult.data?.state ? buildLanguageDailyStatus(parseStateObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
+      growth: {
+        completed: new Set((growthSessionResult.data ?? []).filter((row) => row.status === "completed" && row.routine_id).map((row) => row.routine_id)).size,
+        total: growthRoutineResult.count ?? 0,
+        minutes: (growthSessionResult.data ?? []).reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
+      },
     });
     setLoading(false);
   }, []);
@@ -277,11 +286,12 @@ export default function AssistantPage() {
 
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Link href="#assistant-list" className="rounded-3xl bg-[#F7F6FF] p-5 ring-1 ring-[#ECE9FF]"><p className="text-xs font-bold text-[#766DB8]">일정·할 일</p><p className="mt-2 text-xl font-bold text-[#312B67]">오늘 {todayItems}건</p><p className="mt-1 text-xs text-gray-500">미완료 전체 {openTasks + waiting}건</p></Link>
           <Link href="/budget" className="rounded-3xl bg-emerald-50/70 p-5 ring-1 ring-emerald-100"><p className="text-xs font-bold text-emerald-700">이번 달 가계부</p><p className="mt-2 text-xl font-bold text-emerald-950">{formatWon(briefing.budget.spent)} 지출</p><p className={`mt-1 text-xs ${briefing.budget.remaining !== null && briefing.budget.remaining < 0 ? "font-bold text-red-600" : "text-gray-500"}`}>{briefing.budget.remaining === null ? `예산 미설정 · ${briefing.budget.entries}건` : briefing.budget.remaining >= 0 ? `${formatWon(briefing.budget.remaining)} 남음` : `${formatWon(briefing.budget.remaining)} 초과`}</p></Link>
           <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
           <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
+          <Link href="/growth" className="rounded-3xl bg-fuchsia-50/70 p-5 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">기록 {briefing.growth.minutes}분</p></Link>
         </div>
         <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Link href="/growth" className="rounded-2xl bg-violet-50 px-3 py-3 text-center text-xs font-bold text-violet-700">자기계발</Link>
@@ -299,7 +309,7 @@ export default function AssistantPage() {
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">{["오늘 일본어 학습 진도 알려줘", "일본어 복습할 거 알려줘", "단어 학습 완료했어", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{["오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
           <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
           <button disabled={chatSending || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>

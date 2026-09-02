@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "../../lib/supabase.ts";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey =
@@ -23,15 +23,5 @@ export const isPasswordRecoveryRedirect = Boolean(
 );
 
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl!, supabaseKey!, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        // Recovery emails are often requested on one device and opened on another.
-        // The implicit flow keeps that cross-device password-reset path working;
-        // PKCE would require the original browser's locally stored verifier.
-        flowType: "implicit",
-      },
-    })
+  ? createClient()
   : null;

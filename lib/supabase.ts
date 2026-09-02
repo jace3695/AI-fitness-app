@@ -1,5 +1,5 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
-import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase-config'
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase-config.ts'
 
 let browserClient: SupabaseClient | null = null
 

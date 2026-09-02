@@ -3,7 +3,7 @@ import test from "node:test";
 import { AI_ROUTE_POLICIES, clampAiOutputTokens, getEconomyFallbackRoute, resolveAiRoute } from "../../lib/ai-router-policy.ts";
 
 test("저비용 일반 분석은 Gemini 경량 모델로 연결한다", () => {
-  for (const feature of ["assistant-fallback", "budget-analysis", "legacy-ai-analysis"] as const) {
+  for (const feature of ["assistant-fallback", "growth-weekly-coach", "budget-analysis", "legacy-ai-analysis"] as const) {
     assert.deepEqual(resolveAiRoute(feature), {
       provider: "google",
       model: "gemini-2.5-flash-lite",
