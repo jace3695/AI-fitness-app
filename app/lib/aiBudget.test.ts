@@ -68,6 +68,7 @@ test("AI 사용량은 앱별로 안전하게 묶어 보여준다", () => {
 
 test("앱별 사용량은 원본 프롬프트나 내용 대신 기능 범주만 사용한다", () => {
   assert.equal(getAiUsageAppId("fitness-weekly-report"), "fitness");
+  assert.equal(getAiUsageAppId("growth-weekly-coach"), "growth");
   assert.equal(getAiUsageAppId("japanese-tts"), "language");
   assert.equal(getAiUsageAppId("korean-tts"), "assistant");
   assert.equal(getAiUsageAppId("unregistered-feature"), "other");

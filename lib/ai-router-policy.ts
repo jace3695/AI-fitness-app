@@ -2,6 +2,7 @@ export type AiTextProvider = "google" | "openai";
 
 export type AiTextFeature =
   | "assistant-fallback"
+  | "growth-weekly-coach"
   | "budget-analysis"
   | "legacy-ai-analysis"
   | "fitness-post-workout-feedback"
@@ -43,6 +44,7 @@ const OPENAI_LANGUAGE: AiRoutePolicy = {
 
 export const AI_ROUTE_POLICIES: Record<AiTextFeature, AiRoutePolicy> = {
   "assistant-fallback": GEMINI_ECONOMY,
+  "growth-weekly-coach": GEMINI_ECONOMY,
   "budget-analysis": GEMINI_ECONOMY,
   "legacy-ai-analysis": GEMINI_ECONOMY,
   "fitness-post-workout-feedback": GEMINI_COACH,

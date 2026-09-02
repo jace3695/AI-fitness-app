@@ -76,14 +76,16 @@ async function buildBriefing(admin: ReturnType<typeof createClient>, userId: str
   const monthStart = `${date.slice(0, 7)}-01`;
   const dayStart = `${date}T00:00:00+09:00`;
   const dayEnd = `${date}T23:59:59+09:00`;
-  const [tasks, transactions, budget, fitness, language] = await Promise.all([
+  const [tasks, transactions, budget, fitness, language, growthRoutines, growthSessions] = await Promise.all([
     admin.from("assistant_items").select("id", { count: "exact", head: true }).eq("user_id", userId).neq("status", "completed").gte("due_at", dayStart).lte("due_at", dayEnd),
     admin.from("budget_transactions").select("amount").eq("user_id", userId).gte("date", monthStart).lte("date", date),
     admin.from("budget_monthly_budgets").select("total_amount").eq("user_id", userId).eq("budget_month", monthStart).maybeSingle(),
     admin.from("user_app_state").select("state").eq("user_id", userId).maybeSingle(),
     admin.from("language_user_state").select("state").eq("user_id", userId).maybeSingle(),
+    admin.from("growth_routines").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("enabled", true),
+    admin.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", userId).eq("session_date", date),
   ]);
-  const error = tasks.error || transactions.error || budget.error || fitness.error || language.error;
+  const error = tasks.error || transactions.error || budget.error || fitness.error || language.error || growthRoutines.error || growthSessions.error;
   if (error) throw error;
 
   const spent = (transactions.data || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
@@ -102,7 +104,10 @@ async function buildBriefing(admin: ReturnType<typeof createClient>, userId: str
     : `지출 ${won(spent)} · 예산 ${won(Math.max(0, budgetAmount - spent))} 남음`;
   const workoutText = completed ? `${routineName} 완료` : `${routineName} 확인`;
   const languageText = completedIds >= 5 ? "언어 학습 완료" : `언어 학습 ${completedIds}/5 · 복습하기`;
-  return `오늘 할 일 ${tasks.count || 0}건 · ${budgetText}\n${workoutText} · ${languageText}`;
+  const growthCompleted = new Set((growthSessions.data || []).filter((row) => row.status === "completed" && row.routine_id).map((row) => row.routine_id)).size;
+  const growthMinutes = (growthSessions.data || []).reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0);
+  const growthText = `자기계발 ${growthCompleted}/${growthRoutines.count || 0} · ${growthMinutes}분`;
+  return `오늘 할 일 ${tasks.count || 0}건 · ${budgetText}\n${workoutText} · ${languageText} · ${growthText}`;
 }
 
 Deno.serve(async (request) => {

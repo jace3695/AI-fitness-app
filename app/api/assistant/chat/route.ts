@@ -185,7 +185,7 @@ async function saveWorkoutCompletion(supabase: Awaited<ReturnType<typeof createS
   throw new Error("다른 기기에서 운동 기록이 변경되었습니다. 다시 시도해 주세요.");
 }
 
-const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘일본어 복습 시작해줘’처럼 말씀해 주세요.";
+const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘자기계발 현황 알려줘’처럼 말씀해 주세요.";
 
 function normalizeGenerativeReply(value: unknown) {
   const reply = typeof value === "string" ? value.trim() : "";
@@ -233,7 +233,7 @@ async function generativeFallback(
       feature: "assistant-fallback",
       promptText,
       maxOutputTokens: 220,
-      systemInstruction: `당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료를 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요.${personalContext ? `\n\nJace님이 직접 저장한 개인 기억입니다. 관련 질문에만 자연스럽게 반영하고, 기억에 없는 사실은 추측하지 마세요.\n${personalContext}` : ""}`,
+      systemInstruction: `당신은 Jace님의 친절한 한국어 개인 AI 비서 ‘연이’입니다. 일반적인 질문에는 알고 있는 범위에서 2~3문장으로 명확하게 답하세요. 개인정보를 추측하지 마세요. 앱 데이터 작업은 월 지출 조회, 오늘 브리핑, 할 일 조회·추가·완료·마감일/우선순위 수정, 프로젝트 연결, 운동 계획 확인·완료, 일본어 진도 확인·복습 시작·완료, 자기계발 현황·완료 기록을 지원합니다. 앱에서 직접 실행할 수 없는 작업이라면 ‘능력 밖’이라고만 답하지 말고, 아직 직접 실행할 수 없다고 설명한 뒤 사용자가 대신 사용할 수 있는 가장 가까운 지원 명령 예시를 제시하세요.${personalContext ? `\n\nJace님이 직접 저장한 개인 기억입니다. 관련 질문에만 자연스럽게 반영하고, 기억에 없는 사실은 추측하지 마세요.\n${personalContext}` : ""}`,
       geminiContents: [
         ...history.map((item) => ({ role: item.role === "assistant" ? "model" as const : "user" as const, parts: [{ text: item.text }] })),
         { role: "user", parts: [{ text: message }] },
@@ -241,7 +241,7 @@ async function generativeFallback(
     });
     return normalizeGenerativeReply(result.text);
   } catch (error) {
-    if (error instanceof AiBudgetExceededError) return `${error.message} 기록 조회·할 일·운동·언어 명령은 계속 사용할 수 있어요.`;
+    if (error instanceof AiBudgetExceededError) return `${error.message} 기록 조회·할 일·운동·언어·자기계발 명령은 계속 사용할 수 있어요.`;
     console.error("Assistant AI Router fallback failed", { message: error instanceof Error ? error.message : "unknown" });
     return ASSISTANT_CAPABILITY_GUIDE;
   }
@@ -305,20 +305,24 @@ async function processSingleCommand(
   } else if (/브리핑/.test(message)) {
     const start = `${today}T00:00:00+09:00`;
     const end = `${today}T23:59:59+09:00`;
-    const [taskResult, budgetResult, fitnessResult, languageResult] = await Promise.all([
+    const [taskResult, budgetResult, fitnessResult, languageResult, growthRoutineResult, growthSessionResult] = await Promise.all([
       supabase.from("assistant_items").select("title").eq("user_id", userId).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5),
       supabase.from("budget_transactions").select("amount").eq("user_id", userId).gte("date", monthStart).lte("date", today),
       supabase.from("user_app_state").select("state").eq("user_id", userId).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", userId).maybeSingle(),
+      supabase.from("growth_routines").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("enabled", true),
+      supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", userId).eq("session_date", today),
     ]);
-    const error = taskResult.error || budgetResult.error || fitnessResult.error || languageResult.error;
+    const error = taskResult.error || budgetResult.error || fitnessResult.error || languageResult.error || growthRoutineResult.error || growthSessionResult.error;
     if (error) throw new Error("통합 브리핑 데이터를 불러오지 못했습니다.");
     const spent = (budgetResult.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const workoutInfo = getTodayWorkout(parseState(fitnessResult.data?.state), today);
     const workoutText = !workoutInfo ? "운동 계획 확인 필요" : workoutInfo.group.category === "rest" ? "오늘은 회복일" : workoutInfo.completed ? `${workoutInfo.group.name} 완료` : `${workoutInfo.group.name} 예정`;
     const language = getLanguageSnapshot(parseState(languageResult.data?.state), today);
+    const growthCompleted = new Set((growthSessionResult.data ?? []).filter((row) => row.status === "completed" && row.routine_id).map((row) => row.routine_id)).size;
+    const growthMinutes = (growthSessionResult.data ?? []).reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0);
     const taskText = taskResult.data?.length ? taskResult.data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ") : "오늘 마감 할 일 없음";
-    result = { reply: `오늘 브리핑입니다. 할 일: ${taskText}. 이번 달 지출은 ${won(spent)}입니다. 운동: ${workoutText}. 언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다.`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
+    result = { reply: `오늘 브리핑입니다. 할 일: ${taskText}. 이번 달 지출은 ${won(spent)}입니다. 운동: ${workoutText}. 언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다. 자기계발은 ${growthCompleted}/${growthRoutineResult.count ?? 0}개 완료, ${growthMinutes}분 기록했습니다.`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
   } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
     const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", userId).gte("date", monthStart).lte("date", today);
     if (error) throw new Error("가계부 데이터를 불러오지 못했습니다.");
@@ -377,6 +381,40 @@ async function processSingleCommand(
       const details = workoutInfo.exerciseNames.length ? workoutInfo.exerciseNames.map((name, index) => `${index + 1}. ${name}`).join(" · ") : workoutInfo.cardioOptions.join(" · ");
       result = { reply: `오늘은 ‘${workoutInfo.group.name}’ 계획이며 예상 시간은 ${workoutInfo.group.duration}입니다.${workoutInfo.completed ? " 이미 완료로 기록되어 있어요." : ""} ${details}`, action: { label: "운동 세부 화면 열기", href: "/fitness" } };
     }
+  } else if (/(자기계발|성장|타자|손글씨|AI\s*허브|개발).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
+    const { data: routines, error } = await supabase.from("growth_routines").select("id,title,category,target_minutes").eq("user_id", userId).eq("enabled", true).order("sort_order");
+    if (error) throw new Error("자기계발 루틴을 불러오지 못했습니다.");
+    const candidates = (routines ?? []).filter((routine) =>
+      message.includes(routine.title)
+      || (/타자/.test(message) && routine.category === "typing")
+      || (/손글씨/.test(message) && routine.category === "handwriting")
+      || (/(AI\s*허브|개발)/.test(message) && routine.category === "development")
+    );
+    if (candidates.length !== 1) {
+      result = { reply: candidates.length ? `비슷한 자기계발 루틴이 ${candidates.length}개 있어요. 이름을 더 정확히 말씀해 주세요.` : "완료할 자기계발 루틴을 찾지 못했어요. 예: ‘타자 연습 완료했어’", action: { label: "자기계발 루틴 보기", href: "/growth" } };
+    } else {
+      const routine = candidates[0];
+      const { data: existing, error: existingError } = await supabase.from("growth_sessions").select("id").eq("user_id", userId).eq("routine_id", routine.id).eq("session_date", today).eq("status", "completed").limit(1).maybeSingle();
+      if (existingError) throw new Error("오늘 자기계발 기록을 확인하지 못했습니다.");
+      if (existing) result = { reply: `오늘 ‘${routine.title}’은 이미 완료로 기록되어 있습니다.`, action: { label: "자기계발 기록 보기", href: "/growth" } };
+      else {
+        const { error: saveError } = await supabase.from("growth_sessions").insert({ user_id: userId, routine_id: routine.id, session_date: today, status: "completed", planned_minutes: routine.target_minutes, actual_minutes: routine.target_minutes, memo: "AI 연이에서 빠른 완료", source: "assistant", metrics: {} });
+        if (saveError) throw new Error("자기계발 완료 기록을 저장하지 못했습니다.");
+        result = { reply: `오늘 ‘${routine.title}’을 완료로 기록했습니다. 자기계발 화면과 통합 달력에도 바로 반영됩니다.`, action: { label: "자기계발 기록 보기", href: "/growth" }, changed: true };
+      }
+    }
+  } else if (/(자기계발|성장|타자|손글씨).*(현황|진도|뭐|알려|보여|몇)/.test(message)) {
+    const [routines, sessions] = await Promise.all([
+      supabase.from("growth_routines").select("id,title,target_minutes").eq("user_id", userId).eq("enabled", true).order("sort_order"),
+      supabase.from("growth_sessions").select("routine_id,status,actual_minutes").eq("user_id", userId).eq("session_date", today),
+    ]);
+    if (routines.error || sessions.error) throw new Error("자기계발 현황을 불러오지 못했습니다.");
+    const completedIds = new Set((sessions.data ?? []).filter((session) => session.status === "completed" && session.routine_id).map((session) => session.routine_id));
+    const minutes = (sessions.data ?? []).reduce((sum, session) => sum + Number(session.actual_minutes || 0), 0);
+    const next = (routines.data ?? []).find((routine) => !completedIds.has(routine.id));
+    result = { reply: `오늘 자기계발은 ${completedIds.size}/${routines.data?.length ?? 0}개 완료했고 ${minutes}분 기록했습니다.${next ? ` 다음은 ‘${next.title}’ ${next.target_minutes}분을 추천해요.` : " 오늘 루틴을 모두 마쳤어요."}`, action: { label: next ? "다음 루틴 시작" : "성장 기록 보기", href: "/growth" } };
+  } else if (/(자기계발|성장|타자|손글씨).*(시작|해보자|하자)/.test(message)) {
+    result = { reply: "자기계발 실행 화면을 준비했습니다. 루틴의 ‘시작’ 버튼을 누르면 시간 측정과 중단·완료 기록을 함께 남길 수 있어요.", action: { label: "자기계발 시작", href: "/growth" } };
   } else if (/(일본어|언어|가나|히라가나|카타카나|단어|문장|문법|복습).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
     const routineId = detectLanguageRoutine(message);
     if (!routineId) result = { reply: "완료한 학습 종류를 함께 말해 주세요. 예: ‘단어 학습 완료했어’" };

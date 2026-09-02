@@ -12,7 +12,8 @@ import { getWorkoutRecord, isWorkoutPerformed, type WorkoutDayRecord } from "../
 
 type Task = { id: string; title: string; due_at: string | null; status: string };
 type Budget = { id: string; date: string; amount: number | string; category?: string; description?: string; memo?: string };
-type DayInfo = { workout?: WorkoutDayRecord; diet?: DietDayRecord; water?: number; note?: string; language?: { count: number; ids: string[] }; tasks?: Task[]; budget?: Budget[] };
+type GrowthSession = { id: string; session_date: string; status: string; actual_minutes: number; memo: string; growth_routines: { title: string } | null };
+type DayInfo = { workout?: WorkoutDayRecord; diet?: DietDayRecord; water?: number; note?: string; language?: { count: number; ids: string[] }; growth?: GrowthSession[]; tasks?: Task[]; budget?: Budget[] };
 const LANGUAGE: Record<string, string> = { kana: "가나", words: "단어", sentences: "문장", grammar: "문법", review: "복습" };
 
 function parse(value: string | null) { try { return value ? JSON.parse(value) as Record<string, unknown> : {}; } catch { return {}; } }
@@ -46,12 +47,14 @@ function UnifiedCalendar() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const end = `${monthKey}-${new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()}`;
-          const [tasks, budget] = await Promise.all([
+          const [tasks, budget, growth] = await Promise.all([
             supabase.from("assistant_items").select("id,title,due_at,status").eq("user_id", user.id).gte("due_at", `${monthKey}-01T00:00:00+09:00`).lte("due_at", `${end}T23:59:59+09:00`).neq("status", "cancelled"),
             supabase.from("budget_transactions").select("*").eq("user_id", user.id).gte("date", `${monthKey}-01`).lte("date", end),
+            supabase.from("growth_sessions").select("id,session_date,status,actual_minutes,memo,growth_routines(title)").eq("user_id", user.id).gte("session_date", `${monthKey}-01`).lte("session_date", end),
           ]);
           (tasks.data as Task[] | null)?.forEach((task) => { const date = task.due_at?.slice(0, 10); if (date) next[date] = { ...next[date], tasks: [...(next[date]?.tasks || []), task] }; });
           (budget.data as Budget[] | null)?.forEach((item) => { next[item.date] = { ...next[item.date], budget: [...(next[item.date]?.budget || []), item] }; });
+          (growth.data as unknown as GrowthSession[] | null)?.forEach((item) => { next[item.session_date] = { ...next[item.session_date], growth: [...(next[item.session_date]?.growth || []), item] }; });
         }
       }
       if (active) setInfo(next);
@@ -104,6 +107,7 @@ function UnifiedCalendar() {
               {record?.workout ? <i className="rounded-full bg-blue-100 px-1.5 py-1 not-italic text-blue-700">운</i> : null}
               {record?.diet ? <i className="rounded-full bg-emerald-100 px-1.5 py-1 not-italic text-emerald-700">식</i> : null}
               {record?.language ? <i className="rounded-full bg-amber-100 px-1.5 py-1 not-italic text-amber-700">언{record.language.count}</i> : null}
+              {record?.growth?.length ? <i className="rounded-full bg-fuchsia-100 px-1.5 py-1 not-italic text-fuchsia-700">성{record.growth.length}</i> : null}
               {record?.budget?.length ? <i className="rounded-full bg-orange-100 px-1.5 py-1 not-italic text-orange-700">가{record.budget.length}</i> : null}
             </span>
           </div>
@@ -117,6 +121,7 @@ function UnifiedCalendar() {
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.diet ? <CalendarCard title="식단" href="/diet" tone="border-emerald-100 bg-emerald-50">{(diet.length ? diet : ["식단 기록 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
+      {row?.growth?.length ? <CalendarCard title="자기계발" href="/growth" tone="border-fuchsia-100 bg-fuchsia-50">{row.growth.map((item) => <p key={item.id}>• {item.growth_routines?.title || "삭제된 루틴"} · {item.actual_minutes}분 · {item.status === "completed" ? "완료" : item.status === "partial" ? "진행" : "중단"}</p>)}</CalendarCard> : null}
       {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
     </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">이 날짜에 저장된 기록이 없습니다.</p> : null}</section></div> : null}
   </div></main>;
