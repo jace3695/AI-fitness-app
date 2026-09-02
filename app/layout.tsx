@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
-import HubHomeButton from './components/HubHomeButton';
 import AiBudgetNotifier from './components/AiBudgetNotifier';
 
 export const metadata: Metadata = {
@@ -43,7 +42,6 @@ export default function RootLayout({
       </head>
       <body>
         <PwaManager />
-        <HubHomeButton />
         <AiBudgetNotifier />
         {children}
       </body>

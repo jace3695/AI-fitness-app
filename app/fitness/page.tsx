@@ -958,8 +958,6 @@ function FitnessApp() {
         )}
       </main>
 
-      {/* Bottom padding for mobile nav */}
-      <div className="h-24 md:h-4" />
     </div>
     </>
   );

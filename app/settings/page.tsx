@@ -8,7 +8,7 @@ import AiBudgetPanel from "../components/AiBudgetPanel";
 
 function SettingsPage() {
   return (
-    <main className="min-h-dvh bg-[#F6F7FB] pb-28 text-[#242231]">
+    <main className="min-h-dvh bg-[#F6F7FB] text-[#242231]">
       <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="settings" title="통합 설정" subtitle="AI 연이 공통 보안" /></div></header>
       <div className="mx-auto max-w-3xl px-4 py-7 sm:px-6 sm:py-10">
         <p className="text-sm leading-6 text-gray-500">계정 보안과 기기 잠금은 여기에서 한 번만 설정하면 가계부·운동·식단·언어 앱에 함께 적용됩니다.</p>
