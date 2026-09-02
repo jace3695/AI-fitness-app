@@ -25,7 +25,7 @@ test("저장된 메뉴는 중복과 알 수 없는 값을 제거하고 AI 연이
   );
 });
 
-test("하단에는 앱을 최대 다섯 개까지만 둔다", () => {
+test("하단에는 앱을 최대 여섯 개까지만 둔다", () => {
   const result = normalizeHubNavIds([
     "assistant",
     "fitness",
@@ -36,6 +36,14 @@ test("하단에는 앱을 최대 다섯 개까지만 둔다", () => {
     "settings",
   ]);
   assert.equal(result.length, HUB_NAV_MAX_VISIBLE_APPS);
+  assert.deepEqual(result, [
+    "assistant",
+    "fitness",
+    "budget",
+    "diet",
+    "language",
+    "calendar",
+  ]);
 });
 
 test("손상된 브라우저 설정은 안전한 기본 메뉴로 복구한다", () => {
