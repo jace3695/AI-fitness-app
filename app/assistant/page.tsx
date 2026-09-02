@@ -298,7 +298,7 @@ export default function AssistantPage() {
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const priorityLabel = (priority: number) => priority >= 5 ? "긴급" : priority === 4 ? "중요" : priority <= 2 ? "낮음" : "보통";
 
-  return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
+  return <main className="min-h-dvh bg-[#F5F4FA] pb-28 text-[#242231]">
     <header className="app-module-header">
       <div className="app-module-header-inner">
         <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />

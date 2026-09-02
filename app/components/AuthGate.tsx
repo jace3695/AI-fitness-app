@@ -17,6 +17,7 @@ import {
 import { hasDeviceBiometric, removeDeviceBiometric, verifyDeviceBiometric } from "../lib/deviceBiometric";
 import { PASSWORD_POLICY_HINT, strongPasswordError } from "../lib/passwordPolicy";
 import { AppIcon } from "./AppIdentity";
+import HubBottomNav from "./HubBottomNav";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -233,7 +234,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">다른 계정으로 로그인</button>
     </section>
   </main>;
-  if (user) return <>{children}</>;
+  if (user) return <>{children}<HubBottomNav /></>;
 
   return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-md rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
