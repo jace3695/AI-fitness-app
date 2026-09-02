@@ -1,5 +1,5 @@
 export const HUB_NAV_STORAGE_KEY = "ai-yeoni-bottom-nav:v1";
-export const HUB_NAV_MAX_VISIBLE_APPS = 5;
+export const HUB_NAV_MAX_VISIBLE_APPS = 6;
 
 export const HUB_APPS = [
   { id: "assistant", href: "/", label: "AI 연이", menuLabel: "AI 연이", icon: "✦", required: true },
