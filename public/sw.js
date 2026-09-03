@@ -1,4 +1,4 @@
-const CACHE_VERSION = "jace-ai-hub-v2";
+const CACHE_VERSION = "jace-ai-hub-v3";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const APP_SHELL = ["/", "/offline", "/manifest.json", "/icon-192.png", "/icon-512.png"];
