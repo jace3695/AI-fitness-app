@@ -5,6 +5,8 @@ import {
   getGrowthLegacySessionCloudId,
   getGrowthRoutineCloudId,
   getGrowthRoutinesStorageKey,
+  includesRetiredGrowthContent,
+  isRetiredGrowthRoutine,
   normalizeGrowthRoutines,
   parseGrowthRoutines,
   toggleGrowthRoutineDate,
@@ -40,4 +42,11 @@ test("계정별 백업과 초기 클라우드 ID를 서로 격리한다", async 
   assert.equal(await getGrowthRoutineCloudId("user-a", "typing-default"), routineId);
   assert.notEqual(await getGrowthRoutineCloudId("user-b", "typing-default"), routineId);
   assert.notEqual(await getGrowthLegacySessionCloudId("user-a", routineId, "2026-09-03"), routineId);
+});
+
+test("사용 종료된 전용 과정은 기존 데이터를 지우지 않고 화면에서 제외할 수 있다", () => {
+  assert.equal(isRetiredGrowthRoutine({ title: "28회 그림 기초 연습" }), true);
+  assert.equal(isRetiredGrowthRoutine({ title: "정확도 중심 타자 연습" }), false);
+  assert.equal(includesRetiredGrowthContent({ overview: "그림 연습 기록" }), true);
+  assert.equal(includesRetiredGrowthContent({ overview: "손글씨 연습 기록" }), false);
 });
