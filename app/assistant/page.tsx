@@ -15,6 +15,7 @@ import {
   type FitnessDailyStatus,
   type LanguageDailyStatus,
 } from "../data/dailyAppStatus";
+import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
 type Item = {
@@ -106,7 +107,7 @@ export default function AssistantPage() {
         id: row.id,
         role: row.role,
         text: row.content,
-        action: row.action_label && row.action_href ? { label: row.action_label, href: row.action_href } : undefined,
+        action: row.action_label && row.action_href && row.action_href !== "/growth/drawing" ? { label: row.action_label, href: row.action_href } : undefined,
       }));
       setChatMessages([WELCOME_MESSAGE, ...restored]);
     }
@@ -152,7 +153,7 @@ export default function AssistantPage() {
       supabase.from("budget_monthly_budgets").select("total_amount").eq("user_id", auth.user.id).eq("budget_month", monthKey).maybeSingle(),
       supabase.from("user_app_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
-      supabase.from("growth_routines").select("id", { count: "exact", head: true }).eq("user_id", auth.user.id).eq("enabled", true),
+      supabase.from("growth_routines").select("id,title").eq("user_id", auth.user.id).eq("enabled", true),
       supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", auth.user.id).eq("session_date", todayKey),
     ]);
     if (itemResult.error || projectResult.error || memoryResult.error || budgetResult.error || monthlyBudgetResult.error || fitnessResult.error || languageResult.error || growthRoutineResult.error || growthSessionResult.error) {
@@ -164,14 +165,17 @@ export default function AssistantPage() {
     const transactions = (budgetResult.data ?? []) as BudgetTransaction[];
     const spent = transactions.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const monthlyBudget = monthlyBudgetResult.data ? Number(monthlyBudgetResult.data.total_amount) : null;
+    const visibleGrowthRoutines = (growthRoutineResult.data ?? []).filter((routine) => !isRetiredGrowthRoutine(routine));
+    const visibleGrowthRoutineIds = new Set(visibleGrowthRoutines.map((routine) => routine.id));
+    const visibleGrowthSessions = (growthSessionResult.data ?? []).filter((row) => row.routine_id && visibleGrowthRoutineIds.has(row.routine_id));
     setBriefing({
       budget: { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
       fitness: fitnessResult.data?.state ? buildFitnessDailyStatus(parseStateObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
       language: languageResult.data?.state ? buildLanguageDailyStatus(parseStateObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
       growth: {
-        completed: new Set((growthSessionResult.data ?? []).filter((row) => row.status === "completed" && row.routine_id).map((row) => row.routine_id)).size,
-        total: growthRoutineResult.count ?? 0,
-        minutes: (growthSessionResult.data ?? []).reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
+        completed: new Set(visibleGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id)).size,
+        total: visibleGrowthRoutines.length,
+        minutes: visibleGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
       },
     });
     setLoading(false);

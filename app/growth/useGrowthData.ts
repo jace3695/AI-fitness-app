@@ -114,7 +114,7 @@ async function localRoutineRows(userId: string, routines: GrowthRoutine[], sortO
   })));
 }
 
-export function useGrowthData(historyDays: number | null = 90, sessionProgramId?: string) {
+export function useGrowthData(historyDays = 90) {
   const [user, setUser] = useState<User | null>(null);
   const [routines, setRoutines] = useState<GrowthRoutineRow[]>([]);
   const [sessions, setSessions] = useState<GrowthSessionRow[]>([]);
@@ -158,12 +158,11 @@ export function useGrowthData(historyDays: number | null = 90, sessionProgramId?
     const localSnapshotUnchanged = () => readLocalValue(storageKey) === scopedRaw
       && readLocalValue(pendingImportKey) === pendingImportSnapshot
       && readLocalValue(syncKey) === syncToken;
-    const loadSessions = () => {
-      const baseQuery = growthClient.from("growth_sessions").select("*").eq("user_id", userId);
-      const datedQuery = historyDays === null ? baseQuery : baseQuery.gte("session_date", periodStart(getLocalDateKey(), historyDays));
-      const filteredQuery = sessionProgramId ? datedQuery.contains("metrics", { programId: sessionProgramId }) : datedQuery;
-      return filteredQuery.order("session_date", { ascending: false }).order("created_at", { ascending: false });
-    };
+    const loadSessions = () => growthClient.from("growth_sessions").select("*")
+      .eq("user_id", userId)
+      .gte("session_date", periodStart(getLocalDateKey(), historyDays))
+      .order("session_date", { ascending: false })
+      .order("created_at", { ascending: false });
     const [routineResult, initialSessionResult] = await Promise.all([
       growthClient.from("growth_routines").select("*").eq("user_id", userId).order("sort_order").order("created_at"),
       loadSessions(),
@@ -283,11 +282,6 @@ export function useGrowthData(historyDays: number | null = 90, sessionProgramId?
     setRoutines(cloudRoutines);
     setSessions(sessionRows);
     try {
-      if (sessionProgramId) {
-        setLegacyBackupAvailable(false);
-        setLoading(false);
-        return;
-      }
       let shouldOfferLegacy = false;
       const legacyRaw = scopedRaw === null && !pendingImport ? readLocalValue(GROWTH_ROUTINES_STORAGE_KEY) : null;
       const legacyOwner = readLocalValue(legacyOwnerKey);
@@ -344,7 +338,7 @@ export function useGrowthData(historyDays: number | null = 90, sessionProgramId?
     }
     setLoading(false);
     });
-  }, [historyDays, sessionProgramId]);
+  }, [historyDays]);
 
   useEffect(() => { void load(); }, [load]);
 

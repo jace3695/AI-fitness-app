@@ -9,6 +9,7 @@ import { getGoogleCalendarDayPreview, type GoogleCalendarEvent } from "@/lib/goo
 import { supabase } from "../lib/supabase";
 import { readRecordStores, type DietDayRecord } from "../data/recordStorage";
 import { getWorkoutRecord, isWorkoutPerformed, type WorkoutDayRecord } from "../data/workoutCompletion";
+import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Task = { id: string; title: string; due_at: string | null; status: string };
 type Budget = { id: string; date: string; amount: number | string; category?: string; description?: string; memo?: string };
@@ -54,7 +55,7 @@ function UnifiedCalendar() {
           ]);
           (tasks.data as Task[] | null)?.forEach((task) => { const date = task.due_at?.slice(0, 10); if (date) next[date] = { ...next[date], tasks: [...(next[date]?.tasks || []), task] }; });
           (budget.data as Budget[] | null)?.forEach((item) => { next[item.date] = { ...next[item.date], budget: [...(next[item.date]?.budget || []), item] }; });
-          (growth.data as unknown as GrowthSession[] | null)?.forEach((item) => { next[item.session_date] = { ...next[item.session_date], growth: [...(next[item.session_date]?.growth || []), item] }; });
+          (growth.data as unknown as GrowthSession[] | null)?.filter((item) => !item.growth_routines || !isRetiredGrowthRoutine(item.growth_routines)).forEach((item) => { next[item.session_date] = { ...next[item.session_date], growth: [...(next[item.session_date]?.growth || []), item] }; });
         }
       }
       if (active) setInfo(next);
