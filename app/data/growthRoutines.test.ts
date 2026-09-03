@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEFAULT_GROWTH_ROUTINES,
+  getGrowthLegacySessionCloudId,
+  getGrowthRoutineCloudId,
+  getGrowthRoutinesStorageKey,
   normalizeGrowthRoutines,
   parseGrowthRoutines,
   toggleGrowthRoutineDate,
@@ -29,4 +32,12 @@ test("오늘 완료 상태를 다시 누르면 취소할 수 있다", () => {
   const completed = toggleGrowthRoutineDate(routine, "2026-09-02");
   assert.deepEqual(completed.completedDates, ["2026-09-02"]);
   assert.deepEqual(toggleGrowthRoutineDate(completed, "2026-09-02").completedDates, []);
+});
+
+test("계정별 백업과 초기 클라우드 ID를 서로 격리한다", async () => {
+  assert.notEqual(getGrowthRoutinesStorageKey("user-a"), getGrowthRoutinesStorageKey("user-b"));
+  const routineId = await getGrowthRoutineCloudId("user-a", "typing-default");
+  assert.equal(await getGrowthRoutineCloudId("user-a", "typing-default"), routineId);
+  assert.notEqual(await getGrowthRoutineCloudId("user-b", "typing-default"), routineId);
+  assert.notEqual(await getGrowthLegacySessionCloudId("user-a", routineId, "2026-09-03"), routineId);
 });

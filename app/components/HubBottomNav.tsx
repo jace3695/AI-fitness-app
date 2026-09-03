@@ -173,7 +173,7 @@ export default function HubBottomNav() {
 
               {editing && (
                 <div className="hub-nav-editor">
-                  <p className="hub-nav-editor-help">AI 연이는 항상 표시되며, 다른 앱은 하단에 최대 5개까지 더 둘 수 있어요.</p>
+                  <p className="hub-nav-editor-help">AI 연이를 포함해 하단에는 앱을 최대 6개까지 둘 수 있어요.</p>
                   <div className="hub-nav-editor-list">
                     {HUB_APPS.map((app) => {
                       const visible = visibleIds.includes(app.id);

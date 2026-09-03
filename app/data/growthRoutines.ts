@@ -1,5 +1,26 @@
 export const GROWTH_ROUTINES_STORAGE_KEY = "ai-yeoni-growth-routines:v1";
 export const GROWTH_ROUTINE_LIMIT = 12;
+export const DRAWING_ROUTINE_TITLE = "28회 그림 기초 연습";
+
+export function getGrowthRoutinesStorageKey(userId: string) {
+  return `${GROWTH_ROUTINES_STORAGE_KEY}:${userId}`;
+}
+
+async function deterministicGrowthUuid(scope: string) {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(scope))).slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function getGrowthRoutineCloudId(userId: string, localRoutineId: string) {
+  return deterministicGrowthUuid(`growth-routine-v1:${userId}:${localRoutineId}`);
+}
+
+export function getGrowthLegacySessionCloudId(userId: string, cloudRoutineId: string, date: string) {
+  return deterministicGrowthUuid(`growth-session-v2:${userId}:${cloudRoutineId}:${date}`);
+}
 
 export const GROWTH_CATEGORIES = [
   { id: "development", label: "AI 허브 개발" },

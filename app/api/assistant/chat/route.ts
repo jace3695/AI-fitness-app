@@ -6,6 +6,7 @@ import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type Workou
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
+import { DRAWING_PROGRAM_ID, drawingLessonDayFromMetrics, getNextDrawingDay } from "@/app/data/drawingPractice";
 
 export const dynamic = "force-dynamic";
 
@@ -381,6 +382,17 @@ async function processSingleCommand(
       const details = workoutInfo.exerciseNames.length ? workoutInfo.exerciseNames.map((name, index) => `${index + 1}. ${name}`).join(" · ") : workoutInfo.cardioOptions.join(" · ");
       result = { reply: `오늘은 ‘${workoutInfo.group.name}’ 계획이며 예상 시간은 ${workoutInfo.group.duration}입니다.${workoutInfo.completed ? " 이미 완료로 기록되어 있어요." : ""} ${details}`, action: { label: "운동 세부 화면 열기", href: "/fitness" } };
     }
+  } else if (/(그림|드로잉).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
+    result = { reply: "그림 과정은 수업 회차·실제 시간·체크포인트 점수·작품을 함께 연결해야 정확합니다. 그림 연습 화면에서 오늘 수업의 ‘완료 기록 저장’을 눌러 주세요.", action: { label: "그림 수업 완료 저장", href: "/growth/drawing" } };
+  } else if (/(그림|드로잉).*(현황|진도|뭐|알려|보여|몇)/.test(message)) {
+    const { data, error } = await supabase.from("growth_sessions").select("status,metrics").eq("user_id", userId).eq("status", "completed").contains("metrics", { programId: DRAWING_PROGRAM_ID }).limit(100);
+    if (error) throw new Error("그림 연습 진도를 불러오지 못했습니다.");
+    const completedDays = new Set((data ?? []).map((session) => drawingLessonDayFromMetrics(session.metrics)).filter((day): day is number => day !== null));
+    const finished = completedDays.size >= 28;
+    const nextDay = getNextDrawingDay(completedDays);
+    result = { reply: finished ? "28회 그림 기초 과정을 모두 완료했습니다. 첫 그림과 마지막 그림의 10점 기록을 비교해 다음 보충 기술을 정해 보세요." : `그림 기초 과정은 ${completedDays.size}/28회 완료했습니다. 다음 미완료 수업은 ${nextDay}회차입니다.`, action: { label: finished ? "그림 전후 기록 보기" : `${nextDay}회차 시작`, href: "/growth/drawing" } };
+  } else if (/(그림|드로잉).*(시작|해보자|하자)/.test(message)) {
+    result = { reply: "다음 미완료 수업과 18분 단계별 타이머를 준비했습니다. 그림 연습 화면에서 바로 시작할 수 있어요.", action: { label: "그림 기초 연습 시작", href: "/growth/drawing" } };
   } else if (/(자기계발|성장|타자|손글씨|AI\s*허브|개발).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
     const { data: routines, error } = await supabase.from("growth_routines").select("id,title,category,target_minutes").eq("user_id", userId).eq("enabled", true).order("sort_order");
     if (error) throw new Error("자기계발 루틴을 불러오지 못했습니다.");
