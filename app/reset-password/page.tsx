@@ -45,7 +45,14 @@ export default function ResetPasswordPage() {
       }
 
       const { data } = await authClient.auth.getSession();
-      if (data.session) markReady();
+      if (data.session) {
+        markReady();
+        return;
+      }
+
+      if (active) {
+        setMessage("유효한 재설정 링크가 아닙니다. 비밀번호 찾기에서 새 메일을 요청해 주세요.");
+      }
     };
 
     const { data: listener } = authClient.auth.onAuthStateChange((event, session) => {
