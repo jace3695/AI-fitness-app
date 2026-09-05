@@ -6,6 +6,7 @@ import type { DailyConditionRecord } from './recoveryMode.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
+export const WEIGHT_GOAL_KEY = 'ai-fitness-weight-goal';
 export const DAILY_NOTES_KEY = 'ai-fitness-daily-notes';
 export const DAILY_CONDITION_KEY_FOR_RECORDS = 'ai-fitness-daily-condition';
 
@@ -16,6 +17,13 @@ export type StringStore = Record<string, string>;
 
 export interface WeightRecord { weight: number; recordedAt: string }
 export type WeightRecordStore = Record<string, WeightRecord>;
+
+export interface WeightGoal {
+  minKg: number;
+  maxKg: number;
+}
+
+export const DEFAULT_WEIGHT_GOAL: WeightGoal = { minKg: 65, maxKg: 67 };
 
 export interface InbodyRecord {
   weight?: number;
@@ -64,6 +72,7 @@ export interface RecordStores {
   fastingStart: string;
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
+  weightGoal: WeightGoal;
   notes: DailyNotesStore;
   recovery: RecoveryModeStore;
   conditions: DailyConditionStore;
@@ -81,6 +90,31 @@ export function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+export function normalizeWeightGoal(value: unknown): WeightGoal {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ...DEFAULT_WEIGHT_GOAL };
+  }
+  const candidate = value as Partial<WeightGoal>;
+  const minKg = Math.round(Number(candidate.minKg) * 10) / 10;
+  const maxKg = Math.round(Number(candidate.maxKg) * 10) / 10;
+  if (
+    !Number.isFinite(minKg) ||
+    !Number.isFinite(maxKg) ||
+    minKg < 30 ||
+    maxKg > 250 ||
+    minKg > maxKg
+  ) {
+    return { ...DEFAULT_WEIGHT_GOAL };
+  }
+  return { minKg, maxKg };
+}
+
+export function saveWeightGoal(goal: WeightGoal) {
+  const normalized = normalizeWeightGoal(goal);
+  writeJson(WEIGHT_GOAL_KEY, normalized);
+  return normalized;
+}
+
 export function readRecordStores(): RecordStores {
   return {
     workouts: readJson<WorkoutCompletionStore>(WORKOUT_COMPLETED_DAYS_KEY, {}),
@@ -93,6 +127,7 @@ export function readRecordStores(): RecordStores {
     fastingStart: typeof window === 'undefined' ? '' : window.localStorage.getItem(FASTING_START_TIME_KEY) || '',
     weights: readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
     inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
+    weightGoal: normalizeWeightGoal(readJson<unknown>(WEIGHT_GOAL_KEY, DEFAULT_WEIGHT_GOAL)),
     notes: readJson<DailyNotesStore>(DAILY_NOTES_KEY, {}),
     recovery: readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY_FOR_RECORDS, {}),
     conditions: readJson<DailyConditionStore>(DAILY_CONDITION_KEY_FOR_RECORDS, {}),

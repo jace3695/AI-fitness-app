@@ -41,6 +41,7 @@ import {
   hasSafetyAlert,
   isDietSuccess,
   readRecordStores,
+  saveWeightGoal,
   writeJson,
 } from "../data/recordStorage";
 import BodyRecordCard from "./BodyRecordCard";
@@ -296,6 +297,17 @@ export default function RecordCalendarView() {
         stores={stores}
         year={visible.getFullYear()}
         monthIndex={visible.getMonth()}
+      />
+      <WeightChart
+        weights={stores.weights}
+        inbody={stores.inbody}
+        goal={stores.weightGoal}
+        year={visible.getFullYear()}
+        monthIndex={visible.getMonth()}
+        cutoffDateKey={todayKey}
+        onGoalChange={(goal) =>
+          setStores({ ...stores, weightGoal: saveWeightGoal(goal) })
+        }
       />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between">
@@ -845,11 +857,6 @@ export default function RecordCalendarView() {
           </button>
         </div>
       </section>
-      <WeightChart
-        weights={stores.weights}
-        year={visible.getFullYear()}
-        monthIndex={visible.getMonth()}
-      />
     </div>
   );
 }

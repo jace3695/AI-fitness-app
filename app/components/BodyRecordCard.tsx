@@ -27,7 +27,7 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
       { key: "bmi", label: "BMI", unit: "" },
       { key: "bodyFatPercent", label: "체지방률", unit: "%" },
       { key: "fatMass", label: "지방량", unit: "kg" },
-      { key: "skeletalMuscleMass", label: "신체 근육량", unit: "kg" },
+      { key: "skeletalMuscleMass", label: "골격근량", unit: "kg" },
       { key: "muscleMass", label: "근육량", unit: "kg" },
       { key: "musclePercent", label: "근육률", unit: "%" },
       { key: "visceralFatLevel", label: "내장 지방 지수", unit: "" },
@@ -101,6 +101,7 @@ export default function BodyRecordCard({
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importMessage, setImportMessage] = useState("");
+  const [recordMessage, setRecordMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function BodyRecordCard({
     });
     setForm(next);
   }, [currentInbody, currentWeight, dateKey]);
+  useEffect(() => setRecordMessage(""), [dateKey]);
 
   const previous = getPreviousWeightRecord(weights, dateKey);
   const displayedWeight = Number(form.weight);
@@ -124,9 +126,39 @@ export default function BodyRecordCard({
     Number.isFinite(displayedWeight) && previous
       ? displayedWeight - previous[1].weight
       : null;
+  const hasRecord = Boolean(currentWeight || currentInbody);
 
   const save = () => {
-    const parsedWeight = Math.round(Number(form.weight) * 10) / 10;
+    const weightInput = (form.weight ?? "").trim();
+    const parsedWeight = Math.round(Number(weightInput) * 10) / 10;
+    if (
+      weightInput !== "" &&
+      (!Number.isFinite(parsedWeight) || parsedWeight <= 0)
+    ) {
+      setRecordMessage("체중은 0보다 큰 숫자로 입력해주세요.");
+      return;
+    }
+    const invalidField = inbodyFields.find(({ key }) => {
+      const input = (form[key] ?? "").trim();
+      if (!input) return false;
+      const value = Number(input);
+      return !Number.isFinite(value) || value < 0;
+    });
+    if (invalidField) {
+      setRecordMessage(`${invalidField.label} 값을 0 이상의 숫자로 확인해주세요.`);
+      return;
+    }
+    const hasInbodyInput = inbodyFields.some(
+      ({ key }) => Boolean((form[key] ?? "").trim()),
+    );
+    if (!weightInput && !hasInbodyInput && !form.memo?.trim()) {
+      setRecordMessage(
+        hasRecord
+          ? "모든 기록을 지우려면 전체 삭제 버튼을 사용해주세요."
+          : "저장할 체중 또는 인바디 값을 입력해주세요.",
+      );
+      return;
+    }
     const nextWeights = { ...weights };
     if (Number.isFinite(parsedWeight) && parsedWeight > 0)
       nextWeights[dateKey] = {
@@ -137,8 +169,9 @@ export default function BodyRecordCard({
 
     const record: InbodyRecord = {};
     inbodyFields.forEach(({ key }) => {
-      const value = Number(form[key]);
-      if (form[key] !== "" && Number.isFinite(value))
+      const input = (form[key] ?? "").trim();
+      const value = Number(input);
+      if (input && Number.isFinite(value))
         record[key] = value as never;
     });
     if (form.memo?.trim()) record.memo = form.memo.trim();
@@ -149,9 +182,17 @@ export default function BodyRecordCard({
     writeJson(WEIGHT_RECORDS_KEY, nextWeights);
     writeJson(INBODY_RECORDS_KEY, nextInbody);
     onChange({ weights: nextWeights, inbody: nextInbody });
+    setRecordMessage(`${dateKey} 체중·인바디 기록을 저장했습니다.`);
   };
 
   const remove = () => {
+    if (
+      !window.confirm(
+        `${dateKey}의 체중과 인바디 기록을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
+      )
+    ) {
+      return;
+    }
     const nextWeights = { ...weights };
     const nextInbody = { ...inbody };
     delete nextWeights[dateKey];
@@ -160,9 +201,8 @@ export default function BodyRecordCard({
     writeJson(INBODY_RECORDS_KEY, nextInbody);
     onChange({ weights: nextWeights, inbody: nextInbody });
     setForm({});
+    setRecordMessage(`${dateKey} 체중·인바디 기록을 삭제했습니다.`);
   };
-
-  const hasRecord = Boolean(currentWeight || currentInbody);
 
   const importOaReport = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -187,6 +227,7 @@ export default function BodyRecordCard({
         });
         return next;
       });
+      setRecordMessage("");
       const dateNotice =
         result.detectedDate && result.detectedDate !== dateKey
           ? ` 보고서 날짜는 ${result.detectedDate}이며, 현재 선택일은 ${dateKey}입니다.`
@@ -280,9 +321,10 @@ export default function BodyRecordCard({
           <input
             inputMode="decimal"
             value={form.weight || ""}
-            onChange={(event) =>
-              setForm({ ...form, weight: event.target.value })
-            }
+            onChange={(event) => {
+              setForm({ ...form, weight: event.target.value });
+              setRecordMessage("");
+            }}
             placeholder="예: 82.4"
             className="min-w-0 flex-1 py-2 text-[14px] outline-none"
           />
@@ -332,9 +374,10 @@ export default function BodyRecordCard({
                     <input
                       inputMode="decimal"
                       value={form[field.key] || ""}
-                      onChange={(event) =>
-                        setForm({ ...form, [field.key]: event.target.value })
-                      }
+                      onChange={(event) => {
+                        setForm({ ...form, [field.key]: event.target.value });
+                        setRecordMessage("");
+                      }}
                       placeholder="값 입력"
                       className="min-w-0 flex-1 py-2 text-[13px] outline-none"
                     />
@@ -350,12 +393,16 @@ export default function BodyRecordCard({
       </div>
       <textarea
         value={form.memo || ""}
-        onChange={(event) => setForm({ ...form, memo: event.target.value })}
+        onChange={(event) => {
+          setForm({ ...form, memo: event.target.value });
+          setRecordMessage("");
+        }}
         placeholder="체중·인바디 메모"
         className="mt-3 min-h-20 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
       />
       <div className="mt-2 flex gap-2">
         <button
+          type="button"
           onClick={save}
           className="flex-1 rounded-xl bg-[#534AB7] px-4 py-2 text-[13px] font-bold text-white"
         >
@@ -363,6 +410,7 @@ export default function BodyRecordCard({
         </button>
         {hasRecord && (
           <button
+            type="button"
             onClick={remove}
             className="rounded-xl bg-red-50 px-4 py-2 text-[13px] font-bold text-red-600"
           >
@@ -370,6 +418,15 @@ export default function BodyRecordCard({
           </button>
         )}
       </div>
+      {recordMessage && (
+        <p
+          role="status"
+          aria-live="polite"
+          className={`mt-2 text-[11px] font-medium ${recordMessage.includes("해주세요") ? "text-red-700" : "text-emerald-700"}`}
+        >
+          {recordMessage}
+        </p>
+      )}
     </section>
   );
 }
