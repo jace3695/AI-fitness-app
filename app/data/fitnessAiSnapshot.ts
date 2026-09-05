@@ -1,10 +1,13 @@
 import { getBodyPartSetBreakdown, getBodyTrends, getLongTermWorkoutSummary, getMonthlyWorkoutStats, getPainScore, getRecentConditionSummary, getWeeklyActivity } from "./recordAnalytics.ts";
 import { getWorkoutRecord, isWorkoutPerformed } from "./workoutCompletion.ts";
 import type { RecordStores } from "./recordStorage.ts";
+import { getWeightManagementSummary } from "./weightManagement.ts";
+import { getLocalDateKey } from "./dietPlans.ts";
 
 export type FitnessAiSnapshot = ReturnType<typeof buildFitnessAiSnapshot>;
 
 export function buildFitnessAiSnapshot(stores: RecordStores, now = new Date()) {
+  const generatedFor = getLocalDateKey(now);
   const workoutEntries = Object.entries(stores.workouts).sort(([a], [b]) => b.localeCompare(a)).slice(0, 28);
   const recentSessions = workoutEntries.map(([date, value]) => {
     const record = getWorkoutRecord(value);
@@ -48,15 +51,30 @@ export function buildFitnessAiSnapshot(stores: RecordStores, now = new Date()) {
   const monthly = getMonthlyWorkoutStats(stores.workouts, now.getFullYear(), now.getMonth());
   const bodyPartSets = getBodyPartSetBreakdown(stores.workouts, now.getFullYear(), now.getMonth());
   const longTerm = getLongTermWorkoutSummary(stores.workouts, now);
+  const weightManagement = getWeightManagementSummary(
+    stores.weights,
+    stores.inbody,
+    stores.weightGoal,
+    generatedFor,
+  );
+  const targetWeightKg =
+    Math.round(((stores.weightGoal.minKg + stores.weightGoal.maxKg) / 2) * 10) /
+    10;
   return {
-    generatedFor: now.toISOString().slice(0, 10),
+    generatedFor,
     goal: "체지방 감량과 근육 유지·소폭 증가, 허리 안전 우선",
-    profile: { heightCm: 168.5, targetWeightKg: 66, constraints: ["허리 디스크 이력", "통증·다리 저림 시 즉시 중단", "최근 운동 재시작 단계"] },
+    profile: {
+      heightCm: 168.5,
+      targetWeightKg,
+      targetWeightRangeKg: [stores.weightGoal.minKg, stores.weightGoal.maxKg],
+      constraints: ["허리 디스크 이력", "통증·다리 저림 시 즉시 중단", "최근 운동 재시작 단계"],
+    },
     monthly,
     bodyPartSets,
     condition,
     weekly,
     body,
+    weightManagement,
     longTerm,
     recentSessions,
   };
