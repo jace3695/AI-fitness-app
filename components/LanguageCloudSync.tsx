@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/app/lib/supabase";
 import { mergeCloudState, mergeCloudStateFromBase, stableState } from "@/app/data/cloudSync";
 import { applyLanguageState, prepareLanguageLocalState, readLanguageState, readLanguageSyncBase, saveLanguageSyncBase } from "@/app/data/languageCloudSync";
+import { isRecordResetRunning, RECORD_RESET_EVENT } from "@/app/data/appRecordReset";
 
 export default function LanguageCloudSync({ children }: { children?: ReactNode }) {
   const [status, setStatus] = useState<"loading" | "synced" | "error">("loading");
@@ -13,6 +14,9 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
     if (!supabase) { setStatus("error"); return; }
     const authClient = supabase;
     let active = true;
+    let resetVersion = 0;
+    const onReset = () => { resetVersion += 1; };
+    window.addEventListener(RECORD_RESET_EVENT, onReset);
     let syncing = false;
     let lastSnapshot = "";
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -25,13 +29,15 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
       prepareLanguageLocalState(auth.user.id);
 
       const sync = async (initial = false) => {
-        if (syncing || !active || (!initial && document.visibilityState !== "visible")) return;
+        if (syncing || !active || isRecordResetRunning() || (!initial && document.visibilityState !== "visible")) return;
+        const version = resetVersion;
+        const cancelled = () => !active || version !== resetVersion || isRecordResetRunning();
         syncing = true;
         setStatus("loading");
         try {
           const { data, error } = await authClient.from("language_user_state")
             .select("state, updated_at").eq("user_id", auth.user.id).maybeSingle();
-          if (!active) return;
+          if (cancelled()) return;
           if (error) throw error;
           // Include answers entered while the network read was pending.
           const local = readLanguageState();
@@ -45,6 +51,7 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
               user_id: auth.user.id, state: local, updated_at: new Date().toISOString(),
             });
             if (saveError) throw saveError;
+            if (cancelled()) return;
             lastSnapshot = localHash;
             saveLanguageSyncBase(auth.user.id, local);
           } else if (!lastSnapshot || initial) {
@@ -59,10 +66,11 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
               if (saveError) throw saveError;
               if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             }
-            if (!active) return;
+            if (cancelled()) return;
             applyLanguageState(mergeCloudStateFromBase(local, merged, readLanguageState()));
             lastSnapshot = mergedHash;
             saveLanguageSyncBase(auth.user.id, merged);
+            if (local.languageRecordResetV1 !== merged.languageRecordResetV1) window.location.reload();
           } else {
             const localChanged = localHash !== lastSnapshot;
             const remoteChanged = remoteHash !== lastSnapshot;
@@ -80,10 +88,11 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
                 if (saveError) throw saveError;
                 if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
               }
-              if (!active) return;
+              if (cancelled()) return;
               if (remoteChanged) applyLanguageState(mergeCloudStateFromBase(local, merged, readLanguageState()));
               lastSnapshot = mergedHash;
               saveLanguageSyncBase(auth.user.id, merged);
+              if (local.languageRecordResetV1 !== merged.languageRecordResetV1) window.location.reload();
             }
           }
           if (active) setStatus("synced");
@@ -108,6 +117,7 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
     const slowTimer = setTimeout(() => { if (active) setStatus((current) => current === "loading" ? "error" : current); }, 15_000);
     return () => {
       active = false;
+      window.removeEventListener(RECORD_RESET_EVENT, onReset);
       clearTimeout(slowTimer);
       if (interval) clearInterval(interval);
       if (syncVisibleChanges) {

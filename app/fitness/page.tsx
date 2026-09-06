@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { DayWorkout } from "../data/workouts";
 import {
   DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
@@ -918,6 +919,7 @@ function FitnessApp() {
             <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <p className="text-[12px] font-bold text-[#534AB7]">더보기</p>
               <h2 className="mt-1 text-[22px] font-bold text-gray-900">알림과 기록 관리</h2>
+              <Link href="/fitness/settings" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-red-50 px-4 text-sm font-bold text-red-700">운동 설정 · 기록 초기화 →</Link>
               <p className="mt-2 text-[13px] leading-relaxed text-gray-500">운동 선택과 편집은 각 요일의 <b className="text-gray-700">오늘 운동 바꾸기</b> 또는 <b className="text-gray-700">주간 운동표</b>에서 할 수 있어요.</p>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
                 <button

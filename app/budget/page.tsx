@@ -16,6 +16,8 @@ import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCate
 import AuthGate from '../components/AuthGate'
 import AppIdentity, { AppIcon } from '../components/AppIdentity'
 import AppModuleNav from '../components/AppModuleNav'
+import { resetAppRecords } from '../lib/resetAppRecords'
+import { setRecordResetRunning } from '../data/appRecordReset'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -186,6 +188,7 @@ function BudgetDashboard() {
   const [showUserGuide, setShowUserGuide] = useState(false)
   const [resetPassword, setResetPassword] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
+  const resetRequestId = useRef('')
   const [autoAnalyzeRan, setAutoAnalyzeRan] = useState(false)
   const [currency, setCurrency] = useState('KRW')
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
@@ -1644,7 +1647,8 @@ function BudgetDashboard() {
       return
     }
 
-    const ok = window.confirm('정말 모든 기록을 초기화할까요? 이 작업은 되돌릴 수 없어요.')
+    if (resetLoading) return
+    const ok = window.confirm('이 계정의 전체 기간 지출·수입·저축 기록을 영구 삭제할까요? 예산·설정과 다른 앱 기록은 유지됩니다. 되돌릴 수 없어요.')
     if (!ok) return
 
     setResetLoading(true)
@@ -1661,36 +1665,10 @@ function BudgetDashboard() {
     }
 
     try {
-      for (const item of transactions) {
-        const { error } = await supabase
-          .from('budget_transactions')
-          .delete()
-          .eq('id', item.id)
-          .eq('user_id', user.id)
-
-        if (error) throw error
-      }
-
-      for (const item of incomeList) {
-        const { error } = await supabase
-          .from('budget_income')
-          .delete()
-          .eq('id', item.id)
-          .eq('user_id', user.id)
-
-        if (error) throw error
-      }
-
-      for (const item of savings) {
-        const { error } = await supabase
-          .from('budget_savings')
-          .delete()
-          .eq('id', item.id)
-          .eq('user_id', user.id)
-
-        if (error) throw error
-      }
-
+      setRecordResetRunning(true)
+      resetRequestId.current ||= crypto.randomUUID()
+      await resetAppRecords('budget', resetRequestId.current, user.id)
+      resetRequestId.current = ''
 
       await fetchTransactions()
       await fetchIncome()
@@ -1705,12 +1683,13 @@ function BudgetDashboard() {
       setInput('')
       setQuestion('')
 
-      alert('모든 기록이 초기화되었어요.')
+      alert('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
     } catch (e) {
       console.error(e)
-      alert('초기화 중 오류가 발생했어요.')
+      alert('초기화 완료 여부를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요.')
     } finally {
       setResetLoading(false)
+      setRecordResetRunning(false)
     }
   }
 

@@ -302,6 +302,7 @@ export default function AssistantPage() {
           <Link href="/diet" className="rounded-2xl bg-emerald-50 px-3 py-3 text-center text-xs font-bold text-emerald-700">식단</Link>
           <Link href="/calendar" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-700">통합 달력</Link>
           <Link href="/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">통합 설정</Link>
+          <Link href="/assistant/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">연이 설정 · 기록 관리</Link>
         </nav>
       </section>
 

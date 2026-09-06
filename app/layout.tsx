@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaManager from './components/PwaManager';
 import AiBudgetNotifier from './components/AiBudgetNotifier';
+import RecordResetListener from './components/RecordResetListener';
 
 export const metadata: Metadata = {
   title: 'AI 연이 | 개인 AI 비서',
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body>
         <PwaManager />
         <AiBudgetNotifier />
+        <RecordResetListener />
         {children}
       </body>
     </html>

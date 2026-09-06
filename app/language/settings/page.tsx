@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import RecordResetPanel from "@/app/components/RecordResetPanel";
 import {
   DEFAULT_INTEGRATED_LEARNING_SETTINGS,
   loadIntegratedLearningSettings,
@@ -494,9 +495,10 @@ export default function SettingsPage() {
 
       <div className="card">
         <button type="button" className="btn btn-danger" onClick={handleResetSettings} style={{ width: "100%" }}>
-          설정 초기화
+          학습 설정만 기본값으로
         </button>
       </div>
+      <RecordResetPanel app="language" />
     </section>
   );
 }

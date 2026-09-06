@@ -175,7 +175,7 @@ export default function GrowthPage() {
 
   return (
     <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
-      <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="자기계발" subtitle="시작부터 기록과 성장 확인까지" /><span className="text-xs font-semibold text-gray-500 sm:text-sm">{todayLabel}</span></div></header>
+      <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="자기계발" subtitle="시작부터 기록과 성장 확인까지" /><div className="flex flex-wrap items-center gap-3"><span className="text-xs font-semibold text-gray-500 sm:text-sm">{todayLabel}</span><Link href="/growth/settings" className="inline-flex min-h-11 items-center px-3 text-sm font-bold">설정</Link></div></div></header>
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
         <section className="rounded-[30px] bg-gradient-to-br from-violet-600 to-indigo-500 p-6 text-white shadow-[0_22px_55px_rgba(91,75,180,0.22)] sm:p-8">
           <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-white/75">오늘의 자기계발</p><strong className="mt-3 block text-4xl">{completedCount}/{totalCount}</strong><p className="mt-2 text-sm text-white/80">오늘 루틴 완료</p></div><strong className="text-2xl">{progress}%</strong></div>

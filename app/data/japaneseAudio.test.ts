@@ -2,6 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { speakJapaneseWithPreferredTts } from "../../utils/speakJapanese.ts";
 import { speakJapaneseWithBrowserTts } from "../../utils/japaneseTts.ts";
+import { createClient } from "../../lib/supabase.ts";
+
+test("일본어 음성 API에 현재 계정 인증을 전달한다", async (context) => {
+  const client = createClient();
+  context.mock.method(client.auth, "getSession", async () => ({ data: { session: { access_token: "test-only-access-token" } }, error: null }));
+  const request = new AbortController();
+  context.mock.method(globalThis, "fetch", async (input: RequestInfo | URL, options?: RequestInit) => {
+    assert.equal(input, "/api/language/tts");
+    assert.equal(new Headers(options?.headers).get("Authorization"), "Bearer test-only-access-token");
+    request.abort();
+    throw new DOMException("Cancelled", "AbortError");
+  });
+  await speakJapaneseWithPreferredTts("あ", { signal: request.signal });
+});
 
 test("취소된 듣기는 API를 호출하거나 다른 음성으로 대체하지 않는다", async (context) => {
   const request = new AbortController();

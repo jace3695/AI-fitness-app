@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase.ts";
+import { respectRecordResets } from "./appRecordReset.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";
@@ -99,7 +100,7 @@ export function mergeCloudState(remote: CloudState, local: CloudState) {
         ? { ...remoteValue, ...localValue }
         : localValue;
   });
-  return merged;
+  return respectRecordResets(remote, local, merged);
 }
 
 export function mergeCloudStateFromBase(
@@ -107,7 +108,18 @@ export function mergeCloudStateFromBase(
   remote: CloudState,
   local: CloudState,
 ) {
-  return mergeValue(base, remote, local) as CloudState;
+  return respectRecordResets(remote, local, mergeValue(base, remote, local) as CloudState);
+}
+
+/** An explicit backup restore is a new user action in the current reset generation. */
+export function mergeExplicitCloudBackup(current: CloudState, backup: CloudState) {
+  const records = { ...backup };
+  for (const key of new Set([...Object.keys(current), ...Object.keys(records)])) {
+    if (!key.startsWith("ai-fitness-record-reset-")) continue;
+    if (key in current) records[key] = current[key];
+    else delete records[key];
+  }
+  return mergeCloudState(current, records);
 }
 
 export function readSyncBase(userId: string): CloudState | null {
@@ -127,6 +139,9 @@ export function saveSyncBase(userId: string, state: CloudState) {
 
 export function applyCloudState(state: CloudState) {
   if (typeof window === "undefined") return;
+  for (const key of Object.keys(readLocalCloudState())) {
+    if (!(key in state)) window.localStorage.removeItem(key);
+  }
   Object.entries(state).forEach(([key, value]) => {
     window.localStorage.setItem(
       key,
@@ -165,7 +180,9 @@ export async function getRemoteState(userId: string) {
 
 export async function saveRemoteState(userId: string, state: CloudState) {
   if (!supabase) return;
-  const { error } = await supabase.from("user_app_state").upsert({
+  // A competing first sync or reset may have created the row after our read.
+  // Insert must fail in that case; upsert would overwrite that newer state.
+  const { error } = await supabase.from("user_app_state").insert({
     user_id: userId,
     state,
     updated_at: new Date().toISOString(),

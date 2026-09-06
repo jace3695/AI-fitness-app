@@ -1,4 +1,5 @@
 import { speakJapaneseWithBrowserTts, type JapaneseTtsOptions } from "./japaneseTts.ts";
+import { authenticatedFetch } from "../lib/supabase.ts";
 
 type PreferredJapaneseTtsOptions = JapaneseTtsOptions & {
   apiPath?: string;
@@ -13,7 +14,9 @@ export async function speakJapaneseWithPreferredTts(text: string, options: Prefe
   const repeatDelayMs = Math.max(0, options.repeatDelayMs ?? 0);
 
   try {
-    const res = await fetch(options.apiPath ?? "/api/language/tts", {
+    const apiPath = options.apiPath ?? "/api/language/tts";
+    if (!apiPath.startsWith("/api/")) throw new Error("Invalid TTS endpoint");
+    const res = await authenticatedFetch(apiPath, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
