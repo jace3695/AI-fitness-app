@@ -7,8 +7,7 @@ import {
   getTodayRoutineCompletedIds,
   saveTodayRoutineCompletedIds,
 } from "@/utils/dailyRoutineProgress";
-import { CURRICULUM, TRACKS, getTrackLessons, type CourseTrack } from "@/data/curriculum";
-import { loadCurriculumProgress } from "@/utils/curriculumProgress";
+import LearningWelcome from "@/components/language/LearningWelcome";
 
 type RoutineItem = {
   id: string;
@@ -126,14 +125,6 @@ export default function HomePage() {
   });
   const todayKey = useMemo(() => getLocalDateKey(), []);
   const [hasLoadedRoutine, setHasLoadedRoutine] = useState(false);
-  const [curriculumState, setCurriculumState] = useState({
-    nextLessonId: CURRICULUM[0].id,
-    nextLessonTitle: CURRICULUM[0].title,
-    track: "foundation" as CourseTrack,
-    completed: 0,
-    trackCompleted: 0,
-    trackTotal: getTrackLessons("foundation").length,
-  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -179,19 +170,6 @@ export default function HomePage() {
         hasReviewItems: hasGrammarWrong || reviewCount > 0,
       });
 
-      const curriculumProgress = loadCurriculumProgress();
-      const selectedLessons = getTrackLessons(curriculumProgress.selectedTrack);
-      const nextLesson =
-        selectedLessons.find((lesson) => !curriculumProgress.completedLessonIds.includes(lesson.id)) ??
-        selectedLessons[0];
-      setCurriculumState({
-        nextLessonId: nextLesson.id,
-        nextLessonTitle: nextLesson.title,
-        track: curriculumProgress.selectedTrack,
-        completed: curriculumProgress.completedLessonIds.length,
-        trackCompleted: selectedLessons.filter((lesson) => curriculumProgress.completedLessonIds.includes(lesson.id)).length,
-        trackTotal: selectedLessons.length,
-      });
     } catch {
       setCompletedIds([]);
       setRecommendation({ hasGrammarWrong: false, hasReviewItems: false });
@@ -209,7 +187,6 @@ export default function HomePage() {
   }, [completedIds, hasLoadedRoutine, todayKey]);
 
   const completedCount = completedIds.length;
-  const progressPercent = Math.round((curriculumState.trackCompleted / curriculumState.trackTotal) * 100);
   const toggleCompleted = (id: string) => {
     setCompletedIds((prev) =>
       prev.includes(id) ? prev.filter((completedId) => completedId !== id) : [...prev, id],
@@ -219,31 +196,7 @@ export default function HomePage() {
   return (
     <section className="home-page">
       <div className="home-container">
-        <div className="home-greeting">
-          <p className="home-kicker">こんにちは, Jace!</p>
-          <h1>오늘도 딱 10분만 해볼까요?</h1>
-          <p>회사와 여행에서 진짜 쓰는 일본어를 한 단계씩 배워요.</p>
-        </div>
-
-        <section className="today-lesson-card" aria-labelledby="today-lesson-title">
-          <div className="today-lesson-top">
-            <div>
-              <span className="today-badge">오늘의 통합 10분</span>
-              <p className="today-step">{TRACKS[curriculumState.track].title} · 다음 수업</p>
-              <h2 id="today-lesson-title">{curriculumState.nextLessonTitle}</h2>
-              <p>핵심 표현부터 문법·대화·말하기·확인 문제까지 한 번에 이어서 배워요.</p>
-            </div>
-            <div className="today-progress-ring" style={{ "--progress": `${progressPercent * 3.6}deg` } as React.CSSProperties}>
-              <strong>{progressPercent}%</strong>
-              <span>{curriculumState.trackCompleted}/{curriculumState.trackTotal}</span>
-            </div>
-          </div>
-          <Link className="primary-start-button" href={`/language/learn?lesson=${curriculumState.nextLessonId}`}>
-            {curriculumState.completed === 0 ? "첫 10분 학습 시작" : "다음 수업 이어서 학습"}
-            <span aria-hidden="true">→</span>
-          </Link>
-          <p className="today-helper">새 과정 {curriculumState.completed}/{CURRICULUM.length}개 완료 · 기존 오늘 학습 기록도 그대로 유지돼요.</p>
-        </section>
+        <LearningWelcome />
 
         <details className="routine-details">
           <summary>기존 자유 학습 바로가기 <span>{completedCount}/{todayRoutine.length} 완료</span></summary>

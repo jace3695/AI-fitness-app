@@ -1,4 +1,4 @@
-import { speakJapaneseWithBrowserTts, type JapaneseTtsOptions } from "@/utils/japaneseTts";
+import { speakJapaneseWithBrowserTts, type JapaneseTtsOptions } from "./japaneseTts.ts";
 
 type PreferredJapaneseTtsOptions = JapaneseTtsOptions & {
   apiPath?: string;
@@ -7,7 +7,7 @@ type PreferredJapaneseTtsOptions = JapaneseTtsOptions & {
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export async function speakJapaneseWithPreferredTts(text: string, options: PreferredJapaneseTtsOptions = {}) {
-  if (!text) return;
+  if (!text || options.signal?.aborted) return;
 
   const repeatCount = Math.max(1, options.repeatCount ?? 1);
   const repeatDelayMs = Math.max(0, options.repeatDelayMs ?? 0);
@@ -17,6 +17,7 @@ export async function speakJapaneseWithPreferredTts(text: string, options: Prefe
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
+      signal: options.signal,
     });
     if (!res.ok) throw new Error("TTS API error");
     const { audioContent } = (await res.json()) as { audioContent?: string };
@@ -24,20 +25,25 @@ export async function speakJapaneseWithPreferredTts(text: string, options: Prefe
 
     options.onStart?.();
     for (let i = 0; i < repeatCount; i += 1) {
+      if (options.signal?.aborted) return;
       const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
       audio.playbackRate = options.rate ?? 0.9;
       await new Promise<void>((resolve, reject) => {
-        audio.onended = () => resolve();
-        audio.onerror = () => reject(new Error("Audio playback failed"));
-        audio.play().catch(reject);
+        const cleanup = () => options.signal?.removeEventListener("abort", abort);
+        const abort = () => { audio.pause(); cleanup(); resolve(); };
+        options.signal?.addEventListener("abort", abort, { once: true });
+        audio.onended = () => { cleanup(); resolve(); };
+        audio.onerror = () => { cleanup(); reject(new Error("Audio playback failed")); };
+        audio.play().catch((error) => { cleanup(); reject(error); });
       });
       if (i < repeatCount - 1 && repeatDelayMs > 0) {
         await wait(repeatDelayMs);
       }
     }
-    options.onEnd?.();
+    if (!options.signal?.aborted) options.onEnd?.();
     return;
   } catch {
+    if (options.signal?.aborted) return;
     await speakJapaneseWithBrowserTts(text, options);
   }
 }

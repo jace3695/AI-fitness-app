@@ -5,6 +5,7 @@ export type JapaneseTtsOptions = {
   repeatDelayMs?: number;
   onStart?: () => void;
   onEnd?: () => void;
+  signal?: AbortSignal;
 };
 
 const VOICE_NAME_HINTS = ["japanese", "japan", "kyoko", "otoya", "haruka", "nanami"];
@@ -13,7 +14,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
 
 function clampRate(rate?: number) {
   if (typeof rate !== "number" || Number.isNaN(rate)) return 0.9;
-  return Math.min(0.95, Math.max(0.85, rate));
+  return Math.min(1, Math.max(0.8, rate));
 }
 
 function getBestJapaneseVoice(voices: SpeechSynthesisVoice[]) {
@@ -55,7 +56,8 @@ async function getVoicesWithFallback(): Promise<SpeechSynthesisVoice[]> {
 }
 
 export async function speakJapaneseWithBrowserTts(text: string, options: JapaneseTtsOptions = {}) {
-  if (typeof window === "undefined" || !window.speechSynthesis || !text) return;
+  if (!text || options.signal?.aborted) return;
+  if (typeof window === "undefined" || !window.speechSynthesis) throw new Error("음성 재생을 지원하지 않는 브라우저입니다.");
 
   const synth = window.speechSynthesis;
   const repeatCount = Math.max(1, options.repeatCount ?? 1);
@@ -66,8 +68,11 @@ export async function speakJapaneseWithBrowserTts(text: string, options: Japanes
   synth.cancel();
   const voices = await getVoicesWithFallback();
   const selectedVoice = getBestJapaneseVoice(voices);
+  if (options.signal?.aborted) return;
+  if (!selectedVoice) throw new Error("기기에 일본어 음성이 없습니다.");
 
   for (let i = 0; i < repeatCount; i += 1) {
+    if (options.signal?.aborted) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "ja-JP";
     utterance.rate = rate;
@@ -75,10 +80,13 @@ export async function speakJapaneseWithBrowserTts(text: string, options: Japanes
     if (selectedVoice) utterance.voice = selectedVoice;
     if (i === 0 && options.onStart) utterance.onstart = options.onStart;
 
-    await new Promise<void>((resolve) => {
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      setTimeout(() => synth.speak(utterance), 50);
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => options.signal?.removeEventListener("abort", abort);
+      const abort = () => { clearTimeout(timer); synth.cancel(); cleanup(); resolve(); };
+      const timer = setTimeout(() => { if (!options.signal?.aborted) synth.speak(utterance); }, 50);
+      utterance.onend = () => { cleanup(); resolve(); };
+      utterance.onerror = () => { cleanup(); if (options.signal?.aborted) resolve(); else reject(new Error("음성을 재생하지 못했습니다.")); };
+      options.signal?.addEventListener("abort", abort, { once: true });
     });
 
     if (i < repeatCount - 1 && repeatDelayMs > 0) {
@@ -86,6 +94,5 @@ export async function speakJapaneseWithBrowserTts(text: string, options: Japanes
     }
   }
 
-  options.onEnd?.();
+  if (!options.signal?.aborted) options.onEnd?.();
 }
-

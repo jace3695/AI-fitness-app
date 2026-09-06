@@ -1,3 +1,7 @@
+import { EXPANDED_SENTENCES } from "./learningDataExpansion.ts";
+import { RECOMMENDED_SENTENCES } from "./recommendedDataExpansion.ts";
+import { getSentenceLearningLevel } from "./japaneseLearningQuality.ts";
+
 export type LearningCategory = "일상" | "여행" | "업무" | "친구" | string;
 export type LearningLevel = "beginner" | "basic" | "practical";
 
@@ -14,6 +18,7 @@ export type SentenceItem = {
   description?: string;
   pattern?: string;
   relatedWords?: string[];
+  practiceGroup?: "core" | "numbers";
 };
 
 export type RubySegment = {
@@ -303,6 +308,7 @@ export const SENTENCES: SentenceItem[] = [...BASE_SENTENCES, ...EXPANDED_SENTENC
   .filter((sentence, index, items) => items.findIndex((candidate) => candidate.japanese === sentence.japanese) === index)
   .map((sentence) => ({
   ...sentence,
+  level: getSentenceLearningLevel(sentence.japanese, sentence.category),
   reading:
     sentence.reading
     ?? buildReadingFromRubySegments(sentence.rubySegments)
@@ -311,6 +317,3 @@ export const SENTENCES: SentenceItem[] = [...BASE_SENTENCES, ...EXPANDED_SENTENC
   pattern: normalizeSentencePattern(sentence),
   relatedWords: inferRelatedWords(sentence),
 }));
-import { EXPANDED_SENTENCES } from "./learningDataExpansion";
-import { RECOMMENDED_SENTENCES } from "./recommendedDataExpansion";
-

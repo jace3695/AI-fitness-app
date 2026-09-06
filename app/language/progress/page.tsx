@@ -832,7 +832,7 @@ export default function ProgressPage() {
             return <Link key={track} href={`/language/learn?track=${track}`} style={{ padding: "0.8rem 0.5rem", borderRadius: 14, textAlign: "center", textDecoration: "none", color: "#254d3c", background: track === "work" ? "#eaf2fa" : track === "travel" ? "#fff0e9" : "#e8f6ee", border: "1px solid #dce7e1" }}><small style={{ display: "block", marginBottom: 4 }}>{TRACKS[track].title}</small><strong style={{ fontSize: "1.2rem" }}>{completed}/{trackLessons.length}</strong></Link>;
           })}
         </div>
-        <Link href={curriculumProgress?.lastLessonId ? `/language/learn?lesson=${curriculumProgress.lastLessonId}` : "/language/learn"} style={{ display: "block", marginTop: "0.7rem", padding: "0.65rem", borderRadius: 10, textAlign: "center", textDecoration: "none", color: "#fff", background: "#287a59", fontWeight: 750, fontSize: "0.85rem" }}>{curriculumProgress?.completedLessonIds.length ? "최근 수업 다시 보기" : "첫 10분 학습 시작"}</Link>
+        <Link href={curriculumProgress?.lastLessonId ? `/language/learn?lesson=${curriculumProgress.lastLessonId}` : "/language"} style={{ display: "block", marginTop: "0.7rem", padding: "0.65rem", borderRadius: 10, textAlign: "center", textDecoration: "none", color: "#fff", background: "#287a59", fontWeight: 750, fontSize: "0.85rem" }}>{curriculumProgress?.completedLessonIds.length ? "최근 수업 다시 보기" : "학습 시작점 고르기"}</Link>
       </section>
 
       <section style={{ marginBottom: "1rem", border: "1px solid #dbeafe", borderRadius: 20, padding: "1rem", background: "#ffffff", boxShadow: "0 6px 20px rgba(148, 163, 184, 0.16)" }}>

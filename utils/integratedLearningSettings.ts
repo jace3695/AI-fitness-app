@@ -10,6 +10,10 @@ export type IntegratedLearningSettings = {
   autoPlayDialogue: boolean;
   includeSpeaking: boolean;
   audioRate: 0.8 | 0.9 | 1;
+  learnerMode: "starter" | "reader";
+  hasChosenStart: boolean;
+  showCompanion: boolean;
+  showKoreanHint: boolean;
 };
 
 export const DEFAULT_INTEGRATED_LEARNING_SETTINGS: IntegratedLearningSettings = {
@@ -20,6 +24,10 @@ export const DEFAULT_INTEGRATED_LEARNING_SETTINGS: IntegratedLearningSettings = 
   autoPlayDialogue: false,
   includeSpeaking: true,
   audioRate: 0.9,
+  learnerMode: "starter",
+  hasChosenStart: false,
+  showCompanion: true,
+  showKoreanHint: true,
 };
 
 export function loadIntegratedLearningSettings(): IntegratedLearningSettings {
@@ -35,6 +43,10 @@ export function loadIntegratedLearningSettings(): IntegratedLearningSettings {
       autoPlayDialogue: parsed.autoPlayDialogue === true,
       includeSpeaking: typeof parsed.includeSpeaking === "boolean" ? parsed.includeSpeaking : true,
       audioRate: parsed.audioRate === 0.8 || parsed.audioRate === 1 ? parsed.audioRate : 0.9,
+      learnerMode: parsed.learnerMode === "reader" ? "reader" : "starter",
+      hasChosenStart: parsed.hasChosenStart === true,
+      showCompanion: parsed.showCompanion !== false,
+      showKoreanHint: parsed.showKoreanHint !== false,
     };
   } catch {
     return DEFAULT_INTEGRATED_LEARNING_SETTINGS;
@@ -45,4 +57,3 @@ export function saveIntegratedLearningSettings(settings: IntegratedLearningSetti
   if (typeof window === "undefined") return;
   window.localStorage.setItem(INTEGRATED_LEARNING_SETTINGS_KEY, JSON.stringify(settings));
 }
-

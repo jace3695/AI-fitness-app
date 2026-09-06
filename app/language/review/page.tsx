@@ -7,6 +7,8 @@ import type { RubySegment as WordRubySegment } from "@/data/words";
 import type { RubySegment as SentenceRubySegment } from "@/data/sentences";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 import { CURRICULUM_REVIEW_KEY, type CurriculumReviewItem } from "@/utils/curriculumProgress";
+import { getNextReviewInterval } from "@/utils/learningSession";
+import CourseReviewQuestion from "@/components/language/CourseReviewQuestion";
 
 type Word = {
   word: string;
@@ -228,6 +230,7 @@ export default function ReviewPage() {
   const [wrongSentences, setWrongSentences] = useState<WrongItem[]>([]);
   const [reviewedItemIds, setReviewedItemIds] = useState<string[]>([]);
   const [curriculumReviewItems, setCurriculumReviewItems] = useState<CurriculumReviewItem[]>([]);
+  const [courseSaveError, setCourseSaveError] = useState("");
   const [reviewOpenedAt] = useState(() => Date.now());
   const hasMarkedReviewCompletedRef = useRef(false);
 
@@ -330,28 +333,36 @@ export default function ReviewPage() {
   };
 
   const handleDeleteCurriculumReview = (id: string) => {
-    const next = curriculumReviewItems.filter((item) => item.id !== id);
-    setCurriculumReviewItems(next);
-    localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(next));
+    if (!window.confirm("이 문제를 복습에서 삭제할까요? 수업 기록은 유지돼요.")) return;
+    try {
+      const latest: CurriculumReviewItem[] = JSON.parse(localStorage.getItem(CURRICULUM_REVIEW_KEY) ?? "[]");
+      const next = latest.filter((item) => item.id !== id);
+      localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(next));
+      setCurriculumReviewItems(next);
+      setCourseSaveError("");
+    } catch { setCourseSaveError("복습 항목을 삭제하지 못했어요. 다시 시도해 주세요."); }
   };
 
-  const scheduleCurriculumReview = (id: string, correct: boolean) => {
+  const scheduleCurriculumReview = (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean) => {
+    try {
     const now = new Date();
-    const next = curriculumReviewItems.map((item) => {
+    const latest: CurriculumReviewItem[] = JSON.parse(localStorage.getItem(CURRICULUM_REVIEW_KEY) ?? "[]");
+    const next = latest.map((item) => {
       if (item.id !== id) return item;
-      const currentInterval = item.intervalDays ?? 1;
-      const intervalDays = correct ? ([1, 3, 7, 14, 30].find((days) => days > currentInterval) ?? 30) : 1;
+      const intervalDays = correct && !neededHelp ? getNextReviewInterval(item.intervalDays) : 1;
       return {
         ...item,
-        wrongCount: correct ? item.wrongCount : (item.wrongCount ?? 0) + 1,
-        lastWrongAt: correct ? item.lastWrongAt : now.toISOString(),
+        wrongCount: hadWrong ? (item.wrongCount ?? 0) + 1 : item.wrongCount,
+        lastWrongAt: hadWrong ? now.toISOString() : item.lastWrongAt,
         intervalDays,
         nextReviewAt: new Date(now.getTime() + intervalDays * 86_400_000).toISOString(),
       };
     });
-    setCurriculumReviewItems(next);
     localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(next));
-    trackReviewAction(`course:${id}`);
+    setCurriculumReviewItems(next);
+    setCourseSaveError("");
+    if (correct) trackReviewAction(`course:${id}`);
+    } catch { setCourseSaveError("복습 결과를 저장하지 못했어요. 이 화면에서 다시 시도해 주세요."); }
   };
 
   const trackReviewAction = (itemId: string) => {
@@ -446,9 +457,10 @@ export default function ReviewPage() {
       {showCourse && (
         <>
           <div className="section-title"><h2>오늘 복습할 과정 문제</h2><span className="count">{dueCurriculumReviewItems.length}개</span></div>
+          {courseSaveError && <p role="alert">{courseSaveError}</p>}
           {dueCurriculumReviewItems.length === 0 ? <div className="empty-state">오늘 예정된 과정 복습을 모두 마쳤어요. 전체 보관 항목은 {curriculumReviewItems.length}개예요. <Link href="/language/learn">[배우기]</Link>에서 다음 수업을 시작해 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px" }}>
-              {dueCurriculumReviewItems.map((item) => <li key={item.id} className="card" style={{ marginBottom: 10, border: "1px solid #cfe6d9", borderRadius: 16 }}><div className="label" style={{ color: "#287a59" }}>{item.lessonTitle} · 누적 오답 {item.wrongCount ?? 1}회</div><h3 style={{ margin: "5px 0", fontSize: 16 }}>{item.prompt}</h3><p className="muted" style={{ margin: "0 0 10px" }}>{item.explanation}</p><div className="card-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}><Link href={`/language/learn?lesson=${item.lessonId}`} className="btn">수업 다시 보기</Link><button type="button" onClick={() => scheduleCurriculumReview(item.id, false)} className="btn">아직 어려워요</button><button type="button" onClick={() => scheduleCurriculumReview(item.id, true)} className="btn" style={reviewActionButtonStyle(false)}>기억했어요</button><button type="button" onClick={() => handleDeleteCurriculumReview(item.id)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div></li>)}
+              {dueCurriculumReviewItems.slice(0, 1).map((item) => <CourseReviewQuestion key={item.id} item={item} onSchedule={scheduleCurriculumReview} onDelete={handleDeleteCurriculumReview} />)}
             </ul>
           )}
         </>

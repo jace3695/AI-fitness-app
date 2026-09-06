@@ -1,4 +1,5 @@
 import type { CourseTrack } from "@/data/curriculum";
+import type { LearningSession } from "./learningSession";
 
 export const CURRICULUM_PROGRESS_KEY = "japaneseCurriculumProgressV1";
 export const CURRICULUM_REVIEW_KEY = "japaneseCurriculumReviewV1";
@@ -14,9 +15,11 @@ export type CurriculumReviewItem = {
   lastWrongAt?: string;
   nextReviewAt?: string;
   intervalDays?: number;
+  lastSessionId?: string;
+  lastSessionResult?: boolean;
 };
 
-export type LessonAttempt = { score: number; completedAt: string };
+export type LessonAttempt = { score: number; completedAt: string; sessionId?: string };
 
 export type CurriculumProgress = {
   completedLessonIds: string[];
@@ -26,6 +29,9 @@ export type CurriculumProgress = {
   updatedAt?: string;
   lessonAttempts: Record<string, LessonAttempt[]>;
   activityDates: string[];
+  activeSession?: LearningSession;
+  lessonDrafts?: Record<string, LearningSession>;
+  kanaCompletedGroups?: string[];
 };
 
 export const DEFAULT_CURRICULUM_PROGRESS: CurriculumProgress = {
@@ -64,6 +70,9 @@ export function loadCurriculumProgress(): CurriculumProgress {
       activityDates: Array.isArray(parsed.activityDates)
         ? parsed.activityDates.filter((date): date is string => typeof date === "string")
         : [],
+      activeSession: parsed.activeSession && typeof parsed.activeSession === "object" ? parsed.activeSession : undefined,
+      lessonDrafts: isRecord(parsed.lessonDrafts) ? parsed.lessonDrafts as Record<string, LearningSession> : {},
+      kanaCompletedGroups: Array.isArray(parsed.kanaCompletedGroups) ? parsed.kanaCompletedGroups.filter((id): id is string => typeof id === "string") : [],
     };
   } catch {
     return DEFAULT_CURRICULUM_PROGRESS;
@@ -77,4 +86,3 @@ export function saveCurriculumProgress(progress: CurriculumProgress) {
     JSON.stringify({ ...progress, updatedAt: new Date().toISOString() }),
   );
 }
-

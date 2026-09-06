@@ -1,5 +1,6 @@
 import type { WordItem } from "./words";
 import type { SentenceItem } from "./sentences";
+import { createVocabularyExample, getVocabularyLevel, getVocabularyPartOfSpeech, isNumberPracticeWord } from "./japaneseLearningQuality.ts";
 
 type Seed = [word: string, reading: string, meaning: string];
 
@@ -10,6 +11,17 @@ const kanaPairs: [string, string][] = [
 
 export const toKoreanPronunciation = (reading: string) => {
   let value = reading.normalize("NFKC").replace(/[ァ-ヶ]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+  // A long mark repeats the preceding vowel; it is not always an /u/ sound.
+  let lastVowel = "";
+  value = [...value].map((char) => {
+    if (char === "ー") return lastVowel || "ー";
+    const vowels = ["あかがさざただなはばぱまやらわぁゃ", "いきぎしじちぢにひびぴみりぃ", "うくぐすずつづぬふぶぷむゆるぅゅゔ", "えけげせぜてでねへべぺめれぇ", "おこごそぞとどのほぼぽもよろをぉょ"];
+    const index = vowels.findIndex((group) => group.includes(char));
+    lastVowel = index < 0 ? "" : "あいうえお"[index];
+    return char;
+  }).join("");
+  value = value.replaceAll("こんにちは", "こんにちわ").replaceAll("こんばんは", "こんばんわ");
+  for (const [kana, korean] of [["てぃ", "티"], ["でぃ", "디"], ["ふぁ", "파"], ["ふぃ", "피"], ["ふぇ", "페"], ["ふぉ", "포"], ["しぇ", "셰"], ["じぇ", "제"], ["ちぇ", "체"], ["うぃ", "위"], ["うぇ", "웨"], ["うぉ", "워"]]) value = value.replaceAll(kana, korean);
   for (const [kana, korean] of kanaPairs) value = value.replaceAll(kana, korean);
   value = value.replaceAll("っ", "ㅅ");
   value = value.replace(/[가-힣][ㄴㅅ]/g, (pair) => {
@@ -55,7 +67,7 @@ const numberReading = (value: number) => value === 100 ? "ひゃく" : `${value 
 const numeric: Seed[] = Array.from({ length: 100 }, (_, index) => [numberText(index + 1), numberReading(index + 1), `${index + 1}`]);
 const hours: Seed[] = Array.from({ length: 24 }, (_, index) => {
   const value = index + 1;
-  const irregular: Record<number, string> = { 4: "よじ", 7: "しちじ", 9: "くじ" };
+  const irregular: Record<number, string> = { 4: "よじ", 7: "しちじ", 9: "くじ", 14: "じゅうよじ", 17: "じゅうしちじ", 19: "じゅうくじ", 24: "にじゅうよじ" };
   return [`${numberText(value)}時`, irregular[value] ?? `${numberReading(value)}じ`, `${value}시`];
 });
 const months: Seed[] = Array.from({ length: 12 }, (_, index) => {
@@ -66,35 +78,15 @@ const months: Seed[] = Array.from({ length: 12 }, (_, index) => {
 const dayReadings = ["ついたち","ふつか","みっか","よっか","いつか","むいか","なのか","ようか","ここのか","とおか","じゅういちにち","じゅうににち","じゅうさんにち","じゅうよっか","じゅうごにち","じゅうろくにち","じゅうしちにち","じゅうはちにち","じゅうくにち","はつか","にじゅういちにち","にじゅうににち","にじゅうさんにち","にじゅうよっか","にじゅうごにち","にじゅうろくにち","にじゅうしちにち","にじゅうはちにち","にじゅうくにち","さんじゅうにち","さんじゅういちにち"];
 const days: Seed[] = dayReadings.map((reading, index) => [`${numberText(index + 1)}日`, reading, `${index + 1}일`]);
 
-const createWord = ([word, reading, meaning]: Seed, category: string, index: number): WordItem => {
-  const isHour = word.endsWith("時");
-  const isMonth = word.endsWith("月");
-  const isDay = word.endsWith("日");
-  const isNumber = numeric.some((seed) => seed[0] === word && seed[1] === reading);
-  let example: string;
-  let exampleReading: string;
-  let exampleMeaning: string;
-  if (isHour) {
-    example = `集合は${word}です。`; exampleReading = `しゅうごうは${reading}です。`; exampleMeaning = `집합 시간은 ${meaning}입니다.`;
-  } else if (isMonth) {
-    example = `予定は${word}です。`; exampleReading = `よていは${reading}です。`; exampleMeaning = `예정은 ${meaning}입니다.`;
-  } else if (isDay) {
-    example = `予約日は${word}です。`; exampleReading = `よやくびは${reading}です。`; exampleMeaning = `예약일은 ${meaning}입니다.`;
-  } else if (isNumber) {
-    example = `答えは${word}です。`; exampleReading = `こたえは${reading}です。`; exampleMeaning = `정답은 ${meaning}입니다.`;
-  } else {
-    const suffix = index % 3 === 0 ? "について教えてください。" : index % 3 === 1 ? "を確認します。" : "が必要です。";
-    const readingSuffix = index % 3 === 0 ? "についておしえてください。" : index % 3 === 1 ? "をかくにんします。" : "がひつようです。";
-    const meaningSuffix = index % 3 === 0 ? `‘${meaning}’에 대해 알려 주세요.` : index % 3 === 1 ? `‘${meaning}’을 확인합니다.` : `‘${meaning}’이 필요합니다.`;
-    example = `${word}${suffix}`; exampleReading = `${reading}${readingSuffix}`; exampleMeaning = meaningSuffix;
-  }
-  return { level: index % 3 === 0 ? "beginner" : index % 3 === 1 ? "basic" : "practical", word, reading, koreanPronunciation: toKoreanPronunciation(reading), meaning, example, exampleReading, exampleKoreanPronunciation: toKoreanPronunciation(exampleReading), exampleMeaning, category, partOfSpeech: "noun" };
+const createWord = ([word, reading, meaning]: Seed, category: string): WordItem => {
+  const example = createVocabularyExample(word, reading, meaning);
+  return { level: getVocabularyLevel(word, category), word, reading, koreanPronunciation: toKoreanPronunciation(reading), meaning, example: example.japanese, exampleReading: example.reading, exampleKoreanPronunciation: toKoreanPronunciation(example.pronunciationReading), exampleMeaning: example.meaning, category, partOfSpeech: getVocabularyPartOfSpeech(word), practiceGroup: isNumberPracticeWord(word) ? "numbers" : "core" };
 };
 
 const seedsByCategory = { 일상: [...daily, ...numeric, ...hours, ...months, ...days], 여행: travel, 업무: work, 친구: friend };
-export const EXPANDED_WORDS: WordItem[] = Object.entries(seedsByCategory).flatMap(([category, seeds]) => seeds.map((seed, index) => createWord(seed, category, index)));
+export const EXPANDED_WORDS: WordItem[] = Object.entries(seedsByCategory).flatMap(([category, seeds]) => seeds.map((seed) => createWord(seed, category)));
 
-export const EXPANDED_SENTENCES: SentenceItem[] = EXPANDED_WORDS.map((word, index) => ({
+export const EXPANDED_SENTENCES: SentenceItem[] = EXPANDED_WORDS.map((word) => ({
   level: word.level,
   japanese: word.example,
   reading: word.exampleReading,
@@ -103,7 +95,7 @@ export const EXPANDED_SENTENCES: SentenceItem[] = EXPANDED_WORDS.map((word, inde
   category: word.category,
   note: `${word.meaning} 표현을 실제 문장으로 익혀요.`,
   description: `핵심 단어 ‘${word.word}’ 활용 문장`,
-  pattern: index % 3 === 0 ? "request" : index % 3 === 1 ? "masu" : "desu",
+  pattern: word.example.includes("ください") ? "request" : word.example.endsWith("です。") ? "desu" : "masu",
+  practiceGroup: word.practiceGroup,
   relatedWords: [word.word],
 }));
-
