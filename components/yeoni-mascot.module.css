@@ -1,9 +1,9 @@
 .frame {
   position: relative;
   display: block;
-  flex: 0 0 96px;
-  width: 96px;
-  height: 96px;
+  flex: 0 0 var(--yeoni-size, 96px);
+  width: var(--yeoni-size, 96px);
+  height: var(--yeoni-size, 96px);
   overflow: hidden;
   isolation: isolate;
   border-radius: 20px;
@@ -78,5 +78,5 @@
 .fallback { display: grid; height: 100%; place-items: center; font-size: 40px; color: #7065d8; }
 
 @media (max-width: 420px) {
-  .frame { width: 72px; height: 72px; flex-basis: 72px; border-radius: 15px; }
+  .frame { width: var(--yeoni-size, 72px); height: var(--yeoni-size, 72px); flex-basis: var(--yeoni-size, 72px); border-radius: 15px; }
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Pause, Play } from "lucide-react";
 import { CURRICULUM, TRACKS, getTrackLessons } from "@/data/curriculum";
 import { DEFAULT_CURRICULUM_PROGRESS, CURRICULUM_REVIEW_KEY, loadCurriculumProgress } from "@/utils/curriculumProgress";
 import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, loadIntegratedLearningSettings, saveIntegratedLearningSettings, type IntegratedLearningSettings } from "@/utils/integratedLearningSettings";
@@ -50,10 +51,17 @@ export default function LearningWelcome() {
     catch { setError("움직임 설정은 이 화면에 적용했지만 저장하지 못했어요. 기기의 저장 공간을 확인해 주세요."); }
   };
   return <section className={styles.welcome}>
-    <h1>나의 일본어 연습</h1>
-    <LearningCompanion hidden={!settings.showCompanion} motion={settings.homeCompanionMotion ? "ambient" : "off"}
-      onMotionToggle={toggleMotion}>
-      {firstTime ? "안녕! 연이와 조금씩 배워봐요. 일본어 글자가 처음이어도 괜찮아요." : draft ? "하던 연습이 남아 있어요. 멈췄던 곳에서 함께 이어갈까요?" : "오늘도 작은 한 걸음이면 충분해요. 내 속도로 배워봐요."}
+    <div className={styles.welcomeHeader}>
+      <h1>나의 일본어 연습</h1>
+      {settings.showCompanion && <button type="button" className={styles.motionToggle} onClick={toggleMotion}
+        aria-label={settings.homeCompanionMotion ? "움직임 멈추기" : "움직임 켜기"}
+        title={settings.homeCompanionMotion ? "움직임 멈추기" : "움직임 켜기"}>
+        {settings.homeCompanionMotion ? <Pause size={16} aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
+        <span>{settings.homeCompanionMotion ? "움직임 멈추기" : "움직임 켜기"}</span>
+      </button>}
+    </div>
+    <LearningCompanion hidden={!settings.showCompanion} motion={settings.homeCompanionMotion ? "ambient" : "off"}>
+      {firstTime ? "안녕! 나랑 첫 글자부터 배워봐요." : draft ? "하던 연습을 나랑 이어갈까요?" : "오늘도 나랑 조금씩 배워봐요!"}
     </LearningCompanion>
     <div className={styles.card}>
       <p className={styles.kicker}>오늘은 얼마나 해볼까요?</p>
