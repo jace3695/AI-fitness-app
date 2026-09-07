@@ -429,14 +429,17 @@ button {
   body { padding: 20px; }
 }
 
+@media (max-width: 767px) {
+  .course-grid { grid-template-columns: 1fr; }
+  .course-card { min-height: 160px; }
+}
+
 @media (max-width: 420px) {
   .daily-goal-picker {
     gap: 6px;
   }
   .top-nav-link { padding:8px 10px; }
   .top-nav-icon { display:none; }
-  .course-grid { grid-template-columns:1fr; }
-  .course-card { min-height:160px; }
   .today-progress-ring { width:76px; }
   .integrated-settings-grid { grid-template-columns:1fr; }
   .routine-row { grid-template-columns:1fr; }
@@ -447,35 +450,6 @@ button {
 @media (min-width: 1024px) {
   body { padding: 24px; }
   .kana-writing-grid { grid-template-columns: repeat(2, minmax(320px, 1fr)); }
-}
-
-.scroll-top-btn {
-  position: fixed;
-  right: 20px;
-  bottom: 24px;
-  z-index: 1000;
-  min-width: 56px;
-  border: 1px solid #387fcd;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #5eaefc, #3f8ff2);
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 8px 18px rgba(52, 102, 168, 0.3);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(10px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.scroll-top-btn.is-visible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
-}
-
-.scroll-top-btn:focus-visible {
-  outline: 3px solid rgba(56, 127, 205, 0.35);
-  outline-offset: 2px;
 }
 
 }

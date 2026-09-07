@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import AuthGate from "../components/AuthGate";
 import TopNav from "@/components/TopNav";
-import ScrollTopButton from "@/components/ScrollTopButton";
 import LanguageCloudSync from "@/components/LanguageCloudSync";
 import AppIdentity from "../components/AppIdentity";
 import "./language.css";
@@ -17,7 +16,6 @@ export default function LanguageLayout({ children }: Readonly<{ children: React.
       <div className="language-app-shell">
         <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="language" title="일본어 학습" subtitle="매일 이어가는 언어 훈련" /><TopNav /></div></header>
         <LanguageCloudSync><main className="app-main">{children}</main></LanguageCloudSync>
-        <ScrollTopButton />
       </div>
     </AuthGate>
   );

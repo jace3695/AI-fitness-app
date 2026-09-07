@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import ScrollTopButton from "@/components/ScrollTopButton";
 import {
   DEFAULT_HUB_NAV_IDS,
   HUB_APPS,
@@ -102,6 +103,7 @@ export default function HubBottomNav() {
   };
 
   return (
+    <>
     <nav className="hub-bottom-nav" aria-label="AI 연이 공통 메뉴">
       {moreOpen && (
         <button
@@ -201,5 +203,7 @@ export default function HubBottomNav() {
         </div>
       </div>
     </nav>
+    {!moreOpen && <ScrollTopButton key={pathname} />}
+    </>
   );
 }
