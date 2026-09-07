@@ -484,7 +484,7 @@ export default function SettingsPage() {
           <label><input type="checkbox" checked={integratedSettings.includeSpeaking} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, includeSpeaking: event.target.checked }))} /> 말하기 연습 포함</label>
         </div>
         <p className="muted">5분은 확인 3문제, 10분은 5문제, 20분은 8문제예요. 5분에는 별도 말하기 단계를 생략해요. 시간과 문제 방식은 새로 시작하는 수업에 적용되고, 이어하는 수업은 시작할 때의 분량을 유지해요.</p>
-        <p className="muted">홈의 연이는 긴 간격으로 눈을 깜빡이고 작게 숨 쉬어요. 학습 중에는 결과에 맞춰 짧게 반응해요. 기기의 ‘동작 줄이기’를 켜면 모든 캐릭터 움직임이 멈춰요.</p>
+        <p className="muted">홈의 연이는 가끔 눈을 깜빡이고 작게 숨 쉬어요. 학습 중에는 결과에 맞춰 약 3초 동안 반응해요. 기기의 ‘동작 줄이기’를 켜면 모든 캐릭터 움직임이 멈춰요.</p>
         <button type="button" className="btn settings-save-btn" onClick={handleSaveLearningSettings}>학습 설정 저장</button>
         {saveMessage && <p role="status" className="settings-save-message">{saveMessage}</p>}
       </div>

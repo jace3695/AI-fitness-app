@@ -38,24 +38,24 @@
 /* Respect the OS motion preference for both animation layers. */
 @media (prefers-reduced-motion: no-preference) {
   .idle { animation: blink 3.6s steps(1, end) 1; }
-  .explain, .celebrate, .encourage { animation: gesture 1.6s steps(1, end) 1; }
-  .pose[data-motion=ambient] { animation: breathe 18s ease-in-out infinite; }
-  .pose[data-motion=ambient] .idle { animation: occasionalBlink 12s steps(1, end) infinite; }
+  .explain, .celebrate, .encourage { animation: gesture 3.2s steps(1, end) 1; }
+  .pose[data-motion=ambient] { animation: breathe 7s ease-in-out infinite; }
+  .pose[data-motion=ambient] .idle { animation: occasionalBlink 5s steps(1, end) infinite; }
   .pose[data-motion=off], .pose[data-motion=off] .sheet { animation: none; }
   .pose[data-playing=false], .pose[data-playing=false] .sheet { animation-play-state: paused; }
 }
 
 @keyframes occasionalBlink {
-  0%, 90% { transform: translateX(0); }
-  91% { transform: translateX(-25%); }
-  92% { transform: translateX(-50%); }
-  93% { transform: translateX(-75%); }
+  0%, 80% { transform: translateX(0); }
+  82% { transform: translateX(-25%); }
+  86% { transform: translateX(-50%); }
+  90% { transform: translateX(-75%); }
   94%, 100% { transform: translateX(0); }
 }
 
 @keyframes breathe {
-  0%, 78%, 94%, 100% { transform: translateY(0) scale(1); }
-  86% { transform: translateY(-1px) scale(1.015, 1.025); }
+  0%, 40%, 84%, 100% { transform: translateY(0) scale(1); }
+  62% { transform: translateY(-1px) scale(1.015, 1.025); }
 }
 
 @keyframes blink {
@@ -68,9 +68,10 @@
 
 @keyframes gesture {
   0% { transform: translateX(0); }
-  25% { transform: translateX(-25%); }
-  50% { transform: translateX(-50%); }
-  80% { transform: translateX(-75%); }
+  15% { transform: translateX(-25%); }
+  /* Hold the main expression long enough to notice while reading feedback. */
+  30% { transform: translateX(-50%); }
+  85% { transform: translateX(-75%); }
   100% { transform: translateX(0); }
 }
 
