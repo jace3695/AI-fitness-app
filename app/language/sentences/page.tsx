@@ -84,7 +84,7 @@ async function speakJapanese(text: string, settings: AppSettings) {
     pitch: 1,
     repeatCount: settings.repeatCount,
     repeatDelayMs: settings.repeatDelayMs,
-  });
+  }).catch(() => window.alert("소리를 재생하지 못했어요. 기기의 일본어 음성 설정을 확인해 주세요. 읽는 법을 보며 계속 학습할 수 있어요."));
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -205,7 +205,8 @@ export default function SentencesPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<Mode>("학습");
   const [category, setCategory] = useState<Category>("전체");
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("beginner");
+  const [practiceScope, setPracticeScope] = useState<"core" | "numbers" | "all">("core");
   const [patternFilter, setPatternFilter] = useState<PatternFilter>("all");
   const [wordFilter, setWordFilter] = useState("");
   const [quiz, setQuiz] = useState<QuizState | null>(null);
@@ -222,6 +223,8 @@ export default function SentencesPage() {
       "desu","masu","particle-wa","particle-wo","particle-ni","particle-de","question","travel","work","daily","request","shopping","direction","other",
     ];
     if (validPatterns.includes(queryPattern as PatternFilter)) {
+      setLevelFilter("all");
+      setPracticeScope("all");
       setPatternFilter(queryPattern as PatternFilter);
       return;
     }
@@ -231,6 +234,7 @@ export default function SentencesPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const queryWord = new URLSearchParams(window.location.search).get("word")?.trim() ?? "";
+    if (queryWord) { setLevelFilter("all"); setPracticeScope("all"); }
     setWordFilter(queryWord);
   }, []);
 
@@ -271,7 +275,7 @@ export default function SentencesPage() {
   }, []);
 
   const filteredSentences = SENTENCES.filter(
-    (s) => category === "전체" || s.category === category
+    (s) => (category === "전체" || s.category === category) && (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope)
   );
 
   const filteredSentencesByLevel = filteredSentences.filter(
@@ -288,6 +292,7 @@ export default function SentencesPage() {
   const startQuiz = useCallback(() => {
     const pool = SENTENCES.filter(
       (s) =>
+        (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope) &&
         (category === "전체" || s.category === category) &&
         (levelFilter === "all" || getEffectiveLevel(s) === levelFilter) &&
         (patternFilter === "all" || (s.pattern ?? "other") === patternFilter)
@@ -295,7 +300,7 @@ export default function SentencesPage() {
     if (pool.length < 4) return;
     setQuiz(generateQuiz(pool));
     setScore({ correct: 0, total: 0 });
-  }, [category, levelFilter, patternFilter]);
+  }, [category, levelFilter, patternFilter, practiceScope]);
 
   useEffect(() => {
     if (mode === "퀴즈") {
@@ -404,6 +409,7 @@ export default function SentencesPage() {
   const handleNextQuiz = () => {
     const pool = SENTENCES.filter(
       (s) =>
+        (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope) &&
         (category === "전체" || s.category === category) &&
         (levelFilter === "all" || getEffectiveLevel(s) === levelFilter) &&
         (patternFilter === "all" || (s.pattern ?? "other") === patternFilter)
@@ -499,6 +505,8 @@ export default function SentencesPage() {
         }}
       >
         <div style={{ fontWeight: 700, color: "#1e3a8a", marginBottom: "8px" }}>필터</div>
+        <label>연습 자료 <select value={practiceScope} onChange={(event) => { const value = event.target.value as typeof practiceScope; setPracticeScope(value); setLevelFilter(value === "core" ? "beginner" : "all"); setCategory("전체"); setPatternFilter("all"); setWordFilter(""); }} style={{ minHeight: 44, marginBottom: 12 }}><option value="core">일상 표현부터</option><option value="numbers">숫자·시간·단위 집중 연습</option><option value="all">전체 자료</option></select></label>
+        <p className="muted">짧은 기초 표현부터 시작해요. 단계는 앱 안의 추천 학습 순서이며 시험 등급이 아니에요.</p>
         <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "10px" }}>
           카테고리, 난이도, 문법 패턴으로 원하는 문장을 빠르게 찾을 수 있어요.
         </div>
@@ -917,4 +925,3 @@ export default function SentencesPage() {
     </section>
   );
 }
-

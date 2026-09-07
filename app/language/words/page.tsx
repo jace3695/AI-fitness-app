@@ -165,7 +165,8 @@ export default function WordsPage() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<PageMode>("study");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
-  const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>("beginner");
+  const [practiceScope, setPracticeScope] = useState<"core" | "numbers" | "all">("core");
   const [partOfSpeechFilter, setPartOfSpeechFilter] = useState<PartOfSpeechFilter>("all");
 
   // 퀴즈 상태
@@ -237,10 +238,9 @@ export default function WordsPage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
 
-  const filteredWords =
-    categoryFilter === "전체"
-      ? WORDS
-      : WORDS.filter((w) => w.category === categoryFilter);
+  const filteredWords = WORDS.filter((word) =>
+    (categoryFilter === "전체" || word.category === categoryFilter) &&
+    (practiceScope === "all" || (word.practiceGroup ?? "core") === practiceScope));
 
   const filteredWordsByLevel =
     levelFilter === "all"
@@ -272,7 +272,7 @@ export default function WordsPage() {
       generateQuiz(quizPool);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, categoryFilter, levelFilter, partOfSpeechFilter]);
+  }, [mode, categoryFilter, levelFilter, partOfSpeechFilter, practiceScope]);
 
   const handleAnswer = (choice: string) => {
     if (selected !== null || !currentWord) return;
@@ -314,7 +314,7 @@ export default function WordsPage() {
         pitch: 1,
         repeatCount: settings.repeatCount,
         repeatDelayMs: settings.repeatDelayMs,
-      });
+      }).catch(() => window.alert("소리를 재생하지 못했어요. 기기의 일본어 음성 설정을 확인해 주세요. 읽는 법을 보며 계속 학습할 수 있어요."));
     },
     [settings.repeatCount, settings.repeatDelayMs, settings.ttsRate]
   );
@@ -403,6 +403,8 @@ export default function WordsPage() {
 
       <div className="card" style={{ marginBottom: "20px", padding: "14px", border: "1px solid #dbeafe", background: "#f8fbff" }}>
         <div className="label" style={{ color: "#1e3a8a", marginBottom: "8px", fontSize: "13px" }}>필터 선택</div>
+        <label>연습 자료 <select value={practiceScope} onChange={(event) => { const value = event.target.value as typeof practiceScope; setPracticeScope(value); setLevelFilter(value === "core" ? "beginner" : "all"); setCategoryFilter("전체"); setPartOfSpeechFilter("all"); setScore({ correct: 0, total: 0 }); }} style={{ minHeight: 44, marginBottom: 12 }}><option value="core">일상 표현부터</option><option value="numbers">숫자·시간·단위 집중 연습</option><option value="all">전체 자료</option></select></label>
+        <p className="muted">처음에는 기초 표현을 보여줘요. 아래 단계는 앱 안의 추천 학습 순서이며 시험 등급이 아니에요.</p>
       {/* 카테고리 필터 */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
         {CATEGORIES.map((cat) => (
@@ -835,4 +837,3 @@ export default function WordsPage() {
     </section>
   );
 }
-

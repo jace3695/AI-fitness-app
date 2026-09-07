@@ -5,6 +5,7 @@ export const LANGUAGE_STORAGE_KEYS = [
   "japaneseCurriculumProgressV1", "japaneseCurriculumReviewV1", "japaneseAppSettings",
   "learningSettings", "savedWords", "savedSentences", "wrongKana", "wrongKanaChars",
   "wrongWords", "wrongSentences", "grammarProgress", "reviewCompletedItemsByDate",
+  "languageRecordResetV1",
 ] as const;
 
 const LANGUAGE_SYNC_BASE_PREFIX = "language-cloud-sync-base:";

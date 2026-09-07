@@ -1426,7 +1426,7 @@ export default function KanaPage() {
     ? [...hiragana, ...hiraganaYouon, ...hiraganaSpecialRules]
     : [...katakana, ...katakanaYouon, ...katakanaSpecialRules]), [tab]);
   const groupDefs = useMemo(() => (tab === "hiragana" ? hiraganaGroupDefs : katakanaGroupDefs), [tab]);
-  const [selectedKanaGroupIds, setSelectedKanaGroupIds] = useState<string[]>(["all"]);
+  const [selectedKanaGroupIds, setSelectedKanaGroupIds] = useState<string[]>(["a"]);
   const [auditScope, setAuditScope] = useState<"base" | "dakuon" | "youon" | "special" | "all">("base");
   const [openConcept, setOpenConcept] = useState<string | null>(null);
   const [wrongKanaChars, setWrongKanaChars] = useState<Set<string>>(new Set());

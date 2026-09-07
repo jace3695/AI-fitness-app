@@ -1,6 +1,7 @@
 import type { WordItem } from "./words";
 import type { SentenceItem } from "./sentences";
-import { toKoreanPronunciation } from "./learningDataExpansion";
+import { toKoreanPronunciation } from "./learningDataExpansion.ts";
+import { createVocabularyExample, getVocabularyLevel, getVocabularyPartOfSpeech, isNumberPracticeWord } from "./japaneseLearningQuality.ts";
 
 type Seed = [string, string, string, string];
 
@@ -115,16 +116,16 @@ const coreSeeds: Seed[] = [
 案内人|あんないにん|안내인
 地元|じもと|현지
 景色|けしき|경치
-入口券|にゅうじょうけん|입장권
+入場券|にゅうじょうけん|입장권
 予約席|よやくせき|예약석
 空港バス|くうこうばす|공항버스
 観光案内|かんこうあんない|관광 안내
 旅行日程|りょこうにってい|여행 일정
 宿泊先|しゅくはくさき|숙소
 忘れ物|わすれもの|분실물
-落とし物|おとしもの|습득물
+落とし物|おとしもの|분실물·떨어뜨린 물건
 迷子|まいご|미아·길을 잃은 사람
-道順|みちじゅん|길 순서
+道順|みちじゅん|가는 길·경로
 片道券|かたみちけん|편도권
 往復券|おうふくけん|왕복권
 乗り場|のりば|타는 곳`),
@@ -239,7 +240,7 @@ const counterReading = (value: number, counter: "minute" | "floor" | "number" | 
     if (value === 1) return "ひとり";
     if (value === 2) return "ふたり";
     if (value === 4) return "よにん";
-    return `${numberReading(value)}にん`;
+    return value % 10 === 4 ? `${numberReading(value).replace(/よん$/, "よ")}にん` : `${numberReading(value)}にん`;
   }
   if (counter === "number") return `${numberReading(value)}ばん`;
   const endings = {
@@ -263,18 +264,11 @@ const counters: Seed[] = [
   ...Array.from({ length: 60 }, (_, index) => [`${numberText(index + 1)}人`, counterReading(index + 1, "person"), `${index + 1}명`, "친구"] as Seed),
 ];
 
-const makeWord = ([word, reading, meaning, category]: Seed, index: number): WordItem => {
-  const counter = /[分階番個人]$/.test(word);
-  const example = counter ? `${word}お願いします。` : index % 2 ? `${word}を覚えます。` : `${word}について話します。`;
-  const exampleReading = counter ? `${reading}おねがいします。` : index % 2 ? `${reading}をおぼえます。` : `${reading}についてはなします。`;
-  return { word, reading, meaning, category, level: index % 3 === 0 ? "beginner" : index % 3 === 1 ? "basic" : "practical", partOfSpeech: /[いうるくすむぐぶつぬ]$/.test(word) ? "verb" : "noun", koreanPronunciation: toKoreanPronunciation(reading), example, exampleReading, exampleKoreanPronunciation: toKoreanPronunciation(exampleReading), exampleMeaning: counter ? `${meaning} 부탁합니다.` : index % 2 ? `${meaning}을 외웁니다.` : `${meaning}에 관해 이야기합니다.` };
+const makeWord = ([word, reading, meaning, category]: Seed): WordItem => {
+  const example = createVocabularyExample(word, reading, meaning);
+  return { word, reading, meaning, category, level: getVocabularyLevel(word, category), partOfSpeech: getVocabularyPartOfSpeech(word), koreanPronunciation: toKoreanPronunciation(reading), example: example.japanese, exampleReading: example.reading, exampleKoreanPronunciation: toKoreanPronunciation(example.pronunciationReading), exampleMeaning: example.meaning, practiceGroup: isNumberPracticeWord(word) ? "numbers" : "core" };
 };
 
 export const RECOMMENDED_WORDS: WordItem[] = [...coreSeeds, ...counters].map(makeWord);
 
-export const RECOMMENDED_SENTENCES: SentenceItem[] = RECOMMENDED_WORDS.flatMap((word, index) => {
-  const first: SentenceItem = { japanese: word.example, reading: word.exampleReading, koreanPronunciation: word.exampleKoreanPronunciation, meaning: word.exampleMeaning ?? word.meaning, category: word.category, level: word.level, note: `${word.meaning} 활용`, description: `‘${word.word}’을 실제 문맥에서 익혀요.`, relatedWords: [word.word] };
-  if (index % 2) return [first];
-  return [first, { japanese: `${word.word}はどうですか。`, reading: `${word.reading}はどうですか。`, koreanPronunciation: toKoreanPronunciation(`${word.reading}はどうですか。`), meaning: `${word.meaning}은 어떻습니까?`, category: word.category, level: word.level, note: `${word.meaning} 질문`, description: `‘${word.word}’에 관해 묻는 문장이에요.`, relatedWords: [word.word] }];
-});
-
+export const RECOMMENDED_SENTENCES: SentenceItem[] = RECOMMENDED_WORDS.map((word) => ({ japanese: word.example, reading: word.exampleReading, koreanPronunciation: word.exampleKoreanPronunciation, meaning: word.exampleMeaning ?? word.meaning, category: word.category, level: word.level, note: `${word.meaning} 활용`, description: `‘${word.word}’을 문장 속에서 익혀요.`, relatedWords: [word.word], practiceGroup: word.practiceGroup }));

@@ -37,14 +37,59 @@ const seeds: GrammarSeed[] = [
   ["te-ageru","～てあげます","기타","다른 사람을 위해 하는 행동을 말해요.","동사 て형 + あげます","友達に日本語を教えてあげます。","ともだちににほんごをおしえてあげます。","친구에게 일본어를 가르쳐 줍니다.","教えてもらいます"],
 ];
 
-export const EXPANDED_GRAMMAR_LESSONS: GrammarLesson[] = seeds.map(([id, title, category, summary, pattern, japanese, reading, meaning, wrong]) => ({
-  id, title, level: "beginner", category, summary,
-  explanation: `${summary} 기본 형태와 실제 문장을 함께 익혀요.`, pattern, sentencePattern: category === "조사" ? "particle" : "grammar",
-  examples: [
-    { japanese, reading, meaning },
-    { japanese: japanese.replace("。", "か。"), reading: reading.replace("。", "か。"), meaning: `${meaning.replace(/[.]$/, "")}인가요?` },
-    { japanese: `例：${japanese}`, reading: `れい：${reading}`, meaning: `예: ${meaning}` },
-  ],
-  quiz: { question: `‘${meaning}’에 맞는 핵심 표현은?`, choices: [pattern, wrong, "です", "でした"], answer: pattern, explanation: `${pattern}은 ${summary}` },
-}));
-
+// Independent examples: do not manufacture questions by blindly adding か.
+const secondExamples: Record<string, [string, string, string]> = {
+  masen: ["コーヒーは飲みません。", "こーひーはのみません。", "커피는 마시지 않아요."],
+  mashita: ["朝、パンを食べました。", "あさ、ぱんをたべました。", "아침에 빵을 먹었어요."],
+  masendeshita: ["昨日はテレビを見ませんでした。", "きのうはてれびをみませんでした。", "어제는 텔레비전을 보지 않았어요."],
+  "ga-particle": ["雨が降っています。", "あめがふっています。", "비가 내리고 있어요."],
+  "to-particle": ["母と買い物に行きます。", "ははとかいものにいきます。", "어머니와 쇼핑하러 가요."],
+  "kara-particle": ["月曜日から働きます。", "げつようびからはたらきます。", "월요일부터 일해요."],
+  "made-particle": ["五時まで待ちます。", "ごじまでまちます。", "5시까지 기다려요."],
+  "no-particle": ["これは先生の本です。", "これはせんせいのほんです。", "이것은 선생님의 책이에요."],
+  "mo-particle": ["妹も学生です。", "いもうともがくせいです。", "여동생도 학생이에요."],
+  "e-particle": ["明日、東京へ行きます。", "あした、とうきょうへいきます。", "내일 도쿄에 가요."],
+  dono: ["あなたの傘はどれですか。", "あなたのかさはどれですか。", "당신의 우산은 어느 것인가요?"],
+  doko: ["トイレはどこですか。", "といれはどこですか。", "화장실은 어디인가요?"],
+  dare: ["あの人はだれですか。", "あのひとはだれですか。", "저 사람은 누구인가요?"],
+  nan: ["これは何の本ですか。", "これはなんのほんですか。", "이것은 무엇에 관한 책인가요?"],
+  "te-kudasai": ["ここに名前を書いてください。", "ここになまえをかいてください。", "여기에 이름을 써 주세요."],
+  "temo-ii": ["ここに座ってもいいですか。", "ここにすわってもいいですか。", "여기에 앉아도 될까요?"],
+  "tewa-ikenai": ["ここで泳いではいけません。", "ここでおよいではいけません。", "여기서 수영하면 안 돼요."],
+  tai: ["水を飲みたいです。", "みずをのみたいです。", "물을 마시고 싶어요."],
+  nakereba: ["明日までに宿題を出さなければなりません。", "あしたまでにしゅくだいをださなければなりません。", "내일까지 숙제를 제출해야 해요."],
+  nakutemo: ["名前を書かなくてもいいです。", "なまえをかかなくてもいいです。", "이름을 쓰지 않아도 돼요."],
+  "kara-reason": ["寒いですから、窓を閉めます。", "さむいですから、まどをしめます。", "추우니까 창문을 닫아요."],
+  tari: ["週末は映画を見たり、買い物をしたりします。", "しゅうまつはえいがをみたり、かいものをしたりします。", "주말에는 영화를 보거나 쇼핑을 해요."],
+  dekiru: ["漢字を読むことができます。", "かんじをよむことができます。", "한자를 읽을 수 있어요."],
+  tsumori: ["今日は早く寝るつもりです。", "きょうははやくねるつもりです。", "오늘은 일찍 잘 생각이에요."],
+  experience: ["京都へ行ったことがあります。", "きょうとへいったことがあります。", "교토에 간 적이 있어요."],
+  tara: ["時間があったら、遊びに来てください。", "じかんがあったら、あそびにきてください。", "시간이 있으면 놀러 오세요."],
+  nagara: ["歩きながら話します。", "あるきながらはなします。", "걸으면서 이야기해요."],
+  "mae-ni": ["食べる前に手を洗います。", "たべるまえにてをあらいます。", "먹기 전에 손을 씻어요."],
+  "ato-de": ["仕事が終わった後で買い物に行きます。", "しごとがおわったあとでかいものにいきます。", "일이 끝난 후에 쇼핑하러 가요."],
+  yori: ["今日は昨日より暖かいです。", "きょうはきのうよりあたたかいです。", "오늘은 어제보다 따뜻해요."],
+  "hou-ga": ["駅まで歩いたほうがいいです。", "えきまであるいたほうがいいです。", "역까지 걷는 편이 좋아요."],
+  "te-ageru": ["弟に本を読んであげます。", "おとうとにほんをよんであげます。", "남동생에게 책을 읽어 줘요."],
+};
+const firstGrammar = new Set(["masen", "mashita", "ga-particle", "no-particle", "mo-particle", "doko", "nan"]);
+const laterGrammar = new Set(["nakereba", "nakutemo", "tari", "experience", "tara", "nagara", "te-ageru"]);
+const formNotes: Record<string, string> = {
+  nakereba: "飲まない에서 마지막 ない를 빼고 なければなりません을 붙여요: 飲まなければなりません.",
+  nakutemo: "書かない에서 마지막 ない를 빼고 なくてもいいです를 붙여요: 書かなくてもいいです.",
+  "e-particle": "방향을 나타내는 へ는 글자로는 ‘へ’, 소리는 ‘에’로 읽어요.",
+  "te-ageru": "내가 다른 사람을 위해 해 주는 행동이에요. 상대에게 직접 말하면 생색내는 느낌이 날 수 있어 상황을 살펴요.",
+};
+export const EXPANDED_GRAMMAR_LESSONS: GrammarLesson[] = seeds.map(([id, title, category, summary, originalPattern, japanese, reading, meaning], index) => {
+  const [otherJapanese, otherReading, otherMeaning] = secondExamples[id];
+  const pattern = id === "nakereba" ? "동사 ない형에서 ない 제거 + なければなりません" : id === "nakutemo" ? "동사 ない형에서 ない 제거 + なくてもいいです" : originalPattern;
+  const choices = [summary, seeds[(index + 5) % seeds.length][3], seeds[(index + 11) % seeds.length][3]];
+  const offset = index % choices.length;
+  return {
+    id, title, level: firstGrammar.has(id) ? "beginner" : laterGrammar.has(id) ? "practical" : "basic", category, summary,
+    explanation: formNotes[id] ?? summary + " 아래 두 상황에서 같은 표현을 찾아보세요.",
+    pattern, sentencePattern: category === "조사" ? "particle" : "grammar",
+    examples: [{ japanese, reading, meaning }, { japanese: otherJapanese, reading: otherReading, meaning: otherMeaning }],
+    quiz: { question: "이 표현은 언제 사용할까요?", choices: [...choices.slice(offset), ...choices.slice(0, offset)], answer: summary, explanation: summary },
+  };
+});

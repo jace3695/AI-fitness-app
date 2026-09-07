@@ -22,6 +22,8 @@ import {
   type GrowthRoutine,
 } from "../data/growthRoutines";
 import { getLocalDateKey } from "@/utils/dateKey";
+import { clearGrowthRecordBackup } from "../lib/resetAppRecords";
+import { resetMarkerKey } from "../data/appRecordReset";
 
 type NewSession = {
   id?: string;
@@ -145,6 +147,16 @@ export function useGrowthData(historyDays = 90) {
     const userId = auth.user.id;
     await withGrowthSyncLock(userId, async () => {
     const storageKey = getGrowthRoutinesStorageKey(userId);
+    const resetState = await growthClient.from("user_app_state").select("state").eq("user_id", userId).maybeSingle();
+    if (resetState.error) {
+      setNotice("기록 초기화 상태를 확인하지 못했어요. 연결 후 다시 열어 주세요.");
+      setLoading(false);
+      return;
+    }
+    const resetMarker = resetState.data?.state?.[resetMarkerKey("growth")];
+    if (typeof resetMarker === "string" && readLocalValue(`${storageKey}:record-reset`) !== resetMarker) {
+      clearGrowthRecordBackup(userId, resetMarker);
+    }
     const migrationKey = `${storageKey}:cloud-migrated`;
     const syncKey = `${storageKey}:sync-token`;
     const pendingImportKey = `${storageKey}:legacy-import`;
@@ -283,7 +295,7 @@ export function useGrowthData(historyDays = 90) {
     setSessions(sessionRows);
     try {
       let shouldOfferLegacy = false;
-      const legacyRaw = scopedRaw === null && !pendingImport ? readLocalValue(GROWTH_ROUTINES_STORAGE_KEY) : null;
+      const legacyRaw = !resetMarker && scopedRaw === null && !pendingImport ? readLocalValue(GROWTH_ROUTINES_STORAGE_KEY) : null;
       const legacyOwner = readLocalValue(legacyOwnerKey);
       if (legacyRaw && (!legacyOwner || legacyOwner === userId)) {
         const legacyRoutines = parseGrowthRoutines(legacyRaw);

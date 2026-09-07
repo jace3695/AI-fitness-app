@@ -1,0 +1,82 @@
+.frame {
+  position: relative;
+  display: block;
+  flex: 0 0 var(--yeoni-size, 96px);
+  width: var(--yeoni-size, 96px);
+  height: var(--yeoni-size, 96px);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 20px;
+  background: white;
+  contain: layout paint;
+}
+
+.pose {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 90%;
+}
+
+/* Four equal frames per row, with one row for each reaction. */
+.sheet {
+  position: absolute;
+  top: var(--row-offset, 0%);
+  left: 0;
+  width: 400%;
+  height: 400%;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  transform: translateX(0);
+}
+
+.idle { --row-offset: 0%; }
+.explain { --row-offset: -100%; }
+.celebrate { --row-offset: -200%; }
+.encourage { --row-offset: -300%; }
+
+/* Respect the OS motion preference for both animation layers. */
+@media (prefers-reduced-motion: no-preference) {
+  .idle { animation: blink 3.6s steps(1, end) 1; }
+  .explain, .celebrate, .encourage { animation: gesture 3.2s steps(1, end) 1; }
+  .pose[data-motion=ambient] { animation: breathe 7s ease-in-out infinite; }
+  .pose[data-motion=ambient] .idle { animation: occasionalBlink 5s steps(1, end) infinite; }
+  .pose[data-motion=off], .pose[data-motion=off] .sheet { animation: none; }
+  .pose[data-playing=false], .pose[data-playing=false] .sheet { animation-play-state: paused; }
+}
+
+@keyframes occasionalBlink {
+  0%, 80% { transform: translateX(0); }
+  82% { transform: translateX(-25%); }
+  86% { transform: translateX(-50%); }
+  90% { transform: translateX(-75%); }
+  94%, 100% { transform: translateX(0); }
+}
+
+@keyframes breathe {
+  0%, 40%, 84%, 100% { transform: translateY(0) scale(1); }
+  62% { transform: translateY(-1px) scale(1.015, 1.025); }
+}
+
+@keyframes blink {
+  0%, 60% { transform: translateX(0); }
+  63% { transform: translateX(-25%); }
+  67% { transform: translateX(-50%); }
+  71% { transform: translateX(-75%); }
+  75%, 100% { transform: translateX(0); }
+}
+
+@keyframes gesture {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-25%); }
+  /* Hold the main expression long enough to notice while reading feedback. */
+  30% { transform: translateX(-50%); }
+  85% { transform: translateX(-75%); }
+  100% { transform: translateX(0); }
+}
+
+.fallback { display: grid; height: 100%; place-items: center; font-size: 40px; color: #7065d8; }
+
+@media (max-width: 420px) {
+  .frame { width: var(--yeoni-size, 72px); height: var(--yeoni-size, 72px); flex-basis: var(--yeoni-size, 72px); border-radius: 15px; }
+}

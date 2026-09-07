@@ -9,13 +9,14 @@ const navItems = [
   { href: "/language/conversation", label: "회화", icon: "話" },
   { href: "/language/review", label: "복습", icon: "↻" },
   { href: "/language/progress", label: "내 학습", icon: "✓" },
+  { href: "/language/settings", label: "설정", icon: "⚙" },
 ];
 
 const learningPaths: Record<string, string[]> = {
-  "/language/learn": ["/language/learn", "/language/kana", "/language/kana-writing", "/language/words", "/language/sentences", "/language/grammar", "/language/writing"],
+  "/language/learn": ["/language/learn", "/language/start", "/language/kana", "/language/kana-writing", "/language/words", "/language/sentences", "/language/grammar", "/language/writing"],
   "/language/conversation": ["/language/conversation", "/language/speaking"],
   "/language/review": ["/language/review"],
-  "/language/progress": ["/language/progress", "/language/calendar", "/language/settings"],
+  "/language/progress": ["/language/progress", "/language/calendar"],
 };
 
 export default function TopNav() {

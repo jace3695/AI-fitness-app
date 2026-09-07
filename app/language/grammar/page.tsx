@@ -20,6 +20,7 @@ function normalizeChoice(choice: string | { text: string; reading?: string; ruby
 
 export default function GrammarPage() {
   const [filter, setFilter] = useState<GrammarFilter>("전체");
+  const [levelFilter, setLevelFilter] = useState<GrammarLesson["level"] | "all">("beginner");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [grammarProgress, setGrammarProgress] = useState<GrammarProgressItem[]>([]);
 
@@ -53,8 +54,8 @@ export default function GrammarPage() {
   };
 
   const visibleLessons = useMemo(
-    () => (filter === "전체" ? GRAMMAR_LESSONS : GRAMMAR_LESSONS.filter((l) => l.category === filter)),
-    [filter],
+    () => GRAMMAR_LESSONS.filter((lesson) => (filter === "전체" || lesson.category === filter) && (levelFilter === "all" || lesson.level === levelFilter)),
+    [filter, levelFilter],
   );
 
   const handleSelectAnswer = (lesson: GrammarLesson, choice: string) => {
@@ -109,8 +110,8 @@ export default function GrammarPage() {
     void speakJapaneseWithPreferredTts(text, {
       rate: 0.9,
       pitch: 1,
-    }).catch((error) => {
-      console.error("예문 듣기 처리 중 오류가 발생했습니다.", error);
+    }).catch(() => {
+      window.alert("소리를 재생하지 못했어요. 기기의 일본어 음성 설정을 확인해 주세요. 예문을 보며 계속 학습할 수 있어요.");
     });
   };
 
@@ -126,10 +127,12 @@ export default function GrammarPage() {
           boxShadow: "0 10px 24px rgba(37, 99, 235, 0.08)",
         }}
       >
-        <h1 style={{ fontSize: "28px", margin: "0 0 8px", color: "#1e3a8a" }}>문법 기초</h1>
+        <h1 style={{ fontSize: "28px", margin: "0 0 8px", color: "#1e3a8a" }}>문장 만드는 법</h1>
         <p className="muted" style={{ margin: 0, fontSize: "15px", lineHeight: 1.6 }}>
-          기초 문법을 예문과 문제로 익혀보세요. 핵심 패턴부터 퀴즈까지 한 번에 연습할 수 있어요.
+          처음에는 쉬운 표현부터 보여줘요. 한 번에 하나씩 배우고 싶다면 ‘배우기’의 안내 수업을 이용해 주세요.
         </p>
+        <label>추천 학습 순서 <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as typeof levelFilter)} style={{ minHeight: 44, marginTop: 12 }}><option value="beginner">처음 배우는 표현</option><option value="basic">기본 표현 넓히기</option><option value="practical">응용 표현</option><option value="all">전체 문법</option></select></label>
+        <p className="muted">시험 등급이 아닌 앱 안의 학습 순서예요. 원하는 단계는 언제든 볼 수 있어요.</p>
       </div>
 
       <div
@@ -169,7 +172,8 @@ export default function GrammarPage() {
         })}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
+      {visibleLessons.length === 0 && <p role="status">이 분류에는 해당 단계의 문법이 없어요. 분류나 학습 단계를 바꿔보세요.</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: "12px" }}>
         {visibleLessons.map((lesson) => {
           const selectedAnswer = selectedAnswers[lesson.id];
           const isCorrect = selectedAnswer === lesson.quiz.answer;
@@ -338,4 +342,3 @@ export default function GrammarPage() {
     </section>
   );
 }
-

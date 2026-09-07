@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import RecordResetPanel from "@/app/components/RecordResetPanel";
 import {
   DEFAULT_INTEGRATED_LEARNING_SETTINGS,
   loadIntegratedLearningSettings,
@@ -381,7 +382,7 @@ export default function SettingsPage() {
 
   const handleSaveLearningSettings = () => {
     if (typeof window === "undefined") return;
-
+    try {
     window.localStorage.setItem(
       LEARNING_SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -390,6 +391,7 @@ export default function SettingsPage() {
     );
     saveIntegratedLearningSettings(integratedSettings);
     setSaveMessage("학습 목표와 통합 과정 설정이 저장됐어요.");
+    } catch { setSaveMessage("설정을 모두 저장하지 못했어요. 기기의 저장 공간을 확인한 뒤 다시 저장해 주세요."); }
   };
 
   return (
@@ -467,16 +469,24 @@ export default function SettingsPage() {
         <h2 style={{ marginTop: 0 }}>통합 과정 학습 설정</h2>
         <p className="muted">오늘의 수업과 왕초보·회사·여행 과정에 적용됩니다.</p>
         <div className="integrated-settings-grid">
+          <label>글자·문제 도움<select value={integratedSettings.learnerMode} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, learnerMode: event.target.value as IntegratedLearningSettings["learnerMode"], hasChosenStart: true }))}><option value="starter">처음 배워요 · 고르기부터</option><option value="reader">글자를 읽어요 · 20분 학습에 직접 입력 포함</option></select></label>
           <label>하루 학습 시간<select value={integratedSettings.dailyMinutes} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, dailyMinutes: Number(event.target.value) as 5 | 10 | 20 }))}><option value={5}>5분</option><option value={10}>10분</option><option value={20}>20분</option></select></label>
           <label>우선 학습 과정<select value={integratedSettings.preferredTrack} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, preferredTrack: event.target.value as IntegratedLearningSettings["preferredTrack"] }))}><option value="foundation">왕초보 기초</option><option value="work">회사 일본어</option><option value="travel">여행 일본어</option></select></label>
           <label>기본 음성 속도<select value={integratedSettings.audioRate} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, audioRate: Number(event.target.value) as 0.8 | 0.9 | 1 }))}><option value={0.8}>느리게</option><option value={0.9}>조금 느리게</option><option value={1}>보통</option></select></label>
         </div>
         <div className="integrated-settings-toggles">
+          <label><input type="checkbox" checked={integratedSettings.showCompanion} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showCompanion: event.target.checked }))} /> 연이 캐릭터 표시</label>
+          <label><input type="checkbox" checked={integratedSettings.homeCompanionMotion} disabled={!integratedSettings.showCompanion} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, homeCompanionMotion: event.target.checked }))} /> 홈에서 연이 가끔 움직이기</label>
+          <label><input type="checkbox" checked={integratedSettings.showKoreanHint} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showKoreanHint: event.target.checked }))} /> 수업의 한글 발음 보조 표시</label>
           <label><input type="checkbox" checked={integratedSettings.showReading} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showReading: event.target.checked }))} /> 읽는 법 표시</label>
           <label><input type="checkbox" checked={integratedSettings.showMeaning} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showMeaning: event.target.checked }))} /> 한국어 뜻 표시</label>
           <label><input type="checkbox" checked={integratedSettings.autoPlayDialogue} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, autoPlayDialogue: event.target.checked }))} /> 대화 자동 재생</label>
           <label><input type="checkbox" checked={integratedSettings.includeSpeaking} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, includeSpeaking: event.target.checked }))} /> 말하기 연습 포함</label>
         </div>
+        <p className="muted">5분은 확인 3문제, 10분은 5문제, 20분은 8문제예요. 5분에는 별도 말하기 단계를 생략해요. 시간과 문제 방식은 새로 시작하는 수업에 적용되고, 이어하는 수업은 시작할 때의 분량을 유지해요.</p>
+        <p className="muted">홈의 연이는 가끔 눈을 깜빡이고 작게 숨 쉬어요. 학습 중에는 결과에 맞춰 약 3초 동안 반응해요. 기기의 ‘동작 줄이기’를 켜면 모든 캐릭터 움직임이 멈춰요.</p>
+        <button type="button" className="btn settings-save-btn" onClick={handleSaveLearningSettings}>학습 설정 저장</button>
+        {saveMessage && <p role="status" className="settings-save-message">{saveMessage}</p>}
       </div>
 
       <div style={{ display: "grid", gap: "12px" }}>
@@ -487,9 +497,10 @@ export default function SettingsPage() {
 
       <div className="card">
         <button type="button" className="btn btn-danger" onClick={handleResetSettings} style={{ width: "100%" }}>
-          설정 초기화
+          학습 설정만 기본값으로
         </button>
       </div>
+      <RecordResetPanel app="language" />
     </section>
   );
 }

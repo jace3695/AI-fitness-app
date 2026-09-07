@@ -56,6 +56,7 @@ export default function SettingsUtilityCards({ autoAnalyzeEnabled, autoQuestion,
 
     <div style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16, marginBottom: 16 }}>
       <p style={{ color: '#FF9B9B', fontSize: 12, margin: '0 0 12px', letterSpacing: 1 }}>기록 초기화</p>
+      <p style={{ color: '#E0E0EA', fontSize: 13, lineHeight: 1.8 }}>전체 기간의 지출·수입·저축 기록을 영구 삭제합니다. 예산·반복지출 설정·계정 보안과 다른 앱 기록은 유지돼요. 필요한 내역은 먼저 보관하고 다른 탭에서 진행 중인 입력을 끝내 주세요.</p>
       <button onClick={() => setShowResetConfirm(!showResetConfirm)} style={{ width: '100%', background: 'rgba(255,107,107,0.12)', border: '1px solid #FF6B6B55', borderRadius: 10, padding: '12px', cursor: 'pointer', color: '#FF6B6B', fontSize: 13, fontWeight: 700 }}>현재까지의 모든 기록 초기화</button>
 
       {showResetConfirm && (
@@ -81,4 +82,3 @@ export default function SettingsUtilityCards({ autoAnalyzeEnabled, autoQuestion,
     </>
   )
 }
-

@@ -8,7 +8,7 @@ export type GrammarRubySegment = {
 export type GrammarLesson = {
   id: string;
   title: string;
-  level: "beginner";
+  level: "beginner" | "basic" | "practical";
   category: GrammarCategory;
   summary: string;
   explanation: string;
@@ -202,5 +202,5 @@ export const GRAMMAR_LESSONS: GrammarLesson[] = [
   },
   ...EXPANDED_GRAMMAR_LESSONS,
 ];
-import { EXPANDED_GRAMMAR_LESSONS } from "./grammarExpansion";
+import { EXPANDED_GRAMMAR_LESSONS } from "./grammarExpansion.ts";
 

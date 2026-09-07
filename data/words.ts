@@ -1,3 +1,7 @@
+import { EXPANDED_WORDS } from "./learningDataExpansion.ts";
+import { RECOMMENDED_WORDS } from "./recommendedDataExpansion.ts";
+import { getVocabularyLevel, getVocabularyPartOfSpeech, isNumberPracticeWord } from "./japaneseLearningQuality.ts";
+
 export type LearningCategory = "일상" | "여행" | "업무" | "친구" | string;
 export type LearningLevel = "beginner" | "basic" | "practical";
 export type PartOfSpeech = "noun" | "verb" | "i-adjective" | "na-adjective" | "adverb" | "expression" | "particle" | "other";
@@ -18,6 +22,7 @@ export type WordItem = {
   exampleKoreanPronunciation?: string;
   partOfSpeech?: PartOfSpeech;
   sentenceKeyword?: string;
+  practiceGroup?: "core" | "numbers";
 };
 
 export type RubySegment = {
@@ -255,8 +260,8 @@ export const WORDS: WordItem[] = [...BASE_WORDS, ...EXPANDED_WORDS, ...RECOMMEND
   .filter((word, index, items) => items.findIndex((candidate) => candidate.word === word.word) === index)
   .map((word) => ({
   ...word,
+  level: getVocabularyLevel(word.word, word.category),
+  partOfSpeech: getVocabularyPartOfSpeech(word.word, word.partOfSpeech),
+  practiceGroup: isNumberPracticeWord(word.word) ? "numbers" as const : "core" as const,
   sentenceKeyword: inferSentenceKeyword(word),
 }));
-import { EXPANDED_WORDS } from "./learningDataExpansion";
-import { RECOMMENDED_WORDS } from "./recommendedDataExpansion";
-

@@ -23,8 +23,8 @@ export type CurriculumLesson = {
   quiz: LessonQuiz[];
 };
 
-import { EXPANDED_CURRICULUM } from "./curriculumExpansion";
-import { ADVANCED_CURRICULUM } from "./curriculumAdvanced";
+import { EXPANDED_CURRICULUM } from "./curriculumExpansion.ts";
+import { ADVANCED_CURRICULUM } from "./curriculumAdvanced.ts";
 
 export const TRACKS: Record<CourseTrack, { title: string; description: string; accent: string }> = {
   foundation: {
@@ -504,4 +504,3 @@ export const getTrackLessons = (track: CourseTrack) =>
 
 export const getLesson = (id: string | null | undefined) =>
   CURRICULUM.find((item) => item.id === id) ?? CURRICULUM[0];
-

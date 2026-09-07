@@ -3,7 +3,7 @@
 import { ChangeEvent, useRef, useState } from "react";
 import {
   applyCloudState,
-  mergeCloudState,
+  mergeExplicitCloudBackup,
   readLocalCloudState,
   type CloudState,
 } from "../data/cloudSync";
@@ -103,7 +103,7 @@ export default function DataBackupPanel() {
 
   const restoreBackup = () => {
     if (!pending) return;
-    const merged = mergeCloudState(readLocalCloudState(), pending.state);
+    const merged = mergeExplicitCloudBackup(readLocalCloudState(), pending.state);
     applyCloudState(merged);
     setMessage(`백업 기록 ${Object.keys(pending.state).length}개 항목을 현재 기록과 합쳤습니다.`);
     setPending(null);
