@@ -549,7 +549,7 @@ export default function DietView() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#7B73D4] p-5 text-white shadow-sm sm:p-6">
+      <section className="overflow-hidden rounded-3xl yeoni-summary p-5 text-white shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[12px] font-bold text-white/75">오늘의 식단</p>
@@ -571,7 +571,7 @@ export default function DietView() {
             ['식사 기록', `${completedMeals} / 4`],
             ['14시간 종료', nextMeal14],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+            <div key={label} className="rounded-2xl bg-white/10 p-3">
               <p className="text-[11px] text-white/70">{label}</p>
               <p className="mt-1 text-[15px] font-bold">{value}</p>
             </div>

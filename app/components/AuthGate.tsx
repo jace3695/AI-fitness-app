@@ -199,9 +199,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB]"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
+  if (loading) return <div className="grid min-h-dvh place-items-center bg-yeoni-bg"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
   if (!isSupabaseConfigured)
-    return <div className="grid min-h-dvh place-items-center bg-[#F6F7FB] p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
+    return <div className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
   if (user && recoveryMode) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-sm rounded-[28px] bg-white p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">
       <div className="flex justify-center"><AppIcon kind="assistant" className="h-14 w-14" /></div>

@@ -43,6 +43,9 @@
   .pose[data-motion=ambient] .idle { animation: occasionalBlink 5s steps(1, end) infinite; }
   .pose[data-motion=off], .pose[data-motion=off] .sheet { animation: none; }
   .pose[data-playing=false], .pose[data-playing=false] .sheet { animation-play-state: paused; }
+  /* Dialogs take priority without a polling timer or a document-wide observer. */
+  :global(body:has([aria-modal=true])) .pose,
+  :global(body:has([aria-modal=true])) .sheet { animation-play-state: paused; }
 }
 
 @keyframes occasionalBlink {

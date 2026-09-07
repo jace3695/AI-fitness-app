@@ -1,5 +1,6 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { PointerEvent, useEffect, useRef, useState } from "react";
 import AppIdentity from "../../components/AppIdentity";
@@ -116,9 +117,10 @@ export default function GrowthHandwritingPage() {
     growth.setNotice(session.error ? "이미지는 저장했지만 실행 기록을 남기지 못했어요." : "손글씨 이미지와 완료 기록을 비공개로 저장했어요.");
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="손글씨 연습" subtitle="iPad와 Apple Pencil로 간단하게" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
+      <AppCompanion compact quiet>한 글자씩 천천히 써봐요. 끝나면 오늘의 손글씨를 남겨 주세요.</AppCompanion>
       <section className="rounded-[30px] bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold text-amber-600">따라 쓰기</p><h1 className="mt-1 text-2xl font-bold">{GUIDE_TEXTS[guideIndex]}</h1></div><button onClick={() => setGuideIndex((value) => (value + 1) % GUIDE_TEXTS.length)} className="min-h-11 rounded-xl bg-amber-50 px-4 text-xs font-bold text-amber-700">다른 문장</button></div>
         <div className="mt-4 flex flex-wrap gap-2"><label className="flex min-h-11 items-center gap-2 rounded-xl bg-gray-100 px-3 text-xs font-bold">펜 색<input type="color" value={inkColor} onChange={(event) => setInkColor(event.target.value)} className="h-7 w-7" /></label><button onClick={() => restore(historyIndexRef.current - 1)} disabled={historyIndexRef.current <= 0} className="min-h-11 rounded-xl bg-gray-100 px-4 text-xs font-bold disabled:opacity-40">되돌리기</button><button onClick={() => restore(historyIndexRef.current + 1)} disabled={historyIndexRef.current >= historyRef.current.length - 1} className="min-h-11 rounded-xl bg-gray-100 px-4 text-xs font-bold disabled:opacity-40">다시 실행</button><button onClick={clear} className="min-h-11 rounded-xl bg-red-50 px-4 text-xs font-bold text-red-600">모두 지우기</button></div>

@@ -100,7 +100,7 @@ function QuickCommandContent() {
   }, [initialCommand, run, shouldAutoRun]);
 
   return (
-    <main className="min-h-dvh bg-[#F5F4FA] px-4 pb-28 pt-6 text-[#242231] sm:px-6 sm:pt-10">
+    <main className="min-h-dvh bg-yeoni-bg px-4 pb-28 pt-6 text-[#242231] sm:px-6 sm:pt-10">
       <div className="mx-auto max-w-2xl">
         <header className="flex items-center justify-between gap-3">
           <Link href="/assistant" className="text-sm font-bold text-[#5146A6]">← 연이</Link>
@@ -115,7 +115,7 @@ function QuickCommandContent() {
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
           <label htmlFor="quick-command" className="text-sm font-bold">실행할 명령</label>
-          <textarea id="quick-command" value={command} onChange={(event) => setCommand(event.target.value)} maxLength={500} rows={3} placeholder="예: 오늘 할 일에 거래처 전화 추가해줘" className="mt-2 w-full resize-none rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <textarea id="quick-command" value={command} onChange={(event) => setCommand(event.target.value)} maxLength={500} rows={3} placeholder="예: 오늘 할 일에 거래처 전화 추가해줘" className="mt-2 w-full resize-none rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <div className="mt-3 flex flex-wrap gap-2">
             {samples.map((sample) => <button key={sample} type="button" onClick={() => setCommand(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">{sample}</button>)}
           </div>
@@ -141,5 +141,5 @@ function QuickCommandContent() {
 }
 
 export default function QuickCommandPage() {
-  return <Suspense fallback={<main className="grid min-h-dvh place-items-center bg-[#F5F4FA] text-sm text-gray-500">빠른 명령 준비 중…</main>}><QuickCommandContent /></Suspense>;
+  return <Suspense fallback={<main className="grid min-h-dvh place-items-center bg-yeoni-bg text-sm text-gray-500">빠른 명령 준비 중…</main>}><QuickCommandContent /></Suspense>;
 }

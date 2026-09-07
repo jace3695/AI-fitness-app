@@ -1,5 +1,6 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import AppIdentity from "../../components/AppIdentity";
@@ -60,9 +61,10 @@ export default function GrowthTypingPage() {
     growth.setNotice(result.error ? "타자 기록을 저장하지 못했어요." : "속도와 정확도를 클라우드에 저장했어요.");
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="타자 연습" subtitle="정확하게 입력하고 기록 저장" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-9">
+      <AppCompanion compact quiet>속도보다 정확하게! 편한 자세로 한 문장씩 입력해봐요.</AppCompanion>
       <section className="rounded-[30px] bg-white p-5 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold text-blue-600">연습 문장 {passageIndex + 1}/{PASSAGES.length}</p><h1 className="mt-1 text-2xl font-bold">보고 그대로 입력하세요</h1></div><button type="button" onClick={() => reset((passageIndex + 1) % PASSAGES.length)} className="min-h-11 rounded-xl bg-blue-50 px-4 text-xs font-bold text-blue-700">다른 문장</button></div>
         <p className="mt-6 rounded-2xl bg-blue-50 p-5 text-lg font-semibold leading-8 text-blue-950">{Array.from(passage).map((character, index) => <span key={`${character}-${index}`} className={index >= typed.length ? "" : typed[index] === character ? "text-emerald-600" : "rounded bg-red-100 text-red-600"}>{character}</span>)}</p>

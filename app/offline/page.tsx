@@ -1,6 +1,6 @@
 export default function OfflinePage() {
   return (
-    <main className="grid min-h-dvh place-items-center bg-[#F6F7FB] p-6 text-center">
+    <main className="grid min-h-dvh place-items-center bg-yeoni-bg p-6 text-center">
       <section className="w-full max-w-md rounded-[28px] bg-white p-7 shadow-sm">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-100 text-2xl" aria-hidden="true">↻</div>
         <h1 className="mt-5 text-xl font-bold text-gray-900">인터넷 연결을 확인해 주세요</h1>

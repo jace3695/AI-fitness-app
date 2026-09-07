@@ -1,4 +1,5 @@
 'use client'
+import AppCompanion from "@/components/AppCompanion";
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
@@ -2844,7 +2845,7 @@ function BudgetDashboard() {
       return (
         <div style={{
           minHeight: '100vh',
-          background: 'linear-gradient(145deg, #F7F4EE 0%, #F5F4FA 100%)',
+          background: 'var(--yeoni-bg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2854,8 +2855,8 @@ function BudgetDashboard() {
             width: '100%',
             maxWidth: 360,
             textAlign: 'center',
-            background: '#FFFDFA',
-            border: '1px solid #E4DED3',
+            background: 'var(--yeoni-surface)',
+            border: '1px solid var(--yeoni-border)',
             borderRadius: 28,
             padding: '32px 24px',
             boxShadow: '0 18px 50px rgba(66,58,47,0.12)'
@@ -2863,8 +2864,9 @@ function BudgetDashboard() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><AppIcon kind="budget" className="h-16 w-16" /></div>
 
             <h2 style={{
-              color: '#302E2A',
+              color: 'var(--yeoni-ink)',
               fontSize: 22,
+              wordBreak: 'keep-all',
               fontWeight: 700,
               margin: '0 0 8px'
             }}>
@@ -2872,7 +2874,7 @@ function BudgetDashboard() {
             </h2>
 
             <p style={{
-              color: '#77736C',
+              color: 'var(--yeoni-muted)',
               fontSize: 13,
               margin: 0
             }}>
@@ -2882,7 +2884,7 @@ function BudgetDashboard() {
             <style>{`
               @keyframes budgetPulse { 0%,100% { opacity:.35; transform:scale(.85) } 50% { opacity:1; transform:scale(1) } }
             `}</style>
-            <div aria-hidden="true" style={{ display:'flex', justifyContent:'center', gap:8, marginTop:20 }}>{[0,1,2].map((index) => <span key={index} style={{ width:8, height:8, borderRadius:'50%', background:'#668A73', animation:`budgetPulse 1.2s ${index * .18}s infinite` }} />)}</div>
+            <div aria-hidden="true" style={{ display:'flex', justifyContent:'center', gap:8, marginTop:20 }}>{[0,1,2].map((index) => <span key={index} style={{ width:8, height:8, borderRadius:'50%', background:'var(--yeoni-primary)', animation:`budgetPulse 1.2s ${index * .18}s infinite` }} />)}</div>
           </div>
         </div>
       )
@@ -3220,6 +3222,7 @@ return (
       )}
 
       <style>{`
+        @scope (.living-finance-app) {
         button {
           transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
           transform: scale(1);
@@ -3232,7 +3235,7 @@ return (
           transform: scale(0.96);
         }
         button:focus-visible {
-          outline: none;
+          outline: 3px solid var(--yeoni-primary);
           box-shadow: 0 0 0 2px rgba(232, 168, 124, 0.35);
         }
         button:disabled {
@@ -3262,8 +3265,10 @@ return (
         }
         input::placeholder,
         textarea::placeholder {
-          color: rgba(255,255,255,0.78);
-          text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+          color: var(--yeoni-muted);
+          text-shadow: none;
+        }
+
         }
       `}</style>
 
@@ -3278,6 +3283,8 @@ return (
         </div>
       </header>
 
+
+      <div className="budget-guide"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>
 
       {tab === 'home' && (
         <main className="living-finance-view living-finance-home app-safe-top" style={{ padding: '24px 20px 96px' }}>
