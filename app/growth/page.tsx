@@ -1,5 +1,7 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
+import RoutineElapsedTime from "@/components/RoutineElapsedTime";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import AppIdentity from "../components/AppIdentity";
@@ -15,15 +17,6 @@ import { GROWTH_CATEGORIES, GROWTH_ROUTINE_LIMIT, growthCategoryLabel, isRetired
 import { supabase } from "../lib/supabase";
 import { getLocalDateKey } from "@/utils/dateKey";
 import { useGrowthData } from "./useGrowthData";
-
-function formatDuration(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours
-    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
-    : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
 
 function comparisonLabel(delta: number, unit: string) {
   if (delta === 0) return "이전과 같음";
@@ -41,7 +34,6 @@ export default function GrowthPage() {
   const [targetMinutes, setTargetMinutes] = useState(15);
   const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [sessionMemo, setSessionMemo] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordRoutineId, setRecordRoutineId] = useState("");
@@ -53,14 +45,6 @@ export default function GrowthPage() {
   const [legacyImporting, setLegacyImporting] = useState(false);
   const todayKey = useMemo(() => getLocalDateKey(), []);
   const todayLabel = useMemo(() => new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(new Date()), []);
-
-  useEffect(() => {
-    if (!startedAt) return;
-    const update = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
-    update();
-    const timer = window.setInterval(update, 1000);
-    return () => window.clearInterval(timer);
-  }, [startedAt]);
 
   useEffect(() => {
     let active = true;
@@ -100,7 +84,6 @@ export default function GrowthPage() {
   const startRoutine = (routineId: string) => {
     setActiveRoutineId(routineId);
     setStartedAt(new Date().toISOString());
-    setElapsedSeconds(0);
     setSessionMemo("");
     growth.setNotice("타이머를 시작했어요. 실제 시작 시각으로 계산합니다.");
   };
@@ -114,14 +97,14 @@ export default function GrowthPage() {
       sessionDate: todayKey,
       status,
       plannedMinutes: activeRoutine.target_minutes,
-      actualMinutes: Math.max(1, Math.round(elapsedSeconds / 60)),
+      actualMinutes: Math.max(1, Math.round(Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)) / 60_000)),
       memo: sessionMemo,
       startedAt,
       endedAt,
     });
     setSaving(false);
     if (result.error) { growth.setNotice("실행 기록을 저장하지 못했어요. 다시 시도해 주세요."); return; }
-    setActiveRoutineId(null); setStartedAt(null); setElapsedSeconds(0); setSessionMemo("");
+    setActiveRoutineId(null); setStartedAt(null); setSessionMemo("");
     growth.setNotice(status === "completed" ? "완료 기록을 클라우드에 저장했어요." : status === "partial" ? "진행 기록을 저장했어요." : "중단 지점까지 안전하게 저장했어요.");
   };
 
@@ -177,6 +160,7 @@ export default function GrowthPage() {
     <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
       <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="자기계발" subtitle="시작부터 기록과 성장 확인까지" /><div className="flex flex-wrap items-center gap-3"><span className="text-xs font-semibold text-gray-500 sm:text-sm">{todayLabel}</span><Link href="/growth/settings" className="inline-flex min-h-11 items-center px-3 text-sm font-bold">설정</Link></div></div></header>
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
+        <AppCompanion home compact={Boolean(activeRoutine)} quiet={Boolean(activeRoutine) || editing || recordOpen}>{activeRoutine ? "지금은 루틴에 집중해봐요. 마치면 느낀 점을 짧게 남겨 주세요." : growth.loading || linkedLoading ? "오늘의 루틴을 준비하고 있어요." : `오늘 ${completedCount}/${totalCount}개 완료! 내 속도로 이어가요.`}</AppCompanion>
         <section className="rounded-[30px] bg-gradient-to-br from-violet-600 to-indigo-500 p-6 text-white shadow-[0_22px_55px_rgba(91,75,180,0.22)] sm:p-8">
           <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-white/75">오늘의 자기계발</p><strong className="mt-3 block text-4xl">{completedCount}/{totalCount}</strong><p className="mt-2 text-sm text-white/80">오늘 루틴 완료</p></div><strong className="text-2xl">{progress}%</strong></div>
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/20" aria-label={`오늘 자기계발 ${progress}% 완료`}><div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progress}%` }} /></div>
@@ -195,7 +179,7 @@ export default function GrowthPage() {
           <Link href="/growth/resources" className="rounded-3xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-100"><span className="text-2xl" aria-hidden="true">📚</span><strong className="mt-2 block text-sm text-emerald-900">내 자료</strong><span className="mt-1 block text-xs text-emerald-700">비공개 보관·검색</span></Link>
         </nav>
 
-        {activeRoutine && <section className="mt-5 rounded-[28px] bg-[#242231] p-6 text-white shadow-xl"><p className="text-xs font-bold text-violet-300">실행 중</p><h2 className="mt-2 text-2xl font-bold">{activeRoutine.title}</h2><p aria-live="polite" className="mt-5 font-mono text-5xl font-bold tracking-tight">{formatDuration(elapsedSeconds)}</p><p className="mt-2 text-sm text-white/60">목표 {activeRoutine.target_minutes}분</p><textarea value={sessionMemo} onChange={(event) => setSessionMemo(event.target.value)} maxLength={500} placeholder="지금 느낀 점이나 다음에 할 일을 적어두세요" className="mt-5 min-h-20 w-full rounded-2xl border-0 bg-white/10 p-4 text-sm text-white placeholder:text-white/40 ring-1 ring-white/15" /><div className="mt-4 grid grid-cols-3 gap-2"><button disabled={saving} onClick={() => void finishActive("stopped")} className="min-h-12 rounded-xl bg-white/10 text-sm font-bold">중단 저장</button><button disabled={saving} onClick={() => void finishActive("partial")} className="min-h-12 rounded-xl bg-violet-400/30 text-sm font-bold">진행 저장</button><button disabled={saving} onClick={() => void finishActive("completed")} className="min-h-12 rounded-xl bg-emerald-500 text-sm font-bold">완료 저장</button></div></section>}
+        {activeRoutine && <section className="mt-5 rounded-[28px] bg-[#242231] p-6 text-white shadow-xl"><p className="text-xs font-bold text-violet-300">실행 중</p><h2 className="mt-2 text-2xl font-bold">{activeRoutine.title}</h2><p className="mt-5 font-mono text-5xl font-bold tracking-tight"><RoutineElapsedTime startedAt={startedAt!} /></p><p className="mt-2 text-sm text-white/60">목표 {activeRoutine.target_minutes}분</p><textarea value={sessionMemo} onChange={(event) => setSessionMemo(event.target.value)} maxLength={500} placeholder="지금 느낀 점이나 다음에 할 일을 적어두세요" className="mt-5 min-h-20 w-full rounded-2xl border-0 bg-white/10 p-4 text-sm text-white placeholder:text-white/40 ring-1 ring-white/15" /><div className="mt-4 grid grid-cols-3 gap-2"><button disabled={saving} onClick={() => void finishActive("stopped")} className="min-h-12 rounded-xl bg-white/10 text-sm font-bold">중단 저장</button><button disabled={saving} onClick={() => void finishActive("partial")} className="min-h-12 rounded-xl bg-violet-400/30 text-sm font-bold">진행 저장</button><button disabled={saving} onClick={() => void finishActive("completed")} className="min-h-12 rounded-xl bg-emerald-500 text-sm font-bold">완료 저장</button></div></section>}
 
         <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-violet-600">클라우드 동기화</p><h2 className="mt-1 text-xl font-bold">나의 루틴</h2></div><button type="button" aria-expanded={editing} onClick={() => setEditing((value) => !value)} className="min-h-11 rounded-full bg-gray-100 px-4 text-xs font-bold text-gray-700">{editing ? "편집 닫기" : "루틴 편집"}</button></div>

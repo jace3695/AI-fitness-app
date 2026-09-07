@@ -249,6 +249,15 @@ html {
   gap: 24px;
 }
 
+/* Solid navigation avoids re-blurring content on every mobile scroll frame. */
+@media (max-width: 767px) {
+  .app-module-header, .hub-bottom-nav-inner, .hub-more-menu {
+    background: #fff;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .app-module-nav {
   display: flex;
   min-width: 0;

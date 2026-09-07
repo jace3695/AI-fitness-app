@@ -1,0 +1,53 @@
+.guide {
+  --yeoni-size: 88px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin: 0 0 20px;
+  color: #353052;
+}
+.guide[data-compact=true] { --yeoni-size: 52px; gap: 12px; margin-bottom: 16px; }
+.guide .bubble {
+  position: relative;
+  min-width: 0;
+  max-width: 640px;
+  padding: 12px 16px;
+  border: 1px solid #ddd5ef;
+  border-radius: 19px;
+  background: #f5f2fc;
+}
+.guide[data-character=true] .bubble::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: calc(50% - 6px);
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: #f5f2fc;
+  border-left: 1px solid #ddd5ef;
+  border-bottom: 1px solid #ddd5ef;
+}
+.guide .name { display: block; color: #645086; font-size: 11px; font-weight: 750; line-height: 1.4; }
+.guide .bubble p { margin: 3px 0 0; color: #353052; font-size: 14px; font-weight: 550; line-height: 1.6; overflow-wrap: anywhere; }
+.guide[data-character=false] .bubble { padding: 10px 14px; max-width: none; }
+.guide[data-character=false] .name { display: none; }
+.guide[data-compact=true] .bubble { padding: 9px 13px; border-radius: 15px; }
+.preferences { min-width: 0; padding: 20px; border: 1px solid #e2dcef; border-radius: 24px; background: #fff; color: #353052; }
+.preferences h2 { margin: 0 0 12px; font-size: 19px; font-weight: 750; color: #353052; }
+.preferences .hint { margin: 10px 0; font-size: 13px; line-height: 1.7; color: #686078; }
+.preferences label { display: flex; min-height: 44px; align-items: center; gap: 10px; font-size: 14px; font-weight: 650; color: #353052; }
+.preferences input[type=checkbox] { width: 20px; height: 20px; flex-shrink: 0; accent-color: #6750a4; }
+.preferences .motion { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 10px; }
+.preferences select { width: 100%; min-width: 0; min-height: 46px; padding: 10px; border: 1px solid #cfc4e1; border-radius: 12px; background: #fff; color: #353052; font-size: 14px; }
+.preferences :is(input, select):focus-visible { outline: 3px solid #9874ce; outline-offset: 3px; }
+@media (max-width: 420px) {
+  .guide { --yeoni-size: 72px; gap: 11px; }
+  .guide[data-home=true][data-compact=false] { --yeoni-size: 96px; }
+  .guide[data-home=true] .name { display: none; }
+  .guide[data-home=true] .bubble p { margin-top: 0; }
+  .guide .bubble { padding: 10px 12px; }
+  .guide .bubble p { font-size: 13px; }
+  .preferences { padding: 16px; }
+}

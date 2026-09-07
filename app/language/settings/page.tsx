@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import YeoniPreferencesPanel from "@/components/YeoniPreferencesPanel";
 import RecordResetPanel from "@/app/components/RecordResetPanel";
 import {
   DEFAULT_INTEGRATED_LEARNING_SETTINGS,
@@ -403,6 +404,8 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <div style={{ marginBottom: 20 }}><YeoniPreferencesPanel /></div>
+
       <div className="card daily-goal-card" style={{ display: "grid", gap: "14px" }}>
         <div className="daily-goal-header">
           <h2 style={{ margin: 0 }}>하루 학습 목표</h2>
@@ -475,8 +478,6 @@ export default function SettingsPage() {
           <label>기본 음성 속도<select value={integratedSettings.audioRate} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, audioRate: Number(event.target.value) as 0.8 | 0.9 | 1 }))}><option value={0.8}>느리게</option><option value={0.9}>조금 느리게</option><option value={1}>보통</option></select></label>
         </div>
         <div className="integrated-settings-toggles">
-          <label><input type="checkbox" checked={integratedSettings.showCompanion} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showCompanion: event.target.checked }))} /> 연이 캐릭터 표시</label>
-          <label><input type="checkbox" checked={integratedSettings.homeCompanionMotion} disabled={!integratedSettings.showCompanion} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, homeCompanionMotion: event.target.checked }))} /> 홈에서 연이 가끔 움직이기</label>
           <label><input type="checkbox" checked={integratedSettings.showKoreanHint} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showKoreanHint: event.target.checked }))} /> 수업의 한글 발음 보조 표시</label>
           <label><input type="checkbox" checked={integratedSettings.showReading} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showReading: event.target.checked }))} /> 읽는 법 표시</label>
           <label><input type="checkbox" checked={integratedSettings.showMeaning} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, showMeaning: event.target.checked }))} /> 한국어 뜻 표시</label>
@@ -484,7 +485,6 @@ export default function SettingsPage() {
           <label><input type="checkbox" checked={integratedSettings.includeSpeaking} onChange={(event) => setIntegratedSettings((prev) => ({ ...prev, includeSpeaking: event.target.checked }))} /> 말하기 연습 포함</label>
         </div>
         <p className="muted">5분은 확인 3문제, 10분은 5문제, 20분은 8문제예요. 5분에는 별도 말하기 단계를 생략해요. 시간과 문제 방식은 새로 시작하는 수업에 적용되고, 이어하는 수업은 시작할 때의 분량을 유지해요.</p>
-        <p className="muted">홈의 연이는 가끔 눈을 깜빡이고 작게 숨 쉬어요. 학습 중에는 결과에 맞춰 약 3초 동안 반응해요. 기기의 ‘동작 줄이기’를 켜면 모든 캐릭터 움직임이 멈춰요.</p>
         <button type="button" className="btn settings-save-btn" onClick={handleSaveLearningSettings}>학습 설정 저장</button>
         {saveMessage && <p role="status" className="settings-save-message">{saveMessage}</p>}
       </div>

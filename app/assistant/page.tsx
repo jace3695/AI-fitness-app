@@ -1,5 +1,6 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -278,10 +279,10 @@ export default function AssistantPage() {
 
     <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
       <section className="grid gap-4 lg:grid-cols-[1.45fr_.55fr]">
-        <article className="rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
-          <p className="text-sm font-semibold text-white/70">오늘의 브리핑</p>
-          <h2 className="mt-3 text-3xl font-bold leading-tight">좋은 하루입니다, Jace님.<br />중요한 일부터 정리할게요.</h2>
-          <p className="mt-4 text-sm leading-6 text-white/80">{openTasks + openProjects + waiting ? `현재 확인할 항목이 ${openTasks + openProjects + waiting}개 있습니다.` : "급한 업무가 없습니다. 떠오르는 일을 바로 기록해 보세요."}</p>
+        <article className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-sm sm:p-7">
+          <p className="text-xs font-bold text-[#766DB8]">함께 시작하는 하루</p>
+          <h2 className="mb-5 mt-2 text-2xl font-bold text-[#353052]">오늘의 브리핑</h2>
+          <AppCompanion home quiet={chatSending}>{loading ? "안녕, Jace님! 오늘도 함께해요." : openTasks + openProjects + waiting ? `확인할 일 ${openTasks + openProjects + waiting}개, 하나씩 해볼까요?` : "오늘은 무엇부터 해볼까요?"}</AppCompanion>
         </article>
         <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
           {[{ label: "중요 업무", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-3xl border border-white bg-white p-4 shadow-sm lg:flex lg:items-center lg:justify-between lg:px-6"><span className="text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6] lg:mt-0">{stat.value}</b></article>)}

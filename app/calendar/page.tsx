@@ -1,5 +1,6 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AuthGate from "../components/AuthGate";
@@ -89,6 +90,7 @@ function UnifiedCalendar() {
   const diet = row?.diet ? [row.diet.dietStatus, row.diet.fastingRecordStatus ? `공복 ${row.diet.fastingRecordStatus}` : "", row.water ? `물 ${row.water.toLocaleString()}mL` : "", row.diet.dietMemo].filter((value): value is string => typeof value === "string" && Boolean(value)) : [];
 
   return <main className="min-h-dvh bg-[#F6F7FB] text-[#242231]"><header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" /><Link href="/calendar/settings" className="inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-bold">설정</Link></div></header><div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 sm:py-10">
+    <AppCompanion>날짜를 눌러 일정과 기록을 함께 살펴봐요. 각 앱에서 남긴 하루가 여기 모여 있어요.</AppCompanion>
     <section className="rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
       <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => {

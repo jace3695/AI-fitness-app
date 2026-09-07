@@ -1,7 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { resolveYeoniMotion } from "@/utils/yeoniPreferences";
+import { useYeoniPreferences } from "./useYeoniPreferences";
+import { usePageActivity } from "./usePageActivity";
 import styles from "./yeoni-mascot.module.css";
 
 export type YeoniAction = "idle" | "explain" | "celebrate" | "encourage";
@@ -29,35 +32,36 @@ function AnimationStrip({ action, motion, canPlay }: { action: YeoniAction; moti
   </span>;
 }
 
-/** Decorative motion only; the learning feedback always remains available as text. */
-export default function YeoniMascot({ action = "idle", motionKey = "", motion = "once" }: {
+/** Decorative motion only; guidance always remains available as text. */
+function YeoniMascot({ action = "idle", motionKey = "", motion = "once" }: {
   action?: YeoniAction;
   motionKey?: string | number;
   motion?: YeoniMotion;
 }) {
   const frameRef = useRef<HTMLSpanElement>(null);
-  const [pageVisible, setPageVisible] = useState(false);
+  const preferences = useYeoniPreferences();
   const [inView, setInView] = useState(false);
   // Only a resting pose may repeat; lesson reactions remain finite.
-  const effectiveMotion = motion === "ambient" && action !== "idle" ? "once" : motion;
+  const effectiveMotion = resolveYeoniMotion(preferences, motion === "ambient" && action !== "idle" ? "once" : motion);
+  const animated = effectiveMotion !== "off";
+  const pageActive = usePageActivity(animated);
 
   useEffect(() => {
-    const updateVisibility = () => setPageVisible(!document.hidden);
-    updateVisibility();
-    document.addEventListener("visibilitychange", updateVisibility);
+    if (!animated) return;
     const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
+      ([entry]) => setInView(entry.isIntersecting && entry.intersectionRatio >= 0.05),
       { threshold: 0.05 },
     );
     if (observer && frameRef.current) observer.observe(frameRef.current);
     else setInView(true);
     return () => {
-      document.removeEventListener("visibilitychange", updateVisibility);
       observer?.disconnect();
     };
-  }, []);
+  }, [animated]);
 
   return <span ref={frameRef} className={styles.frame} data-yeoni-action={action} data-yeoni-motion={effectiveMotion} aria-hidden="true">
-    <AnimationStrip key={`${action}:${motionKey}`} action={action} motion={effectiveMotion} canPlay={pageVisible && inView} />
+    <AnimationStrip key={`${action}:${motionKey}`} action={action} motion={effectiveMotion} canPlay={pageActive && inView} />
   </span>;
 }
+
+export default memo(YeoniMascot);

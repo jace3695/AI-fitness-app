@@ -1,5 +1,6 @@
 "use client";
 
+import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AppIdentity from "../../components/AppIdentity";
@@ -75,6 +76,7 @@ export default function GrowthReviewPage() {
   return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="주간 성장 코칭" subtitle="기록을 보고 제안만 만드는 연이" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-9">
+      <AppCompanion compact quiet>쌓인 기록을 함께 돌아보고, 다음 주에 할 작은 목표를 골라봐요.</AppCompanion>
       <section className="rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-lg sm:p-8"><p className="text-sm font-bold text-white/70">월 AI 비용 10,000원 이내 보호</p><h1 className="mt-2 text-3xl font-bold">기록이 있으면 더 정확하게,<br />AI가 없어도 안전하게 분석해요.</h1><p className="mt-3 text-sm leading-6 text-white/75">메모와 파일 내용은 AI에 보내지 않습니다. 최근 루틴별 횟수·시간·완료 상태만 집계해 사용합니다.</p><div className="mt-5 flex flex-wrap gap-2"><button disabled={generating || growth.loading} onClick={() => void generate(false)} className="min-h-12 rounded-xl bg-white px-5 text-sm font-bold text-[#5146A6] disabled:opacity-50">{generating ? "코칭 만드는 중…" : latest ? "오늘 코칭 보기" : "주간 코칭 만들기"}</button>{latest && <button disabled={generating} onClick={() => void generate(true)} className="min-h-12 rounded-xl bg-white/10 px-5 text-sm font-bold ring-1 ring-white/30">새로 분석</button>}</div></section>
 
       {growth.notice && <p role="status" className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{growth.notice}</p>}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BEGINNER_KANA_GROUPS } from "@/data/beginnerKana";
 import { loadCurriculumProgress, saveCurriculumProgress } from "@/utils/curriculumProgress";
-import { loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
+import { useYeoniPreferences } from "@/components/useYeoniPreferences";
 import LearningCompanion from "./LearningCompanion";
 import { useLearningAudio } from "./useLearningAudio";
 import styles from "./learning-focus.module.css";
@@ -14,7 +14,7 @@ export default function KanaStarter() {
   const [letterIndex, setLetterIndex] = useState(0);
   const [mode, setMode] = useState<"learn" | "quiz" | "done">("learn");
   const [picked, setPicked] = useState<string | null>(null);
-  const [showCompanion, setShowCompanion] = useState(true);
+  const { visible: showCompanion } = useYeoniPreferences();
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const feedbackRef = useRef<HTMLDivElement>(null);
@@ -37,7 +37,6 @@ export default function KanaStarter() {
     const progress = loadCurriculumProgress();
     const next = BEGINNER_KANA_GROUPS.findIndex((item) => !progress.kanaCompletedGroups?.includes(item.id));
     setGroupIndex(Math.max(0, next));
-    setShowCompanion(loadIntegratedLearningSettings().showCompanion);
     setLoaded(true);
   }, []);
   const next = () => {
