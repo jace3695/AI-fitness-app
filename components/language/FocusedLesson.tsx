@@ -36,6 +36,7 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
   const { stop, play } = audio;
   const quizIndices = getSessionQuizIndices(lesson, session.minutes);
   const questionIndex = quizIndices[session.quizCursor];
+  const currentAnswer = session.stage === 4 ? session.answers[questionIndex] : undefined;
   const result = getSessionResult(lesson, session);
   const word = lesson.words[session.wordIndex];
   const includeSpeaking = settings.includeSpeaking && session.minutes !== 5;
@@ -187,7 +188,11 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
       <span className={styles.pill}>약 {session.minutes}분</span>
     </header>
     {!finished && <><ol className={styles.stageTrack} aria-label="수업 단계">{visibleStages.map((stage) => <li key={stage} data-active={stage <= session.stage} aria-current={stage === session.stage ? "step" : undefined}><span className="sr-only">{stageNames[stage]}</span></li>)}</ol><div className={styles.stageLabel}><span>{stageNames[session.stage]}</span><span>{stagePosition + 1} / {visibleStages.length} 단계</span></div></>}
-    <LearningCompanion hidden={!settings.showCompanion}>{finished ? result.needsPractice ? "끝까지 해봤네요! 아직 어려운 문제는 함께 한 번 더 살펴봐요." : "잘했어요! 오늘 연습한 표현을 생활 속에서도 한 번 써봐요." : stageGuides[session.stage]}</LearningCompanion>
+    <LearningCompanion hidden={!settings.showCompanion}
+      action={finished ? result.needsPractice ? "encourage" : "celebrate" : currentAnswer === true ? "celebrate" : currentAnswer === false ? "encourage" : "explain"}
+      motionKey={`${lesson.id}:${session.stage}:${session.wordIndex}:${session.quizCursor}:${finished}`}>
+      {finished ? result.needsPractice ? "끝까지 해봤네요! 아직 어려운 문제는 함께 한 번 더 살펴봐요." : "잘했어요! 오늘 연습한 표현을 생활 속에서도 한 번 써봐요." : currentAnswer === true ? "맞았어요! 하나씩 익혀가고 있어요." : currentAnswer === false ? "괜찮아요. 설명을 보고 다시 도전해봐요." : stageGuides[session.stage]}
+    </LearningCompanion>
     {resumed && !finished && <p className={styles.muted}>지난번 멈춘 곳에서 이어해요. 소리와 녹음은 꺼진 상태로 시작해요.</p>}
     {saveError && <p className={styles.error} role="alert">{saveError}</p>}
     {audio.audioError && <p className={styles.error} role="status">{audio.audioError}</p>}

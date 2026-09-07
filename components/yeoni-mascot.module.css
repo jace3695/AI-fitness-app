@@ -1,0 +1,57 @@
+.frame {
+  position: relative;
+  display: block;
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 20px;
+  background: white;
+  contain: layout paint;
+}
+
+/* Four equal frames per row, with one row for each reaction. */
+.sheet {
+  position: absolute;
+  top: var(--row-offset, 0%);
+  left: 0;
+  width: 400%;
+  height: 400%;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  transform: translateX(0);
+}
+
+.idle { --row-offset: 0%; animation: blink 3.6s steps(1, end) 1; }
+.explain { --row-offset: -100%; animation: gesture 1.6s steps(1, end) 1; }
+.celebrate { --row-offset: -200%; animation: gesture 1.6s steps(1, end) 1; }
+.encourage { --row-offset: -300%; animation: gesture 1.6s steps(1, end) 1; }
+.sheet[data-ready=false] { animation-play-state: paused; }
+
+@keyframes blink {
+  0%, 60% { transform: translateX(0); }
+  63% { transform: translateX(-25%); }
+  67% { transform: translateX(-50%); }
+  71% { transform: translateX(-75%); }
+  75%, 100% { transform: translateX(0); }
+}
+
+@keyframes gesture {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-25%); }
+  50% { transform: translateX(-50%); }
+  80% { transform: translateX(-75%); }
+  100% { transform: translateX(0); }
+}
+
+.fallback { display: grid; height: 100%; place-items: center; font-size: 40px; color: #7065d8; }
+
+@media (max-width: 420px) {
+  .frame { width: 72px; height: 72px; flex-basis: 72px; border-radius: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet { animation: none; }
+}

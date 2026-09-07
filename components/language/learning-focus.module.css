@@ -7,10 +7,9 @@
 .back { color: var(--teal); text-decoration: none; font-size: .9rem; padding: 10px 0; }
 .pill { background: #e6f4f0; color: #15594e; border-radius: 99px; padding: 7px 12px; font-size: .875rem; font-weight: 700; }
 .companion { display: flex; align-items: center; gap: 10px; margin: 20px 0; }
-.mascot { width: 86px; height: 86px; object-fit: contain; flex: 0 0 86px; }
-.bubble { padding: 14px 18px; background: #edf7f5; border: 1px solid #c6e1d9; border-radius: 20px 20px 20px 5px; flex: 1; }
-.bubble p { margin: 3px 0 0; font-size: 1rem; line-height: 1.65; color: #254a49; word-break: keep-all; overflow-wrap: anywhere; }
-.guideName { font-size: .8rem; color: #21685f; font-weight: 750; }
+.bubble { min-width: 0; padding: 14px 18px; background: #f4f1fe; border: 1px solid #ded6f4; border-radius: 20px 20px 20px 5px; flex: 1; }
+.bubble p { margin: 3px 0 0; font-size: 1rem; line-height: 1.65; color: #3d3465; word-break: keep-all; overflow-wrap: anywhere; }
+.guideName { font-size: .8rem; color: #514395; font-weight: 750; }
 .quietGuide { margin: 14px 0; }
 .quietGuide .bubble { border-radius: 12px; background: #f5f8fa; }
 .stageTrack { display: flex; gap: 5px; list-style: none; padding: 0; margin: 0 0 8px; }
@@ -71,5 +70,5 @@
 .timeChoices button { border: 1px solid #c7dbdc; border-radius: 99px; padding: 8px 16px; background: white; color: #224e50; min-height: 44px; }
 .timeChoices button[aria-pressed=true] { background: #12655f; color: #fff; border-color: #12655f; }
 .focus :is(button, a, input, summary):focus-visible, .welcome :is(button, a):focus-visible { outline: 3px solid #ce870e; outline-offset: 3px; }
-@media (max-width: 420px) { .options { grid-template-columns: 1fr; } .mascot { width: 66px; height: 66px; flex-basis: 66px; } .bubble { padding: 12px; } .actions { flex-wrap: wrap; } .actions .primary { max-width: none; } .dialogue article:nth-child(even) { margin-left: 8px; } }
+@media (max-width: 420px) { .options { grid-template-columns: 1fr; } .bubble { padding: 12px; } .actions { flex-wrap: wrap; } .actions .primary { max-width: none; } .dialogue article:nth-child(even) { margin-left: 8px; } }
 @media (prefers-reduced-motion: reduce) { .focus *, .welcome * { scroll-behavior: auto; transition: none; animation: none; } }

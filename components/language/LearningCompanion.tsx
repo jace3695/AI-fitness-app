@@ -1,10 +1,12 @@
-import Image from "next/image";
 import type { ReactNode } from "react";
+import YeoniMascot, { type YeoniAction } from "@/components/YeoniMascot";
 import styles from "./learning-focus.module.css";
 
-export default function LearningCompanion({ children, hidden = false }: { children: ReactNode; hidden?: boolean }) {
+export default function LearningCompanion({ children, hidden = false, action = "idle", motionKey }: {
+  children: ReactNode; hidden?: boolean; action?: YeoniAction; motionKey?: string | number;
+}) {
   return <aside className={hidden ? styles.quietGuide : styles.companion} aria-label="연이의 학습 안내">
-    {!hidden && <Image src="/japanese-learning-companion.png" width={96} height={96} alt="" className={styles.mascot} sizes="96px" />}
+    {!hidden && <YeoniMascot action={action} motionKey={motionKey} />}
     <div className={styles.bubble}>{!hidden && <span className={styles.guideName}>연이와 함께</span>}<p>{children}</p></div>
   </aside>;
 }
