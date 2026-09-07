@@ -18,8 +18,9 @@ interface DayViewProps { day: DayWorkout; workoutMethod?: WorkoutMethodConfig; i
 interface DayViewProps { workoutExerciseRecords?: ExerciseRecord[] }
 
 const EMPTY_EXERCISE_RECORDS: ExerciseRecord[] = [];
+const EMPTY_FOAM_ROLLER_AREAS: string[] = [];
 
-export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, isCompleted, onSaveWorkout: persistWorkout, onCancelWorkout, workoutPain = false, workoutMemo = '', workoutStatus = 'completed', workoutDifficulty = 'moderate', workoutFatigue = 2, workoutExerciseRecords = EMPTY_EXERCISE_RECORDS, cardioDone = false, cardioType = '슬라이딩보드', cardioMinutes = 15, cardioMemo = '', onSaveCardio, onCancelCardio, foamRollerDone = false, foamRollerTiming = 'before', foamRollerAreas = [], foamRollerPain = false, foamRollerMemo = '', onSaveFoamRoller, onCancelFoamRoller, onPullupTraining, recovery, onRecordRecovery, onCancelRecovery, showBaseRoutine = true, onShowRecommended, onShowBaseRoutine }: DayViewProps) {
+export default function DayView({ day, workoutMethod = DEFAULT_WORKOUT_METHOD, isCompleted, onSaveWorkout: persistWorkout, onCancelWorkout, workoutPain = false, workoutMemo = '', workoutStatus = 'completed', workoutDifficulty = 'moderate', workoutFatigue = 2, workoutExerciseRecords = EMPTY_EXERCISE_RECORDS, cardioDone = false, cardioType = '슬라이딩보드', cardioMinutes = 15, cardioMemo = '', onSaveCardio, onCancelCardio, foamRollerDone = false, foamRollerTiming = 'before', foamRollerAreas = EMPTY_FOAM_ROLLER_AREAS, foamRollerPain = false, foamRollerMemo = '', onSaveFoamRoller, onCancelFoamRoller, onPullupTraining, recovery, onRecordRecovery, onCancelRecovery, showBaseRoutine = true, onShowRecommended, onShowBaseRoutine }: DayViewProps) {
   const [warning, setWarning] = useState(false);
   const [pain, setPain] = useState(workoutPain);
   const [memo, setMemo] = useState(workoutMemo);
