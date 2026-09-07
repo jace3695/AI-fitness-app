@@ -13,6 +13,7 @@ export type IntegratedLearningSettings = {
   learnerMode: "starter" | "reader";
   hasChosenStart: boolean;
   showCompanion: boolean;
+  homeCompanionMotion: boolean;
   showKoreanHint: boolean;
 };
 
@@ -27,6 +28,7 @@ export const DEFAULT_INTEGRATED_LEARNING_SETTINGS: IntegratedLearningSettings = 
   learnerMode: "starter",
   hasChosenStart: false,
   showCompanion: true,
+  homeCompanionMotion: true,
   showKoreanHint: true,
 };
 
@@ -46,6 +48,7 @@ export function loadIntegratedLearningSettings(): IntegratedLearningSettings {
       learnerMode: parsed.learnerMode === "reader" ? "reader" : "starter",
       hasChosenStart: parsed.hasChosenStart === true,
       showCompanion: parsed.showCompanion !== false,
+      homeCompanionMotion: parsed.homeCompanionMotion !== false,
       showKoreanHint: parsed.showKoreanHint !== false,
     };
   } catch {

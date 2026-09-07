@@ -42,9 +42,19 @@ export default function LearningWelcome() {
   const selectStart = (mode: "starter" | "reader") => {
     if (changeSettings({ ...settings, learnerMode: mode, hasChosenStart: true })) router.push(mode === "starter" ? "/language/start" : "/language/learn?lesson=" + nextLesson.id);
   };
+  const toggleMotion = () => {
+    const next = { ...settings, homeCompanionMotion: !settings.homeCompanionMotion };
+    // The pause control must still work if this device cannot save preferences.
+    setSettings(next);
+    try { saveIntegratedLearningSettings(next); setError(""); }
+    catch { setError("움직임 설정은 이 화면에 적용했지만 저장하지 못했어요. 기기의 저장 공간을 확인해 주세요."); }
+  };
   return <section className={styles.welcome}>
     <h1>나의 일본어 연습</h1>
-    <LearningCompanion hidden={!settings.showCompanion}>{firstTime ? "안녕! 연이와 조금씩 배워봐요. 일본어 글자가 처음이어도 괜찮아요." : draft ? "하던 연습이 남아 있어요. 멈췄던 곳에서 함께 이어갈까요?" : "오늘도 작은 한 걸음이면 충분해요. 내 속도로 배워봐요."}</LearningCompanion>
+    <LearningCompanion hidden={!settings.showCompanion} motion={settings.homeCompanionMotion ? "ambient" : "off"}
+      onMotionToggle={toggleMotion}>
+      {firstTime ? "안녕! 연이와 조금씩 배워봐요. 일본어 글자가 처음이어도 괜찮아요." : draft ? "하던 연습이 남아 있어요. 멈췄던 곳에서 함께 이어갈까요?" : "오늘도 작은 한 걸음이면 충분해요. 내 속도로 배워봐요."}
+    </LearningCompanion>
     <div className={styles.card}>
       <p className={styles.kicker}>오늘은 얼마나 해볼까요?</p>
       <div className={styles.timeChoices} aria-label="하루 학습 시간">{([5, 10, 20] as const).map((minutes) => <button key={minutes} type="button" aria-pressed={settings.dailyMinutes === minutes} onClick={() => changeSettings({ ...settings, dailyMinutes: minutes })}>{minutes}분</button>)}</div>

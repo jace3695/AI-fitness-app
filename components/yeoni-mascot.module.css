@@ -11,6 +11,12 @@
   contain: layout paint;
 }
 
+.pose {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 90%;
+}
+
 /* Four equal frames per row, with one row for each reaction. */
 .sheet {
   position: absolute;
@@ -24,11 +30,33 @@
   transform: translateX(0);
 }
 
-.idle { --row-offset: 0%; animation: blink 3.6s steps(1, end) 1; }
-.explain { --row-offset: -100%; animation: gesture 1.6s steps(1, end) 1; }
-.celebrate { --row-offset: -200%; animation: gesture 1.6s steps(1, end) 1; }
-.encourage { --row-offset: -300%; animation: gesture 1.6s steps(1, end) 1; }
-.sheet[data-ready=false] { animation-play-state: paused; }
+.idle { --row-offset: 0%; }
+.explain { --row-offset: -100%; }
+.celebrate { --row-offset: -200%; }
+.encourage { --row-offset: -300%; }
+
+/* Respect the OS motion preference for both animation layers. */
+@media (prefers-reduced-motion: no-preference) {
+  .idle { animation: blink 3.6s steps(1, end) 1; }
+  .explain, .celebrate, .encourage { animation: gesture 1.6s steps(1, end) 1; }
+  .pose[data-motion=ambient] { animation: breathe 18s ease-in-out infinite; }
+  .pose[data-motion=ambient] .idle { animation: occasionalBlink 12s steps(1, end) infinite; }
+  .pose[data-motion=off], .pose[data-motion=off] .sheet { animation: none; }
+  .pose[data-playing=false], .pose[data-playing=false] .sheet { animation-play-state: paused; }
+}
+
+@keyframes occasionalBlink {
+  0%, 90% { transform: translateX(0); }
+  91% { transform: translateX(-25%); }
+  92% { transform: translateX(-50%); }
+  93% { transform: translateX(-75%); }
+  94%, 100% { transform: translateX(0); }
+}
+
+@keyframes breathe {
+  0%, 78%, 94%, 100% { transform: translateY(0) scale(1); }
+  86% { transform: translateY(-1px) scale(1.015, 1.025); }
+}
 
 @keyframes blink {
   0%, 60% { transform: translateX(0); }
@@ -50,8 +78,4 @@
 
 @media (max-width: 420px) {
   .frame { width: 72px; height: 72px; flex-basis: 72px; border-radius: 15px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sheet { animation: none; }
 }
