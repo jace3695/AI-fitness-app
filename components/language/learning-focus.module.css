@@ -37,7 +37,9 @@
 .choice { text-align: left; line-height: 1.65; padding: 15px 18px; overflow-wrap: anywhere; }
 .choice[data-result=correct] { border-color: #258566; background: #eef9f2; color: #18513e; }
 .choice[data-result=wrong] { border-color: #b38131; background: #fff7e6; color: #704a12; }
-.feedback { background: #f3f7f7; border-radius: 14px; padding: 14px 16px; margin: 16px 0 0; }
+.feedback { background: #f3f7f7; border-radius: 14px; padding: 14px 16px; margin: 16px 0 0; scroll-margin-top: 120px; scroll-margin-bottom: 110px; }
+.feedback .companion, .feedback .quietGuide { margin: 0; }
+.feedback .bubble { background: transparent; border: 0; padding: 0; }
 .feedback p { margin: 5px 0 0; color: #35555a; font-size: .95rem; }
 .feedback strong { font-size: 1rem; }
 .feedback[data-correct=false] { background: #fff8e9; }

@@ -25,11 +25,9 @@ export default function CourseReviewQuestion({ item, onSchedule, onDelete }: {
   const index = /^\d+$/.test(suffix) ? Number(suffix) : -1;
   const quiz = lesson?.quiz[index];
   return <li className={styles.focus}>
-    <LearningCompanion hidden={!settings.showCompanion} action={answer === true ? "celebrate" : answer === false ? "encourage" : "explain"} motionKey={item.id}>
-      {answer === true ? "잘 떠올렸어요! 다음에도 함께 기억해봐요." : answer === false ? "괜찮아요. 힌트를 보고 한 번 더 해봐요." : "정답을 보기 전에 한 번 생각해봐요. 어려우면 힌트나 수업을 다시 봐도 괜찮아요."}
-    </LearningCompanion>
+    <LearningCompanion hidden>정답을 보기 전에 한 번 생각해봐요. 어려우면 힌트나 수업을 다시 봐도 괜찮아요.</LearningCompanion>
     <div className={styles.card}><p className={styles.kicker}>{item.lessonTitle} · 다시 만난 표현</p>
-      {lesson && quiz ? <LearningQuestion lesson={lesson} index={index} mode={settings.learnerMode} answer={answer} response={response}
+      {lesson && quiz ? <LearningQuestion lesson={lesson} index={index} mode={settings.learnerMode} showCompanion={settings.showCompanion} answer={answer} response={response}
         onHint={() => setNeededHelp(true)}
         onAnswer={(correct, value) => { audio.stop(); setAnswer(correct); setResponse(value); if (!correct) { setNeededHelp(true); setHadWrong(true); } }}
         onRetry={() => { setAnswer(undefined); setResponse(undefined); }} play={(text) => void audio.play(text, settings.audioRate)} playing={audio.playing} />
