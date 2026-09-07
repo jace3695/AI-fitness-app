@@ -18,6 +18,7 @@ export default function KanaStarter() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const feedbackRef = useRef<HTMLDivElement>(null);
+  const guideRef = useRef<HTMLElement>(null);
   const audio = useLearningAudio();
   const group = BEGINNER_KANA_GROUPS[groupIndex];
   const chars = [...group.chars];
@@ -27,6 +28,11 @@ export default function KanaStarter() {
   useEffect(() => {
     if (picked) feedbackRef.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
   }, [picked]);
+  useEffect(() => {
+    if (loaded && showCompanion && mode !== "quiz") {
+      guideRef.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    }
+  }, [loaded, showCompanion, group.id, mode, letterIndex]);
   useEffect(() => {
     const progress = loadCurriculumProgress();
     const next = BEGINNER_KANA_GROUPS.findIndex((item) => !progress.kanaCompletedGroups?.includes(item.id));
@@ -48,7 +54,7 @@ export default function KanaStarter() {
   if (!loaded) return <p role="status">첫 글자를 준비하고 있어요.</p>;
   return <section className={styles.focus}>
     <header className={styles.header}><Link href="/language" className={styles.back}>← 학습 홈</Link><h1>{group.title}</h1><span className={styles.pill}>가나 첫걸음</span></header>
-    <LearningCompanion hidden={!showCompanion || mode === "quiz"}
+    <LearningCompanion anchorRef={guideRef} hidden={!showCompanion || mode === "quiz"}
       action={mode === "done" ? "celebrate" : "explain"}
       motionKey={`${group.id}:${mode}:${letterIndex}`}>
       {mode === "done" ? "한 묶음을 해냈어요! 인사말을 배우러 가도 좋고, 다음 글자를 만나도 좋아요." : mode === "learn" ? "먼저 소리를 듣고 한 번 따라 해봐요. 전부 외우려고 애쓰지 않아도 돼요." : "방금 배운 글자를 찾아볼까요? 틀려도 다시 고르면 돼요."}
