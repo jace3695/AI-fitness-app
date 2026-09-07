@@ -1818,4 +1818,11 @@ button, input, textarea, select { font: inherit; }
   .budget-guide { padding: 20px 16px 0; }
   .living-finance-view { padding-inline: 16px !important; }
 }
+.home-header h1 { font-weight: 750; word-break: keep-all; }
+@media (max-width: 420px) {
+  .home-title-row { flex-wrap: wrap; }
+  .home-month-picker { width: 100%; }
+  .home-month-picker input { flex: 1; width: auto; max-width: none; min-height: 44px; font-size: 16px; }
+}
+
 }

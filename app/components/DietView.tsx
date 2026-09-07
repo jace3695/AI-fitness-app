@@ -571,7 +571,7 @@ export default function DietView() {
             ['식사 기록', `${completedMeals} / 4`],
             ['14시간 종료', nextMeal14],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+            <div key={label} className="rounded-2xl bg-white/10 p-3">
               <p className="text-[11px] text-white/70">{label}</p>
               <p className="mt-1 text-[15px] font-bold">{value}</p>
             </div>

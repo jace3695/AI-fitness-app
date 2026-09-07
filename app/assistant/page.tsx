@@ -272,7 +272,7 @@ export default function AssistantPage() {
         <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />
         <div className="flex items-center gap-2">
           <span className="hidden text-xs text-gray-500 sm:inline sm:text-sm">{today}</span>
-          <button type="button" onClick={() => void signOut()} className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">로그아웃</button>
+          <button type="button" onClick={() => void signOut()} className="shrink-0 whitespace-nowrap rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">로그아웃</button>
         </div>
       </div>
     </header>
@@ -285,7 +285,7 @@ export default function AssistantPage() {
           <AppCompanion home embedded quiet={chatSending}>{loading ? "안녕, Jace님! 오늘도 함께해요." : openTasks + openProjects + waiting ? `확인할 일 ${openTasks + openProjects + waiting}개, 하나씩 해볼까요?` : "오늘은 무엇부터 해볼까요?"}</AppCompanion>
         </article>
         <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
-          {[{ label: "중요 업무", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-3xl border border-white bg-white p-4 shadow-sm lg:flex lg:items-center lg:justify-between lg:px-6"><span className="text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6] lg:mt-0">{stat.value}</b></article>)}
+          {[{ label: "중요 업무", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-3xl border border-white bg-white p-4 shadow-sm lg:flex lg:items-center lg:justify-between lg:px-6"><span className="break-keep text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6] lg:mt-0">{stat.value}</b></article>)}
         </div>
       </section>
 

@@ -85,7 +85,7 @@ body.has-hub-bottom-nav {
 .hub-bottom-nav-icon { font-size: 18px; line-height: 1; }
 
 .hub-bottom-nav-more { position: relative; flex: 1 1 0; min-width: 0; }
-.hub-bottom-nav-more > .hub-bottom-nav-link { width: 100%; border: 0; background: transparent; font: inherit; cursor: pointer; }
+.hub-bottom-nav-more > .hub-bottom-nav-link { width: 100%; border: 0; background: transparent; font-family: inherit; cursor: pointer; }
 .hub-more-menu-backdrop {
   position: fixed;
   z-index: 0;
@@ -397,3 +397,5 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+.yeoni-summary :is(.text-white\/70, .text-white\/75, .text-white\/80) { color: #fff; }

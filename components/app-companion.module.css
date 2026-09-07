@@ -36,7 +36,7 @@
   border-bottom: 1px solid var(--yeoni-border);
 }
 .guide .name { display: block; color: var(--yeoni-primary-dark); font-size: 12px; font-weight: 750; line-height: 1.4; }
-.guide .bubble p { margin: 3px 0 0; color: var(--yeoni-ink); font-size: 16px; font-weight: 550; line-height: 1.6; overflow-wrap: anywhere; }
+.guide .bubble p { margin: 3px 0 0; color: var(--yeoni-ink); font-size: 16px; font-weight: 550; line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
 .guide[data-character=false] .bubble { padding: 10px 14px; max-width: none; }
 .guide[data-character=false] .name { display: none; }
 .guide[data-compact=true] .bubble { padding: 9px 13px; border-radius: 15px; }
