@@ -21,7 +21,7 @@ export default function PublicInfoPage({
   sections: Section[];
 }) {
   return (
-    <main className="min-h-dvh bg-[#F5F4FA] px-4 py-10 text-[#242231] sm:px-6 sm:py-14">
+    <main className="min-h-dvh bg-yeoni-bg px-4 py-10 text-[#242231] sm:px-6 sm:py-14">
       <div className="mx-auto max-w-3xl overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_22px_55px_rgba(81,70,166,0.12)]">
         <header className="bg-gradient-to-br from-[#5146A6] to-[#766DCE] px-6 py-8 text-white sm:px-10 sm:py-10">
           <div className="flex items-center gap-3">

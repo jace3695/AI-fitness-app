@@ -3221,6 +3221,7 @@ return (
       )}
 
       <style>{`
+        @scope (.living-finance-app) {
         button {
           transition: transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
           transform: scale(1);
@@ -3233,7 +3234,7 @@ return (
           transform: scale(0.96);
         }
         button:focus-visible {
-          outline: none;
+          outline: 3px solid var(--yeoni-primary);
           box-shadow: 0 0 0 2px rgba(232, 168, 124, 0.35);
         }
         button:disabled {
@@ -3263,8 +3264,10 @@ return (
         }
         input::placeholder,
         textarea::placeholder {
-          color: rgba(255,255,255,0.78);
-          text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+          color: var(--yeoni-muted);
+          text-shadow: none;
+        }
+
         }
       `}</style>
 
@@ -3280,7 +3283,7 @@ return (
       </header>
 
 
-      <div className="mx-auto max-w-6xl px-4 pt-5 sm:px-6"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요. 자동으로 읽은 내역도 함께 살펴봐요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>
+      <div className="budget-guide"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요. 자동으로 읽은 내역도 함께 살펴봐요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>
 
       {tab === 'home' && (
         <main className="living-finance-view living-finance-home app-safe-top" style={{ padding: '24px 20px 96px' }}>

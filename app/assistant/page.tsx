@@ -266,7 +266,7 @@ export default function AssistantPage() {
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const priorityLabel = (priority: number) => priority >= 5 ? "긴급" : priority === 4 ? "중요" : priority <= 2 ? "낮음" : "보통";
 
-  return <main className="min-h-dvh bg-[#F5F4FA] text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg text-[#242231]">
     <header className="app-module-header">
       <div className="app-module-header-inner">
         <AppIdentity kind="assistant" title="AI 연이" subtitle="한결같이 일상과 기록을 이어주는 비서" />
@@ -277,12 +277,12 @@ export default function AssistantPage() {
       </div>
     </header>
 
-    <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
+    <div className="yeoni-page-content">
       <section className="grid gap-4 lg:grid-cols-[1.45fr_.55fr]">
         <article className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-sm sm:p-7">
           <p className="text-xs font-bold text-[#766DB8]">함께 시작하는 하루</p>
           <h2 className="mb-5 mt-2 text-2xl font-bold text-[#353052]">오늘의 브리핑</h2>
-          <AppCompanion home quiet={chatSending}>{loading ? "안녕, Jace님! 오늘도 함께해요." : openTasks + openProjects + waiting ? `확인할 일 ${openTasks + openProjects + waiting}개, 하나씩 해볼까요?` : "오늘은 무엇부터 해볼까요?"}</AppCompanion>
+          <AppCompanion home embedded quiet={chatSending}>{loading ? "안녕, Jace님! 오늘도 함께해요." : openTasks + openProjects + waiting ? `확인할 일 ${openTasks + openProjects + waiting}개, 하나씩 해볼까요?` : "오늘은 무엇부터 해볼까요?"}</AppCompanion>
         </article>
         <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
           {[{ label: "중요 업무", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-3xl border border-white bg-white p-4 shadow-sm lg:flex lg:items-center lg:justify-between lg:px-6"><span className="text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6] lg:mt-0">{stat.value}</b></article>)}
@@ -317,14 +317,14 @@ export default function AssistantPage() {
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
         <div className="mt-3 flex flex-wrap gap-2">{["오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-[#F5F4FA] px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
           <button disabled={chatSending || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
         </form>
       </section>
 
       <section id="assistant-list" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>
-        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-[#F5F4FA] p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto_auto]">
+        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-yeoni-bg p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto_auto]">
           <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <select value={kind} onChange={(event) => setKind(event.target.value as Exclude<Filter, "all">)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm font-semibold outline-none ring-1 ring-gray-100"><option value="task">할 일</option><option value="project">프로젝트</option><option value="waiting">회신 대기</option><option value="memory">기억</option></select>
           <select aria-label="우선순위" value={entryPriority} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryPriority(Number(event.target.value))} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value={5}>긴급</option><option value={4}>중요</option><option value={3}>보통</option><option value={2}>낮음</option></select>

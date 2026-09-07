@@ -157,11 +157,11 @@ export default function GrowthPage() {
   };
 
   return (
-    <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+    <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
       <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="자기계발" subtitle="시작부터 기록과 성장 확인까지" /><div className="flex flex-wrap items-center gap-3"><span className="text-xs font-semibold text-gray-500 sm:text-sm">{todayLabel}</span><Link href="/growth/settings" className="inline-flex min-h-11 items-center px-3 text-sm font-bold">설정</Link></div></div></header>
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
+      <div className="yeoni-page-content">
         <AppCompanion home compact={Boolean(activeRoutine)} quiet={Boolean(activeRoutine) || editing || recordOpen}>{activeRoutine ? "지금은 루틴에 집중해봐요. 마치면 느낀 점을 짧게 남겨 주세요." : growth.loading || linkedLoading ? "오늘의 루틴을 준비하고 있어요." : `오늘 ${completedCount}/${totalCount}개 완료! 내 속도로 이어가요.`}</AppCompanion>
-        <section className="rounded-[30px] bg-gradient-to-br from-violet-600 to-indigo-500 p-6 text-white shadow-[0_22px_55px_rgba(91,75,180,0.22)] sm:p-8">
+        <section className="rounded-[30px] yeoni-summary p-6 text-white shadow-[0_22px_55px_rgba(91,75,180,0.22)] sm:p-8">
           <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-white/75">오늘의 자기계발</p><strong className="mt-3 block text-4xl">{completedCount}/{totalCount}</strong><p className="mt-2 text-sm text-white/80">오늘 루틴 완료</p></div><strong className="text-2xl">{progress}%</strong></div>
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/20" aria-label={`오늘 자기계발 ${progress}% 완료`}><div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progress}%` }} /></div>
           <div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={() => setRecordOpen((value) => !value)} className="min-h-11 rounded-xl bg-white px-4 text-sm font-bold text-violet-700">지난 기록 추가</button><Link href="/growth/review" className="inline-flex min-h-11 items-center rounded-xl bg-white/15 px-4 text-sm font-bold ring-1 ring-white/30">주간 코칭 보기</Link></div>

@@ -3,7 +3,20 @@
 @tailwind utilities;
 
 :root {
-  --primary: #534AB7;
+  --primary: #6554b8;
+  --yeoni-primary: #6554b8;
+  --yeoni-primary-dark: #514294;
+  --yeoni-bg: #f5f4fa;
+  --yeoni-surface: #ffffff;
+  --yeoni-soft: #f0ecfb;
+  --yeoni-border: #e3ddf0;
+  --yeoni-ink: #302a46;
+  --yeoni-muted: #6d657e;
+  --yeoni-mint: #e5f5ef;
+  --yeoni-mint-ink: #226b58;
+  --yeoni-shadow: 0 4px 18px rgba(62, 44, 99, 0.045);
+  --yeoni-radius: 24px;
+  --yeoni-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
 }
 
 * {
@@ -17,10 +30,9 @@ html {
 }
 
 body {
-  background: #f5f5f7;
-  color: #1d1d1f;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+  background: var(--yeoni-bg);
+  color: var(--yeoni-ink);
+  font-family: var(--yeoni-font);
   min-height: 100dvh;
   overflow-x: hidden;
   padding-bottom: env(safe-area-inset-bottom);
@@ -47,11 +59,10 @@ body.has-hub-bottom-nav {
   max-width: 680px;
   margin: 0 auto;
   padding: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--yeoni-border);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 35px rgba(36, 34, 49, 0.16);
-  backdrop-filter: blur(18px);
+  background: var(--yeoni-surface);
+  box-shadow: 0 8px 28px rgba(62, 44, 99, 0.12);
   pointer-events: auto;
 }
 
@@ -70,7 +81,7 @@ body.has-hub-bottom-nav {
   font-weight: 700;
 }
 
-.hub-bottom-nav-link.is-active { background: #eeedfe; color: #493f96; }
+.hub-bottom-nav-link.is-active { background: var(--yeoni-soft); color: var(--yeoni-primary-dark); }
 .hub-bottom-nav-icon { font-size: 18px; line-height: 1; }
 
 .hub-bottom-nav-more { position: relative; flex: 1 1 0; min-width: 0; }
@@ -97,9 +108,8 @@ body.has-hub-bottom-nav {
   padding: 14px;
   border: 1px solid rgba(83, 74, 183, 0.14);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--yeoni-surface);
   box-shadow: 0 14px 35px rgba(36, 34, 49, 0.18);
-  backdrop-filter: blur(18px);
 }
 .hub-more-menu-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hub-more-menu-kicker { margin: 0 0 2px; color: #665cc5; font-size: 11px; font-weight: 800; }
@@ -233,10 +243,9 @@ html {
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 1px solid rgba(226, 232, 223, 0.9);
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 18px rgba(32, 61, 48, 0.05);
-  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--yeoni-border);
+  background: var(--yeoni-surface);
+  box-shadow: var(--yeoni-shadow);
 }
 
 .app-module-header-inner {
@@ -264,10 +273,10 @@ html {
   align-items: center;
   gap: 4px;
   padding: 5px;
-  border: 1px solid #e2e8df;
+  border: 1px solid var(--yeoni-border);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 28px rgba(32, 61, 48, 0.07);
+  box-shadow: none;
 }
 
 .app-module-nav-item {
@@ -280,7 +289,7 @@ html {
   padding: 8px 12px;
   border: 0;
   border-radius: 13px;
-  color: #647067;
+  color: var(--yeoni-muted);
   background: transparent;
   font: inherit;
   text-decoration: none;
@@ -295,8 +304,8 @@ html {
 
 .app-module-nav-item.is-active {
   color: #fff;
-  background: #534ab7;
-  box-shadow: 0 5px 14px rgba(83, 74, 183, 0.2);
+  background: var(--yeoni-primary);
+  box-shadow: 0 3px 9px rgba(83, 74, 183, 0.15);
 }
 
 .app-module-nav-icon {
@@ -367,4 +376,24 @@ html {
   .fitness-mobile-shell summary {
     min-height: 44px;
   }
+}
+
+/* Shared activity cards: the cat's purple is the primary accent, mint the supporting accent. */
+.yeoni-summary {
+  background: linear-gradient(125deg, #59489b, #7867c3);
+  border: 1px solid #7562bd;
+  border-radius: var(--yeoni-radius);
+  box-shadow: 0 8px 22px rgba(62, 44, 99, .12);
+}
+.yeoni-page-content {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding: 24px 24px 40px;
+}
+@media (max-width: 767px) {
+  .yeoni-page-content { padding: 20px 16px 36px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }

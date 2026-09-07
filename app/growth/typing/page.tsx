@@ -61,7 +61,7 @@ export default function GrowthTypingPage() {
     growth.setNotice(result.error ? "타자 기록을 저장하지 못했어요." : "속도와 정확도를 클라우드에 저장했어요.");
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="타자 연습" subtitle="정확하게 입력하고 기록 저장" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>속도보다 정확하게! 편한 자세로 한 문장씩 입력해봐요.</AppCompanion>

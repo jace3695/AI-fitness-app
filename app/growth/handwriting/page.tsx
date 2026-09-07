@@ -117,7 +117,7 @@ export default function GrowthHandwritingPage() {
     growth.setNotice(session.error ? "이미지는 저장했지만 실행 기록을 남기지 못했어요." : "손글씨 이미지와 완료 기록을 비공개로 저장했어요.");
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="손글씨 연습" subtitle="iPad와 Apple Pencil로 간단하게" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>한 글자씩 천천히 써봐요. 끝나면 오늘의 손글씨를 남겨 주세요.</AppCompanion>

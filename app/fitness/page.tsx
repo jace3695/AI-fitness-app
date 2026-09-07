@@ -625,7 +625,7 @@ function FitnessApp() {
   return (
     <>
       <WorkoutNotificationManager />
-    <div className="fitness-mobile-shell min-h-dvh bg-[#F6F7FB]">
+    <div className="fitness-mobile-shell min-h-dvh bg-yeoni-bg">
       {/* ── Top Header ── */}
       <header className="app-module-header">
         <div className="app-module-header-inner">
@@ -640,7 +640,7 @@ function FitnessApp() {
         <div className="mx-auto max-w-5xl"><AppCompanion home={activeTab === "ov"} compact={activeTab !== "ov"} quiet={activeTab !== "ov"}>{activeTab === "ov" ? todayRecord.workoutDone ? "오늘 운동을 해냈네요! 편하게 쉬어요." : "몸 상태를 살피며, 하나씩 함께해요." : activeTab === "record" ? "숫자 하나보다 기록의 흐름을 함께 봐요. 입력한 값도 한 번 확인해 주세요." : activeTab === "more" ? "필요한 도구와 설정을 여기서 찾아봐요." : "내 속도에 맞춰 천천히 해봐요. 운동 중에는 조용히 기다릴게요."}</AppCompanion></div>
         {activeTab === "ov" && (
           <div className="mx-auto w-full max-w-5xl">
-            <section className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#766EE5] p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
+            <section className="mb-4 overflow-hidden rounded-3xl yeoni-summary p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-semibold text-white/75">
@@ -684,7 +684,7 @@ function FitnessApp() {
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {todayPreviewItems.slice(0, 7).map((name, index) => (
-                  <span key={`${name}-${index}`} className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-[11px] font-semibold text-gray-700">
+                  <span key={`${name}-${index}`} className="rounded-full bg-yeoni-bg px-3 py-1.5 text-[11px] font-semibold text-gray-700">
                     {index + 1}. {name}
                   </span>
                 ))}

@@ -15,7 +15,7 @@ export default function YeoniPreferencesPanel() {
   };
   return <section className={styles.preferences} aria-label="연이 캐릭터 설정">
     <h2>연이 캐릭터</h2>
-    <AppCompanion compact quiet>필요한 순간에 함께할게요. 편한 방식으로 골라 주세요.</AppCompanion>
+    <AppCompanion compact quiet embedded>필요한 순간에 함께할게요. 편한 방식으로 골라 주세요.</AppCompanion>
     <label><input type="checkbox" checked={preferences.visible} onChange={event => change({ visible: event.target.checked })} />모든 앱에서 연이 표시</label>
     <label className={styles.motion}>연이 움직임<select value={preferences.motion} disabled={!preferences.visible} onChange={event => change({ motion: event.target.value as YeoniPreferences["motion"] })}>
       <option value="reactions">절약 · 필요할 때만</option><option value="home">홈에서 가끔 반복</option><option value="off">모든 움직임 끄기</option>

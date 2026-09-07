@@ -73,7 +73,7 @@ export default function GrowthReviewPage() {
     growth.setNotice(decision === "kept" ? "현재 루틴을 그대로 유지하기로 저장했어요." : "선택한 제안만 루틴에 적용했어요.");
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="주간 성장 코칭" subtitle="기록을 보고 제안만 만드는 연이" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>쌓인 기록을 함께 돌아보고, 다음 주에 할 작은 목표를 골라봐요.</AppCompanion>

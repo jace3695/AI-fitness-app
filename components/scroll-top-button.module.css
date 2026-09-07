@@ -10,21 +10,21 @@
   width: 64px;
   min-height: 48px;
   padding: 8px;
-  border: 1px solid #2467ad;
+  border: 1px solid var(--yeoni-primary-dark);
   border-radius: 999px;
-  background: linear-gradient(180deg, #398be0, #2467ad);
+  background: var(--yeoni-primary);
   color: #fff;
   font: inherit;
   font-size: 12px;
   font-weight: 750;
   line-height: 1;
-  box-shadow: 0 6px 18px #2467ad33;
+  box-shadow: 0 6px 18px rgba(62, 44, 99, .18);
   cursor: pointer;
   animation: appear .18s ease-out both;
 }
 
-.button:hover { background: #205c9a; }
-.button:focus-visible { outline: 3px solid #ce870e; outline-offset: 3px; }
+.button:hover { background: var(--yeoni-primary-dark); }
+.button:focus-visible { outline: 3px solid var(--yeoni-primary); outline-offset: 3px; }
 :global(body):has([aria-modal="true"], dialog[open]) .button { display: none; }
 
 /* Leave room for the bottom navigation and the mobile install button. */

@@ -9,10 +9,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        yeoni: { bg: 'var(--yeoni-bg)', ink: 'var(--yeoni-ink)' },
         primary: {
-          DEFAULT: '#534AB7',
-          light: '#EEEDFE',
-          dark: '#3C3489',
+          DEFAULT: 'var(--yeoni-primary)',
+          light: 'var(--yeoni-soft)',
+          dark: 'var(--yeoni-primary-dark)',
           border: '#AFA9EC',
         },
         fgreen: {

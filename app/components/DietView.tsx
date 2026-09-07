@@ -549,7 +549,7 @@ export default function DietView() {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#534AB7] to-[#7B73D4] p-5 text-white shadow-sm sm:p-6">
+      <section className="overflow-hidden rounded-3xl yeoni-summary p-5 text-white shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[12px] font-bold text-white/75">오늘의 식단</p>

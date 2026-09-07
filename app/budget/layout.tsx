@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function BudgetLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return <div className="budget-app-shell">{children}</div>;
 }

@@ -131,7 +131,7 @@ export default function GrowthResourcesPage() {
     setSaving(false);
   };
 
-  return <main className="min-h-dvh bg-[#F5F4FA] pb-10 text-[#242231]">
+  return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="내 자료" subtitle="비공개 업로드·분류·검색" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>다시 보고 싶은 자료를 모아봐요. 제목과 분류를 붙이면 찾기 쉬워요.</AppCompanion>
