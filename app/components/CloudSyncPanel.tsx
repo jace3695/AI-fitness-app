@@ -9,6 +9,7 @@ import {
   mergeCloudStateFromBase,
   readLocalCloudState,
   readSyncBase,
+  reconcileSyncResponse,
   saveRemoteState,
   saveRemoteStateIfUnchanged,
   saveSyncBase,
@@ -18,7 +19,10 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-type SyncStatus = "idle" | "syncing" | "synced" | "error";
+import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
+import { requestSafeReload } from "../lib/unsavedChanges";
+
+type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
 
 export default function CloudSyncPanel() {
   const [user, setUser] = useState<User | null>(null);
@@ -45,6 +49,7 @@ export default function CloudSyncPanel() {
     if (!user || !supabase) return;
     let active = true;
     let resetVersion = 0;
+    let followUpTimer: number | undefined;
     const onReset = () => { resetVersion += 1; };
     window.addEventListener(RECORD_RESET_EVENT, onReset);
 
@@ -93,10 +98,10 @@ export default function CloudSyncPanel() {
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
           }
           if (cancelled()) return;
-          applyCloudState(merged);
+          applyCloudState(reconcileSyncResponse(local, merged, readLocalCloudState()));
           lastSynced.current = mergedHash;
           saveSyncBase(user.id, merged);
-          if (mergedHash !== localHash) window.location.reload();
+          if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
         } else {
           const localChanged = localHash !== lastSynced.current;
           const remoteChanged = remoteHash !== lastSynced.current;
@@ -114,10 +119,10 @@ export default function CloudSyncPanel() {
             }
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             if (cancelled()) return;
-            applyCloudState(merged);
+            applyCloudState(reconcileSyncResponse(local, merged, readLocalCloudState()));
             lastSynced.current = stableState(merged);
             saveSyncBase(user.id, merged);
-            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) window.location.reload();
+            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
           } else if (localChanged) {
             const saved = await saveRemoteStateIfUnchanged(user.id, local, remoteRow.updated_at);
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
@@ -128,11 +133,13 @@ export default function CloudSyncPanel() {
             applyCloudState(remote);
             lastSynced.current = remoteHash;
             saveSyncBase(user.id, remote);
-            window.location.reload();
+            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== remote[resetMarkerKey(app)])) requestSafeReload();
           }
         }
         if (active) {
-          setStatus("synced");
+          const pending = stableState(readLocalCloudState()) !== lastSynced.current;
+          setStatus(pending ? "pending" : "synced");
+          if (pending) followUpTimer = window.setTimeout(() => void sync(), 500);
           setMessage("");
           setLastSyncedAt(new Date());
         }
@@ -157,6 +164,15 @@ export default function CloudSyncPanel() {
     };
     const onOnline = () => void sync();
     const onFocus = () => void sync();
+    const onRecordsChanged = () => {
+      if (syncing.current || !active) return;
+      if (stableState(readLocalCloudState()) === lastSynced.current) return;
+      setStatus("pending");
+      window.clearTimeout(followUpTimer);
+      followUpTimer = window.setTimeout(() => void sync(), 500);
+    };
+    window.addEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+    window.addEventListener("storage", onRecordsChanged);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("online", onOnline);
     window.addEventListener("focus", onFocus);
@@ -164,6 +180,9 @@ export default function CloudSyncPanel() {
       active = false;
       window.removeEventListener(RECORD_RESET_EVENT, onReset);
       window.clearInterval(interval);
+      window.clearTimeout(followUpTimer);
+      window.removeEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+      window.removeEventListener("storage", onRecordsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("focus", onFocus);
@@ -266,7 +285,7 @@ export default function CloudSyncPanel() {
                 ? "기록 동기화 중…"
                 : status === "error"
                   ? "기록 동기화 실패"
-                  : "기록 동기화 완료"}
+                  : status === "synced" ? "서버 반영 완료" : "기기 기록 · 서버 반영 대기"}
             </p>
             <p className="mt-0.5 truncate opacity-80">{user.email}</p>
             {status === "error" ? (
@@ -282,7 +301,7 @@ export default function CloudSyncPanel() {
             ) : null}
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 font-bold ${status === "error" ? "bg-red-100 text-red-700" : status === "syncing" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : "안전하게 저장됨"}
+            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : status === "synced" ? "서버 저장 확인" : "반영 대기"}
           </span>
         </div>
         <div className="mt-3 flex gap-2">

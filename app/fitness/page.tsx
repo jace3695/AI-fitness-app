@@ -1,5 +1,6 @@
 "use client";
 
+import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import AppCompanion from "@/components/AppCompanion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -183,9 +184,11 @@ function FitnessApp() {
   useEffect(() => {
     window.addEventListener('focus', refreshWorkoutReview);
     window.addEventListener('storage', refreshWorkoutReview);
+    window.addEventListener(RECORDS_CHANGED_EVENT, refreshWorkoutReview);
     return () => {
       window.removeEventListener('focus', refreshWorkoutReview);
       window.removeEventListener('storage', refreshWorkoutReview);
+      window.removeEventListener(RECORDS_CHANGED_EVENT, refreshWorkoutReview);
     };
   }, [refreshWorkoutReview]);
 
@@ -308,7 +311,7 @@ function FitnessApp() {
     const recordedWorkoutStatus: WorkoutOverallStatus = feedback?.status === "stopped"
       ? "stopped"
       : detailedWorkoutStatus || feedback?.status || "completed";
-    const backStatus = feedback?.backStatus ?? (pain ? "pain" : "none");
+    const backStatus = feedback?.backStatus ?? (pain ? "pain" : undefined);
     const neurologicalSymptoms = feedback?.neurologicalSymptoms ?? [];
     const hasSafetyPain = pain || backStatus === "pain" || backStatus === "worse" || neurologicalSymptoms.length > 0;
     setCompletedStore((prev) => {
@@ -333,8 +336,8 @@ function FitnessApp() {
           workoutPainSet: feedback?.painSet,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
           workoutStatus: recordedWorkoutStatus,
-          workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
-          workoutFatigue: feedback?.fatigue || current.workoutFatigue || 2,
+          workoutDifficulty: feedback ? feedback.difficulty : current.workoutDifficulty,
+          workoutFatigue: feedback ? feedback.fatigue : current.workoutFatigue,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           workoutMethod: dayWorkout?.optionalCardio ? undefined : { ...activeWorkoutMethod },
           workoutRecordedAt: new Date().toISOString(),

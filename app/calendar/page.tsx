@@ -1,8 +1,10 @@
 "use client";
 
+import { useDialogFocus } from "@/components/useDialogFocus";
+import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import AuthGate from "../components/AuthGate";
 import AppIdentity from "../components/AppIdentity";
 import GoogleCalendarPanel from "../components/GoogleCalendarPanel";
@@ -28,12 +30,20 @@ function UnifiedCalendar() {
   const [month, setMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
   const [info, setInfo] = useState<Record<string, DayInfo>>({});
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailures, setLoadFailures] = useState<string[]>([]);
+  const [reloadVersion, setReloadVersion] = useState(0);
   const [selected, setSelected] = useState("");
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(Boolean(selected), dialogRef);
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
 
   useEffect(() => {
     let active = true;
     const load = async () => {
+      setLoading(true);
+      const failed: string[] = [];
+      try {
       const next: Record<string, DayInfo> = {};
       const stores = readRecordStores();
       Object.entries(stores.workouts).forEach(([date, value]) => { if (date.startsWith(monthKey) && isWorkoutPerformed(value)) next[date] = { ...next[date], workout: getWorkoutRecord(value), note: stores.notes[date] }; });
@@ -54,16 +64,40 @@ function UnifiedCalendar() {
             supabase.from("budget_transactions").select("*").eq("user_id", user.id).gte("date", `${monthKey}-01`).lte("date", end),
             supabase.from("growth_sessions").select("id,session_date,status,actual_minutes,memo,growth_routines(title)").eq("user_id", user.id).gte("session_date", `${monthKey}-01`).lte("session_date", end),
           ]);
-          (tasks.data as Task[] | null)?.forEach((task) => { const date = task.due_at?.slice(0, 10); if (date) next[date] = { ...next[date], tasks: [...(next[date]?.tasks || []), task] }; });
+          if (tasks.error) failed.push('일정');
+          if (budget.error) failed.push('가계부');
+          if (growth.error) failed.push('성장 기록');
+          (tasks.data as Task[] | null)?.forEach((task) => { const date = task.due_at ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(task.due_at)) : null; if (date) next[date] = { ...next[date], tasks: [...(next[date]?.tasks || []), task] }; });
           (budget.data as Budget[] | null)?.forEach((item) => { next[item.date] = { ...next[item.date], budget: [...(next[item.date]?.budget || []), item] }; });
           (growth.data as unknown as GrowthSession[] | null)?.filter((item) => !item.growth_routines || !isRetiredGrowthRoutine(item.growth_routines)).forEach((item) => { next[item.session_date] = { ...next[item.session_date], growth: [...(next[item.session_date]?.growth || []), item] }; });
-        }
+        } else failed.push('로그인 확인');
+      } else failed.push('연결 확인');
+      if (active) {
+        setLoadFailures(failed);
+        setInfo(previous => {
+          for (const [date, row] of Object.entries(previous)) {
+            if (!date.startsWith(monthKey)) continue;
+            const keep = { ...(failed.includes('일정') ? { tasks: row.tasks } : {}), ...(failed.includes('가계부') ? { budget: row.budget } : {}), ...(failed.includes('성장 기록') ? { growth: row.growth } : {}) };
+            if (Object.keys(keep).length) next[date] = { ...next[date], ...keep };
+          }
+          return next;
+        });
       }
-      if (active) setInfo(next);
+      } catch { if (active) setLoadFailures(['연결 확인']); }
+      finally { if (active) setLoading(false); }
     };
     void load();
     return () => { active = false; };
-  }, [month, monthKey]);
+  }, [month, monthKey, reloadVersion]);
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') setReloadVersion(value => value + 1); };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    window.addEventListener('storage', refresh);
+    window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('online', refresh); window.removeEventListener('storage', refresh); window.removeEventListener(RECORDS_CHANGED_EVENT, refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, []);
 
   useEffect(() => {
     if (!selected) return;
@@ -91,6 +125,7 @@ function UnifiedCalendar() {
 
   return <main className="min-h-dvh bg-yeoni-bg text-[#242231]"><header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" /><Link href="/calendar/settings" className="inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-bold">설정</Link></div></header><div className="yeoni-page-content">
     <AppCompanion>날짜를 누르면 그날의 일정과 기록을 함께 볼 수 있어요.</AppCompanion>
+    {loading ? <p role="status" className="mb-3 text-sm text-gray-500">기록을 불러오는 중…</p> : loadFailures.length > 0 ? <div role="status" className="mb-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800"><p>{loadFailures.join(' · ')} 기록을 확인하지 못했어요. 이전에 불러온 기록은 유지합니다.</p><button type="button" onClick={() => setReloadVersion(value => value + 1)} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">다시 불러오기</button></div> : null}
     <section className="rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
       <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => {
@@ -118,7 +153,7 @@ function UnifiedCalendar() {
       })}</div>
     </section>
     <GoogleCalendarPanel monthKey={monthKey} onEvents={setGoogleEvents} />
-    {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">
+    {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">
       {row?.tasks?.length ? <CalendarCard title="AI 연이" href="/assistant" tone="border-violet-100 bg-violet-50">{row.tasks.map((item) => <p key={item.id}>• {item.title} · {item.status === "completed" ? "완료" : "진행 중"}</p>)}</CalendarCard> : null}
       {selectedGoogleEvents.length ? <article className="rounded-2xl border border-sky-100 bg-sky-50 p-4"><div className="flex justify-between"><b>Google Calendar</b><span className="text-xs font-bold text-sky-700">{selectedGoogleEvents.length}개</span></div><div className="mt-2 space-y-2 text-sm text-gray-700">{selectedGoogleEvents.map((item) => <p key={item.id}>• {item.htmlLink ? <a href={item.htmlLink} target="_blank" rel="noreferrer" className="font-medium underline decoration-sky-300 underline-offset-2">{item.title}</a> : item.title} · {item.allDay ? "종일" : `${item.startLabel}${item.endLabel ? `–${item.endLabel}` : ""}`}</p>)}</div></article> : null}
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
@@ -126,7 +161,7 @@ function UnifiedCalendar() {
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
       {row?.growth?.length ? <CalendarCard title="자기계발" href="/growth" tone="border-fuchsia-100 bg-fuchsia-50">{row.growth.map((item) => <p key={item.id}>• {item.growth_routines?.title || "삭제된 루틴"} · {item.actual_minutes}분 · {item.status === "completed" ? "완료" : item.status === "partial" ? "진행" : "중단"}</p>)}</CalendarCard> : null}
       {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
-    </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">이 날짜에 저장된 기록이 없습니다.</p> : null}</section></div> : null}
+    </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">{loading ? "기록을 확인하고 있어요." : loadFailures.length ? "조회하지 못한 기록이 있어요. 다시 불러온 뒤 확인해 주세요." : "이 날짜에 저장된 기록이 없습니다."}</p> : null}</section></div> : null}
   </div></main>;
 }
 

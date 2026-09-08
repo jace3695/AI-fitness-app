@@ -1,17 +1,21 @@
 'use client';
 
+import { useDialogFocus } from "@/components/useDialogFocus";
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Exercise } from '../data/workouts';
 import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore, WorkoutBackStatus, WorkoutDifficulty, WorkoutNeurologicalSymptom, WorkoutOverallStatus } from '../data/workoutCompletion';
 import { getExerciseRecommendation, WorkoutIntensity } from '../data/workoutRecommendations';
 import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from './ExerciseGuidePanel';
 import ExerciseRecordEditor from './ExerciseRecordEditor';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges';
+import { elapsedSecondsSince, remainingSecondsUntil } from '../data/timerClock';
 import { IntervalTimer } from './WorkoutControls';
 
 type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
 
 interface WorkoutSessionDraft {
   version: 2;
+  feedbackVersion?: 1;
   exerciseSignature: string;
   savedAt: number;
   currentIndex: number;
@@ -23,14 +27,14 @@ interface WorkoutSessionDraft {
   restSeconds: number;
   painScore: number;
   painSymptoms: string[];
-  backStatus: WorkoutBackStatus;
+  backStatus?: WorkoutBackStatus;
   neurologicalSymptoms: WorkoutNeurologicalSymptom[];
   painExercise?: string;
   painSet?: number;
   painMemo: string;
   overallStatus: WorkoutOverallStatus;
-  difficulty: WorkoutDifficulty;
-  fatigue: number;
+  difficulty?: WorkoutDifficulty;
+  fatigue?: number;
   exerciseRecords: ExerciseRecord[];
 }
 
@@ -39,9 +43,9 @@ export interface WorkoutSessionResult {
   memo: string;
   exerciseRecords: ExerciseRecord[];
   status: WorkoutOverallStatus;
-  difficulty: WorkoutDifficulty;
-  fatigue: number;
-  backStatus: WorkoutBackStatus;
+  difficulty?: WorkoutDifficulty;
+  fatigue?: number;
+  backStatus?: WorkoutBackStatus;
   neurologicalSymptoms: WorkoutNeurologicalSymptom[];
   painExercise?: string;
   painSet?: number;
@@ -185,7 +189,7 @@ function buildSessionMemo({
   skippedCount: number;
   painScore: number;
   painSymptoms: string[];
-  backStatus: WorkoutBackStatus;
+  backStatus?: WorkoutBackStatus;
   neurologicalSymptoms: WorkoutNeurologicalSymptom[];
   painExercise?: string;
   painSet?: number;
@@ -234,20 +238,26 @@ function TimerButton({
     onSecondsChangeRef.current(seconds);
   }, [seconds]);
 
+  const remainingRef = useRef(seconds);
+  useEffect(() => { remainingRef.current = seconds; }, [seconds]);
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          window.clearInterval(id);
-          setRunning(false);
-          queueMicrotask(() => onCompleteRef.current());
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
+    const deadline = Date.now() + remainingRef.current * 1000;
+    let completed = false;
+    const tick = () => {
+      const next = remainingSecondsUntil(deadline, Date.now());
+      remainingRef.current = next;
+      setSeconds(next);
+      onSecondsChangeRef.current(next);
+      if (!next && !completed) {
+        completed = true;
+        setRunning(false);
+        onCompleteRef.current();
+      }
+    };
+    const id = window.setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
   }, [running]);
 
   if (!initialSeconds) return null;
@@ -278,15 +288,16 @@ function ElapsedClock({ initialSeconds, onSecondsChange }: { initialSeconds: num
 
   useEffect(() => { onSecondsChangeRef.current = onSecondsChange; }, [onSecondsChange]);
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setSeconds((current) => {
-        const next = current + 1;
-        onSecondsChangeRef.current(next);
-        return next;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
+    const startedAt = Date.now();
+    const tick = () => {
+      const next = elapsedSecondsSince(startedAt, initialSeconds, Date.now());
+      setSeconds(next);
+      onSecondsChangeRef.current(next);
+    };
+    const id = window.setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+  }, [initialSeconds]);
 
   return <>{formatClock(seconds)}</>;
 }
@@ -299,18 +310,18 @@ function RestCountdown({ initialSeconds, onSecondsChange, onComplete, onSkip }: 
   useEffect(() => { onSecondsChangeRef.current = onSecondsChange; }, [onSecondsChange]);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
   useEffect(() => {
-    const id = window.setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          window.clearInterval(id);
-          queueMicrotask(() => onCompleteRef.current());
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
+    const deadline = Date.now() + initialSeconds * 1000;
+    let completed = false;
+    const tick = () => {
+      const next = remainingSecondsUntil(deadline, Date.now());
+      setSeconds(next);
+      onSecondsChangeRef.current(next);
+      if (!next && !completed) { completed = true; onCompleteRef.current(); }
+    };
+    const id = window.setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+  }, [initialSeconds]);
   useEffect(() => { onSecondsChangeRef.current(seconds); }, [seconds]);
 
   return (
@@ -338,6 +349,9 @@ export default function WorkoutSession({
   onClose: () => void;
   onFinish?: (result: WorkoutSessionResult) => void;
 }) {
+  useUnsavedChanges(true);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(true, dialogRef);
   const safeStartIndex = Math.min(Math.max(0, startIndex), Math.max(0, exercises.length - 1));
   const exerciseSignature = useMemo(() => getExerciseSignature(exercises), [exercises]);
   const draftKey = useMemo(() => getSessionDraftKey(`${exerciseSignature}:${intensity}`), [exerciseSignature, intensity]);
@@ -352,14 +366,14 @@ export default function WorkoutSession({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [painScore, setPainScore] = useState(initialDraft?.painScore ?? 0);
   const [painSymptoms, setPainSymptoms] = useState<string[]>(initialDraft?.painSymptoms ?? []);
-  const [backStatus, setBackStatus] = useState<WorkoutBackStatus>(initialDraft?.backStatus ?? 'none');
+  const [backStatus, setBackStatus] = useState<WorkoutBackStatus | undefined>(initialDraft?.feedbackVersion === 1 ? initialDraft.backStatus : initialDraft?.backStatus && initialDraft.backStatus !== 'none' ? initialDraft.backStatus : undefined);
   const [neurologicalSymptoms, setNeurologicalSymptoms] = useState<WorkoutNeurologicalSymptom[]>(initialDraft?.neurologicalSymptoms ?? []);
   const [painExercise, setPainExercise] = useState(initialDraft?.painExercise ?? '');
   const [painSet, setPainSet] = useState<number | undefined>(initialDraft?.painSet);
   const [painMemo, setPainMemo] = useState(initialDraft?.painMemo ?? '');
   const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>(initialDraft?.overallStatus ?? 'completed');
-  const [difficulty, setDifficulty] = useState<WorkoutDifficulty>(initialDraft?.difficulty ?? 'moderate');
-  const [fatigue, setFatigue] = useState(initialDraft?.fatigue ?? 2);
+  const [difficulty, setDifficulty] = useState<WorkoutDifficulty | undefined>(initialDraft?.feedbackVersion === 1 ? initialDraft.difficulty : undefined);
+  const [fatigue, setFatigue] = useState<number | undefined>(initialDraft?.feedbackVersion === 1 ? initialDraft.fatigue : undefined);
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => initialDraft?.exerciseRecords ?? exercises.map((item) => buildExerciseRecord(item, intensity)));
   const [restoredDraftVisible, setRestoredDraftVisible] = useState(Boolean(initialDraft));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
@@ -481,6 +495,7 @@ export default function WorkoutSession({
     if (!shouldPersistDraftRef.current) return;
     const draft: WorkoutSessionDraft = {
       version: 2,
+      feedbackVersion: 1,
       exerciseSignature,
       savedAt: Date.now(),
       currentIndex,
@@ -582,7 +597,7 @@ export default function WorkoutSession({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" role="dialog" aria-modal="true" aria-label={`${title} 따라하기`}>
+    <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`}>
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white sm:rounded-3xl">
         <header className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
@@ -738,10 +753,11 @@ export default function WorkoutSession({
               </div>
               {hasSafetyConcern ? <div className="mt-4 rounded-xl bg-red-50 p-3 text-left text-[12px] font-bold leading-5 text-red-700"><p>허리 상태 · {BACK_STATUS_OPTIONS.find((option) => option.id === backStatus)?.label}</p>{neurologicalSymptoms.length ? <p>신경 증상 · {neurologicalSymptoms.map((symptom) => NEUROLOGICAL_OPTIONS.find((option) => option.id === symptom)?.label).join(', ')}</p> : null}<p>불편감 {painScore}/10{painSymptoms.length ? ` · ${painSymptoms.join(', ')}` : ''}</p>{painExercise ? <p>발생 지점 · {painExercise}{painSet ? ` ${painSet}세트` : ''}</p> : null}</div> : null}
               <div className="mt-4 space-y-4 rounded-2xl bg-white p-4 text-left">
-                <div><p className="text-[12px] font-bold text-gray-700">운동 후 허리 상태</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{BACK_STATUS_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => setBackStatus(option.id)} className={`min-h-11 rounded-xl px-2 py-2 text-[11px] font-bold ${backStatus === option.id ? option.id === 'none' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{option.label}</button>)}</div>{backStatus !== 'none' ? <button type="button" onClick={() => { if (!painExercise) setPainExercise(exercise.name); if (!painSet) setPainSet(currentSetNumber || undefined); setMode('pain'); }} className="mt-2 w-full rounded-xl bg-red-50 px-3 py-2 text-[11px] font-bold text-red-700">증상·발생 운동 자세히 기록</button> : null}</div>
+                <div><p className="text-[12px] font-bold text-gray-700">운동 후 허리 상태</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{BACK_STATUS_OPTIONS.map((option) => <button key={option.id} type="button" aria-pressed={backStatus === option.id} onClick={() => setBackStatus(option.id)} className={`min-h-11 rounded-xl px-2 py-2 text-[11px] font-bold ${backStatus === option.id ? option.id === 'none' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{option.label}</button>)}</div>{backStatus && backStatus !== 'none' ? <button type="button" onClick={() => { if (!painExercise) setPainExercise(exercise.name); if (!painSet) setPainSet(currentSetNumber || undefined); setMode('pain'); }} className="mt-2 w-full rounded-xl bg-red-50 px-3 py-2 text-[11px] font-bold text-red-700">증상·발생 운동 자세히 기록</button> : null}</div>
                 <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={hasSafetyConcern} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${(hasSafetyConcern ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
-                <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
-                <details className="rounded-xl bg-gray-50 p-3"><summary className="cursor-pointer text-[12px] font-bold text-gray-700">피로도 상세 기록</summary><label className="mt-3 block text-[12px] font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label></details>
+                <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" aria-pressed={difficulty === value} onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
+                <div><p className="text-[12px] font-bold text-gray-700">운동 후 피로도</p><div className="mt-2 grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5].map(value => <button key={value} type="button" aria-pressed={fatigue === value} onClick={() => setFatigue(value)} className={`min-h-11 rounded-xl text-sm font-bold ${fatigue === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-700'}`}>{value}</button>)}</div><p className="mt-1 text-[11px] text-gray-500">1 아주 가벼움 · 3 보통 · 5 매우 피곤함</p></div>
+                {(!backStatus || !difficulty || fatigue === undefined) && <p className="text-[12px] leading-5 text-amber-700">선택하지 않은 항목은 ‘미응답’으로 저장해요. 다음 운동 조정에 필요한 정보가 부족하면 현재 구성을 유지합니다.</p>}
               </div>
               <button type="button" onClick={completeSession} className="mt-5 w-full rounded-2xl bg-[#534AB7] px-4 py-3.5 text-[14px] font-bold text-white">
                 기록 저장하고 종료
@@ -752,7 +768,7 @@ export default function WorkoutSession({
 
         {mode === 'exercise' && (
           <footer className="shrink-0 border-t border-gray-100 bg-white/95 p-3 shadow-2xl sm:px-6">
-            <button type="button" onClick={() => { setPainExercise(exercise.name); setPainSet(currentSetNumber || undefined); if (backStatus === 'none') setBackStatus('pain'); setMode('pain'); }} className="mb-2 w-full rounded-xl border border-red-100 bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
+            <button type="button" onClick={() => { setPainExercise(exercise.name); setPainSet(currentSetNumber || undefined); if (!backStatus || backStatus === 'none') setBackStatus('pain'); setMode('pain'); }} className="mb-2 w-full rounded-xl border border-red-100 bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
               통증·저림·어지러움 발생
             </button>
             <div className="grid grid-cols-[0.8fr_1.6fr_0.8fr] gap-2">

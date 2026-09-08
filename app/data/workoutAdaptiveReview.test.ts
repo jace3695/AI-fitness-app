@@ -72,6 +72,7 @@ test('changed records or settings invalidate a preview before applying', () => {
 test('missing details, unknown back status, missing load, recovery-only and outdated sessions never increase', () => {
   const variants = [
     { workoutExerciseRecords: undefined }, { workoutBackStatus: undefined },
+    { workoutDifficulty: undefined }, { workoutFatigue: undefined },
     { workoutExerciseRecords: session().workoutExerciseRecords!.map((exercise) => ({ ...exercise, sets: exercise.sets!.map((set) => ({ ...set, weightKg: undefined, bandLevel: undefined })) })) },
     { workoutGroupId: 'current-fullbody-recovery-circuit' },
   ];

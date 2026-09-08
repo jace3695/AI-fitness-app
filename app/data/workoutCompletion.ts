@@ -55,8 +55,8 @@ export type WorkoutNeurologicalSymptom =
   | "leg-weakness";
 export interface WorkoutFeedback {
   status: WorkoutOverallStatus;
-  difficulty: WorkoutDifficulty;
-  fatigue: number;
+  difficulty?: WorkoutDifficulty;
+  fatigue?: number;
   backStatus?: WorkoutBackStatus;
   neurologicalSymptoms?: WorkoutNeurologicalSymptom[];
   painExercise?: string;

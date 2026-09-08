@@ -188,8 +188,13 @@ export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): Adaptive
   if (!strength[0] || !isRecentTrainingDate(strength[0].date, today, 7)) return review('maintain', '최근 근력 기록부터 확인', ['지난 7일의 근력 수행 기록이 없어 이전 기록만으로 증가·교체하지 않습니다. 현재 구성으로 컨디션과 자세를 확인하며 기록을 남겨 주세요.']);
   if (lastApplied && lastAppliedDate! >= weekStart) return review('maintain', '이번 주 적용한 변화에 적응하기', ['이번 주에 이미 한 번 조정했습니다. 추가 증가·교체는 다음 주 이후 새 기록을 보고 검토합니다. 피로·통증 신호는 먼저 확인합니다.']);
   const eligibleStrength = strength.filter(({ date }) => !lastApplied || date > lastApplied.evidenceThrough && date > lastAppliedDate!);
+  const missingFeedback = eligibleStrength.slice(0, 3).flatMap(({ date, record }) => {
+    const missing = [!record.workoutBackStatus && '허리 상태', record.workoutFatigue === undefined && '피로도', !record.workoutDifficulty && '체감 난이도'].filter(Boolean);
+    return missing.length ? [`${date}: ${missing.join('·')}가 미응답입니다.`] : [];
+  });
   if (eligibleStrength.length < 3 || !eligibleStrength.slice(0, 3).every(({ record }) => safeCompletion(record))) return review('maintain', '현재 구성으로 적응 상태 확인', [
     '현재 계획 또는 마지막 변경 이후 근력 운동 3회의 반복수·완료율·피로·허리 상태가 충분히 확인될 때까지 유지합니다.',
+    ...missingFeedback,
     '회복형 운동이 쉬웠다는 기록이나 주가 바뀌었다는 이유만으로 근력 운동량을 올리지 않습니다.',
   ]);
   const next = nextDay(true);

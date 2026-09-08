@@ -3,6 +3,7 @@ import type { DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './di
 import { WORKOUT_COMPLETED_DAYS_KEY } from './workoutCompletion.ts';
 import type { WorkoutCompletionStore } from './workoutCompletion.ts';
 import type { DailyConditionRecord } from './recoveryMode.ts';
+import { notifyRecordsChanged, recoverStorageTransaction } from './storageTransaction.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
@@ -80,6 +81,7 @@ export interface RecordStores {
 
 export function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
+  recoverStorageTransaction(window.localStorage);
   const raw = window.localStorage.getItem(key);
   if (!raw) return fallback;
   try { return JSON.parse(raw) as T; } catch { return fallback; }
@@ -88,6 +90,7 @@ export function readJson<T>(key: string, fallback: T): T {
 export function writeJson<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(key, JSON.stringify(value));
+  notifyRecordsChanged();
 }
 
 export function normalizeWeightGoal(value: unknown): WeightGoal {

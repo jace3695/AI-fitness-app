@@ -1,5 +1,6 @@
 "use client";
 
+import { hasUnsavedChanges, requestSafeReload, RELOAD_REQUEST_EVENT, UNSAVED_CHANGES_EVENT } from "../lib/unsavedChanges";
 import { useEffect, useState } from "react";
 
 type InstallPromptEvent = Event & {
@@ -8,11 +9,22 @@ type InstallPromptEvent = Event & {
 };
 
 export default function PwaManager() {
+  const [editing, setEditing] = useState(false);
+  const [reloadRequested, setReloadRequested] = useState(false);
   const [online, setOnline] = useState(true);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showIosInstallHint, setShowIosInstallHint] = useState(false);
   const [showIosInstallGuide, setShowIosInstallGuide] = useState(false);
+
+  useEffect(() => {
+    const changed = () => setEditing(hasUnsavedChanges());
+    const reload = () => setReloadRequested(true);
+    changed();
+    window.addEventListener(UNSAVED_CHANGES_EVENT, changed);
+    window.addEventListener(RELOAD_REQUEST_EVENT, reload);
+    return () => { window.removeEventListener(UNSAVED_CHANGES_EVENT, changed); window.removeEventListener(RELOAD_REQUEST_EVENT, reload); };
+  }, []);
 
   useEffect(() => {
     setOnline(window.navigator.onLine);
@@ -67,7 +79,7 @@ export default function PwaManager() {
       }
     };
 
-    const reloadForUpdate = () => window.location.reload();
+    const reloadForUpdate = () => { requestSafeReload(); };
     navigator.serviceWorker.addEventListener("controllerchange", reloadForUpdate);
     void register();
 
@@ -81,7 +93,11 @@ export default function PwaManager() {
     };
   }, []);
 
-  const applyUpdate = () => waitingWorker?.postMessage({ type: "SKIP_WAITING" });
+  const applyUpdate = () => {
+    if (hasUnsavedChanges()) { setReloadRequested(true); return; }
+    if (waitingWorker?.state === 'installed') waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    else requestSafeReload();
+  };
   const install = async () => {
     if (!installPrompt) return;
     await installPrompt.prompt();
@@ -95,17 +111,17 @@ export default function PwaManager() {
     setShowIosInstallGuide(false);
   };
 
-  if (!online || waitingWorker) {
+  if (!online || waitingWorker || reloadRequested) {
     return (
-      <div className="fixed inset-x-0 bottom-[82px] z-[100] flex justify-center p-3 md:bottom-3" aria-live="polite">
+      <div className="yeoni-pwa-notice yeoni-pwa-banner fixed inset-x-0 z-[110] flex justify-center p-3" aria-live="polite">
         <div className={`flex w-full max-w-xl items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${online ? "bg-[#EEEDFE] text-[#3C3489]" : "bg-amber-50 text-amber-900"}`}>
           <span>
             {online
-              ? "새 버전이 준비되었습니다. 갱신하면 최신 화면으로 바뀝니다."
-              : "인터넷 연결이 끊겼습니다. 저장된 화면을 사용 중이며 연결되면 동기화를 다시 시도합니다."}
+              ? editing ? "작성 중인 내용을 저장하거나 입력을 마치면 화면을 갱신할 수 있어요." : "최신 화면을 불러올 준비가 됐어요. 갱신해 주세요."
+              : "인터넷 연결이 끊겼어요. 기기에 저장된 기록은 유지됩니다. 가계부·비서·성장 기록은 연결 후 저장 결과를 확인해 주세요."}
           </span>
-          {online && waitingWorker && (
-            <button type="button" onClick={applyUpdate} className="min-h-11 shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
+          {online && (waitingWorker || reloadRequested) && (
+            <button type="button" disabled={editing} onClick={applyUpdate} className="min-h-11 shrink-0 rounded-xl disabled:opacity-50 bg-[#534AB7] px-3 py-2 text-xs font-bold text-white">
               지금 갱신
             </button>
           )}
@@ -116,7 +132,7 @@ export default function PwaManager() {
 
   if (installPrompt) {
     return (
-      <div className="fixed bottom-[88px] right-3 z-[100] md:bottom-4 md:right-4">
+      <div className="yeoni-pwa-notice fixed right-3 z-[110]">
         <button type="button" onClick={() => void install()} title="AI 연이를 홈 화면에 설치" className="min-h-11 rounded-full bg-[#534AB7] px-4 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/70">
           앱 설치
         </button>
@@ -126,7 +142,7 @@ export default function PwaManager() {
 
   if (showIosInstallHint) {
     return (
-      <div className="fixed bottom-[88px] right-3 z-[100] flex flex-col items-end gap-2 md:bottom-4 md:right-4">
+      <div className="yeoni-pwa-notice fixed right-3 z-[110] flex flex-col items-end gap-2">
         {showIosInstallGuide && (
           <div id="ios-install-guide" role="status" className="w-72 rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-xl ring-1 ring-[#D9D6FE]">
             <p className="font-bold text-[#3C3489]">iPhone에서 홈 화면에 추가하기</p>

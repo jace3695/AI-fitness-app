@@ -1,4 +1,7 @@
 'use client'
+import { useUnsavedChanges } from '@/components/useUnsavedChanges'
+import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
+import ConfirmDialog from "@/components/ConfirmDialog";
 import AppCompanion from "@/components/AppCompanion";
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
@@ -166,6 +169,29 @@ function BudgetDashboard() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [isSavingRecords, setIsSavingRecords] = useState(false)
+  const savingRecordsRef = useRef(false)
+  const pendingSaveRef = useRef<PendingBudgetSave | null>(null)
+  const [hasPendingSave, setHasPendingSave] = useState(false)
+  useUnsavedChanges(Boolean(input.trim() || parsedItems.length || isSavingRecords))
+  useEffect(() => {
+    pendingSaveRef.current = null
+    setHasPendingSave(false)
+    setParsedItems([])
+    setInput('')
+    setShowConfirm(false)
+    setFeedback('')
+    if (!user?.id) return
+    try {
+      const pending = readPendingBudgetSave(window.localStorage, user.id)
+      if (!pending) return
+      pendingSaveRef.current = pending
+      setHasPendingSave(true)
+      setParsedItems(pending.items)
+      setShowConfirm(true)
+      setTab('input')
+      setFeedback('이전 저장 결과를 확인해야 해요. 아래 버튼으로 같은 요청을 다시 확인하면 중복 없이 처리합니다.')
+    } catch { setFeedback('이전 저장 내용을 읽지 못했어요. 저장 공간 설정을 확인해 주세요.') }
+  }, [user?.id])
   const [question, setQuestion] = useState('')
   const suggestedQuestions = [
     '이번 달 가장 많이 쓴 항목은?',
@@ -225,6 +251,7 @@ function BudgetDashboard() {
   const [pageNotice, setPageNotice] = useState('')
   const [actionError, setActionError] = useState('')
   const [processingRecordKey, setProcessingRecordKey] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'expense' | 'income' | 'saving' | 'all'; id: string } | null>(null)
   const [settingsSavingAction, setSettingsSavingAction] = useState('')
   const [dataLoadError, setDataLoadError] = useState('')
   const [lastActiveAt, setLastActiveAt] = useState(Date.now())
@@ -1456,7 +1483,7 @@ function BudgetDashboard() {
   }
 
   const handleAddTransaction = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || savingRecordsRef.current || pendingSaveRef.current) return
     setAiLoading(true)
     setFeedback('')
 
@@ -1472,92 +1499,54 @@ function BudgetDashboard() {
   }
 
   const updateParsedItem = (index: number, patch: Record<string, unknown>) => {
+    if (savingRecordsRef.current || pendingSaveRef.current) return
     setParsedItems((current) => current.map((item, itemIndex) => (
       itemIndex === index ? { ...item, ...patch } : item
     )))
   }
 
   const handleConfirmSave = async () => {
-    if (!parsedItems.length || isSavingRecords) return
-
-    if (!user?.id) {
-      setFeedback('로그인 정보를 확인할 수 없어요.')
-      return
-    }
-
-    const hasInvalidItem = parsedItems.some((item) => (
-      !item.place?.trim()
-      || !Number.isFinite(Number(item.amount))
-      || Number(item.amount) <= 0
-      || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || '')
-    ))
-
-    if (hasInvalidItem) {
-      setFeedback('날짜, 이름, 금액을 다시 확인해주세요. 금액은 0원보다 커야 해요.')
-      return
-    }
-
+    if (!parsedItems.length || savingRecordsRef.current || !user?.id) return
+    const hasInvalidItem = parsedItems.some((item) => !item.place?.trim()
+      || !Number.isSafeInteger(Number(item.amount)) || Number(item.amount) <= 0
+      || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || ''))
+    if (hasInvalidItem) { setFeedback('날짜, 이름, 금액을 확인해 주세요. 금액은 0원보다 큰 정수로 입력해요.'); return }
+    savingRecordsRef.current = true
     setIsSavingRecords(true)
     setFeedback('')
-
     try {
-      for (const item of parsedItems) {
-        if (item.type === 'income') {
-          const { error } = await supabase
-            .from('budget_income')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              name: item.place.trim(),
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
-        } else if (item.type === 'saving') {
-          const { error } = await supabase
-            .from('budget_savings')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              goal_name: item.place.trim() || '일반저축',
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
-        } else {
-          const { error } = await supabase
-            .from('budget_transactions')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              place: item.place.trim(),
-              category: item.category || '기타',
-              payment: item.payment || '체크카드',
-              transaction_type: item.transaction_type || '일반 지출',
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
+      const pending = pendingSaveRef.current ?? { id: crypto.randomUUID(), items: parsedItems.map(item => ({
+        type: item.type || 'expense', date: item.date, amount: Number(item.amount), place: item.place.trim(),
+        memo: item.memo?.trim() || '', category: item.category || '기타', payment: item.payment || '체크카드', transaction_type: item.transaction_type || '일반 지출',
+      })) }
+      // Keep the exact request across reloads and ambiguous network failures.
+      window.localStorage.setItem(pendingBudgetSaveKey(user.id), JSON.stringify(pending))
+      pendingSaveRef.current = pending
+      setHasPendingSave(true)
+      const { data, error } = await supabase.rpc('save_budget_batch', { p_batch_id: pending.id, p_items: pending.items })
+      if (error) {
+        // A SQL rejection rolls back the whole transaction, so editing is safe.
+        if (error.code === 'P0001' || error.code?.startsWith('22') || error.code?.startsWith('23') || error.code === 'PGRST202') {
+          window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+          pendingSaveRef.current = null
+          setHasPendingSave(false)
         }
+        throw error
       }
-
-      await Promise.all([
-        fetchIncome(),
-        fetchTransactions(),
-        fetchSavings(),
-      ])
-
-      setFeedback(parsedItems.length + '건을 저장했어요.')
+      window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+      pendingSaveRef.current = null
+      setHasPendingSave(false)
       setShowConfirm(false)
       setParsedItems([])
       setInput('')
-    } catch (e) {
-      console.error('저장 중 오류:', e)
-      setFeedback('저장 중 오류가 발생했어요. 저장된 내역이 있는지 상세 내역에서 확인해주세요.')
+      setFeedback(String(data?.count ?? pending.items.length) + '건의 저장을 확인했어요.')
+      await Promise.all([fetchIncome(), fetchTransactions(), fetchSavings()])
+    } catch {
+      setFeedback(pendingSaveRef.current
+        ? '저장 응답을 확인하지 못했어요. 같은 내용으로 다시 확인해 주세요. 중복 저장되지 않습니다.'
+        : '내역을 저장하지 못했어요. 입력 내용과 연결·저장 공간을 확인한 뒤 다시 시도해 주세요.')
     } finally {
+      savingRecordsRef.current = false
       setIsSavingRecords(false)
     }
   }
@@ -1639,33 +1628,31 @@ function BudgetDashboard() {
 
   const handleResetAllData = async () => {
     if (!user?.email) {
-      alert('로그인 정보를 확인할 수 없어요.')
+      setActionError('로그인 정보를 확인할 수 없어요.')
       return
     }
 
     if (!resetPassword.trim()) {
-      alert('비밀번호를 입력해주세요.')
+      setActionError('비밀번호를 입력해주세요.')
       return
     }
 
     if (resetLoading) return
-    const ok = window.confirm('이 계정의 전체 기간 지출·수입·저축 기록을 영구 삭제할까요? 예산·설정과 다른 앱 기록은 유지됩니다. 되돌릴 수 없어요.')
-    if (!ok) return
 
     setResetLoading(true)
-
+    setActionError('')
+    setPageNotice('')
+    try {
     const { error } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: resetPassword
     })
 
     if (error) {
-      setResetLoading(false)
-      alert('비밀번호가 올바르지 않아요.')
+      setActionError('비밀번호를 확인하지 못했어요. 입력 내용과 연결을 확인해 주세요.')
       return
     }
 
-    try {
       setRecordResetRunning(true)
       resetRequestId.current ||= crypto.randomUUID()
       await resetAppRecords('budget', resetRequestId.current, user.id)
@@ -1677,6 +1664,9 @@ function BudgetDashboard() {
 
       setShowResetConfirm(false)
       setResetPassword('')
+      window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+      pendingSaveRef.current = null
+      setHasPendingSave(false)
       setParsedItems([])
       setShowConfirm(false)
       setFeedback('')
@@ -1684,10 +1674,10 @@ function BudgetDashboard() {
       setInput('')
       setQuestion('')
 
-      alert('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
+      setPageNotice('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
     } catch (e) {
       console.error(e)
-      alert('초기화 완료 여부를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요.')
+      setActionError('초기화 완료 여부를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요.')
     } finally {
       setResetLoading(false)
       setRecordResetRunning(false)
@@ -3284,6 +3274,11 @@ return (
       </header>
 
 
+      <ConfirmDialog open={Boolean(pendingDelete)} title={pendingDelete?.kind === 'all' ? '가계부 기록 전체 삭제' : '선택한 기록 삭제'} description={pendingDelete?.kind === 'all' ? '전체 기간의 지출·수입·저축 기록을 삭제합니다. 예산·설정과 다른 앱 기록은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.' : '선택한 기록을 삭제합니다. 다른 내역은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.'} busy={Boolean(processingRecordKey) || resetLoading} onCancel={() => setPendingDelete(null)} onConfirm={() => {
+        if (!pendingDelete) return
+        const action = pendingDelete.kind === 'all' ? handleResetAllData() : pendingDelete.kind === 'income' ? handleDeleteIncome(pendingDelete.id) : pendingDelete.kind === 'saving' ? handleDeleteSaving(pendingDelete.id) : handleDelete(pendingDelete.id)
+        void action.finally(() => setPendingDelete(null))
+      }} />
       <div className="budget-guide"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>
 
       {tab === 'home' && (
@@ -3647,7 +3642,7 @@ return (
                 </strong>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              <fieldset disabled={isSavingRecords || hasPendingSave} style={{ border: 0, padding: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 {parsedItems.map((item, idx) => (
                   <article key={idx} style={{ position: 'relative', background: 'rgba(8,8,12,0.38)', border: '1px solid #2A2A3A', borderRadius: 14, padding: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -3776,7 +3771,7 @@ return (
                     </label>
                   </article>
                 ))}
-              </div>
+              </fieldset>
 
               <div aria-live="polite">
                 {feedback && <p style={{ color: feedback.includes('오류') || feedback.includes('확인') ? '#FF9B9B' : '#4ECDC4', fontSize: 12, lineHeight: 1.5, margin: '0 0 10px' }}>{feedback}</p>}
@@ -3785,7 +3780,7 @@ return (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
-                  disabled={isSavingRecords}
+                  disabled={isSavingRecords || hasPendingSave}
                   onClick={() => {
                     setShowConfirm(false)
                     setParsedItems([])
@@ -3801,7 +3796,7 @@ return (
                   disabled={isSavingRecords}
                   style={{ flex: 2, minHeight: 46, background: isSavingRecords ? '#715943' : 'linear-gradient(135deg,#E8A87C,#D4916A)', border: 'none', borderRadius: 12, padding: '12px', cursor: isSavingRecords ? 'wait' : 'pointer', color: '#0F0F14', fontWeight: 700, fontSize: 14, opacity: isSavingRecords ? 0.7 : 1 }}
                 >
-                  {isSavingRecords ? '저장하는 중…' : parsedItems.length + '건 확인 후 저장'}
+                  {isSavingRecords ? '저장 확인 중…' : hasPendingSave ? '같은 요청으로 저장 확인' : parsedItems.length + '건 확인 후 저장'}
                 </button>
               </div>
             </section>
@@ -3822,9 +3817,9 @@ return (
           savings={savings}
           currency={currency}
           processingRecordKey={processingRecordKey}
-          onDeleteIncome={handleDeleteIncome}
+          onDeleteIncome={id => setPendingDelete({ kind: 'income', id })}
           onDeleteExpense={handleDelete}
-          onDeleteSaving={handleDeleteSaving}
+          onDeleteSaving={id => setPendingDelete({ kind: 'saving', id })}
           onNavigateInput={() => setTab('input')}
           onNotice={setPageNotice}
         />
@@ -4568,7 +4563,7 @@ return (
             onAutoQuestionChange={setAutoQuestion}
             onShowResetConfirmChange={setShowResetConfirm}
             onResetPasswordChange={setResetPassword}
-            onResetAllData={handleResetAllData}
+            onResetAllData={() => setPendingDelete({ kind: 'all', id: '' })}
           />
         </div>
       )}

@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges';
+import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_DINNER_CARB_RECORD,
   DEFAULT_LUNCH_CARB_RECORD,
@@ -244,8 +246,26 @@ export default function DietView() {
   const [lastMealTime, setLastMealTime] = useState('');
   const [dietMemo, setDietMemo] = useState('');
   const [message, setMessage] = useState('');
+  const [dataVersion, setDataVersion] = useState(0);
+  const [savedInput, setSavedInput] = useState<string | null>(null);
+  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo]);
+  const dirty = hydrated && savedInput !== null && savedInput !== inputSnapshot;
+  const dirtyRef = useRef(dirty);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  useUnsavedChanges(dirty);
+  useEffect(() => {
+    const refresh = () => {
+      if (dirtyRef.current) { setMessage('다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.'); return; }
+      setSavedInput(null);
+      setDataVersion(value => value + 1);
+    };
+    window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener(RECORDS_CHANGED_EVENT, refresh); window.removeEventListener('storage', refresh); };
+  }, []);
 
   useEffect(() => {
+    recoverStorageTransaction(window.localStorage);
     const existingDietStart = window.localStorage.getItem(DIET_START_DATE_KEY);
     const initialStart =
       existingDietStart ||
@@ -303,11 +323,21 @@ export default function DietView() {
         '',
     );
     setDietMemo(typeof today.dietMemo === 'string' ? today.dietMemo : '');
+    setSavedInput(JSON.stringify([
+      todayMeal, savedWater[todayKey] || Number(today.waterMl) || 0,
+      savedLunchCarbs[todayKey] ? normalizeLunchCarbRecord(savedLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB,
+      normalizeDinnerCarbRecord(savedDinnerCarbs[todayKey] || todayMeal.dinnerCarb),
+      normalizeLunchProteinRecord(savedLunchProtein[todayKey]),
+      (typeof today.lastMealTime === 'string' && today.lastMealTime) || savedDinnerTimes[todayKey] || readCurrentFastingStart(todayKey) || (savedMeals[todayKey] ? todayMeal.lastMealTime : '') || '',
+      savedSocial[todayKey] || 'none', today.dietStatus ?? 'normal',
+      today.fastingRecordStatus ?? (today.fasting14h ? '14h' : 'unrecorded'),
+      typeof today.dietMemo === 'string' ? today.dietMemo : '',
+    ]));
     setHydrated(true);
 
     const timer = window.setInterval(() => setNow(new Date()), 60000);
     return () => window.clearInterval(timer);
-  }, [todayKey]);
+  }, [todayKey, dataVersion]);
 
   const switchDay = useMemo(() => getSwitchOnDay(startDate, now), [startDate, now]);
   const currentPhase = mode === 'auto' ? getAutoDietPhase(switchDay) : manualPhase;
@@ -400,12 +430,13 @@ export default function DietView() {
       setMessage('여행 종료일을 시작일 이후로 선택해주세요.');
       return;
     }
-    const nextSocial = { ...socialStore };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     dates.forEach((date) => {
       nextSocial[date] = 'travel';
     });
+    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
+    catch { setMessage('여행 일정을 저장하지 못했어요. 선택한 날짜를 유지합니다. 저장 공간을 확인해 주세요.'); return; }
     setSocialStore(nextSocial);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
     if (dates.includes(todayKey)) selectScheduleMode('travel');
     setMessage(
       dates.length === 31 && travelEnd > dates[dates.length - 1]
@@ -415,19 +446,21 @@ export default function DietView() {
   };
 
   const removePlannedSchedule = (date: string) => {
-    const nextSocial = { ...socialStore };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     delete nextSocial[date];
+    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
+    catch { setMessage('일정을 삭제하지 못했어요. 기존 일정을 유지합니다.'); return; }
     setSocialStore(nextSocial);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
     if (date === todayKey) selectScheduleMode('none');
     setMessage(`${formatScheduleDate(date)} 예외 일정을 삭제했습니다.`);
   };
 
   const saveDiet = () => {
     const fastingHours = fastingStatus === '14h' ? 14 : fastingStatus === '12h' ? 12 : 0;
-    const previousToday = store[todayKey] || {};
+    const latestDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store);
+    const previousToday = latestDiet[todayKey] || {};
     const nextDiet: DietCompletedStore = {
-      ...store,
+      ...latestDiet,
       [todayKey]: {
         ...previousToday,
         dietStatus,
@@ -452,16 +485,26 @@ export default function DietView() {
       },
     };
     const nextMeals = {
-      ...mealStore,
+      ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore),
       [todayKey]: { ...mealLog, lastMealTime },
     };
-    const nextWater = { ...waterStore, [todayKey]: water };
-    const nextLunchCarbs = { ...lunchCarbStore, [todayKey]: lunchCarb };
-    const nextDinnerCarbs = { ...dinnerCarbStore, [todayKey]: dinnerCarb };
-    const nextLunchProteins = { ...lunchProteinStore, [todayKey]: lunchProtein };
-    const nextDinnerTimes = { ...dinnerTimeStore, [todayKey]: lastMealTime };
-    const nextSocial = { ...socialStore, [todayKey]: socialMeal };
+    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore), [todayKey]: water };
+    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore), [todayKey]: lunchCarb };
+    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore), [todayKey]: dinnerCarb };
+    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore), [todayKey]: lunchProtein };
+    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore), [todayKey]: lastMealTime };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore), [todayKey]: socialMeal };
 
+    try {
+      writeStorageBatch(window.localStorage, {
+        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
+        [PROTEIN_TOTAL_KEY]: JSON.stringify({ ...readJson<NumberStore>(PROTEIN_TOTAL_KEY, {}), [todayKey]: proteinTotal }),
+        [WATER_INTAKE_KEY]: JSON.stringify(nextWater), [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs),
+        [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs), [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins),
+        [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes), [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial),
+        [FASTING_START_TIME_KEY]: lastMealTime,
+      });
+    } catch { setMessage('기기에 저장하지 못했어요. 작성 내용은 남아 있습니다. 저장 공간을 확인한 뒤 다시 저장해 주세요.'); return; }
     setStore(nextDiet);
     setMealStore(nextMeals);
     setWaterStore(nextWater);
@@ -470,31 +513,21 @@ export default function DietView() {
     setLunchProteinStore(nextLunchProteins);
     setDinnerTimeStore(nextDinnerTimes);
     setSocialStore(nextSocial);
-    writeJson(DIET_COMPLETED_DAYS_KEY, nextDiet);
-    writeJson(DIET_MEAL_LOG_KEY, nextMeals);
-    writeJson(PROTEIN_TOTAL_KEY, {
-      ...readJson<NumberStore>(PROTEIN_TOTAL_KEY, {}),
-      [todayKey]: proteinTotal,
-    });
-    writeJson(WATER_INTAKE_KEY, nextWater);
-    writeJson(LUNCH_CARB_CHOICE_KEY, nextLunchCarbs);
-    writeJson(DINNER_CARB_CHOICE_KEY, nextDinnerCarbs);
-    writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextLunchProteins);
-    writeJson(DINNER_COMPLETED_TIME_KEY, nextDinnerTimes);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
-    window.localStorage.setItem(FASTING_START_TIME_KEY, lastMealTime);
+    setSavedInput(inputSnapshot);
+    dirtyRef.current = false;
+    notifyRecordsChanged();
     setMessage('오늘 식단 기록을 저장했습니다.');
   };
 
   const resetDiet = () => {
-    const nextDiet = { ...store };
-    const nextMeals = { ...mealStore };
-    const nextWater = { ...waterStore };
-    const nextLunchCarbs = { ...lunchCarbStore };
-    const nextDinnerCarbs = { ...dinnerCarbStore };
-    const nextLunchProteins = { ...lunchProteinStore };
-    const nextDinnerTimes = { ...dinnerTimeStore };
-    const nextSocial = { ...socialStore };
+    const nextDiet = { ...readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store) };
+    const nextMeals = { ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore) };
+    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore) };
+    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore) };
+    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore) };
+    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore) };
+    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore) };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     const nextProteinTotals = readJson<NumberStore>(PROTEIN_TOTAL_KEY, {});
 
     delete nextDiet[todayKey];
@@ -507,6 +540,15 @@ export default function DietView() {
     delete nextSocial[todayKey];
     delete nextProteinTotals[todayKey];
 
+    try {
+      writeStorageBatch(window.localStorage, {
+        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
+        [PROTEIN_TOTAL_KEY]: JSON.stringify(nextProteinTotals), [WATER_INTAKE_KEY]: JSON.stringify(nextWater),
+        [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs), [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs),
+        [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins), [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes),
+        [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial), [FASTING_START_TIME_KEY]: null,
+      });
+    } catch { setMessage('초기화하지 못했어요. 기존 기록과 작성 내용을 유지합니다.'); return; }
     setStore(nextDiet);
     setMealStore(nextMeals);
     setMealLog(DEFAULT_MEAL_LOG);
@@ -526,16 +568,9 @@ export default function DietView() {
     setLastMealTime('');
     setDietMemo('');
 
-    writeJson(DIET_COMPLETED_DAYS_KEY, nextDiet);
-    writeJson(DIET_MEAL_LOG_KEY, nextMeals);
-    writeJson(PROTEIN_TOTAL_KEY, nextProteinTotals);
-    writeJson(WATER_INTAKE_KEY, nextWater);
-    writeJson(LUNCH_CARB_CHOICE_KEY, nextLunchCarbs);
-    writeJson(DINNER_CARB_CHOICE_KEY, nextDinnerCarbs);
-    writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextLunchProteins);
-    writeJson(DINNER_COMPLETED_TIME_KEY, nextDinnerTimes);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
-    window.localStorage.removeItem(FASTING_START_TIME_KEY);
+    dirtyRef.current = false;
+    setSavedInput(null);
+    notifyRecordsChanged();
     setMessage('오늘 식단 기록을 초기화했습니다.');
   };
 

@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase.ts";
 import { respectRecordResets } from "./appRecordReset.ts";
+import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch } from "./storageTransaction.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";
@@ -67,6 +68,7 @@ function mergeValue(base: unknown, remote: unknown, local: unknown): unknown {
 
 export function readLocalCloudState(): CloudState {
   if (typeof window === "undefined") return {};
+  recoverStorageTransaction(window.localStorage);
   const keys = Array.from(
     { length: window.localStorage.length },
     (_, index) => window.localStorage.key(index),
@@ -139,15 +141,16 @@ export function saveSyncBase(userId: string, state: CloudState) {
 
 export function applyCloudState(state: CloudState) {
   if (typeof window === "undefined") return;
-  for (const key of Object.keys(readLocalCloudState())) {
-    if (!(key in state)) window.localStorage.removeItem(key);
-  }
-  Object.entries(state).forEach(([key, value]) => {
-    window.localStorage.setItem(
-      key,
-      typeof value === "string" ? value : JSON.stringify(value),
-    );
-  });
+  const changes: Record<string, string | null> = {};
+  for (const key of Object.keys(readLocalCloudState())) if (!(key in state)) changes[key] = null;
+  for (const [key, value] of Object.entries(state)) changes[key] = typeof value === "string" ? value : JSON.stringify(value);
+  writeStorageBatch(window.localStorage, changes);
+  notifyRecordsChanged();
+}
+
+/** A remote response acknowledges sentState, not edits made while it was pending. */
+export function reconcileSyncResponse(localAtRequest: CloudState, sentState: CloudState, latestLocal: CloudState) {
+  return mergeCloudStateFromBase(localAtRequest, sentState, latestLocal);
 }
 
 export function stableState(state: CloudState) {
