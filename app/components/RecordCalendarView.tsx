@@ -31,6 +31,8 @@ import {
   WorkoutDifficulty,
   WorkoutOverallStatus,
   WorkoutDayRecord,
+  WorkoutBackStatus,
+  WorkoutNeurologicalSymptom,
   WORKOUT_COMPLETED_DAYS_KEY,
 } from "../data/workoutCompletion";
 import {
@@ -50,6 +52,18 @@ import RecordDashboard from "./RecordDashboard";
 import WeightChart from "./WeightChart";
 
 const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+const backStatusOptions: { id: WorkoutBackStatus; label: string }[] = [
+  { id: "none", label: "전혀 불편하지 않음" },
+  { id: "stiff", label: "약간 뻐근함" },
+  { id: "pain", label: "통증 있음" },
+  { id: "worse", label: "운동 전보다 악화됨" },
+];
+const neurologicalOptions: { id: WorkoutNeurologicalSymptom; label: string }[] = [
+  { id: "radiating-pain", label: "엉덩이·다리로 내려가는 통증" },
+  { id: "tingling", label: "저림" },
+  { id: "numbness", label: "감각 저하" },
+  { id: "leg-weakness", label: "다리에 힘이 빠지는 느낌" },
+];
 function parseKey(key: string) {
   const [y, m, d] = key.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -83,6 +97,10 @@ export default function RecordCalendarView() {
   const [workoutDifficultyDraft, setWorkoutDifficultyDraft] = useState<WorkoutDifficulty>("moderate");
   const [workoutFatigueDraft, setWorkoutFatigueDraft] = useState(2);
   const [workoutPainDraft, setWorkoutPainDraft] = useState(false);
+  const [workoutBackStatusDraft, setWorkoutBackStatusDraft] = useState<WorkoutBackStatus>();
+  const [workoutNeurologicalDraft, setWorkoutNeurologicalDraft] = useState<WorkoutNeurologicalSymptom[]>([]);
+  const [workoutPainExerciseDraft, setWorkoutPainExerciseDraft] = useState("");
+  const [workoutPainSetDraft, setWorkoutPainSetDraft] = useState<number>();
   const [workoutMemoDraft, setWorkoutMemoDraft] = useState("");
   const [exerciseRecordsDraft, setExerciseRecordsDraft] = useState<WorkoutDayRecord["workoutExerciseRecords"]>([]);
   const [workoutNotice, setWorkoutNotice] = useState("");
@@ -121,7 +139,11 @@ export default function RecordCalendarView() {
     setWorkoutStatusDraft(selectedWorkoutRecord?.workoutStatus || (selectedWorkoutRecord?.workoutDone ? "completed" : "stopped"));
     setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty || "moderate");
     setWorkoutFatigueDraft(selectedWorkoutRecord?.workoutFatigue || 2);
-    setWorkoutPainDraft(Boolean(selectedWorkoutRecord?.workoutPain));
+    setWorkoutPainDraft(Boolean(selectedWorkoutRecord?.workoutPain && !["pain", "worse"].includes(selectedWorkoutRecord.workoutBackStatus || "") && !selectedWorkoutRecord.workoutNeurologicalSymptoms?.length));
+    setWorkoutBackStatusDraft(selectedWorkoutRecord?.workoutBackStatus);
+    setWorkoutNeurologicalDraft(selectedWorkoutRecord?.workoutNeurologicalSymptoms || []);
+    setWorkoutPainExerciseDraft(selectedWorkoutRecord?.workoutPainExercise || "");
+    setWorkoutPainSetDraft(selectedWorkoutRecord?.workoutPainSet);
     setWorkoutMemoDraft(selectedWorkoutRecord?.workoutMemo || "");
     setExerciseRecordsDraft(selectedWorkoutRecord?.workoutExerciseRecords || []);
     setCardioTypeDraft(selectedWorkoutRecord?.cardioType || "");
@@ -202,6 +224,14 @@ export default function RecordCalendarView() {
     writeJson(WORKOUT_COMPLETED_DAYS_KEY, workouts);
     setStores({ ...stores, workouts });
   };
+  const hasBackConcern = Boolean(workoutPainDraft || workoutBackStatusDraft && workoutBackStatusDraft !== "none" || workoutNeurologicalDraft.length);
+  const backFeedback = {
+    workoutPain: workoutPainDraft || workoutBackStatusDraft === "pain" || workoutBackStatusDraft === "worse" || workoutNeurologicalDraft.length > 0,
+    workoutBackStatus: workoutBackStatusDraft,
+    workoutNeurologicalSymptoms: workoutNeurologicalDraft,
+    workoutPainExercise: hasBackConcern ? workoutPainExerciseDraft.trim() || undefined : undefined,
+    workoutPainSet: hasBackConcern && workoutPainSetDraft && Number.isInteger(workoutPainSetDraft) && workoutPainSetDraft > 0 ? workoutPainSetDraft : undefined,
+  };
   const saveWorkoutEdit = () => {
     if (!selectedWorkoutRecord) return;
     const exerciseRecords = exerciseRecordsDraft || [];
@@ -216,7 +246,7 @@ export default function RecordCalendarView() {
         workoutStatus: workoutStatusDraft,
         workoutDifficulty: workoutDifficultyDraft,
         workoutFatigue: workoutFatigueDraft,
-        workoutPain: workoutPainDraft,
+        ...backFeedback,
         workoutMemo: workoutMemoDraft.trim() || undefined,
         workoutExerciseNames,
         workoutExerciseRecords: exerciseRecords.length ? exerciseRecords : undefined,
@@ -241,6 +271,10 @@ export default function RecordCalendarView() {
     setWorkoutDifficultyDraft("moderate");
     setWorkoutFatigueDraft(2);
     setWorkoutPainDraft(false);
+    setWorkoutBackStatusDraft(undefined);
+    setWorkoutNeurologicalDraft([]);
+    setWorkoutPainExerciseDraft("");
+    setWorkoutPainSetDraft(undefined);
     setWorkoutMemoDraft("");
     setExerciseRecordsDraft([]);
     setEditingWorkout(true);
@@ -248,7 +282,7 @@ export default function RecordCalendarView() {
   const saveNewWorkoutRecord = () => {
     if (selected > todayKey || !exerciseRecordsDraft?.length) return;
     const exerciseNames = exerciseRecordsDraft.map((record) => record.exerciseName);
-    writeWorkoutStore({ ...stores.workouts, [selected]: { ...(selectedWorkoutRecord || {}), workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, workoutPain: workoutPainDraft, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft } });
+    writeWorkoutStore({ ...stores.workouts, [selected]: { ...(selectedWorkoutRecord || {}), workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, ...backFeedback, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft } });
     setEditingWorkout(false);
     setWorkoutNotice("선택한 날짜에 운동 기록을 추가했습니다.");
   };
@@ -538,10 +572,14 @@ export default function RecordCalendarView() {
                       : "운동 이름 기록 없음"
                 : "미기록"}
             </b>
-            {isWorkoutPerformed(selectedWorkout) &&
-              selectedWorkoutRecord?.workoutPain && (
+            {(selectedWorkoutRecord?.workoutStatus || isWorkoutDone(selectedWorkout)) && <div className="mt-2 space-y-1 text-xs leading-5">
+              <p>운동 후 허리: {backStatusOptions.find((option) => option.id === selectedWorkoutRecord?.workoutBackStatus)?.label || "미기록"}</p>
+              {selectedWorkoutRecord?.workoutNeurologicalSymptoms?.length ? <p className="font-bold text-red-700">신경 증상: {selectedWorkoutRecord.workoutNeurologicalSymptoms.map((symptom) => neurologicalOptions.find((option) => option.id === symptom)?.label || symptom).join(" · ")}</p> : null}
+              {selectedWorkoutRecord?.workoutPainExercise ? <p>불편했던 운동: {selectedWorkoutRecord.workoutPainExercise}{selectedWorkoutRecord.workoutPainSet ? ` · ${selectedWorkoutRecord.workoutPainSet}세트` : ""}</p> : null}
+            </div>}
+            {(selectedWorkoutRecord?.workoutPain || selectedWorkoutRecord?.workoutBackStatus === "pain" || selectedWorkoutRecord?.workoutBackStatus === "worse" || Boolean(selectedWorkoutRecord?.workoutNeurologicalSymptoms?.length)) && (
                 <p className="mt-1 font-bold text-red-600">
-                  운동 통증 기록 있음 · 다음 운동은 강도를 낮추세요.
+                  통증·신경 증상 기록이 있어 운동 조정을 보류합니다. 증상을 유발하는 운동은 중단하고, 지속되거나 악화되면 의료 평가를 받으세요.
                 </p>
               )}
             {selectedWorkoutRecord?.workoutStatus &&
@@ -571,7 +609,26 @@ export default function RecordCalendarView() {
             <div className="mt-1 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutStatusDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutStatusDraft === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
             <p className="mt-3 text-[11px] font-bold text-gray-600">난이도</p>
             <div className="mt-1 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutDifficultyDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutDifficultyDraft === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
-            <details className="mt-3 rounded-xl bg-gray-50 p-3"><summary className="cursor-pointer text-[12px] font-bold text-gray-600">피로도·통증·메모 더 적기</summary><label className="mt-3 block text-[11px] font-bold text-gray-600">피로도 {workoutFatigueDraft}/5<input type="range" min={1} max={5} value={workoutFatigueDraft} onChange={(event) => setWorkoutFatigueDraft(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label><label className="mt-3 flex items-center gap-2 text-[11px] font-bold text-gray-600"><input type="checkbox" checked={workoutPainDraft} onChange={(event) => setWorkoutPainDraft(event.target.checked)} className="h-4 w-4 accent-red-600" />통증 있음</label><textarea value={workoutMemoDraft} onChange={(event) => setWorkoutMemoDraft(event.target.value)} placeholder="운동 메모" className="mt-2 min-h-16 w-full rounded-xl border border-gray-200 px-3 py-2 text-[12px]" /></details>
+            <details className="mt-3 rounded-xl bg-gray-50 p-3">
+              <summary className="cursor-pointer text-[12px] font-bold text-gray-600">피로도·허리 상태·메모 더 적기</summary>
+              <label className="mt-3 block text-xs font-bold text-gray-600">피로도 {workoutFatigueDraft}/5<input type="range" min={1} max={5} value={workoutFatigueDraft} onChange={(event) => setWorkoutFatigueDraft(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+              <label className="mt-3 block text-xs font-bold text-gray-600">운동 후 허리 상태
+                <select value={workoutBackStatusDraft || ""} onChange={(event) => setWorkoutBackStatusDraft(event.target.value as WorkoutBackStatus || undefined)} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs">
+                  <option value="">미기록</option>
+                  {backStatusOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </label>
+              <fieldset className="mt-3 space-y-1"><legend className="mb-1 text-xs font-bold text-gray-600">당시 신경 증상</legend>
+                {neurologicalOptions.map((option) => <label key={option.id} className="flex min-h-11 items-center gap-2 text-xs text-gray-700"><input type="checkbox" checked={workoutNeurologicalDraft.includes(option.id)} onChange={(event) => setWorkoutNeurologicalDraft((current) => event.target.checked ? [...current, option.id] : current.filter((symptom) => symptom !== option.id))} className="h-4 w-4 shrink-0 accent-red-600" />{option.label}</label>)}
+              </fieldset>
+              <label className="mt-2 flex min-h-11 items-center gap-2 text-xs font-bold text-gray-600"><input type="checkbox" checked={workoutPainDraft} onChange={(event) => setWorkoutPainDraft(event.target.checked)} className="h-4 w-4 accent-red-600" />그 외 통증 있음</label>
+              {hasBackConcern && <div className="mt-2 space-y-2">
+                <label className="block text-xs text-gray-600">불편했던 운동<input type="text" value={workoutPainExerciseDraft} onChange={(event) => setWorkoutPainExerciseDraft(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 px-3" /></label>
+                <label className="block text-xs text-gray-600">불편했던 세트<input type="number" min={1} step={1} value={workoutPainSetDraft ?? ""} onChange={(event) => setWorkoutPainSetDraft(event.target.value ? Number(event.target.value) : undefined)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-200 px-3" /></label>
+              </div>}
+              {backFeedback.workoutPain && <p className="mt-2 text-xs leading-5 text-red-700">증상을 유발하는 운동을 중단하고 상태를 확인하세요. 증상이 지속되거나 악화되면 의료 평가를 받으세요.</p>}
+              <textarea value={workoutMemoDraft} onChange={(event) => setWorkoutMemoDraft(event.target.value)} placeholder="운동 메모" className="mt-2 min-h-16 w-full rounded-xl border border-gray-200 px-3 py-2 text-[12px]" />
+            </details>
             <div className="mt-4 rounded-xl bg-[#F7F6FF] p-3"><p className="text-[13px] font-bold text-[#3C3489]"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#534AB7] text-white">2</span>실제로 한 운동 추가</p><input value={manualExerciseName} onChange={(event) => setManualExerciseName(event.target.value)} placeholder="운동 이름 (예: 버드독)" className="mt-3 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[13px]" /><div className="mt-2 grid grid-cols-3 gap-2"><label className="text-[10px] font-bold text-gray-500">몇 세트<input type="number" min={0} value={manualSets} onChange={(event) => setManualSets(Math.max(0, Number(event.target.value) || 0))} className="mt-1 min-h-10 w-full rounded-lg border border-gray-200 px-2 py-2 text-right text-[12px]" /></label><label className="text-[10px] font-bold text-gray-500">한 세트 횟수<input type="number" min={0} value={manualReps} onChange={(event) => setManualReps(Math.max(0, Number(event.target.value) || 0))} className="mt-1 min-h-10 w-full rounded-lg border border-gray-200 px-2 py-2 text-right text-[12px]" /></label><label className="text-[10px] font-bold text-gray-500">몇 분<input type="number" min={0} value={manualMinutes} onChange={(event) => setManualMinutes(Math.max(0, Number(event.target.value) || 0))} className="mt-1 min-h-10 w-full rounded-lg border border-gray-200 px-2 py-2 text-right text-[12px]" /></label></div><button type="button" disabled={!manualExerciseName.trim()} onClick={addManualExercise} className="mt-3 min-h-11 w-full rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-[#534AB7] disabled:text-gray-300">이 운동 추가하기</button></div>
             {exerciseRecordsDraft?.length ? <div className="mt-3 space-y-2"><p className="text-[11px] font-bold text-gray-600">운동별 결과</p>{exerciseRecordsDraft.map((record, index) => <div key={`${record.exerciseName}-${index}`} className="rounded-xl bg-gray-50 p-2"><p className="text-[11px] font-bold text-gray-800">{record.exerciseName}</p><div className="mt-1 grid grid-cols-4 gap-1">{([['completed', '완료'], ['partial', '부분'], ['skipped', '건너뜀'], ['pending', '미완료']] as [typeof record.status, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setExerciseRecordsDraft((records) => records?.map((item, recordIndex) => recordIndex === index ? { ...item, status: value } : item))} className={`rounded-lg px-1 py-1.5 text-[10px] font-bold ${record.status === value ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-500'}`}>{label}</button>)}</div></div>)}</div> : null}
             <p className="mt-4 text-[13px] font-bold text-gray-800"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#534AB7] text-white">3</span>기록 저장</p><div className="mt-2 grid grid-cols-2 gap-2"><button type="button" disabled={!selectedWorkoutRecord?.workoutStatus && !exerciseRecordsDraft?.length} onClick={selectedWorkoutRecord?.workoutStatus ? saveWorkoutEdit : saveNewWorkoutRecord} className="min-h-12 rounded-xl bg-[#534AB7] px-3 py-3 text-[13px] font-bold text-white disabled:bg-gray-200">{selectedWorkoutRecord?.workoutStatus ? "바뀐 기록 저장" : "운동 기록 저장"}</button><button type="button" onClick={() => setEditingWorkout(false)} className="min-h-12 rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-bold text-gray-600">취소</button></div>
