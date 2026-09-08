@@ -47,6 +47,14 @@ test("같은 날짜의 서킷 라운드는 성장 비교의 직전 날짜로 취
   assert.equal(squat?.latestDateKey, "2026-08-17");
 });
 
+test('교체 운동의 실제 세트는 팔로프를 코어, 햄스트링 컬을 하체로 분류한다', () => {
+  const breakdown = getBodyPartSetBreakdown({ '2026-09-08': { workoutDone: true, workoutExerciseRecords: [
+    { exerciseName: '밴드 팔로프 프레스', status: 'completed', sets: [{ setNumber: 1, completed: true, leftReps: 6, rightReps: 6 }] },
+    { exerciseName: '지지형 햄스트링 컬', status: 'completed', sets: [{ setNumber: 1, completed: true, leftReps: 8, rightReps: 8 }, { setNumber: 2, completed: true, leftReps: 8, rightReps: 8 }] },
+  ] } }, 2026, 8);
+  assert.deepEqual(breakdown, [{ bodyPart: '하체', sets: 2 }, { bodyPart: '코어', sets: 1 }]);
+});
+
 test("장기 요약은 최근 28일과 직전 28일을 같은 기준으로 비교한다", () => {
   const longTermWorkouts: WorkoutCompletionStore = {
     "2026-07-10": workouts["2026-08-10"],

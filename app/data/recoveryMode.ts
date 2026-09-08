@@ -8,18 +8,21 @@ export const SLEEP_STATUS_KEY = 'ai-fitness-sleep-status';
 export const ALCOHOL_STATUS_KEY = 'ai-fitness-alcohol-status';
 export const WORKOUT_CONDITION_KEY = 'ai-fitness-workout-condition';
 
-export type RecoveryReasonId = 'alcohol-yesterday' | 'hangover' | 'sleep-lack' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'back-pain' | 'leg-numbness' | 'ankle-pain' | 'heartburn' | 'fasting-high-intensity' | 'social-dinner-yesterday' | 'after-social-meal' | 'fatigue' | 'etc';
+export type RecoveryReasonId = 'alcohol-yesterday' | 'hangover' | 'sleep-lack' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'back-pain' | 'leg-numbness' | 'radiating-leg-pain' | 'leg-tingling' | 'sensation-loss' | 'leg-weakness' | 'ankle-pain' | 'heartburn' | 'fasting-high-intensity' | 'social-dinner-yesterday' | 'after-social-meal' | 'fatigue' | 'etc';
 export interface RecoveryDayRecord { recoveryMode: boolean; reasons: RecoveryReasonId[]; completedAsRecovery?: boolean; recoveryPriorityOnly?: boolean; intensity: 'normal' | '70%' | 'recovery'; recoveryMemo?: string; updatedAt?: string }
 export type RecoveryModeStore = Record<string, RecoveryDayRecord>;
 export type ConditionRecommendation = 'normal' | '70%' | 'recovery';
-export type ConditionSignalId = 'mild-back-discomfort' | 'marked-back-pain' | 'leg-numbness' | 'ankle-pain' | 'sleep-lack' | 'fatigue' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'heartburn';
+export type ConditionSignalId = 'mild-back-discomfort' | 'marked-back-pain' | 'leg-numbness' | 'radiating-leg-pain' | 'leg-tingling' | 'sensation-loss' | 'leg-weakness' | 'ankle-pain' | 'sleep-lack' | 'fatigue' | 'dizziness' | 'hand-tremor' | 'cold-sweat' | 'severe-headache' | 'heartburn';
 export interface DailyConditionRecord { signals: ConditionSignalId[]; recommendation: ConditionRecommendation; memo?: string; updatedAt: string }
 export type DailyConditionStore = Record<string, DailyConditionRecord>;
 
 export const CONDITION_SIGNAL_OPTIONS: { id: ConditionSignalId; label: string; group: 'body' | 'condition' }[] = [
   { id: 'mild-back-discomfort', label: '가벼운 허리 불편', group: 'body' },
   { id: 'marked-back-pain', label: '뚜렷한 허리 통증', group: 'body' },
-  { id: 'leg-numbness', label: '다리 저림', group: 'body' },
+  { id: 'radiating-leg-pain', label: '엉덩이·다리로 내려가는 통증', group: 'body' },
+  { id: 'leg-tingling', label: '저림', group: 'body' },
+  { id: 'sensation-loss', label: '감각 저하', group: 'body' },
+  { id: 'leg-weakness', label: '다리에 힘이 빠지는 느낌', group: 'body' },
   { id: 'ankle-pain', label: '발목 통증', group: 'body' },
   { id: 'sleep-lack', label: '수면 부족', group: 'condition' },
   { id: 'fatigue', label: '피로 누적', group: 'condition' },
@@ -31,7 +34,7 @@ export const CONDITION_SIGNAL_OPTIONS: { id: ConditionSignalId; label: string; g
 ];
 
 export const RECOVERY_REASON_LABELS: Record<RecoveryReasonId, string> = {
-  'alcohol-yesterday': '전날 음주', hangover: '숙취', 'sleep-lack': '수면 부족', dizziness: '어지럼', 'hand-tremor': '손 떨림', 'cold-sweat': '식은땀', 'severe-headache': '심한 두통', 'back-pain': '허리 통증', 'leg-numbness': '다리 저림', 'ankle-pain': '발목 통증', heartburn: '속쓰림/위장 불편', 'fasting-high-intensity': '운동 강도 조절 필요', 'social-dinner-yesterday': '저녁 회식 다음 날', 'after-social-meal': '회식 다음 날', fatigue: '피로 누적', etc: '기타',
+  'alcohol-yesterday': '전날 음주', hangover: '숙취', 'sleep-lack': '수면 부족', dizziness: '어지럼', 'hand-tremor': '손 떨림', 'cold-sweat': '식은땀', 'severe-headache': '심한 두통', 'back-pain': '허리 통증', 'leg-numbness': '다리 저림', 'radiating-leg-pain': '엉덩이·다리로 내려가는 통증', 'leg-tingling': '저림', 'sensation-loss': '감각 저하', 'leg-weakness': '다리에 힘이 빠지는 느낌', 'ankle-pain': '발목 통증', heartburn: '속쓰림/위장 불편', 'fasting-high-intensity': '운동 강도 조절 필요', 'social-dinner-yesterday': '저녁 회식 다음 날', 'after-social-meal': '회식 다음 날', fatigue: '피로 누적', etc: '기타',
 };
 
 const symptomReasonMap: Partial<Record<keyof DietSymptomMap, RecoveryReasonId>> = {
@@ -42,6 +45,10 @@ const conditionReasonMap: Record<ConditionSignalId, RecoveryReasonId> = {
   'mild-back-discomfort': 'back-pain',
   'marked-back-pain': 'back-pain',
   'leg-numbness': 'leg-numbness',
+  'radiating-leg-pain': 'radiating-leg-pain',
+  'leg-tingling': 'leg-tingling',
+  'sensation-loss': 'sensation-loss',
+  'leg-weakness': 'leg-weakness',
   'ankle-pain': 'ankle-pain',
   'sleep-lack': 'sleep-lack',
   fatigue: 'fatigue',
@@ -52,7 +59,7 @@ const conditionReasonMap: Record<ConditionSignalId, RecoveryReasonId> = {
   heartburn: 'heartburn',
 };
 
-const RECOVERY_SIGNALS = new Set<ConditionSignalId>(['marked-back-pain', 'leg-numbness', 'ankle-pain', 'dizziness', 'hand-tremor', 'cold-sweat', 'severe-headache']);
+const RECOVERY_SIGNALS = new Set<ConditionSignalId>(['marked-back-pain', 'leg-numbness', 'radiating-leg-pain', 'leg-tingling', 'sensation-loss', 'leg-weakness', 'ankle-pain', 'dizziness', 'hand-tremor', 'cold-sweat', 'severe-headache']);
 
 export function getConditionRecommendation(signals: ConditionSignalId[]): ConditionRecommendation {
   if (signals.some((signal) => RECOVERY_SIGNALS.has(signal))) return 'recovery';
@@ -125,7 +132,7 @@ export function assessRecoveryMode(dateKey = getLocalDateKey(), workoutDayId?: W
 
   const reasonList = Array.from(reasons);
   const saved = savedRecovery[dateKey];
-  const requiresRecovery = condition?.recommendation === 'recovery' || reasonList.some((reason) => ['hangover', 'dizziness', 'hand-tremor', 'cold-sweat', 'severe-headache', 'leg-numbness', 'ankle-pain'].includes(reason)) || saved?.recoveryPriorityOnly;
+  const requiresRecovery = condition?.recommendation === 'recovery' || reasonList.some((reason) => ['hangover', 'dizziness', 'hand-tremor', 'cold-sweat', 'severe-headache', 'leg-numbness', 'radiating-leg-pain', 'leg-tingling', 'sensation-loss', 'leg-weakness', 'ankle-pain'].includes(reason)) || saved?.recoveryPriorityOnly;
   const isRecovery = reasonList.length > 0 || Boolean(saved?.completedAsRecovery);
   return { recoveryMode: isRecovery, reasons: reasonList, completedAsRecovery: saved?.completedAsRecovery, recoveryPriorityOnly: saved?.recoveryPriorityOnly, intensity: isRecovery ? (requiresRecovery ? 'recovery' : '70%') : 'normal', recoveryMemo: saved?.recoveryMemo || condition?.memo, updatedAt: saved?.updatedAt || condition?.updatedAt };
 }
@@ -139,4 +146,4 @@ export function saveRecoveryRecord(dateKey: string, patch: Partial<RecoveryDayRe
 }
 
 export const RECOVERY_ROUTINE = ['폼롤러 회복 5~10분', '가벼운 호흡 1~2분', '가벼운 스트레칭 3~5분', '허리 아래쪽 직접 폼롤링 금지', '종아리·허벅지 앞·허벅지 바깥쪽·엉덩이·등 위쪽 중심'];
-export const RECOVERY_STOP_CRITERIA = ['허리 통증', '다리 저림', '날카로운 무릎 통증', '어지럼', '메스꺼움', '식은땀', '심한 피로'];
+export const RECOVERY_STOP_CRITERIA = ['허리 통증 증가', '엉덩이·다리로 내려가는 통증', '저림·감각 저하·다리 힘 빠짐', '날카로운 무릎 통증', '어지럼', '메스꺼움', '식은땀', '심한 피로'];

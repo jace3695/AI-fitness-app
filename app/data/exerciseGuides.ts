@@ -18,6 +18,32 @@ export const fallbackExerciseGuide = (name: string, summary?: string): ExerciseG
 });
 
 export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
+  '지지형 햄스트링 컬': {
+    summary: '지지대를 잡고 서서 무릎을 굽혀 허벅지 뒤쪽을 사용하는 운동입니다.',
+    purpose: '기존 스쿼트와 사이드워크가 상대적으로 덜 다루는 허벅지 뒤쪽을 보완합니다.',
+    setup: ['흔들리거나 움직이지 않는 벽·조리대를 가볍게 잡습니다.', '맨몸으로 시작하고 두 무릎을 나란히 둡니다.'],
+    movement: ['몸통을 세운 채 한쪽 발뒤꿈치를 엉덩이 방향으로 천천히 올립니다.', '허리가 젖혀지거나 골반이 돌아가기 전 범위에서 멈춥니다.', '천천히 내리고 좌우를 번갈아 진행합니다.'],
+    breathing: '무릎을 굽힐 때 편하게 내쉬고 내릴 때 들이쉽니다.',
+    target: '햄스트링 · 균형 유지',
+    commonMistakes: ['허리를 뒤로 젖힘', '무릎이 앞으로 나감', '반동으로 발을 들어 올림'],
+    stopCriteria: ['허리·무릎 통증이 생기면 중단합니다.', '다리로 내려가는 통증·저림·감각 저하·힘 빠짐이 있으면 중단하고 증상을 평가받습니다.'],
+    keyPoint: '첫 도입은 맨몸·좌우 8회·2라운드 이하. 지지대와 통증 없는 범위를 먼저 확인합니다.',
+    videoSearchQuery: 'NHS standing hamstring curl exercise support',
+    videoTitle: '지지형 햄스트링 컬 자세 확인',
+  },
+  '밴드 팔로프 프레스': {
+    summary: '밴드가 몸통을 돌리려는 힘을 버티며 코어 안정성을 연습합니다.',
+    purpose: '몸통을 크게 움직이지 않고 회전에 저항하는 능력을 보완합니다.',
+    setup: ['손상 없는 약한 밴드를 가슴 높이의 튼튼한 고정점에 안전하게 고정합니다.', '밴드 옆에 서서 양손을 가슴 앞에 모으고 발을 편하게 벌립니다.'],
+    movement: ['골반과 가슴이 정면을 향하도록 유지합니다.', '숨을 내쉬며 손을 조금 앞으로 뻗습니다.', '몸통이 돌아가기 전 범위에서 멈추고 가슴 쪽으로 돌아옵니다.', '방향을 바꿔 반대쪽도 같은 횟수로 진행합니다.'],
+    breathing: '힘을 줄 때 내쉬고 숨을 참지 않습니다.',
+    target: '복부 · 몸통 회전 저항',
+    commonMistakes: ['장력이 너무 강함', '허리를 젖히거나 몸통을 비틂', '밴드를 불안정한 손잡이에 고정함'],
+    stopCriteria: ['허리·어깨 통증이 생기거나 고정점이 움직이면 즉시 중단합니다.', '다리로 내려가는 통증·저림·감각 저하·힘 빠짐이 있으면 중단하고 증상을 평가받습니다.'],
+    keyPoint: '첫 도입은 약한 밴드·좌우 6회·2라운드 이하. 고정점과 몸통 자세를 확인합니다.',
+    videoSearchQuery: 'Hospital for Special Surgery Pallof press exercise',
+    videoTitle: '밴드 팔로프 프레스 자세 확인',
+  },
 
 
   'cat-cow': { id: 'cat-cow', name: '캣카우', category: 'warmup', reps: '6~8회', summary: '등과 골반을 부드럽게 움직여 허리 주변 긴장을 낮추는 운동', purpose: '허리 주변 긴장 완화, 척추 움직임 회복, 운동 전 준비', setup: ['네발기기 자세를 만듭니다.', '손은 어깨 아래, 무릎은 골반 아래에 둡니다.', '통증 없는 범위에서 천천히 움직입니다.'], movement: ['숨을 들이마시며 가슴을 살짝 열고 허리를 아주 가볍게 내려줍니다.', '숨을 내쉬며 등을 둥글게 말고 배를 살짝 당깁니다.', '목을 과하게 젖히거나 숙이지 않습니다.', '천천히 6~8회 반복합니다.'], breathing: '들이마시며 열고, 내쉬며 등을 둥글게 만듭니다.', target: '허리 주변 긴장 완화, 척추 움직임 회복', commonMistakes: ['허리를 과하게 꺾음', '빠르게 반동으로 진행'], stopCriteria: ['허리를 과하게 꺾지 마세요.', '통증이 있으면 범위를 줄이거나 중단하세요.', '빠르게 반동으로 하지 마세요.'], keyPoint: '허리 운동이라기보다 부드럽게 움직여 몸을 깨우는 운동으로 생각하세요.', homeTips: ['허리 운동이라기보다 부드럽게 움직여 몸을 깨우는 운동으로 생각하세요.'] },
@@ -39,6 +65,8 @@ export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
   '폼롤러 회복': { summary: '운동 후 긴장을 줄이고 회복을 돕는 폼롤러', purpose: '운동 후 종아리, 허벅지, 엉덩이, 등 위쪽 긴장을 줄이고 회복을 돕습니다.', setup: ['통증 없는 압력으로 폼롤러 위에 몸을 올립니다.'], movement: ['종아리 좌우 30초', '허벅지 앞 좌우 30초', '허벅지 바깥쪽 좌우 20~30초', '엉덩이 좌우 30초', '등 위쪽 1분'], breathing: '긴장을 풀며 천천히 내쉽니다.', target: '하체와 등 위쪽 회복', commonMistakes: ['허리 아래쪽을 직접 굴림', '멍들 정도로 세게 누름'], stopCriteria: ['허리 아래쪽을 직접 굴리지 마세요.', '멍들 정도로 세게 하지 마세요.', '찌릿한 저림이 있으면 중단하세요.'], keyPoint: '강하게 누르는 것보다 회복 가능한 압력이 중요합니다.' },
   '턱걸이 초기자세': { summary: '문틀 철봉 적응과 어깨 안정화 준비', purpose: '문틀 철봉 적응, 어깨 안정화, 턱걸이 준비', setup: ['철봉을 양손으로 잡고 발은 바닥에 둡니다.'], movement: ['어깨를 귀에서 멀어지게 살짝 내립니다.', '팔로 매달리기보다 등과 어깨 주변에 힘을 느납니다.', '발로 체중을 보조하면서 짧게 버팁니다.', '통증이 없으면 3~5분 안에서 여러 번 나누어 진행합니다.'], breathing: '버틸 때 숨을 참지 말고 짧게 내쉽니다.', target: '어깨 안정화, 등 활성화, 턱걸이 준비', commonMistakes: ['완전 매달리기를 무리함', '허리를 과하게 젖힘'], stopCriteria: ['어깨 통증이 있으면 중단하세요.', '완전 매달리기를 무리해서 하지 마세요.', '허리가 과하게 젖혀지지 않게 하세요.'], keyPoint: '발 보조를 사용해 안전하게 철봉에 적응합니다.' },
   '덤벨 고블릿 스쿼트': { summary: '가벼운 덤벨로 하체와 엉덩이를 강화', purpose: '하체 근력, 엉덩이 활성화, 무릎/골반 안정화', setup: ['덤벨을 가슴 앞에 세워 잡습니다.', '발은 어깨너비로 두고 발끝은 약간 바깥을 향합니다.'], movement: ['엉덩이를 뒤로 보내며 천천히 앉습니다.', '무릎이 안쪽으로 모이지 않게 합니다.', '발바닥 전체로 밀어 올라옵니다.'], breathing: '내려갈 때 들이마시고 올라올 때 내쉽니다.', target: '허벅지, 엉덩이, 코어', commonMistakes: ['무릎이 안으로 모임', '허리가 말림'], stopCriteria: ['무릎 통증이 있으면 범위를 줄이세요.', '허리가 불편하면 무게를 낮추세요.', '자세가 무너지면 중단하세요.'], alternatives: ['덤벨 없이 의자 스쿼트', '루프밴드 사이드워크'], keyPoint: '5~7kg부터 시작하고 자세가 먼저입니다.' },
+  '맨몸 스쿼트': { summary: '회복일에 가볍게 하체와 엉덩이를 깨우는 맨몸 운동', purpose: '가벼운 하체 자극, 엉덩이 활성화, 골반·무릎 정렬 연습', setup: ['발을 어깨너비로 두고 발끝은 편한 방향으로 둡니다.', '배에 가볍게 힘을 주고 가슴을 편하게 세웁니다.', '필요하면 의자 등받이를 손으로 가볍게 잡습니다.'], movement: ['엉덩이를 뒤로 보내며 통증 없는 깊이까지만 천천히 앉습니다.', '무릎이 발끝 방향을 따라가도록 유지합니다.', '발바닥 전체로 바닥을 밀며 천천히 일어납니다.'], breathing: '내려갈 때 들이마시고 일어날 때 내쉽니다.', target: '허벅지, 엉덩이, 골반 안정성', commonMistakes: ['빠르게 반동을 사용함', '무릎이 안쪽으로 모임', '허리가 둥글게 말리는 깊이까지 내려감'], stopCriteria: ['허리나 무릎 통증이 커지면 범위를 줄이거나 중단하세요.', '자세가 무너지면 반복을 더 하지 마세요.', '다리 저림이나 힘 빠짐이 생기면 즉시 중단하세요.'], alternatives: ['의자 스쿼트', '벽을 잡고 얕은 스쿼트'], keyPoint: '회복일에는 깊이나 속도보다 편안한 자세와 여유 있는 종료가 중요합니다.' },
+  '벽 푸시업': { summary: '벽을 이용해 부담을 낮춘 상체 밀기 운동', purpose: '가슴·팔의 가벼운 근력 자극, 어깨와 몸통 정렬 연습', setup: ['벽에서 팔 길이 정도 떨어져 섭니다.', '손을 어깨높이보다 약간 아래, 어깨너비로 벽에 둡니다.', '머리부터 발뒤꿈치까지 몸통을 편안하게 곧게 유지합니다.'], movement: ['팔꿈치를 몸통에서 약 30~45도 벌리며 가슴을 벽 쪽으로 천천히 이동합니다.', '허리가 꺾이거나 골반이 먼저 닿지 않게 몸통을 함께 움직입니다.', '벽을 밀어 시작 자세로 천천히 돌아옵니다.'], breathing: '벽에 가까워질 때 들이마시고 밀어낼 때 내쉽니다.', target: '가슴, 삼두, 어깨 안정성, 코어', commonMistakes: ['허리를 꺾음', '어깨를 귀 쪽으로 올림', '팔꿈치를 옆으로 과하게 벌림'], stopCriteria: ['어깨·손목에 날카로운 통증이 생기면 중단하세요.', '허리 통증이나 다리 저림이 생기면 즉시 중단하세요.', '몸통 정렬을 유지하기 어렵다면 벽에 더 가까이 서세요.'], alternatives: ['높은 테이블 푸시업', '가벼운 덤벨 플로어프레스'], keyPoint: '회복일에는 벽과의 거리를 줄여 충분히 여유 있는 강도로 끝냅니다.' },
   '덤벨 플로어프레스': { summary: '바닥에서 안전하게 진행하는 가슴/상체 운동', purpose: '가슴과 팔 힘 회복, 어깨 부담 감소', setup: ['바닥에 누워 무릎을 세웁니다.', '덤벨을 양손에 들고 팔꿈치를 바닥 가까이에 둡니다.'], movement: ['덤벨을 천천히 위로 밀어 올립니다.', '팔꿈치를 완전히 잠그지 않고 멈춥니다.', '천천히 내려옵니다.'], breathing: '밀어 올릴 때 숨을 내쉽니다.', target: '가슴, 삼두, 어깨 안정성', commonMistakes: ['허리를 과하게 꺾음', '덤벨을 빠르게 떨어뜨림'], stopCriteria: ['어깨 통증이 있으면 중단하세요.', '허리가 뜨면 무게를 낮추세요.', '손목이 꺾이지 않게 하세요.'], keyPoint: '한 손 3~5kg부터 천천히 진행합니다.' },
   '의자/테이블 지지 원암 덤벨 로우': { summary: '집의 의자나 테이블을 지지해 등 운동을 진행', purpose: '등 근육 활성화, 자세 안정성, 좌우 균형 개선', setup: ['안정적인 의자나 테이블에 한 손을 짚습니다.', '허리를 중립으로 유지하고 덤벨은 5~7kg부터 잡습니다.'], movement: ['팔꿈치를 옆구리 쪽으로 당깁니다.', '어깨를 으쓱하지 않고 등을 조입니다.', '천천히 내려놓고 좌우를 바꿉니다.'], breathing: '당길 때 숨을 내쉬고 내릴 때 들이마십니다.', target: '광배근, 등 중부, 후면 어깨', commonMistakes: ['몸통을 비틀어 반동 사용', '불안정한 받침대 사용'], stopCriteria: ['받침대가 불안정하면 밴드 로우로 대체하세요.', '허리가 불편하면 덤벨 로우를 하지 말고 밴드 로우를 선택하세요.', '어깨 통증이 있으면 중단하세요.'], alternatives: ['밴드 로우'], keyPoint: '집에서는 받침대 안정성이 가장 중요합니다.' },
   '밴드 로우': { summary: '밴드로 안전하게 등을 당기는 운동', purpose: '등 근육 활성화와 자세 안정성 향상', setup: ['밴드를 단단히 고정하거나 발에 걸고 앉거나 섭니다.', '가슴을 세우고 어깨를 낮춥니다.'], movement: ['팔꿈치를 뒤로 당겨 등을 조입니다.', '어깨가 올라가지 않게 합니다.', '천천히 시작 자세로 돌아갑니다.'], breathing: '당길 때 내쉽니다.', target: '등 중부, 광배근', commonMistakes: ['허리를 젖힘', '어깨를 으쓱함'], stopCriteria: ['밴드 고정이 불안하면 중단하세요.', '허리 통증이 있으면 앉아서 진행하세요.', '반동을 쓰지 마세요.'], keyPoint: '밴드를 당기는 것보다 등을 조이는 느낌을 우선합니다.' },
@@ -51,6 +79,8 @@ export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
 
 
 const exerciseIdByName: Record<string, string> = {
+  '지지형 햄스트링 컬': 'supported-hamstring-curl',
+  '밴드 팔로프 프레스': 'band-pallof-press',
   '폼롤러 준비': 'foam-roller-prep',
   '기본 몸풀기': 'basic-warmup',
   '운동 전 슬라이딩보드': 'pre-rosary-sliding-board',
@@ -70,6 +100,8 @@ const exerciseIdByName: Record<string, string> = {
   '폼롤러 회복': 'foam-roller-recovery',
   '턱걸이 초기자세': 'pullup-basic-posture',
   '덤벨 고블릿 스쿼트': 'dumbbell-goblet-squat',
+  '맨몸 스쿼트': 'bodyweight-squat',
+  '벽 푸시업': 'wall-pushup',
   '덤벨 플로어프레스': 'dumbbell-floor-press',
   '의자/테이블 지지 원암 덤벨 로우': 'one-arm-dumbbell-row-supported',
   '밴드 로우': 'band-row',
@@ -109,6 +141,8 @@ const videoSearchQueries: Record<string, string> = {
   'ab-slider-ready-position': 'ab 슬라이더 초보자 자세 무릎',
   'ab-slider-ready': 'ab 슬라이더 초보자 자세 무릎',
   'dumbbell-goblet-squat': '덤벨 고블릿 스쿼트 자세 초보자',
+  'bodyweight-squat': '맨몸 스쿼트 초보자 올바른 자세',
+  'wall-pushup': '벽 푸시업 초보자 자세',
   'dumbbell-floor-press': '덤벨 플로어프레스 자세',
   'one-arm-dumbbell-row-supported': '원암 덤벨 로우 집에서 의자 지지 자세',
   'home-one-arm-dumbbell-row': '원암 덤벨 로우 집에서 의자 지지 자세',
@@ -141,6 +175,8 @@ const lumbarVideoTitles: Record<string, string> = {
 
 const strengthVideoTitles: Record<string, string> = {
   'dumbbell-goblet-squat': '고블릿 스쿼트 · 무릎 방향과 허리 중립',
+  'bodyweight-squat': '맨몸 스쿼트 · 무릎 방향과 편안한 깊이',
+  'wall-pushup': '벽 푸시업 · 몸통 정렬과 팔꿈치 방향',
   'loopband-sidewalk': '루프밴드 사이드워크 · 작은 보폭과 골반 고정',
   'loopband-monster-walk': '몬스터워크 · 밴드 장력과 무릎 정렬',
   'longband-lat-pulldown': '롱밴드 랫풀다운 · 어깨를 내리고 팔꿈치 당기기',
@@ -267,6 +303,8 @@ const lumbarSafetyGuideIds = [
   'basic-warmup',
   'pre-rosary-sliding-board',
   'bird-dog',
+  'bodyweight-squat',
+  'wall-pushup',
   'hip-bridge',
   'dead-bug',
   'cat-cow',

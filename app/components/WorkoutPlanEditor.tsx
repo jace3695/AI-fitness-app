@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { WORKOUT_GROUPS, getWorkoutGroupById } from "../data/workoutGroups";
 import { dayIdToKoreanLabel } from "../data/workoutPlans";
 import { getDateForWorkoutDay, getWorkoutDayForDate, getWorkoutRecord, WorkoutCompletionStore, WorkoutDayId } from "../data/workoutCompletion";
-import { DayRoutineEdit, ExerciseTarget, UserWorkoutSettings } from "../data/userWorkoutSettings";
+import { DayRoutineEdit, ExerciseTarget, UserWorkoutSettings, getExerciseTargetsForDay } from "../data/userWorkoutSettings";
 import { readJson, WEIGHT_RECORDS_KEY, WeightRecordStore } from "../data/recordStorage";
 import { DEFAULT_WORKOUT_METHOD, getWorkoutMethodLabel, normalizeWorkoutMethod, WORKOUT_METHOD_OPTIONS } from "../data/workoutMethods";
 import type { WorkoutMethodConfig } from "../data/workoutMethods";
+import { CURRENT_WEEKLY_METHODS } from '../data/currentWorkoutDirection';
 
 const DAYS: WorkoutDayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 type EditScope = "weekly" | "week" | "today";
@@ -137,9 +138,10 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
   const group = getWorkoutGroupById(groupId);
   const exercises = group.type === "choice" ? [] : group.exercises;
   const routineGroups = WORKOUT_GROUPS.filter((item) => item.type !== "choice" || effectiveDay === "sat");
-  const changedDays = useMemo(() => DAYS.filter((day) => settings.weeklyGroups[day] || settings.weeklyEdits[day] || settings.weeklyMethods[day]), [settings.weeklyEdits, settings.weeklyGroups, settings.weeklyMethods]);
+  const changedDays = useMemo(() => DAYS.filter((day) => settings.weeklyGroups[day] || settings.weeklyEdits[day] || settings.weeklyMethods[day] || settings.weeklyExerciseTargets?.[day]), [settings.weeklyEdits, settings.weeklyGroups, settings.weeklyMethods, settings.weeklyExerciseTargets]);
   const currentEdit = scope === "weekly" ? settings.weeklyEdits[effectiveDay] || {} : dateOverride?.edit || settings.weeklyEdits[effectiveDay] || {};
-  const currentMethod = normalizeWorkoutMethod(scope === "weekly" ? settings.weeklyMethods[effectiveDay] : dateOverride?.method || settings.weeklyMethods[effectiveDay]);
+  const baseMethod = (day: WorkoutDayId) => defaultGroups[day]?.startsWith('current-') ? CURRENT_WEEKLY_METHODS[day] : DEFAULT_WORKOUT_METHOD;
+  const currentMethod = normalizeWorkoutMethod((scope === "weekly" ? settings.weeklyMethods[effectiveDay] : dateOverride?.method || settings.weeklyMethods[effectiveDay]) || baseMethod(effectiveDay));
 
   const changeGroup = (nextGroupId: string) => {
     if (scope === "weekly") {
@@ -206,7 +208,8 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
         ...settings,
         weeklyGroups: { ...settings.weeklyGroups, [effectiveDay]: targetId, [moveTarget]: sourceId },
         weeklyEdits: { ...settings.weeklyEdits, [effectiveDay]: settings.weeklyEdits[moveTarget] || {}, [moveTarget]: settings.weeklyEdits[effectiveDay] || {} },
-        weeklyMethods: { ...settings.weeklyMethods, [effectiveDay]: settings.weeklyMethods[moveTarget] || DEFAULT_WORKOUT_METHOD, [moveTarget]: settings.weeklyMethods[effectiveDay] || DEFAULT_WORKOUT_METHOD },
+        weeklyMethods: { ...settings.weeklyMethods, [effectiveDay]: settings.weeklyMethods[moveTarget] || baseMethod(moveTarget), [moveTarget]: settings.weeklyMethods[effectiveDay] || baseMethod(effectiveDay) },
+        weeklyExerciseTargets: { ...settings.weeklyExerciseTargets, [effectiveDay]: settings.weeklyExerciseTargets?.[moveTarget] || {}, [moveTarget]: settings.weeklyExerciseTargets?.[effectiveDay] || {} },
       });
       return;
     }
@@ -216,16 +219,19 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       ...settings,
       dateOverrides: {
         ...settings.dateOverrides,
-        [dateKey]: { groupId: targetOverride?.groupId || targetId, edit: targetOverride?.edit || settings.weeklyEdits[moveTarget], method: targetOverride?.method || settings.weeklyMethods[moveTarget] },
-        [targetDate]: { groupId: dateOverride?.groupId || sourceId, edit: dateOverride?.edit || settings.weeklyEdits[effectiveDay], method: dateOverride?.method || settings.weeklyMethods[effectiveDay] },
+        [dateKey]: { groupId: targetOverride?.groupId || targetId, edit: targetOverride?.edit || settings.weeklyEdits[moveTarget], method: targetOverride?.method || settings.weeklyMethods[moveTarget], exerciseTargets: getExerciseTargetsForDay(settings, moveTarget, targetDate) },
+        [targetDate]: { groupId: dateOverride?.groupId || sourceId, edit: dateOverride?.edit || settings.weeklyEdits[effectiveDay], method: dateOverride?.method || settings.weeklyMethods[effectiveDay], exerciseTargets: getExerciseTargetsForDay(settings, effectiveDay, dateKey) },
       },
     });
   };
 
+  const effectiveTargets = getExerciseTargetsForDay(settings, effectiveDay, scope === 'weekly' ? undefined : dateKey);
   const updateTarget = (name: string, patch: Partial<ExerciseTarget>) => {
-    const current = settings.exerciseTargets[name] || {};
+    const current = effectiveTargets[name] || {};
     const next = { ...current, ...patch };
-    onChange({ ...settings, exerciseTargets: { ...settings.exerciseTargets, [name]: next } });
+    onChange(scope === 'weekly'
+      ? { ...settings, weeklyExerciseTargets: { ...settings.weeklyExerciseTargets, [effectiveDay]: { ...settings.weeklyExerciseTargets?.[effectiveDay], [name]: next } } }
+      : { ...settings, dateOverrides: { ...settings.dateOverrides, [dateKey]: { ...dateOverride, exerciseTargets: { ...dateOverride?.exerciseTargets, [name]: next } } } });
   };
 
   return <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-6">
@@ -248,7 +254,7 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       </select>
     </label>
     <div className="mt-2 flex gap-2"><button type="button" onClick={() => changeGroup("cardio-foam-recovery")} className="flex-1 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700">🌿 회복 루틴으로 변경</button><button type="button" onClick={() => changeGroup("rest")} className="rounded-xl bg-gray-100 px-3 py-2.5 text-xs font-bold text-gray-600">휴식</button></div>
-    {scope === "weekly" && <div className="mt-2 flex items-center justify-between rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs text-[#3C3489]"><span>변경한 요일: {changedDays.length ? changedDays.map((day) => dayIdToKoreanLabel[day]).join(", ") : "없음"}</span><button type="button" onClick={() => onChange({ ...settings, weeklyGroups: {}, weeklyEdits: {}, weeklyMethods: {} })} className="font-bold underline">주간 루틴 초기화</button></div>}
+    {scope === "weekly" && <div className="mt-2 flex items-center justify-between rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs text-[#3C3489]"><span>변경한 요일: {changedDays.length ? changedDays.map((day) => dayIdToKoreanLabel[day]).join(", ") : "없음"}</span><button type="button" onClick={() => onChange({ ...settings, weeklyGroups: {}, weeklyEdits: {}, weeklyMethods: {}, weeklyExerciseTargets: {} })} className="font-bold underline">주간 루틴 초기화</button></div>}
     {scope !== "weekly" && dateOverride && <button type="button" onClick={() => { const next = { ...settings.dateOverrides }; delete next[dateKey]; onChange({ ...settings, dateOverrides: next }); }} className="mt-2 w-full rounded-xl bg-[#EEEDFE] px-3 py-2 text-xs font-bold text-[#3C3489]">{scope === "today" ? "오늘" : "이 날짜"} 변경 취소</button>}
 
     {scope !== "today" && <div className="mt-3 rounded-2xl border border-gray-100 p-3"><p className="text-xs font-bold text-gray-700">운동일 이동·교환</p><div className="mt-2 flex gap-2"><select aria-label="교환할 요일" value={moveTarget} onChange={(e) => setMoveTarget(e.target.value as WorkoutDayId)} className="min-w-0 flex-1 rounded-xl bg-gray-50 px-3 py-2 text-sm">{DAYS.filter((day) => day !== effectiveDay).map((day) => <option key={day} value={day}>{dayIdToKoreanLabel[day]}</option>)}</select><button type="button" onClick={swapDays} className="rounded-xl bg-gray-900 px-3 py-2 text-xs font-bold text-white">서로 교환</button></div><p className="mt-1 text-[11px] text-gray-400">놓친 운동을 옮길 때 대상 요일과 계획을 서로 바꿉니다.</p></div>}
@@ -286,15 +292,17 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       {orderedExercises.map((exercise) => {
         const name = exercise.name || exercise.exerciseId;
         const baseAi: ExerciseTarget = { sets: numberFrom(exercise.sets, "세트"), reps: numberFrom(exercise.sets, "회"), durationMinutes: numberFrom(exercise.duration, "분") };
-        const recommendation = getAiTarget(name, baseAi, records, settings.exerciseTargets[name]);
+        const recommendation: AiRecommendation = groupId.startsWith('current-fullbody-')
+          ? { target: effectiveTargets[name] || baseAi, level: 'maintain', title: '현재 설정', summary: '직접 바꿀 운동량을 입력할 수 있습니다. 기록에 따른 변경 제안은 운동 홈에서 확인하세요.', evidence: [], nextStep: '운동 홈에서 최근 수행능력·허리 상태·피로에 따른 유지·증가·교체·감소 제안을 확인한 뒤 적용합니다.' }
+          : getAiTarget(name, baseAi, records, effectiveTargets[name]);
         const ai = recommendation.target;
-        const target = settings.exerciseTargets[name] || {};
+        const target = effectiveTargets[name] || {};
         const fields = ai.durationMinutes !== undefined ? [{ key: "durationMinutes" as const, label: "시간", suffix: "분", value: target.durationMinutes }] : [
           { key: "reps" as const, label: "횟수", suffix: "회", value: target.reps },
           { key: "sets" as const, label: "세트", suffix: "세트", value: target.sets },
         ];
         return <div key={exercise.exerciseId} className="rounded-2xl border border-gray-100 p-4">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-gray-900">{name}</p><p className="mt-1 text-xs text-[#534AB7]">AI 추천: {ai.durationMinutes ? `${ai.durationMinutes}분` : ai.reps ? `${ai.reps}회${ai.sets ? ` × ${ai.sets}세트` : ""}` : exercise.sets || exercise.duration || "통증 없는 범위"}</p></div><button type="button" onClick={() => onChange({ ...settings, exerciseTargets: { ...settings.exerciseTargets, [name]: ai } })} className="shrink-0 rounded-lg bg-[#EEEDFE] px-2.5 py-1.5 text-[11px] font-bold text-[#3C3489]">추천값 적용</button></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-gray-900">{name}</p><p className="mt-1 text-xs text-[#534AB7]">{groupId.startsWith('current-fullbody-') ? '현재 안내값' : 'AI 추천'}: {ai.durationMinutes ? `${ai.durationMinutes}분` : ai.reps ? `${ai.reps}회${ai.sets ? ` × ${ai.sets}세트` : ""}` : exercise.sets || exercise.duration || "통증 없는 범위"}</p></div><button type="button" onClick={() => updateTarget(name, ai)} className="shrink-0 rounded-lg bg-[#EEEDFE] px-2.5 py-1.5 text-[11px] font-bold text-[#3C3489]">{groupId.startsWith('current-fullbody-') ? '안내값 채우기' : '추천값 적용'}</button></div>
           <div className={`mt-3 rounded-xl border p-3 ${RECOMMENDATION_STYLE[recommendation.level].panel}`}>
             <div className="flex items-center gap-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${RECOMMENDATION_STYLE[recommendation.level].badge}`}>{recommendation.title}</span></div>
             <p className="mt-2 text-[11px] leading-relaxed text-gray-700">{recommendation.summary}</p>

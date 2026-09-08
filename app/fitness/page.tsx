@@ -1,7 +1,7 @@
 "use client";
 
 import AppCompanion from "@/components/AppCompanion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { DayWorkout } from "../data/workouts";
 import {
@@ -32,6 +32,7 @@ import {
   clearDailyCondition,
   ConditionSignalId,
   DailyConditionRecord,
+  DailyConditionStore,
   readDailyCondition,
   RecoveryDayRecord,
   RecoveryModeStore,
@@ -39,7 +40,8 @@ import {
   saveRecoveryRecord,
   RECOVERY_MODE_DAYS_KEY,
 } from "../data/recoveryMode";
-import { readJson, writeJson } from "../data/recordStorage";
+import { readJson, readRecordStores, writeJson } from "../data/recordStorage";
+import type { WeightRecordStore } from "../data/recordStorage";
 import { getLocalDateKey } from "../data/dietPlans";
 import WeeklyView from "../components/WeeklyView";
 import DayView from "../components/DayView";
@@ -56,16 +58,30 @@ import DataBackupPanel from "../components/DataBackupPanel";
 import AppIdentity from "../components/AppIdentity";
 import AppModuleNav from "../components/AppModuleNav";
 import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
+import AdaptiveWorkoutReviewCard from "../components/AdaptiveWorkoutReviewCard";
 import DailyWorkoutEditor from "../components/DailyWorkoutEditor";
 import {
   applyDayRoutineEdit,
   applyExerciseTargets,
+  getExerciseTargetsForDay,
   EMPTY_USER_WORKOUT_SETTINGS,
   readUserWorkoutSettings,
   saveUserWorkoutSettings,
   UserWorkoutSettings,
 } from "../data/userWorkoutSettings";
 import { DEFAULT_WORKOUT_METHOD, normalizeWorkoutMethod } from "../data/workoutMethods";
+import {
+  buildCurrentWorkoutSettings,
+  CURRENT_PROGRAM_SCHEDULE,
+  CURRENT_WORKOUT_DIRECTION_BACKUP_KEY,
+  CURRENT_WORKOUT_DIRECTION_VERSION,
+  CURRENT_WORKOUT_DIRECTION_VERSION_KEY,
+  CURRENT_WEIGHT_BASELINE_KG,
+  CURRENT_WEIGHT_BASELINE_DATE,
+  CURRENT_WEEKLY_METHODS,
+} from "../data/currentWorkoutDirection";
+import { buildAdaptiveCoachAdvice } from "../data/workoutAdaptiveCoach";
+import { buildAdaptiveWorkoutReview } from '../data/workoutAdaptiveReview';
 
 type TabId =
   | "ov"
@@ -150,6 +166,28 @@ function FitnessApp() {
   const [showBaseRoutine, setShowBaseRoutine] = useState(false);
   const [showDailyEditor, setShowDailyEditor] = useState(false);
   const [userWorkoutSettings, setUserWorkoutSettings] = useState<UserWorkoutSettings>(EMPTY_USER_WORKOUT_SETTINGS);
+  const [weightRecords, setWeightRecords] = useState<WeightRecordStore>({});
+  const [conditionRecords, setConditionRecords] = useState<DailyConditionStore>({});
+  const [directionUpdateNotice, setDirectionUpdateNotice] = useState("");
+
+  const refreshWorkoutReview = useCallback(() => {
+    const stores = readRecordStores();
+    setCompletedStore(stores.workouts);
+    setWeightRecords(stores.weights);
+    setConditionRecords(stores.conditions);
+    setConditionToday(stores.conditions[getLocalDateKey()]);
+    setUserWorkoutSettings(readUserWorkoutSettings());
+    setSelectedWeeklyWorkoutPlanId(window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('focus', refreshWorkoutReview);
+    window.addEventListener('storage', refreshWorkoutReview);
+    return () => {
+      window.removeEventListener('focus', refreshWorkoutReview);
+      window.removeEventListener('storage', refreshWorkoutReview);
+    };
+  }, [refreshWorkoutReview]);
 
   useEffect(() => {
     const savedTab = window.sessionStorage.getItem(ACTIVE_TAB_SESSION_KEY);
@@ -167,12 +205,25 @@ function FitnessApp() {
       window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
       window.localStorage.getItem(LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY) ||
       DEFAULT_WEEKLY_WORKOUT_PLAN_ID;
-    const validWeeklyPlan = WEEKLY_WORKOUT_PLANS.some(
-      (plan) => plan.id === savedWeeklyPlan,
-    );
-    const weeklyPlanId = validWeeklyPlan
+    const needsDirectionUpdate = window.localStorage.getItem(CURRENT_WORKOUT_DIRECTION_VERSION_KEY) !== CURRENT_WORKOUT_DIRECTION_VERSION;
+    let settings = readUserWorkoutSettings();
+    let weeklyPlanId = WEEKLY_WORKOUT_PLANS.some((plan) => plan.id === savedWeeklyPlan)
       ? savedWeeklyPlan
       : DEFAULT_WEEKLY_WORKOUT_PLAN_ID;
+    if (needsDirectionUpdate) {
+      if (!window.localStorage.getItem(CURRENT_WORKOUT_DIRECTION_BACKUP_KEY)) {
+        window.localStorage.setItem(CURRENT_WORKOUT_DIRECTION_BACKUP_KEY, JSON.stringify({
+          savedAt: new Date().toISOString(),
+          selectedPlanId: weeklyPlanId,
+          settings,
+        }));
+      }
+      settings = buildCurrentWorkoutSettings(settings);
+      saveUserWorkoutSettings(settings);
+      weeklyPlanId = DEFAULT_WEEKLY_WORKOUT_PLAN_ID;
+      window.localStorage.setItem(CURRENT_WORKOUT_DIRECTION_VERSION_KEY, CURRENT_WORKOUT_DIRECTION_VERSION);
+      setDirectionUpdateNotice("현재 운동 방향에 맞춰 주 5일 근력·회복 교차 계획을 적용했습니다.");
+    }
     setSelectedWeeklyWorkoutPlanId(weeklyPlanId);
     window.localStorage.setItem(
       SELECTED_WEEKLY_WORKOUT_PLAN_KEY,
@@ -181,7 +232,10 @@ function FitnessApp() {
     window.localStorage.removeItem(LEGACY_SELECTED_WEEKLY_WORKOUT_PLAN_KEY);
 
     setCompletedStore(readWorkoutCompletionStore());
-    setUserWorkoutSettings(readUserWorkoutSettings());
+    setUserWorkoutSettings(settings);
+    const recordStores = readRecordStores();
+    setWeightRecords(recordStores.weights);
+    setConditionRecords(recordStores.conditions);
     setConditionToday(readDailyCondition());
     setRecoveryToday(
       assessRecoveryMode(
@@ -199,13 +253,15 @@ function FitnessApp() {
   };
 
   const handleUserWorkoutSettingsChange = (settings: UserWorkoutSettings) => {
-    setUserWorkoutSettings(settings);
     saveUserWorkoutSettings(settings);
+    setUserWorkoutSettings(settings);
   };
 
   const handleConditionSave = (signals: ConditionSignalId[], memo: string) => {
     const dateKey = getLocalDateKey();
-    setConditionToday(saveDailyCondition(dateKey, signals, memo));
+    const condition = saveDailyCondition(dateKey, signals, memo);
+    setConditionToday(condition);
+    setConditionRecords((current) => ({ ...current, [dateKey]: condition }));
     setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
   };
 
@@ -213,6 +269,7 @@ function FitnessApp() {
     const dateKey = getLocalDateKey();
     clearDailyCondition(dateKey);
     setConditionToday(undefined);
+    setConditionRecords(readRecordStores().conditions);
     setRecoveryToday(assessRecoveryMode(dateKey, todayWorkoutDay));
   };
 
@@ -251,6 +308,9 @@ function FitnessApp() {
     const recordedWorkoutStatus: WorkoutOverallStatus = feedback?.status === "stopped"
       ? "stopped"
       : detailedWorkoutStatus || feedback?.status || "completed";
+    const backStatus = feedback?.backStatus ?? (pain ? "pain" : "none");
+    const neurologicalSymptoms = feedback?.neurologicalSymptoms ?? [];
+    const hasSafetyPain = pain || backStatus === "pain" || backStatus === "worse" || neurologicalSymptoms.length > 0;
     setCompletedStore((prev) => {
       const current = getWorkoutRecord(prev[dateKey]);
       const hasWarmupSlidingBoard = exerciseNames.includes("운동 전 슬라이딩보드");
@@ -266,7 +326,11 @@ function FitnessApp() {
           workoutGroupId: selectedWorkoutGroup?.id,
           workoutExerciseNames: exerciseNames,
           workoutSourceDay: baseDayWorkout?.tabLabel,
-          workoutPain: pain,
+          workoutPain: hasSafetyPain,
+          workoutBackStatus: backStatus,
+          workoutNeurologicalSymptoms: neurologicalSymptoms.length ? neurologicalSymptoms : undefined,
+          workoutPainExercise: feedback?.painExercise?.trim() || undefined,
+          workoutPainSet: feedback?.painSet,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
           workoutStatus: recordedWorkoutStatus,
           workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
@@ -315,6 +379,10 @@ function FitnessApp() {
           workoutExerciseNames: undefined,
           workoutSourceDay: undefined,
           workoutPain: undefined,
+          workoutBackStatus: undefined,
+          workoutNeurologicalSymptoms: undefined,
+          workoutPainExercise: undefined,
+          workoutPainSet: undefined,
           workoutMemo: undefined,
           workoutStatus: undefined,
           workoutDifficulty: undefined,
@@ -451,6 +519,10 @@ function FitnessApp() {
           workoutExerciseNames: undefined,
           workoutSourceDay: undefined,
           workoutPain: undefined,
+          workoutBackStatus: undefined,
+          workoutNeurologicalSymptoms: undefined,
+          workoutPainExercise: undefined,
+          workoutPainSet: undefined,
           workoutMemo: undefined,
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
@@ -493,7 +565,13 @@ function FitnessApp() {
   };
 
   const completedDays = getWeeklyWorkoutCompletion(completedStore);
+  const adaptiveAdvice = useMemo(
+    () => buildAdaptiveCoachAdvice(completedStore, weightRecords),
+    [completedStore, weightRecords],
+  );
   const todayKey = getLocalDateKey();
+  const adaptiveReviewInput = { settings: userWorkoutSettings, workouts: completedStore, conditions: conditionRecords, selectedPlanId: selectedWeeklyWorkoutPlanId, today: todayKey };
+  const safetyHold = buildAdaptiveWorkoutReview(adaptiveReviewInput).action === 'hold';
   const activeWorkoutDateKey = WORKOUT_DAY_IDS.includes(activeTab as WorkoutDayId)
     ? getDateForWorkoutDay(activeTab as WorkoutDayId)
     : todayKey;
@@ -526,9 +604,12 @@ function FitnessApp() {
   });
   const painDays = WORKOUT_DAY_IDS.reduce<Record<WorkoutDayId, boolean>>(
     (result, dayId) => {
+      const record = getWorkoutRecord(completedStore[getDateForWorkoutDay(dayId)]);
       result[dayId] = Boolean(
-        getWorkoutRecord(completedStore[getDateForWorkoutDay(dayId)])
-          .workoutPain,
+        record.workoutPain ||
+        record.workoutBackStatus === "pain" ||
+        record.workoutBackStatus === "worse" ||
+        record.workoutNeurologicalSymptoms?.length,
       );
       return result;
     },
@@ -554,7 +635,7 @@ function FitnessApp() {
           baseDayWorkout,
           userWorkoutSettings.dateOverrides[getDateForWorkoutDay(activeTab as WorkoutDayId)]?.edit || userWorkoutSettings.weeklyEdits[activeTab as WorkoutDayId],
         ),
-        userWorkoutSettings.exerciseTargets,
+        getExerciseTargetsForDay(userWorkoutSettings, activeTab as WorkoutDayId, activeWorkoutDateKey),
       )
     : undefined;
   const todayWorkout = todayWorkoutDay
@@ -563,7 +644,7 @@ function FitnessApp() {
           getDayWorkoutForPlan(selectedWeeklyWorkoutPlan, todayWorkoutDay),
           userWorkoutSettings.dateOverrides[todayKey]?.edit || userWorkoutSettings.weeklyEdits[todayWorkoutDay],
         ),
-        userWorkoutSettings.exerciseTargets,
+        getExerciseTargetsForDay(userWorkoutSettings, todayWorkoutDay, todayKey),
       )
     : undefined;
   const todayPreviewItems = getWorkoutPreviewItems(todayWorkout);
@@ -577,12 +658,12 @@ function FitnessApp() {
     activeWorkoutDay &&
     getDateForWorkoutDay(activeWorkoutDay) === todayKey &&
     recoveryToday?.recoveryMode
-      ? "cardio-foam-recovery"
+      ? safetyHold ? 'rest' : "current-fullbody-recovery-circuit"
       : activeDefaultGroupId;
   const activeRecommendationReason = recoveryToday?.recoveryMode &&
     activeWorkoutDay &&
     getDateForWorkoutDay(activeWorkoutDay) === todayKey
-    ? "오늘 몸 상태를 반영해 회복 루틴을 추천합니다."
+    ? safetyHold ? '통증·신경 증상 기록이 있어 운동 변경보다 증상 확인과 휴식을 우선합니다.' : "오늘 몸 상태를 반영해 회복 루틴을 추천합니다."
     : `${selectedBaseWeeklyWorkoutPlan.weekLabel} 기본 운동표를 기준으로 추천합니다.`;
   const todayRecord = getWorkoutRecord(completedStore[todayKey]);
   const activeWorkoutRecord = getWorkoutRecord(completedStore[activeWorkoutDateKey]);
@@ -590,7 +671,7 @@ function FitnessApp() {
     ? normalizeWorkoutMethod(
         userWorkoutSettings.dateOverrides[getDateForWorkoutDay(activeTab as WorkoutDayId)]?.method ||
         userWorkoutSettings.weeklyMethods[activeTab as WorkoutDayId] ||
-        DEFAULT_WORKOUT_METHOD,
+        (selectedWeeklyWorkoutPlanId === DEFAULT_WEEKLY_WORKOUT_PLAN_ID ? CURRENT_WEEKLY_METHODS[activeTab as WorkoutDayId] : DEFAULT_WORKOUT_METHOD),
       )
     : DEFAULT_WORKOUT_METHOD;
   const weeklyCompletedCount = requiredWorkoutDays.filter(
@@ -640,6 +721,11 @@ function FitnessApp() {
         <div className="mx-auto max-w-5xl"><AppCompanion home={activeTab === "ov"} compact={activeTab !== "ov"} quiet={activeTab !== "ov"}>{activeTab === "ov" ? todayRecord.workoutDone ? "오늘 운동을 해냈네요! 편하게 쉬어요." : "몸 상태를 살피며, 하나씩 함께해요." : activeTab === "record" ? "숫자 하나보다 기록의 흐름을 함께 봐요. 입력한 값도 한 번 확인해 주세요." : activeTab === "more" ? "필요한 도구와 설정을 여기서 찾아봐요." : "내 속도에 맞춰 천천히 해봐요. 운동 중에는 조용히 기다릴게요."}</AppCompanion></div>
         {activeTab === "ov" && (
           <div className="mx-auto w-full max-w-5xl">
+            {directionUpdateNotice && (
+              <p role="status" className="mb-4 rounded-2xl border border-violet-100 bg-[#F3F1FF] px-4 py-3 text-[12px] font-bold text-[#3C3489]">
+                {directionUpdateNotice}
+              </p>
+            )}
             <section className="mb-4 overflow-hidden rounded-3xl yeoni-summary p-5 text-white shadow-[0_16px_40px_rgba(83,74,183,0.22)] sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -696,6 +782,37 @@ function FitnessApp() {
               </div>
             </section>
 
+            <section className="mb-4 rounded-3xl border border-violet-100 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[12px] font-bold text-[#534AB7]">현재 운동 방향</p>
+                  <h3 className="mt-1 text-[18px] font-extrabold text-gray-900">근력 3일 + 회복형 2일</h3>
+                  <p className="mt-1 max-w-2xl text-[12px] leading-5 text-gray-500">체지방을 줄이면서 근육과 수행능력을 지키고, 복부·등·둔근·골반을 함께 써서 몸통 안정성을 높입니다.</p>
+                </div>
+                <div className="rounded-2xl bg-[#EEEDFE] px-4 py-2.5 text-right">
+                  <p className="text-[10px] font-bold text-[#534AB7]">{adaptiveAdvice.weightSource === "record" ? "최근 체중 기록" : `${CURRENT_WEIGHT_BASELINE_DATE} 제공값`}</p>
+                  <p className="text-[20px] font-extrabold text-[#3C3489]">{adaptiveAdvice.currentWeightKg || CURRENT_WEIGHT_BASELINE_KG}kg</p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                {CURRENT_PROGRAM_SCHEDULE.map((item) => (
+                  <div key={item.days} className={`rounded-2xl border p-3 ${item.tone === "violet" ? "border-violet-100 bg-[#F7F6FF]" : item.tone === "blue" ? "border-blue-100 bg-blue-50" : "border-emerald-100 bg-emerald-50"}`}>
+                    <p className="text-[11px] font-bold text-gray-500">{item.days} · {item.intensity}</p>
+                    <p className="mt-1 text-[14px] font-extrabold text-gray-900">{item.label}</p>
+                    <p className="mt-1 text-[11px] text-gray-600">{item.duration}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 rounded-2xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-900">{adaptiveAdvice.weightAssessment}</p>
+              <p className="mt-3 text-[10px] font-semibold text-gray-500">슬라이딩보드는 운동 라이브러리에 남아 있으며 현재 개인 루틴에서는 제외했습니다.</p>
+            </section>
+
+            <AdaptiveWorkoutReviewCard
+              input={adaptiveReviewInput}
+              onApply={handleUserWorkoutSettingsChange}
+              onRefresh={refreshWorkoutReview}
+            />
+
             <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
               <div className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
                 <p className="text-[12px] text-gray-500">이번 주</p>
@@ -725,7 +842,7 @@ function FitnessApp() {
               </button>
             </section>
             <div className="mb-4">
-              <FitnessAiCoachPanel mode="plan" onPlanApplied={handleUserWorkoutSettingsChange} />
+              <FitnessAiCoachPanel mode="plan" onPlanApplied={handleUserWorkoutSettingsChange} managedCircuit={selectedWeeklyWorkoutPlanId === DEFAULT_WEEKLY_WORKOUT_PLAN_ID} />
             </div>
             <details className="mb-3 rounded-2xl border border-amber-100 bg-white shadow-sm">
               <summary className="cursor-pointer list-none p-4">
@@ -825,6 +942,10 @@ function FitnessApp() {
                 workoutPain={
                   activeWorkoutRecord.workoutPain
                 }
+                workoutBackStatus={activeWorkoutRecord.workoutBackStatus}
+                workoutNeurologicalSymptoms={activeWorkoutRecord.workoutNeurologicalSymptoms}
+                workoutPainExercise={activeWorkoutRecord.workoutPainExercise}
+                workoutPainSet={activeWorkoutRecord.workoutPainSet}
                 workoutMemo={
                   activeWorkoutRecord.workoutMemo
                 }
@@ -865,6 +986,7 @@ function FitnessApp() {
                 onCancelFoamRoller={cancelFoamRoller}
                 onPullupTraining={() => handleTabChange("pullup")}
                 recovery={displayedRecovery}
+                safetyHold={safetyHold}
                 onRecordRecovery={recordRecoveryPriority}
                 onCancelRecovery={cancelRecoveryPriority}
                 showBaseRoutine={

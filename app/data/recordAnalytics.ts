@@ -78,8 +78,8 @@ export interface LongTermWorkoutSummary {
 }
 
 const BODY_PART_RULES: { bodyPart: BodyPartSetItem["bodyPart"]; keywords: string[] }[] = [
-  { bodyPart: "코어", keywords: ["버드독", "데드버그", "플랭크", "복부", "코어", "골반 기울", "AB 슬라이더"] },
-  { bodyPart: "하체", keywords: ["스쿼트", "런지", "사이드워크", "몬스터워크", "종아리", "하체", "엉덩이"] },
+  { bodyPart: "코어", keywords: ["팔로프", "버드독", "데드버그", "플랭크", "복부", "코어", "골반 기울", "AB 슬라이더"] },
+  { bodyPart: "하체", keywords: ["햄스트링", "스쿼트", "런지", "사이드워크", "몬스터워크", "종아리", "하체", "엉덩이"] },
   { bodyPart: "등", keywords: ["로우", "랫풀", "풀다운", "풀어파트", "페이스풀", "턱걸이", "매달리기", "철봉"] },
   { bodyPart: "가슴·어깨", keywords: ["프레스", "푸시업", "가슴", "어깨"] },
   { bodyPart: "전신·유산소", keywords: ["슬라이딩보드", "걷기", "산책", "자전거", "유산소", "몸풀기", "정리운동", "폼롤러"] },
@@ -220,6 +220,9 @@ function hasPain(value?: WorkoutCompletionValue) {
   if (typeof value !== "object" || !value) return false;
   return Boolean(
     value.workoutPain ||
+      value.workoutBackStatus === "pain" ||
+      value.workoutBackStatus === "worse" ||
+      Boolean(value.workoutNeurologicalSymptoms?.length) ||
       value.pullupPain ||
       value.foamRollerPain ||
       (value.workoutExerciseRecords ?? []).some(
