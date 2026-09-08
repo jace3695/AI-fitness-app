@@ -10,7 +10,7 @@ import { applyWorkoutPlanProposal, WORKOUT_PLAN_DAY_LABELS } from "../data/worko
 import type { WorkoutPlanProposal, WorkoutPlanSelection } from "../data/workoutPlanProposal";
 import { readWorkoutPlanDecisionHistory, saveWorkoutPlanDecision } from "../data/workoutPlanDecision";
 import type { WorkoutDayId } from "../data/workoutCompletion";
-import { SELECTED_WEEKLY_WORKOUT_PLAN_KEY } from "../data/workoutPlans";
+import { DEFAULT_WEEKLY_WORKOUT_PLAN_ID, SELECTED_WEEKLY_WORKOUT_PLAN_KEY } from "../data/workoutPlans";
 import { readUserWorkoutSettings, saveUserWorkoutSettings } from "../data/userWorkoutSettings";
 import type { UserWorkoutSettings } from "../data/userWorkoutSettings";
 import { buildWorkoutProgramContext } from "../data/workoutProgramReview";
@@ -39,7 +39,7 @@ const ANALYSIS_OPTIONS: { id: AnalysisType; title: string; description: string; 
   { id: "plan", title: "다음 주 계획", description: "누적 기록으로 7일 계획안 만들기", action: "계획안 받기" },
 ];
 
-export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanApplied }: { stores?: RecordStores; mode?: "full" | "plan"; onPlanApplied?: (settings: UserWorkoutSettings) => void }) {
+export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanApplied, managedCircuit = false }: { stores?: RecordStores; mode?: "full" | "plan"; onPlanApplied?: (settings: UserWorkoutSettings) => void; managedCircuit?: boolean }) {
   const [result, setResult] = useState<CoachResult | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType>(mode === "plan" ? "program" : "latest");
   const [loading, setLoading] = useState(false);
@@ -149,6 +149,10 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
   };
 
   const applyPlan = (proposal: WorkoutPlanProposal, selection?: WorkoutPlanSelection) => {
+    if ((window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID) === 'five-day-fullbody-circuit') {
+      setApplyNotice('주 5일 서킷의 변경은 운동 홈의 「연이의 운동 조정 제안」에서 최신 기록과 바뀔 내용을 확인해 적용해 주세요.');
+      return;
+    }
     const partial = Boolean(selection);
     const message = partial
       ? "고른 요일과 운동량만 내 기본 운동 설정에 적용할까요?"
@@ -177,7 +181,8 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
       {result ? <div className="mt-5 space-y-3" aria-live="polite">
         <div className="rounded-2xl bg-white p-4"><div className="flex items-center justify-between gap-3"><p className="text-[12px] font-bold text-gray-500">{result.analysisLabel}</p><div className="flex items-center gap-2">{result.source === "local" ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">비용 0원 · 로컬</span> : null}{result.source === "recovered" ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">응답 보정 · 추가 호출 없음</span> : null}{result.source === "economy" ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">85% · 절약 AI</span> : null}<span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[10px] font-bold text-[#534AB7]">확신도 {result.confidence}</span></div></div><p className="mt-2 text-[13px] leading-6 text-gray-800">{result.overview}</p></div>
         {result.programReview ? <ProgramReviewCard review={result.programReview} /> : null}
-        {result.planProposal ? <PlanProposalCard key={`${result.planProposal.title}-${result.planProposal.summary}`} proposal={result.planProposal} onApply={(selection) => applyPlan(result.planProposal!, selection)} onKeep={() => keepPlan(result.planProposal!)} appliedNotice={applyNotice} /> : null}
+        {result.planProposal && !managedCircuit ? <PlanProposalCard key={`${result.planProposal.title}-${result.planProposal.summary}`} proposal={result.planProposal} onApply={(selection) => applyPlan(result.planProposal!, selection)} onKeep={() => keepPlan(result.planProposal!)} appliedNotice={applyNotice} /> : null}
+        {result.planProposal && managedCircuit ? <p className="rounded-2xl bg-[#F7F6FF] p-3 text-xs leading-5 text-[#534AB7]">분석을 참고하고, 실제 운동 변경은 위의 「연이의 운동 조정 제안」에서 유지·증가·교체·감소 내용을 확인해 적용하세요.</p> : null}
         <div className="grid gap-3 md:grid-cols-2"><ResultList title="잘하고 있는 점" items={result.positives} tone="bg-emerald-50 text-emerald-900" /><ResultList title="주의해서 볼 점" items={result.cautions} tone="bg-amber-50 text-amber-950" /></div>
         <ResultList title={result.analysisType === "latest" ? "다음 1회 운동 제안" : result.analysisType === "weekly" ? "다음 7일 제안" : result.analysisType === "longTerm" ? "다음 4주 제안" : result.analysisType === "program" ? "다음 확인 순서" : result.analysisType === "plan" ? "다음 주 계획 핵심" : "다음 달 제안"} items={result.nextSession} tone="bg-white text-gray-800" numbered />
         <details className="rounded-2xl bg-white p-4 text-[12px] text-gray-600"><summary className="cursor-pointer font-bold text-gray-800">추천 근거 보기</summary><p className="mt-2 leading-5">{result.rationale}</p></details>

@@ -19,17 +19,26 @@ test("로컬 계획은 현재 설정을 유지하고 7일 미리보기를 만든
     assert.deepEqual(result.planProposal.exerciseTargets, []);
 });
 
-test("통증 신호가 있으면 근력일 하나를 회복일로 바꾼다", () => {
+test("통증 신호는 회복 운동을 자동 추천하지 않고 증상 확인을 안내한다", () => {
     const result = buildLocalWorkoutPlanResult({ recentSessions: [{ pain: true, fatigue: 2, status: "completed" }] }, currentSettings);
-    assert.equal(result.planProposal.days.some((day) => day.groupId === "cardio-foam-recovery"), true);
-    assert.match(result.planProposal.changes.join(" "), /회복/);
+    assert.equal(result.planProposal.days.some((day) => day.groupId === "current-fullbody-recovery-circuit"), false);
+    assert.match(result.nextSession.join(' '), /의료 평가/);
     assert.equal(result.confidence, "보통");
 });
 
 test("높은 피로나 중단 기록도 회복 신호로 처리한다", () => {
     const result = buildLocalWorkoutPlanResult({ recentSessions: [{ pain: false, fatigue: 4, status: "stopped" }] }, currentSettings);
-    assert.equal(result.planProposal.days.filter((day) => day.groupId === "cardio-foam-recovery").length, 1);
+    assert.equal(result.planProposal.days.filter((day) => day.groupId === "current-fullbody-recovery-circuit").length, 1);
   assert.match(result.cautions[0], /강도/);
+});
+
+test("허리 악화나 신경 증상은 강도 상승 없이 의료 평가 안내로 연결한다", () => {
+  const result = buildLocalWorkoutPlanResult({
+    recentSessions: [{ performed: false, pain: true, backStatus: "worse", neurologicalSymptoms: ["leg-weakness"], fatigue: 3, status: "stopped" }],
+  }, currentSettings);
+  assert.match(result.cautions[0], /신경 증상/);
+  assert.match(result.nextSession[0], /의료 평가/);
+  assert.match(result.safety, /단순 강화 과정/);
 });
 
 test("월 예산 보호 시에도 비용 없는 로컬 계획의 이유를 정확히 알린다", () => {

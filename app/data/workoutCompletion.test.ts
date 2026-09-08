@@ -16,6 +16,10 @@ test("일반 운동 삭제 시 다른 운동 종류의 기록을 모두 보존�
     workoutDone: true,
     workoutRoutineName: "허리 강화",
     workoutStatus: "completed",
+    workoutBackStatus: "pain",
+    workoutNeurologicalSymptoms: ["tingling"],
+    workoutPainExercise: "버드독",
+    workoutPainSet: 2,
     workoutMemo: "일반 운동 메모",
     workoutExerciseRecords: [
       { exerciseName: "버드독", status: "completed" },
@@ -44,6 +48,8 @@ test("일반 운동 삭제 시 다른 운동 종류의 기록을 모두 보존�
   const preserved = removeGeneralWorkoutRecord(record);
 
   assert.equal(isWorkoutPerformed(preserved), false);
+  assert.equal(preserved.workoutBackStatus, undefined);
+  assert.equal(preserved.workoutNeurologicalSymptoms, undefined);
   assert.equal(isCardioDone(preserved), true);
   assert.equal(isPullupDone(preserved), true);
   assert.deepEqual(preserved, {

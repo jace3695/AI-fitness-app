@@ -151,19 +151,14 @@ export function applyCloudState(state: CloudState) {
 }
 
 export function stableState(state: CloudState) {
-  return JSON.stringify(
-    Object.fromEntries(
-      Object.entries(state)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, value]) => [
-          key,
-          isPlainObject(value)
-            ? Object.fromEntries(
-                Object.entries(value).sort(([a], [b]) => a.localeCompare(b)),
-              )
-            : value,
-        ]),
-    ),
+  // JSONB can reorder object keys at every depth, including sets inside exercise
+  // arrays. Compare JSON content rather than key order so unchanged records do
+  // not look like competing edits and get appended a second time by mergeValue.
+  // Only object keys are sorted: exercise/set order and repeated entries matter.
+  return JSON.stringify(state, (_key, value: unknown) =>
+    isPlainObject(value)
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+      : value,
   );
 }
 

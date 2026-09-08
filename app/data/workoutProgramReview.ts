@@ -1,9 +1,10 @@
 import { getWorkoutGroupById, workoutGroupToDayWorkout } from "./workoutGroups.ts";
 import { dayIdToKoreanLabel, dayIdToPlanKey, getWeeklyWorkoutPlanById } from "./workoutPlans.ts";
-import { applyDayRoutineEdit, applyExerciseTargets } from "./userWorkoutSettings.ts";
+import { applyDayRoutineEdit, applyExerciseTargets, getExerciseTargetsForDay } from "./userWorkoutSettings.ts";
 import type { UserWorkoutSettings } from "./userWorkoutSettings.ts";
 import { getWorkoutMethodLabel, normalizeWorkoutMethod } from "./workoutMethods.ts";
 import type { WorkoutDayId } from "./workoutCompletion.ts";
+import { CURRENT_WEEKLY_METHODS } from "./currentWorkoutDirection.ts";
 
 const PROGRAM_DAY_IDS: WorkoutDayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
@@ -25,9 +26,13 @@ const PROGRAM_FOCUS_BY_EXERCISE: Record<string, ProgramFocus[]> = {
   "longband-face-pull": ["upperPull"],
   "band-pull-apart": ["upperPull"],
   "dumbbell-goblet-squat": ["lowerBody"],
+  "bodyweight-squat": ["lowerBody"],
+  "wall-pushup": ["upperPush"],
   "loopband-sidewalk": ["lowerBody"],
   "loopband-monster-walk": ["lowerBody"],
   "bird-dog": ["core"],
+  "supported-hamstring-curl": ["lowerBody"],
+  "band-pallof-press": ["core"],
   "dead-bug": ["core"],
   "pelvic-tilt": ["core"],
   "knee-side-plank": ["core"],
@@ -139,6 +144,7 @@ function baseSettings(value?: UserWorkoutSettings | null): UserWorkoutSettings {
   return {
     weeklyGroups: objectValue(raw.weeklyGroups) as UserWorkoutSettings["weeklyGroups"],
     exerciseTargets: objectValue(raw.exerciseTargets) as UserWorkoutSettings["exerciseTargets"],
+    weeklyExerciseTargets: objectValue(raw.weeklyExerciseTargets) as UserWorkoutSettings['weeklyExerciseTargets'],
     weeklyEdits: objectValue(raw.weeklyEdits) as UserWorkoutSettings["weeklyEdits"],
     weeklyMethods: objectValue(raw.weeklyMethods) as UserWorkoutSettings["weeklyMethods"],
     dateOverrides: objectValue(raw.dateOverrides) as UserWorkoutSettings["dateOverrides"],
@@ -166,10 +172,10 @@ export function buildWorkoutProgramContext(input: {
   const days = PROGRAM_DAY_IDS.map((dayId) => {
     const groupId = settings.weeklyGroups[dayId] || selectedPlan.days[dayIdToPlanKey[dayId]];
     const group = getWorkoutGroupById(groupId);
-    const method = normalizeWorkoutMethod(settings.weeklyMethods[dayId]);
+    const method = normalizeWorkoutMethod(settings.weeklyMethods[dayId] || (selectedPlan.id === "five-day-fullbody-circuit" ? CURRENT_WEEKLY_METHODS[dayId] : undefined));
     const baseDay = workoutGroupToDayWorkout(group, dayId, dayIdToKoreanLabel[dayId]);
     const editedDay = applyDayRoutineEdit(baseDay, settings.weeklyEdits[dayId]);
-    const day = applyExerciseTargets(editedDay, settings.exerciseTargets);
+    const day = applyExerciseTargets(editedDay, getExerciseTargetsForDay(settings, dayId));
     const exercises = day.phases.flatMap((phase) => phase.exercises).map((exercise, index) => {
       const plannedSets = Math.max(0, Number(exercise.sets) || 0);
       const focusIds = getFocus(exercise.exerciseId || "", exercise.name);
@@ -204,7 +210,7 @@ export function buildWorkoutProgramContext(input: {
     plannedWorkBlocks += dayWorkBlocks;
     if (group.category === "rest") restDays += 1;
     else {
-      plannedWorkoutDays += 1;
+      if (group.type !== "choice") plannedWorkoutDays += 1;
       if (group.category === "strength") strengthDays += 1;
       if (group.category === "cardio") cardioDays += 1;
       if (group.category === "core") coreDays += 1;
@@ -265,9 +271,11 @@ function recentSafetySignals(snapshot: unknown) {
   const sessions = Array.isArray(root.recentSessions) ? root.recentSessions.slice(0, 7) : [];
   const normalized = sessions.filter((session): session is Record<string, unknown> => Boolean(session) && typeof session === "object");
   const pain = normalized.filter((session) => session.pain === true || Number(session.painScore) > 0).length;
+  const neurological = normalized.filter((session) => Array.isArray(session.neurologicalSymptoms) && session.neurologicalSymptoms.length > 0).length;
+  const worseBack = normalized.filter((session) => session.backStatus === "worse").length;
   const fatigue = normalized.filter((session) => Number(session.fatigue) >= 4).length;
   const stopped = normalized.filter((session) => session.status === "stopped").length;
-  return { sessionCount: normalized.length, pain, fatigue, stopped, needsRecovery: pain + fatigue + stopped > 0 };
+  return { sessionCount: normalized.length, pain, neurological, worseBack, fatigue, stopped, needsRecovery: pain + neurological + worseBack + fatigue + stopped > 0 };
 }
 
 export function buildWorkoutProgramReviewCards(
@@ -311,7 +319,7 @@ export function buildLocalWorkoutProgramReview(
     ? "회복 우선"
     : needsBalanceCheck ? "조정 확인" : "기본 계획 유지";
   const priorities = signals.needsRecovery
-    ? ["최근 통증·높은 피로·중단 기록이 있어 이번 주는 강도 증가보다 회복일 확보를 먼저 확인하세요."]
+    ? ["최근 허리·신경 증상, 높은 피로 또는 중단 기록이 있어 강도 증가 없이 회복형 운동을 먼저 확인하세요."]
     : adaptationWeek
       ? ["현재 1주차 적응 목적에 맞춰 근력운동을 급하게 추가하지 말고 통증 없는 완료 기록을 먼저 쌓으세요."]
       : ["현재 계획의 균형은 미리보기입니다. 실제 완료 기록과 통증·피로를 함께 보고 한 항목만 조정하세요."];

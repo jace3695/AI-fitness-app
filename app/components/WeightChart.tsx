@@ -144,7 +144,7 @@ export default function WeightChart({
     summary.goal.state === "within"
       ? "목표 범위 도달"
       : summary.goal.state === "above" && summary.goal.remainingKg !== undefined
-        ? `${summary.goal.remainingKg.toFixed(1)}kg 남음`
+        ? `장기 범위와 ${summary.goal.remainingKg.toFixed(1)}kg 차이`
         : summary.goal.state === "below" && summary.goal.remainingKg !== undefined
           ? `목표 하한보다 ${summary.goal.remainingKg.toFixed(1)}kg 낮음`
           : "체중 기록 필요";
@@ -162,7 +162,7 @@ export default function WeightChart({
           </p>
         </div>
         <span className="rounded-full bg-[#EEEDFE] px-3 py-1.5 text-[12px] font-bold text-[#3C3489]">
-          목표 {goal.minKg.toFixed(1)}~{goal.maxKg.toFixed(1)}kg
+          장기 참고 {goal.minKg.toFixed(1)}~{goal.maxKg.toFixed(1)}kg
         </span>
       </div>
 
@@ -203,7 +203,7 @@ export default function WeightChart({
           <p className="mt-1 text-[17px] font-extrabold text-emerald-950">
             {remainingText}
           </p>
-          <p className="mt-1 text-[10px] text-emerald-700">7일 평균 기준</p>
+          <p className="mt-1 text-[10px] text-emerald-700">기간을 정한 급감량 목표가 아닙니다</p>
         </div>
       </div>
 

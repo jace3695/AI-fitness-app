@@ -68,7 +68,7 @@ export function getProgressionAdvice(
     return '첫 기록은 기준 만들기 단계입니다. 계획량을 통증 없이 마치는 것을 우선하세요.';
   }
   if ((previous.painScore || 0) > 0 || previous.status === 'partial') {
-    return '직전 기록에 불편감 또는 부분 완료가 있습니다. 중량·횟수·시간 중 하나를 낮춰 진행하세요.';
+    return '직전 기록에 불편감 또는 부분 완료가 있습니다. 불편한 운동은 중단하고 운동 홈에서 허리 상태·피로와 다음 운동 조정 제안을 확인하세요.';
   }
   const completedSets = (previous.sets ?? []).filter((set) => set.completed);
   const detailedBaseline = [
@@ -80,7 +80,7 @@ export function getProgressionAdvice(
     completedSets.some((set) => set.restAfterSeconds !== undefined) ? '세트 휴식' : '',
   ].filter(Boolean);
   if (detailedBaseline.length) {
-    return `직전 ${detailedBaseline.join(' · ')} 기록을 기준으로 먼저 유지하세요. 통증 없이 2회 연속 완료한 뒤 한 항목만 소폭 올리세요.`;
+    return `직전 ${detailedBaseline.join(' · ')} 기록을 기준으로 먼저 유지하세요. 운동 홈에서 최근 근력 수행·허리 상태·피로를 확인한 조정 제안을 검토하세요.`;
   }
-  return '직전 기록을 먼저 유지하세요. 같은 계획을 통증 없이 2회 연속 마친 뒤 횟수 1~2회, 중량 0.5~1kg, 시간 1~2분 중 하나만 올리세요.';
+  return '직전 기록과 계획량을 먼저 유지하세요. 같은 근력 루틴의 반복수·중량·피로·허리 상태를 기록하고 운동 홈의 조정 제안을 확인해 적용하세요.';
 }

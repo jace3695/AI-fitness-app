@@ -47,10 +47,20 @@ export interface ExerciseRecord {
 }
 export type WorkoutOverallStatus = "completed" | "partial" | "stopped";
 export type WorkoutDifficulty = "easy" | "moderate" | "hard";
+export type WorkoutBackStatus = "none" | "stiff" | "pain" | "worse";
+export type WorkoutNeurologicalSymptom =
+  | "radiating-pain"
+  | "tingling"
+  | "numbness"
+  | "leg-weakness";
 export interface WorkoutFeedback {
   status: WorkoutOverallStatus;
   difficulty: WorkoutDifficulty;
   fatigue: number;
+  backStatus?: WorkoutBackStatus;
+  neurologicalSymptoms?: WorkoutNeurologicalSymptom[];
+  painExercise?: string;
+  painSet?: number;
 }
 export interface WorkoutDayRecord {
   workoutDone?: boolean;
@@ -60,6 +70,10 @@ export interface WorkoutDayRecord {
   workoutExerciseNames?: string[];
   workoutSourceDay?: string;
   workoutPain?: boolean;
+  workoutBackStatus?: WorkoutBackStatus;
+  workoutNeurologicalSymptoms?: WorkoutNeurologicalSymptom[];
+  workoutPainExercise?: string;
+  workoutPainSet?: number;
   workoutMemo?: string;
   workoutStatus?: WorkoutOverallStatus;
   workoutDifficulty?: WorkoutDifficulty;
@@ -120,6 +134,10 @@ const GENERAL_WORKOUT_FIELDS: (keyof WorkoutDayRecord)[] = [
   "workoutExerciseNames",
   "workoutSourceDay",
   "workoutPain",
+  "workoutBackStatus",
+  "workoutNeurologicalSymptoms",
+  "workoutPainExercise",
+  "workoutPainSet",
   "workoutMemo",
   "workoutStatus",
   "workoutDifficulty",

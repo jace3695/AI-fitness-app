@@ -2,6 +2,7 @@ import type { DayWorkout, Exercise } from "./workouts";
 import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups.ts";
 import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
+import type { AdaptiveReviewDecision } from "./workoutAdaptiveReview.ts";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -29,6 +30,7 @@ export interface DateWorkoutOverride {
   groupId?: string;
   edit?: DayRoutineEdit;
   method?: WorkoutMethodConfig;
+  exerciseTargets?: Record<string, ExerciseTarget>;
 }
 
 export interface UserWorkoutSettings {
@@ -37,6 +39,8 @@ export interface UserWorkoutSettings {
   weeklyEdits: Partial<Record<WorkoutDayId, DayRoutineEdit>>;
   weeklyMethods: Partial<Record<WorkoutDayId, WorkoutMethodConfig>>;
   dateOverrides: Record<string, DateWorkoutOverride>;
+  weeklyExerciseTargets?: Partial<Record<WorkoutDayId, Record<string, ExerciseTarget>>>;
+  adaptiveReviewDecisions?: AdaptiveReviewDecision[];
 }
 
 export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, weeklyMethods: {}, dateOverrides: {} };
@@ -51,10 +55,16 @@ export function readUserWorkoutSettings(): UserWorkoutSettings {
       weeklyEdits: saved.weeklyEdits || {},
       weeklyMethods: saved.weeklyMethods || {},
       dateOverrides: saved.dateOverrides || {},
+      weeklyExerciseTargets: saved.weeklyExerciseTargets || {},
+      adaptiveReviewDecisions: Array.isArray(saved.adaptiveReviewDecisions) ? saved.adaptiveReviewDecisions.slice(0, 20) : [],
     };
   } catch {
     return EMPTY_USER_WORKOUT_SETTINGS;
   }
+}
+
+export function getExerciseTargetsForDay(settings: UserWorkoutSettings, dayId: WorkoutDayId, date?: string) {
+  return { ...settings.exerciseTargets, ...settings.weeklyExerciseTargets?.[dayId], ...(date ? settings.dateOverrides[date]?.exerciseTargets : {}) };
 }
 
 export function saveUserWorkoutSettings(settings: UserWorkoutSettings) {
@@ -63,7 +73,7 @@ export function saveUserWorkoutSettings(settings: UserWorkoutSettings) {
 
 function applyTarget(exercise: Exercise, target?: ExerciseTarget): Exercise {
   if (!target) return exercise;
-  const units = [target.reps ? `${target.reps}회` : "", target.sets ? `${target.sets}세트` : "", target.durationMinutes ? `${target.durationMinutes}분` : ""].filter(Boolean);
+  const units = [target.reps ? `${/좌우/.test(exercise.meta ?? '') ? '좌우 ' : ''}${target.reps}회` : "", target.sets ? `${target.sets}세트` : "", target.durationMinutes ? `${target.durationMinutes}분` : ""].filter(Boolean);
   return { ...exercise, sets: target.sets ?? exercise.sets, meta: units.length ? units.join(" × ") : exercise.meta };
 }
 

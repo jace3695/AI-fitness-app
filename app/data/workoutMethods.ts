@@ -95,7 +95,7 @@ export function prepareMethodExercises(exercises: Exercise[], rawConfig?: Partia
     let sequenceIndex = 0;
     return Array.from({ length: config.rounds }, (_, round) => exercises.map((exercise, index) =>
       withExecutionContext(
-        asSingleSet(exercise, `${round + 1}/${config.rounds} 라운드`, index === exercises.length - 1 ? config.restSeconds : 0),
+        asSingleSet(exercise, `${round + 1}/${config.rounds} 라운드`, index === exercises.length - 1 ? config.restSeconds : (exercise.restSeconds ?? 30)),
         config,
         index,
         sequenceIndex++,

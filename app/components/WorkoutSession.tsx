@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Exercise } from '../data/workouts';
-import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore, WorkoutDifficulty, WorkoutOverallStatus } from '../data/workoutCompletion';
+import { ExerciseRecord, getPreviousExerciseRecord, readWorkoutCompletionStore, WorkoutBackStatus, WorkoutDifficulty, WorkoutNeurologicalSymptom, WorkoutOverallStatus } from '../data/workoutCompletion';
 import { getExerciseRecommendation, WorkoutIntensity } from '../data/workoutRecommendations';
 import ExerciseGuidePanel, { getExerciseVideoHref, getExerciseVideoLabel } from './ExerciseGuidePanel';
 import ExerciseRecordEditor from './ExerciseRecordEditor';
@@ -11,7 +11,7 @@ import { IntervalTimer } from './WorkoutControls';
 type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
 
 interface WorkoutSessionDraft {
-  version: 1;
+  version: 2;
   exerciseSignature: string;
   savedAt: number;
   currentIndex: number;
@@ -23,6 +23,10 @@ interface WorkoutSessionDraft {
   restSeconds: number;
   painScore: number;
   painSymptoms: string[];
+  backStatus: WorkoutBackStatus;
+  neurologicalSymptoms: WorkoutNeurologicalSymptom[];
+  painExercise?: string;
+  painSet?: number;
   painMemo: string;
   overallStatus: WorkoutOverallStatus;
   difficulty: WorkoutDifficulty;
@@ -37,9 +41,25 @@ export interface WorkoutSessionResult {
   status: WorkoutOverallStatus;
   difficulty: WorkoutDifficulty;
   fatigue: number;
+  backStatus: WorkoutBackStatus;
+  neurologicalSymptoms: WorkoutNeurologicalSymptom[];
+  painExercise?: string;
+  painSet?: number;
 }
 
-const PAIN_SYMPTOMS = ['허리 통증', '다리 저림', '무릎 통증', '어지러움', '메스꺼움', '식은땀', '기타'];
+const PAIN_SYMPTOMS = ['무릎 통증', '어지러움', '메스꺼움', '식은땀', '기타'];
+const BACK_STATUS_OPTIONS: { id: WorkoutBackStatus; label: string }[] = [
+  { id: 'none', label: '전혀 불편하지 않음' },
+  { id: 'stiff', label: '약간 뻐근함' },
+  { id: 'pain', label: '통증 있음' },
+  { id: 'worse', label: '운동 전보다 악화됨' },
+];
+const NEUROLOGICAL_OPTIONS: { id: WorkoutNeurologicalSymptom; label: string }[] = [
+  { id: 'radiating-pain', label: '엉덩이·다리로 내려가는 통증' },
+  { id: 'tingling', label: '저림' },
+  { id: 'numbness', label: '감각 저하' },
+  { id: 'leg-weakness', label: '다리에 힘이 빠지는 느낌' },
+];
 const SESSION_DRAFT_KEY_PREFIX = 'ai-fitness-workout-session-draft';
 
 function getSessionDateKey() {
@@ -63,7 +83,7 @@ function readSessionDraft(key: string, exerciseSignature: string, exerciseCount:
   if (typeof window === 'undefined') return null;
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) || 'null') as WorkoutSessionDraft | null;
-    if (!parsed || parsed.version !== 1 || parsed.exerciseSignature !== exerciseSignature) return null;
+    if (!parsed || parsed.version !== 2 || parsed.exerciseSignature !== exerciseSignature) return null;
     if (parsed.currentIndex < 0 || parsed.currentIndex >= exerciseCount || !Array.isArray(parsed.exerciseRecords)) return null;
     return parsed;
   } catch {
@@ -154,6 +174,10 @@ function buildSessionMemo({
   skippedCount,
   painScore,
   painSymptoms,
+  backStatus,
+  neurologicalSymptoms,
+  painExercise,
+  painSet,
   painMemo,
 }: {
   elapsedSeconds: number;
@@ -161,6 +185,10 @@ function buildSessionMemo({
   skippedCount: number;
   painScore: number;
   painSymptoms: string[];
+  backStatus: WorkoutBackStatus;
+  neurologicalSymptoms: WorkoutNeurologicalSymptom[];
+  painExercise?: string;
+  painSet?: number;
   painMemo: string;
 }) {
   const lines = [
@@ -170,6 +198,13 @@ function buildSessionMemo({
   if (painScore > 0 || painSymptoms.length) {
     lines.push(`통증 ${painScore}/10${painSymptoms.length ? ` · ${painSymptoms.join(', ')}` : ''}`);
   }
+  const backStatusLabel = BACK_STATUS_OPTIONS.find((option) => option.id === backStatus)?.label;
+  if (backStatusLabel) lines.push(`운동 후 허리: ${backStatusLabel}`);
+  if (neurologicalSymptoms.length) {
+    const symptomLabels = neurologicalSymptoms.map((symptom) => NEUROLOGICAL_OPTIONS.find((option) => option.id === symptom)?.label || symptom);
+    lines.push(`신경 증상: ${symptomLabels.join(', ')}`);
+  }
+  if (painExercise) lines.push(`발생 지점: ${painExercise}${painSet ? ` ${painSet}세트` : ''}`);
   if (painMemo.trim()) lines.push(painMemo.trim());
   return lines.join('\n');
 }
@@ -317,6 +352,10 @@ export default function WorkoutSession({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [painScore, setPainScore] = useState(initialDraft?.painScore ?? 0);
   const [painSymptoms, setPainSymptoms] = useState<string[]>(initialDraft?.painSymptoms ?? []);
+  const [backStatus, setBackStatus] = useState<WorkoutBackStatus>(initialDraft?.backStatus ?? 'none');
+  const [neurologicalSymptoms, setNeurologicalSymptoms] = useState<WorkoutNeurologicalSymptom[]>(initialDraft?.neurologicalSymptoms ?? []);
+  const [painExercise, setPainExercise] = useState(initialDraft?.painExercise ?? '');
+  const [painSet, setPainSet] = useState<number | undefined>(initialDraft?.painSet);
   const [painMemo, setPainMemo] = useState(initialDraft?.painMemo ?? '');
   const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>(initialDraft?.overallStatus ?? 'completed');
   const [difficulty, setDifficulty] = useState<WorkoutDifficulty>(initialDraft?.difficulty ?? 'moderate');
@@ -345,6 +384,7 @@ export default function WorkoutSession({
   const initialTimerSeconds = useMemo(() => getRecommendedExerciseSeconds(exercise, intensity), [exercise, intensity]);
   const isLastExercise = currentIndex === exercises.length - 1;
   const progress = exercises.length ? ((completed.size + skipped.size) / exercises.length) * 100 : 0;
+  const hasSafetyConcern = painScore > 0 || painSymptoms.length > 0 || backStatus === 'pain' || backStatus === 'worse' || neurologicalSymptoms.length > 0;
 
   const speak = useCallback((message: string) => {
     if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -440,7 +480,7 @@ export default function WorkoutSession({
   const persistDraft = useCallback(() => {
     if (!shouldPersistDraftRef.current) return;
     const draft: WorkoutSessionDraft = {
-      version: 1,
+      version: 2,
       exerciseSignature,
       savedAt: Date.now(),
       currentIndex,
@@ -452,6 +492,10 @@ export default function WorkoutSession({
       restSeconds: restSecondsRef.current,
       painScore,
       painSymptoms,
+      backStatus,
+      neurologicalSymptoms,
+      painExercise: painExercise || undefined,
+      painSet,
       painMemo,
       overallStatus,
       difficulty,
@@ -463,7 +507,7 @@ export default function WorkoutSession({
     } catch {
       // 사생활 보호 모드나 저장공간 제한에서는 세션을 중단하지 않고 자동저장만 생략합니다.
     }
-  }, [completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, overallStatus, painMemo, painScore, painSymptoms, skipped]);
+  }, [backStatus, completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, neurologicalSymptoms, overallStatus, painExercise, painMemo, painScore, painSet, painSymptoms, skipped]);
 
   useEffect(() => {
     persistDraft();
@@ -497,6 +541,9 @@ export default function WorkoutSession({
   const togglePainSymptom = (symptom: string) => {
     setPainSymptoms((current) => current.includes(symptom) ? current.filter((item) => item !== symptom) : [...current, symptom]);
   };
+  const toggleNeurologicalSymptom = (symptom: WorkoutNeurologicalSymptom) => {
+    setNeurologicalSymptoms((current) => current.includes(symptom) ? current.filter((item) => item !== symptom) : [...current, symptom]);
+  };
 
   const completeSession = () => {
     shouldPersistDraftRef.current = false;
@@ -509,12 +556,20 @@ export default function WorkoutSession({
         skippedCount: skipped.size,
         painScore,
         painSymptoms,
+        backStatus,
+        neurologicalSymptoms,
+        painExercise: painExercise || undefined,
+        painSet,
         painMemo,
       }),
       exerciseRecords,
-      status: painScore > 0 || painSymptoms.length > 0 ? 'stopped' : overallStatus,
+      status: hasSafetyConcern ? 'stopped' : overallStatus,
       difficulty,
       fatigue,
+      backStatus,
+      neurologicalSymptoms,
+      painExercise: painExercise || undefined,
+      painSet,
     });
     onClose();
   };
@@ -625,11 +680,32 @@ export default function WorkoutSession({
             <section className="mx-auto max-w-2xl rounded-3xl border-2 border-red-200 bg-red-50 p-5 text-red-900 sm:p-6">
               <p className="text-[13px] font-bold">안전 종료</p>
               <h2 className="mt-1 text-[24px] font-bold">운동을 즉시 멈추고 상태를 기록하세요.</h2>
-              <p className="mt-2 text-[13px] leading-relaxed">허리 통증, 다리 저림, 날카로운 관절 통증 또는 어지러움이 지속되면 무리하지 말고 의료진과 상담하세요.</p>
+              <p className="mt-2 text-[13px] leading-relaxed">허리 악화, 엉덩이·다리로 내려가는 통증, 저림, 감각 저하나 다리 힘 빠짐은 단순한 근육 강화 과정으로 판단하지 않습니다. 지속되거나 심해지면 의료 평가를 받으세요.</p>
+              <p className="mt-5 text-[13px] font-bold">운동 후 허리 상태</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {BACK_STATUS_OPTIONS.map((option) => (
+                  <button key={option.id} type="button" aria-pressed={backStatus === option.id} onClick={() => setBackStatus(option.id)} className={`min-h-12 rounded-xl px-2 py-2 text-[11px] font-bold ${backStatus === option.id ? option.id === 'none' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white' : 'bg-white text-red-800'}`}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-4 text-[13px] font-bold">신경 증상</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {NEUROLOGICAL_OPTIONS.map((option) => (
+                  <button key={option.id} type="button" aria-pressed={neurologicalSymptoms.includes(option.id)} onClick={() => toggleNeurologicalSymptom(option.id)} className={`rounded-full px-3 py-2 text-[12px] font-bold ${neurologicalSymptoms.includes(option.id) ? 'bg-red-600 text-white' : 'bg-white text-red-800'}`}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
               <label className="mt-5 block text-[13px] font-bold">
                 불편감 강도: {painScore}/10
                 <input type="range" min={0} max={10} value={painScore} onChange={(event) => setPainScore(Number(event.target.value))} className="mt-2 block w-full accent-red-600" />
               </label>
+              <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_120px]">
+                <label className="text-[13px] font-bold">불편했던 운동<select value={painExercise} onChange={(event) => setPainExercise(event.target.value)} className="mt-2 block w-full rounded-xl border border-red-200 bg-white px-3 py-2 font-normal text-gray-800">{Array.from(new Set(exercises.map((item) => item.name))).map((name) => <option key={name} value={name}>{name}</option>)}</select></label>
+                <label className="text-[13px] font-bold">발생 세트<input type="number" min={1} max={20} value={painSet ?? ''} onChange={(event) => setPainSet(event.target.value ? Number(event.target.value) : undefined)} className="mt-2 block w-full rounded-xl border border-red-200 bg-white px-3 py-2 font-normal text-gray-800" /></label>
+              </div>
+              <p className="mt-4 text-[12px] font-bold">그 밖의 증상</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {PAIN_SYMPTOMS.map((symptom) => (
                   <button key={symptom} type="button" aria-pressed={painSymptoms.includes(symptom)} onClick={() => togglePainSymptom(symptom)} className={`rounded-full px-3 py-2 text-[12px] font-bold ${painSymptoms.includes(symptom) ? 'bg-red-600 text-white' : 'bg-white text-red-800'}`}>
@@ -653,16 +729,17 @@ export default function WorkoutSession({
 
           {mode === 'summary' && (
             <section className="mx-auto max-w-2xl rounded-3xl bg-[#F7F6FF] p-5 text-center sm:p-7">
-              <p className="text-[13px] font-bold text-[#534AB7]">{painScore > 0 || painSymptoms.length ? '안전 종료 기록' : '세션 완료'}</p>
-              <h2 className="mt-2 text-[26px] font-bold text-gray-900">{painScore > 0 || painSymptoms.length ? '회복을 우선하세요' : '오늘 운동을 마쳤습니다'}</h2>
+              <p className="text-[13px] font-bold text-[#534AB7]">{hasSafetyConcern ? '안전 종료 기록' : '세션 완료'}</p>
+              <h2 className="mt-2 text-[26px] font-bold text-gray-900">{hasSafetyConcern ? '회복과 증상 확인을 우선하세요' : '오늘 운동을 마쳤습니다'}</h2>
               <div className="mt-5 grid grid-cols-3 gap-2">
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">운동시간</p><p className="mt-1 text-[18px] font-bold">{Math.max(1, Math.ceil(elapsedSecondsRef.current / 60))}분</p></div>
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">완료</p><p className="mt-1 text-[18px] font-bold">{completed.size}개</p></div>
                 <div className="rounded-2xl bg-white p-3"><p className="text-[11px] text-gray-400">건너뜀</p><p className="mt-1 text-[18px] font-bold">{skipped.size}개</p></div>
               </div>
-              {painScore > 0 || painSymptoms.length ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-[13px] font-bold text-red-700">통증 {painScore}/10 · {painSymptoms.join(', ') || '증상 미선택'}</p> : null}
+              {hasSafetyConcern ? <div className="mt-4 rounded-xl bg-red-50 p-3 text-left text-[12px] font-bold leading-5 text-red-700"><p>허리 상태 · {BACK_STATUS_OPTIONS.find((option) => option.id === backStatus)?.label}</p>{neurologicalSymptoms.length ? <p>신경 증상 · {neurologicalSymptoms.map((symptom) => NEUROLOGICAL_OPTIONS.find((option) => option.id === symptom)?.label).join(', ')}</p> : null}<p>불편감 {painScore}/10{painSymptoms.length ? ` · ${painSymptoms.join(', ')}` : ''}</p>{painExercise ? <p>발생 지점 · {painExercise}{painSet ? ` ${painSet}세트` : ''}</p> : null}</div> : null}
               <div className="mt-4 space-y-4 rounded-2xl bg-white p-4 text-left">
-                <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={painScore > 0 || painSymptoms.length > 0} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${((painScore > 0 || painSymptoms.length > 0) ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
+                <div><p className="text-[12px] font-bold text-gray-700">운동 후 허리 상태</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{BACK_STATUS_OPTIONS.map((option) => <button key={option.id} type="button" onClick={() => setBackStatus(option.id)} className={`min-h-11 rounded-xl px-2 py-2 text-[11px] font-bold ${backStatus === option.id ? option.id === 'none' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{option.label}</button>)}</div>{backStatus !== 'none' ? <button type="button" onClick={() => { if (!painExercise) setPainExercise(exercise.name); if (!painSet) setPainSet(currentSetNumber || undefined); setMode('pain'); }} className="mt-2 w-full rounded-xl bg-red-50 px-3 py-2 text-[11px] font-bold text-red-700">증상·발생 운동 자세히 기록</button> : null}</div>
+                <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={hasSafetyConcern} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${(hasSafetyConcern ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
                 <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
                 <details className="rounded-xl bg-gray-50 p-3"><summary className="cursor-pointer text-[12px] font-bold text-gray-700">피로도 상세 기록</summary><label className="mt-3 block text-[12px] font-bold text-gray-700">운동 후 피로도: {fatigue}/5<input type="range" min={1} max={5} value={fatigue} onChange={(event) => setFatigue(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label></details>
               </div>
@@ -675,7 +752,7 @@ export default function WorkoutSession({
 
         {mode === 'exercise' && (
           <footer className="shrink-0 border-t border-gray-100 bg-white/95 p-3 shadow-2xl sm:px-6">
-            <button type="button" onClick={() => setMode('pain')} className="mb-2 w-full rounded-xl border border-red-100 bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
+            <button type="button" onClick={() => { setPainExercise(exercise.name); setPainSet(currentSetNumber || undefined); if (backStatus === 'none') setBackStatus('pain'); setMode('pain'); }} className="mb-2 w-full rounded-xl border border-red-100 bg-red-50 py-2.5 text-[12px] font-bold text-red-700">
               통증·저림·어지러움 발생
             </button>
             <div className="grid grid-cols-[0.8fr_1.6fr_0.8fr] gap-2">

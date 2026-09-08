@@ -4,10 +4,10 @@ import { normalizeWorkoutMethod, prepareMethodExercises } from "../data/workoutM
 
 const exercises = ["스쿼트", "로우", "푸시업"].map((name) => ({ name, sets: 3, restSeconds: 45, details: [] }));
 
-test("서킷은 본운동 전체를 라운드 수만큼 반복하고 라운드 끝에만 쉰다", () => {
+test("서킷은 동작 사이 짧게 쉬고 라운드 끝에는 설정한 만큼 쉰다", () => {
   const result = prepareMethodExercises(exercises, { method: "circuit", rounds: 2, restSeconds: 90 });
   assert.equal(result.length, 6);
-  assert.deepEqual(result.map((item) => item.restSeconds), [0, 0, 90, 0, 0, 90]);
+  assert.deepEqual(result.map((item) => item.restSeconds), [45, 45, 90, 45, 45, 90]);
   assert.ok(result.every((item) => item.sets === 1));
   assert.deepEqual(result.map((item) => item.executionContext?.roundNumber), [1, 1, 1, 2, 2, 2]);
   assert.deepEqual(result.map((item) => item.executionContext?.sourceExerciseIndex), [0, 1, 2, 0, 1, 2]);

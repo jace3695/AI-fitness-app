@@ -149,18 +149,18 @@ export default function DailyWorkoutEditor({
     if (scope === "weekly") {
       const weeklyGroups = { ...settings.weeklyGroups };
       const weeklyEdits = { ...settings.weeklyEdits };
+      const weeklyMethods = { ...settings.weeklyMethods };
+      const weeklyExerciseTargets = { ...settings.weeklyExerciseTargets };
       delete weeklyGroups[dayId];
       delete weeklyEdits[dayId];
-      onChange({ ...settings, weeklyGroups, weeklyEdits });
+      delete weeklyMethods[dayId];
+      delete weeklyExerciseTargets[dayId];
+      onChange({ ...settings, weeklyGroups, weeklyEdits, weeklyMethods, weeklyExerciseTargets });
       return;
     }
 
     const dateOverrides = { ...settings.dateOverrides };
-    if (dateOverride?.method) {
-      dateOverrides[dateKey] = { method: dateOverride.method };
-    } else {
-      delete dateOverrides[dateKey];
-    }
+    delete dateOverrides[dateKey];
     onChange({ ...settings, dateOverrides });
   };
 
