@@ -93,6 +93,7 @@ export default function RecordCalendarView() {
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [editingWorkout, setEditingWorkout] = useState(false);
+  const [confirmingWorkoutDelete, setConfirmingWorkoutDelete] = useState(false);
   const [workoutStatusDraft, setWorkoutStatusDraft] = useState<WorkoutOverallStatus>("completed");
   const [workoutDifficultyDraft, setWorkoutDifficultyDraft] = useState<WorkoutDifficulty>("moderate");
   const [workoutFatigueDraft, setWorkoutFatigueDraft] = useState(2);
@@ -135,6 +136,7 @@ export default function RecordCalendarView() {
       : undefined;
   useEffect(() => {
     setEditingWorkout(false);
+    setConfirmingWorkoutDelete(false);
     setEditingSecondary(null);
     setWorkoutStatusDraft(selectedWorkoutRecord?.workoutStatus || (selectedWorkoutRecord?.workoutDone ? "completed" : "stopped"));
     setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty || "moderate");
@@ -287,12 +289,13 @@ export default function RecordCalendarView() {
     setWorkoutNotice("선택한 날짜에 운동 기록을 추가했습니다.");
   };
   const deleteWorkoutRecord = () => {
-    if (!selectedWorkoutRecord || !window.confirm("선택한 날짜의 일반 운동 기록을 삭제할까요? 유산소·폼롤러·철봉 기록은 유지됩니다.")) return;
+    if (!selectedWorkoutRecord) return;
     const nextRecord = removeGeneralWorkoutRecord(selectedWorkoutRecord);
     const workouts = { ...stores.workouts };
     if (Object.keys(nextRecord).length) workouts[selected] = nextRecord;
     else delete workouts[selected];
     writeWorkoutStore(workouts);
+    setConfirmingWorkoutDelete(false);
     setWorkoutNotice("일반 운동 기록을 삭제했습니다.");
   };
   const saveSecondaryEdit = (kind: "cardio" | "pullup" | "foam") => {
@@ -596,9 +599,19 @@ export default function RecordCalendarView() {
               </div>
             )}
             {partialCompletionPoint ? <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">일부 완료 지점: {partialCompletionPoint}까지 기록</p> : null}
-            {selectedWorkoutRecord?.workoutStatus ? <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
-              <button type="button" onClick={() => setEditingWorkout((value) => !value)} className="min-h-11 rounded-xl bg-[#534AB7] px-4 py-3 text-[13px] font-bold text-white">{editingWorkout ? "수정 화면 닫기" : "이 운동 기록 수정하기"}</button>
-              <button type="button" onClick={deleteWorkoutRecord} className="min-h-11 rounded-xl bg-red-50 px-4 py-3 text-[12px] font-bold text-red-600">기록 삭제</button>
+            {selectedWorkoutRecord?.workoutStatus ? <div className="mt-4 space-y-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <button type="button" onClick={() => setEditingWorkout((value) => !value)} className="min-h-11 rounded-xl bg-[#534AB7] px-4 py-3 text-[13px] font-bold text-white">{editingWorkout ? "수정 화면 닫기" : "이 운동 기록 수정하기"}</button>
+                <button type="button" onClick={() => setConfirmingWorkoutDelete(true)} className="min-h-11 rounded-xl bg-red-50 px-4 py-3 text-[12px] font-bold text-red-600">기록 삭제</button>
+              </div>
+              {confirmingWorkoutDelete ? <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-5 text-red-800">
+                <p className="font-bold">{formatKoreanDate(selected)}의 일반 운동 기록을 삭제할까요?</p>
+                <p>유산소·폼롤러·철봉 기록은 유지됩니다.</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={deleteWorkoutRecord} className="min-h-11 rounded-lg bg-red-600 px-3 py-2 font-bold text-white">운동 기록 삭제 확인</button>
+                  <button type="button" onClick={() => setConfirmingWorkoutDelete(false)} className="min-h-11 rounded-lg bg-white px-3 py-2 font-bold text-gray-700">삭제 취소</button>
+                </div>
+              </div> : null}
             </div> : selected <= todayKey ? <div className="mt-4 rounded-xl bg-[#F7F6FF] p-3"><p className="text-[12px] font-bold text-[#3C3489]">이날 한 운동을 지금 기록할 수 있어요.</p><button type="button" onClick={startNewWorkoutRecord} className="mt-2 min-h-12 w-full rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">운동 기록 시작하기</button></div> : <p className="mt-3 rounded-xl bg-gray-100 px-3 py-3 text-[12px] font-bold text-gray-500">미래 날짜는 아직 기록할 수 없어요.</p>}
             {workoutNotice ? <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700">{workoutNotice}</p> : null}
           </div>
