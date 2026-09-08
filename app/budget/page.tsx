@@ -1,5 +1,6 @@
 'use client'
 import { useUnsavedChanges } from '@/components/useUnsavedChanges'
+import { getLocalDateKey } from '@/utils/dateKey'
 import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
 import ConfirmDialog from "@/components/ConfirmDialog";
 import AppCompanion from "@/components/AppCompanion";
@@ -16,7 +17,7 @@ import PreferencesSettingsCards from './components/preferences-settings-cards'
 import HistoryScreen from './components/history-screen'
 import SettingsUtilityCards from './components/settings-utility-cards'
 import UserGuide from './components/user-guide'
-import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
+import { buildTransactionParseSystem, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
 import AuthGate from '../components/AuthGate'
 import AppIdentity, { AppIcon } from '../components/AppIdentity'
 import AppModuleNav from '../components/AppModuleNav'
@@ -693,14 +694,14 @@ function BudgetDashboard() {
       .from('budget_transactions')
       .select('*')
       .eq('user_id', currentUser.id)
-      .gte('date', startOfMonth.toISOString().split('T')[0])
+      .gte('date', getLocalDateKey(startOfMonth))
       .order('date', { ascending: false })
 
     const { data: recurringData, error: recurringError } = await supabase
       .from('budget_transactions')
       .select('*')
       .eq('user_id', currentUser.id)
-      .gte('date', recurringStartDate.toISOString().split('T')[0])
+      .gte('date', getLocalDateKey(recurringStartDate))
       .order('date', { ascending: false })
 
     if (error || recurringError) {
@@ -1427,7 +1428,7 @@ function BudgetDashboard() {
 
           return {
             type,
-            date: item.date || new Date().toISOString().split('T')[0],
+            date: item.date || getLocalDateKey(),
             amount: Number(item.amount) || 0,
             place: item.place || (type === 'income' ? '수입' : type === 'saving' ? '일반저축' : '미분류'),
             category: type === 'income'
@@ -1449,7 +1450,7 @@ function BudgetDashboard() {
     }
 
     try {
-      const system = PARSE_SYSTEM.replace('DATE_PLACEHOLDER', new Date().toISOString().split('T')[0])
+      const system = buildTransactionParseSystem()
 
       const res = await authenticatedFetch(`${API_BASE_URL}/api/claude`, {
         method: 'POST',
@@ -3818,7 +3819,7 @@ return (
           currency={currency}
           processingRecordKey={processingRecordKey}
           onDeleteIncome={id => setPendingDelete({ kind: 'income', id })}
-          onDeleteExpense={handleDelete}
+          onDeleteExpense={id => setPendingDelete({ kind: 'expense', id })}
           onDeleteSaving={id => setPendingDelete({ kind: 'saving', id })}
           onNavigateInput={() => setTab('input')}
           onNotice={setPageNotice}

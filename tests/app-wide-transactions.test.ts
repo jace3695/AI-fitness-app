@@ -34,7 +34,7 @@ before(async () => {
       create policy owner on public.${table} to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
       grant select,insert,update,delete on public.${table} to authenticated;`);
   }
-  await db.exec(readFileSync(new URL('../supabase/migrations/20260908223431_app_wide_reliability.sql', import.meta.url), 'utf8'));
+  await db.exec(readFileSync(new URL('../supabase/migrations/20260908233141_app_wide_reliability.sql', import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => {

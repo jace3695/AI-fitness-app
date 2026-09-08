@@ -1,3 +1,5 @@
+import { getLocalDateKey } from '../../../utils/dateKey.ts'
+
 export const FIXED_EXPENSE_PRIORITY_CATEGORIES = ['통신비', '공과금', '구독', '보험', '월세', '대출', '관리비']
 
 const FIXED_EXPENSE_NAME_PATTERNS: Array<{ category: string; label: string; pattern: RegExp }> = [
@@ -72,7 +74,11 @@ function getRelativeDate(text: string) {
     date.setDate(date.getDate() - 2)
   }
 
-  return date.toISOString().split('T')[0]
+  return getLocalDateKey(date)
+}
+
+export function buildTransactionParseSystem(date = new Date()) {
+  return PARSE_SYSTEM.replace('DATE_PLACEHOLDER', getLocalDateKey(date))
 }
 
 function parseLooseAmount(text: string) {

@@ -1074,7 +1074,7 @@ function FitnessApp() {
               </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">기록 백업·기기 연결 <span className="ml-1 text-[12px] font-normal text-gray-500">고급 기능</span></summary>
-                <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4"><DataBackupPanel /><CloudSyncPanel /></div>
+                <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4"><DataBackupPanel /></div>
               </details>
             </div>
           </div>
@@ -1085,6 +1085,7 @@ function FitnessApp() {
             <SafetyView />
           </div>
         )}
+        <div className="mx-auto mt-5 w-full max-w-5xl"><CloudSyncPanel /></div>
       </main>
 
     </div>
