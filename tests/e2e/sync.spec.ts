@@ -1,10 +1,10 @@
-import { test, expect, login, synced, original, localState, assertOriginalPreserved, saveMeal, mealMemo, today } from './fixture';
+import { test, expect, login, synced, localState, assertOriginalPreserved, saveMeal, mealSaved, mealMemo, today } from './fixture';
 
 test('first GET delivery delayed while a real form saves: originals and new input survive', async ({ page, qa }) => {
   const hold = qa.traffic.holdNext('GET', 'response');
   await login(page, qa.account, '/diet'); await hold.arrived;
   await saveMeal(page, 'CI initial GET pending');
-  hold.release(); await synced(page);
+  hold.release(); await mealSaved(page, qa, 'CI initial GET pending');
   const state = await qa.read(); assertOriginalPreserved(state);
   expect(mealMemo(state)).toBe('CI initial GET pending');
   qa.traffic.assertConfirmed(state);
@@ -16,11 +16,11 @@ for (const direction of ['A-after-B', 'B-after-A']) {
   test(`two independent authenticated sessions force a stale CAS: ${direction}`, async ({ page, browser, qa }) => {
     await login(page, qa.account); await synced(page);
     await page.goto('/diet'); await synced(page);
-    await saveMeal(page, 'CI common base'); await synced(page);
+    await saveMeal(page, 'CI common base'); await mealSaved(page, qa, 'CI common base');
     const otherContext = await browser.newContext({ baseURL: 'http://127.0.0.1:3000', timezoneId: 'Asia/Seoul', locale: 'ko-KR', serviceWorkers: 'block' });
     try {
       const { Traffic } = await import('./fixture');
-      const otherTraffic = new Traffic(); await otherTraffic.install(otherContext);
+      const otherTraffic = new Traffic('B'); await otherTraffic.install(otherContext);
       const other = await otherContext.newPage(); await login(other, qa.account); await synced(other);
       await other.goto('/diet'); await synced(other);
       const heldPage = direction === 'A-after-B' ? page : other;
@@ -30,6 +30,7 @@ for (const direction of ['A-after-B', 'B-after-A']) {
       await saveMeal(heldPage, `CI ${direction}`); await hold.arrived;
       await winningPage.getByRole('button', { name: '+500mL', exact: true }).click();
       await winningPage.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
+      await expect.poll(async () => ((await qa.read())['ai-fitness-water-intake'] as Record<string, number>)[today()]).toBe(500);
       await synced(winningPage);
       expect((await qa.read())['ai-fitness-water-intake']).toMatchObject({ [today()]: 500 });
       hold.release();
@@ -41,7 +42,7 @@ for (const direction of ['A-after-B', 'B-after-A']) {
       expect(state['ai-fitness-water-intake']).toMatchObject({ [today()]: 500 });
       heldTraffic.assertConfirmed(state);
       await winningPage.getByRole('button', { name: '지금 동기화', exact: true }).click(); await synced(winningPage);
-      expect(await localState(winningPage)).toEqual(state);
+      await expect.poll(() => localState(winningPage)).toEqual(state);
       expect(otherTraffic.blockedOrigins.size).toBe(0);
       qa.traffic.entries.push(...otherTraffic.entries);
     } finally { await otherContext.close(); }
@@ -93,7 +94,7 @@ test('failed confirmation GET never shows success; edits survive SDK retries and
 
 test('deleting the synthetic day then leaving does not resurrect it on reload', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
-  await saveMeal(page, 'CI remove this day'); await synced(page);
+  await saveMeal(page, 'CI remove this day'); await mealSaved(page, qa, 'CI remove this day');
   const hold = qa.traffic.holdNext('PATCH', 'response');
   await page.getByRole('button', { name: '오늘 기록 초기화', exact: true }).click(); await hold.arrived;
   await page.getByRole('link', { name: '설정', exact: true }).click(); hold.release(); await synced(page);

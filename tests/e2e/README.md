@@ -5,7 +5,7 @@ PR의 **Checks → Isolated browser verification → Details**에서 실행·결
 ## 환경과 경계
 
 - `npm ci`에 고정된 Playwright·Supabase CLI, Chromium/WebKit, 실제 `next build`/`next start`를 사용한다. 실제 React 화면에서 이메일/비밀번호 로그인과 식단 저장·수정을 수행한다.
-- `.e2e/stack`의 **새로운 임시 Supabase Auth/PostgREST/Postgres**만 사용한다. `schema.sql`은 `user_app_state` 동기화/RLS와 PIN 상태 조회에 필요한 최소 계약의 fixture다. 운영 스키마 전체 복제나 운영 마이그레이션 적용 검증이 아니다.
+- `.e2e/stack`의 **새로운 임시 Supabase Auth/PostgREST/Postgres**만 사용한다. `schema.sql`은 `user_app_state` 동기화/RLS·PIN 상태·루트 AI 사용량 조회에 필요한 최소 계약의 fixture다. 운영 스키마 전체 복제나 운영 마이그레이션 적용 검증이 아니다.
 - 운영 계정, 운영 DB, 개인 백업, GitHub Secrets, Supabase 로그인/프로젝트 연결이 필요 없다. 실행 전 URL을 검사하고 브라우저의 외부 origin 요청을 차단한다. Next 빌드도 격리 URL과 공개 키가 없으면 실패한다.
 - 매 테스트마다 임시 사용자를 만들고 실제 Auth 로그인과 소유자 RLS로 합성 17개 원본 키를 넣는다. 테스트 후 브라우저를 닫고 사용자를 삭제하며 연쇄 삭제된 DB 행 부재를 확인한다. 실패해도 정리하고 마지막 단계에서 해당 stack의 컨테이너·볼륨·키 파일을 제거한다.
 - 기존 단위 검사와 25개 VM 회귀를 먼저 실행한다. 그 통과와 브라우저 검증 통과는 따로 표시한다. 재시도로 실패를 숨기지 않는다(`retries: 0`).

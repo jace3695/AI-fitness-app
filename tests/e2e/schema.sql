@@ -29,3 +29,26 @@ grant select on public.budget_user_settings to authenticated;
 grant all on public.budget_user_settings to service_role;
 create policy owner_select on public.budget_user_settings for select to authenticated
   using ((select auth.uid()) = user_id);
+
+-- Root usage notifier's read dependency. No provider call, quota RPC or costs.
+create table public.ai_usage_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  provider text not null check (provider in ('google', 'openai')),
+  model text not null,
+  feature text not null,
+  usage_kind text not null default 'tokens' check (usage_kind in ('tokens', 'characters')),
+  input_units bigint not null default 0 check (input_units >= 0),
+  output_units bigint not null default 0 check (output_units >= 0),
+  cost_krw numeric(12,4) not null check (cost_krw >= 0),
+  is_reservation boolean not null default true,
+  created_at timestamptz not null default now(),
+  finalized_at timestamptz
+);
+create index ai_usage_events_user_created_idx on public.ai_usage_events (user_id, created_at desc);
+alter table public.ai_usage_events enable row level security;
+revoke all on public.ai_usage_events from anon, authenticated;
+grant select on public.ai_usage_events to authenticated;
+grant all on public.ai_usage_events to service_role;
+create policy owner_select on public.ai_usage_events for select to authenticated
+  using ((select auth.uid()) = user_id);

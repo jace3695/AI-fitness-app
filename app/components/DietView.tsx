@@ -272,7 +272,9 @@ export default function DietView() {
       window.localStorage.getItem(SWITCHON_START_DATE_KEY) ||
       SWITCHON_DEFAULT_START_DATE;
     setStartDate(initialStart);
-    if (!existingDietStart) window.localStorage.setItem(DIET_START_DATE_KEY, initialStart);
+    // Display the fallback without persisting it. The initial cloud GET may
+    // still be pending; an automatic write would overwrite the saved start date.
+    // Explicit date changes below remain real user edits and are persisted.
 
     const oldPhase = window.localStorage.getItem(DIET_PHASE_KEY) as
       | DietPhaseId

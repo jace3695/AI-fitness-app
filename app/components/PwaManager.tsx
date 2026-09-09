@@ -79,7 +79,13 @@ export default function PwaManager() {
       }
     };
 
-    const reloadForUpdate = () => { requestSafeReload(); };
+    let alreadyControlled = Boolean(navigator.serviceWorker.controller);
+    const reloadForUpdate = () => {
+      // First installation claims the already current page. Reloading here can
+      // interrupt sign-in or erase an initial form before any update exists.
+      if (!alreadyControlled) { alreadyControlled = true; return; }
+      requestSafeReload();
+    };
     navigator.serviceWorker.addEventListener("controllerchange", reloadForUpdate);
     void register();
 

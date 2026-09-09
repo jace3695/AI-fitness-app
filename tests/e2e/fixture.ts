@@ -29,7 +29,7 @@ export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Se
 export const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 
-type Entry = { method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
+type Entry = { session: string; method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
 type Hold = { method: string; phase: 'request' | 'response' | 'loss'; arrived: () => void; wait: Promise<void> };
 function deferred() {
   let resolve!: () => void;
@@ -43,6 +43,8 @@ export class Traffic {
   failReads = false;
   private next?: Hold;
   private releases: (() => void)[] = [];
+  private label: string;
+  constructor(label = 'A') { this.label = label; }
   holdNext(method: string, phase: Hold['phase']) {
     if (this.next) throw new Error('A hold is already armed');
     const arrived = deferred(); const release = deferred();
@@ -64,7 +66,7 @@ export class Traffic {
       const method = request.method(); const started = Date.now();
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
       if (method === 'GET' && this.failReads) {
-        this.entries.push({ method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
+        this.entries.push({ session: this.label, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
         await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'CI injected read failure' }) }); return;
       }
       const hold = this.next?.method === method ? this.next : undefined;
@@ -74,7 +76,7 @@ export class Traffic {
       const response = await route.fetch({ maxRetries: 0 });
       const body = await response.json().catch(() => null);
       const row = Array.isArray(body) ? body[0] : body;
-      const entry: Entry = { method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
+      const entry: Entry = { session: this.label, method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
         ...(method !== 'GET' ? { sent: request.postDataJSON()?.state, matched: Boolean(row) } : {}),
         ...(row?.state ? { receivedState: row.state } : {}) };
       this.entries.push(entry);
@@ -91,7 +93,7 @@ export class Traffic {
       && writes.some(write => e.started >= write.received)), 'A subsequent real confirmation GET has the exact PATCH state').toBe(true);
   }
   safeEvidence() {
-    return this.entries.map(e => ({ method: e.method, started: e.started, received: e.received, status: e.status, cas: e.cas,
+    return this.entries.map(e => ({ session: e.session, method: e.method, started: e.started, received: e.received, status: e.status, cas: e.cas,
       synthetic: Boolean(e.synthetic), delivered: e.delivered, matched: e.matched,
       ...(e.sent ? { sentKeys: Object.keys(e.sent).length, sentSha256: digest(e.sent) } : {}),
       ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length, receivedSha256: digest(e.receivedState) } : {}) }));
@@ -151,6 +153,11 @@ export const test = base.extend<{ qa: Qa }>({
         title: testInfo.title, syntheticAccountsRemoved: accounts.length, cleaned, originalKeys: Object.keys(original).length,
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
       }, null, 2));
+      console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
+        requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic).length,
+        injectedErrors: traffic.entries.filter(e => e.synthetic).length,
+        conditionalMisses: traffic.entries.filter(e => e.method === 'PATCH' && e.matched === false).length,
+        blockedOrigins: [...traffic.blockedOrigins] }));
       expect(traffic.blockedOrigins.size, 'No requests to hosted or external origins').toBe(0);
     }
   },
@@ -178,7 +185,15 @@ export function assertOriginalPreserved(state: State) {
 }
 export async function saveMeal(page: Page, memo: string) {
   await page.getByLabel('메모', { exact: true }).fill(memo);
+  await expect(page.getByLabel('메모', { exact: true })).toHaveValue(memo);
   await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
   await expect(page.getByText('오늘 식단 기록을 저장했습니다.', { exact: true })).toBeVisible();
+  expect(mealMemo(await localState(page)), 'The form saved the intended memo locally').toBe(memo);
 }
 export const mealMemo = (state: State) => (state['ai-fitness-diet-completed-days'] as Record<string, { dietMemo?: string }> | undefined)?.[today()]?.dietMemo;
+export async function mealSaved(page: Page, qa: Qa, memo: string) {
+  // The old completion label can be visible before React renders "pending".
+  // Observe the newly saved value, then the completion UI, never a fixed sleep.
+  await expect.poll(async () => mealMemo(await qa.read()), { message: 'New memo reached the actual database' }).toBe(memo);
+  await synced(page);
+}

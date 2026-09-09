@@ -1,4 +1,4 @@
-import { test, expect, login, synced, saveMeal, mealMemo, assertOriginalPreserved } from './fixture';
+import { test, expect, login, synced, saveMeal, mealSaved, mealMemo, assertOriginalPreserved } from './fixture';
 
 for (const width of [320, 390]) {
   test(`full diet app at ${width}px: input, scroll, save, settings and reload`, async ({ page, qa }) => {
@@ -7,7 +7,7 @@ for (const width of [320, 390]) {
     await page.goto('/diet'); await synced(page);
     await expect(page.getByLabel('메모', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await saveMeal(page, `CI ${width}px`); await synced(page);
+    await saveMeal(page, `CI ${width}px`); await mealSaved(page, qa, `CI ${width}px`);
     const state = await qa.read(); assertOriginalPreserved(state); expect(mealMemo(state)).toBe(`CI ${width}px`);
     qa.traffic.assertConfirmed(state);
     await page.getByRole('link', { name: '설정', exact: true }).click();
