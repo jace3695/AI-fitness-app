@@ -95,8 +95,8 @@ export default function RecordCalendarView() {
   const [editingWorkout, setEditingWorkout] = useState(false);
   const [confirmingWorkoutDelete, setConfirmingWorkoutDelete] = useState(false);
   const [workoutStatusDraft, setWorkoutStatusDraft] = useState<WorkoutOverallStatus>("completed");
-  const [workoutDifficultyDraft, setWorkoutDifficultyDraft] = useState<WorkoutDifficulty>("moderate");
-  const [workoutFatigueDraft, setWorkoutFatigueDraft] = useState(2);
+  const [workoutDifficultyDraft, setWorkoutDifficultyDraft] = useState<WorkoutDifficulty>();
+  const [workoutFatigueDraft, setWorkoutFatigueDraft] = useState<number>();
   const [workoutPainDraft, setWorkoutPainDraft] = useState(false);
   const [workoutBackStatusDraft, setWorkoutBackStatusDraft] = useState<WorkoutBackStatus>();
   const [workoutNeurologicalDraft, setWorkoutNeurologicalDraft] = useState<WorkoutNeurologicalSymptom[]>([]);
@@ -139,8 +139,8 @@ export default function RecordCalendarView() {
     setConfirmingWorkoutDelete(false);
     setEditingSecondary(null);
     setWorkoutStatusDraft(selectedWorkoutRecord?.workoutStatus || (selectedWorkoutRecord?.workoutDone ? "completed" : "stopped"));
-    setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty || "moderate");
-    setWorkoutFatigueDraft(selectedWorkoutRecord?.workoutFatigue || 2);
+    setWorkoutDifficultyDraft(selectedWorkoutRecord?.workoutDifficulty);
+    setWorkoutFatigueDraft(selectedWorkoutRecord?.workoutFatigue);
     setWorkoutPainDraft(Boolean(selectedWorkoutRecord?.workoutPain && !["pain", "worse"].includes(selectedWorkoutRecord.workoutBackStatus || "") && !selectedWorkoutRecord.workoutNeurologicalSymptoms?.length));
     setWorkoutBackStatusDraft(selectedWorkoutRecord?.workoutBackStatus);
     setWorkoutNeurologicalDraft(selectedWorkoutRecord?.workoutNeurologicalSymptoms || []);
@@ -270,8 +270,8 @@ export default function RecordCalendarView() {
   const startNewWorkoutRecord = () => {
     if (selected > todayKey) return;
     setWorkoutStatusDraft("completed");
-    setWorkoutDifficultyDraft("moderate");
-    setWorkoutFatigueDraft(2);
+    setWorkoutDifficultyDraft(undefined);
+    setWorkoutFatigueDraft(undefined);
     setWorkoutPainDraft(false);
     setWorkoutBackStatusDraft(undefined);
     setWorkoutNeurologicalDraft([]);
@@ -594,8 +594,8 @@ export default function RecordCalendarView() {
             {selectedWorkoutRecord?.workoutStatus && (
               <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold">
                 <span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[#3C3489]">{selectedWorkoutRecord.workoutStatus === "partial" ? "일부 완료" : selectedWorkoutRecord.workoutStatus === "stopped" ? "중단" : "완료"}</span>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{selectedWorkoutRecord.workoutDifficulty === "easy" ? "쉬움" : selectedWorkoutRecord.workoutDifficulty === "hard" ? "힘듦" : "적당함"}</span>
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">피로도 {selectedWorkoutRecord.workoutFatigue ?? 2}/5</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">{selectedWorkoutRecord.workoutDifficulty === "easy" ? "쉬움" : selectedWorkoutRecord.workoutDifficulty === "hard" ? "힘듦" : selectedWorkoutRecord.workoutDifficulty === "moderate" ? "적당함" : "난이도 미응답"}</span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{selectedWorkoutRecord.workoutFatigue === undefined ? "피로도 미응답" : `피로도 ${selectedWorkoutRecord.workoutFatigue}/5`}</span>
               </div>
             )}
             {partialCompletionPoint ? <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">일부 완료 지점: {partialCompletionPoint}까지 기록</p> : null}
@@ -617,14 +617,14 @@ export default function RecordCalendarView() {
           </div>
           {editingWorkout ? <div className="rounded-2xl border-2 border-[#D9D6FF] bg-white p-4 sm:col-span-2">
             <p className="text-[16px] font-bold text-[#3C3489]">{selectedWorkoutRecord?.workoutStatus ? "운동 기록 고치기" : "지난 운동 기록하기"}</p>
-            <p className="mt-1 text-[12px] text-gray-500">아래 순서대로 선택하고 저장하세요.</p>
+            <p className="mt-1 text-[12px] text-gray-500">기억나는 내용만 선택하고 저장하세요. 난이도·피로를 고르지 않으면 미응답으로 남으며, 선택한 버튼을 다시 누르면 해제됩니다.</p>
             <p className="mt-4 text-[13px] font-bold text-gray-800"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#534AB7] text-white">1</span>운동 결과 선택</p>
             <div className="mt-1 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutStatusDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutStatusDraft === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
             <p className="mt-3 text-[11px] font-bold text-gray-600">난이도</p>
-            <div className="mt-1 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" onClick={() => setWorkoutDifficultyDraft(value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutDifficultyDraft === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
+            <div className="mt-1 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" aria-pressed={workoutDifficultyDraft === value} onClick={() => setWorkoutDifficultyDraft(current => current === value ? undefined : value)} className={`rounded-lg px-2 py-2 text-[11px] font-bold ${workoutDifficultyDraft === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div>
             <details className="mt-3 rounded-xl bg-gray-50 p-3">
               <summary className="cursor-pointer text-[12px] font-bold text-gray-600">피로도·허리 상태·메모 더 적기</summary>
-              <label className="mt-3 block text-xs font-bold text-gray-600">피로도 {workoutFatigueDraft}/5<input type="range" min={1} max={5} value={workoutFatigueDraft} onChange={(event) => setWorkoutFatigueDraft(Number(event.target.value))} className="mt-2 block w-full accent-[#534AB7]" /></label>
+              <fieldset className="mt-3"><legend className="text-xs font-bold text-gray-600">운동 후 피로도</legend><div className="mt-2 grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5].map(value => <button key={value} type="button" aria-pressed={workoutFatigueDraft === value} onClick={() => setWorkoutFatigueDraft(current => current === value ? undefined : value)} className={`min-h-11 rounded-xl text-xs font-bold ${workoutFatigueDraft === value ? 'bg-[#534AB7] text-white' : 'bg-white text-gray-600'}`}>{value}</button>)}</div><p className="mt-2 text-xs text-gray-500">1 아주 가벼움 · 3 보통 · 5 매우 피곤함</p></fieldset>
               <label className="mt-3 block text-xs font-bold text-gray-600">운동 후 허리 상태
                 <select value={workoutBackStatusDraft || ""} onChange={(event) => setWorkoutBackStatusDraft(event.target.value as WorkoutBackStatus || undefined)} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 text-xs">
                   <option value="">미기록</option>

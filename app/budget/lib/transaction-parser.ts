@@ -82,7 +82,8 @@ export function buildTransactionParseSystem(date = new Date()) {
 }
 
 function parseLooseAmount(text: string) {
-  const match = text.match(/(\d+(?:[.,]\d+)?)\s*(만원|만 원|천원|천 원|원)?/)
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(만원|만 원|천원|천 원|원)/)
+    ?? text.match(/(?<![A-Za-z0-9])(\d+(?:\.\d+)?)(?![A-Za-z0-9])/)
   if (!match) return 0
 
   const value = Number(String(match[1]).replace(/,/g, ''))
@@ -231,6 +232,7 @@ function detectLocalPlace(text: string, type: string) {
 
 export function parseInputLocally(text: string) {
   const parts = text
+    .replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1')
     .split(/[,\n]|그리고|하고|랑/)
     .map(part => part.trim())
     .filter(Boolean)
