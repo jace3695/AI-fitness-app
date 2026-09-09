@@ -190,6 +190,23 @@ function createDevice(server, seed = {}) {
   const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
   return {
     cloud, window, storage,
+    discardDraft: draftKey => {
+      const path = 'app/components/WorkoutSession.tsx';
+      const source = readFileSync(resolve(root, path), 'utf8');
+      const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+      let handler;
+      function visit(node) {
+        if (ts.isJsxElement(node) && node.openingElement.tagName.getText(ast) === 'button' &&
+            node.children.some(child => ts.isJsxText(child) && child.text.trim() === '저장 없이 종료')) {
+          handler = node.openingElement.attributes.properties.find(prop => prop.name?.getText(ast) === 'onClick').initializer.expression.getText(ast);
+        }
+        ts.forEachChild(node, visit);
+      }
+      visit(ast);
+      assert.ok(handler, 'Discard UI handler not found');
+      Object.assign(context, { draftKey, shouldPersistDraftRef: { current: true }, onClose: () => {} });
+      vm.runInContext(ts.transpileModule(`(${handler})()`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+    },
     read: () => copy(cloud.readLocalCloudState()), write,
     saveFromCalendarSnapshot: workouts => {
       // The component's one-time record read is supplied explicitly; no React mount is simulated.
@@ -243,6 +260,69 @@ async function check(name, body) {
   try { await body(); cases.push({ name, result: 'PASS' }); }
   catch (error) { cases.push({ name, result: 'FAIL', detail: error.message }); }
 }
+
+await check('저장 성공 응답 뒤 제3 세션 덮어쓰기: 완료 표시 금지·로컬 새 기록 보존', async () => {
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const pause = server.pauseNext('PATCH');
+  const expected = changeMemo(device, '2030-02-02', 'fixture-unconfirmed');
+  await flush(); await device.advance(500); await pause.arrived;
+  server.row = { state: copy(fixture), updated_at: '2030-03-01T00:00:00.000Z' };
+  pause.release(); await flush();
+  assert.equal(device.status, 'error', 'Acknowledgement alone must not claim server preservation');
+  expectState(device.read(), expected, 'Unconfirmed input was erased');
+  await device.focus();
+  expectState(server.row.state, expected, 'Retry did not preserve new input');
+  assert.equal(device.status, 'synced'); device.unmount();
+});
+
+await check('실제 저장 없이 종료 핸들러: 수동 동기화 없이 서버 임시 진행 삭제', async () => {
+  const draftKey = 'ai-fitness-workout-session-draft:2030-02-02:fixture';
+  const state = { ...copy(fixture), [draftKey]: { version: 2, timerSeconds: 143 } };
+  const server = new FakeServer(state); const device = createDevice(server); await device.mount();
+  device.discardDraft(draftKey); await flush(); device.leaveRoute(); await device.advance(500);
+  expectState(server.row.state, fixture, 'Discarded draft remained on server');
+  const fresh = createDevice(server); await fresh.mount();
+  expectState(fresh.read(), fixture, 'Discarded draft restored on another device');
+  device.unmount(); fresh.unmount();
+});
+
+await check('저장 후 확인 GET 실패: 오류·기기 보존·재조회 복구', async () => {
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const pause = server.pauseNext('PATCH');
+  const expected = changeMemo(device, '2030-02-02', 'fixture-readback-error');
+  await flush(); await device.advance(500); await pause.arrived;
+  server.failRead = true; pause.release(); await flush();
+  assert.equal(device.status, 'error');
+  expectState(device.read(), expected, 'Confirmation failure lost local input');
+  await device.focus();
+  assert.equal(device.status, 'synced');
+  expectState(server.row.state, expected, 'Retry changed committed input'); device.unmount();
+});
+
+await check('저장 확인 GET 대기 중 추가 수정: 마지막 입력 후속 저장', async () => {
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const writePause = server.pauseNext('PATCH');
+  changeMemo(device, '2030-02-02', 'fixture-before-confirmation');
+  await flush(); await device.advance(500); await writePause.arrived;
+  const readPause = server.pauseNext('GET'); writePause.release(); await readPause.arrived;
+  const expected = changeMemo(device, '2030-02-02', 'fixture-during-confirmation');
+  readPause.release(); await flush();
+  assert.equal(device.status, 'pending'); await device.advance(500);
+  expectState(server.row.state, expected, 'Readback erased later edit');
+  assert.equal(device.status, 'synced'); device.unmount();
+});
+
+await check('임시 진행 PATCH 대기 중 실제 종료: 늦은 응답 뒤 재복구 없음', async () => {
+  const draftKey = 'ai-fitness-workout-session-draft:2030-02-02:fixture';
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const pause = server.pauseNext('PATCH');
+  device.write({ ...device.read(), [draftKey]: { version: 2, timerSeconds: 143 } });
+  await flush(); await device.advance(500); await pause.arrived;
+  device.discardDraft(draftKey); await flush(); device.leaveRoute();
+  pause.release(); await flush(); await device.advance(500);
+  expectState(server.row.state, fixture, 'Late draft acknowledgement resurrected discarded progress');
+  expectState(device.read(), fixture, 'Discarded draft restored locally'); device.unmount();
+});
 
 await check('GET 중 첫 로컬 저장: 서버 원본 4일과 새 날짜 병합', async () => {
   const server = new FakeServer();

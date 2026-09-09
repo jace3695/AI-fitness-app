@@ -10,6 +10,7 @@ import ExerciseRecordEditor from './ExerciseRecordEditor';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { elapsedSecondsSince, remainingSecondsUntil } from '../data/timerClock';
 import { IntervalTimer } from './WorkoutControls';
+import { notifyRecordsChanged } from '../data/storageTransaction';
 
 type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
 
@@ -563,6 +564,7 @@ export default function WorkoutSession({
   const completeSession = () => {
     shouldPersistDraftRef.current = false;
     window.localStorage.removeItem(draftKey);
+    notifyRecordsChanged();
     onFinish?.({
       pain: painScore > 0 || painSymptoms.length > 0,
       memo: buildSessionMemo({
@@ -787,7 +789,7 @@ export default function WorkoutSession({
               <p className="mt-2 text-[13px] text-gray-500">저장 없이 종료하면 자동 저장된 임시 진행상태도 삭제됩니다.</p>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowExitConfirm(false)} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-bold text-gray-700">계속 운동</button>
-                <button type="button" onClick={() => { shouldPersistDraftRef.current = false; window.localStorage.removeItem(draftKey); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
+                <button type="button" onClick={() => { window.localStorage.removeItem(draftKey); shouldPersistDraftRef.current = false; notifyRecordsChanged(); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
               </div>
             </section>
           </div>

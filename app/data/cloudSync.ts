@@ -186,6 +186,17 @@ export async function saveRemoteState(userId: string, state: CloudState) {
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;
+  await verifyRemoteState(userId, state);
+}
+
+/** A successful write response is not proof that another client kept the value. */
+async function verifyRemoteState(userId: string, expected: CloudState) {
+  const confirmed = await getRemoteState(userId);
+  if (!confirmed || stableState(confirmed.state) !== stableState(expected)) {
+    // Do not advance the sync base or apply this response. The caller retains
+    // local edits and can merge them against the last confirmed base on retry.
+    throw new Error("저장 후 서버 기록이 달라졌습니다. 기기 기록을 보존했으니 다시 동기화해 주세요.");
+  }
 }
 
 export async function saveRemoteStateIfUnchanged(
@@ -202,5 +213,7 @@ export async function saveRemoteStateIfUnchanged(
     .select("updated_at")
     .maybeSingle();
   if (error) throw error;
-  return Boolean(data);
+  if (!data) return false;
+  await verifyRemoteState(userId, state);
+  return true;
 }
