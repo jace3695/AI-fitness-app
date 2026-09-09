@@ -1,9 +1,9 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, Fragment, ReactNode, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
-import { clearLocalCloudState } from "../data/cloudSync";
+import { prepareLocalCloudState } from "../data/cloudSync";
 import { clearLanguageLocalState } from "../data/languageCloudSync";
 import {
   hasDevicePin,
@@ -45,7 +45,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
     const authClient = supabase;
+    let active = true;
+    let authVersion = 0;
     const initializeAuth = async () => {
+      const version = authVersion;
       const code = new URLSearchParams(window.location.search).get("code");
       if (code) {
         const { error } = await authClient.auth.exchangeCodeForSession(code);
@@ -58,28 +61,36 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       }
 
       const { data } = await authClient.auth.getUser();
+      if (!active || version !== authVersion) return;
+      if (data.user) prepareLocalCloudState(data.user.id);
       setUser(data.user);
       if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
         setRecoveryMode(true);
       }
       const configured = data.user ? await hasDevicePin(data.user.id) : false;
+      if (!active || version !== authVersion) return;
       setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
       setLoading(false);
     };
     void initializeAuth();
     const { data } = authClient.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      const version = ++authVersion;
       if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) {
         setRecoveryMode(true);
       }
       if (event === "SIGNED_OUT") {
-        clearLocalCloudState();
+        // The root CloudSyncPanel cancels requests and clears cloud records and
+        // their baseline together, including routes without this page gate.
         clearLanguageLocalState();
         setRecoveryMode(false);
       }
+      if (session?.user) prepareLocalCloudState(session.user.id);
       setUser(session?.user ?? null);
       if (session?.user) {
         void hasDevicePin(session.user.id).then((configured) => {
+          if (!active || version !== authVersion) return;
           setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
         });
       } else {
@@ -88,7 +99,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
       setLoading(false);
     });
-    return () => data.subscription.unsubscribe();
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
 
   const authenticate = async (event: FormEvent) => {
@@ -234,7 +245,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">다른 계정으로 로그인</button>
     </section>
   </main>;
-  if (user) return <>{children}<HubBottomNav /></>;
+  if (user) return <Fragment key={user.id}>{children}<HubBottomNav /></Fragment>;
 
   return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-md rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">

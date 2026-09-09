@@ -65,8 +65,8 @@ class FakeServer {
     this.pauses.push({ method, phase, arrived, released });
     return { arrived: arrived.promise, release: released.resolve };
   }
-  async request(method, payload, filters) {
-    const request = { method, payload: payload && copy(payload), filters: copy(filters) };
+  async request(method, payload, filters, signal) {
+    const request = { method, payload: payload && copy(payload), filters: copy(filters), signal };
     this.requests.push(request);
     const pauseIndex = this.pauses.findIndex(pause => pause.method === method);
     const pause = pauseIndex < 0 ? null : this.pauses.splice(pauseIndex, 1)[0];
@@ -104,7 +104,9 @@ class FakeServer {
           select: () => query,
           update: value => { method = 'PATCH'; payload = value; return query; },
           eq: (name, value) => { filters.push([name, value]); return query; },
-          maybeSingle: () => this.request(method, payload, filters),
+          maybeSingle: () => query,
+          abortSignal: value => { query.signal = value; return query; },
+          then: (yes, no) => this.request(method, payload, filters, query.signal).then(yes, no),
         };
         return query;
       },
@@ -133,7 +135,16 @@ function createDevice(server, seed = {}) {
     constructor(...args) { super(...(args.length ? args : [Date.UTC(2030, 1, 1) + ++dateSequence])); }
   }
   const client = server.client();
-  const context = vm.createContext({ window, document, Event, queueMicrotask, Date: FixtureDate });
+  const authCallbacks = new Set();
+  let initialAuth = Promise.resolve({ data: { user: { id: 'fixture-user' } } });
+  client.auth = {
+    getUser: () => initialAuth,
+    onAuthStateChange: callback => {
+      authCallbacks.add(callback);
+      return { data: { subscription: { unsubscribe: () => authCallbacks.delete(callback) } } };
+    },
+  };
+  const context = vm.createContext({ window, document, Event, AbortController, queueMicrotask, Date: FixtureDate });
   const cache = new Map();
   const allowed = new Set(['app/data/cloudSync.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts']);
   function load(path) {
@@ -160,21 +171,35 @@ function createDevice(server, seed = {}) {
   const source = readFileSync(resolve(root, panelPath), 'utf8');
   const ast = ts.createSourceFile(panelPath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const effects = [];
+  const authEffects = [];
+  let syncDependencies;
   function visit(node) {
-    if (ts.isCallExpression(node) && node.expression.getText(ast) === 'useEffect' &&
-        node.arguments[1]?.getText(ast) === '[syncRequest, user]') effects.push(node.arguments[0].getText(ast));
+    if (ts.isCallExpression(node) && node.expression.getText(ast) === 'useEffect') {
+      const deps = node.arguments[1]?.getText(ast);
+      // Keep the old dependency spelling to run the same preservation cases
+      // against the pre-fix source. Neither effect body is replaced by a mock.
+      if (['[syncRequest, user]', '[syncRequest, userId, authRevision]'].includes(deps)) {
+        effects.push(node.arguments[0].getText(ast)); syncDependencies = deps;
+      }
+      if (deps === '[]') authEffects.push(node.arguments[0].getText(ast));
+    }
     ts.forEachChild(node, visit);
   }
   visit(ast);
   assert.equal(effects.length, 1, 'The sync effect moved; update this diagnostic adapter.');
-  const effect = ts.transpileModule(`(${effects[0]})`, {
+  assert.equal(authEffects.length, 1, 'The auth effect moved; update this diagnostic adapter.');
+  const effect = ts.transpileModule(`(function(user, userId) { return (${effects[0]})(); })`, {
     compilerOptions: { target: ts.ScriptTarget.ES2022 },
   }).outputText;
   let status = 'idle';
   let message = '';
-  const refs = { lastSynced: { current: '' }, syncing: { current: false } };
+  const refs = { lastSynced: { current: '' }, syncing: { current: false },
+    authUserId: { current: 'fixture-user' }, authEpoch: { current: null }, cancelSync: { current: null } };
   Object.assign(context, cloud, reset, events, refs, {
-    user: { id: 'fixture-user' }, supabase: client,
+    user: { id: 'fixture-user' }, userId: 'fixture-user', supabase: client,
+    authRevision: 0,
+    setAuthRevision: update => { context.authRevision = typeof update === 'function' ? update(context.authRevision) : update; },
+    setUser: value => { context.user = value; context.userId = value?.id; },
     setStatus: value => { status = value; }, setMessage: value => { message = value; },
     setLastSyncedAt: () => {}, requestSafeReload: window.location.reload,
   });
@@ -184,7 +209,12 @@ function createDevice(server, seed = {}) {
     events.notifyRecordsChanged();
   }
   write(seed);
+  cloud.prepareLocalCloudState?.('fixture-user');
   let cleanup;
+  let authCleanup;
+  let committedDeps;
+  const currentDeps = () => syncDependencies.includes('userId') ? [context.userId, context.authRevision] : [context.user];
+  const mountSync = () => { committedDeps = currentDeps(); cleanup = vm.runInContext(effect, context)(context.user, context.userId); };
   // Route navigation only tears down a page-owned synchronizer. A root-layout
   // synchronizer survives Next.js client navigation; full unmount still cleans up.
   const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
@@ -226,8 +256,27 @@ function createDevice(server, seed = {}) {
     },
     get status() { return status; }, get message() { return message; },
     get waitingTimers() { return timers.size; },
-    mount: async () => { cleanup = vm.runInContext(effect, context)(); await flush(); },
-    unmount: () => { cleanup?.(); },
+    mount: async () => { mountSync(); await flush(); },
+    unmount: () => { cleanup?.(); authCleanup?.(); },
+    mountAuth: async () => {
+      authCleanup = vm.runInContext(ts.transpileModule(`(${authEffects[0]})()`, {
+        compilerOptions: { target: ts.ScriptTarget.ES2022 },
+      }).outputText, context);
+      await flush();
+    },
+    pauseInitialAuth: () => {
+      const pending = deferred(); initialAuth = pending.promise;
+      return userId => pending.resolve({ data: { user: userId ? { id: userId } : null } });
+    },
+    emitAuth: (event, userId) => {
+      for (const callback of authCallbacks) callback(event, userId ? { user: { id: userId } } : null);
+    },
+    commitAuth: async () => {
+      if (!committedDeps || currentDeps().some((value, index) => !Object.is(value, committedDeps[index]))) { cleanup?.(); mountSync(); }
+      await flush();
+    },
+    get userId() { return context.userId; },
+    get lastSynced() { return refs.lastSynced.current; },
     leaveRoute: () => { if (!rootOwnsSync) cleanup?.(); },
     focus: async () => { window.dispatchEvent(new Event('focus')); await flush(); },
     advance: async milliseconds => {
@@ -260,6 +309,111 @@ async function check(name, body) {
   try { await body(); cases.push({ name, result: 'PASS' }); }
   catch (error) { cases.push({ name, result: 'FAIL', detail: error.message }); }
 }
+
+await check('로그아웃·재로그인: 합성 원본 17개 키 보존, 로그인 직후 빈 PATCH 없음', async () => {
+  const original = { ...copy(fixture), ...Object.fromEntries(Array.from({ length: 15 }, (_, i) => [`ai-fitness-fixture-${i}`, { value: i }])) };
+  const server = new FakeServer(original); const device = createDevice(server);
+  await device.mountAuth(); await device.mount();
+  device.emitAuth('SIGNED_OUT', null); await device.commitAuth();
+  assert.equal(device.cloud.readSyncBase('fixture-user'), null, 'Logout retained a deletion baseline');
+  expectState(device.read(), {}, 'Signed-out cache was not cleared');
+  device.emitAuth('SIGNED_IN', 'fixture-user'); await device.commitAuth();
+  expectState(device.read(), original, 'Login lost original records');
+  expectState(server.row.state, original, 'Login changed the original server state');
+  assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 0);
+  device.unmount();
+});
+
+await check('기존 버전의 빈 로컬·잔여 기준값으로 로그인: 빈 PATCH 없이 원본 복구', async () => {
+  const server = new FakeServer(); const device = createDevice(server);
+  device.storage.removeItem('fitness-cloud-sync-user');
+  device.cloud.saveSyncBase('fixture-user', fixture);
+  await device.mountAuth(); await device.mount();
+  expectState(server.row.state, fixture, 'Legacy logout cache sent an empty replacement');
+  expectState(device.read(), fixture, 'Original records were not hydrated');
+  assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 0);
+  device.unmount();
+});
+
+await check('로그아웃 직후 React 정리 전 늦은 GET: PATCH·기준값 재생성 없음', async () => {
+  const server = new FakeServer(); const device = createDevice(server, fixture);
+  device.cloud.saveSyncBase('fixture-user', fixture);
+  await device.mountAuth(); const pause = server.pauseNext('GET');
+  await device.mount(); await pause.arrived;
+  device.emitAuth('SIGNED_OUT', null); // Deliberately do not commit React cleanup yet.
+  pause.release(); await flush();
+  assert.equal(server.requests.length, 1, 'Old session sent a follow-up request');
+  expectState(device.read(), {}, 'Late response recreated logged-out records');
+  assert.equal(device.cloud.readSyncBase('fixture-user'), null);
+  assert.equal(device.lastSynced, ''); assert.equal(device.status, 'idle');
+  device.unmount();
+});
+
+await check('CAS 거절 응답 대기 중 로그아웃: 재조회·재PATCH 중단', async () => {
+  const server = new FakeServer(); const device = createDevice(server, fixture);
+  await device.mountAuth(); await device.mount();
+  const pause = server.pauseNext('PATCH', 'before');
+  changeMemo(device, '2030-02-02', 'fixture-before-logout');
+  // Both sides changed, so this enters the retrying three-way merge branch.
+  server.row.state[settingsKey].exerciseTargets = { remote: 9 };
+  server.row.updated_at = '2030-03-01T00:00:00.000Z';
+  const remoteBeforeLogout = copy(server.row.state);
+  await flush(); await device.advance(500); await pause.arrived;
+  server.row.updated_at = '2030-04-01T00:00:00.000Z';
+  device.emitAuth('SIGNED_OUT', null); const count = server.requests.length;
+  pause.release(); await flush();
+  assert.equal(server.requests.length, count, 'Cancelled CAS loop kept writing after logout');
+  expectState(server.row.state, remoteBeforeLogout, 'Cancelled CAS loop changed server records');
+  assert.equal(device.cloud.readSyncBase('fixture-user'), null); device.unmount();
+});
+
+await check('이전 GET 대기 중 다른 계정 로그인: 새 동기화 즉시 시작·기록 혼합 없음', async () => {
+  const server = new FakeServer(); const device = createDevice(server, fixture);
+  await device.mountAuth(); const pause = server.pauseNext('GET');
+  await device.mount(); await pause.arrived;
+  const other = { 'ai-fitness-other-account': { memo: 'fixture-b-only' } };
+  server.row = { state: copy(other), updated_at: '2030-05-01T00:00:00.000Z' };
+  device.emitAuth('SIGNED_IN', 'fixture-b'); await device.commitAuth();
+  expectState(device.read(), other, 'Previous request blocked the new account sync');
+  assert.equal(device.status, 'synced');
+  pause.release(); await flush();
+  expectState(device.read(), other, 'Previous account response leaked into new account');
+  expectState(server.row.state, other, 'Previous account cache was imported');
+  assert.equal(device.cloud.readSyncBase('fixture-user'), null); device.unmount();
+});
+
+await check('늦은 초기 getUser 응답: 이후 로그아웃을 되돌리지 않음', async () => {
+  const server = new FakeServer(); const device = createDevice(server);
+  const releaseAuth = device.pauseInitialAuth(); await device.mountAuth();
+  device.emitAuth('SIGNED_OUT', null); releaseAuth('fixture-user'); await flush();
+  assert.equal(device.userId, undefined, 'Stale initial auth result reactivated the previous user');
+  assert.equal(server.requests.length, 0); device.unmount();
+});
+
+await check('한 번의 React 반영에 같은 계정 로그아웃·재로그인: 취소된 동기화 재시작', async () => {
+  const server = new FakeServer(); const device = createDevice(server);
+  await device.mountAuth(); const pause = server.pauseNext('GET');
+  await device.mount(); await pause.arrived;
+  device.emitAuth('SIGNED_OUT', null); device.emitAuth('SIGNED_IN', 'fixture-user');
+  await device.commitAuth();
+  assert.equal(device.status, 'synced', 'Batched same-user login kept a cancelled sync effect');
+  expectState(device.read(), fixture, 'Same-user login did not restore the original records');
+  pause.release(); await flush();
+  expectState(server.row.state, fixture, 'Old request changed the new session'); device.unmount();
+});
+
+await check('동일 계정 토큰 갱신·재확인: 저장 기준과 요청 유지', async () => {
+  const server = new FakeServer(); const device = createDevice(server);
+  await device.mountAuth(); await device.mount(); const before = device.lastSynced;
+  const pause = server.pauseNext('PATCH');
+  const expected = changeMemo(device, '2030-02-02', 'fixture-token-refresh');
+  await flush(); await device.advance(500); await pause.arrived;
+  device.emitAuth('TOKEN_REFRESHED', 'fixture-user'); device.emitAuth('SIGNED_IN', 'fixture-user');
+  assert.equal(device.lastSynced, before, 'Same-user auth event discarded the confirmed baseline');
+  pause.release(); await flush();
+  assert.equal(device.status, 'synced'); expectState(server.row.state, expected, 'Refresh lost pending input');
+  device.unmount();
+});
 
 await check('저장 성공 응답 뒤 제3 세션 덮어쓰기: 완료 표시 금지·로컬 새 기록 보존', async () => {
   const server = new FakeServer(); const device = createDevice(server); await device.mount();
@@ -469,7 +623,7 @@ await check('화면 동기화 소유자: 루트에 하나, 운동·식단 페이
 });
 
 console.log(JSON.stringify({
-  scope: 'Actual calendar save functions, sync effect and storage/merge/query modules; mocked server, events and clock. No browser, React renderer, real authentication, HTTP, account or DB access.',
+  scope: 'Actual calendar save functions, root auth/sync effects and storage/merge/query modules; mocked auth events, getUser results, server and clock. React effect commits are driven explicitly; no browser, React renderer, real authentication, HTTP, account or DB access.',
   results: cases,
   passed: cases.filter(item => item.result === 'PASS').length,
   failed: cases.filter(item => item.result === 'FAIL').length,
