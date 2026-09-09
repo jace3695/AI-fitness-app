@@ -1,0 +1,58 @@
+name: Isolated browser verification
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      QA_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - name: Existing checks
+        run: |
+          npm test
+          node scripts/qa-pr189-sync.mjs
+          npm run lint
+          npx tsc --noEmit
+      - name: Install real browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Start disposable database and auth
+        run: node scripts/e2e-stack.mjs start
+      - name: Build the isolated production app
+        run: npm run build
+      - name: Actual browser flows and HTTP body assertions
+        run: npx playwright test
+      - name: Remove disposable database and keys
+        if: always()
+        run: node scripts/e2e-stack.mjs stop
+      - name: Publish synthetic evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-verification-${{ github.event.pull_request.head.sha || github.sha }}
+          path: .e2e/evidence/*.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
