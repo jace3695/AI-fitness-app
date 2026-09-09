@@ -28,6 +28,16 @@ export default function SyncQaPanel() {
     const url = new URL(location.href); url.searchParams.delete('qa-sync'); url.searchParams.delete('qa-hold');
     history.replaceState(history.state, '', url);
   };
+  const saveLocally = async () => {
+    try {
+      const response = await fetch('/api/sync-qa-capture', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Yeoni-QA': '1' }, body: trace.exportJson(),
+      });
+      if (!response.ok) throw new Error(`비공개 파일 보관 실패 (${response.status})`);
+      const result = await response.json();
+      setMessage(`비공개 파일 보관 완료: ${result.file}`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : '비공개 파일 보관 실패'); }
+  };
   return <details className="fixed bottom-2 left-2 right-2 z-[1000] max-h-[70vh] overflow-auto rounded-xl border-2 border-amber-600 bg-white p-3 text-sm shadow-lg">
     <summary className="cursor-pointer font-bold">로컬 동기화 검증 · {state.entries.length}건 · 대기 {state.held.length}건</summary>
     <p className="my-2">개발 화면 전용입니다. 인증 헤더·로그인 요청은 수집하지 않습니다. 내보낸 본문에는 개인 기록이 포함될 수 있으므로 비공개로 보관하세요. 새로고침하면 수집 내용은 사라집니다.</p>
@@ -40,6 +50,7 @@ export default function SyncQaPanel() {
       <button type="button" disabled={!state.active || !!state.rule || !!state.held.length} onClick={() => act(() => trace.arm(method, fault))}>제어 예약</button>
       <button type="button" onClick={() => act(() => trace.release())}>제어 해제</button>
       <button type="button" onClick={download}>비공개 증거 JSON 다운로드</button>
+      <button type="button" onClick={() => void saveLocally()}>비공개 증거 로컬 파일 보관</button>
       <button type="button" onClick={() => act(() => trace.clear())}>수집 내용만 비우기</button>
       <button type="button" onClick={() => act(stop)}>수집 종료·내용 폐기</button>
     </div>
