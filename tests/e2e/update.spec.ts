@@ -7,7 +7,11 @@ test('production service worker waits during editing, then activates after save 
   // This is a worker update against the complete production app, not a Vercel rollout.
   const file = 'public/sw.js'; const before = readFileSync(file, 'utf8');
   let navigations = 0;
-  page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations += 1; });
+  // Next's history.replaceState also emits framenavigated in Chromium. Count
+  // actual document requests so same-document router bookkeeping is not reload.
+  page.on('request', request => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) navigations += 1;
+  });
   try {
     await login(page, qa.account); await synced(page);
     await page.evaluate(async () => { await navigator.serviceWorker.ready; });

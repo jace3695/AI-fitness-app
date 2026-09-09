@@ -13,7 +13,9 @@ for (const width of [320, 390]) {
     await page.getByRole('link', { name: '설정', exact: true }).click();
     await expect(page.getByRole('heading', { name: '식단 설정', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.getByRole('link', { name: /식단 앱으로 돌아가기/ }).click(); await page.reload(); await synced(page);
+    await page.getByRole('link', { name: /식단 앱으로 돌아가기/ }).click();
+    await expect(page).toHaveURL('http://127.0.0.1:3000/diet');
+    await page.reload(); await synced(page);
     await expect(page.getByLabel('메모', { exact: true })).toHaveValue(`CI ${width}px`);
   });
 }

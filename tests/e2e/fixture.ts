@@ -67,7 +67,9 @@ export class Traffic {
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
       if (method === 'GET' && this.failReads) {
         this.entries.push({ session: this.label, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
-        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'CI injected read failure' }) }); return;
+        await route.fulfill({ status: 503, contentType: 'application/json',
+          headers: { 'access-control-allow-origin': 'http://127.0.0.1:3000' },
+          body: JSON.stringify({ message: 'CI injected read failure' }) }); return;
       }
       const hold = this.next?.method === method ? this.next : undefined;
       if (hold) this.next = undefined;
