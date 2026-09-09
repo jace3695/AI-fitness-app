@@ -57,7 +57,7 @@ test("초기화 대상을 앱끼리 공유하지 않고 로그인·설정 키를
 });
 
 test("DB 트랜잭션의 삭제 키가 화면의 삭제 범위와 일치한다", () => {
-  const sql = readFileSync(new URL("../../supabase/migrations/20260906141943_add_app_record_resets.sql", import.meta.url), "utf8");
+  const sql = readFileSync(new URL("../../supabase/migrations/20260906141943_add_app_record_resets.sql", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   for (const app of ["fitness", "diet", "language"] as const) {
     const clause = sql.split(`when '${app}' then\n    record_keys := array[`)[1]?.split("];", 1)[0];
     assert.ok(clause, `${app} SQL scope missing`);

@@ -24,7 +24,7 @@ import { requestSafeReload } from "../lib/unsavedChanges";
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
 
-export default function CloudSyncPanel() {
+export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOut?: boolean }) {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -189,6 +189,7 @@ export default function CloudSyncPanel() {
     };
   }, [syncRequest, user]);
 
+  if (hideSignedOut && (!user || !isSupabaseConfigured)) return null;
   if (!isSupabaseConfigured)
     return (
       <div className="mt-3 w-full">

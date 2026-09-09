@@ -49,7 +49,6 @@ import DayView from "../components/DayView";
 import SafetyView from "../components/SafetyView";
 import RecordCalendarView from "../components/RecordCalendarView";
 import PullupTrainingView from "../components/PullupTrainingView";
-import CloudSyncPanel from "../components/CloudSyncPanel";
 import ConditionCheckCard from "../components/ConditionCheckCard";
 import AuthGate from "../components/AuthGate";
 import WorkoutPlanEditor from "../components/WorkoutPlanEditor";
@@ -1085,7 +1084,6 @@ function FitnessApp() {
             <SafetyView />
           </div>
         )}
-        <div className="mx-auto mt-5 w-full max-w-5xl"><CloudSyncPanel /></div>
       </main>
 
     </div>

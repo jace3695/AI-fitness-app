@@ -185,6 +185,9 @@ function createDevice(server, seed = {}) {
   }
   write(seed);
   let cleanup;
+  // Route navigation only tears down a page-owned synchronizer. A root-layout
+  // synchronizer survives Next.js client navigation; full unmount still cleans up.
+  const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
   return {
     cloud, window, storage,
     read: () => copy(cloud.readLocalCloudState()), write,
@@ -200,6 +203,7 @@ function createDevice(server, seed = {}) {
         setStores: value => { context.stores = value; }, setEditingWorkout: () => {}, setWorkoutNotice: () => {},
       });
       context.writeJson = vm.runInContext(originalFunction('app/data/recordStorage.ts', 'writeJson'), context);
+      context.readJson = vm.runInContext(originalFunction('app/data/recordStorage.ts', 'readJson'), context);
       context.writeWorkoutStore = vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'writeWorkoutStore'), context);
       vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'saveNewWorkoutRecord'), context)();
     },
@@ -207,6 +211,7 @@ function createDevice(server, seed = {}) {
     get waitingTimers() { return timers.size; },
     mount: async () => { cleanup = vm.runInContext(effect, context)(); await flush(); },
     unmount: () => { cleanup?.(); },
+    leaveRoute: () => { if (!rootOwnsSync) cleanup?.(); },
     focus: async () => { window.dispatchEvent(new Event('focus')); await flush(); },
     advance: async milliseconds => {
       const target = now + milliseconds;
@@ -342,13 +347,14 @@ await check('대조군: 최신 스냅샷으로 같은 달력 저장을 실행하
   for (const [date, record] of Object.entries(fixture[key])) expectState(saved[key][date], record, 'Original date changed');
 });
 
-await check('삭제 직후 화면 이탈: 동기화 컴포넌트가 없어도 서버 삭제 완료', async () => {
+await check('삭제 직후 화면 이탈: 공통 동기화가 서버 삭제 완료', async () => {
   const server = new FakeServer(); const device = createDevice(server); await device.mount();
   const expected = device.read(); delete expected[key]['2030-01-01']; device.write(expected); await flush();
-  assert.equal(device.status, 'pending'); device.unmount();
+  assert.equal(device.status, 'pending'); device.leaveRoute();
   await device.advance(60000);
   expectState(device.read(), expected, 'Local deletion was lost');
   expectState(server.row.state, expected, 'Deletion remains only on device after unmount');
+  device.unmount();
 });
 
 await check('PATCH 도중 추가 수정 후 화면 이탈: 추가 수정까지 서버 반영', async () => {
@@ -356,9 +362,30 @@ await check('PATCH 도중 추가 수정 후 화면 이탈: 추가 수정까지 �
   const pause = server.pauseNext('PATCH');
   changeMemo(device, '2030-01-01', 'fixture-first'); await flush(); await device.advance(500); await pause.arrived;
   const expected = changeMemo(device, '2030-01-01', 'fixture-later'); await flush();
-  device.unmount(); pause.release(); await flush(); await device.advance(60000);
+  device.leaveRoute(); pause.release(); await flush(); await device.advance(60000);
   expectState(device.read(), expected, 'Local later edit was lost');
   expectState(server.row.state, expected, 'Later edit remains only on device after unmount');
+  device.unmount();
+});
+
+await check('달력의 오래된 날짜 편집: 같은 날짜의 원격 유산소 필드도 보존', async () => {
+  const state = copy(fixture);
+  state[key]['2030-02-02'] = { cardioDone: true, cardioMinutes: 25, cardioMemo: 'fixture-remote-cardio' };
+  const server = new FakeServer(state); const device = createDevice(server); await device.mount();
+  device.saveFromCalendarSnapshot({}); await flush(); await device.advance(500);
+  const saved = server.row.state[key]['2030-02-02'];
+  assert.equal(saved.cardioMinutes, 25);
+  assert.equal(saved.cardioMemo, 'fixture-remote-cardio');
+  assert.equal(saved.workoutMemo, 'fixture-new');
+  for (const [date, record] of Object.entries(fixture[key])) expectState(server.row.state[key][date], record, 'Original changed');
+  device.unmount();
+});
+
+await check('화면 동기화 소유자: 루트에 하나, 운동·식단 페이지에는 없음', async () => {
+  assert.match(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'), /<CloudSyncPanel\b/);
+  for (const page of ['app/fitness/page.tsx', 'app/diet/page.tsx']) {
+    assert.doesNotMatch(readFileSync(resolve(root, page), 'utf8'), /<CloudSyncPanel\b/);
+  }
 });
 
 console.log(JSON.stringify({
