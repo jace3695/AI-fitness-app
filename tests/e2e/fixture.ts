@@ -160,7 +160,7 @@ export async function login(page: Page, account: Account, path = '/diet/settings
   await page.goto(path);
   await page.getByLabel('이메일', { exact: true }).fill(account.email);
   await page.getByLabel('비밀번호', { exact: true }).fill(account.password);
-  await page.locator('form').getByRole('button', { name: '로그인', exact: true }).click();
+  await page.getByRole('button', { name: 'AI 연이 시작', exact: true }).click();
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 }
 export const synced = async (page: Page) => { await expect(page.getByText('서버 반영 완료', { exact: true })).toBeVisible(); };
@@ -170,8 +170,9 @@ export const localState = (page: Page): Promise<State> => page.evaluate(() => Ob
 export function assertOriginalPreserved(state: State) {
   // These keys are original snapshots, except the dated stores extended by UI
   // saves. Every pre-existing date/value (including backup.savedAt) must remain.
+  const datedStores = ['ai-fitness-diet-completed-days', 'ai-fitness-water-intake', 'ai-fitness-diet-meal-log', 'ai-fitness-protein-total'];
   for (const [key, value] of Object.entries(original)) {
-    if (value && typeof value === 'object' && !Array.isArray(value)) expect(state[key], key).toMatchObject(value as Record<string, unknown>);
+    if (datedStores.includes(key)) expect(state[key], key).toMatchObject(value as Record<string, unknown>);
     else expect(state[key], key).toEqual(value);
   }
 }

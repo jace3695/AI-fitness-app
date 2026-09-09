@@ -13,10 +13,12 @@ export default defineConfig({
   forbidOnly: true,
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  reporter: [['line'], ['./tests/e2e/reporter.ts']],
+  reporter: [['./tests/e2e/reporter.ts']],
   outputDir: 'test-results',
   use: {
     baseURL: 'http://127.0.0.1:3000',
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
     timezoneId: 'Asia/Seoul',
     locale: 'ko-KR',
     serviceWorkers: 'block',

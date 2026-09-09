@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // No login/link/db-push, hosted URL, project credentials, or personal backups.
@@ -23,6 +23,12 @@ try {
     // Discover the pinned CLI's interface on the runner before invoking it.
     run('--help'); run('init', '--help'); run('start', '--help'); run('status', '--help');
     run('init');
+    // All isolated test users share one runner IP. This fixture is not an Auth
+    // rate-limit test; keep the hosted project's limits completely untouched.
+    const configPath = `${workdir}/supabase/config.toml`;
+    const config = readFileSync(configPath, 'utf8');
+    if (!/^sign_in_sign_ups\s*=\s*\d+/m.test(config)) throw new Error('Pinned CLI rate-limit config changed');
+    writeFileSync(configPath, config.replace(/^sign_in_sign_ups\s*=\s*\d+/m, 'sign_in_sign_ups = 600'));
     copyFileSync('tests/e2e/schema.sql', `${workdir}/supabase/seed.sql`);
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');

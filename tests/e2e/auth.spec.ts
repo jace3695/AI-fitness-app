@@ -1,4 +1,4 @@
-import { test, expect, login, synced, original, localState, assertOriginalPreserved, saveMeal, mealMemo, today } from './fixture';
+import { test, expect, login, synced, original, localState } from './fixture';
 
 test('login, logout and same-account relogin preserve all 17 original keys without PATCH', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page);
@@ -44,4 +44,3 @@ test('authenticated RLS rejects another account reading or overwriting the owner
   expect(write.error).toBeNull(); expect(write.data).toEqual([]);
   expect(await qa.read()).toEqual(original);
 });
-
