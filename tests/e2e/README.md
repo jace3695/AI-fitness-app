@@ -18,6 +18,8 @@ PR의 **Checks → Isolated browser verification → Details**에서 실행·결
 
 Chromium의 업데이트 검사는 production 앱을 실행한 같은 origin에서 `public/sw.js`의 임시 주석을 바꿔 실제 worker 설치·대기·활성화와 작성 중 보류를 확인한 뒤 파일을 복원한다. 앱 배포나 Vercel preview 전환을 수행하지 않는다.
 
+실제 Vercel preview 전환은 고정 브랜치 alias에서 이전 worker가 현재 문서를 제어하는 것을 먼저 확인한 뒤, 캐시 세대가 다른 새 preview를 배포해 같은 alias에서 `waiting`·‘지금 갱신’·`controllerchange`·재로드를 차례로 관찰한다. Deployment Protection의 일회성 share 쿠키는 alias가 새 배포를 가리킬 때 다시 인증을 요구할 수 있으므로, 장기 세션은 해당 preview 접근 권한이 있는 Vercel 계정과 2단계 인증을 사용한다. 이를 위해 protection을 끄거나 production으로 승격하지 않는다. 보호 계층이 앱보다 먼저 로그인으로 이동시키면 배포 성공과 앱 업데이트 전환을 분리해 기록한다.
+
 ## 공개 증거와 남은 범위
 
 Actions Summary와 7일 보관 `browser-verification-<SHA>` artifact에 판정, 메서드, 시각, HTTP 상태, CAS 사용 여부, 합성 요청 여부, 상태 본문 SHA-256·키 수, 계정 정리 결과만 올린다. 인증 헤더·JWT·비밀번호·storageState·HAR·trace 원문·개인 데이터는 업로드하지 않는다. 서버에 반영했지만 응답 전달을 끊은 경우와 실제 서버 응답을 구분한다.

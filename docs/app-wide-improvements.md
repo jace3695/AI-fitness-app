@@ -643,3 +643,28 @@ A/B 모두 제어 없음·처리 중 0건에서 ‘수집 종료·내용 폐기�
 이제 PR의 **Checks → Isolated browser verification → Details → Re-run jobs**로 장소에 관계없이 재실행할 수 있다. 새 코드 커밋도 자동으로 검증한다. 개인 PC나 데스크톱 앱을 실행해 둘 필요가 없으며 [실행 안내](../tests/e2e/README.md)와 기존 수동 안내에 경로를 반영했다.
 
 **남은 범위:** 호스팅 Auth 설정과 실제 호스팅 세션 E2E, 개인 원본의 별도 재확인, 실제 iPhone 전체 화면·정밀 화면 잠금/백그라운드 타이머, 실제 preview 배포 전환이다. 시스템 카탈로그의 동기화 테이블/RLS 일치와 CI의 실제 인증·HTTP 경합 통과를 이 범위의 완료로 확대하지 않는다. 서비스워커 검사는 같은 production 앱 origin의 실제 worker 교체이며 앱 배포 전환 검증이 아니다. 앞선 수동 통과·실패·복원 이력은 유지한다. PR Draft 유지, 운영 병합·배포 없음.
+
+## 실제 호스팅·배포 전환 후속 — 2026-09-10 KST
+
+기존 통과·실패·복원 이력을 유지한 채 PR preview와 연결된 호스팅 서비스의 읽기 전용 상태부터 확인했다. Vercel 프로젝트 `ai-fitness-app`의 브랜치 preview는 운영 대상이 아닌 `target: null`이고, 고정 브랜치 주소는 `ai-fitness-app-git-fix-app-wide-reliability-jace3695s-projects.vercel.app`이다. 연결된 Supabase 프로젝트는 `ACTIVE_HEALTHY`였으며 이 단계에서는 개인 행이나 state를 조회하지 않았다. 운영 병합·production 승격은 수행하지 않았다.
+
+### 실제 preview 두 번 전환
+
+실제 배포에서 동일한 서비스워커 파일이 다시 사용되어 전환 조건이 생기지 않는 문제를 피하려고 `public/sw.js`의 캐시 세대만 `v3` → `v4` → `v5`로 올렸다. 앱 동기화 로직·인증·화면 기능은 바꾸지 않았다.
+
+| PR 커밋 | Vercel preview | 캐시 세대 | 배포/자동 검증 |
+| --- | --- | --- | --- |
+| `70a2f3e` | `dpl_CrBzJ67LukgcD95nkeiXHSBcFXuJ` | `v4` | READY, [Actions 34448390722](https://github.com/jace3695/AI-fitness-app/actions/runs/34448390722) 통과 |
+| `9acfbc1` | `dpl_GYnposYAMb7muqM71qFadAfkBdVr` | `v5` | READY, [Actions 34448875900](https://github.com/jace3695/AI-fitness-app/actions/runs/34448875900) 통과 |
+
+`70a2f3e` 전에 로컬 단위 검사 220개와 lint·TypeScript를 통과했다. 두 커밋의 클라우드 실행은 기존 단위 220개·VM 회귀 25개·lint·타입·production 빌드와 격리 브라우저 16개 및 정리 단계를 다시 통과했다. 최신 `9acfbc1` 배포의 확인 시점 최근 2시간 runtime error는 0건이었다. 이 결과는 실제 Vercel 빌드와 새 파일 배포가 성공했다는 증거이며, 아래 브라우저 전환 관찰을 대신하지 않는다.
+
+`v4`가 연결된 고정 브랜치 주소를 실제 브라우저에서 열고 한 번 재로드해 로그인 화면이 정상인 것을 확인했다. 이후 같은 주소가 `v5`로 바뀌자 Vercel Deployment Protection의 일회성 우회 쿠키가 무효화되어 앱 대신 Vercel 로그인으로 이동했다. GitHub 인증은 Vercel 2단계 인증 화면까지 진행됐지만 안전한 6자리 코드 입력을 열 때 브라우저 제어 transport가 닫혔고, 코드가 전송되지는 않았다. 새 연결도 응답 없이 시간 초과되어 같은 시도를 반복하지 않았다. 보호 URL의 별도 읽기 요청도 SSO 302였으므로 실패 경계는 앱이 아닌 Vercel 보호/브라우저 제어 사이로 기록한다.
+
+따라서 **같은 alias가 실제 `v4`에서 `v5` 배포로 이동하고 두 배포가 READY인 것까지 확인**했지만, 기존 worker의 `waiting` 상태, 앱의 ‘지금 갱신’ 표시, 클릭 후 `controllerchange`와 재로드는 관찰하지 못했다. 실제 preview 업데이트 전환은 **부분 완료**다. 이를 CI의 같은 origin worker 교체 통과로 대신하지 않는다.
+
+### 실제 호스팅 계정과 iPhone 경계
+
+실제 호스팅 Supabase에 무작위 합성 계정 1개를 만들고 정확히 삭제하는 작업은 별도 확인 선택이 반환되지 않아 실행하지 않았다. 개인 계정으로 대신 로그인하거나 개인 기록·설정·백업을 조회·수정하지 않았고, 이 단계에서 정리할 호스팅 합성 데이터도 생성되지 않았다. 운영 DB의 실제 계정 로그인·저장·재로그인·삭제 E2E는 미완료다.
+
+실제 iPhone의 화면 잠금·장시간 백그라운드·전체 화면은 물리 기기 조작이 필요해 이번 원격 단계에서 수행하지 않았다. 다음 재개는 (1) Vercel preview 접근 권한이 유지되는 브라우저에서 현재 worker를 먼저 활성화하고 새 캐시 세대 배포 후 갱신 UI를 관찰하며, (2) 합성 호스팅 계정 생성·삭제를 명시적으로 승인받은 뒤 개인 계정과 분리해 저장 왕복을 검증하고, (3) 같은 검증 주소를 iPhone에서 열어 잠금·백그라운드 전후의 실제 시각과 표시값을 기록하는 순서다. 이 세 항목이 끝날 때까지 PR은 Draft로 유지하고 운영 병합·배포하지 않는다.
