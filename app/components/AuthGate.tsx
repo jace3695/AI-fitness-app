@@ -119,7 +119,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       : await supabase.auth.signUp({ email, password });
     if (result.error) setMessage(result.error.message);
     else if (mode === "signUp" && !result.data.session)
-      setMessage("확인 이메일을 보냈습니다. 이메일 인증 후 로그인해 주세요.");
+      setMessage("가입 가능한 새 이메일이면 확인 메일이 발송됩니다. 메일이 오지 않으면 이미 가입된 주소일 수 있으니 로그인하거나 비밀번호를 재설정해 주세요.");
     setSubmitting(false);
   };
 
