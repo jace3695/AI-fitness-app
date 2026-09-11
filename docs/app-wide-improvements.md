@@ -698,3 +698,13 @@ Gmail 테스트 계정의 기존 `user_app_state`를 내용 비공개 보존 기
 이번 실행에서 만든 합성 지출 1건과 `QA-P0` 프로필 1건만 Gmail 사용자 ID와 고유 식별 조건으로 삭제했다. 최종 대조는 Gmail 거래 0건·프로필 0건, Gmail `user_app_state` 시작 전 해시와 동일, 네이버 거래 36건·프로필 1건, 전체 Auth 사용자 2명, 한메일 0명이다. 개인 네이버 기록 내용은 열거나 수정하지 않았다.
 
 실제 호스팅 Auth/DB의 Gmail 테스트 계정 E2E는 완료했다. 남은 P0 실검증은 실제 iPhone 전체 화면·정밀 화면 잠금/장시간 백그라운드와 Vercel Preview의 실제 waiting worker·갱신 UI·controllerchange 관찰이다. PR은 Draft 유지, 운영 병합·Production 배포 없음이다.
+
+## 실제 Vercel Preview 서비스워커 전환 — 2026-09-12 KST
+
+Vercel Deployment Protection을 GitHub 로그인과 GitHub·Vercel 2단계 인증으로 통과한 뒤, 고정 Preview alias에서 기존 `v5` 화면을 유지한 상태로 `d4b7caa`의 서비스워커 캐시 버전 `v6` Preview를 배포했다. 새 배포 `dpl_4eMavXgu3pNZT1mQWf3gF2iBHU4b`는 `READY`이고 Production 대상이 아니다.
+
+기존 탭을 새로고침하자 `최신 화면을 불러올 준비가 됐어요. 갱신해 주세요.`와 `지금 갱신` 버튼이 실제로 표시됐다. 버튼을 누른 뒤 같은 고정 alias로 자동 복귀했고 업데이트 안내가 사라졌으며 로그인 화면이 정상 렌더링됐다. 고정 alias의 `/sw.js`를 별도로 조회해 HTTP 200, `jace-ai-hub-v6`, `cache-control: public, max-age=0, must-revalidate`, `service-worker-allowed: /`를 확인했다.
+
+실제 호스팅 환경의 waiting worker 감지, 명시적 `SKIP_WAITING` 적용, 화면 복귀와 최신 worker 파일 제공을 통과했다. 이 전환에서는 앱 계정 로그인·개인 데이터 조회·DB 쓰기를 하지 않았다. 작성 중 입력 보류와 저장 후 적용은 앞선 격리 Chromium/WebKit 자동 검증 통과 결과로 유지하며, 이번 실제 Preview 결과를 그 범위보다 확대하지 않는다.
+
+남은 P0 실검증은 실제 iPhone의 전체 화면·정밀 화면 잠금·장시간 백그라운드뿐이다. PR은 Draft 유지, 운영 병합·Production 배포 없음이다.
