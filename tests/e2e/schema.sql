@@ -18,6 +18,24 @@ create policy owner_update on public.user_app_state for update to authenticated
 create policy owner_delete on public.user_app_state for delete to authenticated
   using ((select auth.uid()) = user_id);
 
+create table public.language_user_state (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  state jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.language_user_state enable row level security;
+revoke all on public.language_user_state from anon, authenticated;
+grant select, insert, update, delete on public.language_user_state to authenticated;
+grant all on public.language_user_state to service_role;
+create policy language_owner_select on public.language_user_state for select to authenticated
+  using ((select auth.uid()) = user_id);
+create policy language_owner_insert on public.language_user_state for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+create policy language_owner_update on public.language_user_state for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy language_owner_delete on public.language_user_state for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
 create table public.budget_user_settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
   simple_pin_enabled boolean not null default false,

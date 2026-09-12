@@ -25,12 +25,28 @@ export const original: State = {
   'ai-fitness-fasting-mode': 'auto',
   'ai-fitness-diet-symptoms': {},
 };
+export const originalLanguage: State = {
+  learningSettings: JSON.stringify({ dailyGoalCount: 5 }),
+  integratedLearningSettingsV1: JSON.stringify({
+    dailyMinutes: 10,
+    learnerMode: 'starter',
+    preferredTrack: 'foundation',
+    audioRate: 0.9,
+    showKoreanHint: true,
+    showReading: true,
+    showMeaning: true,
+    autoPlayDialogue: false,
+    includeSpeaking: true,
+    hasChosenStart: true,
+  }),
+};
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 
-type Entry = { session: string; method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
-type Hold = { method: string; phase: 'request' | 'response' | 'loss'; arrived: () => void; wait: Promise<void> };
+type SyncTable = 'user_app_state' | 'language_user_state';
+type Entry = { session: string; table: SyncTable; method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
+type Hold = { table: SyncTable; method: string; phase: 'request' | 'response' | 'loss'; arrived: () => void; wait: Promise<void> };
 function deferred() {
   let resolve!: () => void;
   const promise = new Promise<void>(done => { resolve = done; });
@@ -45,11 +61,11 @@ export class Traffic {
   private releases: (() => void)[] = [];
   private label: string;
   constructor(label = 'A') { this.label = label; }
-  holdNext(method: string, phase: Hold['phase']) {
+  holdNext(method: string, phase: Hold['phase'], table: SyncTable = 'user_app_state') {
     if (this.next) throw new Error('A hold is already armed');
     const arrived = deferred(); const release = deferred();
     this.releases.push(release.resolve);
-    this.next = { method, phase, arrived: arrived.resolve, wait: release.promise };
+    this.next = { table, method, phase, arrived: arrived.resolve, wait: release.promise };
     return { arrived: arrived.promise, release: release.resolve };
   }
   releaseAll() { this.releases.forEach(release => release()); this.next = undefined; this.failReads = false; }
@@ -60,25 +76,26 @@ export class Traffic {
       if (!['http://127.0.0.1:3000', 'http://127.0.0.1:54321'].includes(url.origin)) {
         this.blockedOrigins.add(url.origin); await route.abort('blockedbyclient'); return;
       }
-      if (url.origin !== 'http://127.0.0.1:54321' || url.pathname !== '/rest/v1/user_app_state') {
+      const table = url.pathname.slice('/rest/v1/'.length) as SyncTable;
+      if (url.origin !== 'http://127.0.0.1:54321' || !['user_app_state', 'language_user_state'].includes(table)) {
         await route.continue(); return;
       }
       const method = request.method(); const started = Date.now();
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
       if (method === 'GET' && this.failReads) {
-        this.entries.push({ session: this.label, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
+        this.entries.push({ session: this.label, table, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
         await route.fulfill({ status: 503, contentType: 'application/json',
           headers: { 'access-control-allow-origin': 'http://127.0.0.1:3000' },
           body: JSON.stringify({ message: 'CI injected read failure' }) }); return;
       }
-      const hold = this.next?.method === method ? this.next : undefined;
+      const hold = this.next?.method === method && this.next.table === table ? this.next : undefined;
       if (hold) this.next = undefined;
       if (hold?.phase === 'request') { hold.arrived(); await hold.wait; }
       // Genuine HTTP to PostgREST with the browser's authenticated headers.
       const response = await route.fetch({ maxRetries: 0 });
       const body = await response.json().catch(() => null);
       const row = Array.isArray(body) ? body[0] : body;
-      const entry: Entry = { session: this.label, method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
+      const entry: Entry = { session: this.label, table, method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
         ...(method !== 'GET' ? { sent: request.postDataJSON()?.state, matched: Boolean(row) } : {}),
         ...(row?.state ? { receivedState: row.state } : {}) };
       this.entries.push(entry);
@@ -88,16 +105,23 @@ export class Traffic {
     });
   }
   assertConfirmed(expected: State) {
-    const writes = this.entries.filter(e => e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
+    const writes = this.entries.filter(e => e.table === 'user_app_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
     expect(writes.length, 'A real conditional PATCH carrying the expected state').toBeGreaterThan(0);
     expect(writes.every(e => e.cas)).toBe(true);
-    expect(this.entries.some(e => e.method === 'GET' && e.status === 200 && e.receivedState && canonical(e.receivedState) === canonical(expected)
+    expect(this.entries.some(e => e.table === 'user_app_state' && e.method === 'GET' && e.status === 200 && e.receivedState && canonical(e.receivedState) === canonical(expected)
       && writes.some(write => e.started >= write.received)), 'A subsequent real confirmation GET has the exact PATCH state').toBe(true);
+  }
+  assertLanguageConfirmed(expected: State) {
+    const writes = this.entries.filter(e => e.table === 'language_user_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
+    expect(writes.length, 'A real conditional language PATCH carrying the expected state').toBeGreaterThan(0);
+    expect(writes.every(e => e.cas)).toBe(true);
+    expect(this.entries.some(e => e.table === 'language_user_state' && e.method === 'GET' && e.status === 200 && e.receivedState && canonical(e.receivedState) === canonical(expected)
+      && writes.some(write => e.started >= write.received)), 'A subsequent real language confirmation GET has the exact PATCH state').toBe(true);
   }
   safeEvidence() {
     return this.entries.map(e => ({ session: e.session, method: e.method, started: e.started, received: e.received, status: e.status, cas: e.cas,
       synthetic: Boolean(e.synthetic), delivered: e.delivered, matched: e.matched,
-      ...(e.sent ? { sentKeys: Object.keys(e.sent).length, sentSha256: digest(e.sent) } : {}),
+      table: e.table, ...(e.sent ? { sentKeys: Object.keys(e.sent).length, sentSha256: digest(e.sent) } : {}),
       ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length, receivedSha256: digest(e.receivedState) } : {}) }));
   }
 }
@@ -107,6 +131,7 @@ type Qa = {
   account: Account; traffic: Traffic;
   createAccount: () => Promise<Account>;
   read: (account?: Account) => Promise<State>;
+  readLanguage: (account?: Account) => Promise<State>;
 };
 export const test = base.extend<{ qa: Qa }>({
   qa: async ({ context }, runTest, testInfo) => {
@@ -127,6 +152,8 @@ export const test = base.extend<{ qa: Qa }>({
       if (auth.error) throw new Error(`Fixture login failed: ${auth.error.code}`);
       const seed = await client.from('user_app_state').insert({ user_id: account.id, state: original });
       if (seed.error) throw new Error(`Fixture seed failed: ${seed.error.code}`);
+      const languageSeed = await client.from('language_user_state').insert({ user_id: account.id, state: originalLanguage });
+      if (languageSeed.error) throw new Error(`Language fixture seed failed: ${languageSeed.error.code}`);
       return account;
     };
     const read = async (account = accounts[0]): Promise<State> => {
@@ -134,10 +161,15 @@ export const test = base.extend<{ qa: Qa }>({
       if (error) throw new Error(`Fixture authenticated read failed: ${error.code}`);
       return data.state;
     };
+    const readLanguage = async (account = accounts[0]): Promise<State> => {
+      const { data, error } = await account.client.from('language_user_state').select('state').eq('user_id', account.id).single();
+      if (error) throw new Error(`Language fixture authenticated read failed: ${error.code}`);
+      return data.state;
+    };
     let cleaned = false;
     try {
       const account = await createAccount();
-      await runTest({ account, traffic, createAccount, read });
+      await runTest({ account, traffic, createAccount, read, readLanguage });
     } finally {
       traffic.releaseAll();
       // Stop browser writers before removing the synthetic Auth users. Cascade
@@ -148,6 +180,8 @@ export const test = base.extend<{ qa: Qa }>({
         expect(removed.error, 'Synthetic Auth user cleanup').toBeNull();
         const remaining = await admin.from('user_app_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
         expect(remaining.error).toBeNull(); expect(remaining.count).toBe(0);
+        const remainingLanguage = await admin.from('language_user_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
+        expect(remainingLanguage.error).toBeNull(); expect(remainingLanguage.count).toBe(0);
       }
       cleaned = true;
       mkdirSync('.e2e/evidence', { recursive: true });
