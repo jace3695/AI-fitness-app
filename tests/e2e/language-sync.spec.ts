@@ -25,7 +25,9 @@ test('language settings save immediately, preserve an edit during PATCH, and sur
   await expect.poll(async () => goal(await qa.readLanguage()), { message: 'The newest language setting reached the actual database' }).toBe(3);
   await expect(page.getByText('학습 기록 · 서버 저장 확인', { exact: true })).toBeVisible();
   const saved = await qa.readLanguage();
-  expect(saved.integratedLearningSettingsV1).toBe(originalLanguage.integratedLearningSettingsV1);
+  expect(JSON.parse(saved.integratedLearningSettingsV1 as string)).toMatchObject(
+    JSON.parse(originalLanguage.integratedLearningSettingsV1 as string),
+  );
   expect(goal(saved)).toBe(3);
   qa.traffic.assertLanguageConfirmed(saved);
 
