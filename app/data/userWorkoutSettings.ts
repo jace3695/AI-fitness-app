@@ -3,6 +3,7 @@ import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups.ts";
 import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
 import type { AdaptiveReviewDecision } from "./workoutAdaptiveReview.ts";
+import { notifyRecordsChanged } from "./storageTransaction.ts";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -71,6 +72,7 @@ export function getExerciseTargetsForDay(settings: UserWorkoutSettings, dayId: W
 
 export function saveUserWorkoutSettings(settings: UserWorkoutSettings) {
   window.localStorage.setItem(USER_WORKOUT_SETTINGS_KEY, JSON.stringify(settings));
+  notifyRecordsChanged();
 }
 
 function applyTarget(exercise: Exercise, target?: ExerciseTarget): Exercise {
