@@ -10,14 +10,18 @@ import { createQueuedRefresh } from "../lib/queuedRefresh";
 import { recurrenceLabel, type RecurrenceRule } from "../lib/assistantRecurrence";
 import AppIdentity from "../components/AppIdentity";
 import {
+  buildDietDailyStatus,
   buildFitnessDailyStatus,
   buildLanguageDailyStatus,
+  EMPTY_DIET_DAILY_STATUS,
   EMPTY_FITNESS_DAILY_STATUS,
   EMPTY_LANGUAGE_DAILY_STATUS,
+  type DietDailyStatus,
   parseStateObject,
   type FitnessDailyStatus,
   type LanguageDailyStatus,
 } from "../data/dailyAppStatus";
+import { buildAssistantNextAction } from "../data/assistantNextAction";
 import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
@@ -40,6 +44,7 @@ type BudgetTransaction = { amount: number | string; date: string };
 type BriefingSnapshot = {
   budget: { spent: number; budget: number | null; remaining: number | null; entries: number };
   fitness: FitnessDailyStatus;
+  diet: DietDailyStatus;
   language: LanguageDailyStatus;
   growth: { completed: number; total: number; minutes: number };
 };
@@ -49,6 +54,7 @@ type StoredChatMessage = { id: string; role: "user" | "assistant"; content: stri
 const EMPTY_BRIEFING: BriefingSnapshot = {
   budget: { spent: 0, budget: null, remaining: null, entries: 0 },
   fitness: EMPTY_FITNESS_DAILY_STATUS,
+  diet: EMPTY_DIET_DAILY_STATUS,
   language: EMPTY_LANGUAGE_DAILY_STATUS,
   growth: { completed: 0, total: 0, minutes: 0 },
 };
@@ -169,7 +175,7 @@ export default function AssistantPage() {
     ]);
     const failures = [
       itemResult.error && '할 일', projectResult.error && '프로젝트', memoryResult.error && '기억',
-      (budgetResult.error || monthlyBudgetResult.error) && '가계부', fitnessResult.error && '운동',
+      (budgetResult.error || monthlyBudgetResult.error) && '가계부', fitnessResult.error && '운동·식단',
       languageResult.error && '언어학습', (growthRoutineResult.error || growthSessionResult.error) && '성장 기록',
     ].filter((value): value is string => Boolean(value));
     setLoadFailures(failures);
@@ -182,9 +188,11 @@ export default function AssistantPage() {
     const visibleGrowthRoutines = (growthRoutineResult.data ?? []).filter((routine) => !isRetiredGrowthRoutine(routine));
     const visibleGrowthRoutineIds = new Set(visibleGrowthRoutines.map((routine) => routine.id));
     const visibleGrowthSessions = (growthSessionResult.data ?? []).filter((row) => row.routine_id && visibleGrowthRoutineIds.has(row.routine_id));
+    const appState = fitnessResult.data?.state ? parseStateObject(fitnessResult.data.state) : null;
     setBriefing(previous => ({
       budget: budgetResult.error || monthlyBudgetResult.error ? previous.budget : { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
-      fitness: fitnessResult.error ? previous.fitness : fitnessResult.data?.state ? buildFitnessDailyStatus(parseStateObject(fitnessResult.data.state), todayKey) : EMPTY_BRIEFING.fitness,
+      fitness: fitnessResult.error ? previous.fitness : appState ? buildFitnessDailyStatus(appState, todayKey) : EMPTY_BRIEFING.fitness,
+      diet: fitnessResult.error ? previous.diet : appState ? buildDietDailyStatus(appState, todayKey) : EMPTY_BRIEFING.diet,
       language: languageResult.error ? previous.language : languageResult.data?.state ? buildLanguageDailyStatus(parseStateObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
       growth: growthRoutineResult.error || growthSessionResult.error ? previous.growth : {
         completed: new Set(visibleGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id)).size,
@@ -286,6 +294,25 @@ export default function AssistantPage() {
   const openProjects = projects.filter((project) => project.status !== "completed" && project.status !== "archived").length;
   const waiting = items.filter((item) => item.kind === "waiting" && item.status !== "completed").length;
   const todayKey = getLocalDateKey();
+  const unavailableAll = loadFailures.includes('연결 확인') || loadFailures.includes('로그인 확인');
+  const nextAction = loading || unavailableAll ? null : buildAssistantNextAction({
+    items,
+    budget: briefing.budget,
+    fitness: briefing.fitness,
+    diet: briefing.diet,
+    language: briefing.language,
+    growth: briefing.growth,
+    todayKey,
+    hour: Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Seoul', hour: '2-digit', hourCycle: 'h23' }).format(new Date())),
+    available: {
+      tasks: !unavailableAll && !loadFailures.includes('할 일'),
+      budget: !unavailableAll && !loadFailures.includes('가계부'),
+      fitness: !unavailableAll && !loadFailures.includes('운동·식단'),
+      diet: !unavailableAll && !loadFailures.includes('운동·식단'),
+      language: !unavailableAll && !loadFailures.includes('언어학습'),
+      growth: !unavailableAll && !loadFailures.includes('성장 기록'),
+    },
+  });
   const todayItems = items.filter((item) => item.status !== "completed" && item.due_at && getLocalDateKey(new Date(item.due_at)) === todayKey).length;
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
@@ -315,13 +342,20 @@ export default function AssistantPage() {
       </section>
 
       {loadFailures.length > 0 && <div role="status" className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800"><p>{loadFailures.join(' · ')} 정보를 불러오지 못했어요. {lastLoadedAt ? `마지막 정상 확인 ${lastLoadedAt}의 값을 유지합니다.` : '아래 숫자를 현재 기록으로 판단하지 마세요.'}</p><button type="button" disabled={loading} onClick={() => void load()} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">다시 불러오기</button></div>}
+      {nextAction && <section aria-label="연이가 고른 다음 한 걸음" className="mt-5 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#5146A6] via-[#665CC0] to-[#7F77DD] p-5 text-white shadow-[0_18px_46px_rgba(81,70,166,0.24)] sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0"><p className="text-xs font-bold text-white/70">연이가 고른 다음 한 걸음 · {nextAction.eyebrow}</p><h2 className="mt-2 break-words text-xl font-extrabold sm:text-2xl">{nextAction.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">{nextAction.detail}</p><p className="mt-2 text-[11px] font-semibold text-white/60">저장된 일정과 앱 상태만으로 순서를 정했어요.</p></div>
+          <Link href={nextAction.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm">{nextAction.label} →</Link>
+        </div>
+      </section>}
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
           <Link href="#assistant-list" className="rounded-3xl bg-[#F7F6FF] p-5 ring-1 ring-[#ECE9FF]"><p className="text-xs font-bold text-[#766DB8]">일정·할 일</p><p className="mt-2 text-xl font-bold text-[#312B67]">오늘 {todayItems}건</p><p className="mt-1 text-xs text-gray-500">미완료 전체 {openTasks + waiting}건</p></Link>
           <Link href="/budget" className="rounded-3xl bg-emerald-50/70 p-5 ring-1 ring-emerald-100"><p className="text-xs font-bold text-emerald-700">이번 달 가계부</p><p className="mt-2 text-xl font-bold text-emerald-950">{formatWon(briefing.budget.spent)} 지출</p><p className={`mt-1 text-xs ${briefing.budget.remaining !== null && briefing.budget.remaining < 0 ? "font-bold text-red-600" : "text-gray-500"}`}>{briefing.budget.remaining === null ? `예산 미설정 · ${briefing.budget.entries}건` : briefing.budget.remaining >= 0 ? `${formatWon(briefing.budget.remaining)} 남음` : `${formatWon(briefing.budget.remaining)} 초과`}</p></Link>
           <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
-          <Link href="/language/review" className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
+          <Link href="/diet" className="rounded-3xl bg-lime-50/70 p-5 ring-1 ring-lime-100"><p className="text-xs font-bold text-lime-700">오늘 식단</p><p className="mt-2 line-clamp-2 text-lg font-bold text-lime-950">{briefing.diet.title}</p><p className={`mt-1 text-xs ${briefing.diet.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.diet.detail}</p></Link>
+          <Link href={briefing.language.nextHref} className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
           <Link href="/growth" className="rounded-3xl bg-fuchsia-50/70 p-5 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">기록 {briefing.growth.minutes}분</p></Link>
         </>}</div>
         <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">

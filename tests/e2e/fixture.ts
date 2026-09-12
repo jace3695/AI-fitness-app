@@ -182,6 +182,10 @@ export const test = base.extend<{ qa: Qa }>({
         expect(remaining.error).toBeNull(); expect(remaining.count).toBe(0);
         const remainingLanguage = await admin.from('language_user_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
         expect(remainingLanguage.error).toBeNull(); expect(remainingLanguage.count).toBe(0);
+        for (const table of ['budget_transactions', 'budget_income', 'budget_savings'] as const) {
+          const remainingBudget = await admin.from(table).select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
+          expect(remainingBudget.error).toBeNull(); expect(remainingBudget.count, `${table} synthetic cleanup`).toBe(0);
+        }
       }
       cleaned = true;
       mkdirSync('.e2e/evidence', { recursive: true });

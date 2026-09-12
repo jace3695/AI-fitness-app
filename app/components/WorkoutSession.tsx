@@ -135,6 +135,8 @@ function buildExerciseRecord(exercise: Exercise, intensity: WorkoutIntensity): E
           setNumber: index + 1,
           completed: false,
           reps: suggestedReps !== undefined ? 0 : undefined,
+          weightKg: intensity === 'normal' ? exercise.suggestedWeightKg : undefined,
+          bandLevel: intensity === 'normal' ? exercise.suggestedBandLevel : undefined,
           plannedReps: suggestedReps,
           plannedDurationSeconds: recommendation.durationMinutes ? recommendation.durationMinutes * 60 : getExerciseSeconds(exercise) || undefined,
           plannedRestSeconds: exercise.restSeconds,

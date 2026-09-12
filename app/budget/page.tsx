@@ -23,6 +23,15 @@ import AppIdentity, { AppIcon } from '../components/AppIdentity'
 import AppModuleNav from '../components/AppModuleNav'
 import { resetAppRecords } from '../lib/resetAppRecords'
 import { setRecordResetRunning } from '../data/appRecordReset'
+import {
+  BUDGET_RECORD_LABEL,
+  BUDGET_RECORD_TABLE,
+  buildBudgetDeleteNotice,
+  isSameBudgetRecord,
+  type BudgetDeleteUndo,
+  type BudgetRecord,
+  type BudgetRecordKind,
+} from './lib/delete-undo'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -253,10 +262,16 @@ function BudgetDashboard() {
   const [actionError, setActionError] = useState('')
   const [processingRecordKey, setProcessingRecordKey] = useState('')
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'expense' | 'income' | 'saving' | 'all'; id: string } | null>(null)
+  const [deleteUndo, setDeleteUndo] = useState<BudgetDeleteUndo | null>(null)
   const [settingsSavingAction, setSettingsSavingAction] = useState('')
   const [dataLoadError, setDataLoadError] = useState('')
   const [lastActiveAt, setLastActiveAt] = useState(Date.now())
   const LOCK_TIMEOUT = 1000 * 60 * 3
+
+  useEffect(() => {
+    // A deleted row may only be restored by the account that deleted it.
+    setDeleteUndo(null)
+  }, [user?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -1552,76 +1567,74 @@ function BudgetDashboard() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const refreshBudgetRecordList = async (kind: BudgetRecordKind) => {
+    if (kind === 'expense') await fetchTransactions()
+    else if (kind === 'income') await fetchIncome()
+    else await fetchSavings()
+  }
+
+  const handleDeleteRecord = async (kind: BudgetRecordKind, id: string) => {
     if (!user?.id || processingRecordKey) return
 
-    setProcessingRecordKey(`expense:${id}`)
+    setProcessingRecordKey(`${kind}:${id}`)
     setActionError('')
 
     try {
-      const { error } = await supabase
-        .from('budget_transactions')
+      const { data, error } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
         .delete()
         .eq('id', id)
         .eq('user_id', user.id)
+        .select('*')
+        .maybeSingle()
 
       if (error) throw error
+      if (!data) throw new Error('삭제할 기록을 찾지 못했습니다.')
 
-      await fetchTransactions()
-      setPageNotice('지출 내역을 삭제했어요.')
+      setDeleteUndo({ kind, record: data as BudgetRecord })
+      await refreshBudgetRecordList(kind)
+      setPageNotice(buildBudgetDeleteNotice(kind))
     } catch (error) {
-      console.error('transactions 삭제 오류:', error)
-      setActionError('지출 내역 삭제에 실패했어요. 다시 시도해주세요.')
+      console.error(`${BUDGET_RECORD_TABLE[kind]} 삭제 오류:`, error)
+      setActionError(`${BUDGET_RECORD_LABEL[kind]} 내역 삭제에 실패했어요. 다시 시도해주세요.`)
     } finally {
       setProcessingRecordKey('')
     }
   }
 
-  const handleDeleteIncome = async (id: string) => {
-    if (!user?.id || processingRecordKey) return
-
-    setProcessingRecordKey(`income:${id}`)
-    setActionError('')
-
-    try {
-      const { error } = await supabase
-        .from('budget_income')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id)
-
-      if (error) throw error
-
-      await fetchIncome()
-      setPageNotice('수입 내역을 삭제했어요.')
-    } catch (error) {
-      console.error('income 삭제 오류:', error)
-      setActionError('수입 내역 삭제에 실패했어요. 다시 시도해주세요.')
-    } finally {
-      setProcessingRecordKey('')
+  const restoreDeletedBudgetRecord = async () => {
+    if (!user?.id || !deleteUndo || processingRecordKey) return
+    if (deleteUndo.record.user_id !== user.id) {
+      setDeleteUndo(null)
+      setActionError('로그인 계정이 바뀌어 이전 삭제를 되돌리지 않았어요.')
+      return
     }
-  }
-
-  const handleDeleteSaving = async (id: string) => {
-    if (!user?.id || processingRecordKey) return
-
-    setProcessingRecordKey(`saving:${id}`)
+    const { kind, record } = deleteUndo
+    setProcessingRecordKey(`undo:${record.id}`)
     setActionError('')
 
     try {
-      const { error } = await supabase
-        .from('budget_savings')
-        .delete()
-        .eq('id', id)
+      const { error: insertError } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
+        .insert(record)
+      if (insertError && insertError.code !== '23505') throw insertError
+
+      const { data, error: verifyError } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
+        .select('*')
+        .eq('id', record.id)
         .eq('user_id', user.id)
+        .maybeSingle()
 
-      if (error) throw error
-
-      await fetchSavings()
-      setPageNotice('저축 내역을 삭제했어요.')
+      if (verifyError || !isSameBudgetRecord(record, data as BudgetRecord | null)) {
+        throw verifyError ?? new Error('복원 결과가 삭제 전 기록과 다릅니다.')
+      }
+      await refreshBudgetRecordList(kind)
+      setDeleteUndo(null)
+      setPageNotice(`${BUDGET_RECORD_LABEL[kind]} 내역을 삭제 전 그대로 복원했어요.`)
     } catch (error) {
-      console.error('savings 삭제 오류:', error)
-      setActionError('저축 내역 삭제에 실패했어요. 다시 시도해주세요.')
+      console.error(`${BUDGET_RECORD_TABLE[kind]} 복원 오류:`, error)
+      setActionError(`${BUDGET_RECORD_LABEL[kind]} 내역을 복원하지 못했어요. 다시 시도해주세요.`)
     } finally {
       setProcessingRecordKey('')
     }
@@ -1674,6 +1687,7 @@ function BudgetDashboard() {
       setAiAnswer('')
       setInput('')
       setQuestion('')
+      setDeleteUndo(null)
 
       setPageNotice('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
     } catch (e) {
@@ -3209,6 +3223,11 @@ return (
               다시 불러오기
             </button>
           )}
+          {deleteUndo && !isOffline && !actionError && !dataLoadError && (
+            <button type="button" disabled={Boolean(processingRecordKey)} onClick={() => void restoreDeletedBudgetRecord()} style={{ minHeight: 36, marginLeft: 10, border: '1px solid rgba(15,15,20,.22)', borderRadius: 9, padding: '5px 10px', color: '#0F0F14', background: 'rgba(255,255,255,.72)', fontSize: 12, fontWeight: 800, cursor: processingRecordKey ? 'wait' : 'pointer' }}>
+              {processingRecordKey.startsWith('undo:') ? '복원 확인 중…' : '삭제 되돌리기'}
+            </button>
+          )}
         </div>
       )}
 
@@ -3275,9 +3294,9 @@ return (
       </header>
 
 
-      <ConfirmDialog open={Boolean(pendingDelete)} title={pendingDelete?.kind === 'all' ? '가계부 기록 전체 삭제' : '선택한 기록 삭제'} description={pendingDelete?.kind === 'all' ? '전체 기간의 지출·수입·저축 기록을 삭제합니다. 예산·설정과 다른 앱 기록은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.' : '선택한 기록을 삭제합니다. 다른 내역은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.'} busy={Boolean(processingRecordKey) || resetLoading} onCancel={() => setPendingDelete(null)} onConfirm={() => {
+      <ConfirmDialog open={Boolean(pendingDelete)} title={pendingDelete?.kind === 'all' ? '가계부 기록 전체 삭제' : '선택한 기록 삭제'} description={pendingDelete?.kind === 'all' ? '전체 기간의 지출·수입·저축 기록을 삭제합니다. 예산·설정과 다른 앱 기록은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.' : '선택한 기록만 삭제합니다. 삭제 직후에는 이 화면의 “삭제 되돌리기”로 원래 기록을 복원할 수 있어요.'} busy={Boolean(processingRecordKey) || resetLoading} onCancel={() => setPendingDelete(null)} onConfirm={() => {
         if (!pendingDelete) return
-        const action = pendingDelete.kind === 'all' ? handleResetAllData() : pendingDelete.kind === 'income' ? handleDeleteIncome(pendingDelete.id) : pendingDelete.kind === 'saving' ? handleDeleteSaving(pendingDelete.id) : handleDelete(pendingDelete.id)
+        const action = pendingDelete.kind === 'all' ? handleResetAllData() : handleDeleteRecord(pendingDelete.kind, pendingDelete.id)
         void action.finally(() => setPendingDelete(null))
       }} />
       <div className="budget-guide"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>

@@ -50,6 +50,61 @@ test('three fully recorded comparable strength sessions propose only one weekday
   assert.equal(buildAdaptiveWorkoutReview({ ...data, settings: reloaded }).action, 'maintain');
   assert.equal(buildAdaptiveWorkoutReview({ ...data, settings: reloaded, today: '2026-09-14' }).action, 'maintain', 'old records cannot increment again next week');
 });
+test('three capped sessions propose only a 0.5kg dumbbell step and prefill the confirmed plan', () => {
+  const capped = session({ workoutExerciseRecords: session().workoutExerciseRecords!.map((exercise) => exercise.exerciseName === names[0]
+    ? { ...exercise, sets: exercise.sets!.map((set) => ({ ...set, plannedReps: 12, reps: 12, weightKg: 5 })) }
+    : exercise) });
+  const data = input({ workouts: { '2026-09-04': capped, '2026-09-02': capped, '2026-08-31': capped } });
+  data.settings.weeklyExerciseTargets = { mon: { [names[0]]: { reps: 12 } } };
+  const review = buildAdaptiveWorkoutReview(data);
+  assert.equal(review.action, 'increase');
+  assert.equal(review.change?.targets?.[names[0]].weightKg, 5.5);
+  assert.equal(review.change?.targets?.[names[0]].reps, 12);
+  assert.equal(review.change?.method, undefined, 'weight does not also change rounds');
+  assert.match(review.preparation!, /5\.5kg.*통증·저림/);
+  assert.throws(() => decideAdaptiveWorkoutReview(data, review.id, 'applied', '2026-09-07T09:00:00Z'), /준비 조건/);
+  const next = decideAdaptiveWorkoutReview(data, review.id, 'applied', '2026-09-07T09:00:00Z', true);
+  const day = applyExerciseTargets(workoutGroupToDayWorkout(getWorkoutGroupById(next.weeklyGroups.mon!), 'mon', '월요일'), getExerciseTargetsForDay(next, 'mon'));
+  const exercise = day.phases.flatMap((phase) => phase.exercises).find((item) => item.name === names[0]);
+  assert.equal(exercise?.suggestedWeightKg, 5.5);
+});
+test('a capped band exercise advances exactly one recognized resistance level', () => {
+  const capped = session({ workoutExerciseRecords: session().workoutExerciseRecords!.map((exercise) => {
+    if (exercise.exerciseName === names[0]) return { ...exercise, sets: exercise.sets!.map((set) => ({ ...set, plannedReps: 12, reps: 12, weightKg: undefined })) };
+    if (exercise.exerciseName === names[1]) return { ...exercise, sets: exercise.sets!.map((set) => ({ ...set, plannedReps: 12, reps: 12, bandLevel: '약' })) };
+    return exercise;
+  }) });
+  const data = input({ workouts: { '2026-09-04': capped, '2026-09-02': capped, '2026-08-31': capped } });
+  data.settings.weeklyExerciseTargets = { mon: { [names[0]]: { reps: 12 }, [names[1]]: { reps: 12 } } };
+  const review = buildAdaptiveWorkoutReview(data);
+  assert.equal(review.change?.targets?.[names[1]].bandLevel, '중');
+  assert.equal(review.change?.targets?.[names[1]].reps, 12);
+  assert.equal(Object.keys(review.change?.targets ?? {}).length, 1);
+  const next = decideAdaptiveWorkoutReview(data, review.id, 'applied', '2026-09-07T09:00:00Z', true);
+  const day = applyExerciseTargets(workoutGroupToDayWorkout(getWorkoutGroupById(next.weeklyGroups.mon!), 'mon', '월요일'), getExerciseTargetsForDay(next, 'mon'));
+  assert.equal(day.phases.flatMap((phase) => phase.exercises).find((item) => item.name === names[1])?.suggestedBandLevel, '중');
+});
+test('a safely learned two-round variation proposes only the third round', () => {
+  const variation = session({
+    workoutGroupId: 'current-fullbody-hamstring-circuit',
+    workoutMethod: { ...CURRENT_WEEKLY_METHODS.mon, rounds: 2 },
+    workoutExerciseRecords: session().workoutExerciseRecords!.map((exercise) => ({
+      ...exercise,
+      exerciseName: exercise.exerciseName === '루프밴드 사이드워크' ? '지지형 햄스트링 컬' : exercise.exerciseName,
+      sets: exercise.sets!.slice(0, 2),
+    })),
+  });
+  const data = input({ workouts: { '2026-09-04': variation, '2026-09-02': variation, '2026-08-31': variation } });
+  data.settings.weeklyGroups.mon = 'current-fullbody-hamstring-circuit';
+  data.settings.weeklyMethods.mon = { ...CURRENT_WEEKLY_METHODS.mon, rounds: 2 };
+  const review = buildAdaptiveWorkoutReview(data);
+  assert.equal(review.action, 'increase');
+  assert.equal(review.change?.method?.rounds, 3);
+  assert.equal(review.change?.targets, undefined, 'rounds do not also change repetitions or resistance');
+  assert.match(review.preparation!, /회복 여유/);
+  const next = decideAdaptiveWorkoutReview(data, review.id, 'applied', '2026-09-07T09:00:00Z', true);
+  assert.equal(next.weeklyMethods.mon?.rounds, 3);
+});
 test('keep saves a decision while preserving the entire plan', () => {
   const data = input();
   const review = buildAdaptiveWorkoutReview(data);
