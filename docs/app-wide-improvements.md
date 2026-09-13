@@ -850,3 +850,27 @@ Jace App Hub의 `growth_routines`에 기존 P2 SQL을 적용했다. 호스팅 �
 커밋 **`2b487f18d7e3aaf30495a5687ea272f36ba7a38f`**에 호스팅 이력과 마이그레이션 파일명 정렬, 사진 API의 비밀값 없는 인증 진단을 반영했다. 로컬 마이그레이션 회귀 3개·TypeScript·`git diff --check`가 통과했다. [GitHub Actions `34747598989`](https://github.com/jace3695/AI-fitness-app/actions/runs/34747598989)에서 기존 검사·격리 앱 빌드·브라우저 26개·정리·증거 업로드 단계가 모두 성공했다. 단위·DB 계약 검사 248개, 정리 이벤트 26건, 일회용 계정 29개 제거와 관련 행 잔여 0개를 확인했다.
 
 새 Preview는 `READY`, `target: null`이며 PR은 Draft다. **호스팅 DB 적용과 루틴 저장은 완료, 실제 AI 판독은 Preview 키 설정 대기**다.
+
+## P2 후속: 같은 사진 재선택 복구 — 2026-09-13 KST
+
+다음 단계 재개 시 기존 문서 커밋 `a65bc15f`의 [Actions `34748065257`](https://github.com/jace3695/AI-fitness-app/actions/runs/34748065257) 성공과 Preview READY를 먼저 확인했다. Gmail 테스트 세션을 유지한 채 앞서 사용한 합성 사진으로 재검증했다.
+
+기존 화면에서는 **사진 지우기**를 누른 뒤에도 파일 선택란에 이전 파일명이 남았다. 같은 파일을 다시 고르면 변경 이벤트가 발생하지 않아 사진 미리보기는 없고 **AI로 분석** 버튼은 비활성 상태였다. 실제 호스팅 화면과 스크린샷으로 재현했다.
+
+수정 커밋 **`645a6b1ad008456540df899097e95f7a71b94f7d`**은 사진을 지우거나 유효하지 않은 파일을 거부할 때 파일 입력값도 함께 비운다. 기존 브라우저 회귀에 사진 선택 → 지우기 → 파일 입력·미리보기 비움 → 같은 파일 재선택 → 명시적 분석 전 요청 0건 확인을 추가했다. 이 검사는 Chromium과 WebKit의 기존 식단 사진 시나리오에서 각각 실행한다.
+
+수정본 Preview `dpl_F99SpysdqNzQGKHBRcUFNTSBqEqr`는 해당 커밋과 일치하고 READY, `target: null`이다. 실제 Gmail 테스트 계정과 같은 합성 사진으로 다음 결과를 확인했다.
+
+| 실제 호스팅 확인 | 결과 |
+| --- | --- |
+| 첫 사진 선택 | 미리보기 표시·분석 버튼 활성 |
+| 사진 지우기 | 실제 파일 입력값 비움·미리보기 제거·분석 버튼 비활성 |
+| 동일 파일 재선택 | 미리보기와 분석 버튼 정상 복구 |
+| 실제 분석 요청 | 20:36 KST 서버 로그의 `POST /api/diet/photo-analysis` **503**과 화면의 사용 불가 안내 일치. 최신 Preview에서도 `OPENAI_API_KEY`를 사용할 수 없어 제공자 호출 전 중단 |
+| 최종 정리·보존 | 사진 선택 비움·미리보기 없음·분석 버튼 비활성, Gmail 테스트 `user_app_state` 전체 행이 이번 실행 전 기준값과 동일, 사진 data URL 없음, 실제 AI 사용량 0건 |
+
+로컬 TypeScript·수정 파일 lint·`git diff --check`는 통과했다. [수정본 Actions `34754765352`](https://github.com/jace3695/AI-fitness-app/actions/runs/34754765352)에서 단위·DB 검사 248개, VM 회귀 25개, 48개 경로 빌드와 브라우저 26개가 통과했다. 사진 지우기·같은 파일 재선택 회귀는 Chromium·WebKit 양쪽에서 성공했다. 정리 이벤트 26건, 일회용 계정 29개 제거, 관련 행 잔여 0개와 외부 origin 요청 0건을 확인했다.
+
+사진 재선택 결함의 수정·호스팅 검증과 실제 AI 판독을 구분한다. **재선택 복구는 통과, 실제 AI 판독은 여전히 Preview 키 설정 대기**다. 호스팅 DB 마이그레이션을 다시 실행하거나 식단 기록을 저장하지 않았으며, 개인 데이터 변경·운영 병합·Production 배포는 없다. PR Draft와 iPhone 최종 단계 원칙을 유지한다.
+
+환경변수를 추가하거나 적용 범위를 바꾸면 새 배포에만 반영되므로, 키 설정 후 Preview 재배포가 필요하다. [Vercel 환경변수 안내](https://vercel.com/docs/environment-variables/managing-environment-variables)를 기준으로 설정 후 실제 판독 검증을 재개한다.
