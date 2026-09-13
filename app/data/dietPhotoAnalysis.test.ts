@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  dietPhotoProviderErrorMessage,
   isSupportedDietPhotoDataUrl,
   normalizeDietPhotoAnalysis,
   parseDietPhotoAnalysisText,
@@ -8,6 +9,16 @@ import {
   riceInputFromEstimate,
   validateDietPhotoFile,
 } from "./dietPhotoAnalysis.ts";
+
+test("사진 분석의 잔액·지출 한도 오류를 일시적인 요청 제한과 구분한다", () => {
+  for (const code of ["INSUFFICIENT_QUOTA", "CREDIT_BALANCE_EXHAUSTED", "ORGANIZATION_SPEND_LIMIT_EXCEEDED", "PROJECT_SPEND_LIMIT_EXCEEDED", "ORGANIZATION_USAGE_LIMIT_EXCEEDED"]) {
+    assert.match(dietPhotoProviderErrorMessage(429, code), /이용 한도가 소진/);
+    assert.doesNotMatch(dietPhotoProviderErrorMessage(429, code), /다시 시도/);
+  }
+  assert.match(dietPhotoProviderErrorMessage(429, "RATE_LIMIT_EXCEEDED"), /잠시 후 다시 시도/);
+  assert.match(dietPhotoProviderErrorMessage(401, "INVALID_API_KEY"), /직접 입력/);
+  assert.doesNotMatch(dietPhotoProviderErrorMessage(500, "sk-privateSecret"), /sk-privateSecret/);
+});
 
 test("식단 사진 분석값은 표시 가능한 범위와 길이로 제한한다", () => {
   assert.deepEqual(normalizeDietPhotoAnalysis({

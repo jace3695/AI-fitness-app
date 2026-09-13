@@ -117,7 +117,7 @@ export async function readAiProviderFailure(response: Response): Promise<AiProvi
       ? parsed.error as Record<string, unknown>
       : parsed;
     return {
-      code: safeProviderCode(error.status),
+      code: safeProviderCode(error.code) ?? safeProviderCode(error.status),
       message: safeProviderMessage(error.message),
     };
   } catch {

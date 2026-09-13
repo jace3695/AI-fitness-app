@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import {
+  dietPhotoProviderErrorMessage,
   isSupportedDietPhotoDataUrl,
   parseDietPhotoAnalysisText,
   type DietPhotoMealSlot,
 } from "@/app/data/dietPhotoAnalysis";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
-import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
+import { AiProviderRequestError, generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 type RequestBody = {
@@ -81,6 +82,23 @@ export async function POST(request: Request) {
     if (error instanceof AiBudgetExceededError) {
       return NextResponse.json({ error: error.message, budgetLimited: true }, { status: 402 });
     }
+    if (error instanceof AiProviderRequestError) {
+      // Log classification only: provider messages can contain request data.
+      console.warn("[diet-photo-analysis] provider request failed", {
+        provider: error.provider,
+        model: error.model,
+        status: error.status,
+        code: error.providerCode ?? "UNKNOWN",
+      });
+      return NextResponse.json({
+        error: dietPhotoProviderErrorMessage(error.status, error.providerCode),
+      }, { status: 503 });
+    }
+    console.warn("[diet-photo-analysis] analysis failed", {
+      category: error instanceof Error && error.message.startsWith("AI 비용 한도를 확인하지 못했습니다:")
+        ? "budget_check_failed"
+        : "unexpected_failure",
+    });
     return NextResponse.json({ error: "사진 분석 중 오류가 발생했어요. 사진은 저장되지 않았습니다." }, { status: 500 });
   }
 }

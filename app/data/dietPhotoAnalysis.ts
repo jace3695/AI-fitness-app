@@ -16,6 +16,26 @@ export type DietPhotoAnalysis = {
 export const DIET_PHOTO_MAX_SOURCE_BYTES = 12 * 1024 * 1024;
 export const DIET_PHOTO_MAX_DATA_URL_LENGTH = 4_000_000;
 
+export function dietPhotoProviderErrorMessage(status: number, code?: string) {
+  const quotaCodes = new Set([
+    "INSUFFICIENT_QUOTA",
+    "CREDIT_BALANCE_EXHAUSTED",
+    "ORGANIZATION_SPEND_LIMIT_EXCEEDED",
+    "PROJECT_SPEND_LIMIT_EXCEEDED",
+    "ORGANIZATION_USAGE_LIMIT_EXCEEDED",
+  ]);
+  if (code && quotaCodes.has(code)) {
+    return "사진 분석 서비스의 이용 한도가 소진되어 지금은 사용할 수 없어요. 식사 내용을 직접 입력해 주세요.";
+  }
+  if (status === 429) {
+    return "사진 분석 요청이 몰리고 있어요. 잠시 후 다시 시도해 주세요.";
+  }
+  if (status === 401 || status === 403) {
+    return "사진 분석 서비스에 연결할 수 없어요. 식사 내용을 직접 입력해 주세요.";
+  }
+  return "사진 분석 서비스에서 오류가 발생했어요. 잠시 후 다시 시도하거나 직접 입력해 주세요.";
+}
+
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function compactText(value: unknown, maxLength: number) {
