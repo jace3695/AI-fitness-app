@@ -5,6 +5,7 @@ import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
 import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
+import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
 import {
   normalizeDietPhotoAnalysis,
   proteinInputFromEstimate,
@@ -292,6 +293,10 @@ export default function DietView() {
   const [fastingStatus, setFastingStatus] = useState<FastingRecordStatus>('unrecorded');
   const [lastMealTime, setLastMealTime] = useState('');
   const [dietMemo, setDietMemo] = useState('');
+  const [digestionStatus, setDigestionStatus] = useState<DigestionStatus>('unrecorded');
+  const [lateSnack, setLateSnack] = useState<MealCheck>('unrecorded');
+  const [afterWorkoutMeal, setAfterWorkoutMeal] = useState<MealCheck>('unrecorded');
+  const [quickMeal, setQuickMeal] = useState<QuickMeal | null>(null);
   const [message, setMessage] = useState('');
   const [photoMealSlot, setPhotoMealSlot] = useState<DietPhotoMealSlot>('lunch');
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -304,7 +309,7 @@ export default function DietView() {
   const [photoMessage, setPhotoMessage] = useState('');
   const [dataVersion, setDataVersion] = useState(0);
   const [savedInput, setSavedInput] = useState<string | null>(null);
-  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo]);
+  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo, digestionStatus, lateSnack, afterWorkoutMeal]);
   const dirty = hydrated && savedInput !== null && savedInput !== inputSnapshot;
   const dirtyRef = useRef(dirty);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
@@ -384,6 +389,9 @@ export default function DietView() {
         '',
     );
     setDietMemo(typeof today.dietMemo === 'string' ? today.dietMemo : '');
+    setDigestionStatus(normalizeDigestion(today.digestionStatus));
+    setLateSnack(normalizeMealCheck(today.lateSnack));
+    setAfterWorkoutMeal(normalizeMealCheck(today.afterWorkoutMeal));
     setSavedInput(JSON.stringify([
       todayMeal, savedWater[todayKey] || Number(today.waterMl) || 0,
       savedLunchCarbs[todayKey] ? normalizeLunchCarbRecord(savedLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB,
@@ -393,6 +401,7 @@ export default function DietView() {
       savedSocial[todayKey] || 'none', today.dietStatus ?? 'normal',
       today.fastingRecordStatus ?? (today.fasting14h ? '14h' : 'unrecorded'),
       typeof today.dietMemo === 'string' ? today.dietMemo : '',
+      normalizeDigestion(today.digestionStatus), normalizeMealCheck(today.lateSnack), normalizeMealCheck(today.afterWorkoutMeal),
     ]));
     setHydrated(true);
 
@@ -403,6 +412,7 @@ export default function DietView() {
   const switchDay = useMemo(() => getSwitchOnDay(startDate, now), [startDate, now]);
   const currentPhase = mode === 'auto' ? getAutoDietPhase(switchDay) : manualPhase;
   const plan = DIET_PLANS[currentPhase];
+  const weeklyDiet = summarizeFreeDiet(store, todayKey);
   const proteinTotal = calculateProteinTotal(mealLog, lunchProtein.protein);
   const proteinStatus = getProteinStatus(proteinTotal);
   const mealCompletion = getMealCompletion(mealLog, lunchProtein.protein);
@@ -628,6 +638,7 @@ export default function DietView() {
         lastMealTime,
         socialMeal,
         dietMemo: dietMemo.trim() || undefined,
+        digestionStatus, lateSnack, afterWorkoutMeal,
       },
     };
     const nextMeals = {
@@ -713,6 +724,7 @@ export default function DietView() {
     setFastingStatus('unrecorded');
     setLastMealTime('');
     setDietMemo('');
+    setDigestionStatus('unrecorded'); setLateSnack('unrecorded'); setAfterWorkoutMeal('unrecorded'); setQuickMeal(null);
 
     dirtyRef.current = false;
     setSavedInput(null);
@@ -1371,6 +1383,37 @@ export default function DietView() {
         </div>
 
         <aside className="space-y-4">
+          <section className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm sm:p-5" aria-label="식단 간편 입력">
+            <h3 className="text-[15px] font-bold text-gray-900">식단 간편 입력</h3>
+            <p className="mt-2 text-xs leading-5 text-gray-500">먹은 양과 비교한 뒤 입력칸에 반영하세요. 하루 기록은 아래 저장 버튼으로 저장해요.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {(['lunch', 'dinner'] as const).map(slot => <div key={slot} className="space-y-2">
+                <button type="button" onClick={() => setQuickMeal(quickMealPreset(slot))} className="min-h-11 w-full rounded-xl bg-violet-50 p-2 text-xs font-bold text-violet-800">{slot === 'lunch' ? '점심' : '저녁'} 기본값 보기</button>
+                <button type="button" onClick={() => { const previous = previousMeal(mealStore, slot === 'lunch' ? lunchCarbStore : dinnerCarbStore, lunchProteinStore, slot, todayKey); setQuickMeal(previous); if (!previous) setMessage('불러올 이전 식사 기록이 없어요. 직접 입력으로 시작해 주세요.'); }} className="min-h-11 w-full rounded-xl bg-gray-50 p-2 text-xs font-bold text-gray-700">지난 {slot === 'lunch' ? '점심' : '저녁'} 불러오기</button>
+              </div>)}
+            </div>
+            {quickMeal ? <div className="mt-3 rounded-xl bg-violet-50 p-3" role="region" aria-label="불러올 식사 확인">
+              <strong className="text-sm">{quickMeal.label}</strong>
+              <p className="mt-2 text-xs leading-5">{quickMeal.slot === 'lunch' ? '점심' : '저녁'} 식품 단백질 {quickMeal.patch[`${quickMeal.slot}ProteinChoice`] === 'custom' ? quickMeal.patch[`${quickMeal.slot}ProteinCustom`] : quickMeal.patch[`${quickMeal.slot}ProteinChoice`] === 'none' ? '미기록' : quickMeal.patch[`${quickMeal.slot}ProteinChoice`]}g · 밥 {quickMeal.carb.grams}g{quickMeal.slot === 'lunch' ? ` · 보충 단백질 ${quickMeal.supplement.protein}g` : ''}</p>
+              <p className="mt-1 text-xs leading-5">이 식사의 단백질·밥 입력값을 바꿉니다. 물·공복·상태·다른 끼니는 유지합니다.</p>
+              <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="min-h-11 rounded-lg bg-violet-700 px-3 text-xs font-bold text-white" onClick={() => {
+                setMealLog(current => ({ ...current, ...quickMeal.patch }));
+                if (quickMeal.slot === 'lunch') { setLunchCarb(quickMeal.carb); setLunchProtein(quickMeal.supplement); } else setDinnerCarb(quickMeal.carb);
+                setMessage('식사 입력칸에 반영했습니다. 아직 저장되지 않았습니다.'); setQuickMeal(null);
+              }}>식사 입력칸에 적용</button><button type="button" className="min-h-11 rounded-lg bg-white px-3 text-xs" onClick={() => setQuickMeal(null)}>취소</button></div>
+            </div> : null}
+          </section>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5" aria-label="최근 7일 식단 요약">
+            <h3 className="text-[15px] font-bold text-gray-900">최근 7일 식단 요약</h3>
+            <p className="mt-2 text-xs text-gray-500">저장한 {weeklyDiet.recordedDays}일 기준 · 미응답은 계산에서 제외</p>
+            <ul className="mt-3 space-y-2 text-xs leading-5 text-gray-700">
+              <li>단백질 평균 {weeklyDiet.averageProtein === null ? '미기록' : `${weeklyDiet.averageProtein}g · ${weeklyDiet.proteinDays}일 입력`}</li>
+              <li>수분 평균 {weeklyDiet.averageWater === null ? '미기록' : `${weeklyDiet.averageWater}mL · ${weeklyDiet.waterDays}일 입력`}</li>
+              <li>소화 불편 {weeklyDiet.discomfortDays}일 / 상태 응답 {weeklyDiet.digestionDays}일</li>
+              <li>야식 {weeklyDiet.lateSnackDays}일 / 응답 {weeklyDiet.lateSnackAnswers}일</li>
+              <li>운동 후 식사 {weeklyDiet.afterWorkoutDays}일 / 응답 {weeklyDiet.afterWorkoutAnswers}일</li>
+            </ul>
+          </section>
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-[15px] font-bold text-gray-900">단백질 합계</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
@@ -1397,7 +1440,7 @@ export default function DietView() {
               />
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2">
-              {[250, 500, -250].map((amount) => (
+              {[300, 500, -300].map((amount) => (
                 <button
                   key={amount}
                   type="button"
@@ -1481,6 +1524,9 @@ export default function DietView() {
                 {SOCIAL_MEAL_MODE_LABELS[socialMeal]}
               </p>
             </div>
+            <label className="mt-4 block text-xs font-bold text-gray-600" htmlFor="diet-digestion">소화 상태</label>
+            <select id="diet-digestion" value={digestionStatus} onChange={event => setDigestionStatus(normalizeDigestion(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm">{Object.entries(DIGESTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            {([{ id: 'late-snack', label: '야식을 먹었나요?', value: lateSnack, set: setLateSnack }, { id: 'after-workout-meal', label: '운동 후 식사를 했나요?', value: afterWorkoutMeal, set: setAfterWorkoutMeal }]).map(check => <label key={check.id} htmlFor={check.id} className="mt-3 block text-xs font-bold text-gray-600">{check.label}<select id={check.id} value={check.value} onChange={event => check.set(normalizeMealCheck(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm"><option value="unrecorded">미기록</option><option value="yes">예</option><option value="no">아니요</option></select></label>)}
             <label className="mt-4 block text-[11px] font-bold text-gray-600" htmlFor="diet-memo">
               메모
             </label>

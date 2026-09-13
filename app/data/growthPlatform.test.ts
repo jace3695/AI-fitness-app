@@ -84,3 +84,20 @@ test("AI가 없어도 기록 기반 주간 제안을 만든다", () => {
   assert.equal(result.suggestions[0].routineId, routine.id);
   assert.equal(result.suggestions[0].recommendedMinutes, 10);
 });
+
+test('서로 다른 날 미완료가 반복되면 선택한 이유로 시간을 줄이되 자동 변경하지 않는다', () => {
+  const target = { ...routine, target_minutes: 30 };
+  const stopped = ['2026-09-01', '2026-09-02'].map(date => ({ ...session(date, 5, 'stopped'), metrics: { stopReason: 'tired' } }));
+  const result = buildLocalGrowthCoach([target], stopped, '2026-09-02');
+  assert.equal(result.suggestions[0].recommendedMinutes, 20);
+  assert.match(result.suggestions[0].reason, /피곤했어요/);
+  assert.equal(target.target_minutes, 30);
+  const oneDay = buildLocalGrowthCoach([target], [stopped[0], { ...stopped[0], id: 'duplicate-day' }], '2026-09-02');
+  assert.notEqual(oneDay.suggestions[0].id, 'local-reduce-load');
+});
+
+test('선택하지 않은 중단 이유는 추정하지 않고 미래·이전 주 기록은 제안에서 제외한다', () => {
+  const result = buildLocalGrowthCoach([routine], [session('2026-09-01', 1, 'stopped'), session('2026-09-02', 1, 'partial'), { ...session('2026-09-03', 1, 'stopped'), metrics: { stopReason: 'tired' } }], '2026-09-02');
+  assert.match(result.suggestions[0].reason, /이유는 기록되지 않아 추정하지/);
+  assert.doesNotMatch(result.suggestions[0].reason, /피곤/);
+});

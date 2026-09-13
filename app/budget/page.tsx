@@ -1,4 +1,5 @@
 'use client'
+import { FREE_MODE } from "@/lib/free-mode";
 import { useUnsavedChanges } from '@/components/useUnsavedChanges'
 import { getLocalDateKey } from '@/utils/dateKey'
 import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
@@ -1710,6 +1711,16 @@ function BudgetDashboard() {
         .replace(/(\d{4})-(\d{2})-(\d{2})/g, '$1년 $2월 $3일')
         .replace(/[_~`]/g, '')
         .trim()
+
+      if (FREE_MODE) {
+        if (!window.speechSynthesis) { setPageNotice('이 기기에서는 음성을 재생할 수 없어요. 화면의 답변을 확인해 주세요.'); return }
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(cleanText)
+        utterance.lang = 'ko-KR'
+        utterance.onerror = () => setPageNotice('기기 음성을 재생하지 못했어요. 화면의 답변을 확인해 주세요.')
+        window.speechSynthesis.speak(utterance)
+        return
+      }
 
       const res = await authenticatedFetch(`${API_BASE_URL}/api/tts`, {
         method: 'POST',

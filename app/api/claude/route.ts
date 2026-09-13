@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AiBudgetExceededError } from '@/lib/ai-budget'
 import { generateAiText } from '@/lib/ai-router'
+import { FREE_MODE, PAID_AI_DISABLED_MESSAGE } from '@/lib/free-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  if (FREE_MODE) return NextResponse.json({ error: PAID_AI_DISABLED_MESSAGE, code: 'PAID_AI_DISABLED' }, { status: 503 })
   const { messages, system, max_tokens = 1000 } = await request.json()
   const safeMaxTokens = Math.min(Math.max(Number(max_tokens) || 1000, 1), 2000)
 

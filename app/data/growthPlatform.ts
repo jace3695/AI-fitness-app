@@ -16,6 +16,9 @@ export type GrowthRoutineRow = {
 };
 
 export type GrowthSessionStatus = "completed" | "partial" | "stopped";
+export const GROWTH_STOP_REASONS = { unrecorded: '선택 안 함', time: '시간이 부족했어요', tired: '피곤했어요', difficult: '너무 어려웠어요', distracted: '집중이 어려웠어요', interrupted: '다른 일이 생겼어요' };
+export type GrowthStopReason = keyof typeof GROWTH_STOP_REASONS;
+export function normalizeGrowthStopReason(value: unknown): GrowthStopReason { return typeof value === 'string' && Object.hasOwn(GROWTH_STOP_REASONS, value) ? value as GrowthStopReason : 'unrecorded'; }
 export type GrowthSessionSource = "manual" | "typing" | "handwriting" | "assistant";
 
 export type GrowthSessionRow = {
@@ -205,6 +208,10 @@ export function buildLocalGrowthCoach(
 ) {
   const week = summarizeGrowthPeriod(sessions, endDate, 7);
   const enabled = routines.filter((routine) => routine.enabled);
+  const recent = sessions.filter(session => session.session_date >= week.startDate && session.session_date <= endDate);
+  const interrupted = enabled.map(routine => ({ routine, records: recent.filter(session => session.routine_id === routine.id && session.status !== 'completed') }))
+    .filter(item => new Set(item.records.map(record => record.session_date)).size >= 2)
+    .sort((a, b) => b.records.length - a.records.length)[0];
   const leastUsed = enabled
     .map((routine) => ({
       routine,
@@ -218,6 +225,21 @@ export function buildLocalGrowthCoach(
     reason: leastUsed.count === 0 ? "이번 주 기록이 없어 5분만 시작하는 방식이 부담을 줄여줘요." : "가장 적게 실행한 루틴이라 짧게 이어가는 편이 좋아요.",
     recommendedMinutes: Math.max(5, Math.min(leastUsed.routine.target_minutes, 15)),
   }] : [];
+  if (interrupted) {
+    const reasons = interrupted.records.map(record => normalizeGrowthStopReason(record.metrics?.stopReason)).filter(reason => reason !== 'unrecorded');
+    const common = reasons.toSorted((a, b) => reasons.filter(reason => reason === b).length - reasons.filter(reason => reason === a).length)[0];
+    suggestions.splice(0, suggestions.length, {
+      id: 'local-reduce-load', routineId: interrupted.routine.id,
+      title: `${interrupted.routine.title} 목표 시간 줄여보기`,
+      reason: `서로 다른 ${new Set(interrupted.records.map(record => record.session_date)).size}일에 미완료 기록이 있어요.${common ? ` 선택한 이유 중 ‘${GROWTH_STOP_REASONS[common]}’가 가장 많았어요.` : ' 이유는 기록되지 않아 추정하지 않아요.'}`,
+      recommendedMinutes: Math.max(5, Math.min(interrupted.routine.target_minutes, Math.floor(interrupted.routine.target_minutes * 0.75 / 5) * 5)),
+    });
+  }
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const weekday = days.map((label, index) => {
+    const selected = recent.filter(record => new Date(`${record.session_date}T12:00:00Z`).getUTCDay() === index);
+    return { label, total: selected.length, completed: selected.filter(record => record.status === 'completed').length };
+  }).filter(item => item.total > 0);
   return {
     summary: {
       overview: week.sessionCount
@@ -225,7 +247,7 @@ export function buildLocalGrowthCoach(
         : "이번 주 기록이 아직 없어요. 가장 쉬운 루틴부터 5분만 시작해 보세요.",
       positives: week.completedCount ? [`완료 기록이 ${week.completedCount}개 있어요.`] : [],
       cautions: week.activeDays <= 1 ? ["한 번에 오래 하기보다 실행하는 날을 늘려보세요."] : [],
-      nextWeek: suggestions.map((suggestion) => suggestion.title),
+      nextWeek: [...suggestions.map((suggestion) => suggestion.title), ...(weekday.length ? [`이번 주 요일별 완료: ${weekday.map(item => `${item.label} ${item.completed}/${item.total}회`).join(' · ')}. 시간 제안은 확인 후 적용하고, 요일은 루틴 편집에서 조정할 수 있어요.`] : [])],
     },
     suggestions,
   };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authenticatedFetch } from "@/lib/supabase";
+import { FREE_MODE } from "@/lib/free-mode";
 
 type BudgetStatus = "normal" | "notice" | "high_performance_limited" | "paid_ai_paused";
 type AppUsage = { id: string; label: string; spentKrw: number; usageCount: number };
@@ -30,6 +31,7 @@ function formatKrw(value: number) {
 }
 
 export default function AiBudgetPanel() {
+  const [usageLoaded, setUsageLoaded] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
 
   useEffect(() => {
@@ -40,7 +42,8 @@ export default function AiBudgetPanel() {
         const nextSummary = await response.json() as Summary;
         if (active) setSummary(nextSummary);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => { if (active) setUsageLoaded(true); });
     return () => { active = false; };
   }, []);
 
@@ -50,6 +53,7 @@ export default function AiBudgetPanel() {
   const displayedSpentKrw = roundUpKrw(summary?.spentKrw ?? 0);
   const displayedRemainingKrw = Math.max(0, (summary?.limitKrw ?? 10_000) - displayedSpentKrw);
 
+  if (FREE_MODE) return <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm sm:p-6" aria-label="무료 사용 설정"><p className="text-xs font-bold text-[#766DB8]">무료 기능 사용 중</p><h2 className="mt-2 text-lg font-bold">유료 AI 요청을 꺼두었어요</h2><p className="mt-2 text-sm leading-6 text-gray-600">기록·통계·복습·규칙 기반 코칭은 계속 사용할 수 있어요. 사진은 별도로 확인된 무료 분석만 사용하고, 무료 한도에 도달하면 직접 입력으로 이어갑니다.</p><details className="mt-4 text-sm"><summary className="cursor-pointer font-bold">이전 AI 사용 기록</summary><p className="mt-2 text-gray-600">앱에 기록된 이번 달 이전 사용액 {summary ? formatKrw(summary.spentKrw) : usageLoaded ? '조회하지 못함' : '확인 중'}. 실제 청구 내역은 각 서비스에서 확인할 수 있습니다.</p></details></section>;
   return (
     <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start justify-between gap-4">

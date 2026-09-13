@@ -7,7 +7,7 @@ import type { RubySegment as WordRubySegment } from "@/data/words";
 import type { RubySegment as SentenceRubySegment } from "@/data/sentences";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 import { CURRICULUM_REVIEW_KEY, type CurriculumReviewItem } from "@/utils/curriculumProgress";
-import { getNextReviewInterval } from "@/utils/learningSession";
+import { reviewInterval, reviewObservationFields, summarizeReviewMastery, type ReviewObservation } from "@/utils/learningReview";
 import CourseReviewQuestion from "@/components/language/CourseReviewQuestion";
 
 type Word = {
@@ -343,18 +343,20 @@ export default function ReviewPage() {
     } catch { setCourseSaveError("복습 항목을 삭제하지 못했어요. 다시 시도해 주세요."); }
   };
 
-  const scheduleCurriculumReview = (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean) => {
+  const scheduleCurriculumReview = (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean, observation?: ReviewObservation) => {
     try {
     const now = new Date();
     const latest: CurriculumReviewItem[] = JSON.parse(localStorage.getItem(CURRICULUM_REVIEW_KEY) ?? "[]");
     const next = latest.map((item) => {
       if (item.id !== id) return item;
-      const intervalDays = correct && !neededHelp ? getNextReviewInterval(item.intervalDays) : 1;
+      const effective = observation ? { ...observation, neededHelp: neededHelp || hadWrong || observation.neededHelp } : undefined;
+      const intervalDays = reviewInterval(item.intervalDays, correct && !neededHelp && !hadWrong, effective);
       return {
         ...item,
         wrongCount: hadWrong ? (item.wrongCount ?? 0) + 1 : item.wrongCount,
         lastWrongAt: hadWrong ? now.toISOString() : item.lastWrongAt,
         intervalDays,
+        ...(effective ? reviewObservationFields(item, correct, effective) : {}),
         nextReviewAt: new Date(now.getTime() + intervalDays * 86_400_000).toISOString(),
       };
     });
@@ -424,6 +426,13 @@ export default function ReviewPage() {
           ))}
         </div>
       </div>
+
+      <section className="card" aria-label="복습 숙련도" style={{ marginBottom: 14 }}>
+        <h2>연습한 문제의 숙련도</h2>
+        <p className="muted">힌트 없이 3번 이상 맞히고 복습 간격이 7일 이상인 문제를 안정으로 표시해요. 발음·필기 품질을 채점한 결과는 아니에요.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>{summarizeReviewMastery(curriculumReviewItems).map(item => <p key={item.modality}><strong>{item.label}</strong><br />안정 {item.stable} / 측정 {item.observed}문제</p>)}</div>
+        <details><summary>무료 복습 간격 계산 기준</summary><p>1·3·7·14·30일 순서로 늘려요. 힌트나 오답이 있으면 다음 날 다시 보고, 정답에 시간이 오래 걸리면 현재 간격을 유지해요. 기준은 선택 12초·듣기 25초·입력 30초이며, 화면이 숨겨진 시간은 제외합니다. 측정은 이번 화면에서 보낸 시간만 포함해요.</p></details>
+      </section>
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px", padding: "4px", borderRadius: "14px", background: "#f1f5ff", border: "1px solid #dbeafe" }}>
         {[

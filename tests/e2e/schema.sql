@@ -304,3 +304,44 @@ create policy growth_sessions_owner_update on public.growth_sessions for update 
   and (routine_id is null or exists (select 1 from public.growth_routines where id = routine_id and user_id = (select auth.uid())))
 );
 create policy growth_sessions_owner_delete on public.growth_sessions for delete to authenticated using ((select auth.uid()) = user_id);
+
+-- Existing production table used by the real free coaching flow.
+create table if not exists public.growth_ai_reviews (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  period_start date not null,
+  period_end date not null,
+  summary jsonb not null default '{}'::jsonb check (
+    jsonb_typeof(summary) = 'object'
+    and octet_length(summary::text) <= 8000
+  ),
+  suggestions jsonb not null default '[]'::jsonb check (
+    jsonb_typeof(suggestions) = 'array'
+    and jsonb_array_length(suggestions) <= 6
+    and octet_length(suggestions::text) <= 8000
+  ),
+  source text not null check (source in ('cloud', 'economy', 'local', 'recovered')),
+  decision text check (decision in ('applied', 'partial', 'kept')),
+  decision_selection jsonb not null default '[]'::jsonb check (
+    jsonb_typeof(decision_selection) = 'array'
+    and jsonb_array_length(decision_selection) <= 6
+    and octet_length(decision_selection::text) <= 2000
+  ),
+  decided_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint growth_ai_reviews_period_check check (period_end >= period_start),
+  constraint growth_ai_reviews_decision_time_check check (
+    (decision is null and decided_at is null)
+    or (decision is not null and decided_at is not null)
+  )
+);
+
+alter table public.growth_ai_reviews enable row level security;
+revoke all on public.growth_ai_reviews from anon, authenticated;
+grant select on public.growth_ai_reviews to authenticated;
+grant insert (user_id, period_start, period_end, summary, suggestions, source) on public.growth_ai_reviews to authenticated;
+grant update (decision, decision_selection, decided_at) on public.growth_ai_reviews to authenticated;
+grant all on public.growth_ai_reviews to service_role;
+create policy growth_reviews_read on public.growth_ai_reviews for select to authenticated using ((select auth.uid()) = user_id);
+create policy growth_reviews_insert on public.growth_ai_reviews for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy growth_reviews_decide on public.growth_ai_reviews for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);

@@ -208,6 +208,7 @@ test("growth schedule updates atomically and remains owner isolated", async ({ p
   }).toBe(3);
 
   await page.getByRole("button", { name: `${routineTitle} 빠른 완료`, exact: true }).click();
+  await page.getByText(/나머지 예정·완료 루틴/).click();
   await expect(page.getByText(/이번 주 1\/3회/).first()).toBeVisible();
   await expect.poll(async () => {
     const result = await qa.account.client.from("growth_sessions").select("session_date,status").eq("routine_id", routineId);

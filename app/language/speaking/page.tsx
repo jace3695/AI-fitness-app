@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import FuriganaText from "@/components/FuriganaText";
 import type { RubySegment } from "@/data/sentences";
-import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
+import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 
 type Question = {
   korean: string;
@@ -90,55 +90,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   showKoreanPronunciation: true,
   showReading: true,
 };
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-async function speakJapaneseFallback(text: string, settings: AppSettings) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  for (let i = 0; i < settings.repeatCount; i += 1) {
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "ja-JP";
-    utter.rate = settings.ttsRate;
-    await new Promise<void>((resolve) => {
-      utter.onend = () => resolve();
-      utter.onerror = () => resolve();
-      window.speechSynthesis.speak(utter);
-    });
-    if (i < settings.repeatCount - 1 && settings.repeatDelayMs > 0) {
-      await wait(settings.repeatDelayMs);
-    }
-  }
-}
-
-async function speakJapanese(text: string, settings: AppSettings) {
-  try {
-    const res = await fetch("/api/language/tts", {
-      method: "POST",
-      headers: await authenticatedJsonHeaders(),
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error("TTS API error");
-    const { audioContent } = await res.json();
-    if (!audioContent) throw new Error("No audioContent");
-
-    for (let i = 0; i < settings.repeatCount; i += 1) {
-      const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
-      audio.playbackRate = settings.ttsRate;
-      await new Promise<void>((resolve, reject) => {
-        audio.onended = () => resolve();
-        audio.onerror = () => reject(new Error("Audio playback failed"));
-        audio.play().catch(reject);
-      });
-      if (i < settings.repeatCount - 1 && settings.repeatDelayMs > 0) {
-        await wait(settings.repeatDelayMs);
-      }
-    }
-  } catch {
-    await speakJapaneseFallback(text, settings);
-  }
-}
-
 export default function SpeakingPage() {
+  const [audioError, setAudioError] = useState("");
   const [allQuestions, setAllQuestions] = useState<Question[]>(BASE_QUESTIONS);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [activeCategory, setActiveCategory] = useState("전체");
@@ -421,12 +374,13 @@ export default function SpeakingPage() {
           </div>
 
           <button
-            onClick={() => speakJapanese(current.japanese, settings)}
+            onClick={() => { setAudioError(""); void speakJapaneseWithPreferredTts(current.japanese, { rate: settings.ttsRate, repeatCount: settings.repeatCount, repeatDelayMs: settings.repeatDelayMs }).catch(error => setAudioError(japaneseAudioErrorMessage(error))); }}
             style={{ ...btnStyle("#0891b2", "#fff"), marginBottom: "1rem" }}
           >
             🔊 정답 듣기
           </button>
 
+          {audioError ? <p role="alert" className="mb-3 text-sm text-amber-800">{audioError}</p> : null}
           {!answered ? (
             <div style={{ display: "flex", gap: "0.75rem" }}>
               <button

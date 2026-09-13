@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPaidAiAllowed, PAID_AI_DISABLED_MESSAGE } from "@/lib/free-mode";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { AiBudgetExceededError, cancelAiBudgetReservation, finalizeAiUsage, reserveAiBudget, standardTtsCostKrw } from "@/lib/ai-budget";
 
@@ -15,6 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
 
+    if (!isPaidAiAllowed()) return NextResponse.json({ error: PAID_AI_DISABLED_MESSAGE, code: "PAID_AI_DISABLED", useDeviceVoice: true }, { status: 503 });
     const apiKey = process.env.GOOGLE_TTS_API_KEY;
 
     if (!apiKey) {

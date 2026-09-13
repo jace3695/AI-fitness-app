@@ -20,12 +20,12 @@ function clampRate(rate?: number) {
 function getBestJapaneseVoice(voices: SpeechSynthesisVoice[]) {
   const exactLang = voices.filter((voice) => voice.lang?.toLowerCase() === "ja-jp");
   if (exactLang.length > 0) {
-    return exactLang.find((voice) => !voice.localService) ?? exactLang[0];
+    return exactLang.find((voice) => voice.localService) ?? exactLang[0];
   }
 
   const jaLang = voices.filter((voice) => voice.lang?.toLowerCase().startsWith("ja"));
   if (jaLang.length > 0) {
-    return jaLang.find((voice) => !voice.localService) ?? jaLang[0];
+    return jaLang.find((voice) => voice.localService) ?? jaLang[0];
   }
 
   const byName = voices.find((voice) =>

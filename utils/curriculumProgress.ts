@@ -17,6 +17,11 @@ export type CurriculumReviewItem = {
   intervalDays?: number;
   lastSessionId?: string;
   lastSessionResult?: boolean;
+  lastResponseMs?: number;
+  lastModality?: 'meaning' | 'listening' | 'typing';
+  lastNeededHelp?: boolean;
+  reviewCount?: number;
+  successStreak?: number;
 };
 
 export type LessonAttempt = { score: number; completedAt: string; sessionId?: string };

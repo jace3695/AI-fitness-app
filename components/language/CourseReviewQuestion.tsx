@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useYeoniPreferences } from "@/components/useYeoniPreferences";
 import { useEffect, useState } from "react";
 import { CURRICULUM } from "@/data/curriculum";
+import type { ReviewObservation } from "@/utils/learningReview";
 import type { CurriculumReviewItem } from "@/utils/curriculumProgress";
 import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
 import LearningCompanion from "./LearningCompanion";
@@ -12,12 +13,13 @@ import { useLearningAudio } from "./useLearningAudio";
 import styles from "./learning-focus.module.css";
 
 export default function CourseReviewQuestion({ item, onSchedule, onDelete }: {
-  item: CurriculumReviewItem; onSchedule: (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean) => void; onDelete: (id: string) => void;
+  item: CurriculumReviewItem; onSchedule: (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean, observation?: ReviewObservation) => void; onDelete: (id: string) => void;
 }) {
   const preferences = useYeoniPreferences();
   const [settings, setSettings] = useState(DEFAULT_INTEGRATED_LEARNING_SETTINGS);
   const [answer, setAnswer] = useState<boolean>();
   const [response, setResponse] = useState<string>();
+  const [observation, setObservation] = useState<ReviewObservation>();
   const [neededHelp, setNeededHelp] = useState(false);
   const [hadWrong, setHadWrong] = useState(false);
   const audio = useLearningAudio();
@@ -31,14 +33,14 @@ export default function CourseReviewQuestion({ item, onSchedule, onDelete }: {
     <div className={styles.card}><p className={styles.kicker}>{item.lessonTitle} · 다시 만난 표현</p>
       {lesson && quiz ? <LearningQuestion lesson={lesson} index={index} mode={settings.learnerMode} showCompanion={preferences.visible} answer={answer} response={response}
         onHint={() => setNeededHelp(true)}
-        onAnswer={(correct, value) => { audio.stop(); setAnswer(correct); setResponse(value); if (!correct) { setNeededHelp(true); setHadWrong(true); } }}
+        onAnswer={(correct, value, observation) => { setObservation(observation); audio.stop(); setAnswer(correct); setResponse(value); if (!correct) { setNeededHelp(true); setHadWrong(true); } }}
         onRetry={() => { setAnswer(undefined); setResponse(undefined); }} play={(text) => void audio.play(text, settings.audioRate)} playing={audio.playing} />
         : <><h3>{item.prompt}</h3><details><summary>기존 복습 설명 보기</summary><p>{item.explanation}</p></details><p>이전 문제와 연결되지 않아 자동 채점은 하지 않아요. 수업에서 다시 확인해 주세요.</p></>}
       {audio.playing && <div className={styles.row}><button type="button" onClick={audio.stop}>■ 소리 멈추기</button></div>}
       {audio.audioError && <p className={styles.error} role="status">{audio.audioError}</p>}
       <div className={styles.row}>
-        {answer === true && <button type="button" className={styles.primary} onClick={() => onSchedule(item.id, true, neededHelp, hadWrong)}>복습 결과 저장 · 다음 문제</button>}
-        <button type="button" onClick={() => onSchedule(item.id, false, true, hadWrong)}>내일 다시 볼래요</button>
+        {answer === true && <button type="button" className={styles.primary} onClick={() => onSchedule(item.id, true, neededHelp, hadWrong, observation)}>복습 결과 저장 · 다음 문제</button>}
+        <button type="button" onClick={() => onSchedule(item.id, false, true, hadWrong, observation)}>내일 다시 볼래요</button>
         <Link href={`/language/learn?lesson=${item.lessonId}`}>수업 다시 보기</Link>
       </div>
       <details><summary>이 복습 항목 관리</summary><div className={styles.row}><button type="button" onClick={() => onDelete(item.id)}>복습에서 삭제</button></div></details>
