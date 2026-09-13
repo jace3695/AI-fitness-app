@@ -294,6 +294,7 @@ export default function DietView() {
   const [dietMemo, setDietMemo] = useState('');
   const [message, setMessage] = useState('');
   const [photoMealSlot, setPhotoMealSlot] = useState<DietPhotoMealSlot>('lunch');
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [photoAnalysis, setPhotoAnalysis] = useState<DietPhotoAnalysis | null>(null);
@@ -452,12 +453,14 @@ export default function DietView() {
     setPhotoConfirmed(false);
     setPhotoMessage('');
     if (!file) {
+      if (photoInputRef.current) photoInputRef.current.value = '';
       setPhotoFile(null);
       setPhotoPreviewUrl('');
       return;
     }
     const validationError = validateDietPhotoFile(file);
     if (validationError) {
+      if (photoInputRef.current) photoInputRef.current.value = '';
       setPhotoFile(null);
       setPhotoPreviewUrl('');
       setPhotoMessage(validationError);
@@ -916,6 +919,7 @@ export default function DietView() {
                   <label className="block text-[11px] font-bold text-gray-700">
                     음식 사진 선택
                     <input
+                      ref={photoInputRef}
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       capture="environment"

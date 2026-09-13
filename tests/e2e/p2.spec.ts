@@ -58,9 +58,20 @@ test("diet photo estimate requires explicit review and never stores the image", 
   }).toBe(true);
 
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
-  await page.getByLabel("음식 사진 선택").setInputFiles({ name: "synthetic-meal.png", mimeType: "image/png", buffer: png });
+  const photoInput = page.getByLabel("음식 사진 선택");
+  const samePhoto = { name: "synthetic-meal.png", mimeType: "image/png", buffer: png };
+  const analyze = page.getByRole("button", { name: "AI로 분석", exact: true });
+  await photoInput.setInputFiles(samePhoto);
+  await expect(analyze).toBeEnabled();
+  await page.getByRole("button", { name: "사진 지우기", exact: true }).click();
+  await expect(photoInput).toHaveValue("");
+  await expect(page.getByAltText("분석할 식사 사진 미리보기")).toHaveCount(0);
+  await expect(analyze).toBeDisabled();
+  await photoInput.setInputFiles(samePhoto);
+  await expect(page.getByAltText("분석할 식사 사진 미리보기")).toBeVisible();
+  await expect(analyze).toBeEnabled();
   expect(analysisRequests).toBe(0);
-  await page.getByRole("button", { name: "AI로 분석", exact: true }).click();
+  await analyze.click();
   await expect(page.getByText("AI 추정 결과", { exact: true })).toBeVisible();
   expect(analysisRequests).toBe(1);
 
