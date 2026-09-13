@@ -26,6 +26,7 @@ test("운동 코치 기능은 정밀 분석 모델로 일관되게 연결한다"
 test("일본어 회화와 이미지 평가는 OpenAI JSON 경로를 사용한다", () => {
   assert.equal(resolveAiRoute("language-conversation").provider, "openai");
   assert.equal(resolveAiRoute("handwriting-feedback").model, "gpt-4o-mini");
+  assert.equal(resolveAiRoute("diet-photo-analysis").model, "gpt-4o-mini");
 });
 
 test("기능별 출력 토큰 한도를 넘지 않도록 보정한다", () => {

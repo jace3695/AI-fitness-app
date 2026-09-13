@@ -33,6 +33,13 @@ export type LanguageDailyStatus = {
   nextHref: string;
 };
 
+export type DietDailyStatus = {
+  synced: boolean;
+  completed: boolean;
+  title: string;
+  detail: string;
+};
+
 export const EMPTY_FITNESS_DAILY_STATUS: FitnessDailyStatus = {
   synced: false,
   title: "운동 기록 연결 대기",
@@ -47,6 +54,13 @@ export const EMPTY_LANGUAGE_DAILY_STATUS: LanguageDailyStatus = {
   total: LANGUAGE_ROUTINES.length,
   nextLabel: "학습 기록 연결 대기",
   nextHref: "/language",
+};
+
+export const EMPTY_DIET_DAILY_STATUS: DietDailyStatus = {
+  synced: false,
+  completed: false,
+  title: "식단 기록 연결 대기",
+  detail: "식단 앱에서 오늘 기록을 확인하세요.",
 };
 
 export function parseStateObject(value: unknown): Record<string, unknown> {
@@ -115,5 +129,22 @@ export function buildLanguageDailyStatus(
     total: LANGUAGE_ROUTINES.length,
     nextLabel: next ? `다음 학습: ${next.label}` : "오늘 학습 완료",
     nextHref: next?.href ?? "/language",
+  };
+}
+
+export function buildDietDailyStatus(
+  state: Record<string, unknown>,
+  todayKey: string,
+): DietDailyStatus {
+  const days = parseStateObject(state["ai-fitness-diet-completed-days"]);
+  const today = parseStateObject(days[todayKey]);
+  const completed = Object.keys(today).length > 0;
+  return {
+    synced: true,
+    completed,
+    title: completed ? "오늘 식단 기록 완료" : "오늘 식단 확인",
+    detail: completed
+      ? "저장한 식사와 상태를 다시 확인할 수 있어요."
+      : "식사·물·몸 상태를 간단히 남겨보세요.",
   };
 }

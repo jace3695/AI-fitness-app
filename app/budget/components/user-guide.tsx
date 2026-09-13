@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useDialogFocus } from "@/components/useDialogFocus";
+import { useEffect, useRef } from 'react'
 import { BookOpen, ChevronRight, X } from 'lucide-react'
 
 type UserGuideProps = {
@@ -39,7 +40,7 @@ const sections = [
       '내역에서 거래를 눌러 내용을 확인하고 수정하거나 삭제할 수 있어요.',
       '검색어와 시작일·종료일, 수입/지출/저축 유형, 카테고리 필터를 함께 사용할 수 있어요.',
       'CSV 내보내기는 현재 필터 결과만 저장합니다. 월별 자료가 필요하면 먼저 날짜 범위를 지정한 뒤 내보내세요.',
-      '삭제한 기록은 되돌리기 어려우므로 날짜와 금액을 확인한 뒤 삭제하세요.'
+      '개별 기록은 삭제 직후 화면 위의 “삭제 되돌리기”로 복원할 수 있어요. 전체 기록 초기화는 되돌릴 수 없어요.'
     ]
   },
   {
@@ -113,6 +114,8 @@ const sections = [
 ]
 
 export default function UserGuide({ open, onClose }: UserGuideProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, dialogRef);
   useEffect(() => {
     if (!open) return
     const previousOverflow = document.body.style.overflow
@@ -130,7 +133,7 @@ export default function UserGuide({ open, onClose }: UserGuideProps) {
   if (!open) return null
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="user-guide-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(3,3,8,0.82)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center' }}>
+    <div ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="user-guide-title" style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(3,3,8,0.82)', backdropFilter: 'blur(8px)', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 720, height: '100%', background: 'linear-gradient(180deg,#12121C 0%,#0B0B12 100%)', overflowY: 'auto', color: '#F0EDE8' }}>
         <header style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px 20px', background: 'rgba(18,18,28,0.96)', borderBottom: '1px solid rgba(255,255,255,0.09)', backdropFilter: 'blur(12px)' }}>
           <div>
@@ -180,4 +183,3 @@ export default function UserGuide({ open, onClose }: UserGuideProps) {
     </div>
   )
 }
-

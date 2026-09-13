@@ -283,7 +283,7 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
         <div className="space-y-2 border-t border-gray-100 p-3">{orderedExercises.map((exercise, index) => <div key={exercise.exerciseId} className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2"><span className="min-w-0 flex-1 truncate text-sm font-medium">{index + 1}. {exercise.name}</span><button type="button" disabled={index === 0} onClick={() => moveExercise(exercise.exerciseId, -1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 위로 이동`}>↑</button><button type="button" disabled={index === orderedExercises.length - 1} onClick={() => moveExercise(exercise.exerciseId, 1)} className="rounded-lg bg-white px-2 py-1 text-xs disabled:opacity-30" aria-label={`${exercise.name} 아래로 이동`}>↓</button><button type="button" onClick={() => removeExercise(exercise.exerciseId)} className="rounded-lg bg-red-50 px-2 py-1 text-xs font-bold text-red-600">삭제</button></div>)}</div>
         <div className="flex gap-2 px-3 pb-3"><input aria-label="추가할 운동 이름" value={newExerciseName} onChange={(e) => setNewExerciseName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExercise(); } }} placeholder="추가할 운동 이름" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm" /><button type="button" onClick={addExercise} className="rounded-xl bg-[#534AB7] px-4 py-2 text-xs font-bold text-white">운동 추가</button></div>
       </details>
-      <div><h3 className="font-bold text-gray-900">횟수와 시간 바꾸기</h3><p className="mt-1 text-xs text-gray-500">AI 추천을 확인하고 원하는 운동만 바꿀 수 있습니다. 바꾸지 않으면 안전한 기본값이 그대로 적용됩니다.</p></div>
+      <div><h3 className="font-bold text-gray-900">횟수·중량·시간 바꾸기</h3><p className="mt-1 text-xs text-gray-500">AI 추천을 확인하고 원하는 운동만 바꿀 수 있습니다. 바꾸지 않으면 안전한 기본값이 그대로 적용됩니다.</p></div>
       <div className="rounded-2xl border border-[#D9D6FF] bg-[#F7F6FF] p-3 text-xs leading-relaxed text-[#3C3489]">
         <p className="font-bold">AI 추천을 읽는 방법</p>
         <p className="mt-1">최근 3회 수행과 통증·난이도·피로도·운동 간격을 먼저 보고, 체중 변화와 직접 바꾼 운동량을 함께 확인합니다.</p>
@@ -297,19 +297,31 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
           : getAiTarget(name, baseAi, records, effectiveTargets[name]);
         const ai = recommendation.target;
         const target = effectiveTargets[name] || {};
-        const fields = ai.durationMinutes !== undefined ? [{ key: "durationMinutes" as const, label: "시간", suffix: "분", value: target.durationMinutes }] : [
-          { key: "reps" as const, label: "횟수", suffix: "회", value: target.reps },
-          { key: "sets" as const, label: "세트", suffix: "세트", value: target.sets },
-        ];
+        const isDumbbell = name.includes('덤벨');
+        const isBand = name.includes('밴드');
+        const fields: { key: 'durationMinutes' | 'reps' | 'sets' | 'weightKg'; label: string; suffix: string; value?: number; min: number; step: number }[] = ai.durationMinutes !== undefined
+          ? [{ key: 'durationMinutes', label: '시간', suffix: '분', value: target.durationMinutes, min: 1, step: 1 }]
+          : [
+              { key: 'reps', label: '횟수', suffix: '회', value: target.reps, min: 1, step: 1 },
+              { key: 'sets', label: '세트', suffix: '세트', value: target.sets, min: 1, step: 1 },
+              ...(isDumbbell ? [{ key: 'weightKg' as const, label: '기록 중량', suffix: 'kg', value: target.weightKg, min: 0.5, step: 0.5 }] : []),
+            ];
+        const targetSummary = [
+          ai.durationMinutes ? `${ai.durationMinutes}분` : '',
+          ai.reps ? `${ai.reps}회${ai.sets ? ` × ${ai.sets}세트` : ''}` : '',
+          ai.weightKg ? `${ai.weightKg}kg` : '',
+          ai.bandLevel ? `밴드 ${ai.bandLevel}` : '',
+        ].filter(Boolean).join(' · ') || exercise.sets || exercise.duration || '통증 없는 범위';
         return <div key={exercise.exerciseId} className="rounded-2xl border border-gray-100 p-4">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-gray-900">{name}</p><p className="mt-1 text-xs text-[#534AB7]">{groupId.startsWith('current-fullbody-') ? '현재 안내값' : 'AI 추천'}: {ai.durationMinutes ? `${ai.durationMinutes}분` : ai.reps ? `${ai.reps}회${ai.sets ? ` × ${ai.sets}세트` : ""}` : exercise.sets || exercise.duration || "통증 없는 범위"}</p></div><button type="button" onClick={() => updateTarget(name, ai)} className="shrink-0 rounded-lg bg-[#EEEDFE] px-2.5 py-1.5 text-[11px] font-bold text-[#3C3489]">{groupId.startsWith('current-fullbody-') ? '안내값 채우기' : '추천값 적용'}</button></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-gray-900">{name}</p><p className="mt-1 text-xs text-[#534AB7]">{groupId.startsWith('current-fullbody-') ? '현재 안내값' : 'AI 추천'}: {targetSummary}</p></div><button type="button" onClick={() => updateTarget(name, ai)} className="shrink-0 rounded-lg bg-[#EEEDFE] px-2.5 py-1.5 text-[11px] font-bold text-[#3C3489]">{groupId.startsWith('current-fullbody-') ? '안내값 채우기' : '추천값 적용'}</button></div>
           <div className={`mt-3 rounded-xl border p-3 ${RECOMMENDATION_STYLE[recommendation.level].panel}`}>
             <div className="flex items-center gap-2"><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${RECOMMENDATION_STYLE[recommendation.level].badge}`}>{recommendation.title}</span></div>
             <p className="mt-2 text-[11px] leading-relaxed text-gray-700">{recommendation.summary}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">{recommendation.evidence.map((item) => <span key={item} className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-gray-600">{item}</span>)}</div>
             <details className="mt-2 text-[11px] text-gray-600"><summary className="cursor-pointer font-bold">다음 추천이 달라지는 조건</summary><p className="mt-1.5 leading-relaxed">{recommendation.nextStep}</p></details>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">{fields.map((field) => <label key={field.key} className="text-xs font-bold text-gray-600">내 {field.label}<span className="mt-1 flex items-center rounded-xl bg-gray-50 px-3"><input type="number" min={1} value={field.value ?? ""} placeholder={String(ai[field.key] ?? "-")} onChange={(e) => updateTarget(name, { [field.key]: e.target.value ? Number(e.target.value) : undefined })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">{field.suffix}</span></span></label>)}</div>
+          <div className="mt-3 grid grid-cols-2 gap-2">{fields.map((field) => <label key={field.key} className="text-xs font-bold text-gray-600">내 {field.label}<span className="mt-1 flex items-center rounded-xl bg-gray-50 px-3"><input type="number" min={field.min} step={field.step} value={field.value ?? ""} placeholder={String(ai[field.key] ?? "-")} onChange={(e) => updateTarget(name, { [field.key]: e.target.value ? Number(e.target.value) : undefined })} className="min-w-0 flex-1 bg-transparent py-2.5 text-right text-sm outline-none" /><span className="ml-1 font-normal">{field.suffix}</span></span></label>)}</div>
+          {isBand ? <label className="mt-2 block text-xs font-bold text-gray-600">내 밴드 강도<select aria-label={`${name} 계획 밴드 강도`} value={target.bandLevel ?? ''} onChange={(event) => updateTarget(name, { bandLevel: event.target.value ? event.target.value as ExerciseTarget['bandLevel'] : undefined })} className="mt-1 min-h-11 w-full rounded-xl bg-gray-50 px-3 text-sm font-semibold text-gray-800"><option value="">기록할 때 선택</option><option value="약">약</option><option value="중">중</option><option value="강">강</option></select></label> : null}
         </div>;
       })}
     </div>}

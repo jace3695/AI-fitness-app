@@ -52,6 +52,8 @@ export interface Exercise {
   exerciseId?: string;
   name: string;
   meta?: string;
+  suggestedWeightKg?: number;
+  suggestedBandLevel?: "약" | "중" | "강";
   badge?: { label: string; variant: BadgeVariant };
   details: Detail[];
   guide?: ExerciseGuide;

@@ -4,7 +4,7 @@ import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
-import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
+import { parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
 import { isRetiredGrowthRoutine } from "@/app/data/growthRoutines";
 
@@ -264,20 +264,15 @@ async function processSingleCommand(
     if (!target) {
       result = { reply: "완료할 할 일 제목을 함께 말해 주세요. 예: ‘우유 사기 할 일 완료해줘’" };
     } else {
-      const { data, error } = await supabase.from("assistant_items").select("id,title,kind,priority,project_id,due_at,recurrence_rule").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await supabase.from("assistant_items").select("id,title,kind,priority,project_id,due_at,recurrence_rule,updated_at").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
       if (error) throw new Error("할 일을 확인하지 못했습니다.");
       const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
       if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요: ${matches.slice(0, 3).map((item) => item.title).join(" · ")}` : `‘${target}’과 일치하는 미완료 할 일을 찾지 못했습니다.` };
       else {
-        const { error: updateError } = await supabase.from("assistant_items").update({ status: "completed", completed_at: new Date().toISOString() }).eq("user_id", userId).eq("id", matches[0].id);
-        if (updateError) throw new Error("완료 상태를 저장하지 못했습니다.");
+        const { error: updateError } = await supabase.rpc("set_assistant_item_completion", { p_item_id: matches[0].id, p_completed: true, p_expected_updated_at: matches[0].updated_at });
+        if (updateError) throw new Error("완료와 다음 반복 일정을 저장하지 못했습니다. 최신 목록을 확인한 뒤 다시 시도해 주세요.");
         const rule = (matches[0].recurrence_rule || "none") as RecurrenceRule;
-        const nextDueAt = nextRecurringDueAt(matches[0].due_at, rule, today);
-        if (nextDueAt) {
-          const { error: repeatError } = await supabase.from("assistant_items").insert({ user_id: userId, title: matches[0].title, kind: matches[0].kind, status: "open", priority: matches[0].priority, project_id: matches[0].project_id, due_at: nextDueAt, recurrence_rule: rule, source: "recurrence" });
-          if (repeatError) throw new Error("완료했지만 다음 반복 일정을 만들지 못했습니다.");
-        }
-        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.${nextDueAt ? ` 다음 ${recurrenceLabel(rule)} 일정은 ${nextDueAt.slice(0, 10)}입니다.` : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.${rule !== 'none' ? ` 다음 ${recurrenceLabel(rule)} 일정도 함께 저장했습니다.` : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
       }
     }
   } else if (/(할\s*일|일정).*(수정|변경)|(수정|변경).*(할\s*일|일정)/.test(message)) {

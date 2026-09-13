@@ -57,6 +57,8 @@ const CORE_GROUP = 'current-fullbody-antirotation-circuit';
 const STRENGTH_GROUPS = new Set([BASE_GROUP, HAMSTRING_GROUP, CORE_GROUP]);
 const RECOVERY_GROUP = 'current-fullbody-recovery-circuit';
 const MAIN_EXERCISES = ['덤벨 고블릿 스쿼트', '밴드 로우', '덤벨 플로어프레스', '루프밴드 사이드워크', '버드독'];
+const BAND_LEVELS = ['약', '중', '강'] as const;
+const MAX_PLANNED_DUMBBELL_KG = 30;
 const BACK_LABELS = { none: '불편 없음', stiff: '약간 뻐근함', pain: '통증 있음', worse: '운동 전보다 악화' };
 const STOP_SIGNALS = new Set(['marked-back-pain', 'leg-numbness', 'radiating-leg-pain', 'leg-tingling', 'sensation-loss', 'leg-weakness', 'ankle-pain', 'dizziness', 'hand-tremor', 'cold-sweat', 'severe-headache']);
 
@@ -91,6 +93,14 @@ function mainRecords(record: WorkoutDayRecord) {
 function setReps(set: NonNullable<ExerciseRecord['sets']>[number]) {
   return set.leftReps !== undefined || set.rightReps !== undefined
     ? Math.min(set.leftReps ?? 0, set.rightReps ?? 0) : set.reps ?? 0;
+}
+function normalizeBandLevel(value?: string) {
+  const normalized = value?.trim().toLocaleLowerCase('ko-KR');
+  if (!normalized) return undefined;
+  if (['약', '가벼움', 'light'].includes(normalized)) return '약' as const;
+  if (['중', '보통', 'medium'].includes(normalized)) return '중' as const;
+  if (['강', '강함', 'heavy'].includes(normalized)) return '강' as const;
+  return undefined;
 }
 function safeCompletion(record: WorkoutDayRecord) {
   const exercises = mainRecords(record);
@@ -188,8 +198,13 @@ export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): Adaptive
   if (!strength[0] || !isRecentTrainingDate(strength[0].date, today, 7)) return review('maintain', '최근 근력 기록부터 확인', ['지난 7일의 근력 수행 기록이 없어 이전 기록만으로 증가·교체하지 않습니다. 현재 구성으로 컨디션과 자세를 확인하며 기록을 남겨 주세요.']);
   if (lastApplied && lastAppliedDate! >= weekStart) return review('maintain', '이번 주 적용한 변화에 적응하기', ['이번 주에 이미 한 번 조정했습니다. 추가 증가·교체는 다음 주 이후 새 기록을 보고 검토합니다. 피로·통증 신호는 먼저 확인합니다.']);
   const eligibleStrength = strength.filter(({ date }) => !lastApplied || date > lastApplied.evidenceThrough && date > lastAppliedDate!);
+  const missingFeedback = eligibleStrength.slice(0, 3).flatMap(({ date, record }) => {
+    const missing = [!record.workoutBackStatus && '허리 상태', record.workoutFatigue === undefined && '피로도', !record.workoutDifficulty && '체감 난이도'].filter(Boolean);
+    return missing.length ? [`${date}: ${missing.join('·')}가 미응답입니다.`] : [];
+  });
   if (eligibleStrength.length < 3 || !eligibleStrength.slice(0, 3).every(({ record }) => safeCompletion(record))) return review('maintain', '현재 구성으로 적응 상태 확인', [
     '현재 계획 또는 마지막 변경 이후 근력 운동 3회의 반복수·완료율·피로·허리 상태가 충분히 확인될 때까지 유지합니다.',
+    ...missingFeedback,
     '회복형 운동이 쉬웠다는 기록이나 주가 바뀌었다는 이유만으로 근력 운동량을 올리지 않습니다.',
   ]);
   const next = nextDay(true);
@@ -221,22 +236,65 @@ export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): Adaptive
   if (comparable.length !== 3 || !comparable.every(({ record }) => safeCompletion(record) && record.workoutDifficulty === 'easy')
     || !comparable.every(({ record }) => workloadSignature(record) === workloadSignature(comparable[0].record))
     || comparable[0].record.workoutMethod?.rounds !== next.method.rounds) return review('maintain', '현재 자극 유지 · 같은 조건의 기록 더 확인', ['같은 근력 루틴을 같은 계획·저항으로 여유 있게 완료한 최근 3회가 확인되면 한 항목의 반복수를 소폭 높입니다.']);
+
+  if ((next.groupId === HAMSTRING_GROUP || next.groupId === CORE_GROUP) && next.method.rounds === 2) {
+    const method = { ...next.method, rounds: next.method.rounds + 1 };
+    return review('increase', '새 근력 루틴의 라운드 1회 증가 검토', [
+      '새 동작이 포함된 같은 근력 루틴을 같은 반복수·저항으로 최근 3회 여유 있게 완료했습니다.',
+      '반복수와 중량·밴드 장력은 그대로 두고 전체 라운드만 1회 높입니다. 3라운드를 넘겨 제안하지 않습니다.',
+    ], { ...next, scope: 'weekly', method,
+      before: `${DAY_LABELS[next.dayId]}요일 · ${next.method.rounds}라운드`,
+      after: `${method.rounds}라운드 · 반복수와 저항 유지 · ${next.date}부터 매주`,
+    }, '현재 통증·저림이 없고, 한 라운드를 더 진행할 시간과 회복 여유가 있습니다.');
+  }
+
   const exercises = MAIN_EXERCISES.slice(0, 3);
   for (const name of exercises) {
     const target = settings.weeklyExerciseTargets?.[next.dayId]?.[name] ?? settings.exerciseTargets[name];
     const from = target?.reps ?? (name === '밴드 로우' ? 10 : 8);
     const matchingSets = comparable.flatMap(({ record }) => mainRecords(record).filter((exercise) => exercise.exerciseName === name).flatMap((exercise) => exercise.sets ?? []));
     const loadRecorded = matchingSets.length > 0 && matchingSets.every((set) => name === '밴드 로우' ? Boolean(set.bandLevel?.trim()) : (set.weightKg ?? 0) > 0);
-    if (!loadRecorded || from >= 12 || !matchingSets.every((set) => set.plannedReps === from && setReps(set) >= from)) continue;
-    return review('increase', '근력일 한 운동의 반복수만 1회 증가', [
-      '같은 근력 루틴의 최근 3회에서 계획 반복수를 여유 있게 완료했고 피로가 낮으며 허리 불편이 없었습니다.',
-      '기록한 중량·밴드 장력·라운드·휴식은 유지합니다. 다른 요일과 화·목 회복형 운동에는 적용하지 않습니다.',
-    ], { ...next, scope: 'weekly', targets: { [name]: { ...target, reps: from + 1 } }, previousTargets: { [name]: { ...target, reps: from } },
-      before: `${DAY_LABELS[next.dayId]}요일 · ${name} ${from}회/라운드`,
-      after: `${name} ${from + 1}회/라운드 · ${next.method.rounds}라운드 유지 · ${next.date}부터 매주`,
-    });
+    if (!loadRecorded || !matchingSets.every((set) => set.plannedReps === from && setReps(set) >= from)) continue;
+    if (from < 12) return review('increase', '근력일 한 운동의 반복수만 1회 증가', [
+        '같은 근력 루틴의 최근 3회에서 계획 반복수를 여유 있게 완료했고 피로가 낮으며 허리 불편이 없었습니다.',
+        '기록한 중량·밴드 장력·라운드·휴식은 유지합니다. 다른 요일과 화·목 회복형 운동에는 적용하지 않습니다.',
+      ], { dayId: next.dayId, date: next.date, scope: 'weekly', targets: { [name]: { ...target, reps: from + 1 } }, previousTargets: { [name]: { ...target, reps: from } },
+        before: `${DAY_LABELS[next.dayId]}요일 · ${name} ${from}회/라운드`,
+        after: `${name} ${from + 1}회/라운드 · ${next.method.rounds}라운드 유지 · ${next.date}부터 매주`,
+      });
+
+    if (name.includes('덤벨')) {
+      const weights = matchingSets.map((set) => set.weightKg ?? 0);
+      const currentWeight = weights[0];
+      if (currentWeight > 0 && currentWeight < MAX_PLANNED_DUMBBELL_KG && weights.every((weight) => weight === currentWeight)) {
+        const weightKg = Math.round((currentWeight + 0.5) * 2) / 2;
+        return review('increase', '근력일 한 운동의 중량 0.5kg 증가 검토', [
+          '계획 반복수 상한인 12회를 같은 중량으로 최근 3회 여유 있게 완료했고 피로가 낮으며 허리 불편이 없었습니다.',
+          '반복수·라운드·휴식은 유지하고 이 운동의 기록 중량만 한 단계 높입니다.',
+        ], { dayId: next.dayId, date: next.date, scope: 'weekly', targets: { [name]: { ...target, reps: from, weightKg } }, previousTargets: { [name]: { ...target, reps: from } },
+          before: `${DAY_LABELS[next.dayId]}요일 · ${name} ${from}회 · ${currentWeight}kg`,
+          after: `${name} ${from}회 · ${weightKg}kg · ${next.method.rounds}라운드 유지 · ${next.date}부터 매주`,
+        }, `${weightKg}kg 덤벨을 안전하게 준비할 수 있고, 현재 통증·저림이 없습니다.`);
+      }
+    }
+
+    if (name.includes('밴드')) {
+      const levels = matchingSets.map((set) => normalizeBandLevel(set.bandLevel));
+      const currentLevel = levels[0];
+      const levelIndex = currentLevel ? BAND_LEVELS.indexOf(currentLevel) : -1;
+      if (currentLevel && levelIndex >= 0 && levelIndex < BAND_LEVELS.length - 1 && levels.every((level) => level === currentLevel)) {
+        const bandLevel = BAND_LEVELS[levelIndex + 1];
+        return review('increase', '근력일 한 운동의 밴드 강도 증가 검토', [
+          '계획 반복수 상한인 12회를 같은 밴드 강도로 최근 3회 여유 있게 완료했고 피로가 낮으며 허리 불편이 없었습니다.',
+          '반복수·라운드·휴식은 유지하고 이 운동의 밴드 강도만 한 단계 높입니다.',
+        ], { dayId: next.dayId, date: next.date, scope: 'weekly', targets: { [name]: { ...target, reps: from, bandLevel } }, previousTargets: { [name]: { ...target, reps: from } },
+          before: `${DAY_LABELS[next.dayId]}요일 · ${name} ${from}회 · 밴드 ${currentLevel}`,
+          after: `${name} ${from}회 · 밴드 ${bandLevel} · ${next.method.rounds}라운드 유지 · ${next.date}부터 매주`,
+        }, `${bandLevel} 강도의 밴드를 안전하게 고정할 수 있고, 현재 통증·저림이 없습니다.`);
+      }
+    }
   }
-  return review('maintain', '현재 계획 유지 · 저항과 수행 기록 확인', ['반복수·중량·밴드 장력을 비교할 근거가 부족하거나 반복수 소폭 증가 범위에 도달했습니다. 중량·라운드를 임의로 올리지 않고 다음 검토에 활용합니다.']);
+  return review('maintain', '현재 계획 유지 · 저항과 수행 기록 확인', ['같은 조건의 기록이 부족하거나 안전한 증가 범위에 도달했습니다. 반복수·중량·밴드·라운드를 임의로 올리지 않고 다음 기록을 확인합니다.']);
 }
 
 export function decideAdaptiveWorkoutReview(input: AdaptiveReviewInput, reviewId: string, decision: 'applied' | 'kept', now: string, prepared = false): UserWorkoutSettings {

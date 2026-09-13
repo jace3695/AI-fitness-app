@@ -1,5 +1,6 @@
 "use client";
 
+import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import AppCompanion from "@/components/AppCompanion";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -48,7 +49,6 @@ import DayView from "../components/DayView";
 import SafetyView from "../components/SafetyView";
 import RecordCalendarView from "../components/RecordCalendarView";
 import PullupTrainingView from "../components/PullupTrainingView";
-import CloudSyncPanel from "../components/CloudSyncPanel";
 import ConditionCheckCard from "../components/ConditionCheckCard";
 import AuthGate from "../components/AuthGate";
 import WorkoutPlanEditor from "../components/WorkoutPlanEditor";
@@ -183,9 +183,11 @@ function FitnessApp() {
   useEffect(() => {
     window.addEventListener('focus', refreshWorkoutReview);
     window.addEventListener('storage', refreshWorkoutReview);
+    window.addEventListener(RECORDS_CHANGED_EVENT, refreshWorkoutReview);
     return () => {
       window.removeEventListener('focus', refreshWorkoutReview);
       window.removeEventListener('storage', refreshWorkoutReview);
+      window.removeEventListener(RECORDS_CHANGED_EVENT, refreshWorkoutReview);
     };
   }, [refreshWorkoutReview]);
 
@@ -308,7 +310,7 @@ function FitnessApp() {
     const recordedWorkoutStatus: WorkoutOverallStatus = feedback?.status === "stopped"
       ? "stopped"
       : detailedWorkoutStatus || feedback?.status || "completed";
-    const backStatus = feedback?.backStatus ?? (pain ? "pain" : "none");
+    const backStatus = feedback?.backStatus ?? (pain ? "pain" : undefined);
     const neurologicalSymptoms = feedback?.neurologicalSymptoms ?? [];
     const hasSafetyPain = pain || backStatus === "pain" || backStatus === "worse" || neurologicalSymptoms.length > 0;
     setCompletedStore((prev) => {
@@ -333,8 +335,8 @@ function FitnessApp() {
           workoutPainSet: feedback?.painSet,
           workoutMemo: selectedOptionalCardio?.id === 'rest' ? (memo.trim() || '토요일 선택 휴식') : memo.trim() || undefined,
           workoutStatus: recordedWorkoutStatus,
-          workoutDifficulty: feedback?.difficulty || current.workoutDifficulty || "moderate",
-          workoutFatigue: feedback?.fatigue || current.workoutFatigue || 2,
+          workoutDifficulty: feedback ? feedback.difficulty : current.workoutDifficulty,
+          workoutFatigue: feedback ? feedback.fatigue : current.workoutFatigue,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           workoutMethod: dayWorkout?.optionalCardio ? undefined : { ...activeWorkoutMethod },
           workoutRecordedAt: new Date().toISOString(),
@@ -1071,7 +1073,7 @@ function FitnessApp() {
               </details>
               <details className="rounded-2xl border border-gray-100 bg-white shadow-sm">
                 <summary className="cursor-pointer list-none p-4 text-[14px] font-bold text-gray-900 sm:p-5">기록 백업·기기 연결 <span className="ml-1 text-[12px] font-normal text-gray-500">고급 기능</span></summary>
-                <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4"><DataBackupPanel /><CloudSyncPanel /></div>
+                <div className="space-y-3 px-3 pb-3 sm:px-4 sm:pb-4"><DataBackupPanel /></div>
               </details>
             </div>
           </div>

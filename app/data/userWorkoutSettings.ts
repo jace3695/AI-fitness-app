@@ -3,6 +3,7 @@ import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups.ts";
 import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
 import type { AdaptiveReviewDecision } from "./workoutAdaptiveReview.ts";
+import { notifyRecordsChanged } from "./storageTransaction.ts";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -10,6 +11,8 @@ export interface ExerciseTarget {
   sets?: number;
   reps?: number;
   durationMinutes?: number;
+  weightKg?: number;
+  bandLevel?: "약" | "중" | "강";
 }
 
 export interface CustomExercise {
@@ -69,12 +72,19 @@ export function getExerciseTargetsForDay(settings: UserWorkoutSettings, dayId: W
 
 export function saveUserWorkoutSettings(settings: UserWorkoutSettings) {
   window.localStorage.setItem(USER_WORKOUT_SETTINGS_KEY, JSON.stringify(settings));
+  notifyRecordsChanged();
 }
 
 function applyTarget(exercise: Exercise, target?: ExerciseTarget): Exercise {
   if (!target) return exercise;
   const units = [target.reps ? `${/좌우/.test(exercise.meta ?? '') ? '좌우 ' : ''}${target.reps}회` : "", target.sets ? `${target.sets}세트` : "", target.durationMinutes ? `${target.durationMinutes}분` : ""].filter(Boolean);
-  return { ...exercise, sets: target.sets ?? exercise.sets, meta: units.length ? units.join(" × ") : exercise.meta };
+  return {
+    ...exercise,
+    sets: target.sets ?? exercise.sets,
+    meta: units.length ? units.join(" × ") : exercise.meta,
+    suggestedWeightKg: target.weightKg,
+    suggestedBandLevel: target.bandLevel,
+  };
 }
 
 export function applyExerciseTargets(day: DayWorkout, targets: Record<string, ExerciseTarget>): DayWorkout {

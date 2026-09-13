@@ -16,6 +16,8 @@ const routine: GrowthRoutineRow = {
   category: "typing",
   title: "타자",
   target_minutes: 10,
+  preferred_days: [1, 3, 5],
+  target_sessions_per_week: 3,
   enabled: true,
   sort_order: 0,
   created_at: "2026-09-01T00:00:00Z",

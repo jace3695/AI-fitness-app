@@ -1,0 +1,1 @@
+{"name":"yeoni-browser-qa","private":true,"type":"module","scripts":{"start":"node server.mjs"},"dependencies":{"esbuild":"0.28.2"}}

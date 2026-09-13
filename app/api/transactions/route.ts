@@ -8,15 +8,14 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1)
-  startOfMonth.setHours(0, 0, 0, 0)
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const startOfMonth = `${today.slice(0, 7)}-01`
 
   const { data, error } = await supabase
     .from('budget_transactions')
     .select('*')
     .eq('user_id', user.id)
-    .gte('date', startOfMonth.toISOString().split('T')[0])
+    .gte('date', startOfMonth)
     .order('date', { ascending: false })
 
   if (error) {
