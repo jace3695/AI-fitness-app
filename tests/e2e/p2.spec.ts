@@ -141,6 +141,8 @@ test("free photo setup and quota failures preserve drafts without paid reservati
   await login(page, qa.account);
   await synced(page);
   await page.goto("/diet");
+  await page.getByText("밥량 · 조리 후 무게", { exact: true }).locator("..")
+    .getByRole("button", { name: "직접 입력", exact: true }).click();
   const rice = page.getByLabel("점심 밥량");
   await rice.fill("123");
   await page.getByLabel("음식 사진 선택").setInputFiles({ name: "synthetic.png", mimeType: "image/png", buffer: Buffer.from(imageDataUrl.split(",")[1], "base64") });
