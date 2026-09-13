@@ -48,6 +48,7 @@ test("사진 한 장을 무료 전용 Gemini에 한 번 전송하고 정규화�
   const request: typeof fetch = async (url, options) => { calls.push({ url: String(url), options }); return okResponse(); };
   assert.deepEqual(await analyzeFreeDietPhoto(input, configured, request), analysis);
   assert.equal(calls.length, 1);
+  assert.equal(FREE_DIET_PHOTO_MODEL, "gemini-3.5-flash-lite");
   assert.equal(calls[0].url, `https://generativelanguage.googleapis.com/v1beta/models/${FREE_DIET_PHOTO_MODEL}:generateContent`);
   const options = calls[0].options!;
   assert.equal(new Headers(options.headers).get("x-goog-api-key"), configured.GEMINI_FREE_API_KEY);
@@ -58,8 +59,8 @@ test("사진 한 장을 무료 전용 Gemini에 한 번 전송하고 정규화�
   assert.deepEqual(body.contents[0].parts[1], { inline_data: { mime_type: "image/png", data: "YWJj" } });
   assert.equal(body.contents.length, 1);
   assert.equal(body.contents[0].parts.length, 2);
-  assert.deepEqual(body.generationConfig.thinkingConfig, { thinkingBudget: 0, includeThoughts: false });
-  assert.equal(body.generationConfig.maxOutputTokens, 350);
+  assert.deepEqual(body.generationConfig.thinkingConfig, { thinkingLevel: "minimal", includeThoughts: false });
+  assert.equal(body.generationConfig.maxOutputTokens, 768);
   assert.equal(body.generationConfig.responseFormat.text.mimeType, "APPLICATION_JSON");
   assert.equal(body.store, false);
   assert.equal(body.tools, undefined);
@@ -80,12 +81,13 @@ test("무료 한도 오류에서 재시도·유료 전환 없이 직접 입력�
   assert.equal(calls, 1);
 });
 
-test("연결·권한 오류의 원문을 노출하지 않으며 실패를 자동 재요청하지 않는다", async () => {
-  for (const failure of ["network", "permission"] as const) {
+test("연결·권한·모델 없음 오류의 원문을 노출하지 않으며 실패를 자동 재요청하지 않는다", async () => {
+  for (const failure of ["network", "permission", "model_missing"] as const) {
     let calls = 0;
     const request: typeof fetch = async () => {
       calls += 1;
       if (failure === "network") throw new Error("private-key-and-photo");
+      if (failure === "model_missing") return Response.json({ error: { status: "NOT_FOUND", message: "private-key-and-photo" } }, { status: 404 });
       return Response.json({ error: { status: "PERMISSION_DENIED", message: "private-key-and-photo" } }, { status: 403 });
     };
     await assert.rejects(analyzeFreeDietPhoto(input, configured, request), (error: unknown) =>

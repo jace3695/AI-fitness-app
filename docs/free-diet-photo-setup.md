@@ -1,6 +1,8 @@
 # 무료 식단 사진 분석
 
-식단 사진은 `gemini-2.5-flash-lite`를 사용하는 별도 무료 전용 경로로 처리한다. 기존 `OPENAI_API_KEY`, `GEMINI_API_KEY`, 공통 유료 AI 라우터, 비용 예약/확정 함수를 사용하지 않는다. 무료 한도/오류 시 한 번의 요청으로 종료하며 재시도·유료 전환·유료 기능 호출을 자동으로 하지 않는다.
+식단 사진은 `gemini-3.5-flash-lite`를 사용하는 별도 무료 전용 경로로 처리한다. 기존 `OPENAI_API_KEY`, `GEMINI_API_KEY`, 공통 유료 AI 라우터, 비용 예약/확정 함수를 사용하지 않는다. 무료 한도/오류 시 한 번의 요청으로 종료하며 재시도·유료 전환·유료 기능 호출을 자동으로 하지 않는다.
+
+2026-09-13 실제 Preview에서 이전 `gemini-2.5-flash-lite` 요청이 Google `404 NOT_FOUND`로 거절됐다. 이것만으로 모델 전체 종료나 키 오류를 단정하지 않는다. [현재 이미지 입력 지원 모델](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite)과 [무료 요금 구간](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite)을 확인하여 전용 모델을 변경했다. Gemini 3에 맞는 `thinkingLevel: minimal`, 출력 상한 768을 사용하고, 잘린 답변은 여전히 거부한다. 자동 모델 탐색·대체·재시도는 추가하지 않았다. 실제 변경 후 판독 결과는 `app-wide-improvements.md`의 후속 기록을 따른다.
 
 ## 서버 연결 전 확인
 

@@ -5,7 +5,7 @@ import {
 } from "../app/data/dietPhotoAnalysis.ts";
 import { buildGeminiGenerationConfig, extractGeminiResponse, readAiProviderFailure } from "./ai-provider-protocol.ts";
 
-export const FREE_DIET_PHOTO_MODEL = "gemini-2.5-flash-lite";
+export const FREE_DIET_PHOTO_MODEL = "gemini-3.5-flash-lite";
 export const FREE_DIET_PHOTO_UNAVAILABLE = "무료 사진 분석 연결을 준비 중이에요. 지금은 식사 내용을 직접 입력해 주세요.";
 export const FREE_DIET_PHOTO_QUOTA_MESSAGE = "무료 사진 분석의 이용 한도에 도달했어요. 식사 내용을 직접 입력하거나 나중에 다시 이용해 주세요.";
 
@@ -93,8 +93,9 @@ export async function analyzeFreeDietPhoto(
           { inline_data: { mime_type: mimeType, data: imageData } },
         ] }],
         generationConfig: {
-          ...buildGeminiGenerationConfig({ model: FREE_DIET_PHOTO_MODEL, responseFormat: "json", maxOutputTokens: 350, temperature: 0.2 }),
-          thinkingConfig: { thinkingBudget: 0, includeThoughts: false },
+          ...buildGeminiGenerationConfig({ model: FREE_DIET_PHOTO_MODEL, responseFormat: "json", maxOutputTokens: 768, temperature: 0.2 }),
+          // Gemini 3 uses levels; a Gemini 2.5 token budget is not portable.
+          thinkingConfig: { thinkingLevel: "minimal", includeThoughts: false },
         },
         store: false,
       }),
