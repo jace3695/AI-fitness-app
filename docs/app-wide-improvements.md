@@ -874,3 +874,25 @@ Jace App Hub의 `growth_routines`에 기존 P2 SQL을 적용했다. 호스팅 �
 사진 재선택 결함의 수정·호스팅 검증과 실제 AI 판독을 구분한다. **재선택 복구는 통과, 실제 AI 판독은 여전히 Preview 키 설정 대기**다. 호스팅 DB 마이그레이션을 다시 실행하거나 식단 기록을 저장하지 않았으며, 개인 데이터 변경·운영 병합·Production 배포는 없다. PR Draft와 iPhone 최종 단계 원칙을 유지한다.
 
 환경변수를 추가하거나 적용 범위를 바꾸면 새 배포에만 반영되므로, 키 설정 후 Preview 재배포가 필요하다. [Vercel 환경변수 안내](https://vercel.com/docs/environment-variables/managing-environment-variables)를 기준으로 설정 후 실제 판독 검증을 재개한다.
+
+## P2 후속: Preview 키 적용과 실제 OpenAI 오류 확인 — 2026-09-13 KST
+
+사용자의 Preview 키 저장 완료 후, 같은 소스 트리를 유지한 재배포 커밋 `ee15709c9d2ba8ca507a8c52da1848eeb7ebe67e`를 PR 브랜치에 추가했다. Preview `dpl_4w5NYWSoBDzRB2ioGW6GCMN7FixN`는 READY, `target: null`이다. 비밀키 값을 조회하거나 소스·로그에 복사하지 않았다.
+
+Gmail 테스트 계정에서 기존 합성 식사 사진을 선택하고 명시적으로 분석을 요청했다. 21:23 KST의 실제 POST는 기존 키 미설정 503을 지나 500을 반환했다. 당시 처리기는 제공자 오류를 구분하지 않아 첫 요청의 구체적인 원인을 판정하지 않았다.
+
+수정 커밋 **`297b36037f3a6addb935d5274031b5140e9341ff`**은 OpenAI의 `error.code`를 읽고 기존 Gemini `error.status` 처리도 유지한다. 사진 API는 제공자·모델·HTTP 상태·제한된 형식의 코드만 진단에 남기며, 제공자 설명 원문·키·인증 헤더·사진·사용자 식별자는 기록하지 않는다. 화면에서 잔액/사용 한도 부족, 일시적인 요청 제한, 연결 오류를 구분한다. 한도 부족에 반복 재시도를 권하지 않는다.
+
+수정 Preview `dpl_E9tBbADV3o218YDmGb7VEgrNGPin`의 실제 재요청은 **21:28 KST**, `openai` / `gpt-4o-mini` / **429 `CREDIT_BALANCE_EXHAUSTED`**로 확인됐다. 앱 응답은 503이며 화면에 이용 한도 소진과 직접 입력 안내가 표시됐다. [OpenAI 오류 안내](https://developers.openai.com/api/docs/guides/error-codes)에 따르면 이 코드는 선불 크레딧 잔액 부족을 뜻한다. 키가 비어 있던 이전 503과 이번 제공자 거절 503은 다른 원인이다. 크레딧 변경 전 추가 분석 요청은 중단했다.
+
+| 이번 호스팅 검증 | 판정 |
+| --- | --- |
+| Preview 키 적용·재배포 | 완료. 명시적 분석 요청이 OpenAI까지 도달 |
+| 실제 실패 원인과 화면 안내 | 통과. 제공자 429 잔액 부족과 앱 안내 일치 |
+| 음식 판독 성공·추정값 확인/수정·실제 사용 토큰/비용 | 미완료. 크레딧 부족으로 성공 응답 없음 |
+| 사용자 확인 후 식단 반영·저장 | 이번 호스팅 단계에서 실행하지 않음. 기존 격리 성공 이력과 구분 |
+| 정리·보존 | 사진 미리보기 제거·분석 버튼 비활성. 신규 식단 저장 없음. 테스트 계정 기존 `user_app_state` 전체 행과 기존 AI 사용 행이 시작 전과 동일. 사진 분석 사용 행·대기 비용 예약 잔여 0 |
+
+관련 로컬 회귀 11개·TypeScript·변경 파일 lint·`git diff --check`가 통과했다. 재배포 전용 커밋의 [Actions `34756824276`](https://github.com/jace3695/AI-fitness-app/actions/runs/34756824276)은 기존 검사·격리 빌드·브라우저·정리 단계가 모두 성공했다. 오류 구분 수정본의 [Actions `34757142444`](https://github.com/jace3695/AI-fitness-app/actions/runs/34757142444)도 전체 성공했다. 단위·DB 검사 250개, VM 회귀 25개, lint·타입·48경로 빌드, Chromium/WebKit 브라우저 26개가 통과했다. 정리 이벤트 26건·일회용 계정 29개 제거·관련 행 잔여 0·외부 origin 요청 0을 확인했다. 격리 브라우저의 사진 성공 응답은 합성 응답이며 실제 OpenAI 성공으로 확대하지 않는다.
+
+다음 재개 조건은 OpenAI API 선불 크레딧 추가다. 그 후 같은 합성 사진으로 성공 판독·사용자 확인/수정·식단 반영과 토큰/비용 대조를 이어간다. 키 설정과 오류 처리 개선을 실제 판독 성공으로 보고하지 않는다. 호스팅 DB 마이그레이션 재실행·개인 계정 변경·운영 병합·Production 배포는 없으며, PR Draft와 iPhone 최종 단계 원칙을 유지한다.
