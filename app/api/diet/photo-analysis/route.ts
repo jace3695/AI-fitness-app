@@ -33,8 +33,15 @@ JSON만 반환:
 export async function POST(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!user) {
+      // Keep credentials and request bodies out of hosted diagnostics.
+      console.warn("[diet-photo-analysis] authentication rejected", {
+        code: authError?.code ?? "missing_user",
+        status: authError?.status ?? null,
+      });
+      return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+    }
 
     const body = (await request.json()) as RequestBody;
     const mealSlot = body.mealSlot === "lunch" || body.mealSlot === "dinner"

@@ -39,7 +39,7 @@ before(async () => {
       values('${routineId}', '${owner}', 'custom', '기존 루틴');
   `);
   const migration = readFileSync(
-    new URL("../supabase/migrations/20260913042657_p2_growth_schedule.sql", import.meta.url),
+    new URL("../supabase/migrations/20260913054626_p2_growth_schedule.sql", import.meta.url),
     "utf8",
   );
   await db.exec(migration);
