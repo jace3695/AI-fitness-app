@@ -244,6 +244,24 @@ create table public.growth_routines (
   category text not null,
   title text not null,
   target_minutes integer not null default 15,
+  preferred_days smallint[] not null default array[1, 2, 3, 4, 5, 6, 7]::smallint[] check (
+    cardinality(preferred_days) between 1 and 7
+    and preferred_days <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]
+    and array_position(preferred_days, null) is null
+    and cardinality(preferred_days) = (
+      (1 = any(preferred_days))::integer
+      + (2 = any(preferred_days))::integer
+      + (3 = any(preferred_days))::integer
+      + (4 = any(preferred_days))::integer
+      + (5 = any(preferred_days))::integer
+      + (6 = any(preferred_days))::integer
+      + (7 = any(preferred_days))::integer
+    )
+  ),
+  target_sessions_per_week smallint not null default 7 check (
+    target_sessions_per_week between 1 and 7
+    and target_sessions_per_week <= cardinality(preferred_days)
+  ),
   enabled boolean not null default true,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
@@ -257,12 +275,32 @@ create table public.growth_sessions (
   status text not null,
   planned_minutes integer not null default 0,
   actual_minutes integer not null default 0,
-  created_at timestamptz not null default now()
+  memo text not null default '',
+  source text not null default 'manual',
+  metrics jsonb not null default '{}'::jsonb,
+  started_at timestamptz,
+  ended_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 alter table public.growth_routines enable row level security;
 alter table public.growth_sessions enable row level security;
 revoke all on public.growth_routines, public.growth_sessions from anon, authenticated;
-grant select on public.growth_routines, public.growth_sessions to authenticated;
+grant select, insert, delete on public.growth_routines, public.growth_sessions to authenticated;
+grant update (category, title, target_minutes, preferred_days, target_sessions_per_week, enabled, sort_order, updated_at) on public.growth_routines to authenticated;
+grant update (routine_id, session_date, status, planned_minutes, actual_minutes, memo, metrics, started_at, ended_at, updated_at) on public.growth_sessions to authenticated;
 grant all on public.growth_routines, public.growth_sessions to service_role;
 create policy growth_routines_owner_select on public.growth_routines for select to authenticated using ((select auth.uid()) = user_id);
+create policy growth_routines_owner_insert on public.growth_routines for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy growth_routines_owner_update on public.growth_routines for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy growth_routines_owner_delete on public.growth_routines for delete to authenticated using ((select auth.uid()) = user_id);
 create policy growth_sessions_owner_select on public.growth_sessions for select to authenticated using ((select auth.uid()) = user_id);
+create policy growth_sessions_owner_insert on public.growth_sessions for insert to authenticated with check (
+  (select auth.uid()) = user_id
+  and (routine_id is null or exists (select 1 from public.growth_routines where id = routine_id and user_id = (select auth.uid())))
+);
+create policy growth_sessions_owner_update on public.growth_sessions for update to authenticated using ((select auth.uid()) = user_id) with check (
+  (select auth.uid()) = user_id
+  and (routine_id is null or exists (select 1 from public.growth_routines where id = routine_id and user_id = (select auth.uid())))
+);
+create policy growth_sessions_owner_delete on public.growth_sessions for delete to authenticated using ((select auth.uid()) = user_id);

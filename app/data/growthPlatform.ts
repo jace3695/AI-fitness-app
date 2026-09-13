@@ -1,4 +1,5 @@
 import type { GrowthCategoryId, GrowthRoutine } from "./growthRoutines";
+import { normalizeGrowthPreferredDays, normalizeGrowthWeeklyTarget } from "./growthSchedule.ts";
 
 export type GrowthRoutineRow = {
   id: string;
@@ -6,6 +7,8 @@ export type GrowthRoutineRow = {
   category: GrowthCategoryId;
   title: string;
   target_minutes: number;
+  preferred_days: number[];
+  target_sessions_per_week: number;
   enabled: boolean;
   sort_order: number;
   created_at: string;
@@ -156,6 +159,11 @@ export function cloudRoutineToLocal(routine: GrowthRoutineRow, completedDates: s
     category: routine.category,
     title: routine.title,
     targetMinutes: routine.target_minutes,
+    preferredDays: normalizeGrowthPreferredDays(routine.preferred_days),
+    targetSessionsPerWeek: normalizeGrowthWeeklyTarget(
+      routine.target_sessions_per_week,
+      routine.preferred_days,
+    ),
     enabled: routine.enabled,
     completedDates,
   };

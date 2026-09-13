@@ -51,10 +51,11 @@ test("AI 사용량은 앱별로 안전하게 묶어 보여준다", () => {
     { feature: "fitness-weekly-plan-proposal", cost_krw: 8_300 },
     { feature: "budget-analysis", cost_krw: 60 },
     { feature: "language-conversation", cost_krw: 20 },
+    { feature: "diet-photo-analysis", cost_krw: 15 },
     { feature: "unknown-feature", cost_krw: 10 },
   ]);
 
-  assert.equal(summary.spentKrw, 8_530.5);
+  assert.equal(summary.spentKrw, 8_545.5);
   assert.equal(summary.status, "high_performance_limited");
   assert.equal(summary.reachedThreshold, 85);
   assert.deepEqual(summary.apps.map((app) => [app.id, app.spentKrw, app.usageCount]), [
@@ -62,6 +63,7 @@ test("AI 사용량은 앱별로 안전하게 묶어 보여준다", () => {
     ["assistant", 140.5, 2],
     ["budget", 60, 1],
     ["language", 20, 1],
+    ["diet", 15, 1],
     ["other", 10, 1],
   ]);
 });
@@ -69,6 +71,7 @@ test("AI 사용량은 앱별로 안전하게 묶어 보여준다", () => {
 test("앱별 사용량은 원본 프롬프트나 내용 대신 기능 범주만 사용한다", () => {
   assert.equal(getAiUsageAppId("fitness-weekly-report"), "fitness");
   assert.equal(getAiUsageAppId("growth-weekly-coach"), "growth");
+  assert.equal(getAiUsageAppId("diet-photo-analysis"), "diet");
   assert.equal(getAiUsageAppId("japanese-tts"), "language");
   assert.equal(getAiUsageAppId("korean-tts"), "assistant");
   assert.equal(getAiUsageAppId("unregistered-feature"), "other");

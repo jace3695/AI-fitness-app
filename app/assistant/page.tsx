@@ -22,6 +22,14 @@ import {
   type LanguageDailyStatus,
 } from "../data/dailyAppStatus";
 import { buildAssistantNextAction } from "../data/assistantNextAction";
+import {
+  buildAssistantWeeklyBriefing,
+  getAssistantBudgetQueryStart,
+  getAssistantWeeklyStartDate,
+  type AssistantWeeklyBriefing,
+  type AssistantWeeklyArea,
+} from "../data/assistantWeeklyBriefing";
+import { isGrowthRoutineScheduled, summarizeGrowthRoutineWeek } from "../data/growthSchedule";
 import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
@@ -41,6 +49,18 @@ type Item = {
 type Project = { id: string; name: string; status: string; priority: number; due_date: string | null; created_at: string };
 type Memory = { id: string; topic: string; content: string; created_at: string };
 type BudgetTransaction = { amount: number | string; date: string };
+type BriefingGrowthRoutine = {
+  id: string;
+  title: string;
+  preferred_days: number[];
+  target_sessions_per_week: number;
+};
+type BriefingGrowthSession = {
+  routine_id: string | null;
+  session_date: string;
+  actual_minutes: number | string;
+  status: "completed" | "partial" | "stopped";
+};
 type BriefingSnapshot = {
   budget: { spent: number; budget: number | null; remaining: number | null; entries: number };
   fitness: FitnessDailyStatus;
@@ -71,11 +91,21 @@ function formatWon(value: number) {
 
 const filterLabels: Record<Filter, string> = { all: "전체", task: "할 일", project: "프로젝트", waiting: "회신 대기", memory: "기억" };
 
+const weeklyCardTones: Record<AssistantWeeklyArea, string> = {
+  tasks: "bg-violet-50 text-violet-950 ring-violet-100",
+  budget: "bg-emerald-50 text-emerald-950 ring-emerald-100",
+  fitness: "bg-orange-50 text-orange-950 ring-orange-100",
+  diet: "bg-lime-50 text-lime-950 ring-lime-100",
+  language: "bg-blue-50 text-blue-950 ring-blue-100",
+  growth: "bg-fuchsia-50 text-fuchsia-950 ring-fuchsia-100",
+};
+
 export default function AssistantPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [briefing, setBriefing] = useState<BriefingSnapshot>(EMPTY_BRIEFING);
+  const [weeklyBriefing, setWeeklyBriefing] = useState<AssistantWeeklyBriefing | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<Exclude<Filter, "all">>("task");
@@ -162,16 +192,18 @@ export default function AssistantPage() {
     const now = new Date();
     const todayKey = getLocalDateKey(now);
     const monthKey = `${todayKey.slice(0, 7)}-01`;
+    const weeklyStartKey = getAssistantWeeklyStartDate(todayKey);
+    const budgetQueryStart = getAssistantBudgetQueryStart(todayKey);
     const [itemResult, projectResult, memoryResult, budgetResult, monthlyBudgetResult, fitnessResult, languageResult, growthRoutineResult, growthSessionResult] = await Promise.all([
       supabase.from("assistant_items").select("id,user_id,title,kind,status,priority,project_id,due_at,recurrence_rule,created_at,updated_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("assistant_projects").select("id,name,status,priority,due_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
       supabase.from("assistant_memories").select("id,topic,content,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
-      supabase.from("budget_transactions").select("amount,date").eq("user_id", auth.user.id).gte("date", monthKey).lte("date", todayKey),
+      supabase.from("budget_transactions").select("amount,date").eq("user_id", auth.user.id).gte("date", budgetQueryStart).lte("date", todayKey),
       supabase.from("budget_monthly_budgets").select("total_amount").eq("user_id", auth.user.id).eq("budget_month", monthKey).maybeSingle(),
       supabase.from("user_app_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
-      supabase.from("growth_routines").select("id,title").eq("user_id", auth.user.id).eq("enabled", true),
-      supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", auth.user.id).eq("session_date", todayKey),
+      supabase.from("growth_routines").select("*").eq("user_id", auth.user.id).eq("enabled", true),
+      supabase.from("growth_sessions").select("routine_id,session_date,actual_minutes,status").eq("user_id", auth.user.id).gte("session_date", weeklyStartKey).lte("session_date", todayKey),
     ]);
     const failures = [
       itemResult.error && '할 일', projectResult.error && '프로젝트', memoryResult.error && '기억',
@@ -183,21 +215,44 @@ export default function AssistantPage() {
     if (!projectResult.error) setProjects((projectResult.data ?? []) as Project[]);
     if (!memoryResult.error) setMemories((memoryResult.data ?? []) as Memory[]);
     const transactions = (budgetResult.data ?? []) as BudgetTransaction[];
-    const spent = transactions.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const monthlyTransactions = transactions.filter((item) => item.date >= monthKey);
+    const spent = monthlyTransactions.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const monthlyBudget = monthlyBudgetResult.data ? Number(monthlyBudgetResult.data.total_amount) : null;
-    const visibleGrowthRoutines = (growthRoutineResult.data ?? []).filter((routine) => !isRetiredGrowthRoutine(routine));
+    const visibleGrowthRoutines = ((growthRoutineResult.data ?? []) as BriefingGrowthRoutine[]).filter((routine) => !isRetiredGrowthRoutine(routine));
     const visibleGrowthRoutineIds = new Set(visibleGrowthRoutines.map((routine) => routine.id));
-    const visibleGrowthSessions = (growthSessionResult.data ?? []).filter((row) => row.routine_id && visibleGrowthRoutineIds.has(row.routine_id));
+    const visibleGrowthSessions = ((growthSessionResult.data ?? []) as BriefingGrowthSession[]).filter((row) => row.routine_id && visibleGrowthRoutineIds.has(row.routine_id));
+    const todayGrowthSessions = visibleGrowthSessions.filter((row) => row.session_date === todayKey);
+    const todayGrowthCompletedIds = new Set(todayGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id));
+    const scheduledGrowthRoutines = visibleGrowthRoutines.filter((routine) => {
+      const weekSummary = summarizeGrowthRoutineWeek(routine, visibleGrowthSessions, todayKey);
+      return isGrowthRoutineScheduled(routine, todayKey) && (!weekSummary.achieved || todayGrowthCompletedIds.has(routine.id));
+    });
     const appState = fitnessResult.data?.state ? parseStateObject(fitnessResult.data.state) : null;
     setBriefing(previous => ({
-      budget: budgetResult.error || monthlyBudgetResult.error ? previous.budget : { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: transactions.length },
+      budget: budgetResult.error || monthlyBudgetResult.error ? previous.budget : { spent, budget: monthlyBudget, remaining: monthlyBudget === null ? null : monthlyBudget - spent, entries: monthlyTransactions.length },
       fitness: fitnessResult.error ? previous.fitness : appState ? buildFitnessDailyStatus(appState, todayKey) : EMPTY_BRIEFING.fitness,
       diet: fitnessResult.error ? previous.diet : appState ? buildDietDailyStatus(appState, todayKey) : EMPTY_BRIEFING.diet,
       language: languageResult.error ? previous.language : languageResult.data?.state ? buildLanguageDailyStatus(parseStateObject(languageResult.data.state), todayKey) : EMPTY_BRIEFING.language,
       growth: growthRoutineResult.error || growthSessionResult.error ? previous.growth : {
-        completed: new Set(visibleGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id)).size,
-        total: visibleGrowthRoutines.length,
-        minutes: visibleGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
+        completed: scheduledGrowthRoutines.filter((routine) => todayGrowthCompletedIds.has(routine.id)).length,
+        total: scheduledGrowthRoutines.length,
+        minutes: todayGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
+      },
+    }));
+    setWeeklyBriefing(buildAssistantWeeklyBriefing({
+      todayKey,
+      items: itemResult.error ? [] : (itemResult.data ?? []) as Item[],
+      budgetTransactions: budgetResult.error ? [] : transactions,
+      appState,
+      languageState: languageResult.data?.state ? parseStateObject(languageResult.data.state) : null,
+      growthSessions: growthSessionResult.error ? [] : visibleGrowthSessions,
+      available: {
+        tasks: !itemResult.error,
+        budget: !budgetResult.error,
+        fitness: !fitnessResult.error,
+        diet: !fitnessResult.error,
+        language: !languageResult.error,
+        growth: !growthRoutineResult.error && !growthSessionResult.error,
       },
     }));
     if (!failures.length) setLastLoadedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
@@ -348,6 +403,49 @@ export default function AssistantPage() {
           <Link href={nextAction.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm">{nextAction.label} →</Link>
         </div>
       </section>}
+      <section aria-label="최근 7일 통합 브리핑" className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold text-[#766DB8]">AI 연이 7일 브리핑</p>
+            <h2 className="mt-1 text-xl font-bold">이번 주 흐름 한눈에 보기</h2>
+            <p className="mt-1 text-xs text-gray-500">저장된 기록만 집계하며 별도의 AI 비용은 사용하지 않습니다.</p>
+          </div>
+          {weeklyBriefing && (
+            <span className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">
+              {weeklyBriefing.startDate.slice(5).replace('-', '.')}~{weeklyBriefing.endDate.slice(5).replace('-', '.')}
+            </span>
+          )}
+        </div>
+        {loading && !weeklyBriefing ? (
+          <p className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">최근 7일 기록을 모으고 있어요.</p>
+        ) : weeklyBriefing ? (
+          <>
+            <div className="mt-4 flex flex-col gap-3 rounded-2xl bg-[#312B67] p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-white/60">연이의 이번 주 제안</p>
+                <h3 className="mt-1 font-bold">{weeklyBriefing.recommendation.title}</h3>
+                <p className="mt-1 text-xs leading-5 text-white/75">{weeklyBriefing.recommendation.detail}</p>
+              </div>
+              <Link href={weeklyBriefing.recommendation.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-white px-4 text-xs font-bold text-[#3C3489]">
+                {weeklyBriefing.recommendation.label} →
+              </Link>
+            </div>
+            {weeklyBriefing.cards.length > 0 ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                {weeklyBriefing.cards.map((card) => (
+                  <Link key={card.area} href={card.href} className={`rounded-2xl p-4 ring-1 ${weeklyCardTones[card.area]}`}>
+                    <p className="text-[11px] font-bold opacity-70">{card.label}</p>
+                    <p className="mt-2 text-lg font-bold">{card.value}</p>
+                    <p className="mt-1 text-[11px] opacity-65">{card.detail}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">연결된 주간 기록을 확인하지 못했어요. 위의 실패 영역을 다시 불러와 주세요.</p>
+            )}
+          </>
+        ) : null}
+      </section>
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
