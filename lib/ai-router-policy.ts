@@ -12,8 +12,7 @@ export type AiTextFeature =
   | "fitness-weekly-plan-proposal"
   | "fitness-program-review"
   | "language-conversation"
-  | "handwriting-feedback"
-  | "diet-photo-analysis";
+  | "handwriting-feedback";
 
 export type AiRoutePolicy = {
   provider: AiTextProvider;
@@ -56,7 +55,6 @@ export const AI_ROUTE_POLICIES: Record<AiTextFeature, AiRoutePolicy> = {
   "fitness-program-review": GEMINI_COACH,
   "language-conversation": OPENAI_LANGUAGE,
   "handwriting-feedback": OPENAI_LANGUAGE,
-  "diet-photo-analysis": OPENAI_LANGUAGE,
 };
 
 export function resolveAiRoute(feature: AiTextFeature): AiRoutePolicy {

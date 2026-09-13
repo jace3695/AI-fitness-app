@@ -299,6 +299,7 @@ export default function DietView() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [photoAnalysis, setPhotoAnalysis] = useState<DietPhotoAnalysis | null>(null);
   const [photoConfirmed, setPhotoConfirmed] = useState(false);
+  const [photoDataUseAcknowledged, setPhotoDataUseAcknowledged] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoMessage, setPhotoMessage] = useState('');
   const [dataVersion, setDataVersion] = useState(0);
@@ -451,6 +452,7 @@ export default function DietView() {
   const selectDietPhoto = (file: File | null) => {
     setPhotoAnalysis(null);
     setPhotoConfirmed(false);
+    setPhotoDataUseAcknowledged(false);
     setPhotoMessage('');
     if (!file) {
       if (photoInputRef.current) photoInputRef.current.value = '';
@@ -471,7 +473,7 @@ export default function DietView() {
   };
 
   const analyzeDietPhoto = async () => {
-    if (!photoFile || photoLoading) return;
+    if (!photoFile || photoLoading || !photoDataUseAcknowledged) return;
     setPhotoLoading(true);
     setPhotoAnalysis(null);
     setPhotoConfirmed(false);
@@ -481,7 +483,7 @@ export default function DietView() {
       const response = await fetch('/api/diet/photo-analysis', {
         method: 'POST',
         headers: await authenticatedJsonHeaders(),
-        body: JSON.stringify({ mealSlot: photoMealSlot, imageDataUrl }),
+        body: JSON.stringify({ mealSlot: photoMealSlot, imageDataUrl, freeDataUseAcknowledged: photoDataUseAcknowledged }),
       });
       const result = await response.json() as DietPhotoAnalysis & { error?: string };
       if (!response.ok) throw new Error(result.error || '사진을 분석하지 못했어요.');
@@ -893,7 +895,7 @@ export default function DietView() {
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold text-[#534AB7]">
-                    선택 기능
+                    무료 AI · 선택 기능
                   </span>
                 </div>
 
@@ -902,6 +904,7 @@ export default function DietView() {
                     <button
                       key={value}
                       type="button"
+                      disabled={photoLoading}
                       onClick={() => {
                         setPhotoMealSlot(value);
                         setPhotoAnalysis(null);
@@ -923,6 +926,7 @@ export default function DietView() {
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
                       capture="environment"
+                      disabled={photoLoading}
                       onChange={(event) => selectDietPhoto(event.target.files?.[0] ?? null)}
                       className="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#EEEDFE] file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-[#3C3489]"
                     />
@@ -930,15 +934,25 @@ export default function DietView() {
                   <button
                     type="button"
                     onClick={() => void analyzeDietPhoto()}
-                    disabled={!photoFile || photoLoading}
+                    disabled={!photoFile || photoLoading || !photoDataUseAcknowledged}
                     className="min-h-11 rounded-xl bg-[#534AB7] px-4 py-2.5 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
                   >
                     {photoLoading ? '분석 중…' : 'AI로 분석'}
                   </button>
                 </div>
                 <p className="mt-2 text-[10px] leading-4 text-gray-500">
-                  ‘AI로 분석’을 누르면 압축된 사진 1장이 AI 제공업체로 전송됩니다. 앱·DB에는 사진을 보관하지 않습니다.
+                  ‘AI로 분석’을 누르면 압축된 사진 1장이 Google Gemini로 전송됩니다. 무료 한도에 도달하면 직접 입력으로 이어갈 수 있습니다.
                 </p>
+                <p id="diet-photo-free-data-notice" className="mt-2 text-[10px] leading-4 text-gray-600">
+                  Google 무료 서비스는 사진과 응답을 서비스 개선에 활용할 수 있고 담당자가 검토할 수 있습니다. 얼굴·이름·영수증 등 개인정보가 없는 음식 사진만 선택해 주세요.{' '}
+                  <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noopener noreferrer" className="underline">데이터 활용 안내</a>
+                </p>
+                <label className="mt-2 flex min-h-11 items-center gap-2 text-[11px] leading-5 text-gray-700">
+                  <input type="checkbox" checked={photoDataUseAcknowledged} disabled={!photoFile || photoLoading}
+                    aria-describedby="diet-photo-free-data-notice"
+                    onChange={(event) => setPhotoDataUseAcknowledged(event.target.checked)} className="h-4 w-4 shrink-0" />
+                  무료 분석의 사진·응답 활용 안내를 확인했습니다.
+                </label>
 
                 {photoPreviewUrl && (
                   <div className="mt-3 flex items-start gap-3 rounded-xl bg-white p-3">
@@ -958,6 +972,7 @@ export default function DietView() {
                       <button
                         type="button"
                         onClick={() => selectDietPhoto(null)}
+                        disabled={photoLoading}
                         className="mt-2 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[10px] font-bold text-gray-600"
                       >
                         사진 지우기

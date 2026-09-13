@@ -32,9 +32,10 @@ test("diet photo estimate requires explicit review and never stores the image", 
   let analysisRequests = 0;
   await page.route("**/api/diet/photo-analysis", async (route) => {
     analysisRequests += 1;
-    const body = route.request().postDataJSON() as { mealSlot?: string; imageDataUrl?: string };
+    const body = route.request().postDataJSON() as { mealSlot?: string; imageDataUrl?: string; freeDataUseAcknowledged?: boolean };
     expect(body.mealSlot).toBe("lunch");
     expect(body.imageDataUrl).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body.freeDataUseAcknowledged).toBe(true);
     expect(route.request().headers().authorization).toMatch(/^Bearer /);
     await route.fulfill({
       status: 200,
@@ -61,7 +62,10 @@ test("diet photo estimate requires explicit review and never stores the image", 
   const photoInput = page.getByLabel("음식 사진 선택");
   const samePhoto = { name: "synthetic-meal.png", mimeType: "image/png", buffer: png };
   const analyze = page.getByRole("button", { name: "AI로 분석", exact: true });
+  const dataNotice = page.getByLabel("무료 분석의 사진·응답 활용 안내를 확인했습니다.");
   await photoInput.setInputFiles(samePhoto);
+  await expect(analyze).toBeDisabled();
+  await dataNotice.check();
   await expect(analyze).toBeEnabled();
   await page.getByRole("button", { name: "사진 지우기", exact: true }).click();
   await expect(photoInput).toHaveValue("");
@@ -69,6 +73,9 @@ test("diet photo estimate requires explicit review and never stores the image", 
   await expect(analyze).toBeDisabled();
   await photoInput.setInputFiles(samePhoto);
   await expect(page.getByAltText("분석할 식사 사진 미리보기")).toBeVisible();
+  await expect(dataNotice).not.toBeChecked();
+  await expect(analyze).toBeDisabled();
+  await dataNotice.check();
   await expect(analyze).toBeEnabled();
   expect(analysisRequests).toBe(0);
   await analyze.click();
@@ -105,6 +112,52 @@ test("diet photo estimate requires explicit review and never stores the image", 
     containsImage: false,
   });
   assertOriginalPreserved(await qa.read());
+});
+
+test("free photo setup and quota failures preserve drafts without paid reservations", async ({ page, qa }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const { data: sessionData } = await qa.account.client.auth.getSession();
+  const authorization = `Bearer ${sessionData.session?.access_token}`;
+  const imageDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+  const consentMissing = await page.request.post("/api/diet/photo-analysis", {
+    headers: { Authorization: authorization }, data: { mealSlot: "lunch", imageDataUrl },
+  });
+  expect(consentMissing.status()).toBe(400);
+  // CI deliberately has no dedicated free key or confirmation. This exercises
+  // the real route/auth path and must stop before any provider or billing call.
+  const unconfigured = await page.request.post("/api/diet/photo-analysis", {
+    headers: { Authorization: authorization }, data: { mealSlot: "lunch", imageDataUrl, freeDataUseAcknowledged: true },
+  });
+  expect(unconfigured.status()).toBe(503);
+  expect((await unconfigured.json()).error).toContain("무료 사진 분석 연결을 준비 중");
+
+  let requests = 0;
+  await page.route("**/api/diet/photo-analysis", async (route) => {
+    requests += 1;
+    await route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({
+      error: "무료 사진 분석의 이용 한도에 도달했어요. 식사 내용을 직접 입력하거나 나중에 다시 이용해 주세요.",
+    }) });
+  });
+  await login(page, qa.account);
+  await synced(page);
+  await page.goto("/diet");
+  const rice = page.getByLabel("점심 밥량");
+  await rice.fill("123");
+  await page.getByLabel("음식 사진 선택").setInputFiles({ name: "synthetic.png", mimeType: "image/png", buffer: Buffer.from(imageDataUrl.split(",")[1], "base64") });
+  await page.getByLabel("무료 분석의 사진·응답 활용 안내를 확인했습니다.").check();
+  await page.getByRole("button", { name: "AI로 분석", exact: true }).click();
+  await expect(page.getByText(/무료 사진 분석의 이용 한도에 도달했어요/)).toBeVisible();
+  await expect(rice).toHaveValue("123");
+  await expect(page.getByRole("button", { name: "오늘 식단 저장", exact: true })).toBeEnabled();
+  await expect(page.getByText("AI 추정 결과", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "사진 지우기", exact: true }).click();
+  await expect(page.getByAltText("분석할 식사 사진 미리보기")).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(requests).toBe(1);
+  assertOriginalPreserved(await qa.read());
+  const usage = await qa.account.client.from("ai_usage_events").select("id");
+  expect(usage.error).toBeNull();
+  expect(usage.data).toEqual([]);
 });
 
 test("growth schedule updates atomically and remains owner isolated", async ({ page, qa }) => {
