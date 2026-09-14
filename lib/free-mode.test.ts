@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import * as freeMode from './free-mode.ts';
 import * as policies from './ai-router-policy.ts';
+import * as voicePolicy from './yeoni-voice-policy.ts';
 
 function loadModule(path: string, modules: Record<string, unknown>, forbidden: () => never) {
   const exports = {};
@@ -35,12 +36,18 @@ for (const path of ['../app/api/tts/route.ts', '../app/api/language/tts/route.ts
     const forbidden = () => { calls++; throw new Error('Paid boundary reached'); };
     const route = loadModule(path, {
       'next/server': { NextResponse: { json: Response.json } }, '@/lib/free-mode': freeMode,
+      '@/lib/yeoni-voice-policy': voicePolicy,
       '@/lib/supabase-server': { createServerSupabaseClient: async () => ({ auth: { getUser: async () => ({ data: { user: authenticated ? { id: 'fixture' } : null } }) } }) },
       '@/lib/ai-budget': { reserveAiBudget: forbidden }, '@/lib/ai-router': { generateAiText: forbidden },
     }, forbidden) as { POST: (req: Request) => Promise<Response> };
     const request = () => new Request('https://fixture.local/api', { method: 'POST', body: JSON.stringify({ text: 'synthetic', messages: [] }) });
     const result = await route.POST(request()); assert.equal(result.status, 503);
-    assert.equal((await result.json()).code, 'PAID_AI_DISABLED');
+    const body = await result.json();
+    assert.equal(body.code, 'PAID_AI_DISABLED');
+    if (path === '../app/api/tts/route.ts') {
+      assert.equal(body.voice, 'ko-KR-Chirp3-HD-Zephyr');
+      assert.equal(body.useDeviceVoice, false);
+    }
     authenticated = false; assert.equal((await route.POST(request())).status, 401);
     assert.equal(calls, 0);
   });

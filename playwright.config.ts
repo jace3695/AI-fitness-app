@@ -28,7 +28,7 @@ export default defineConfig({
   projects: [
     { name: 'auth-preservation', testMatch: '**/auth.spec.ts', use: { ...devices['Desktop Chrome'] } },
     { name: 'chromium', testIgnore: '**/auth.spec.ts', dependencies: ['auth-preservation'], use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit-small', testMatch: ['**/mobile.spec.ts', '**/p2.spec.ts', '**/free-first.spec.ts'], dependencies: ['auth-preservation'], use: { ...devices['iPhone 13'] } },
+    { name: 'webkit-small', testMatch: ['**/mobile.spec.ts', '**/p2.spec.ts', '**/free-first.spec.ts', '**/free-advice.spec.ts'], dependencies: ['auth-preservation'], use: { ...devices['iPhone 13'] } },
   ],
   webServer: {
     command: 'npm run start -- --hostname 127.0.0.1',

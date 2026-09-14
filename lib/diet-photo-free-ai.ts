@@ -4,8 +4,9 @@ import {
   type DietPhotoMealSlot,
 } from "../app/data/dietPhotoAnalysis.ts";
 import { buildGeminiGenerationConfig, extractGeminiResponse, readAiProviderFailure } from "./ai-provider-protocol.ts";
+import { FREE_GEMINI_MODEL, isFreeGeminiConfigured } from "./free-gemini-policy.ts";
 
-export const FREE_DIET_PHOTO_MODEL = "gemini-3.5-flash-lite";
+export const FREE_DIET_PHOTO_MODEL = FREE_GEMINI_MODEL;
 export const FREE_DIET_PHOTO_UNAVAILABLE = "무료 사진 분석 연결을 준비 중이에요. 지금은 식사 내용을 직접 입력해 주세요.";
 export const FREE_DIET_PHOTO_QUOTA_MESSAGE = "무료 사진 분석의 이용 한도에 도달했어요. 식사 내용을 직접 입력하거나 나중에 다시 이용해 주세요.";
 
@@ -36,7 +37,7 @@ export function isFreeDietPhotoConfigured(environment: FreePhotoEnvironment = pr
   // This is an operator attestation, NOT a Google billing-status API check.
   // Only set it after checking that this dedicated key's project has no billing
   // account. Revoke it before any billing change. Never reuse a paid/default key.
-  return environment.GEMINI_FREE_TIER_CONFIRMED === "true" && Boolean(environment.GEMINI_FREE_API_KEY?.trim());
+  return isFreeGeminiConfigured(environment);
 }
 
 function buildPrompt(mealSlot: DietPhotoMealSlot) {

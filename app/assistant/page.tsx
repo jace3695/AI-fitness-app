@@ -2,6 +2,7 @@
 
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import AppCompanion from "@/components/AppCompanion";
+import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -403,6 +404,7 @@ export default function AssistantPage() {
           <Link href={nextAction.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm">{nextAction.label} →</Link>
         </div>
       </section>}
+      <FreeAdvicePanel scope="assistant" />
       <section aria-label="최근 7일 통합 브리핑" className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

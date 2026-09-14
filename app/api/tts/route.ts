@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isPaidAiAllowed, PAID_AI_DISABLED_MESSAGE } from '@/lib/free-mode'
+import { isPaidAiAllowed } from '@/lib/free-mode'
+import { YEONI_VOICE_NAME, YEONI_VOICE_PENDING_MESSAGE } from '@/lib/yeoni-voice-policy'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AiBudgetExceededError, cancelAiBudgetReservation, finalizeAiUsage, reserveAiBudget, ttsCostKrw } from '@/lib/ai-budget'
 
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '읽을 문장은 1자 이상 1,200자 이하로 입력해주세요.' }, { status: 400 })
   }
 
-  if (!isPaidAiAllowed()) return NextResponse.json({ error: PAID_AI_DISABLED_MESSAGE, code: 'PAID_AI_DISABLED', useDeviceVoice: true }, { status: 503 })
+  if (!isPaidAiAllowed()) return NextResponse.json({ error: YEONI_VOICE_PENDING_MESSAGE, code: 'PAID_AI_DISABLED', voice: YEONI_VOICE_NAME, useDeviceVoice: false }, { status: 503 })
   let reservation
   try {
     reservation = await reserveAiBudget(supabase, user.id, { provider: 'google', model: 'chirp-3-hd', feature: 'korean-tts', estimatedCostKrw: ttsCostKrw(text.length), usageKind: 'characters' })
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
         input: { text },
         voice: {
           languageCode: 'ko-KR',
-          name: 'ko-KR-Chirp3-HD-Zephyr'
+          name: YEONI_VOICE_NAME
         },
         audioConfig: {
           audioEncoding: 'MP3'

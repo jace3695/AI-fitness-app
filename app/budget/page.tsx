@@ -1,10 +1,12 @@
 'use client'
 import { FREE_MODE } from "@/lib/free-mode";
+import { YEONI_VOICE_PENDING_MESSAGE } from "@/lib/yeoni-voice-policy";
 import { useUnsavedChanges } from '@/components/useUnsavedChanges'
 import { getLocalDateKey } from '@/utils/dateKey'
 import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
 import ConfirmDialog from "@/components/ConfirmDialog";
 import AppCompanion from "@/components/AppCompanion";
+import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
@@ -1713,12 +1715,7 @@ function BudgetDashboard() {
         .trim()
 
       if (FREE_MODE) {
-        if (!window.speechSynthesis) { setPageNotice('이 기기에서는 음성을 재생할 수 없어요. 화면의 답변을 확인해 주세요.'); return }
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(cleanText)
-        utterance.lang = 'ko-KR'
-        utterance.onerror = () => setPageNotice('기기 음성을 재생하지 못했어요. 화면의 답변을 확인해 주세요.')
-        window.speechSynthesis.speak(utterance)
+        setPageNotice(YEONI_VOICE_PENDING_MESSAGE)
         return
       }
 
@@ -1729,12 +1726,13 @@ function BudgetDashboard() {
       })
 
       const data = await res.json()
+      if (!res.ok) { setPageNotice(data.error || '음성을 준비하지 못했어요. 화면의 답변을 확인해 주세요.'); return }
       if (data.audioContent) {
         const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        audio.play()
+        await audio.play()
       }
-    } catch (e) {
-      console.error('TTS 오류', e)
+    } catch {
+      setPageNotice('음성을 재생하지 못했어요. 화면의 답변을 확인해 주세요.')
     }
   }
 
@@ -3893,6 +3891,7 @@ return (
 
       {tab === 'analysis' && analysisView === 'ai' && (
         <main className="living-finance-view ai-screen" style={{ padding: '20px 20px 96px' }}>
+          <FreeAdvicePanel scope="budget" />
           <section style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>
