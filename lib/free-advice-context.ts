@@ -5,6 +5,7 @@ export const FREE_ADVICE_LABELS: Record<FreeAdviceScope, string> = {
 };
 export type AdviceMetric = { id: string; label: string; value: number; unit: string };
 export type FreeAdviceContext = {
+  recordSource: "user-records" | "example";
   scope: FreeAdviceScope; startDate: string; endDate: string;
   recordCount: number; metrics: AdviceMetric[]; notes: string[];
 };
@@ -54,7 +55,7 @@ function datedEntries(value: unknown, endDate: string) {
 // record JSON, merchant names, notes, memories, account IDs or conversation logs.
 export function buildFreeAdviceContext(scope: FreeAdviceScope, records: AdviceRecords, now = new Date()): FreeAdviceContext {
   const range = adviceDateRange(now);
-  const result: FreeAdviceContext = { scope, ...range, recordCount: 0, metrics: [], notes: ["서버에 저장된 기록만 포함하며, 기록이 없는 날의 상태는 추정하지 않아요."] };
+  const result: FreeAdviceContext = { recordSource: "user-records", scope, ...range, recordCount: 0, metrics: [], notes: ["서버에 저장된 기록만 포함하며, 기록이 없는 날의 상태는 추정하지 않아요."] };
   const add = (id: string, label: string, value: number, unit: string) => result.metrics.push({ id, label, value: Math.round(value * 10) / 10, unit });
   if (scope === "fitness" || scope === "assistant") {
     const state = object(records.fitnessState);
@@ -116,4 +117,23 @@ export function buildFreeAdviceContext(scope: FreeAdviceScope, records: AdviceRe
     result.notes.push("월 전체가 아닌 최근 28일 합계예요. 기록이 없는 수입·지출·저축을 0원으로 실제 확정하지 않아요.");
   }
   return result;
+}
+
+// A fixed, visibly fictional example for first-time users. No account data is
+// read or written, and callers cannot supply their own records to this path.
+export function buildExampleAdviceContext(scope: FreeAdviceScope, now = new Date()): FreeAdviceContext {
+  const { endDate } = adviceDateRange(now);
+  const result = buildFreeAdviceContext(scope, {
+    fitnessState: {
+      "ai-fitness-workout-completed-days": { [endDate]: { workoutStatus: "partial", workoutBackStatus: "none" } },
+      "ai-fitness-water-intake": { [endDate]: 600 },
+    },
+    languageState: { japaneseCurriculumProgressV1: { activityDates: [endDate] } },
+    expenses: [{ date: endDate, amount: 12300 }], income: [], savings: [],
+  }, now);
+  return { ...result, recordSource: "example", notes: [
+    "실제 사용자의 기록이 아닌 가상의 예시예요. 앱에 저장하거나 결제하지 않아요.",
+    "예시로 조언을 받아도 무료 AI 이용 한도는 사용해요.",
+    ...result.notes.slice(1),
+  ] };
 }

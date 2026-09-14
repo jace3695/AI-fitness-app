@@ -58,6 +58,16 @@ test('free advice previews real owner records across four areas without modifyin
   expect(await qa.read()).toEqual(fitness);
   expect(await qa.readLanguage()).toEqual(language);
   expect((await qa.account.client.from('budget_transactions').select('amount').eq('user_id', qa.account.id)).data).toEqual([{ amount: 12000 }]);
+  // Explicit completion still persists, and a reload no longer rewrites the
+  // learning history timestamp merely because the home page mounted.
+  await page.goto('/language');
+  await page.locator('.routine-details > summary').click();
+  await page.getByRole('button', { name: '직접 완료', exact: true }).first().click();
+  await expect.poll(async () => JSON.parse((await qa.readLanguage()).dailyLearningHistory as string)?.[day]?.completedIds).toEqual(['kana']);
+  const savedLanguage = await qa.readLanguage();
+  await page.reload(); await page.locator('.routine-details > summary').click();
+  await expect(page.getByRole('button', { name: '완료 취소', exact: true })).toBeVisible();
+  expect(await qa.readLanguage()).toEqual(savedLanguage);
 });
 
 test('advice UI requires consent and handles success, quota and changed-record responses (synthetic provider)', async ({ page, qa }) => {
@@ -101,6 +111,11 @@ test('empty records stay explicit and quick commands preserve Zephyr without dev
   await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
   await expect(panel).toContainText('아직 분석할 기록이 없어요.');
   await expect(panel.getByRole('button', { name: '무료 AI 조언받기', exact: true })).toHaveCount(0);
+  await panel.getByRole('button', { name: '예시 기록으로 먼저 보기', exact: true }).click();
+  await expect(panel.getByText('가상의 예시 기록', { exact: true })).toBeVisible();
+  await expect(panel).toContainText('실제 내 기록을 사용하지 않는 예시');
+  await expect(panel).toContainText('600mL');
+  await expect(panel.getByRole('button', { name: '무료 AI 조언받기', exact: true })).toBeDisabled();
   let ttsCalls = 0;
   page.on('request', request => { if (request.url().includes('/api/tts')) ttsCalls++; });
   await page.addInitScript(() => {

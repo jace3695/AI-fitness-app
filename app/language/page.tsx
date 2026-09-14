@@ -179,19 +179,14 @@ export default function HomePage() {
     }
   }, [todayKey]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!hasLoadedRoutine) return;
-
-    const safeCompletedIds = Array.from(new Set(getSafeCompletedIds(completedIds)));
-    saveTodayRoutineCompletedIds(todayKey, safeCompletedIds, todayRoutine.length);
-  }, [completedIds, hasLoadedRoutine, todayKey]);
-
   const completedCount = completedIds.length;
   const toggleCompleted = (id: string) => {
-    setCompletedIds((prev) =>
-      prev.includes(id) ? prev.filter((completedId) => completedId !== id) : [...prev, id],
-    );
+    if (!hasLoadedRoutine) return;
+    const next = completedIds.includes(id) ? completedIds.filter(completedId => completedId !== id) : [...completedIds, id];
+    setCompletedIds(next);
+    // Opening the page or an advice preview must not create an empty learning
+    // day or rewrite its timestamp. Persist only the user's completion action.
+    saveTodayRoutineCompletedIds(todayKey, next, todayRoutine.length);
   };
 
   return (
@@ -227,6 +222,7 @@ export default function HomePage() {
                   <Link href={item.href}>{item.cta}</Link>
                   <button
                     type="button"
+                    disabled={!hasLoadedRoutine}
                     onClick={() => toggleCompleted(item.id)}
                   >
                     {isCompleted ? "완료 취소" : "직접 완료"}

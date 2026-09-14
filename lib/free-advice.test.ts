@@ -140,7 +140,7 @@ function routeFixture() {
     "@/lib/free-advice-context": contextModule,
     "@/lib/free-advice-records": { loadFreeAdviceContext: async (_client: unknown, userId: string) => { state.recordCalls++; assert.equal(userId, "owner-fixture"); if (state.recordsFail) throw new Error("PRIVATE-DB"); return state.context; } },
     "@/lib/free-gemini-policy": { ...policy, isFreeGeminiConfigured: () => state.configured },
-    "@/lib/free-advice": { FreeAdviceError: provider.FreeAdviceError, generateFreeAdvice: async (args: typeof input) => { state.providerCalls++; assert.equal(args.acknowledged, true); assert.deepEqual(args.context, state.context); return advice; } },
+    "@/lib/free-advice": { FreeAdviceError: provider.FreeAdviceError, generateFreeAdvice: async (args: typeof input) => { state.providerCalls++; assert.equal(args.acknowledged, true); assert.deepEqual(args.context, args.context.recordSource === "example" ? contextModule.buildExampleAdviceContext(args.context.scope) : state.context); return advice; } },
   };
   const code = ts.transpileModule(readFileSync(new URL("../app/api/ai/free-advice/route.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   vm.runInNewContext(`(function(exports, require) { ${code}\n})`, { Response, console })(exports, (name: string) => { assert.ok(name in modules, `unexpected import ${name}`); return modules[name]; });
@@ -156,6 +156,7 @@ test("route validates authentication, literal actions, body fields and consent b
   for (const body of [
     { action: ["preview"], scope: "budget" }, { action: ["analyze"], scope: "budget" },
     { action: "preview", scope: ["budget"] }, { action: "preview", scope: "budget", userId: "victim" },
+    { action: "preview", scope: "budget", recordSource: ["example"] }, { action: "preview", scope: "budget", context: { records: "injected" } },
     { action: "analyze", scope: "budget", freeDataUseAcknowledged: "true" },
     { action: "preview", scope: "budget", question: "x".repeat(501) },
   ]) assert.equal((await post(body)).status, 400);
@@ -182,4 +183,31 @@ test("preview does not call AI; analysis requires exactly the reviewed snapshot 
   state.recordsFail = true;
   const failed = await post(analyze); assert.equal(failed.status, 503); assert.ok(!(await failed.text()).includes("PRIVATE-DB"));
   assert.equal(state.providerCalls, 1);
+});
+
+test("fixed example previews and generates without any account-record access, and cannot authorize real-record analysis", async () => {
+  const { state, post } = routeFixture();
+  state.recordsFail = true;
+  const previewResponse = await post({ action: "preview", scope: "budget", recordSource: "example" });
+  assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  assert.equal(preview.context.recordSource, "example");
+  assert.equal(metric(preview.context, "budget.expense"), 12300);
+  assert.match(preview.context.notes[0], /가상의 예시/);
+  const analyze = { action: "analyze", scope: "budget", recordSource: "example", fingerprint: preview.fingerprint, freeDataUseAcknowledged: true };
+  assert.equal((await post(analyze)).status, 200);
+  assert.equal(state.recordCalls, 0); assert.equal(state.providerCalls, 1);
+  state.recordsFail = false;
+  assert.equal((await post({ ...analyze, recordSource: "user-records" })).status, 409);
+  assert.equal(state.providerCalls, 1);
+});
+
+test("example provider prompt identifies fictional data and never describes it as the user's real records", async () => {
+  const example = contextModule.buildExampleAdviceContext("assistant", now);
+  assert.equal(example.recordSource, "example");
+  await provider.generateFreeAdvice({ ...input, context: example }, environment, async (_url, init) => {
+    assert.match(String(init?.body), /가상의 예시다/);
+    assert.match(String(init?.body), /실제 사용자의 지출·건강·실력으로 서술하지 않는다/);
+    return output();
+  });
 });
