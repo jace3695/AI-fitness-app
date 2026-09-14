@@ -1855,3 +1855,8 @@ button, input, textarea, select { font: inherit; }
 }
 .living-finance-app .budget-edit-preview { max-height: 35dvh; overflow: auto; overflow-wrap: anywhere; color: #172320; margin-top: 12px; }
 .living-finance-app .budget-edit-preview p { border-top: 1px solid #ccd5d0; padding: 8px 0; }
+.living-finance-app .budget-plan-form { display: grid; gap: 12px; min-width: 0; margin-top: 16px; padding: 12px; border: 1px solid #71877b; border-radius: 12px; }
+.living-finance-app .budget-plan-form label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+.living-finance-app .budget-plan-form input:not([type='checkbox']) { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 8px; border: 1px solid #71877b; border-radius: 8px; background: #fff; color: #172320; }
+.living-finance-app .budget-plan-form input[type='checkbox'] { width: 22px; height: 22px; margin: 11px 0; }
+.living-finance-app .budget-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -18,7 +18,7 @@ import { ArrowRight, ChevronDown, ChevronUp, CircleDollarSign, PiggyBank, Receip
 import FixedSpaceBackground from './components/fixed-space-background'
 import PreferencesSettingsCards from './components/preferences-settings-cards'
 import HistoryScreen from './components/history-screen'
-import MonthlyCheck from './components/monthly-check'
+import PaymentPlans from './components/payment-plans'
 import { applyCategoryMemory } from './lib/category-memory'
 import { loadBudgetRows } from './lib/load-records'
 import SettingsUtilityCards from './components/settings-utility-cards'
@@ -3284,6 +3284,7 @@ return (
             </div>
           </header>
 
+          {user?.id && <PaymentPlans key={`home-plans:${user.id}`} userId={user.id} records={transactions} month={selectedMonth} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} compact onManage={() => { setTab('analysis'); setAnalysisView('stats'); }} onRefreshRecords={fetchTransactions} />}
           <section className="home-ai-card home-ai-card-primary">
             <div className="home-ai-icon" aria-hidden="true"><Sparkles size={22} strokeWidth={1.8} /></div>
             <div className="home-ai-content">
@@ -3953,7 +3954,7 @@ return (
             <h3 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>{selectedMonthLabel} 돈의 흐름</h3>
             <p style={{ color: '#9CA3AF', fontSize: 12, lineHeight: 1.6, margin: 0 }}>핵심 수치부터 지출 구성과 반복 흐름 순서로 확인하세요.</p>
           </div>
-          <MonthlyCheck records={transactions} month={selectedMonth} today={getLocalDateKey(new Date())} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} />
+          {user?.id && <PaymentPlans key={`analysis-plans:${user.id}`} userId={user.id} records={transactions} month={selectedMonth} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} onRefreshRecords={fetchTransactions} />}
           <section aria-labelledby="month-end-report-title" style={{ background: 'linear-gradient(145deg, rgba(32,31,48,0.92), rgba(20,27,40,0.88))', border: '1px solid rgba(78,205,196,0.28)', borderRadius: 20, padding: 18, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>

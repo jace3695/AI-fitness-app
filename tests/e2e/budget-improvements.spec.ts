@@ -300,6 +300,9 @@ test('monthly checks show real previous-month data, duplicate candidates and fix
   await panel.getByText('고정 항목·구독 점검 · 2개',{exact:true}).click();
   await expect(panel.getByText(/각 달 1건 기준.*2,000.*증가/)).toBeVisible();
   await expect(panel.getByText(/지난달 1건을 바탕으로.*20,000/)).toBeVisible();
+  await expect(panel.getByText(/기록 건수 0→2건/)).toBeVisible();
+  await expect(panel.getByText(/중복 합성 식당: 0→2건.*10,000 증가/)).toBeVisible();
+  await expect(panel.getByText(/상품 가격 인상이나 낭비로 단정할 수는 없어요/).first()).toBeVisible();
   expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(seed.data));
   expect((await qa.account.client.from('budget_category_changes').select('*')).data).toEqual([]);
   await page.setViewportSize({width:320,height:800});
