@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import { Search } from 'lucide-react'
+import CategoryEditor from './category-editor'
 
 type HistoryType = 'all' | 'income' | 'expense' | 'saving'
 
 type HistoryScreenProps = {
+  userId: string
+  onChanged: () => Promise<void>
   incomeList: any[]
   transactions: any[]
   savings: any[]
@@ -47,7 +50,7 @@ function getPaymentBadgeStyle(payment?: string) {
   return { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, color, background: `${color}22`, border: `1px solid ${color}55` } as const
 }
 
-export default function HistoryScreen({ incomeList, transactions, savings, currency, processingRecordKey, onDeleteIncome, onDeleteExpense, onDeleteSaving, onNavigateInput, onNotice }: HistoryScreenProps) {
+export default function HistoryScreen({ userId, onChanged, incomeList, transactions, savings, currency, processingRecordKey, onDeleteIncome, onDeleteExpense, onDeleteSaving, onNavigateInput, onNotice }: HistoryScreenProps) {
   const [showAllIncomeList, setShowAllIncomeList] = useState(false)
   const [showAllExpenseList, setShowAllExpenseList] = useState(false)
   const [showAllSavingsList, setShowAllSavingsList] = useState(false)
@@ -134,6 +137,11 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
                   총 {filteredIncomeItems.length + filteredExpenseItems.length + filteredSavingItems.length}건
                 </p>
               </section>
+
+              <details className="budget-improvement-card">
+                <summary>지출 분류 수정·기억·변경 이력</summary>
+                <CategoryEditor key={JSON.stringify([userId, searchQuery, historyStartDate, historyEndDate, historyTypeFilter, historyCategoryFilter])} userId={userId} records={filteredExpenseItems} onChanged={onChanged} />
+              </details>
     
               {filteredSavingItems.length > 0 && (
                 <>

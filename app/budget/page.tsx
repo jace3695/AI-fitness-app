@@ -18,6 +18,9 @@ import { ArrowRight, ChevronDown, ChevronUp, CircleDollarSign, PiggyBank, Receip
 import FixedSpaceBackground from './components/fixed-space-background'
 import PreferencesSettingsCards from './components/preferences-settings-cards'
 import HistoryScreen from './components/history-screen'
+import MonthlyCheck from './components/monthly-check'
+import { applyCategoryMemory } from './lib/category-memory'
+import { loadBudgetRows } from './lib/load-records'
 import SettingsUtilityCards from './components/settings-utility-cards'
 import UserGuide from './components/user-guide'
 import { buildTransactionParseSystem, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
@@ -267,7 +270,9 @@ function BudgetDashboard() {
   const [pendingDelete, setPendingDelete] = useState<{ kind: 'expense' | 'income' | 'saving' | 'all'; id: string } | null>(null)
   const [deleteUndo, setDeleteUndo] = useState<BudgetDeleteUndo | null>(null)
   const [settingsSavingAction, setSettingsSavingAction] = useState('')
-  const [dataLoadError, setDataLoadError] = useState('')
+  const [recordLoads, setRecordLoads] = useState<Record<string, string>>({ expense: 'loading', income: 'loading', saving: 'loading' })
+  const dataLoadError = Object.values(recordLoads).find(status => status !== 'ready' && status !== 'loading') || ''
+  const recordsReady = Object.values(recordLoads).every(status => status === 'ready')
   const [lastActiveAt, setLastActiveAt] = useState(Date.now())
   const LOCK_TIMEOUT = 1000 * 60 * 3
 
@@ -685,53 +690,28 @@ function BudgetDashboard() {
     }
   }, [isLockReady, user, simplePinEnabled, hasSimplePin, isUnlocked, lastActiveAt, LOCK_TIMEOUT])
 
-  const fetchTransactions = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
-
-    if (!currentUser) {
-      setTransactions([])
-      setRecurringTransactions([])
-      return
+  const fetchRecordKind = async (kind: BudgetRecordKind) => {
+    setRecordLoads(current => ({ ...current, [kind]: 'loading' }))
+    try {
+      const { data: { user: owner }, error: authError } = await supabase.auth.getUser()
+      if (authError || !owner) throw new Error('로그인 상태를 확인해 주세요.')
+      const table = BUDGET_RECORD_TABLE[kind] as 'budget_transactions' | 'budget_income' | 'budget_savings'
+      const rows = await loadBudgetRows(supabase, table, owner.id)
+      const { data: { user: currentOwner } } = await supabase.auth.getUser()
+      if (currentOwner?.id !== owner.id) return
+      if (kind === 'expense') {
+        setTransactions(rows)
+        const start = new Date()
+        start.setDate(1); start.setMonth(start.getMonth() - 2)
+        setRecurringTransactions(rows.filter(row => String(row.date) >= getLocalDateKey(start)))
+      } else if (kind === 'income') setIncomeList(rows)
+      else setSavings(rows)
+      setRecordLoads(current => ({ ...current, [kind]: 'ready' }))
+    } catch {
+      setRecordLoads(current => ({ ...current, [kind]: '전체 내역을 불러오지 못했어요. 연결을 확인한 뒤 다시 불러와 주세요.' }))
     }
-
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
-    const recurringStartDate = new Date(startOfMonth)
-    recurringStartDate.setMonth(recurringStartDate.getMonth() - 2)
-
-    const normalizeTransaction = (item: any) => ({
-      ...item,
-      payment: item.payment || '체크카드',
-      transaction_type: item.transaction_type || '일반 지출'
-    })
-
-    const { data, error } = await supabase
-      .from('budget_transactions')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .gte('date', getLocalDateKey(startOfMonth))
-      .order('date', { ascending: false })
-
-    const { data: recurringData, error: recurringError } = await supabase
-      .from('budget_transactions')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .gte('date', getLocalDateKey(recurringStartDate))
-      .order('date', { ascending: false })
-
-    if (error || recurringError) {
-      console.error('transactions 조회 오류:', error || recurringError)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setTransactions((data || []).map(normalizeTransaction))
-    setRecurringTransactions((recurringData || []).map(normalizeTransaction))
   }
+  const fetchTransactions = () => fetchRecordKind('expense')
 
   const fetchRecurringExpensePreferences = async () => {
     const { data: authData } = await supabase.auth.getUser()
@@ -824,55 +804,9 @@ function BudgetDashboard() {
     setRecurringDecisionSavingKey('')
   }
 
-  const fetchSavings = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
+  const fetchSavings = () => fetchRecordKind('saving')
 
-    if (!currentUser) {
-      setSavings([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('budget_savings')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('date', { ascending: false })
-
-    if (error) {
-      console.error('savings 조회 오류:', error)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setSavings(data || [])
-  }
-
-  const fetchIncome = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
-
-    if (!currentUser) {
-      setIncomeList([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('budget_income')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('date', { ascending: false })
-
-    if (error) {
-      console.error('income 조회 오류:', error)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setIncomeList(data || [])
-  }
+  const fetchIncome = () => fetchRecordKind('income')
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -1508,7 +1442,14 @@ function BudgetDashboard() {
 
     try {
       const parsed = await parseInput(input)
-      setParsedItems(parsed)
+      const { data: rules, error: rulesError, count } = await supabase.from('budget_category_rules')
+        .select('merchant_key,category,revision', { count: 'exact' }).eq('user_id', user.id).order('merchant_key').limit(1000)
+      if (rulesError || count !== rules?.length) {
+        setFeedback('기억한 분류를 읽지 못했어요. 연결을 확인한 뒤 다시 해석해 주세요.')
+        setAiLoading(false)
+        return
+      }
+      setParsedItems(applyCategoryMemory(parsed, rules || []))
       setShowConfirm(true)
     } catch {
       setFeedback('입력 내용을 완전히 해석하지 못했어요. 내용을 조금만 다듬어서 다시 해석해보세요.')
@@ -3745,10 +3686,10 @@ return (
 
                     {item.type !== 'saving' && (
                       <label style={{ display: 'block', color: '#AEB7C6', fontSize: 11, marginBottom: 10 }}>
-                        카테고리
+                        카테고리 {item.categorySource && <span>· {item.categorySource}</span>}
                         <select
                           value={item.category || (item.type === 'income' ? '기타수입' : '기타')}
-                          onChange={(e) => updateParsedItem(idx, { category: e.target.value })}
+                          onChange={(e) => updateParsedItem(idx, { category: e.target.value, categorySource: undefined })}
                           style={{ width: '100%', minHeight: 40, marginTop: 5, background: '#101018', border: '1px solid #343443', borderRadius: 8, color: '#FFFFFF', padding: '8px 9px', boxSizing: 'border-box' }}
                         >
                           {item.type === 'income' ? (
@@ -3841,6 +3782,8 @@ return (
 
       {tab === 'list' && (
         <HistoryScreen
+          userId={user.id}
+          onChanged={async () => { await fetchTransactions() }}
           incomeList={incomeList}
           transactions={transactions}
           savings={savings}
@@ -4008,6 +3951,7 @@ return (
             <h3 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>{selectedMonthLabel} 돈의 흐름</h3>
             <p style={{ color: '#9CA3AF', fontSize: 12, lineHeight: 1.6, margin: 0 }}>핵심 수치부터 지출 구성과 반복 흐름 순서로 확인하세요.</p>
           </div>
+          <MonthlyCheck records={transactions} month={selectedMonth} today={getLocalDateKey(new Date())} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} />
           <section aria-labelledby="month-end-report-title" style={{ background: 'linear-gradient(145deg, rgba(32,31,48,0.92), rgba(20,27,40,0.88))', border: '1px solid rgba(78,205,196,0.28)', borderRadius: 20, padding: 18, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>

@@ -30,6 +30,8 @@ try {
     if (!/^sign_in_sign_ups\s*=\s*\d+/m.test(config)) throw new Error('Pinned CLI rate-limit config changed');
     writeFileSync(configPath, config.replace(/^sign_in_sign_ups\s*=\s*\d+/m, 'sign_in_sign_ups = 600'));
     copyFileSync('tests/e2e/schema.sql', `${workdir}/supabase/seed.sql`);
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260908233141_app_wide_reliability.sql', 'utf8').split('alter table public.assistant_items')[0]);
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914113147_budget_category_history.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));
