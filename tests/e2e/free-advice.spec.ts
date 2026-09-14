@@ -63,7 +63,7 @@ test('free advice previews real owner records across four areas without modifyin
   await page.goto('/language');
   await page.locator('.routine-details > summary').click();
   await page.getByRole('button', { name: '직접 완료', exact: true }).first().click();
-  await expect.poll(async () => JSON.parse((await qa.readLanguage()).dailyLearningHistory as string)?.[day]?.completedIds).toEqual(['kana']);
+  await expect.poll(async () => JSON.parse((await qa.readLanguage()).dailyLearningHistory as string || '{}')?.[day]?.completedIds).toEqual(['kana']);
   const savedLanguage = await qa.readLanguage();
   await page.reload(); await page.locator('.routine-details > summary').click();
   await expect(page.getByRole('button', { name: '완료 취소', exact: true })).toBeVisible();
