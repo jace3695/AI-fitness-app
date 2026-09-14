@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
@@ -23,14 +23,13 @@ export default function CategoryEditor({ userId, records, onChanged }: { userId:
   const [forgetRule, setForgetRule] = useState<CategoryRule | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [changeDetails, setChangeDetails] = useState<Record<string, { transaction_id: string; before_category: string | null }[]>>({});
-  const [reload, setReload] = useState(0);
+  const loadGeneration = useRef(0);
   useUnsavedChanges(Boolean(selected.length || pending || busy));
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     setLoaded(false);
-    const load = async () => {
-      try {
+    try {
         const [changes, memories] = await Promise.all([
           client.from('budget_category_changes').select('id,category,entry_count,created_at,undone_at').eq('user_id', userId).order('created_at', { ascending: false }).order('id').limit(20),
           client.from('budget_category_rules').select('merchant_key,category,revision', { count: 'exact' }).eq('user_id', userId).order('merchant_key').limit(1000),
@@ -39,13 +38,18 @@ export default function CategoryEditor({ userId, records, onChanged }: { userId:
         const raw = window.localStorage.getItem(pendingCategoryKey(userId));
         const saved = raw ? JSON.parse(raw) as CategoryRequest : null;
         if (saved && (!saved.p_request_id || !Array.isArray(saved.p_rows) || !saved.p_rows.length || saved.p_rows.some(row => row.expected?.user_id !== userId))) throw new Error('확인 중인 분류 변경을 읽지 못했어요.');
-        if (cancelled) return;
+        if (generation !== loadGeneration.current) return false;
         setHistory(changes.data || []); setRules(memories.data || []); setPending(saved); setLoaded(true);
-      } catch (reason) { if (!cancelled) setError(reason instanceof Error ? reason.message : '분류 이력 조회에 실패했어요.'); }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [client, userId, reload]);
+        return true;
+    } catch (reason) {
+      if (generation !== loadGeneration.current) return false;
+      throw reason;
+    }
+  }, [client, userId]);
+  useEffect(() => {
+    void load().catch(reason => setError(reason instanceof Error ? reason.message : '분류 이력 조회에 실패했어요.'));
+    return () => { loadGeneration.current += 1; };
+  }, [load]);
 
   const perform = async (operation: () => Promise<string>) => {
     if (busyRef.current) return;
@@ -54,9 +58,9 @@ export default function CategoryEditor({ userId, records, onChanged }: { userId:
       const { data, error: authError } = await client.auth.getUser();
       if (authError || data.user?.id !== userId) throw new Error('로그인 계정이 바뀌었어요. 다시 로그인해 주세요.');
       const result = await operation();
-      setMessage(result); setSelected([]); setConfirmation(false); setUndoId(null); setForgetRule(null);
+      setSelected([]); setConfirmation(false); setUndoId(null); setForgetRule(null);
       await onChanged();
-      setReload(value => value + 1);
+      if (await load()) setMessage(result);
     } catch (reason) { setConfirmation(false); setUndoId(null); setForgetRule(null); setError(reason instanceof Error ? reason.message : '처리 결과를 확인하지 못했어요. 같은 요청으로 다시 확인해 주세요.'); }
     finally { busyRef.current = false; setBusy(false); }
   };
@@ -99,11 +103,11 @@ export default function CategoryEditor({ userId, records, onChanged }: { userId:
     <p>내역을 선택해 분류를 함께 바꿀 수 있어요. “이 장소의 분류 기억”을 켜면 다음 입력의 확인 화면에 반영됩니다.</p>
     {error && <p role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
-    <button type="button" disabled={busy || Boolean(pending)} onClick={() => { setError(''); setSelected([]); setReload(value => value + 1); void onChanged(); }}>분류 이력 다시 불러오기</button>
+    <button type="button" disabled={busy || Boolean(pending)} onClick={() => void perform(async () => '분류 이력을 다시 불러왔어요.')}>분류 이력 다시 불러오기</button>
     {pending ? <div><p>저장 결과 확인 중인 변경이 있어요. 새 분류 변경 전에 같은 요청을 확인해 주세요.</p><button type="button" disabled={busy} onClick={() => void save()}>같은 변경 결과 확인</button></div> : <>
       <div className="budget-category-select-list">
         {records.slice(0, 100).map(record => <label key={record.id}>
-          <input type="checkbox" disabled={disabled} aria-label={`${record.place || '이름 없는 지출'} ${record.date} 분류 선택`} checked={selected.some(item => item.id === record.id)} onChange={event => setSelected(current => event.target.checked ? [...current, record] : current.filter(item => item.id !== record.id))} />
+          <input type="checkbox" disabled={disabled} aria-label={`${record.place || '이름 없는 지출'} ${record.date} 분류 선택`} checked={selected.some(item => item.id === record.id)} onChange={event => { const checked = event.target.checked; setSelected(current => checked ? [...current, record] : current.filter(item => item.id !== record.id)); }} />
           <span>{record.place || '이름 없는 지출'} · {record.date} · {record.category || '미분류'}</span>
         </label>)}
       </div>

@@ -84,7 +84,28 @@ test('lost category response persists across reload and independent sessions rej
   await menu(page).getByRole('button', { name: '상세 내역', exact: true }).click();
   await page.getByText('지출 분류 수정·기억·변경 이력', { exact: true }).click();
   panel = page.getByRole('region', { name: '분류 수정과 변경 이력' });
+  await expect(panel.getByRole('button', { name: '같은 변경 결과 확인' })).toBeEnabled();
+  // Hold the real post-save history response. A committed change must keep
+  // inputs locked until the current records AND history have been re-read.
+  let releaseHistory!: () => void;
+  let historyArrived!: () => void;
+  const historyWait = new Promise<void>(resolve => { releaseHistory = resolve; });
+  const historyReady = new Promise<void>(resolve => { historyArrived = resolve; });
+  let holdHistory = true;
+  await page.route('**/rest/v1/budget_category_changes?**', async route => {
+    if (!holdHistory) { await route.continue(); return; }
+    holdHistory = false;
+    const response = await route.fetch();
+    historyArrived();
+    await historyWait;
+    await route.fulfill({ response });
+  });
   await panel.getByRole('button', { name: '같은 변경 결과 확인' }).click();
+  try {
+    await historyReady;
+    await expect(panel.getByRole('checkbox', { name: `합성 A ${date} 분류 선택` })).toBeDisabled();
+    await expect(panel.getByText('1건의 분류 변경을 확인했어요.', { exact: true })).toHaveCount(0);
+  } finally { releaseHistory(); }
   await expect(panel.getByText('1건의 분류 변경을 확인했어요.', { exact: true })).toBeVisible();
   expect((await qa.account.client.from('budget_category_changes').select('id')).data).toHaveLength(1);
   await panel.getByRole('checkbox', { name: `합성 A ${date} 분류 선택` }).check();
