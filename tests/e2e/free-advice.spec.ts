@@ -1,8 +1,16 @@
 import { test, expect, login, original, originalLanguage, today } from './fixture';
+import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 
 test('free advice previews real owner records across four areas without modifying records', async ({ page, qa }) => {
   const day = today();
-  const fitness = { ...original, 'ai-fitness-workout-completed-days': { ...original['ai-fitness-workout-completed-days'] as object, [day]: { workoutStatus: 'partial', workoutBackStatus: 'pain', workoutMemo: 'PRIVATE-SYNTHETIC-MEMO' } } };
+  // Start after the existing one-time workout-settings migration. We compare
+  // the entire state, so unrelated first-visit migration must not hide writes.
+  const fitness = { ...original,
+    'ai-fitness-user-workout-settings': buildCurrentWorkoutSettings({ weeklyGroups: {}, weeklyMethods: {}, weeklyEdits: {}, exerciseTargets: {}, dateOverrides: {} }),
+    'ai-fitness-selected-weekly-workout-plan': 'five-day-fullbody-circuit',
+    'ai-fitness-workout-direction-version': 'five-day-circuit-v1',
+    'ai-fitness-workout-completed-days': { ...original['ai-fitness-workout-completed-days'] as object, [day]: { workoutStatus: 'partial', workoutBackStatus: 'pain', workoutMemo: 'PRIVATE-SYNTHETIC-MEMO' } },
+  };
   const language = { ...originalLanguage, japaneseCurriculumProgressV1: JSON.stringify({ activityDates: [day], completedLessonIds: [], quizScores: {}, selectedTrack: 'foundation', lessonAttempts: {} }) };
   expect((await qa.account.client.from('user_app_state').update({ state: fitness }).eq('user_id', qa.account.id)).error).toBeNull();
   expect((await qa.account.client.from('language_user_state').update({ state: language }).eq('user_id', qa.account.id)).error).toBeNull();
