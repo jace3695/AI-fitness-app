@@ -1844,3 +1844,14 @@ button, input, textarea, select { font: inherit; }
 .living-finance-app .budget-category-controls label { display: flex; gap: 8px; align-items: center; min-height: 44px; }
 .living-finance-app .budget-change-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid #35473e; padding: 10px 0; font-size: 12px; }
 .living-finance-app .budget-change-row > * { min-width: 0; }
+.living-finance-app .budget-category-controls label { flex-wrap: wrap; max-width: 100%; }
+.living-finance-app .budget-category-controls input:not([type='checkbox']) {
+  min-height: 44px; min-width: 0; max-width: 100%; width: 220px;
+  border: 1px solid #71877b; border-radius: 8px; padding: 8px 10px;
+}
+.living-finance-app .history-extra-filter { display: grid; gap: 5px; font-size: 12px; min-width: 0; }
+.living-finance-app .history-extra-filter input, .living-finance-app .history-extra-filter select {
+  width: 100%; min-width: 0; min-height: 44px; border-radius: 9px; padding: 8px 10px;
+}
+.living-finance-app .budget-edit-preview { max-height: 35dvh; overflow: auto; overflow-wrap: anywhere; color: #172320; margin-top: 12px; }
+.living-finance-app .budget-edit-preview p { border-top: 1px solid #ccd5d0; padding: 8px 0; }
