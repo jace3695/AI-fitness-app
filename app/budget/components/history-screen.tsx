@@ -120,7 +120,7 @@ export default function HistoryScreen({ userId, onChanged, incomeList, transacti
                   </label>
                   <label style={{ display: 'grid', gap: 5, color: '#E0E0EA', fontSize: 12 }}>
                     유형
-                    <select value={historyTypeFilter} onChange={(e) => setHistoryTypeFilter(e.target.value as 'all' | 'income' | 'expense' | 'saving')} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
+                    <select aria-label="내역 유형" value={historyTypeFilter} onChange={(e) => setHistoryTypeFilter(e.target.value as 'all' | 'income' | 'expense' | 'saving')} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
                       <option value="all">전체</option>
                       <option value="income">수입</option>
                       <option value="expense">지출</option>
@@ -129,7 +129,7 @@ export default function HistoryScreen({ userId, onChanged, incomeList, transacti
                   </label>
                   <label style={{ display: 'grid', gap: 5, color: '#E0E0EA', fontSize: 12 }}>
                     지출 카테고리
-                    <select value={historyCategoryFilter} disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} onChange={(e) => setHistoryCategoryFilter(e.target.value)} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
+                    <select aria-label="지출 카테고리" value={historyCategoryFilter} disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} onChange={(e) => setHistoryCategoryFilter(e.target.value)} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
                       <option value="all">전체</option>
                       {historyCategoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
                     </select>
@@ -141,7 +141,7 @@ export default function HistoryScreen({ userId, onChanged, incomeList, transacti
                     <input inputMode="numeric" placeholder="제한 없음" value={maximumAmount} onChange={event => setMaximumAmount(event.target.value)} />
                   </label>
                   <label className="history-extra-filter">지출 결제수단
-                    <select disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} value={paymentFilter} onChange={event => setPaymentFilter(event.target.value)}>
+                    <select aria-label="지출 결제수단" disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} value={paymentFilter} onChange={event => setPaymentFilter(event.target.value)}>
                       <option value="all">전체</option>
                       {paymentOptions.map(payment => <option key={payment} value={payment}>{payment || '미입력'}</option>)}
                     </select>

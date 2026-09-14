@@ -36,7 +36,7 @@ test('amount and payment filters drive exact CSV and reviewed bulk amounts; hidd
   expect(csv.charCodeAt(0)).toBe(0xfeff); expect(csv.split('\r\n')).toHaveLength(5);
   for (const name of ['수정 A','수정 B','합성 수입','합성 저축']) expect(csv).toContain(name);
   expect(csv).not.toContain('작은 지출'); expect(csv).not.toContain('큰 지출'); expect(csv).not.toContain('\\r\\n');
-  await filters.getByLabel('유형',{exact:true}).selectOption('expense');
+  await filters.getByLabel('내역 유형',{exact:true}).selectOption('expense');
   await panel.getByRole('checkbox',{name:`수정 A ${date} 내역 선택`}).check();
   await filters.getByLabel('최소 금액').fill('5000');
   await expect(panel.getByRole('button',{name:'선택 0건 분류 변경'})).toBeDisabled();
@@ -50,9 +50,20 @@ test('amount and payment filters drive exact CSV and reviewed bulk amounts; hidd
   await expect(dialog.getByText(/4,000.*6,000/)).toBeVisible(); await expect(dialog.getByText(/5,000.*6,000/)).toBeVisible();
   await dialog.getByRole('button',{name:'취소',exact:true}).click();
   expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(originals));
+  // Commit the real mutation, then fail only the follow-up transaction read.
+  let failRead=true;
+  await page.route('**/rest/v1/budget_transactions?**',async route=>{
+    if(failRead && route.request().method()==='GET'){failRead=false;await route.abort('failed');}else await route.continue();
+  });
   await panel.getByRole('button',{name:'선택 2건 금액 변경'}).click(); await dialog.getByRole('button',{name:'금액 변경',exact:true}).click();
-  await expect(panel.getByText('2건의 금액 변경을 확인했어요.',{exact:true})).toBeVisible();
+  await expect(panel.getByText(/내역 재조회에 실패했어요/)).toBeVisible();
+  await expect(panel.getByText('2건의 금액 변경을 확인했어요.',{exact:true})).toHaveCount(0);
+  await expect(panel.getByLabel('수정할 항목')).toBeDisabled();
   expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(originals.map(row=>['수정 A','수정 B'].includes(row.place)?{...row,amount:6000}:row)));
+  await panel.getByRole('button',{name:'변경 이력 다시 불러오기'}).click();
+  await expect(panel.getByText('변경 이력을 다시 불러왔어요.',{exact:true})).toBeVisible();
+  await expect(panel.getByLabel('수정할 항목')).toBeEnabled();
+  expect((await qa.account.client.from('budget_category_changes').select('id')).data).toHaveLength(1);
   await page.reload(); panel=await openEditor(page);
   await panel.getByText('변경 이력 · 최근 20건',{exact:true}).click();
   await panel.getByRole('button',{name:'금액 2건 변경 전후 보기'}).click();
@@ -136,6 +147,8 @@ test('lost field response reuses one request across reload and a second browser 
     await expect(panel.getByText(/기록이 다른 곳에서 변경되었거나 삭제/)).toBeVisible();
     expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(newer));
     expect((await qa.account.client.from('budget_category_changes').select('id')).data).toHaveLength(2);
+    await panel.getByRole('button',{name:'변경 이력 다시 불러오기'}).click();
+    await expect(panel.getByText('변경 이력을 다시 불러왔어요.',{exact:true})).toBeVisible();
     await panel.getByText('변경 이력 · 최근 20건',{exact:true}).click();
     await panel.getByRole('button',{name:'메모 2건 수정 되돌리기'}).click();
     await page.getByRole('dialog',{name:'지출 수정 되돌리기'}).getByRole('button',{name:'되돌리기',exact:true}).click();

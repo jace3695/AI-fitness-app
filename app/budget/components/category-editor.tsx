@@ -56,7 +56,7 @@ export default function CategoryEditor({ userId, records, currency, onChanged }:
 
   const perform = async (operation: () => Promise<string>) => {
     if (busyRef.current) return;
-    busyRef.current = true; setBusy(true); setError(''); setMessage('');
+    busyRef.current = true; setBusy(true); setLoaded(false); setError(''); setMessage('');
     try {
       const { data, error: authError } = await client.auth.getUser();
       if (authError || data.user?.id !== userId) throw new Error('로그인 계정이 바뀌었어요. 다시 로그인해 주세요.');
@@ -114,7 +114,7 @@ export default function CategoryEditor({ userId, records, currency, onChanged }:
     <p>내역을 선택해 한 항목을 같은 값으로 바꿀 수 있어요. 수정 전후를 확인하고 저장합니다.</p>
     {error && <p role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
-    <button type="button" disabled={busy || Boolean(pending)} onClick={() => void perform(async () => '분류 이력을 다시 불러왔어요.')}>분류 이력 다시 불러오기</button>
+    <button type="button" disabled={busy || Boolean(pending)} onClick={() => void perform(async () => '변경 이력을 다시 불러왔어요.')}>변경 이력 다시 불러오기</button>
     {pending ? <div><p>저장 결과 확인 중인 변경이 있어요. 새 변경 전에 같은 요청을 확인해 주세요.</p><button type="button" disabled={busy} onClick={() => void save()}>같은 변경 결과 확인</button></div> : <>
       <div className="budget-category-select-list">
         {records.slice(0, 100).map(record => <label key={record.id}>

@@ -698,7 +698,7 @@ function BudgetDashboard() {
       const table = BUDGET_RECORD_TABLE[kind] as 'budget_transactions' | 'budget_income' | 'budget_savings'
       const rows = await loadBudgetRows(supabase, table, owner.id)
       const { data: { user: currentOwner } } = await supabase.auth.getUser()
-      if (currentOwner?.id !== owner.id) return
+      if (currentOwner?.id !== owner.id) return false
       if (kind === 'expense') {
         setTransactions(rows)
         const start = new Date()
@@ -707,8 +707,10 @@ function BudgetDashboard() {
       } else if (kind === 'income') setIncomeList(rows)
       else setSavings(rows)
       setRecordLoads(current => ({ ...current, [kind]: 'ready' }))
+      return true
     } catch {
       setRecordLoads(current => ({ ...current, [kind]: '전체 내역을 불러오지 못했어요. 연결을 확인한 뒤 다시 불러와 주세요.' }))
+      return false
     }
   }
   const fetchTransactions = () => fetchRecordKind('expense')
@@ -3783,7 +3785,7 @@ return (
       {tab === 'list' && (
         <HistoryScreen
           userId={user.id}
-          onChanged={async () => { await fetchTransactions() }}
+          onChanged={async () => { if (!(await fetchTransactions())) throw new Error('내역 재조회에 실패했어요. 변경 이력 다시 불러오기로 현재 기록을 확인해 주세요.') }}
           incomeList={incomeList}
           transactions={transactions}
           savings={savings}
