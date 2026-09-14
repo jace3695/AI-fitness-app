@@ -52,14 +52,17 @@ test('amount and payment filters drive exact CSV and reviewed bulk amounts; hidd
   expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(originals));
   // Commit the real mutation, then fail only the follow-up transaction read.
   let failRead=true;
+  let blockedReads=0;
   await page.route('**/rest/v1/budget_transactions?**',async route=>{
-    if(failRead && route.request().method()==='GET'){failRead=false;await route.abort('failed');}else await route.continue();
+    if(failRead && route.request().method()==='GET'){blockedReads+=1;await route.abort('failed');}else await route.continue();
   });
   await panel.getByRole('button',{name:'선택 2건 금액 변경'}).click(); await dialog.getByRole('button',{name:'금액 변경',exact:true}).click();
   await expect(panel.getByText(/내역 재조회에 실패했어요/)).toBeVisible();
   await expect(panel.getByText('2건의 금액 변경을 확인했어요.',{exact:true})).toHaveCount(0);
   await expect(panel.getByLabel('수정할 항목')).toBeDisabled();
+  expect(blockedReads).toBeGreaterThan(1); // Exhaust the SDK's automatic GET retries too.
   expect(canonical((await qa.account.client.from('budget_transactions').select('*').order('id')).data)).toBe(canonical(originals.map(row=>['수정 A','수정 B'].includes(row.place)?{...row,amount:6000}:row)));
+  failRead=false;
   await panel.getByRole('button',{name:'변경 이력 다시 불러오기'}).click();
   await expect(panel.getByText('변경 이력을 다시 불러왔어요.',{exact:true})).toBeVisible();
   await expect(panel.getByLabel('수정할 항목')).toBeEnabled();
