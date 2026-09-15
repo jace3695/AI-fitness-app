@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { COMMAND_DRAFT_KEY, readCommandDrafts, type CommandDraft } from '@/lib/assistant-command-drafts';
-import type { TaskCommandProposal } from '@/lib/assistant-task-command';
+import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 
 export function useTaskCommandDrafts() {
   const [drafts, setDrafts] = useState<CommandDraft[]>([]);
@@ -13,9 +13,9 @@ export function useTaskCommandDrafts() {
   const owner = useRef<string | null>(null);
   const current = useRef<CommandDraft[]>([]);
   useEffect(() => {
-    const { data } = supabase?.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase?.auth.onAuthStateChange((event, session) => {
       const nextOwner = session?.user.id ?? null;
-      if (nextOwner === owner.current && nextOwner) return;
+      if (nextOwner === owner.current && nextOwner && event !== 'INITIAL_SESSION') return;
       owner.current = nextOwner;
       setOwnerId(nextOwner);
       try {
@@ -41,7 +41,7 @@ export function useTaskCommandDrafts() {
     catch { throw new Error('이 탭에 확인 내용을 보관하지 못했습니다. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.'); }
     current.current = next; if (!keepDisplayed) setDrafts(next); setError('');
   }, []);
-  const add = useCallback((proposal: TaskCommandProposal, requestedOwner: string) => change(items => {
+  const add = useCallback((proposal: AssistantCommandProposal, requestedOwner: string) => change(items => {
     if (items.some(item => item.proposal.requestId === proposal.requestId)) return items;
     if (items.length >= 20) throw new Error('확인 대기 명령이 20개입니다. 기존 명령을 확인하거나 닫은 뒤 다시 입력해 주세요.');
     return [...items, { proposal, attempted: false }];

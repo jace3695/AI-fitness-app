@@ -9,9 +9,12 @@ import { buildPersonalMemoryContext, selectConversationHistory, type AssistantCo
 import { isRetiredGrowthRoutine } from "@/app/data/growthRoutines";
 import { commandDueDate, type TaskCommandProposal, type TaskCommandValues } from "@/lib/assistant-task-command";
 
+import { isBudgetEditIntent, parseBudgetAmountCommand, type BudgetCommandProposal } from '@/lib/assistant-budget-command';
+import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
+
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -272,7 +275,11 @@ async function processSingleCommand(
   const monthStart = `${today.slice(0, 7)}-01`;
   let result: AssistantReply;
 
-  if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
+  if (isBudgetEditIntent(message)) {
+    const target = parseBudgetAmountCommand(message, today);
+    const proposal = await proposeBudgetAmount(supabase, userId, target);
+    result = { reply: `${target.date} ‘${target.place}’의 금액 변경을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
+  } else if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
     const target = cleanTaskTarget(message);
     if (!target) {
       result = { reply: "완료할 할 일 제목을 함께 말해 주세요. 예: ‘우유 사기 할 일 완료해줘’" };

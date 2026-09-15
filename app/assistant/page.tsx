@@ -3,8 +3,8 @@
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import AppCompanion from "@/components/AppCompanion";
 import FreeAdvicePanel from "@/components/FreeAdvicePanel";
-import { AssistantTaskReview } from '@/components/AssistantTaskCommand';
-import type { TaskCommandProposal } from '@/lib/assistant-task-command';
+import { AssistantCommandReview } from '@/components/AssistantCommandReview';
+import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -72,7 +72,7 @@ type BriefingSnapshot = {
   language: LanguageDailyStatus;
   growth: { completed: number; total: number; minutes: number };
 };
-type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string }; proposal?: TaskCommandProposal };
+type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
 
 const EMPTY_BRIEFING: BriefingSnapshot = {
@@ -478,7 +478,7 @@ export default function AssistantPage() {
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
           {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
-          {pending.drafts.map(draft => <AssistantTaskReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
+          {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}

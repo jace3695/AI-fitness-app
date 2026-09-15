@@ -9,6 +9,7 @@ export type TaskCommandValues = {
 };
 
 export type TaskCommandProposal = {
+  domain?: 'task';
   requestId: string;
   operation: 'create' | 'update';
   itemId: string | null;

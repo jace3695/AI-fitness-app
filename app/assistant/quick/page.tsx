@@ -5,13 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 import { YEONI_VOICE_PENDING_MESSAGE } from "@/lib/yeoni-voice-policy";
-import { AssistantTaskReview } from '@/components/AssistantTaskCommand';
-import type { TaskCommandProposal } from '@/lib/assistant-task-command';
+import { AssistantCommandReview } from '@/components/AssistantCommandReview';
+import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
 
-type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string }; proposal?: TaskCommandProposal };
+type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 
-const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘", "오늘 할 일에 우유 사기 추가해줘"];
+const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘", "오늘 할 일에 우유 사기 추가해줘", "가계부 오늘 편의점 지출 금액을 5,000원으로 수정해줘"];
 
 function isIncompleteVoiceCommand(value: string) {
   const compact = value.replace(/\s/g, "");
@@ -21,6 +21,7 @@ function isIncompleteVoiceCommand(value: string) {
 function QuickCommandContent() {
   const searchParams = useSearchParams();
   const pending = useTaskCommandDrafts();
+  const { add: saveProposal, ready: draftsReady } = pending;
   const initialCommand = searchParams.get("command")?.slice(0, 500) ?? "";
   // URL 명령은 자동 해석한다. 할 일 추가·수정은 확인 버튼을 눌러야 저장한다.
   // 브라우저에서 수동 확인이 필요할 때만 `autorun=0`으로 명시적으로 끈다.
@@ -32,7 +33,7 @@ function QuickCommandContent() {
 
   const run = useCallback(async (requestedCommand?: string) => {
     const value = (requestedCommand ?? command).trim();
-    if (!value || !supabase || sending || !pending.ready) return;
+    if (!value || !supabase || sending || !draftsReady) return;
     if (isIncompleteVoiceCommand(value)) {
       const failure = { error: `‘${value}’까지만 들렸어요. 예: ‘오늘 브리핑 보여줘’처럼 명령을 끝까지 다시 말해 주세요.` };
       setResult(failure);
@@ -55,7 +56,7 @@ function QuickCommandContent() {
       });
       const body = await response.json() as ShortcutResponse;
       if (!response.ok) throw new Error(body.error || "명령을 처리하지 못했습니다.");
-      if (body.proposal) await pending.add(body.proposal, data.session!.user.id);
+      if (body.proposal) await saveProposal(body.proposal, data.session!.user.id);
       setResult(body);
     } catch (error) {
       const failure = { error: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요." };
@@ -63,13 +64,13 @@ function QuickCommandContent() {
     } finally {
       setSending(false);
     }
-  }, [command, sending, pending.ready, pending.add]);
+  }, [command, sending, draftsReady, saveProposal]);
 
   useEffect(() => {
-    if (!pending.ready || !shouldAutoRun || !initialCommand.trim() || autoRunAttempted.current) return;
+    if (!draftsReady || !shouldAutoRun || !initialCommand.trim() || autoRunAttempted.current) return;
     autoRunAttempted.current = true;
     void run(initialCommand);
-  }, [initialCommand, run, shouldAutoRun, pending.ready]);
+  }, [initialCommand, run, shouldAutoRun, draftsReady]);
 
   return (
     <main className="min-h-dvh bg-yeoni-bg px-4 pb-28 pt-6 text-[#242231] sm:px-6 sm:pt-10">
@@ -82,7 +83,7 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
           <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
           <h1 className="mt-2 text-3xl font-bold">연이에게 명령하기</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 명령을 전달합니다. 할 일 추가·수정은 변경 내용을 확인한 뒤 저장해요.</p>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 명령을 전달합니다. 할 일 추가·수정과 가계부 지출 금액 수정은 내용을 확인한 뒤 저장해요.</p>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
@@ -92,10 +93,10 @@ function QuickCommandContent() {
             {samples.map((sample) => <button key={sample} type="button" onClick={() => setCommand(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">{sample}</button>)}
           </div>
           <div role="note" className="mt-4 rounded-2xl bg-[#F7F6FF] px-4 py-3 text-sm leading-6 text-[#5146A6]"><b>Zephyr 음성 · 확인 대기</b><p>{YEONI_VOICE_PENDING_MESSAGE}</p></div>
-          <button type="button" onClick={() => void run()} disabled={sending || !command.trim() || !pending.ready} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : shouldAutoRun && !result ? "자동 실행 준비 중…" : "명령 실행"}</button>
+          <button type="button" onClick={() => void run()} disabled={sending || !command.trim() || !draftsReady} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : shouldAutoRun && !result ? "자동 실행 준비 중…" : "명령 실행"}</button>
           {result && <div role="status" aria-live="polite" className={`mt-4 rounded-2xl p-4 text-sm leading-6 ${result.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-900"}`}><p>{result.error || result.reply}</p><div className="mt-3 flex flex-wrap gap-2">{result.action && <Link href={result.action.href} className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#5146A6] ring-1 ring-[#D9D5F2]">{result.action.label} →</Link>}</div></div>}
           {pending.error && <p role="alert" className="mt-3 text-red-700">{pending.error}</p>}
-          {pending.drafts.map(draft => <AssistantTaskReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} />)}
+          {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} />)}
           <Link href="/assistant/history" className="mt-4 inline-block text-sm font-bold text-violet-700">실행 이력 보기 →</Link>
         </section>
 
