@@ -39,7 +39,7 @@ before(async()=>{
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
     create schema auth;create table auth.users(id uuid primary key);
     grant usage on schema public,auth to anon,authenticated,service_role;`);
-  await db.exec(readFileSync(new URL('../supabase/migrations/20260915023345_zephyr_three_call_probe.sql',import.meta.url),'utf8'));
+  await db.exec(readFileSync(new URL('../supabase/migrations/20260915025439_zephyr_three_call_probe.sql',import.meta.url),'utf8'));
 });
 after(async()=>{await db.close();});
 beforeEach(async()=>{
