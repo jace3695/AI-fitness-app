@@ -14,7 +14,10 @@ test('shortcut auto-parses without saving; cancel and reload stay unchanged, con
   expect(await rows()).toHaveLength(0);
   await review.getByRole('button', { name: '취소', exact: true }).click();
   await expect(page.getByText('취소했습니다. 할 일은 변경하지 않았습니다.')).toBeVisible();
-  await page.reload(); await expect(review).toBeVisible();
+  await page.reload(); await expect(review).toHaveCount(0);
+  await page.getByLabel('실행할 명령').fill(command);
+  await page.getByRole('button', { name: '명령 실행', exact: true }).click();
+  await expect(review).toBeVisible();
   expect(await rows()).toHaveLength(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
@@ -31,6 +34,8 @@ test('shortcut auto-parses without saving; cancel and reload stay unchanged, con
   await review.getByRole('button', { name: '확인하고 저장', exact: true }).click();
   await expect(review.getByRole('alert')).toBeVisible();
   expect(await rows()).toHaveLength(1);
+  await page.reload();
+  await expect(review).toBeVisible();
   await review.getByRole('button', { name: '같은 요청으로 다시 확인' }).click();
   await expect(page.getByText(/할 일 추가 완료/)).toBeVisible();
   expect(await rows()).toHaveLength(1);
@@ -55,6 +60,11 @@ test('chat creates a reviewed task; two browser sessions cannot confirm stale ch
   await input.fill('오늘 할 일에 합성 보고서 추가해줘');
   await input.press('Enter');
   const review = page.getByRole('region', { name: '할 일 변경 확인' });
+  await expect(review).toBeVisible();
+  await page.goto('/assistant/quick');
+  await expect(review).toBeVisible();
+  await page.goto('/assistant');
+  await page.reload();
   await expect(review).toBeVisible();
   await review.getByRole('button', { name: '확인하고 저장' }).click();
   await expect(page.getByText(/할 일 추가 완료/)).toBeVisible();
@@ -110,4 +120,31 @@ test('invalid dates and compound mutations do not save; history read failure is 
   await page.unroute('**/api/assistant/commands?*');
   await page.getByRole('button', { name: '이력 새로고침' }).click();
   await expect(page.getByRole('article', { name: '합성 비공개 실행 이력' })).toBeVisible();
+});
+
+test('pending draft keeps its request across reload, expires without saving, and is not restored for another owner', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page);
+  await page.goto(`/assistant/quick?command=${encodeURIComponent('오늘 할 일에 합성 복구검증 추가해줘')}`);
+  const review = page.getByRole('region', { name: '할 일 변경 확인' });
+  await expect(review).toBeVisible();
+  const stored = await page.evaluate(() => sessionStorage.getItem('yeoni:task-command-drafts:v1'));
+  expect(stored).toBeTruthy();
+  await page.reload(); await expect(review).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('yeoni:task-command-drafts:v1'))).toBe(stored);
+  expect((await qa.account.client.from('assistant_items').select('id')).data).toHaveLength(0);
+  await page.clock.setFixedTime(new Date(Date.now() + 16 * 60_000));
+  await expect(review.getByRole('button', { name: '확인하고 저장' })).toBeDisabled();
+  await expect(review).toContainText('확인 시간이 지났습니다.');
+  await review.getByRole('button', { name: '취소', exact: true }).click();
+  await page.reload(); await expect(review).toHaveCount(0);
+  // Synthetic other-owner envelope must never be rendered in the active account.
+  await page.evaluate(raw => {
+    const envelope = JSON.parse(raw!); envelope.ownerId = 'another-synthetic-owner';
+    sessionStorage.setItem('yeoni:task-command-drafts:v1', JSON.stringify(envelope));
+  }, stored);
+  await page.reload(); await expect(review).toHaveCount(0);
+  expect((await qa.account.client.from('assistant_items').select('id')).data).toHaveLength(0);
+  await page.evaluate(() => sessionStorage.setItem('yeoni:task-command-drafts:v1', '{invalid'));
+  await page.reload();
+  await expect(page.getByRole('alert').filter({ hasText: '확인 대기 내용을 복구하지 못했습니다' })).toBeVisible();
 });

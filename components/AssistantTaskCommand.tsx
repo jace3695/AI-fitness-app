@@ -1,15 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { recurrenceLabel, type RecurrenceRule } from '@/app/lib/assistantRecurrence';
 import { taskCommandDateLabel, type TaskCommandProposal, type TaskCommandReceipt } from '@/lib/assistant-task-command';
 
-export async function assistantCommandRequest(body?: unknown, offset = 0) {
+export async function assistantCommandRequest(body?: unknown, offset = 0, ownerId?: string) {
   const session = await supabase?.auth.getSession();
   const token = session?.data.session?.access_token;
   if (!token) throw new Error('로그인이 필요합니다.');
+  if (ownerId && session?.data.session?.user.id !== ownerId) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
   const response = await fetch(`/api/assistant/commands${body ? '' : `?offset=${offset}`}`, {
     method: body ? 'POST' : 'GET', cache: 'no-store',
     headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -62,32 +63,53 @@ export function AssistantTaskReceipt({ receipt, onChanged }: { receipt: TaskComm
   </article>;
 }
 
-export function AssistantTaskReview({ proposal, onChanged }: { proposal: TaskCommandProposal; onChanged?: () => void | Promise<void> }) {
+export function AssistantTaskReview({ proposal, onChanged, ownerId, initiallyAttempted = false, onAttempt, onSettled }: {
+  proposal: TaskCommandProposal; onChanged?: () => void | Promise<void>; ownerId?: string;
+  initiallyAttempted?: boolean; onAttempt?: () => Promise<void>; onSettled?: () => Promise<void>;
+}) {
   const [receipt, setReceipt] = useState<TaskCommandReceipt | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [attempted, setAttempted] = useState(false);
+  const [attempted, setAttempted] = useState(initiallyAttempted);
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (receipt || cancelled) return;
+    const check = () => setExpired(Date.now() >= Date.parse(proposal.expiresAt));
+    check(); const timer = window.setInterval(check, 1000);
+    return () => window.clearInterval(timer);
+  }, [proposal.expiresAt, receipt, cancelled]);
   const [error, setError] = useState('');
   const lock = useRef(false);
   const apply = async () => {
     if (lock.current || cancelled || receipt) return;
-    lock.current = true; setBusy(true); setAttempted(true); setError('');
+    lock.current = true; setBusy(true); setError('');
     try {
-      const result = await assistantCommandRequest({ decision: 'apply', proposal });
+      await onAttempt?.();
+      setAttempted(true);
+      const result = await assistantCommandRequest({ decision: 'apply', proposal }, 0, ownerId);
       setReceipt(result.receipt);
+      await onSettled?.();
       await onChanged?.();
     } catch (failure) { setError(failure instanceof Error ? failure.message : '저장 결과를 확인하지 못했습니다. 같은 요청으로 다시 시도하거나 실행 이력을 확인해 주세요.'); }
     finally { lock.current = false; setBusy(false); }
   };
-  if (cancelled) return <p role="status" className="mt-3 text-gray-600">취소했습니다. 할 일은 변경하지 않았습니다.</p>;
-  if (receipt) return <div className="mt-3"><AssistantTaskReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history" className="mt-2 inline-block font-bold text-violet-700">실행 이력 보기 →</Link></div>;
+  const cancel = async () => {
+    if (lock.current) return;
+    lock.current = true; setBusy(true);
+    try { await onSettled?.(); setCancelled(true); }
+    catch (failure) { setError(failure instanceof Error ? failure.message : '닫지 못했습니다.'); }
+    finally { lock.current = false; setBusy(false); }
+  };
+  if (cancelled) return <p role="status" className="mt-3 text-gray-600">{attempted ? '확인 화면을 닫았습니다. 저장 여부는 실행 이력에서 확인해 주세요.' : '취소했습니다. 할 일은 변경하지 않았습니다.'}</p>;
+  if (receipt) return <div className="mt-3">{error && <p role="alert" className="text-red-700">{error}</p>}<AssistantTaskReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history" className="mt-2 inline-block font-bold text-violet-700">실행 이력 보기 →</Link></div>;
   return <section aria-label="할 일 변경 확인" className="mt-3 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-gray-800">
     <h3 className="font-bold">{proposal.operation === 'create' ? '할 일 추가 확인' : '할 일 수정 확인'}</h3>
     <p className="mt-1 break-words">{proposal.values.title}</p>
     <p className="mt-1 text-xs">프로젝트: {proposal.projectName || '연결 없음'}</p>
     <ChangeDetails before={proposal.expected} after={proposal.values} />
-    <p className="mt-2 text-xs text-gray-600">확인 화면은 15분간 유효합니다. 새로고침하면 명령을 다시 입력해 주세요.</p>
-    <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void apply()} className="rounded-xl bg-violet-700 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? '저장 중…' : attempted ? '같은 요청으로 다시 확인' : '확인하고 저장'}</button>{!attempted && <button type="button" disabled={busy} onClick={() => setCancelled(true)} className="rounded-xl bg-white px-3 py-2 text-sm">취소</button>}</div>
+    <p className="mt-2 text-xs text-gray-600">확인 화면은 15분간 유효합니다. 같은 탭에서 새로고침하거나 돌아오면 복구됩니다. 탭을 닫거나 로그아웃하면 복구되지 않을 수 있습니다.</p>
+    {expired && <p role="status" className="mt-2 text-sm text-amber-800">확인 시간이 지났습니다. {attempted ? '같은 요청으로 저장 결과를 재확인할 수 있습니다. 저장되지 않은 요청은 새로 실행하지 않습니다.' : '저장하려면 명령을 다시 입력해 주세요.'}</p>}
+    <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy || (expired && !attempted)} onClick={() => void apply()} className="rounded-xl bg-violet-700 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? '저장 중…' : attempted ? '같은 요청으로 다시 확인' : '확인하고 저장'}</button>{<button type="button" disabled={busy} onClick={() => void cancel()} className="rounded-xl bg-white px-3 py-2 text-sm">{attempted ? '확인 화면 닫기' : '취소'}</button>}</div>
     {error && <div role="alert" className="mt-3 text-sm text-red-700"><p>{error}</p><Link href="/assistant/history" className="mt-2 inline-block underline">저장 여부를 실행 이력에서 확인</Link></div>}
   </section>;
 }

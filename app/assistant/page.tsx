@@ -5,6 +5,7 @@ import AppCompanion from "@/components/AppCompanion";
 import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import { AssistantTaskReview } from '@/components/AssistantTaskCommand';
 import type { TaskCommandProposal } from '@/lib/assistant-task-command';
+import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -125,6 +126,7 @@ export default function AssistantPage() {
   const [chatSending, setChatSending] = useState(false);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
   const [chatHistoryNotice, setChatHistoryNotice] = useState("");
+  const pending = useTaskCommandDrafts();
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const mutationLocks = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<string[]>([]);
@@ -164,7 +166,7 @@ export default function AssistantPage() {
 
   const sendChat = async (command?: string) => {
     const value = (command ?? chatInput).trim();
-    if (!value || !supabase || chatSending || chatHistoryLoading) return;
+    if (!value || !supabase || chatSending || chatHistoryLoading || !pending.ready) return;
     setChatInput("");
     setChatSending(true);
     const history = chatMessages.filter((chat) => chat.id !== "welcome").slice(-8).map(({ role, text }) => ({ role, text }));
@@ -176,7 +178,8 @@ export default function AssistantPage() {
       const response = await fetch("/api/assistant/chat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: value, history }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "응답을 받지 못했습니다.");
-      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.action, proposal: data.proposal }]);
+      if (data.proposal) await pending.add(data.proposal, sessionData.session!.user.id);
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.action }]);
       if (data.historySaved === false) setChatHistoryNotice("응답은 받았지만 대화 이력을 저장하지 못했어요. 새로고침하면 이 대화가 보이지 않을 수 있어요.");
       if (data.changed) await load();
     } catch (error) {
@@ -473,7 +476,9 @@ export default function AssistantPage() {
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">지난 대화를 기억하고, 직접 저장한 기억을 관련 답변에 반영합니다.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div></div>
         <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
-          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.proposal && <AssistantTaskReview proposal={chat.proposal} onChanged={load} />}{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
+          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}</div></div>)}
+          {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
+          {pending.drafts.map(draft => <AssistantTaskReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
