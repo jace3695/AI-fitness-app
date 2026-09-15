@@ -85,7 +85,7 @@ test('chat creates a reviewed task; two browser sessions cannot confirm stale ch
     expect(after.priority).toBe(before.priority);
     expect(after.recurrence_rule).toBe(before.recurrence_rule);
     await page.goto('/assistant');
-    await expect(page.getByText('합성 보고서', { exact: true })).toBeVisible();
+    await expect(page.locator('#assistant-list').getByText('합성 보고서', { exact: true })).toBeVisible();
   } finally { await second.close(); }
 });
 
@@ -105,7 +105,7 @@ test('invalid dates and compound mutations do not save; history read failure is 
   expect(privateRows.error).toBeNull(); expect(privateRows.data).toHaveLength(0);
   await page.route('**/api/assistant/commands?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: '합성 조회 실패' }) }));
   await page.goto('/assistant/history');
-  await expect(page.getByRole('alert')).toContainText('합성 조회 실패');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('합성 조회 실패');
   await expect(page.getByText('아직 확인하고 실행한 명령이 없습니다.')).toHaveCount(0);
   await page.unroute('**/api/assistant/commands?*');
   await page.getByRole('button', { name: '이력 새로고침' }).click();

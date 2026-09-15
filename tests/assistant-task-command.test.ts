@@ -23,7 +23,7 @@ before(async () => {
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.test_user',true),'')::uuid $$;
     grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
   await db.exec(read('./e2e/schema.sql'));
-  await db.exec(read('../supabase/migrations/20260915033300_assistant_task_command_history.sql'));
+  await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => {

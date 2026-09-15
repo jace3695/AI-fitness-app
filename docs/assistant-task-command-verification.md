@@ -25,6 +25,10 @@
 
 - 로컬 실제 SQL(PGlite) 11/11 통과: 원자적 저장·응답 유실 재시도·변경/되돌리기·두 세션의 오래된 스냅샷·반복 자식 보호·다른 사용자 차단·만료·초기화·계정 삭제·잘못된 날짜.
 - 실제 Auth·PostgREST·Postgres와 Chromium/WebKit의 브라우저 검증을 준비했다. 확인 전 미저장, 취소·새로고침, 실제 커밋 후 응답 유실 재시도, 이력 재조회, 되돌리기, 두 브라우저 충돌, 조회 실패 안내, 390px 화면과 다른 사용자 격리를 검사한다.
-- CI 결과·Preview 상태·호스팅 DB 설치 여부는 최종 확인 후 이 문서에 기록한다. 준비된 테스트를 통과한 결과로 표시하지 않는다.
+- 기능 코드 `1c5c088ab53d4326e3dbc79b8e082973a2f5fb30`의 Preview `dpl_FXFeBCR4dMzWJZJ7MvGnPFkM2Pje`는 READY이고 target은 Preview다. 로그인된 기존 계정에서 실행 이력의 빈 목록·버튼 새로고침·전체 새로고침·연이로 이동을 확인했다. 이 읽기 검증을 호스팅 계정의 할 일 저장/되돌리기 검증으로 표시하지 않는다.
+- 호스팅 DB에 `20260915034857_assistant_task_command_history.sql`을 적용했다. 신규 이력 0행, RLS 활성, anon 읽기/실행 차단, 두 RPC의 security invoker와 authenticated 실행 권한을 확인했다. CLI가 만든 초기 로컬 파일명은 실제 적용 버전과 일치하도록 정리했다. SQL 본문은 동일하다.
+- 설치 전후 9개 테이블의 행 수와 전체 행 해시가 일치했다: 할 일/대화/프로젝트/기억 각각 0행, 앱 상태 2행, 언어 상태 2행, 지출 36행, AI 사용량 13행, Zephyr 테스트 슬롯 3행. 추가 TTS·AI 제공자 호출은 하지 않았다.
+- 보안 검사에서 신규 경고는 없었다. 기존 유출 비밀번호 보호 비활성 경고와 음성용 내부 테이블의 정책 없음 INFO는 그대로이며, 신규 이력 조회 인덱스는 아직 사용 전이라는 INFO만 있었다. RLS 소유자 제한과 명시적 권한을 로컬 SQL에서도 검증했다.
+- [CI 실행](https://github.com/jace3695/AI-fitness-app/actions/runs/34926347592)의 단위/DB 345개·VM 25개·lint·타입·독립 빌드는 통과했다. 브라우저는 64/68 통과이며, 신규 테스트 2개가 각 브라우저에서 같은 제목/알림 요소를 둘 찾는 strict-mode 오류로 중단됐다. 할 일 목록과 이력 화면 안으로 확인 범위를 좁혀 재검증한다. 앱 코드나 검증 조건을 완화하지 않았다. 첫 실행의 합성 계정 83개·68개 정리 보고서에서 잔여 행 0, 외부 origin 요청 0을 확인했다.
 
 DB 지침 확인: [명시적 Data API 권한 변경](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically), [RLS와 소유자 정책](https://supabase.com/docs/guides/database/postgres/row-level-security).
