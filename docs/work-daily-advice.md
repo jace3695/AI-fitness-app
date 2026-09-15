@@ -29,8 +29,8 @@
 
 ## Preview 공개 예외
 
-앞서 사용자 승인으로 적용한 Preview 도메인의 공개 예외는 Work 방식에 필요하지 않다. 원상 복구를 시도했으나 자동 승인 검토가 해당 접근 설정 변경에 대한 구체적인 승인이 필요하다고 거절했다. **예외는 아직 유지된다.** 다른 경로로 재시도하지 않았다. 사용자가 해당 Preview 도메인 예외 제거·Vercel 로그인 보호 복원을 승인하면 적용한다.
+앞서 복원 시도는 자동 승인 검토에서 구체적인 접근 설정 변경 승인이 필요하다는 이유로 거절됐다. 이후 2026-09-15 사용자가 Preview 공개 예외 제거·Vercel 로그인 보호 복원을 명시적으로 승인했다. 해당 Preview 도메인의 예외를 제거했고 Vercel 설정에서 공개 예외 목록이 비었음을 확인했다. 비로그인 OAuth 메타데이터 요청은 302로 Vercel 로그인 페이지에 이동했다. **Vercel 로그인 보호 복원 완료.** 앱 코드·개인 기록·Supabase 권한·예약 설정은 이번 작업에서 변경하지 않았다.
 
 ## 확인 위치
 
-[Preview 조언 화면](https://ai-fitness-app-git-fix-app-wide-reliability-jace3695s-projects.vercel.app/assistant/advice)에서 대표 네이버 계정으로 로그인한다. 현재 화면 이름은 **ChatGPT가 남긴 조언**이며 Work가 저장한 조언도 같은 화면에서 조회한다. 운영 앱에는 이 화면을 아직 반영하지 않았다.
+[Preview 조언 화면](https://ai-fitness-app-git-fix-app-wide-reliability-jace3695s-projects.vercel.app/assistant/advice)에서 Vercel 로그인 보호를 통과한 뒤 앱의 대표 네이버 계정으로 로그인한다. 현재 화면 이름은 **ChatGPT가 남긴 조언**이며 Work가 저장한 조언도 같은 화면에서 조회한다. 운영 앱에는 이 화면을 아직 반영하지 않았다.
