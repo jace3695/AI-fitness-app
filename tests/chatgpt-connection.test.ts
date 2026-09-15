@@ -38,7 +38,7 @@ before(async () => {
   await db.exec(read('./e2e/schema.sql'));
   await db.exec(read('../supabase/migrations/20260914113147_budget_category_history.sql'));
   await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
-  await db.exec(read('../supabase/migrations/20260915044540_chatgpt_scoped_connection.sql'));
+  await db.exec(read('../supabase/migrations/20260915052413_chatgpt_scoped_connection.sql'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => {

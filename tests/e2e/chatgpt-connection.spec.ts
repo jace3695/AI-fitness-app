@@ -12,16 +12,19 @@ function authorization() {
 }
 async function consent(page: Page, approve=true, onlyBudget=false) {
   const pending=authorization();
-  // ChatGPT's callback is represented by a local synthetic client: capture the
-  // redirect response before navigation. Never send test tokens to ChatGPT.
+  // ChatGPT's callback is represented by a local synthetic client. Inspect the
+  // completed browser navigation, not a fetch body Chromium discards on unload.
+  // The route prevents test codes from ever reaching ChatGPT's network.
   await page.route(`${CHATGPT_REDIRECT}**`,route=>route.fulfill({status:200,contentType:'text/html',body:'<p>합성 OAuth 클라이언트</p>'}));
   await page.goto(`/api/chatgpt/oauth/authorize?${pending.query}`);
   const review=page.getByRole('region',{name:'ChatGPT 연결 승인'}); await expect(review).toBeVisible();
   if(onlyBudget) for(const label of ['일정·할 일','운동','식단','언어 학습']) await review.getByRole('checkbox',{name:label,exact:true}).uncheck();
   const result=page.waitForResponse(response=>response.url().endsWith('/api/chatgpt/connection') && response.request().method()==='POST');
+  const returned=page.waitForURL(url=>`${url.origin}${url.pathname}`===CHATGPT_REDIRECT,{waitUntil:'domcontentloaded'});
   await review.getByRole('button',{name:approve?'선택한 권한으로 연결':'연결 취소',exact:true}).click();
   const response=await result; expect(response.status()).toBe(200);
-  const target=new URL((await response.json()).redirect);
+  await returned;
+  const target=new URL(page.url());
   expect(target.origin+target.pathname).toBe(CHATGPT_REDIRECT); expect(target.searchParams.get('state')).toBe(pending.state); expect(target.searchParams.get('iss')).toBe(origin);
   return {...pending,target};
 }
