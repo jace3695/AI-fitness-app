@@ -23,6 +23,7 @@
 
 - 새 단위 검사 8개 통과: 숫자/날짜/사용처 해석, 모호한 금액 거절, 동일 요청·소유자·통화·만료·조회 실패·충돌 처리. 실제 Supabase JS 요청 형식을 합성 fetch로 검사하며 호스팅 DB 검증으로 확대하지 않는다.
 - Chromium/WebKit에 실제 격리 Auth·PostgREST·Postgres 검사 4개씩 추가: 확인/취소, 대화와 빠른 명령 이동, 실제 DB 커밋 후 응답 유실·복구, 가계부 화면 재조회, 공통 이력 되돌리기, 두 세션 충돌, 계정 격리·만료·오류 안내, 기존 편집 이력 21개 페이지 조회·분류 복구.
-- CI 및 Preview 결과는 실행 후 추가한다.
+- 최초 코드 `658c83ba08ce3580c3a4e8dfb1f15a57c21e565e`의 [CI 34970432267](https://github.com/jace3695/AI-fitness-app/actions/runs/34970432267): 단위/DB 375개·VM 25개·lint·타입·독립 빌드는 통과, 브라우저 84개 중 83개 통과. Chromium의 이력 이동 검사 한 건이 실패했다. 검사에서 출발 화면에도 있는 동일한 영수증을 이동 완료로 판단한 뒤 새로고침할 수 있어, 목적지 URL과 가계부 이력 영역을 먼저 기다리도록 수정했다. 같은 저장·복구·되돌리기 흐름은 최초 WebKit 검사에서도 통과했다. 임시 계정 103개·추적 행 잔여 0·외부 origin 0·DB와 키 정리를 확인했다.
+- 수정 검사와 Preview 최종 결과는 재실행 후 추가한다.
 
 참고: [Supabase RPC](https://supabase.com/docs/reference/javascript/rpc). 기존 DB 검증은 `tests/budget-categories.test.ts`에도 유지한다.

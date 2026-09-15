@@ -38,7 +38,10 @@ test('budget command reviews one original, survives lost response and reload, th
   await expect(page.getByText(/가계부 변경 완료/)).toBeVisible();
   expect((await qa.account.client.from('budget_category_changes').select('id')).data).toHaveLength(1);
   await page.getByRole('link', { name: '가계부 실행 이력 보기 →' }).click();
-  const receipt = page.getByRole('article', { name: '가계부 금액 1건 실행 이력' });
+  // The receipt is also visible on the quick-command page. Wait for navigation
+  // before reloading, so a still-visible source receipt cannot satisfy the check.
+  await expect(page).toHaveURL(/\/assistant\/history\?area=budget$/);
+  const receipt = page.getByRole('region', { name: '가계부 실행 이력 목록' }).getByRole('article', { name: '가계부 금액 1건 실행 이력' });
   await expect(receipt).toBeVisible(); await page.reload(); await expect(receipt).toBeVisible();
   await receipt.getByRole('button', { name: '변경 전후 보기' }).click();
   await expect(receipt).toContainText('₩5,000 → ₩4,500'); await expect(receipt).toContainText('합성 명령카페');
