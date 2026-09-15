@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { test, expect, login } from './fixture';
+import { test, expect } from './fixture';
 
 test('disabled Zephyr status stays private; real Postgres serializes a shared allowance across simultaneous users', async ({ page, qa }) => {
   const settings=JSON.parse(readFileSync('.e2e/stack-status.json','utf8'));
@@ -39,12 +39,9 @@ test('disabled Zephyr status stays private; real Postgres serializes a shared al
   const blocked=await page.request.post('/api/tts',{headers,data:{text:'합성 검증',requestId:randomUUID()}});
   expect(blocked.status()).toBe(503); expect((await blocked.json()).code).toBe('PAID_AI_DISABLED');
   expect((await admin.from('zephyr_free_months').update({enabled:false}).eq('month',month)).error).toBeNull();
-  await page.setViewportSize({width:320,height:844}); await login(page,qa.account);
-  await page.goto('/assistant/quick?autorun=0&command='+encodeURIComponent('오늘 운동 계획 보여줘'));
-  await page.getByRole('button',{name:'명령 실행',exact:true}).click();
-  await expect(page.getByRole('status')).toContainText('운동');
-  await page.reload(); await expect(page.getByText('Zephyr 음성 · 확인 대기',{exact:true})).toBeVisible();
-  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  // The existing free-advice browser tests cover quick-command rendering,
+  // reload and device-voice suppression. This test exercises the new HTTP/DB
+  // boundary without starting duplicate background UI synchronization.
   // Reservation receipts intentionally survive account deletion; the disposable
   // stack's final stop removes these synthetic receipts and counters together.
 });

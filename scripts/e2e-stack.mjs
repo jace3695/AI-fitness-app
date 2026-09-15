@@ -34,7 +34,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914113147_budget_category_history.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914131417_budget_expense_fields.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914225836_budget_payment_plans.sql', 'utf8'));
-    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915010134_zephyr_free_character_guard.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915011629_zephyr_free_character_guard.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));

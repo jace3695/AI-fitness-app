@@ -39,6 +39,20 @@
 ## 검증
 
 - 로컬 통합 검사 17/17 통과: 새 안전장치 13개 + 기존 유료 차단 4개. Route → Edge 핸들러 → 실제 PGlite SQL은 연결하고 Google 응답만 합성했다. 정상 응답, 유실, 실패, 권한, Unicode, 한도, 만료, 계정 삭제를 확인했다.
-- TypeScript 검사 통과.
+- 로컬 전체 단위/DB 325개·lint·TypeScript 검사 통과.
 - 실제 PostgreSQL의 서로 다른 두 세션 동시 요청·12회 중복 재시도 검사를 격리 CI에 추가했다. 이 검사는 서비스 키를 브라우저에 주지 않으며 실제 Google 호출도 하지 않는다.
-- 전체 CI·Preview·호스팅 DB 적용 결과는 완료 후 아래에 기록한다.
+- 호스팅 적용 내역은 아래에 기록했다. 수정 후 최종 CI 실행·검사 수·정리 결과는 [PR #189의 최신 검증](https://github.com/jace3695/AI-fitness-app/pull/189) 상단에서 확인한다.
+
+## 호스팅 적용
+
+- 기능 커밋 `7d11a84b04672d53985ac9b87eb30ba87db4f9a2`, Preview `dpl_7SHotvGpDSXKEmykzTwUWYVS1ANP` READY, target Preview. 운영 병합 없음.
+- Supabase에 새 테이블 두 개와 service-role 전용 invoker RPC 두 개 적용. Edge `zephyr-budget` v1 ACTIVE, JWT 확인 켜짐.
+- 마이그레이션은 CLI로 생성한 뒤 호스팅 적용 이력에서 확인한 버전 `20260915011629`에 파일명·테스트 참조를 맞췄다. SQL 본문은 검증한 내용과 동일하다.
+- 기존 데이터 12개 테이블의 행 수·전체 행 내용 해시가 적용 전후 모두 일치. 기존 지출 36건과 기존 AI 사용 이력 13건 보존.
+- 새 승인 월 0개·예약 0개, `CONFIRMATION_REQUIRED`. 일반 사용자 읽기·수정 및 RPC 실행 불가, service role도 예약 삭제 불가 확인. 이 0은 새 앱 예약 원장 수이며 Google 테스트 사용량을 뜻하지 않는다.
+- 보안 점검의 [RLS 정책 없음](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy) INFO 두 건은 일반 사용자의 직접 접근을 모두 막은 의도한 설정이다. 기존 [유출 비밀번호 보호](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection) WARN은 이번 변경과 별개이며 설정을 바꾸지 않았다.
+- 성능 점검: 새 원장에 대한 [월 외래키 인덱스 없음](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys) INFO는 월 승인 삭제·월 키 변경을 앱에서 지원하지 않아 현재 요청 경로에 영향이 없다. [미사용 인덱스](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)는 아직 실제 음성을 켜지 않아 생긴 INFO다. 사용자별 일일 한도 조회에 필요한 인덱스는 유지한다.
+
+## 첫 CI와 수정
+
+[첫 실행](https://github.com/jace3695/AI-fitness-app/actions/runs/34916575409)은 단위/DB 325개·VM 25개·lint·타입·빌드, 브라우저 61/62가 통과했다. WebKit의 새 검사에서 모든 제한/인증 확인 뒤 화면을 닫는 순간 `route.fulfill: Fetch response has been disposed`가 발생했다. 기존 `free-advice` 브라우저 검사가 담당하는 빠른 명령 화면의 중복 실행을 제거하고, 새 검사를 인증된 HTTP·실제 DB 동시 요청 경계에 한정했다. 기존 화면 검사는 그대로 유지한다. 수정 후 결과로 완료 여부를 판단한다.

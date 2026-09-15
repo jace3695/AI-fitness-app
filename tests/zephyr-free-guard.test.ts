@@ -11,7 +11,7 @@ import * as voice from '../lib/yeoni-voice-policy.ts';
 const db = new PGlite();
 const owner = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
 const key = 'synthetic-key-only', fingerprint = crypto.createHash('sha256').update(key).digest('hex');
-const migration = '../supabase/migrations/20260915010134_zephyr_free_character_guard.sql';
+const migration = '../supabase/migrations/20260915011629_zephyr_free_character_guard.sql';
 type Result = Record<string, unknown>;
 let month: string;
 let authenticated = true, budgetCalls = 0, googleCalls = 0;
