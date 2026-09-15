@@ -182,7 +182,7 @@ export const test = base.extend<{ qa: Qa }>({
         expect(remaining.error).toBeNull(); expect(remaining.count).toBe(0);
         const remainingLanguage = await admin.from('language_user_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
         expect(remainingLanguage.error).toBeNull(); expect(remainingLanguage.count).toBe(0);
-        for (const table of ['assistant_task_command_history', 'assistant_items', 'assistant_projects', 'assistant_memories', 'assistant_chat_messages', 'budget_payment_plans', 'budget_payment_plan_requests', 'budget_category_rules', 'budget_category_changes', 'budget_category_change_items', 'budget_profiles', 'budget_transactions', 'budget_income', 'budget_savings', 'growth_routines', 'growth_sessions', 'growth_ai_reviews'] as const) {
+        for (const table of ['chatgpt_advice', 'assistant_task_command_history', 'assistant_items', 'assistant_projects', 'assistant_memories', 'assistant_chat_messages', 'budget_payment_plans', 'budget_payment_plan_requests', 'budget_category_rules', 'budget_category_changes', 'budget_category_change_items', 'budget_profiles', 'budget_transactions', 'budget_income', 'budget_savings', 'growth_routines', 'growth_sessions', 'growth_ai_reviews'] as const) {
           const remainingBudget = await admin.from(table).select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
           expect(remainingBudget.error).toBeNull(); expect(remainingBudget.count, `${table} synthetic cleanup`).toBe(0);
         }
