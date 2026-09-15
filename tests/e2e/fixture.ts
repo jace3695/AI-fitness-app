@@ -172,6 +172,9 @@ export const test = base.extend<{ qa: Qa }>({
       await runTest({ account, traffic, createAccount, read, readLanguage });
     } finally {
       traffic.releaseAll();
+      // Finish in-flight route.fetch/fulfill callbacks before closing their
+      // request context. Keep callback errors visible; do not ignore them.
+      await context.unrouteAll({ behavior: 'wait' });
       // Stop browser writers before removing the synthetic Auth users. Cascade
       // then removes their rows; verify cleanup even when an assertion fails.
       await context.close();

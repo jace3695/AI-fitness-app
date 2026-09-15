@@ -24,6 +24,7 @@
 - 새 단위 검사 8개 통과: 숫자/날짜/사용처 해석, 모호한 금액 거절, 동일 요청·소유자·통화·만료·조회 실패·충돌 처리. 실제 Supabase JS 요청 형식을 합성 fetch로 검사하며 호스팅 DB 검증으로 확대하지 않는다.
 - Chromium/WebKit에 실제 격리 Auth·PostgREST·Postgres 검사 4개씩 추가: 확인/취소, 대화와 빠른 명령 이동, 실제 DB 커밋 후 응답 유실·복구, 가계부 화면 재조회, 공통 이력 되돌리기, 두 세션 충돌, 계정 격리·만료·오류 안내, 기존 편집 이력 21개 페이지 조회·분류 복구.
 - 최초 코드 `658c83ba08ce3580c3a4e8dfb1f15a57c21e565e`의 [CI 34970432267](https://github.com/jace3695/AI-fitness-app/actions/runs/34970432267): 단위/DB 375개·VM 25개·lint·타입·독립 빌드는 통과, 브라우저 84개 중 83개 통과. Chromium의 이력 이동 검사 한 건이 실패했다. 검사에서 출발 화면에도 있는 동일한 영수증을 이동 완료로 판단한 뒤 새로고침할 수 있어, 목적지 URL과 가계부 이력 영역을 먼저 기다리도록 수정했다. 같은 저장·복구·되돌리기 흐름은 최초 WebKit 검사에서도 통과했다. 임시 계정 103개·추적 행 잔여 0·외부 origin 0·DB와 키 정리를 확인했다.
-- 수정 검사와 Preview 최종 결과는 재실행 후 추가한다.
+- 수정 코드 `b189e16627377a35bf38d1ef623de8afb139f722`의 [CI 34971989320](https://github.com/jace3695/AI-fitness-app/actions/runs/34971989320): 새 가계부 검사 8개 모두 통과. 전체는 83/84이며 기존 WebKit 할 일 복구 검사 종료 중 `route.fetch: Request context disposed`가 발생했다. 공유 검증 fixture가 진행 중인 요청 응답보다 먼저 context를 닫았으므로 종료 전에 `unrouteAll({ behavior: 'wait' })`로 콜백 완료를 기다리도록 수정했다. 오류 무시나 재시도 설정은 추가하지 않았다. 단위/DB 375개·VM 25개·lint·타입·독립 빌드와 Preview는 통과했고 계정 103개·추적 행 잔여 0·외부 origin 0·DB와 키를 정리했다.
+- 종료 순서 수정 후 전체 최종 결과를 추가한다.
 
-참고: [Supabase RPC](https://supabase.com/docs/reference/javascript/rpc). 기존 DB 검증은 `tests/budget-categories.test.ts`에도 유지한다.
+참고: [Supabase RPC](https://supabase.com/docs/reference/javascript/rpc), [Playwright 요청 콜백 종료 대기](https://playwright.dev/docs/api/class-browsercontext#browser-context-unroute-all). 기존 DB 검증은 `tests/budget-categories.test.ts`에도 유지한다.
