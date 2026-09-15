@@ -1,6 +1,6 @@
 # 4단계 — ChatGPT 기록 분석 연결
 
-2026-09-15. 연이 전용 MCP/OAuth 연결과 조언 조회 화면을 구현했다. **실제 Jace ChatGPT 계정에서 연결·모델 분석·조언 저장은 아직 완료되지 않았다.** 격리 브라우저 검증과 Preview 확인 후 아래 설치 절차를 진행한다.
+2026-09-15. 연이 전용 MCP/OAuth 연결과 조언 조회 화면을 구현했다. **실제 Jace ChatGPT 계정에서 연결·모델 분석·조언 저장은 아직 완료되지 않았다.** Preview 배포·DB 구조 적용·격리 브라우저 검증을 마쳤다. 외부 연결은 아래 Preview 공개 예외 확인과 실제 계정 연결 단계가 남아 있다.
 
 ## 사용자 흐름
 
@@ -23,7 +23,7 @@
 
 - 원본 메모·상호·계정 식별자·사진·대화 전문은 전달하지 않는다. 첫 범위는 집계 숫자에 대한 조언이다.
 - 일정 미완료 수와 언어 복습 목록 수는 현재 상태이며 기간 통계와 구분한다. 미기록을 실제 0이나 목표 달성으로 추정하지 않는다.
-- 분석 중 집계가 바뀌면 저장을 거부하고 새 요약으로 재분석하게 한다. 저장된 조언에는 당시 요약이 남으며 최신 상태를 보장하지 않는다.
+- 저장 전 집계 재조회에서 값이 달라졌으면 저장을 거부하고 새 요약으로 재분석하게 한다. 저장된 조언에는 당시 요약이 남으며 최신 상태를 보장하지 않는다.
 - 원본 일정·가계부·운동 기록 수정, 음성 생성, 앱에서 GPT를 자동 호출, 24시간 감시는 포함하지 않는다.
 - 이 경로는 OpenAI/Gemini 유료 추론 API나 TTS를 호출하지 않는다. ChatGPT 구독 한도와 기존 Vercel/Supabase 운영 한도는 별도로 적용된다. 추가 비용 0원을 무조건 보장하는 문서가 아니다.
 
@@ -46,13 +46,33 @@
 ## 검증 기록
 
 - 로컬: 단위·DB 363개 통과. 이 중 새 연결 18개는 실제 PGlite SQL과 공식 MCP SDK 전송을 사용한다.
-- 타입·린트 통과. 격리 Chromium/WebKit 브라우저 검사는 CI 실행 후 결과를 추가한다.
+- 타입·린트·독립 CI 빌드 통과. 첫 [CI 34931719825](https://github.com/jace3695/AI-fitness-app/actions/runs/34931719825)는 71/74 통과했다. 기존 68개와 새 WebKit 3개가 통과했고, 새 Chromium 3개는 연결 후 문서가 이동하면서 테스트의 `response.json()`을 읽지 못했다. 제품의 저장 검사 실패로 확정하지 않으며, 당시 Chromium 전체 흐름은 미검증이다.
+- 수정본 `36792638188b9ade455cd1dfdf8ecd3492f9124d`는 응답 본문 대신 합성 콜백으로의 실제 브라우저 이동 완료와 state/issuer/code를 검사한다. assertion을 생략하거나 성공을 모사하지 않는다. 앱 런타임·SQL 내용은 동일하며 마이그레이션 파일명과 참조만 실제 이력에 맞췄다. [재검증 34932777180](https://github.com/jace3695/AI-fitness-app/actions/runs/34932777180)은 **단위/DB 363개·VM 25개·Chromium/WebKit 74/74·타입·린트·독립 빌드 모두 통과**했다. 새 연결 시나리오 3개를 두 브라우저에서 모두 통과했고, 합성 계정 91개·관련 행 잔여 0·브라우저 외부 origin 0·임시 DB/키 정리를 확인했다. 파일명 변경 후 로컬 새 연결 18개도 다시 통과했다.
 - 브라우저 검증은 폐기 가능한 계정·DB만 사용하고 ChatGPT 콜백은 합성 클라이언트로 대체한다. 실제 ChatGPT 로그인·모델 호출 성공을 뜻하지 않는다.
-- 실제 호스팅 DB 마이그레이션과 Preview 확인 결과는 적용 후 기록한다. PR은 Draft이며 운영 병합은 하지 않는다.
+- 호스팅 DB: `20260915052413_chatgpt_scoped_connection` 적용 성공. 원본 11개 테이블의 전체 행 해시·행 수가 전후 동일했고, 후속 호스팅 화면 읽기 검증 이후에도 같았다. 기존 지출 36개·앱 상태 2개·언어 상태 2개·AI 사용 이력 13개·음성 검증 슬롯 3개를 유지했다. 새 연결·토큰·스냅샷·조언은 모두 0개다.
+- 권한: 새 테이블 RLS 활성화, 비공개 세 테이블의 anon/authenticated 직접 조회·삽입·수정 차단, 조언 본인 조회·삭제만 허용, 공개 RPC invoker·역할별 execute 설정 확인.
+- 보안 진단: 새 WARN/ERROR 없음. 비공개 세 테이블의 [RLS 정책 없음 INFO](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy)는 직접 접근을 전부 차단하고 제한된 내부 함수를 쓰는 설계상 의도한 결과다. 새 인덱스의 [미사용 INFO](https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index)는 아직 연결 데이터가 없기 때문이다. 기존 비밀번호 보호 WARN과 기존 FK 인덱스 INFO 2개는 이번 변경 전부터 있었다.
+- Preview: 기능 코드 `a19b941`의 배포 `dpl_Hevih8DA8odxPwiqBE4RBAEnpdga` READY. 위 테스트/파일명 수정본 `3679263`의 `dpl_2nmup6QeRDrd42rP9GCp3P5eGHNZ`도 READY이며 브랜치 별칭은 동일하다.
+- 호스팅 브라우저: 기존 로그인 계정에서 연결 관리 조회, 조언 화면 이동·새로고침, 합성 PKCE 요청을 이용한 **승인 전** 영역/동작 검토 화면을 확인했다. 실제 공개 ChatGPT CIMD 조회·검증 경로를 거쳤으며 연결 버튼은 누르지 않았다. 기록 요약·조언 본문을 외부로 전송하거나 새 조언을 쓰지 않았다.
+- PR은 Draft·미병합이며 운영 승격은 하지 않았다. 실제 iPhone과 실제 ChatGPT 계정 연결·모델 분석은 아직 남아 있다.
+
+## 외부 연결을 막고 있는 Preview 보호 설정
+
+2026-09-15 비로그인 HTTP 확인에서 OAuth 메타데이터는 302, MCP 초기화·도구 목록·호출은 Vercel의 `401 Protected deployment`를 반환했다. 앱에 도달하기 전의 Vercel 인증 장벽이다. 로그인된 개발용 브라우저에서 페이지가 보이는 것만으로 ChatGPT의 외부 접근이 가능하다고 판정하지 않는다.
+
+프로젝트의 실제 설정은 **Vercel Authentication → Standard Protection**이다. **Deployment Protection Exceptions → Add Domain**은 현재 Hobby 화면에서도 제공된다. [Vercel 공식 안내](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/deployment-protection-exceptions)는 도메인별 예외가 모든 요금제에서 추가 비용 없이 가능하다고 설명한다.
+
+제안한 변경은 아래 브랜치 Preview 도메인 하나를 예외에 추가하는 것이다.
+
+`ai-fitness-app-git-fix-app-wide-reliability-jace3695s-projects.vercel.app`
+
+예외를 적용하면 **이 도메인의 모든 경로와 앞으로의 배포**에 Vercel 로그인 요구가 없어지며 외부에서 앱 접속 화면과 MCP 공개 메타데이터에 접근할 수 있다. 개인 기록은 계속 연이 로그인·OAuth 승인·영역 권한 검사로 보호된다. 다른 Preview 도메인과 운영 배포는 변경 대상이 아니다. 예외 제거로 Vercel 보호를 다시 적용할 수 있다.
+
+**아직 공개 예외를 저장하지 않았다.** 공개 범위를 넓히는 보안 설정 변경이므로 적용 직전에 사용자 확인이 필요하다. 확인 후 해당 도메인만 추가하고, 공개 발견·인증 거부 응답을 다시 검사한다. 우회 비밀키·공유 링크를 ChatGPT에 전달하지 않는다.
 
 ## Jace 계정에서 마지막으로 할 일
 
-실제 연결을 받을 Preview가 준비된 뒤 진행한다.
+먼저 아래 Preview 공개 예외를 승인·적용하고, 공개 메타데이터/도구 발견 응답을 재확인한 뒤 진행한다.
 
 1. ChatGPT **설정 → 보안 및 로그인 → 개발자 모드**를 확인한다. 계정·작업 공간 정책에 따라 제공 여부가 다르다.
 2. [ChatGPT 플러그인](https://chatgpt.com/plugins)에서 추가 버튼을 누르고, 이름 **AI 연이**, 위 `/mcp` 주소를 입력한다.
