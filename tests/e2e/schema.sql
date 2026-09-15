@@ -185,8 +185,8 @@ grant all on public.budget_recurring_expense_preferences to service_role;
 create policy budget_recurring_owner_all on public.budget_recurring_expense_preferences for all to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
--- Read contracts used by the authenticated AI Yeoni briefing. The scenario
--- does not call an AI provider or write personal-assistant/growth records.
+-- Assistant contracts for briefing and confirmation/history scenarios.
+-- All users and records below belong to the disposable CI database.
 create table public.assistant_projects (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -206,6 +206,10 @@ create table public.assistant_items (
   project_id uuid references public.assistant_projects(id) on delete set null,
   due_at timestamptz,
   recurrence_rule text not null default 'none',
+  recurrence_parent_id uuid,
+  source text not null default 'manual',
+  notes text,
+  completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -237,6 +241,12 @@ create policy assistant_projects_owner_select on public.assistant_projects for s
 create policy assistant_items_owner_select on public.assistant_items for select to authenticated using ((select auth.uid()) = user_id);
 create policy assistant_memories_owner_select on public.assistant_memories for select to authenticated using ((select auth.uid()) = user_id);
 create policy assistant_chat_owner_select on public.assistant_chat_messages for select to authenticated using ((select auth.uid()) = user_id);
+
+grant insert,update,delete on public.assistant_items,public.assistant_projects,public.assistant_memories,public.assistant_chat_messages to authenticated;
+create policy assistant_items_owner_write on public.assistant_items for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy assistant_projects_owner_write on public.assistant_projects for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy assistant_memories_owner_write on public.assistant_memories for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy assistant_chat_owner_write on public.assistant_chat_messages for all to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
 create table public.growth_routines (
   id uuid primary key default gen_random_uuid(),

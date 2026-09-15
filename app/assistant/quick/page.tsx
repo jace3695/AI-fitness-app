@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
 import { YEONI_VOICE_PENDING_MESSAGE } from "@/lib/yeoni-voice-policy";
+import { AssistantTaskReview } from '@/components/AssistantTaskCommand';
+import type { TaskCommandProposal } from '@/lib/assistant-task-command';
 
-type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string } };
+type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string }; proposal?: TaskCommandProposal };
 
 const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "일본어 복습 시작해줘", "오늘 할 일에 우유 사기 추가해줘"];
 
@@ -18,7 +20,7 @@ function isIncompleteVoiceCommand(value: string) {
 function QuickCommandContent() {
   const searchParams = useSearchParams();
   const initialCommand = searchParams.get("command")?.slice(0, 500) ?? "";
-  // 기존 iPhone 단축어는 `command`만 전달하므로 URL 명령은 기본 자동 실행한다.
+  // URL 명령은 자동 해석한다. 할 일 추가·수정은 확인 버튼을 눌러야 저장한다.
   // 브라우저에서 수동 확인이 필요할 때만 `autorun=0`으로 명시적으로 끈다.
   const shouldAutoRun = initialCommand.trim().length > 0 && searchParams.get("autorun") !== "0";
   const [command, setCommand] = useState(initialCommand);
@@ -73,7 +75,7 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
           <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
           <h1 className="mt-2 text-3xl font-bold">연이에게 명령하기</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 음성 명령을 실행하고, 처리 결과를 화면에서 확인할 수 있어요.</p>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 명령을 전달합니다. 할 일 추가·수정은 변경 내용을 확인한 뒤 저장해요.</p>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
@@ -85,6 +87,8 @@ function QuickCommandContent() {
           <div role="note" className="mt-4 rounded-2xl bg-[#F7F6FF] px-4 py-3 text-sm leading-6 text-[#5146A6]"><b>Zephyr 음성 · 확인 대기</b><p>{YEONI_VOICE_PENDING_MESSAGE}</p></div>
           <button type="button" onClick={() => void run()} disabled={sending || !command.trim()} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : shouldAutoRun && !result ? "자동 실행 준비 중…" : "명령 실행"}</button>
           {result && <div role="status" aria-live="polite" className={`mt-4 rounded-2xl p-4 text-sm leading-6 ${result.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-900"}`}><p>{result.error || result.reply}</p><div className="mt-3 flex flex-wrap gap-2">{result.action && <Link href={result.action.href} className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#5146A6] ring-1 ring-[#D9D5F2]">{result.action.label} →</Link>}</div></div>}
+          {result?.proposal && <AssistantTaskReview key={result.proposal.requestId} proposal={result.proposal} />}
+          <Link href="/assistant/history" className="mt-4 inline-block text-sm font-bold text-violet-700">실행 이력 보기 →</Link>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
@@ -94,7 +98,7 @@ function QuickCommandContent() {
             <li><b className="text-[#242231]">2.</b> 그 아래에 ‘텍스트 받아쓰기’를 추가합니다. 이 동작이 Siri 화면을 닫은 다음 실제 명령을 듣습니다.</li>
             <li><b className="text-[#242231]">3.</b> ‘URL 인코딩’을 추가하고 ‘받아쓰기한 텍스트’를 입력으로 지정합니다.</li>
             <li><b className="text-[#242231]">4.</b> ‘텍스트’ 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?autorun=1&amp;speak=1&amp;command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다.</li>
-            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘연이’로 저장합니다. “Siri야, 연이”라고 말하면 별도 버튼 없이 실행되고 결과를 화면에서 확인할 수 있습니다. 기존 단축어 주소도 계속 사용할 수 있어요.</li>
+            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘연이’로 저장합니다. “Siri야, 연이”라고 말하면 명령이 자동으로 전달됩니다. 할 일 추가·수정은 화면의 확인 버튼을 누른 뒤 저장됩니다. 기존 단축어 주소도 계속 사용할 수 있어요.</li>
           </ol>
           <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />단축어 실행 후 말한 명령을 Siri가 자기 질문으로 처리하면 맨 위에 ‘Siri 닫기 및 계속’이 빠진 것입니다. ‘유효하지 않은 URL: %EC…’가 나오면 ‘URL’ 동작 대신 위 4번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
         </section>
