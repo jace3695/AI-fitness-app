@@ -6,6 +6,8 @@ import ts from 'typescript';
 import * as freeMode from './free-mode.ts';
 import * as policies from './ai-router-policy.ts';
 import * as voicePolicy from './yeoni-voice-policy.ts';
+import * as crypto from 'node:crypto';
+import { readZephyrRequest } from './zephyr-free-server.ts';
 
 function loadModule(path: string, modules: Record<string, unknown>, forbidden: () => never) {
   const exports = {};
@@ -37,6 +39,7 @@ for (const path of ['../app/api/tts/route.ts', '../app/api/language/tts/route.ts
     const route = loadModule(path, {
       'next/server': { NextResponse: { json: Response.json } }, '@/lib/free-mode': freeMode,
       '@/lib/yeoni-voice-policy': voicePolicy,
+      '@/lib/zephyr-free-server': { ...loadModule('./zephyr-free-server.ts', { 'node:crypto': crypto }, forbidden), readZephyrRequest },
       '@/lib/supabase-server': { createServerSupabaseClient: async () => ({ auth: { getUser: async () => ({ data: { user: authenticated ? { id: 'fixture' } : null } }) } }) },
       '@/lib/ai-budget': { reserveAiBudget: forbidden }, '@/lib/ai-router': { generateAiText: forbidden },
     }, forbidden) as { POST: (req: Request) => Promise<Response> };
