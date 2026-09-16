@@ -221,7 +221,7 @@ async function processSingleCommand(
   } else if (isGrowthCompletionIntent(message)) {
     const command = parseGrowthCompletion(message);
     const proposal = await proposeGrowthCompletion(supabase, userId, today, command);
-    result = { reply: `오늘 ‘${proposal.expected.title}’ 완료 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal, action: { label: '자기계발 기록 보기', href: '/growth' } };
+    result = { reply: `오늘 ‘${proposal.expected.title}’ 완료 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal, action: { label: '자기계발 루틴 보기', href: '/growth' } };
   } else if (isBudgetEditIntent(message)) {
     const target = parseBudgetAmountCommand(message, today);
     const proposal = await proposeBudgetAmount(supabase, userId, target);
