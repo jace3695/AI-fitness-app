@@ -118,7 +118,7 @@ export async function POST(req: Request) {
     if (!isAiFeatureAvailable("handwriting-feedback")) {
       return NextResponse.json(
         {
-          error: "OPENAI_API_KEY가 설정되어 있지 않습니다.",
+          error: "자동 필기 평가는 보류 중이에요. 저장한 글씨와 기준 글씨를 나란히 비교해 주세요.",
           summary: "현재 AI 평가를 사용할 수 없어요.",
           goodPoints: "그래도 계속 써보는 연습 자체가 큰 도움이 돼요.",
           advice: "환경 변수 설정 후 다시 시도해 주세요.",

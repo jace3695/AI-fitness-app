@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FREE_MODE } from "@/lib/free-mode";
+import { buildFreeFitnessReport } from "@/app/data/freeFitnessReport";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { AiProviderRequestError, AiRouterConfigurationError, generateAiText } from "@/lib/ai-router";
 import { parseAiJsonObject } from "@/lib/ai-json";
@@ -103,7 +105,7 @@ async function localPlanFallback(input: {
   currentSettings: unknown;
   analysisType: AnalysisType;
   programContext?: ReturnType<typeof getProgramContext>;
-  reason: "budget_protected" | "provider_unavailable" | "model_response_unusable";
+  reason: "free_mode" | "budget_protected" | "provider_unavailable" | "model_response_unusable";
   source?: "local" | "recovered";
   baseline: WorkoutOutcomeBaseline;
 }) {
@@ -250,6 +252,10 @@ export async function POST(request: NextRequest) {
   const needsPlanContext = analysisType === "plan" || analysisType === "program";
   const planCatalog = needsPlanContext ? PLAN_CATALOG : undefined;
   const programContext = analysisType === "program" ? getProgramContext(currentSettings) : undefined;
+  if (FREE_MODE) {
+    if (needsPlanContext) return localPlanFallback({ supabase, userId: user.id, snapshot, currentSettings, analysisType, programContext, reason: "free_mode", baseline: outcomeBaseline });
+    return respondWithSavedReview(supabase, user.id, { ...buildFreeFitnessReport(snapshot, analysisType as 'latest' | 'weekly' | 'monthly' | 'longTerm'), analysisType, analysisLabel: `${analysisGuide.label} · 기록 기반`, source: 'local' }, outcomeBaseline);
+  }
   const planProposalSchema = `{"title":"계획 이름","summary":"쉬운 설명","days":[{"dayId":"mon|tue|wed|thu|fri|sat|sun","groupId":"허용된 그룹 ID","method":{"method":"standard|circuit|superset|interval|free","rounds":1,"restSeconds":60,"workSeconds":30},"reason":"이유"}],"exerciseTargets":[{"exerciseName":"허용된 운동 이름","sets":2,"reps":10,"durationMinutes":15,"reason":"변경 이유"}],"changes":["현재 계획과 달라지는 점"],"cautions":["적용 후 주의할 점"]}`;
   const programReviewSchema = `{"status":"기본 계획 유지|조정 확인|회복 우선|기록 확인 필요","summary":"현재 구성의 쉬운 요약","priorities":["지금 확인할 우선순위"]}`;
   const baseOutputSchema = `{"overview":"분석 범위에 맞는 핵심 요약 2~3문장","positives":["잘한 점 또는 유지할 점"],"cautions":["주의 신호 또는 기록이 부족한 부분"],"nextSession":["다음 운동 또는 다음 기간의 구체적 제안"],"rationale":"수치와 기록에 근거한 설명","safety":"안전 안내","confidence":"높음|보통|낮음"}`;

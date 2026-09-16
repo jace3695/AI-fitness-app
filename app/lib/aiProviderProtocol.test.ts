@@ -83,3 +83,17 @@ test("비정형 제공자 오류 본문은 로그용 설명으로 노출하지 �
   const response = new Response("request included private workout data", { status: 502 });
   assert.deepEqual(await readAiProviderFailure(response), {});
 });
+
+test("OpenAI 오류는 구체적인 code를 보존하고 비밀값과 추가 본문은 제외한다", async () => {
+  const details = await readAiProviderFailure(new Response(JSON.stringify({
+    error: {
+      code: "credit_balance_exhausted",
+      type: "insufficient_quota",
+      message: "Request rejected for sk-syntheticSecret1234567890",
+      request: { image: "private image data" },
+    },
+  }), { status: 429 }));
+  assert.equal(details.code, "CREDIT_BALANCE_EXHAUSTED");
+  assert.equal(details.message, "Request rejected for [redacted]");
+  assert.doesNotMatch(JSON.stringify(details), /syntheticSecret|private image/);
+});

@@ -4,13 +4,17 @@ import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
-import { nextRecurringDueAt, parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
+import { parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
 import { isRetiredGrowthRoutine } from "@/app/data/growthRoutines";
+import { commandDueDate, type TaskCommandProposal, type TaskCommandValues } from "@/lib/assistant-task-command";
+
+import { isBudgetEditIntent, parseBudgetAmountCommand, type BudgetCommandProposal } from '@/lib/assistant-budget-command';
+import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -42,22 +46,13 @@ function parsePriority(message: string) {
   return 3;
 }
 
-function parseDueDate(message: string, today: string) {
-  const explicit = message.match(/(20\d{2})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})일?/);
-  if (explicit) return `${explicit[1]}-${explicit[2].padStart(2, "0")}-${explicit[3].padStart(2, "0")}`;
-  const monthDay = message.match(/(\d{1,2})월\s*(\d{1,2})일/);
-  if (monthDay) return `${today.slice(0, 4)}-${monthDay[1].padStart(2, "0")}-${monthDay[2].padStart(2, "0")}`;
-  if (/모레/.test(message)) return seoulDate(2);
-  if (/내일/.test(message)) return seoulDate(1);
-  if (/오늘/.test(message)) return today;
-  return null;
-}
-
 function cleanTaskTarget(message: string) {
   return message
     .replace(/^(할\s*일|일정)\s*/, "")
     .replace(/\s*(오늘|내일|모레|\d{1,2}월\s*\d{1,2}일)(로|까지)?\s*(마감|날짜)?\s*/, " ")
-    .replace(/\s*(긴급|중요|높은\s*우선순위|낮은\s*우선순위)(로)?\s*/, " ")
+    .replace(/\s*(긴급|최우선|중요|높은\s*우선순위|낮은\s*우선순위|우선순위\s*[1-5]|여유)(으?로)?\s*/, " ")
+    .replace(/\s*(매일|날마다|매주|주마다|매월|매달|달마다)(\s*반복)?(으?로)?\s*/, " ")
+    .replace(/\s*반복\s*(없음|해제|중지)(으?로)?\s*/, " ")
     .replace(/\s*(할\s*일|일정)?(을|를)?\s*(완료|끝|수정|변경)(\s*처리)?(해\s*줘|해주세요|해)?[.!?]?$/, "")
     .trim();
 }
@@ -208,7 +203,28 @@ function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
 
 function splitCompoundCommands(message: string) {
   const parts = message.split(/\s*(?:그리고|그다음|그\s*다음|한\s*뒤|후에)\s*/).map((part) => part.trim()).filter(Boolean);
-  return parts.length > 1 ? parts.slice(0, 3) : [message];
+  return parts.length > 1 ? parts : [message];
+}
+
+async function proposeTaskCommand(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string,
+  operation: 'create' | 'update', values: TaskCommandValues, expected: Record<string, unknown> | null,
+): Promise<AssistantReply> {
+  const { data, error } = await supabase.from('user_app_state').select('state').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error('기록 상태를 확인하지 못했습니다. 다시 시도해 주세요.');
+  let projectName: string | null = null;
+  if (values.project_id) {
+    const project = await supabase.from('assistant_projects').select('name').eq('user_id', userId).eq('id', values.project_id).neq('status', 'archived').maybeSingle();
+    if (project.error || !project.data) throw new Error('연결할 프로젝트를 확인하지 못했습니다.');
+    projectName = project.data.name;
+  }
+  const resetMarker = parseState(data?.state)['ai-fitness-record-reset-assistant'];
+  return {
+    reply: `‘${values.title}’ ${operation === 'create' ? '추가' : '수정'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다. 확인 화면을 닫았다면 명령을 다시 입력해 주세요.`,
+    proposal: { requestId: crypto.randomUUID(), operation, itemId: typeof expected?.id === 'string' ? expected.id : null,
+      expected, values, projectName, resetMarker: typeof resetMarker === 'string' ? resetMarker : null,
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString() },
+  };
 }
 
 async function generativeFallback(
@@ -259,48 +275,46 @@ async function processSingleCommand(
   const monthStart = `${today.slice(0, 7)}-01`;
   let result: AssistantReply;
 
-  if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
+  if (isBudgetEditIntent(message)) {
+    const target = parseBudgetAmountCommand(message, today);
+    const proposal = await proposeBudgetAmount(supabase, userId, target);
+    result = { reply: `${target.date} ‘${target.place}’의 금액 변경을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
+  } else if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
     const target = cleanTaskTarget(message);
     if (!target) {
       result = { reply: "완료할 할 일 제목을 함께 말해 주세요. 예: ‘우유 사기 할 일 완료해줘’" };
     } else {
-      const { data, error } = await supabase.from("assistant_items").select("id,title,kind,priority,project_id,due_at,recurrence_rule").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await supabase.from("assistant_items").select("id,title,kind,priority,project_id,due_at,recurrence_rule,updated_at").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
       if (error) throw new Error("할 일을 확인하지 못했습니다.");
       const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
       if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요: ${matches.slice(0, 3).map((item) => item.title).join(" · ")}` : `‘${target}’과 일치하는 미완료 할 일을 찾지 못했습니다.` };
       else {
-        const { error: updateError } = await supabase.from("assistant_items").update({ status: "completed", completed_at: new Date().toISOString() }).eq("user_id", userId).eq("id", matches[0].id);
-        if (updateError) throw new Error("완료 상태를 저장하지 못했습니다.");
+        const { error: updateError } = await supabase.rpc("set_assistant_item_completion", { p_item_id: matches[0].id, p_completed: true, p_expected_updated_at: matches[0].updated_at });
+        if (updateError) throw new Error("완료와 다음 반복 일정을 저장하지 못했습니다. 최신 목록을 확인한 뒤 다시 시도해 주세요.");
         const rule = (matches[0].recurrence_rule || "none") as RecurrenceRule;
-        const nextDueAt = nextRecurringDueAt(matches[0].due_at, rule, today);
-        if (nextDueAt) {
-          const { error: repeatError } = await supabase.from("assistant_items").insert({ user_id: userId, title: matches[0].title, kind: matches[0].kind, status: "open", priority: matches[0].priority, project_id: matches[0].project_id, due_at: nextDueAt, recurrence_rule: rule, source: "recurrence" });
-          if (repeatError) throw new Error("완료했지만 다음 반복 일정을 만들지 못했습니다.");
-        }
-        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.${nextDueAt ? ` 다음 ${recurrenceLabel(rule)} 일정은 ${nextDueAt.slice(0, 10)}입니다.` : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.${rule !== 'none' ? ` 다음 ${recurrenceLabel(rule)} 일정도 함께 저장했습니다.` : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
       }
     }
   } else if (/(할\s*일|일정).*(수정|변경)|(수정|변경).*(할\s*일|일정)/.test(message)) {
     const target = cleanTaskTarget(message);
-    const dueDate = parseDueDate(message, today);
+    const dueDate = commandDueDate(message, today);
     const hasPriority = /(긴급|최우선|중요|우선순위|여유)/.test(message);
     const recurrence = parseRecurrence(message);
     const hasRecurrence = recurrence !== "none" || /(반복\s*(없음|해제|중지)|반복하지)/.test(message);
     if (!target || (!dueDate && !hasPriority && !hasRecurrence)) {
       result = { reply: "수정할 제목과 변경 내용을 말해 주세요. 예: ‘보고서 작성 할 일을 내일로 변경해줘’" };
     } else {
-      const { data, error } = await supabase.from("assistant_items").select("id,title").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
+      const { data, error } = await supabase.from("assistant_items").select("*").eq("user_id", userId).not("status", "in", '(completed,cancelled)').order("created_at", { ascending: false }).limit(50);
       if (error) throw new Error("할 일을 확인하지 못했습니다.");
       const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
       if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요.` : `‘${target}’과 일치하는 할 일을 찾지 못했습니다.` };
       else {
-        const updates: { due_at?: string; priority?: number; recurrence_rule?: RecurrenceRule } = {};
-        if (dueDate) updates.due_at = `${dueDate}T23:59:00+09:00`;
-        if (hasPriority) updates.priority = parsePriority(message);
-        if (hasRecurrence) updates.recurrence_rule = recurrence;
-        const { error: updateError } = await supabase.from("assistant_items").update(updates).eq("user_id", userId).eq("id", matches[0].id);
-        if (updateError) throw new Error("할 일을 수정하지 못했습니다.");
-        result = { reply: `‘${matches[0].title}’의 ${[dueDate && `마감일을 ${dueDate}로`, hasPriority && `우선순위를 ${parsePriority(message)}로`, hasRecurrence && `반복을 ${recurrenceLabel(recurrence)}으로`].filter(Boolean).join(", ")} 변경했습니다.`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+        const item = matches[0];
+        result = await proposeTaskCommand(supabase, userId, 'update', {
+          title: item.title, due_at: dueDate ? `${dueDate}T23:59:00+09:00` : item.due_at,
+          priority: hasPriority ? parsePriority(message) : item.priority,
+          recurrence_rule: hasRecurrence ? recurrence : item.recurrence_rule, project_id: item.project_id,
+        }, item);
       }
     }
   } else if (/브리핑/.test(message)) {
@@ -340,27 +354,27 @@ async function processSingleCommand(
     if (!title || /^(추가|등록|기록)$/.test(title)) {
       result = { reply: "추가할 내용을 함께 말해 주세요. 예: ‘오늘 할 일에 우유 사기 추가해줘’" };
     } else {
-      const dueDate = parseDueDate(message, today);
+      if (title.length > 200) throw new Error('할 일 제목은 200자 이내로 말씀해 주세요.');
+      const dueDate = commandDueDate(message, today);
       const dueAt = dueDate ? `${dueDate}T23:59:00+09:00` : null;
       const projectHint = message.match(/['“”]?([^'“”]+?)['“”]?\s*프로젝트에/);
       let projectId: string | null = null;
-      let projectName = "";
       if (projectHint) {
         const hint = projectHint[1].trim().replace(/^(오늘|내일|모레)\s*할\s*일에?\s*/, "");
-        const { data: projectRows } = await supabase.from("assistant_projects").select("id,name").eq("user_id", userId).neq("status", "archived");
+        const { data: projectRows, error: projectError } = await supabase.from("assistant_projects").select("id,name").eq("user_id", userId).neq("status", "archived");
+        if (projectError) throw new Error('프로젝트를 불러오지 못했습니다.');
         const projectMatches = (projectRows ?? []).filter((project) => project.name.includes(hint) || hint.includes(project.name));
         if (projectMatches.length !== 1) {
           result = { reply: projectMatches.length ? `‘${hint}’과 비슷한 프로젝트가 여러 개예요. 프로젝트 이름을 정확히 말씀해 주세요.` : `‘${hint}’ 프로젝트를 찾지 못했습니다. 프로젝트를 먼저 등록해 주세요.` };
           return result;
         }
         projectId = projectMatches[0].id;
-        projectName = projectMatches[0].name;
       }
       const priority = parsePriority(message);
       const recurrence = parseRecurrence(message);
-      const { error } = await supabase.from("assistant_items").insert({ user_id: userId, title, kind: "task", status: "open", priority, due_at: dueAt, project_id: projectId, recurrence_rule: recurrence, source: "assistant_chat" });
-      if (error) throw new Error("할 일을 저장하지 못했습니다.");
-      result = { reply: `‘${title}’을 할 일에 추가했습니다.${dueDate ? ` 마감일은 ${dueDate}` : ""}${priority !== 3 ? `, 우선순위는 ${priority}` : ""}${projectName ? `, 프로젝트는 ‘${projectName}’` : ""}${recurrence !== "none" ? `, 반복은 ${recurrenceLabel(recurrence)}` : ""}${dueDate || priority !== 3 || projectName || recurrence !== "none" ? "로 설정했습니다." : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
+      result = await proposeTaskCommand(supabase, userId, 'create', {
+        title, due_at: dueAt, priority, project_id: projectId, recurrence_rule: recurrence,
+      }, null);
     }
   } else if (/(오늘).*(할\s*일|일정)|(할\s*일|일정).*(오늘)/.test(message)) {
     const start = `${today}T00:00:00+09:00`;
@@ -468,6 +482,9 @@ export async function POST(request: NextRequest) {
     const history = selectConversationHistory([...(storedMessages ?? [])].reverse(), body?.history);
     const replies: AssistantReply[] = [];
     const commands = splitCompoundCommands(message);
+    if (commands.length > 3 || commands.length > 1 && /(추가|등록|기록|수정|변경|완료|끝|마쳤|했어|했어요|삭제)/.test(message)) {
+      return NextResponse.json({ reply: '기록을 바꾸는 명령은 한 번에 하나씩 말씀해 주세요. 변경 내용을 확인한 뒤 다음 명령을 진행할 수 있어요.', changed: false });
+    }
     for (const command of commands) {
       const compoundHistory = replies.flatMap((reply, index) => [
         { role: "user" as const, text: commands[index] },
@@ -486,6 +503,7 @@ export async function POST(request: NextRequest) {
       reply,
       action: lastAction,
       changed: replies.some((reply) => reply.changed),
+      proposal: replies.find((reply) => reply.proposal)?.proposal,
       historySaved: !historySaveError,
     });
   } catch (error) {

@@ -4,11 +4,17 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   applyCloudState,
+  clearLocalCloudState,
+  CLOUD_SESSION_CHANGED_EVENT,
   getRemoteState,
+  isCurrentCloudSession,
   mergeCloudState,
   mergeCloudStateFromBase,
   readLocalCloudState,
+  prepareLocalCloudState,
+  readCloudSyncEpoch,
   readSyncBase,
+  reconcileSyncResponse,
   saveRemoteState,
   saveRemoteStateIfUnchanged,
   saveSyncBase,
@@ -18,9 +24,12 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-type SyncStatus = "idle" | "syncing" | "synced" | "error";
+import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
+import { requestSafeReload } from "../lib/unsavedChanges";
 
-export default function CloudSyncPanel() {
+type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
+
+export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOut?: boolean }) {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,35 +37,80 @@ export default function CloudSyncPanel() {
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncRequest, setSyncRequest] = useState(0);
+  const [authRevision, setAuthRevision] = useState(0);
+  const userId = user?.id;
   const lastSynced = useRef("");
-  const syncing = useRef(false);
+  const authUserId = useRef<string | null>(null);
+  const authEpoch = useRef<string | null>(null);
+  const cancelSync = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      lastSynced.current = "";
+    let active = true;
+    let authVersion = 0;
+    const applyUser = (nextUser: User | null) => {
+      if (!active) return;
+      const nextId = nextUser?.id ?? null;
+      if (authUserId.current !== nextId || authEpoch.current !== readCloudSyncEpoch()) {
+        // Cancel synchronously, before React cleans up the previous effect.
+        cancelSync.current?.();
+        authUserId.current = nextId;
+        // React can batch sign-out and same-user sign-in into one render.
+        // The identity string alone cannot restart the cancelled owner then.
+        setAuthRevision(revision => revision + 1);
+        lastSynced.current = "";
+        setStatus("idle");
+        setLastSyncedAt(null);
+        setMessage("");
+      }
+      if (nextUser) prepareLocalCloudState(nextUser.id);
+      authEpoch.current = readCloudSyncEpoch();
+      setUser(nextUser);
+    };
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      authVersion += 1;
+      if (event === "SIGNED_OUT") {
+        applyUser(null);
+        clearLocalCloudState();
+      } else applyUser(session?.user ?? null);
     });
-    return () => data.subscription.unsubscribe();
+    // A delayed initial lookup cannot undo a subsequent sign-out/sign-in event.
+    const initialVersion = authVersion;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (authVersion === initialVersion) applyUser(data.user);
+    });
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!user || !supabase) return;
+    if (!userId || !supabase) return;
     let active = true;
+    let syncing = false;
     let resetVersion = 0;
+    let followUpTimer: number | undefined;
+    const controller = new AbortController();
+    const signal = controller.signal;
+    const epoch = readCloudSyncEpoch();
+    const stop = () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(followUpTimer);
+    };
+    cancelSync.current = stop;
+    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, stop);
     const onReset = () => { resetVersion += 1; };
     window.addEventListener(RECORD_RESET_EVENT, onReset);
 
     const sync = async (initial = false) => {
-      if (syncing.current || !active || isRecordResetRunning()) return;
+      if (syncing || !active || !isCurrentCloudSession(userId, epoch) || isRecordResetRunning()) return;
       const version = resetVersion;
-      const cancelled = () => !active || version !== resetVersion || isRecordResetRunning();
-      syncing.current = true;
+      const cancelled = () => !active || !isCurrentCloudSession(userId, epoch)
+        || version !== resetVersion || isRecordResetRunning();
+      syncing = true;
       setStatus("syncing");
       try {
         let local = readLocalCloudState();
-        let remoteRow = await getRemoteState(user.id);
+        let remoteRow = await getRemoteState(userId, signal);
         if (cancelled()) return;
         local = readLocalCloudState();
         let remote = remoteRow?.state ?? {};
@@ -64,12 +118,12 @@ export default function CloudSyncPanel() {
         const remoteHash = stableState(remote);
 
         if (!remoteRow) {
-          await saveRemoteState(user.id, local);
+          await saveRemoteState(userId, local, signal);
           if (cancelled()) return;
           lastSynced.current = localHash;
-          saveSyncBase(user.id, local);
+          saveSyncBase(userId, local);
         } else if (!lastSynced.current || initial) {
-          const base = readSyncBase(user.id);
+          const base = readSyncBase(userId);
           let merged = base
             ? mergeCloudStateFromBase(base, remote, local)
             : mergeCloudState(remote, local);
@@ -77,13 +131,17 @@ export default function CloudSyncPanel() {
           if (mergedHash !== remoteHash) {
             let saved = false;
             for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+              if (cancelled()) return;
               saved = await saveRemoteStateIfUnchanged(
-                user.id,
+                userId,
                 merged,
                 remoteRow.updated_at,
+                signal,
               );
+              if (cancelled()) return;
               if (!saved) {
-                remoteRow = await getRemoteState(user.id);
+                remoteRow = await getRemoteState(userId, signal);
+                if (cancelled()) return;
                 if (!remoteRow) break;
                 remote = remoteRow.state;
                 merged = mergeCloudStateFromBase(base ?? {}, remote, local);
@@ -93,58 +151,63 @@ export default function CloudSyncPanel() {
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
           }
           if (cancelled()) return;
-          applyCloudState(merged);
+          applyCloudState(reconcileSyncResponse(local, merged, readLocalCloudState()));
           lastSynced.current = mergedHash;
-          saveSyncBase(user.id, merged);
-          if (mergedHash !== localHash) window.location.reload();
+          saveSyncBase(userId, merged);
+          if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
         } else {
           const localChanged = localHash !== lastSynced.current;
           const remoteChanged = remoteHash !== lastSynced.current;
           if (localChanged && remoteChanged) {
-            const base = readSyncBase(user.id) ?? {};
+            const base = readSyncBase(userId) ?? {};
             let merged = mergeCloudStateFromBase(base, remote, local);
             let saved = false;
             for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
-              saved = await saveRemoteStateIfUnchanged(user.id, merged, remoteRow.updated_at);
+              if (cancelled()) return;
+              saved = await saveRemoteStateIfUnchanged(userId, merged, remoteRow.updated_at, signal);
+              if (cancelled()) return;
               if (!saved) {
-                remoteRow = await getRemoteState(user.id);
+                remoteRow = await getRemoteState(userId, signal);
+                if (cancelled()) return;
                 if (!remoteRow) break;
                 merged = mergeCloudStateFromBase(base, remoteRow.state, local);
               }
             }
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             if (cancelled()) return;
-            applyCloudState(merged);
+            applyCloudState(reconcileSyncResponse(local, merged, readLocalCloudState()));
             lastSynced.current = stableState(merged);
-            saveSyncBase(user.id, merged);
-            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) window.location.reload();
+            saveSyncBase(userId, merged);
+            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
           } else if (localChanged) {
-            const saved = await saveRemoteStateIfUnchanged(user.id, local, remoteRow.updated_at);
+            const saved = await saveRemoteStateIfUnchanged(userId, local, remoteRow.updated_at, signal);
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
             if (cancelled()) return;
             lastSynced.current = localHash;
-            saveSyncBase(user.id, local);
+            saveSyncBase(userId, local);
           } else if (remoteChanged) {
             applyCloudState(remote);
             lastSynced.current = remoteHash;
-            saveSyncBase(user.id, remote);
-            window.location.reload();
+            saveSyncBase(userId, remote);
+            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== remote[resetMarkerKey(app)])) requestSafeReload();
           }
         }
-        if (active) {
-          setStatus("synced");
+        if (!cancelled()) {
+          const pending = stableState(readLocalCloudState()) !== lastSynced.current;
+          setStatus(pending ? "pending" : "synced");
+          if (pending) followUpTimer = window.setTimeout(() => void sync(), 500);
           setMessage("");
           setLastSyncedAt(new Date());
         }
       } catch (error) {
-        if (active) {
+        if (!cancelled()) {
           setStatus("error");
           setMessage(
             error instanceof Error ? error.message : "동기화에 실패했습니다.",
           );
         }
       } finally {
-        syncing.current = false;
+        syncing = false;
       }
     };
 
@@ -157,19 +220,35 @@ export default function CloudSyncPanel() {
     };
     const onOnline = () => void sync();
     const onFocus = () => void sync();
+    const onRecordsChanged = () => {
+      if (!isCurrentCloudSession(userId, epoch)) { stop(); return; }
+      if (syncing || !active) return;
+      if (stableState(readLocalCloudState()) === lastSynced.current) return;
+      setStatus("pending");
+      window.clearTimeout(followUpTimer);
+      followUpTimer = window.setTimeout(() => void sync(), 500);
+    };
+    window.addEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+    window.addEventListener("storage", onRecordsChanged);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("online", onOnline);
     window.addEventListener("focus", onFocus);
     return () => {
-      active = false;
+      stop();
+      if (cancelSync.current === stop) cancelSync.current = null;
+      window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, stop);
       window.removeEventListener(RECORD_RESET_EVENT, onReset);
       window.clearInterval(interval);
+      window.clearTimeout(followUpTimer);
+      window.removeEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+      window.removeEventListener("storage", onRecordsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("focus", onFocus);
     };
-  }, [syncRequest, user]);
+  }, [syncRequest, userId, authRevision]);
 
+  if (hideSignedOut && (!user || !isSupabaseConfigured)) return null;
   if (!isSupabaseConfigured)
     return (
       <div className="mt-3 w-full">
@@ -266,7 +345,7 @@ export default function CloudSyncPanel() {
                 ? "기록 동기화 중…"
                 : status === "error"
                   ? "기록 동기화 실패"
-                  : "기록 동기화 완료"}
+                  : status === "synced" ? "서버 반영 완료" : "기기 기록 · 서버 반영 대기"}
             </p>
             <p className="mt-0.5 truncate opacity-80">{user.email}</p>
             {status === "error" ? (
@@ -282,7 +361,7 @@ export default function CloudSyncPanel() {
             ) : null}
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 font-bold ${status === "error" ? "bg-red-100 text-red-700" : status === "syncing" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : "안전하게 저장됨"}
+            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : status === "synced" ? "서버 저장 확인" : "반영 대기"}
           </span>
         </div>
         <div className="mt-3 flex gap-2">

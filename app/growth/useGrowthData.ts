@@ -22,6 +22,7 @@ import {
   type GrowthRoutine,
 } from "../data/growthRoutines";
 import { getLocalDateKey } from "@/utils/dateKey";
+import { normalizeGrowthPreferredDays, normalizeGrowthWeeklyTarget } from "../data/growthSchedule";
 import { clearGrowthRecordBackup } from "../lib/resetAppRecords";
 import { resetMarkerKey } from "../data/appRecordReset";
 
@@ -79,7 +80,9 @@ function routineMatches(row: GrowthRoutineRow, routine: GrowthRoutine) {
   return row.title === routine.title
     && row.category === routine.category
     && row.target_minutes === routine.targetMinutes
-    && row.enabled === routine.enabled;
+    && row.enabled === routine.enabled
+    && normalizeGrowthPreferredDays(row.preferred_days).join(",") === routine.preferredDays.join(",")
+    && normalizeGrowthWeeklyTarget(row.target_sessions_per_week, row.preferred_days) === routine.targetSessionsPerWeek;
 }
 
 async function resolveCloudRoutineId(userId: string, routine: GrowthRoutine, rows: GrowthRoutineRow[], source: GrowthRoutine[]) {
@@ -109,6 +112,8 @@ async function localRoutineRows(userId: string, routines: GrowthRoutine[], sortO
     category: routine.category,
     title: routine.title,
     target_minutes: routine.targetMinutes,
+    preferred_days: routine.preferredDays,
+    target_sessions_per_week: routine.targetSessionsPerWeek,
     enabled: routine.enabled,
     sort_order: Math.min(1000, sortOffset + index),
     created_at: now,
@@ -391,7 +396,7 @@ export function useGrowthData(historyDays = 90) {
     return { error: null };
   }, [load, user]);
 
-  const addRoutine = useCallback(async (input: { id?: string; title: string; category: GrowthCategoryId; targetMinutes: number }) => {
+  const addRoutine = useCallback(async (input: { id?: string; title: string; category: GrowthCategoryId; targetMinutes: number; preferredDays: number[]; targetSessionsPerWeek: number }) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
     const now = new Date().toISOString();
     const result = await supabase.from("growth_routines").insert({
@@ -400,6 +405,8 @@ export function useGrowthData(historyDays = 90) {
       title: input.title.trim().slice(0, 60),
       category: input.category,
       target_minutes: Math.min(240, Math.max(5, Math.round(input.targetMinutes))),
+      preferred_days: normalizeGrowthPreferredDays(input.preferredDays),
+      target_sessions_per_week: normalizeGrowthWeeklyTarget(input.targetSessionsPerWeek, input.preferredDays),
       enabled: true,
       sort_order: routines.length,
       updated_at: now,
@@ -408,7 +415,7 @@ export function useGrowthData(historyDays = 90) {
     return result;
   }, [routines.length, user]);
 
-  const updateRoutine = useCallback(async (routineId: string, updates: Partial<Pick<GrowthRoutineRow, "title" | "category" | "target_minutes" | "enabled" | "sort_order">>) => {
+  const updateRoutine = useCallback(async (routineId: string, updates: Partial<Pick<GrowthRoutineRow, "title" | "category" | "target_minutes" | "preferred_days" | "target_sessions_per_week" | "enabled" | "sort_order">>) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
     const result = await supabase.from("growth_routines").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", routineId).eq("user_id", user.id).select("*").single();
     if (!result.error) setRoutines((current) => current.map((routine) => routine.id === routineId ? result.data as GrowthRoutineRow : routine));

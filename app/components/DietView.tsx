@@ -1,6 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges';
+import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
+import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import NextImage from 'next/image';
+import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
+import {
+  normalizeDietPhotoAnalysis,
+  proteinInputFromEstimate,
+  riceInputFromEstimate,
+  validateDietPhotoFile,
+  type DietPhotoAnalysis,
+  type DietPhotoMealSlot,
+} from '../data/dietPhotoAnalysis';
 import {
   DEFAULT_DINNER_CARB_RECORD,
   DEFAULT_LUNCH_CARB_RECORD,
@@ -216,6 +229,43 @@ function choiceButton(active: boolean) {
   }`;
 }
 
+function readBlobAsDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === 'string'
+      ? resolve(reader.result)
+      : reject(new Error('사진을 읽지 못했습니다.'));
+    reader.onerror = () => reject(new Error('사진을 읽지 못했습니다.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compressDietPhoto(file: File) {
+  const originalDataUrl = await readBlobAsDataUrl(file);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new window.Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error('사진 형식을 읽지 못했습니다.'));
+    element.src = originalDataUrl;
+  });
+  const maxEdge = 1280;
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('사진을 변환하지 못했습니다.');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => result ? resolve(result) : reject(new Error('사진을 변환하지 못했습니다.')),
+      'image/jpeg',
+      0.8,
+    );
+  });
+  return readBlobAsDataUrl(blob);
+}
+
 export default function DietView() {
   const todayKey = getLocalDateKey();
   const [hydrated, setHydrated] = useState(false);
@@ -243,16 +293,52 @@ export default function DietView() {
   const [fastingStatus, setFastingStatus] = useState<FastingRecordStatus>('unrecorded');
   const [lastMealTime, setLastMealTime] = useState('');
   const [dietMemo, setDietMemo] = useState('');
+  const [digestionStatus, setDigestionStatus] = useState<DigestionStatus>('unrecorded');
+  const [lateSnack, setLateSnack] = useState<MealCheck>('unrecorded');
+  const [afterWorkoutMeal, setAfterWorkoutMeal] = useState<MealCheck>('unrecorded');
+  const [quickMeal, setQuickMeal] = useState<QuickMeal | null>(null);
   const [message, setMessage] = useState('');
+  const [photoMealSlot, setPhotoMealSlot] = useState<DietPhotoMealSlot>('lunch');
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
+  const [photoAnalysis, setPhotoAnalysis] = useState<DietPhotoAnalysis | null>(null);
+  const [photoConfirmed, setPhotoConfirmed] = useState(false);
+  const [photoDataUseAcknowledged, setPhotoDataUseAcknowledged] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoMessage, setPhotoMessage] = useState('');
+  const [dataVersion, setDataVersion] = useState(0);
+  const [savedInput, setSavedInput] = useState<string | null>(null);
+  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo, digestionStatus, lateSnack, afterWorkoutMeal]);
+  const dirty = hydrated && savedInput !== null && savedInput !== inputSnapshot;
+  const dirtyRef = useRef(dirty);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  useUnsavedChanges(dirty);
+  useEffect(() => () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+  }, [photoPreviewUrl]);
+  useEffect(() => {
+    const refresh = () => {
+      if (dirtyRef.current) { setMessage('다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.'); return; }
+      setSavedInput(null);
+      setDataVersion(value => value + 1);
+    };
+    window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener(RECORDS_CHANGED_EVENT, refresh); window.removeEventListener('storage', refresh); };
+  }, []);
 
   useEffect(() => {
+    recoverStorageTransaction(window.localStorage);
     const existingDietStart = window.localStorage.getItem(DIET_START_DATE_KEY);
     const initialStart =
       existingDietStart ||
       window.localStorage.getItem(SWITCHON_START_DATE_KEY) ||
       SWITCHON_DEFAULT_START_DATE;
     setStartDate(initialStart);
-    if (!existingDietStart) window.localStorage.setItem(DIET_START_DATE_KEY, initialStart);
+    // Display the fallback without persisting it. The initial cloud GET may
+    // still be pending; an automatic write would overwrite the saved start date.
+    // Explicit date changes below remain real user edits and are persisted.
 
     const oldPhase = window.localStorage.getItem(DIET_PHASE_KEY) as
       | DietPhaseId
@@ -303,15 +389,30 @@ export default function DietView() {
         '',
     );
     setDietMemo(typeof today.dietMemo === 'string' ? today.dietMemo : '');
+    setDigestionStatus(normalizeDigestion(today.digestionStatus));
+    setLateSnack(normalizeMealCheck(today.lateSnack));
+    setAfterWorkoutMeal(normalizeMealCheck(today.afterWorkoutMeal));
+    setSavedInput(JSON.stringify([
+      todayMeal, savedWater[todayKey] || Number(today.waterMl) || 0,
+      savedLunchCarbs[todayKey] ? normalizeLunchCarbRecord(savedLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB,
+      normalizeDinnerCarbRecord(savedDinnerCarbs[todayKey] || todayMeal.dinnerCarb),
+      normalizeLunchProteinRecord(savedLunchProtein[todayKey]),
+      (typeof today.lastMealTime === 'string' && today.lastMealTime) || savedDinnerTimes[todayKey] || readCurrentFastingStart(todayKey) || (savedMeals[todayKey] ? todayMeal.lastMealTime : '') || '',
+      savedSocial[todayKey] || 'none', today.dietStatus ?? 'normal',
+      today.fastingRecordStatus ?? (today.fasting14h ? '14h' : 'unrecorded'),
+      typeof today.dietMemo === 'string' ? today.dietMemo : '',
+      normalizeDigestion(today.digestionStatus), normalizeMealCheck(today.lateSnack), normalizeMealCheck(today.afterWorkoutMeal),
+    ]));
     setHydrated(true);
 
     const timer = window.setInterval(() => setNow(new Date()), 60000);
     return () => window.clearInterval(timer);
-  }, [todayKey]);
+  }, [todayKey, dataVersion]);
 
   const switchDay = useMemo(() => getSwitchOnDay(startDate, now), [startDate, now]);
   const currentPhase = mode === 'auto' ? getAutoDietPhase(switchDay) : manualPhase;
   const plan = DIET_PLANS[currentPhase];
+  const weeklyDiet = summarizeFreeDiet(store, todayKey);
   const proteinTotal = calculateProteinTotal(mealLog, lunchProtein.protein);
   const proteinStatus = getProteinStatus(proteinTotal);
   const mealCompletion = getMealCompletion(mealLog, lunchProtein.protein);
@@ -358,6 +459,91 @@ export default function DietView() {
     );
   };
 
+  const selectDietPhoto = (file: File | null) => {
+    setPhotoAnalysis(null);
+    setPhotoConfirmed(false);
+    setPhotoDataUseAcknowledged(false);
+    setPhotoMessage('');
+    if (!file) {
+      if (photoInputRef.current) photoInputRef.current.value = '';
+      setPhotoFile(null);
+      setPhotoPreviewUrl('');
+      return;
+    }
+    const validationError = validateDietPhotoFile(file);
+    if (validationError) {
+      if (photoInputRef.current) photoInputRef.current.value = '';
+      setPhotoFile(null);
+      setPhotoPreviewUrl('');
+      setPhotoMessage(validationError);
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const analyzeDietPhoto = async () => {
+    if (!photoFile || photoLoading || !photoDataUseAcknowledged) return;
+    setPhotoLoading(true);
+    setPhotoAnalysis(null);
+    setPhotoConfirmed(false);
+    setPhotoMessage('');
+    try {
+      const imageDataUrl = await compressDietPhoto(photoFile);
+      const response = await fetch('/api/diet/photo-analysis', {
+        method: 'POST',
+        headers: await authenticatedJsonHeaders(),
+        body: JSON.stringify({ mealSlot: photoMealSlot, imageDataUrl, freeDataUseAcknowledged: photoDataUseAcknowledged }),
+      });
+      const result = await response.json() as DietPhotoAnalysis & { error?: string };
+      if (!response.ok) throw new Error(result.error || '사진을 분석하지 못했어요.');
+      setPhotoAnalysis(normalizeDietPhotoAnalysis(result));
+      setPhotoMessage('추정 결과를 확인하고 필요하면 숫자를 고쳐 주세요.');
+    } catch (error) {
+      setPhotoMessage(error instanceof Error ? error.message : '사진을 분석하지 못했어요.');
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  const applyDietPhotoAnalysis = () => {
+    if (!photoAnalysis || !photoConfirmed) return;
+    const normalized = normalizeDietPhotoAnalysis(photoAnalysis);
+    const proteinInput = proteinInputFromEstimate(normalized.proteinGrams);
+    const riceInput = riceInputFromEstimate(normalized.cookedRiceGrams);
+    if (photoMealSlot === 'lunch') {
+      if (proteinInput) {
+        setMealLog((current) => ({
+          ...current,
+          lunchProteinChoice: proteinInput.choice,
+          lunchProteinCustom: proteinInput.custom,
+        }));
+        if (awayLunch) {
+          setLunchProtein((current) => normalizeLunchProteinRecord({
+            ...current,
+            assessment: normalized.proteinGrams !== null && normalized.proteinGrams >= 20
+              ? 'sufficient'
+              : normalized.proteinGrams !== null && normalized.proteinGrams > 0
+                ? 'uncertain'
+                : 'low',
+          }));
+        }
+      }
+      if (riceInput) updateLunchCarb(riceInput);
+    } else {
+      if (proteinInput) {
+        setMealLog((current) => ({
+          ...current,
+          dinnerProteinChoice: proteinInput.choice,
+          dinnerProteinCustom: proteinInput.custom,
+        }));
+      }
+      if (riceInput) updateDinnerCarb(riceInput);
+    }
+    setPhotoConfirmed(false);
+    setMessage(`${photoMealSlot === 'lunch' ? '점심' : '저녁'} 추정치를 입력칸에 반영했습니다. 아직 저장되지 않았습니다.`);
+  };
+
   const selectOutsideLunchProtein = (
     assessment: Exclude<LunchProteinAssessment, 'unrecorded'>,
   ) => {
@@ -400,12 +586,13 @@ export default function DietView() {
       setMessage('여행 종료일을 시작일 이후로 선택해주세요.');
       return;
     }
-    const nextSocial = { ...socialStore };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     dates.forEach((date) => {
       nextSocial[date] = 'travel';
     });
+    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
+    catch { setMessage('여행 일정을 저장하지 못했어요. 선택한 날짜를 유지합니다. 저장 공간을 확인해 주세요.'); return; }
     setSocialStore(nextSocial);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
     if (dates.includes(todayKey)) selectScheduleMode('travel');
     setMessage(
       dates.length === 31 && travelEnd > dates[dates.length - 1]
@@ -415,19 +602,21 @@ export default function DietView() {
   };
 
   const removePlannedSchedule = (date: string) => {
-    const nextSocial = { ...socialStore };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     delete nextSocial[date];
+    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
+    catch { setMessage('일정을 삭제하지 못했어요. 기존 일정을 유지합니다.'); return; }
     setSocialStore(nextSocial);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
     if (date === todayKey) selectScheduleMode('none');
     setMessage(`${formatScheduleDate(date)} 예외 일정을 삭제했습니다.`);
   };
 
   const saveDiet = () => {
     const fastingHours = fastingStatus === '14h' ? 14 : fastingStatus === '12h' ? 12 : 0;
-    const previousToday = store[todayKey] || {};
+    const latestDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store);
+    const previousToday = latestDiet[todayKey] || {};
     const nextDiet: DietCompletedStore = {
-      ...store,
+      ...latestDiet,
       [todayKey]: {
         ...previousToday,
         dietStatus,
@@ -449,19 +638,30 @@ export default function DietView() {
         lastMealTime,
         socialMeal,
         dietMemo: dietMemo.trim() || undefined,
+        digestionStatus, lateSnack, afterWorkoutMeal,
       },
     };
     const nextMeals = {
-      ...mealStore,
+      ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore),
       [todayKey]: { ...mealLog, lastMealTime },
     };
-    const nextWater = { ...waterStore, [todayKey]: water };
-    const nextLunchCarbs = { ...lunchCarbStore, [todayKey]: lunchCarb };
-    const nextDinnerCarbs = { ...dinnerCarbStore, [todayKey]: dinnerCarb };
-    const nextLunchProteins = { ...lunchProteinStore, [todayKey]: lunchProtein };
-    const nextDinnerTimes = { ...dinnerTimeStore, [todayKey]: lastMealTime };
-    const nextSocial = { ...socialStore, [todayKey]: socialMeal };
+    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore), [todayKey]: water };
+    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore), [todayKey]: lunchCarb };
+    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore), [todayKey]: dinnerCarb };
+    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore), [todayKey]: lunchProtein };
+    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore), [todayKey]: lastMealTime };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore), [todayKey]: socialMeal };
 
+    try {
+      writeStorageBatch(window.localStorage, {
+        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
+        [PROTEIN_TOTAL_KEY]: JSON.stringify({ ...readJson<NumberStore>(PROTEIN_TOTAL_KEY, {}), [todayKey]: proteinTotal }),
+        [WATER_INTAKE_KEY]: JSON.stringify(nextWater), [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs),
+        [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs), [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins),
+        [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes), [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial),
+        [FASTING_START_TIME_KEY]: lastMealTime,
+      });
+    } catch { setMessage('기기에 저장하지 못했어요. 작성 내용은 남아 있습니다. 저장 공간을 확인한 뒤 다시 저장해 주세요.'); return; }
     setStore(nextDiet);
     setMealStore(nextMeals);
     setWaterStore(nextWater);
@@ -470,31 +670,21 @@ export default function DietView() {
     setLunchProteinStore(nextLunchProteins);
     setDinnerTimeStore(nextDinnerTimes);
     setSocialStore(nextSocial);
-    writeJson(DIET_COMPLETED_DAYS_KEY, nextDiet);
-    writeJson(DIET_MEAL_LOG_KEY, nextMeals);
-    writeJson(PROTEIN_TOTAL_KEY, {
-      ...readJson<NumberStore>(PROTEIN_TOTAL_KEY, {}),
-      [todayKey]: proteinTotal,
-    });
-    writeJson(WATER_INTAKE_KEY, nextWater);
-    writeJson(LUNCH_CARB_CHOICE_KEY, nextLunchCarbs);
-    writeJson(DINNER_CARB_CHOICE_KEY, nextDinnerCarbs);
-    writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextLunchProteins);
-    writeJson(DINNER_COMPLETED_TIME_KEY, nextDinnerTimes);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
-    window.localStorage.setItem(FASTING_START_TIME_KEY, lastMealTime);
+    setSavedInput(inputSnapshot);
+    dirtyRef.current = false;
+    notifyRecordsChanged();
     setMessage('오늘 식단 기록을 저장했습니다.');
   };
 
   const resetDiet = () => {
-    const nextDiet = { ...store };
-    const nextMeals = { ...mealStore };
-    const nextWater = { ...waterStore };
-    const nextLunchCarbs = { ...lunchCarbStore };
-    const nextDinnerCarbs = { ...dinnerCarbStore };
-    const nextLunchProteins = { ...lunchProteinStore };
-    const nextDinnerTimes = { ...dinnerTimeStore };
-    const nextSocial = { ...socialStore };
+    const nextDiet = { ...readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store) };
+    const nextMeals = { ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore) };
+    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore) };
+    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore) };
+    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore) };
+    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore) };
+    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore) };
+    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
     const nextProteinTotals = readJson<NumberStore>(PROTEIN_TOTAL_KEY, {});
 
     delete nextDiet[todayKey];
@@ -507,6 +697,15 @@ export default function DietView() {
     delete nextSocial[todayKey];
     delete nextProteinTotals[todayKey];
 
+    try {
+      writeStorageBatch(window.localStorage, {
+        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
+        [PROTEIN_TOTAL_KEY]: JSON.stringify(nextProteinTotals), [WATER_INTAKE_KEY]: JSON.stringify(nextWater),
+        [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs), [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs),
+        [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins), [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes),
+        [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial), [FASTING_START_TIME_KEY]: null,
+      });
+    } catch { setMessage('초기화하지 못했어요. 기존 기록과 작성 내용을 유지합니다.'); return; }
     setStore(nextDiet);
     setMealStore(nextMeals);
     setMealLog(DEFAULT_MEAL_LOG);
@@ -525,17 +724,11 @@ export default function DietView() {
     setFastingStatus('unrecorded');
     setLastMealTime('');
     setDietMemo('');
+    setDigestionStatus('unrecorded'); setLateSnack('unrecorded'); setAfterWorkoutMeal('unrecorded'); setQuickMeal(null);
 
-    writeJson(DIET_COMPLETED_DAYS_KEY, nextDiet);
-    writeJson(DIET_MEAL_LOG_KEY, nextMeals);
-    writeJson(PROTEIN_TOTAL_KEY, nextProteinTotals);
-    writeJson(WATER_INTAKE_KEY, nextWater);
-    writeJson(LUNCH_CARB_CHOICE_KEY, nextLunchCarbs);
-    writeJson(DINNER_CARB_CHOICE_KEY, nextDinnerCarbs);
-    writeJson(LUNCH_PROTEIN_CHOICE_KEY, nextLunchProteins);
-    writeJson(DINNER_COMPLETED_TIME_KEY, nextDinnerTimes);
-    writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial);
-    window.localStorage.removeItem(FASTING_START_TIME_KEY);
+    dirtyRef.current = false;
+    setSavedInput(null);
+    notifyRecordsChanged();
     setMessage('오늘 식단 기록을 초기화했습니다.');
   };
 
@@ -705,6 +898,187 @@ export default function DietView() {
             </div>
 
             <div className="mt-4 space-y-3">
+              <article className="rounded-2xl border border-[#D9D6F5] bg-[#F7F6FF] p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[14px] font-bold text-gray-900">사진으로 입력 보조</p>
+                    <p className="mt-1 text-[11px] leading-5 text-gray-600">
+                      사진은 앱 기록으로 저장되지 않습니다. AI 추정값을 직접 확인한 뒤 입력칸에만 반영합니다.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold text-[#534AB7]">
+                    무료 AI · 선택 기능
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {([['lunch', '점심'], ['dinner', '저녁']] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      disabled={photoLoading}
+                      onClick={() => {
+                        setPhotoMealSlot(value);
+                        setPhotoAnalysis(null);
+                        setPhotoConfirmed(false);
+                        setPhotoMessage('');
+                      }}
+                      className={choiceButton(photoMealSlot === value)}
+                    >
+                      {label} 사진
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <label className="block text-[11px] font-bold text-gray-700">
+                    음식 사진 선택
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      capture="environment"
+                      disabled={photoLoading}
+                      onChange={(event) => selectDietPhoto(event.target.files?.[0] ?? null)}
+                      className="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[12px] text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-[#EEEDFE] file:px-3 file:py-1.5 file:text-[11px] file:font-bold file:text-[#3C3489]"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void analyzeDietPhoto()}
+                    disabled={!photoFile || photoLoading || !photoDataUseAcknowledged}
+                    className="min-h-11 rounded-xl bg-[#534AB7] px-4 py-2.5 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                  >
+                    {photoLoading ? '분석 중…' : 'AI로 분석'}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] leading-4 text-gray-500">
+                  ‘AI로 분석’을 누르면 압축된 사진 1장이 Google Gemini로 전송됩니다. 무료 한도에 도달하면 직접 입력으로 이어갈 수 있습니다.
+                </p>
+                <p id="diet-photo-free-data-notice" className="mt-2 text-[10px] leading-4 text-gray-600">
+                  Google 무료 서비스는 사진과 응답을 서비스 개선에 활용할 수 있고 담당자가 검토할 수 있습니다. 얼굴·이름·영수증 등 개인정보가 없는 음식 사진만 선택해 주세요.{' '}
+                  <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noopener noreferrer" className="underline">데이터 활용 안내</a>
+                </p>
+                <label className="mt-2 flex min-h-11 items-center gap-2 text-[11px] leading-5 text-gray-700">
+                  <input type="checkbox" checked={photoDataUseAcknowledged} disabled={!photoFile || photoLoading}
+                    aria-describedby="diet-photo-free-data-notice"
+                    onChange={(event) => setPhotoDataUseAcknowledged(event.target.checked)} className="h-4 w-4 shrink-0" />
+                  무료 분석의 사진·응답 활용 안내를 확인했습니다.
+                </label>
+
+                {photoPreviewUrl && (
+                  <div className="mt-3 flex items-start gap-3 rounded-xl bg-white p-3">
+                    <NextImage
+                      src={photoPreviewUrl}
+                      alt="분석할 식사 사진 미리보기"
+                      width={96}
+                      height={96}
+                      unoptimized
+                      className="h-24 w-24 shrink-0 rounded-xl object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[12px] font-bold text-gray-800">{photoFile?.name}</p>
+                      <p className="mt-1 text-[10px] text-gray-500">
+                        {photoFile ? `${(photoFile.size / 1024 / 1024).toFixed(1)}MB · 전송 전 자동 압축` : ''}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => selectDietPhoto(null)}
+                        disabled={photoLoading}
+                        className="mt-2 rounded-lg bg-gray-100 px-2.5 py-1.5 text-[10px] font-bold text-gray-600"
+                      >
+                        사진 지우기
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {photoAnalysis && (
+                  <div className="mt-3 rounded-2xl border border-[#CFCBF2] bg-white p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[13px] font-bold text-gray-900">AI 추정 결과</p>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                        photoAnalysis.confidence === 'high'
+                          ? 'bg-green-50 text-green-700'
+                          : photoAnalysis.confidence === 'medium'
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-red-50 text-red-700'
+                      }`}>
+                        신뢰도 {photoAnalysis.confidence === 'high' ? '높음' : photoAnalysis.confidence === 'medium' ? '보통' : '낮음'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-5 text-gray-600">
+                      보이는 음식: {photoAnalysis.foods.length ? photoAnalysis.foods.join(', ') : '판단 어려움'}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <label className="text-[11px] font-bold text-gray-700">
+                        단백질 추정 g
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={100}
+                          value={photoAnalysis.proteinGrams ?? ''}
+                          onChange={(event) => setPhotoAnalysis((current) => current ? {
+                            ...current,
+                            proteinGrams: event.target.value === '' ? null : Math.max(0, Number(event.target.value) || 0),
+                          } : current)}
+                          placeholder="판단 어려움"
+                          className="mt-1 block w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
+                        />
+                      </label>
+                      <label className="text-[11px] font-bold text-gray-700">
+                        조리된 밥 추정 g
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={500}
+                          value={photoAnalysis.cookedRiceGrams ?? ''}
+                          onChange={(event) => setPhotoAnalysis((current) => current ? {
+                            ...current,
+                            cookedRiceGrams: event.target.value === '' ? null : Math.max(0, Number(event.target.value) || 0),
+                          } : current)}
+                          placeholder="판단 어려움"
+                          className="mt-1 block w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
+                        />
+                      </label>
+                    </div>
+                    {photoAnalysis.note && (
+                      <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-800">
+                        오차 참고: {photoAnalysis.note}
+                      </p>
+                    )}
+                    <label className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={photoConfirmed}
+                        onChange={(event) => setPhotoConfirmed(event.target.checked)}
+                        className="mt-1"
+                      />
+                      사진 분석은 추정치이며, 음식과 양을 직접 확인했습니다.
+                    </label>
+                    <button
+                      type="button"
+                      onClick={applyDietPhotoAnalysis}
+                      disabled={!photoConfirmed || (photoAnalysis.proteinGrams === null && photoAnalysis.cookedRiceGrams === null)}
+                      className="mt-3 w-full rounded-xl bg-[#3C3489] px-4 py-2.5 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      {photoMealSlot === 'lunch' ? '점심' : '저녁'} 입력칸에 반영
+                    </button>
+                    <p className="mt-2 text-[10px] text-gray-500">
+                      반영 후에도 자동 저장되지 않습니다. 아래 ‘오늘 식단 저장’을 눌러야 기록됩니다.
+                    </p>
+                  </div>
+                )}
+
+                {photoMessage && (
+                  <p role="status" className="mt-3 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-gray-700">
+                    {photoMessage}
+                  </p>
+                )}
+              </article>
+
               <article className="rounded-2xl bg-gray-50 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1009,6 +1383,37 @@ export default function DietView() {
         </div>
 
         <aside className="space-y-4">
+          <section className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm sm:p-5" aria-label="식단 간편 입력">
+            <h3 className="text-[15px] font-bold text-gray-900">식단 간편 입력</h3>
+            <p className="mt-2 text-xs leading-5 text-gray-500">먹은 양과 비교한 뒤 입력칸에 반영하세요. 하루 기록은 아래 저장 버튼으로 저장해요.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {(['lunch', 'dinner'] as const).map(slot => <div key={slot} className="space-y-2">
+                <button type="button" onClick={() => setQuickMeal(quickMealPreset(slot))} className="min-h-11 w-full rounded-xl bg-violet-50 p-2 text-xs font-bold text-violet-800">{slot === 'lunch' ? '점심' : '저녁'} 기본값 보기</button>
+                <button type="button" onClick={() => { const previous = previousMeal(mealStore, slot === 'lunch' ? lunchCarbStore : dinnerCarbStore, lunchProteinStore, slot, todayKey); setQuickMeal(previous); if (!previous) setMessage('불러올 이전 식사 기록이 없어요. 직접 입력으로 시작해 주세요.'); }} className="min-h-11 w-full rounded-xl bg-gray-50 p-2 text-xs font-bold text-gray-700">지난 {slot === 'lunch' ? '점심' : '저녁'} 불러오기</button>
+              </div>)}
+            </div>
+            {quickMeal ? <div className="mt-3 rounded-xl bg-violet-50 p-3" role="region" aria-label="불러올 식사 확인">
+              <strong className="text-sm">{quickMeal.label}</strong>
+              <p className="mt-2 text-xs leading-5">{quickMeal.slot === 'lunch' ? '점심' : '저녁'} 식품 단백질 {quickMeal.patch[`${quickMeal.slot}ProteinChoice`] === 'custom' ? quickMeal.patch[`${quickMeal.slot}ProteinCustom`] : quickMeal.patch[`${quickMeal.slot}ProteinChoice`] === 'none' ? '미기록' : quickMeal.patch[`${quickMeal.slot}ProteinChoice`]}g · 밥 {quickMeal.carb.grams}g{quickMeal.slot === 'lunch' ? ` · 보충 단백질 ${quickMeal.supplement.protein}g` : ''}</p>
+              <p className="mt-1 text-xs leading-5">이 식사의 단백질·밥 입력값을 바꿉니다. 물·공복·상태·다른 끼니는 유지합니다.</p>
+              <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="min-h-11 rounded-lg bg-violet-700 px-3 text-xs font-bold text-white" onClick={() => {
+                setMealLog(current => ({ ...current, ...quickMeal.patch }));
+                if (quickMeal.slot === 'lunch') { setLunchCarb(quickMeal.carb); setLunchProtein(quickMeal.supplement); } else setDinnerCarb(quickMeal.carb);
+                setMessage('식사 입력칸에 반영했습니다. 아직 저장되지 않았습니다.'); setQuickMeal(null);
+              }}>식사 입력칸에 적용</button><button type="button" className="min-h-11 rounded-lg bg-white px-3 text-xs" onClick={() => setQuickMeal(null)}>취소</button></div>
+            </div> : null}
+          </section>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5" aria-label="최근 7일 식단 요약">
+            <h3 className="text-[15px] font-bold text-gray-900">최근 7일 식단 요약</h3>
+            <p className="mt-2 text-xs text-gray-500">저장한 {weeklyDiet.recordedDays}일 기준 · 미응답은 계산에서 제외</p>
+            <ul className="mt-3 space-y-2 text-xs leading-5 text-gray-700">
+              <li>단백질 평균 {weeklyDiet.averageProtein === null ? '미기록' : `${weeklyDiet.averageProtein}g · ${weeklyDiet.proteinDays}일 입력`}</li>
+              <li>수분 평균 {weeklyDiet.averageWater === null ? '미기록' : `${weeklyDiet.averageWater}mL · ${weeklyDiet.waterDays}일 입력`}</li>
+              <li>소화 불편 {weeklyDiet.discomfortDays}일 / 상태 응답 {weeklyDiet.digestionDays}일</li>
+              <li>야식 {weeklyDiet.lateSnackDays}일 / 응답 {weeklyDiet.lateSnackAnswers}일</li>
+              <li>운동 후 식사 {weeklyDiet.afterWorkoutDays}일 / 응답 {weeklyDiet.afterWorkoutAnswers}일</li>
+            </ul>
+          </section>
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-[15px] font-bold text-gray-900">단백질 합계</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
@@ -1035,7 +1440,7 @@ export default function DietView() {
               />
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2">
-              {[250, 500, -250].map((amount) => (
+              {[300, 500, -300].map((amount) => (
                 <button
                   key={amount}
                   type="button"
@@ -1119,6 +1524,9 @@ export default function DietView() {
                 {SOCIAL_MEAL_MODE_LABELS[socialMeal]}
               </p>
             </div>
+            <label className="mt-4 block text-xs font-bold text-gray-600" htmlFor="diet-digestion">소화 상태</label>
+            <select id="diet-digestion" value={digestionStatus} onChange={event => setDigestionStatus(normalizeDigestion(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm">{Object.entries(DIGESTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            {([{ id: 'late-snack', label: '야식을 먹었나요?', value: lateSnack, set: setLateSnack }, { id: 'after-workout-meal', label: '운동 후 식사를 했나요?', value: afterWorkoutMeal, set: setAfterWorkoutMeal }]).map(check => <label key={check.id} htmlFor={check.id} className="mt-3 block text-xs font-bold text-gray-600">{check.label}<select id={check.id} aria-label={check.label} value={check.value} onChange={event => check.set(normalizeMealCheck(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm"><option value="unrecorded">미기록</option><option value="yes">예</option><option value="no">아니요</option></select></label>)}
             <label className="mt-4 block text-[11px] font-bold text-gray-600" htmlFor="diet-memo">
               메모
             </label>

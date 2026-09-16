@@ -42,6 +42,18 @@ body.has-hub-bottom-nav {
   padding-bottom: calc(82px + env(safe-area-inset-bottom));
 }
 
+.yeoni-sync-notice, .yeoni-pwa-notice {
+  bottom: calc(82px + env(safe-area-inset-bottom));
+}
+.yeoni-sync-notice {
+  left: 12px;
+  right: auto;
+  max-width: calc(100vw - 140px);
+}
+.yeoni-pwa-banner {
+  bottom: calc(126px + env(safe-area-inset-bottom));
+}
+
 .hub-bottom-nav {
   position: fixed;
   z-index: 90;

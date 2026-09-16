@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AiBudgetExceededError } from '@/lib/ai-budget'
 import { generateAiText } from '@/lib/ai-router'
+import { FREE_MODE } from '@/lib/free-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -139,6 +140,12 @@ export async function POST(req: NextRequest) {
     관리비: ['관리비', '아파트관리비']
   }
 
+  if (FREE_MODE) {
+    const won = (amount: number) => `${Math.round(amount).toLocaleString('ko-KR')}원`
+    const top = Object.entries(categorySummary).sort((a, b) => b[1] - a[1])[0]
+    const remaining = summary.monthlyBudget === null ? null : summary.monthlyBudget - summary.currentMonthExpenses
+    return NextResponse.json({ answer: `${period} 기록 요약입니다. 지출 ${won(summary.currentMonthExpenses)}, 수입 ${won(summary.currentMonthIncome)}, 저축 ${won(summary.currentMonthSavings)}입니다.${top ? ` 가장 큰 지출은 ${top[0]} ${won(top[1])}입니다.` : ''}${remaining === null ? ' 월 예산은 아직 설정되지 않았습니다.' : remaining < 0 ? ` 예산을 ${won(-remaining)} 초과했습니다. 큰 지출부터 확인해 주세요.` : ` 예산 ${won(remaining)}이 남았습니다.`} 자세한 기간·항목 비교는 아래 추천 질문에서 선택해 주세요.`, followUpQuestions: ['가장 많이 쓴 항목은?', '지난달보다 늘어난 항목은?', '다음 달 예산은 얼마가 적당해?'], source: 'local' })
+  }
   const prompt = `
 너는 개인 가계부 분석 AI야.
 반드시 사용자가 제공한 집계 데이터만 기준으로 답변하고, 없는 정보는 추측하지 마.

@@ -74,7 +74,8 @@ export default function AdaptiveWorkoutReviewCard({ input, onApply, onRefresh }:
       ) : null}
       <details className="mt-3 text-xs leading-5 text-gray-500">
         <summary className="cursor-pointer">어떤 기준으로 조정하나요?</summary>
-        <p className="mt-2">화·목은 1~2라운드의 회복형 운동입니다. 같은 근력 루틴을 3회 여유 있게 수행한 기록이 쌓이면 한 운동의 반복수를 1회 높이는 것을 검토합니다. 약 2주 이상 안정적으로 적응한 기록이 있을 때만 한 운동 교체를 제안합니다. 날짜가 지났다고 반드시 바꾸지는 않습니다.</p>
+        <p className="mt-2">화·목은 1~2라운드의 회복형 운동입니다. 같은 근력 루틴을 3회 같은 조건으로 여유 있게 수행하면 한 번에 한 항목만 검토합니다. 반복수를 먼저 1회 높이고, 12회에 도달한 운동은 덤벨 0.5kg 또는 밴드 한 단계만 제안합니다. 새 동작을 2라운드로 익힌 경우에만 최대 3라운드까지 한 번 높일 수 있습니다.</p>
+        <p className="mt-2">제안은 자동 적용되지 않습니다. 중량·밴드·추가 라운드를 준비할 수 있고 현재 통증·저림이 없다는 조건을 직접 확인해야 적용됩니다. 날짜가 지났다는 이유만으로 바꾸지는 않습니다.</p>
         <p className="mt-2">체지방 감소는 식사와 평소 활동량도 함께 관리합니다. 근력·반복수·회복이 나빠지면 체중이 줄어도 운동량을 늘리지 않습니다.</p>
       </details>
     </section>

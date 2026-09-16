@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authenticatedFetch } from "@/lib/supabase";
+import { FREE_MODE } from "@/lib/free-mode";
 
 type Summary = { limitKrw: number; spentKrw: number; percentage: number; reachedThreshold: number };
 
@@ -9,6 +10,7 @@ export default function AiBudgetNotifier() {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
+    if (FREE_MODE) return;
     let active = true;
     const check = async () => {
       const response = await authenticatedFetch("/api/ai/usage").catch(() => null);
