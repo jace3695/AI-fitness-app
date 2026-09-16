@@ -39,6 +39,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915052413_chatgpt_scoped_connection.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916043619_assistant_language_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));

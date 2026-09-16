@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
-import { getWorkoutDayForDate, getWorkoutRecord, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
+import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
@@ -13,10 +13,12 @@ import { isBudgetEditIntent, parseBudgetAmountCommand, type BudgetCommandProposa
 import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
 import { parseLanguageCompletion, type LanguageCommandProposal } from '@/lib/assistant-language-command';
 import { proposeLanguageCompletion } from '@/lib/assistant-language-server';
+import { parseWorkoutCompletion, type WorkoutCommandProposal } from '@/lib/assistant-workout-command';
+import { proposeWorkoutCompletion } from '@/lib/assistant-workout-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -109,43 +111,6 @@ function getTodayWorkout(state: Record<string, unknown>, today: string) {
   const cardioOptions = workout.optionalCardio?.options.map((option) => `${option.name} ${option.duration}`) ?? [];
   const completedStore = parseState(state["ai-fitness-workout-completed-days"]) as WorkoutCompletionStore;
   return { plan, dayId, group, workout, exerciseNames, cardioOptions, completedStore, completed: isWorkoutPerformed(completedStore[today]) };
-}
-
-async function saveWorkoutCompletion(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, today: string) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const { data, error } = await supabase.from("user_app_state").select("state,updated_at").eq("user_id", userId).maybeSingle();
-    if (error) throw error;
-    const state = parseState(data?.state);
-    const workoutInfo = getTodayWorkout(state, today);
-    if (!workoutInfo) throw new Error("오늘 운동 정보를 확인하지 못했습니다.");
-    if (workoutInfo.completed || workoutInfo.group.category === "rest") return workoutInfo;
-    const current = getWorkoutRecord(workoutInfo.completedStore[today]);
-    const nextStore: WorkoutCompletionStore = {
-      ...workoutInfo.completedStore,
-      [today]: {
-        ...current,
-        workoutDone: true,
-        workoutStatus: "completed",
-        workoutRoutineName: workoutInfo.group.name,
-        workoutPlanName: workoutInfo.plan.name,
-        workoutGroupId: workoutInfo.group.id,
-        workoutExerciseNames: workoutInfo.exerciseNames,
-        workoutSourceDay: workoutInfo.dayId,
-        workoutExerciseRecords: workoutInfo.exerciseNames.map((exerciseName) => ({ exerciseName, status: "completed" as const })),
-        workoutMemo: current.workoutMemo || "제이스비서에서 완료 기록",
-      },
-    };
-    const nextState = { ...state, "ai-fitness-workout-completed-days": nextStore };
-    if (!data) {
-      const { error: insertError } = await supabase.from("user_app_state").insert({ user_id: userId, state: nextState, updated_at: new Date().toISOString() });
-      if (insertError) throw insertError;
-      return workoutInfo;
-    }
-    const { data: updated, error: updateError } = await supabase.from("user_app_state").update({ state: nextState, updated_at: new Date().toISOString() }).eq("user_id", userId).eq("updated_at", data.updated_at).select("updated_at").maybeSingle();
-    if (updateError) throw updateError;
-    if (updated) return workoutInfo;
-  }
-  throw new Error("다른 기기에서 운동 기록이 변경되었습니다. 다시 시도해 주세요.");
 }
 
 const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘자기계발 현황 알려줘’처럼 말씀해 주세요.";
@@ -350,12 +315,11 @@ async function processSingleCommand(
     if (error) throw new Error("할 일을 불러오지 못했습니다.");
     result = { reply: data?.length ? `오늘 할 일은 ${data.length}건입니다. ${data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ")}` : "오늘 마감인 미완료 할 일이 없습니다.", action: { label: "할 일 목록 보기", href: "#assistant-list" } };
   } else if (/(오늘\s*)?운동.*(완료|끝|마쳤|했어|했어요)/.test(message)) {
-    try {
-      const workoutInfo = await saveWorkoutCompletion(supabase, userId, today);
-      result = { reply: workoutInfo.group.category === "rest" ? "오늘은 회복일이라 별도의 운동 완료 기록을 만들지 않았습니다. 충분히 쉬고 몸 상태를 확인해 주세요." : workoutInfo.completed ? "오늘 운동은 이미 완료로 기록되어 있습니다." : `오늘 ‘${workoutInfo.group.name}’ 운동을 완료로 기록했습니다. 운동 페이지에도 자동으로 동기화됩니다.`, action: { label: "운동 기록 확인", href: "/fitness" }, changed: workoutInfo.group.category !== "rest" && !workoutInfo.completed };
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : "운동 완료 기록을 저장하지 못했습니다.");
-    }
+    parseWorkoutCompletion(message);
+    const proposal = await proposeWorkoutCompletion(supabase, userId, today);
+    result = proposal
+      ? { reply: "오늘 운동의 완료 사실을 기록할까요? 아래 내용을 확인하고 저장해 주세요.", proposal, action: { label: "운동 기록 확인", href: "/fitness" } }
+      : { reply: "오늘 운동은 이미 완료로 기록되어 있습니다.", action: { label: "운동 기록 확인", href: "/fitness" } };
   } else if (/(운동).*(계획|일정|뭐|보여|알려)|(오늘).*(운동)/.test(message)) {
     const { data, error } = await supabase.from("user_app_state").select("state").eq("user_id", userId).maybeSingle();
     if (error) throw new Error("운동 데이터를 불러오지 못했습니다.");

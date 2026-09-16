@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { assistantCommandRequest, AssistantTaskReceipt } from '@/components/AssistantTaskCommand';
 import { useSearchParams } from 'next/navigation';
 import { AssistantBudgetHistory } from '@/components/AssistantBudgetCommand';
+import { AssistantWorkoutHistory } from '@/components/AssistantWorkoutCommand';
 import { AssistantLanguageHistory } from '@/components/AssistantLanguageCommand';
 import type { TaskCommandReceipt } from '@/lib/assistant-task-command';
 
@@ -40,15 +41,17 @@ function HistoryContent() {
   const search = useSearchParams();
   const budget = search.get('area') === 'budget';
   const language = search.get('area') === 'language';
+  const workout = search.get('area') === 'workout';
   return <main className="min-h-dvh bg-yeoni-bg px-4 pb-28 pt-6 text-gray-800"><div className="mx-auto max-w-2xl">
     <Link href="/assistant" className="text-sm font-bold text-violet-700">← 연이</Link>
     <h1 className="mt-5 text-2xl font-bold">연이 실행 이력</h1>
     <nav aria-label="실행 이력 영역" className="my-4 flex flex-wrap gap-2">
-      <Link href="/assistant/history" aria-current={!budget && !language ? 'page' : undefined} className={`rounded-xl px-4 py-2 font-bold ${!budget && !language ? 'bg-violet-700 text-white' : 'bg-white text-violet-700'}`}>할 일</Link>
+      <Link href="/assistant/history" aria-current={!budget && !language && !workout ? 'page' : undefined} className={`rounded-xl px-4 py-2 font-bold ${!budget && !language && !workout ? 'bg-violet-700 text-white' : 'bg-white text-violet-700'}`}>할 일</Link>
       <Link href="/assistant/history?area=budget" aria-current={budget ? 'page' : undefined} className={`rounded-xl px-4 py-2 font-bold ${budget ? 'bg-violet-700 text-white' : 'bg-white text-violet-700'}`}>가계부</Link>
       <Link href="/assistant/history?area=language" aria-current={language ? 'page' : undefined} className={`rounded-xl px-4 py-2 font-bold ${language ? 'bg-violet-700 text-white' : 'bg-white text-violet-700'}`}>일본어</Link>
+      <Link href="/assistant/history?area=workout" aria-current={workout ? 'page' : undefined} className={`rounded-xl px-4 py-2 font-bold ${workout ? 'bg-violet-700 text-white' : 'bg-white text-violet-700'}`}>운동</Link>
     </nav>
-    {budget ? <AssistantBudgetHistory /> : language ? <AssistantLanguageHistory /> : <TaskHistory />}
+    {budget ? <AssistantBudgetHistory /> : language ? <AssistantLanguageHistory /> : workout ? <AssistantWorkoutHistory /> : <TaskHistory />}
   </div></main>;
 }
 export default function AssistantHistoryPage() {
