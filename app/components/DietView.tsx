@@ -1,5 +1,6 @@
 'use client';
 
+import { fastingStartForDay } from '@/lib/diet-time';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
 import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
@@ -155,20 +156,7 @@ function writeJson<T>(key: string, value: T) {
 }
 
 function readCurrentFastingStart(todayKey: string) {
-  const raw = window.localStorage.getItem(FASTING_START_TIME_KEY);
-  if (!raw) return '';
-  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed === 'string') return parsed;
-    if (parsed && typeof parsed === 'object') {
-      const value = (parsed as Record<string, unknown>)[todayKey];
-      return typeof value === 'string' ? value : '';
-    }
-  } catch {
-    return '';
-  }
-  return '';
+  return fastingStartForDay(window.localStorage.getItem(FASTING_START_TIME_KEY) ?? undefined, todayKey);
 }
 
 function addHoursToTime(time: string, hours: number) {

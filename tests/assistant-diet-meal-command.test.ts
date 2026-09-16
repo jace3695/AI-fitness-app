@@ -36,7 +36,7 @@ before(async () => {
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.test_user',true),'')::uuid $$;
     grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
   await db.exec(read('./e2e/schema.sql'));
-  for (const name of ['20260901125340_add_fitness_ai_review_history', '20260906141943_add_app_record_resets', '20260915034857_assistant_task_command_history', '20260916104440_assistant_diet_commands', '20260916131029_assistant_diet_meal_commands']) await db.exec(read(`../supabase/migrations/${name}.sql`));
+  for (const name of ['20260901125340_add_fitness_ai_review_history', '20260906141943_add_app_record_resets', '20260915034857_assistant_task_command_history', '20260916104440_assistant_diet_commands', '20260916131029_assistant_diet_meal_commands', '20260916142043_assistant_diet_time_commands']) await db.exec(read(`../supabase/migrations/${name}.sql`));
 });
 after(async () => db.close());
 beforeEach(async () => {

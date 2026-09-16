@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const p = body.proposal;
   const { data, error } = body.decision === 'undo'
     ? await db.rpc('undo_assistant_diet_command', { p_request_id: body.requestId })
-    : await db.rpc(p.change.kind === 'meal' ? 'apply_assistant_diet_meal_command' : 'apply_assistant_diet_command', {
+    : await db.rpc(p.change.kind === 'time' ? 'apply_assistant_diet_time_command' : p.change.kind === 'meal' ? 'apply_assistant_diet_meal_command' : 'apply_assistant_diet_command', {
       p_request_id: p.requestId, p_day: p.date, p_change: p.change, p_expected: p.expected,
       p_reset_markers: p.resetMarkers, p_expires_at: p.expiresAt,
     });

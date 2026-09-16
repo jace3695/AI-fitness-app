@@ -35,6 +35,7 @@ before(async () => {
   await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
   await db.exec(read('../supabase/migrations/20260916104440_assistant_diet_commands.sql'));
   await db.exec(read('../supabase/migrations/20260916131029_assistant_diet_meal_commands.sql'));
+  await db.exec(read('../supabase/migrations/20260916142043_assistant_diet_time_commands.sql'));
 });
 after(async () => db.close());
 beforeEach(async () => {
