@@ -11,7 +11,7 @@ import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
 
 type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 
-const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "오늘 운동 완료했어", "일본어 복습 시작해줘", "오늘 단어 학습 완료했어", "오늘 할 일에 우유 사기 추가해줘", "가계부 오늘 편의점 지출 금액을 5,000원으로 수정해줘"];
+const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "오늘 운동 완료했어", "오늘 물 총 500ml 기록해줘", "오늘 식단 메모 추가: 점심 닭가슴살", "일본어 복습 시작해줘", "오늘 단어 학습 완료했어", "오늘 할 일에 우유 사기 추가해줘", "가계부 오늘 편의점 지출 금액을 5,000원으로 수정해줘"];
 
 function isIncompleteVoiceCommand(value: string) {
   const compact = value.replace(/\s/g, "");
@@ -83,7 +83,7 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-[0_22px_55px_rgba(81,70,166,0.22)] sm:p-8">
           <p className="text-sm font-semibold text-white/70">SIRI SHORTCUT</p>
           <h1 className="mt-2 text-3xl font-bold">연이에게 명령하기</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 명령을 전달합니다. 할 일 추가·수정, 가계부 금액 수정, 일본어 학습·운동 완료는 내용을 확인한 뒤 저장해요.</p>
+          <p className="mt-3 text-sm leading-6 text-white/80">Siri 호출 화면을 닫은 뒤 명령을 전달합니다. 할 일 추가·수정, 가계부 금액 수정, 일본어 학습·운동 완료, 수분 총량·식단 메모 추가는 내용을 확인한 뒤 저장해요.</p>
         </section>
 
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">

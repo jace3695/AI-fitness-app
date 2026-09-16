@@ -15,10 +15,12 @@ import { parseLanguageCompletion, type LanguageCommandProposal } from '@/lib/ass
 import { proposeLanguageCompletion } from '@/lib/assistant-language-server';
 import { parseWorkoutCompletion, type WorkoutCommandProposal } from '@/lib/assistant-workout-command';
 import { proposeWorkoutCompletion } from '@/lib/assistant-workout-server';
+import { isDietRecordIntent, isDietMemoCommand, parseDietCommand, type DietCommandProposal } from '@/lib/assistant-diet-command';
+import { proposeDietCommand } from '@/lib/assistant-diet-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -113,7 +115,7 @@ function getTodayWorkout(state: Record<string, unknown>, today: string) {
   return { plan, dayId, group, workout, exerciseNames, cardioOptions, completedStore, completed: isWorkoutPerformed(completedStore[today]) };
 }
 
-const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘자기계발 현황 알려줘’처럼 말씀해 주세요.";
+const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘오늘 물 총 500ml 기록해줘’, ‘오늘 식단 메모 추가: 점심 닭가슴살’, ‘자기계발 현황 알려줘’처럼 말씀해 주세요.";
 
 function normalizeGenerativeReply(value: unknown) {
   const reply = typeof value === "string" ? value.trim() : "";
@@ -126,6 +128,7 @@ function normalizeGenerativeReply(value: unknown) {
 }
 
 function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
+  if (isDietRecordIntent(message)) return message;
   if (!/(그거|그것|그\s*일|방금\s*말한)/.test(message)) return message;
   const previous = [...history].reverse().find((item) => item.role === "user" && /(할\s*일|일정)/.test(item.text));
   if (!previous) return message;
@@ -134,6 +137,8 @@ function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
 }
 
 function splitCompoundCommands(message: string) {
+  // Memo contents are literal record text, including conjunctions or command-like words.
+  if (isDietMemoCommand(message)) return [message];
   const parts = message.split(/\s*(?:그리고|그다음|그\s*다음|한\s*뒤|후에)\s*/).map((part) => part.trim()).filter(Boolean);
   return parts.length > 1 ? parts : [message];
 }
@@ -207,7 +212,11 @@ async function processSingleCommand(
   const monthStart = `${today.slice(0, 7)}-01`;
   let result: AssistantReply;
 
-  if (isBudgetEditIntent(message)) {
+  if (isDietRecordIntent(message)) {
+    const change = parseDietCommand(message);
+    const proposal = await proposeDietCommand(supabase, userId, today, change);
+    result = { reply: `${today} ${change.kind === 'water' ? '수분 총량' : '식단 메모 추가'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
+  } else if (isBudgetEditIntent(message)) {
     const target = parseBudgetAmountCommand(message, today);
     const proposal = await proposeBudgetAmount(supabase, userId, target);
     result = { reply: `${target.date} ‘${target.place}’의 금액 변경을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
@@ -394,6 +403,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const body = await request.json().catch(() => null) as { message?: unknown; history?: unknown } | null;
+  if (typeof body?.message === "string" && isDietRecordIntent(body.message) && body.message.trim().length > 500) return NextResponse.json({ error: "식단 명령이 너무 깁니다. 추가할 메모는 400자 이내로 입력해 주세요." }, { status: 400 });
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 500) : "";
   if (!message) return NextResponse.json({ error: "명령을 입력해 주세요." }, { status: 400 });
 
