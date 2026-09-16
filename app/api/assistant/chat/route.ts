@@ -11,10 +11,12 @@ import { commandDueDate, type TaskCommandProposal, type TaskCommandValues } from
 
 import { isBudgetEditIntent, parseBudgetAmountCommand, type BudgetCommandProposal } from '@/lib/assistant-budget-command';
 import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
+import { parseLanguageCompletion, type LanguageCommandProposal } from '@/lib/assistant-language-command';
+import { proposeLanguageCompletion } from '@/lib/assistant-language-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -93,41 +95,6 @@ function getLanguageSnapshot(state: Record<string, unknown>, today: string) {
     course: storedArrayLength(state.japaneseCurriculumReviewV1),
   };
   return { completedIds, counts, totalReview: Object.values(counts).reduce((sum, count) => sum + count, 0) };
-}
-
-function detectLanguageRoutine(message: string): typeof LANGUAGE_ROUTINES[number] | null {
-  if (/(가나|히라가나|카타카나)/.test(message)) return "kana";
-  if (/단어/.test(message)) return "words";
-  if (/문장/.test(message)) return "sentences";
-  if (/문법/.test(message)) return "grammar";
-  if (/복습/.test(message)) return "review";
-  return null;
-}
-
-async function saveLanguageRoutineCompletion(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string, today: string, routineId: typeof LANGUAGE_ROUTINES[number]) {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const { data, error } = await supabase.from("language_user_state").select("state,updated_at").eq("user_id", userId).maybeSingle();
-    if (error) throw error;
-    const state = parseState(data?.state);
-    const snapshot = getLanguageSnapshot(state, today);
-    if (snapshot.completedIds.includes(routineId)) return { alreadyCompleted: true, snapshot };
-    const completedIds = [...snapshot.completedIds, routineId];
-    const history = parseStoredValue<Record<string, unknown>>(state.dailyLearningHistory, {});
-    const nextState = {
-      ...state,
-      dailyRoutineProgress: JSON.stringify({ date: today, completedIds }),
-      dailyLearningHistory: JSON.stringify({ ...history, [today]: { completedIds, completedCount: completedIds.length, totalCount: LANGUAGE_ROUTINES.length, updatedAt: new Date().toISOString() } }),
-    };
-    if (!data) {
-      const { error: insertError } = await supabase.from("language_user_state").insert({ user_id: userId, state: nextState, updated_at: new Date().toISOString() });
-      if (insertError) throw insertError;
-      return { alreadyCompleted: false, snapshot };
-    }
-    const { data: updated, error: updateError } = await supabase.from("language_user_state").update({ state: nextState, updated_at: new Date().toISOString() }).eq("user_id", userId).eq("updated_at", data.updated_at).select("updated_at").maybeSingle();
-    if (updateError) throw updateError;
-    if (updated) return { alreadyCompleted: false, snapshot };
-  }
-  throw new Error("다른 기기에서 학습 기록이 변경되었습니다. 다시 시도해 주세요.");
 }
 
 function getTodayWorkout(state: Record<string, unknown>, today: string) {
@@ -437,16 +404,11 @@ async function processSingleCommand(
   } else if (/(자기계발|성장|타자|손글씨).*(시작|해보자|하자)/.test(message)) {
     result = { reply: "자기계발 실행 화면을 준비했습니다. 루틴의 ‘시작’ 버튼을 누르면 시간 측정과 중단·완료 기록을 함께 남길 수 있어요.", action: { label: "자기계발 시작", href: "/growth" } };
   } else if (/(일본어|언어|가나|히라가나|카타카나|단어|문장|문법|복습).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
-    const routineId = detectLanguageRoutine(message);
-    if (!routineId) result = { reply: "완료한 학습 종류를 함께 말해 주세요. 예: ‘단어 학습 완료했어’" };
-    else {
-      try {
-        const saved = await saveLanguageRoutineCompletion(supabase, userId, today, routineId);
-        result = { reply: saved.alreadyCompleted ? `오늘 ${LANGUAGE_LABELS[routineId]} 학습은 이미 완료로 기록되어 있습니다.` : `오늘 ${LANGUAGE_LABELS[routineId]} 학습을 완료로 기록했습니다. 언어 앱에도 자동으로 동기화됩니다.`, action: { label: "오늘 학습 현황 보기", href: "/language" }, changed: !saved.alreadyCompleted };
-      } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "학습 완료 기록을 저장하지 못했습니다.");
-      }
-    }
+    const routineId = parseLanguageCompletion(message);
+    const proposal = await proposeLanguageCompletion(supabase, userId, today, routineId);
+    result = proposal
+      ? { reply: `오늘 ${LANGUAGE_LABELS[routineId]} 학습 완료 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal }
+      : { reply: `오늘 ${LANGUAGE_LABELS[routineId]} 학습은 이미 완료로 기록되어 있습니다.`, action: { label: '오늘 학습 현황 보기', href: '/language' } };
   } else if (/(일본어|언어).*(진도|복습|틀린|학습).*(알려|보여|뭐|몇)|(복습).*(할|남은|몇)/.test(message)) {
     const { data, error } = await supabase.from("language_user_state").select("state").eq("user_id", userId).maybeSingle();
     if (error) throw new Error("언어 학습 데이터를 불러오지 못했습니다.");

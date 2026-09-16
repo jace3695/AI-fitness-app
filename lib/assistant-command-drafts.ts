@@ -1,6 +1,7 @@
 import type { TaskCommandProposal } from './assistant-task-command.ts';
 import { isBudgetCommandProposal, type BudgetCommandProposal } from './assistant-budget-command.ts';
-export type AssistantCommandProposal = TaskCommandProposal | BudgetCommandProposal;
+import { isLanguageCommandProposal, type LanguageCommandProposal } from './assistant-language-command.ts';
+export type AssistantCommandProposal = TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal;
 
 export const COMMAND_DRAFT_KEY = 'yeoni:task-command-drafts:v1';
 export type CommandDraft = { proposal: AssistantCommandProposal; attempted: boolean };
@@ -18,6 +19,10 @@ export function readCommandDrafts(raw: string | null, ownerId: string): CommandD
     && typeof record.recurrence_rule === 'string' && nullableString(record.due_at);
   for (const draft of data.drafts) {
     const p = draft?.proposal;
+    if (p && p.domain === 'language') {
+      if (typeof draft.attempted !== 'boolean' || !isLanguageCommandProposal(p) || p.ownerId !== ownerId) throw new Error('invalid language draft');
+      continue;
+    }
     if (p && p.domain === 'budget') {
       if (typeof draft.attempted !== 'boolean' || !isBudgetCommandProposal(p) || p.expected.user_id !== ownerId) throw new Error('invalid budget draft');
       continue;
