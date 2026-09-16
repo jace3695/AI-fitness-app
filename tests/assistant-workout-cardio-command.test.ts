@@ -139,6 +139,7 @@ test('old completion and cardio commands share ordering protection and undo in r
 test('supported explicit total commands accept every existing type without guessing exercise location',()=>{
   for(const type of CARDIO_COMMAND_TYPES){const parsed=parseWorkoutCardioCommand(`오늘 유산소 ${type} 총 20분 기록해줘`);assert.deepEqual(parsed,{...change,type});assert.ok(isWorkoutCardioIntent(`오늘 유산소 ${type} 총 20분 기록해줘`));}
   assert.deepEqual(parseWorkoutCardioCommand('유산소 야외 걷기 총 300분 저장해주세요.'),{...change,type:'야외 걷기',minutes:300});
+  assert.equal(isWorkoutCardioIntent('오늘 유산소 운동 몇 분 할지 계획 보여줘'),false);
 });
 test('questions, conditions, negatives, additions, vague types, durations and other days are rejected',()=>{
   for(const text of ['어제 유산소 실내 걷기 총 20분 기록해줘','내일 유산소 실내 걷기 총 20분 기록해줘','오늘 유산소 걷기 총 20분 기록해줘','오늘 유산소 실내 걷기 20분 기록해줘','오늘 유산소 실내 걷기 총 20분 추가해줘','오늘 유산소 실내 걷기 총 20분 기록해줘?','오늘 유산소 실내 걷기 총 20분 기록하지 마','오늘 유산소 실내 걷기 총 20분 기록해줘 그리고 운동 완료했어','오늘 유산소 실내 걷기 총 0분 기록해줘','오늘 유산소 실내 걷기 총 301분 기록해줘','오늘 유산소 실내 걷기 총 1.5분 기록해줘','오늘 유산소 실내 걷기 총 -1분 기록해줘','오늘 유산소 실내 걷기 총 1시간 기록해줘','오늘 유산소 실내 걷기 총 20분 끝나면 기록해줘'])assert.throws(()=>parseWorkoutCardioCommand(text),/유산소/);

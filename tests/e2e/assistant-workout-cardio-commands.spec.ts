@@ -94,6 +94,9 @@ test('two sessions reject stale cardio confirmation and a later calendar edit pr
 
 test('invalid or expired cardio and other owners cannot write; first-record undo removes only its own entry', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); const before = await qa.read();
+  await openCommand(page, '오늘 유산소 운동 몇 분 할지 계획 보여줘');
+  await expect(page.getByRole('status').filter({ hasText: /계획이며|회복일입니다/ })).toBeVisible();
+  await expect(reviewFor(page)).toHaveCount(0); expect(await qa.read()).toEqual(before);
   for (const text of ['어제 유산소 실내 걷기 총 20분 기록해줘', '오늘 유산소 걷기 총 20분 기록해줘', '오늘 유산소 실내 걷기 총 0분 기록해줘', `${command} 그리고 오늘 운동 완료했어`]) {
     await openCommand(page, text); await expect(page.getByRole('status').filter({ hasText: /오늘 기록만 지원|종류와 오늘 총시간|한 번에 하나씩/ })).toBeVisible(); await expect(reviewFor(page)).toHaveCount(0); expect(await qa.read()).toEqual(before);
   }

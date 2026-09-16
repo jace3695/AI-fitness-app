@@ -36,7 +36,7 @@ export function describeWorkoutCardio(snapshot: WorkoutDaySnapshot): string {
 }
 
 export function isWorkoutCardioIntent(message: string): boolean {
-  return /유산소/.test(message) && /(기록|저장|완료|했|분)/.test(message);
+  return /유산소/.test(message) && /(기록|저장|완료|했)/.test(message);
 }
 
 export function parseWorkoutCardioCommand(message: string): WorkoutCardioChange {
