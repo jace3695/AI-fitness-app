@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
-import { YEONI_VOICE_PENDING_MESSAGE } from "@/lib/yeoni-voice-policy";
+import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { AssistantCommandReview } from '@/components/AssistantCommandReview';
 import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
@@ -92,9 +92,10 @@ function QuickCommandContent() {
           <div className="mt-3 flex flex-wrap gap-2">
             {samples.map((sample) => <button key={sample} type="button" onClick={() => setCommand(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">{sample}</button>)}
           </div>
-          <div role="note" className="mt-4 rounded-2xl bg-[#F7F6FF] px-4 py-3 text-sm leading-6 text-[#5146A6]"><b>Zephyr 음성 · 확인 대기</b><p>{YEONI_VOICE_PENDING_MESSAGE}</p></div>
+          <div role="note" className="mt-4 rounded-2xl bg-[#F7F6FF] px-4 py-3 text-sm leading-6 text-[#5146A6]"><b>Zephyr 음성</b><p>답변의 ‘답변 읽기’를 누르면 음성을 준비해요. 자동으로 읽거나 생성하지 않아요.</p></div>
           <button type="button" onClick={() => void run()} disabled={sending || !command.trim() || !draftsReady} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : shouldAutoRun && !result ? "자동 실행 준비 중…" : "명령 실행"}</button>
           {result && <div role="status" aria-live="polite" className={`mt-4 rounded-2xl p-4 text-sm leading-6 ${result.error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-900"}`}><p>{result.error || result.reply}</p><div className="mt-3 flex flex-wrap gap-2">{result.action && <Link href={result.action.href} className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#5146A6] ring-1 ring-[#D9D5F2]">{result.action.label} →</Link>}</div></div>}
+          {result?.reply && !result.error && <ZephyrReadButton text={result.reply} />}
           {pending.error && <p role="alert" className="mt-3 text-red-700">{pending.error}</p>}
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} />)}
           <Link href="/assistant/history" className="mt-4 inline-block text-sm font-bold text-violet-700">실행 이력 보기 →</Link>

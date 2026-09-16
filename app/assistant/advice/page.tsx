@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { authenticatedFetch } from '@/lib/supabase';
 import { AREA_LABELS, type SavedAdvice } from '@/lib/chatgpt-connection';
+import ZephyrReadButton from '@/components/ZephyrReadButton';
 
 export default function ChatgptAdvicePage() {
   const [advice, setAdvice] = useState<SavedAdvice[]>([]); const [error, setError] = useState('');
@@ -32,6 +33,7 @@ export default function ChatgptAdvicePage() {
       <h2 className="mt-2 break-words text-lg font-bold">{item.title}</h2>
       <p className="mt-2 text-xs leading-5 text-gray-500">기록 조회: {new Date(item.snapshot_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}<br />분석 기간: {item.summary.start_date} ~ {item.summary.end_date}</p>
       <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-7">{item.body}</p>
+      <ZephyrReadButton text={`${item.title}\n${item.body}`} />
       <details className="mt-4 rounded-xl bg-gray-50 p-3"><summary className="cursor-pointer text-sm font-bold">분석에 사용한 기록 요약</summary>
         <dl className="mt-3 space-y-2 text-sm">{Object.entries(item.summary.metrics).map(([label, value]) => <div className="flex flex-wrap justify-between gap-2" key={label}><dt>{label}</dt><dd className="font-bold">{Number(value).toLocaleString('ko-KR')}</dd></div>)}</dl>
         <p className="mt-3 text-xs leading-5 text-gray-500">{item.summary.notes.join(' ')}</p>

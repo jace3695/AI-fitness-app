@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { authenticatedFetch, createClient } from "@/lib/supabase";
 import { FREE_ADVICE_LABELS, type FreeAdviceContext, type FreeAdviceScope } from "@/lib/free-advice-context";
 import type { FreeAdvice } from "@/lib/free-advice";
+import ZephyrReadButton from './ZephyrReadButton';
 
 type Preview = { context: FreeAdviceContext; fingerprint: string; configured: boolean };
 type ApiBody = Partial<Preview> & { advice?: FreeAdvice; error?: string; code?: string };
@@ -96,6 +97,7 @@ export default function FreeAdvicePanel({ scope }: { scope: FreeAdviceScope }) {
       <ol className="list-decimal space-y-2 pl-5 text-sm leading-6">{advice.nextSteps.map((step, index) => <li key={index}>{step}</li>)}</ol>
       <p className="text-xs leading-5 text-gray-600"><b>기록 근거</b> · {advice.basis}</p>
       <p className="text-xs leading-5 text-gray-500">{advice.limitations}</p>
+      <ZephyrReadButton text={[advice.summary, ...advice.nextSteps, advice.basis, advice.limitations].join('\n')} />
       <p className="text-xs leading-5 text-gray-500">{preview?.context.recordSource === "example" ? "가상의 예시로 만든 AI 조언이며, 실제 내 기록을 분석한 결과가 아니에요." : "무료 AI가 만든 조언이에요. 기록이나 계획을 자동으로 바꾸지 않아요."}</p>
     </div>}
   </section>;

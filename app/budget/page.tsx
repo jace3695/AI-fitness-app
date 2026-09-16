@@ -1,6 +1,5 @@
 'use client'
-import { FREE_MODE } from "@/lib/free-mode";
-import { YEONI_VOICE_PENDING_MESSAGE } from "@/lib/yeoni-voice-policy";
+import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges'
 import { getLocalDateKey } from '@/utils/dateKey'
 import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
@@ -224,7 +223,6 @@ function BudgetDashboard() {
   const [aiFollowUpQuestions, setAiFollowUpQuestions] = useState<string[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [listening, setListening] = useState(false)
-  const [ttsEnabled, setTtsEnabled] = useState(false)
   const [savings, setSavings] = useState<any[]>([])
   const [showAllRecent, setShowAllRecent] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -1645,40 +1643,6 @@ function BudgetDashboard() {
     }
   }
 
-  const playGoogleTTS = async (text: string) => {
-    try {
-      const cleanText = text
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/^\* /gm, '')
-        .replace(/#{1,6}\s/g, '')
-        .replace(/😊|😄|😅|🎉|✓|✗|⚠️|💰|📊|🔒|🎯/g, '')
-        .replace(/(\d{4})-(\d{2})-(\d{2})/g, '$1년 $2월 $3일')
-        .replace(/[_~`]/g, '')
-        .trim()
-
-      if (FREE_MODE) {
-        setPageNotice(YEONI_VOICE_PENDING_MESSAGE)
-        return
-      }
-
-      const res = await authenticatedFetch(`${API_BASE_URL}/api/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText })
-      })
-
-      const data = await res.json()
-      if (!res.ok) { setPageNotice(data.error || '음성을 준비하지 못했어요. 화면의 답변을 확인해 주세요.'); return }
-      if (data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        await audio.play()
-      }
-    } catch {
-      setPageNotice('음성을 재생하지 못했어요. 화면의 답변을 확인해 주세요.')
-    }
-  }
-
   const handleAnalyze = async () => {
     if (!question.trim()) return
     setAnalyzing(true)
@@ -2519,7 +2483,7 @@ function BudgetDashboard() {
         monthEndAdvice
 
       finishAiAnswer(answer, ['가장 많이 쓴 항목은?', '반복지출 중 줄일 항목은?', '다음 달 예산은 얼마가 적당해?'])
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2531,7 +2495,7 @@ function BudgetDashboard() {
           '통신비, 공과금, 구독, 보험, 월세, 대출, 관리비는 우선 감지해서 더 빠르게 확인해드릴게요.'
 
         finishAiAnswer(emptyAnswer)
-        if (ttsEnabled) playGoogleTTS(emptyAnswer)
+
         return
       }
 
@@ -2549,7 +2513,7 @@ function BudgetDashboard() {
         `${fixedExpenseCandidates.length > 0 ? `새로 확인할 후보는 ${fixedExpenseCandidates.length}건이에요.\n${candidateLines.join('\n')}\n후보는 확정하기 전까지 예산의 고정지출 합계에 포함하지 않아요.` : '새로 확인할 후보는 없어요.'}`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2560,7 +2524,7 @@ function BudgetDashboard() {
           : '최근 두 달의 지출 기록과 설정된 월 예산이 없어 다음 달 권장 예산을 계산하기 어려워요.\n지출 기록을 쌓거나 월 예산을 먼저 설정해주세요.\n데이터가 생기면 실제 소비 흐름을 기준으로 무리 없는 예산을 제안해드릴게요.'
 
         finishAiAnswer(emptyBudgetAnswer, ['월 예산을 설정하는 방법은?', '예산 없이 지출 흐름만 요약해줘', '반복지출 후보가 있는지 알려줘'])
-        if (ttsEnabled) playGoogleTTS(emptyBudgetAnswer)
+
         return
       }
 
@@ -2578,7 +2542,7 @@ function BudgetDashboard() {
         `최근 두 달 중 기록이 있는 달을 기준으로 5% 정도 조정한 보수적인 예산이에요.`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2594,7 +2558,7 @@ function BudgetDashboard() {
       if (!topEntry) {
         const emptyAnswer = '조건에 맞는 지출 데이터가 아직 없어요.\n핵심 수치를 계산할 거래가 없어요.\n기간이나 조건을 조금 바꿔서 다시 물어보면 더 정확히 보여드릴게요.'
         finishAiAnswer(emptyAnswer)
-        if (ttsEnabled) playGoogleTTS(emptyAnswer)
+
         return
       }
 
@@ -2608,7 +2572,7 @@ function BudgetDashboard() {
         `${topName} 비중이 가장 커서 먼저 점검하면 절약 효과를 가장 빨리 체감할 가능성이 커요.`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2665,7 +2629,7 @@ function BudgetDashboard() {
           `${diff > 0 ? '해당 조건의 소비가 늘어난 흐름이라 원인 항목을 같이 점검해보는 게 좋아요.' : diff < 0 ? '이전보다 줄어든 흐름이라 현재 패턴을 유지하면 좋아요.' : '큰 변화는 없어서 현재 소비 패턴이 비슷하게 유지되고 있어요.'}`
 
         finishAiAnswer(answer)
-        if (ttsEnabled) playGoogleTTS(answer)
+
         return
       }
     }
@@ -2681,7 +2645,7 @@ function BudgetDashboard() {
         `${detailCount > 0 ? '조건에 맞는 지출만 따로 본 값이라 해당 소비 습관을 점검하기 좋아요.' : '아직 해당 조건에 맞는 거래가 없어요.'}`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2770,7 +2734,7 @@ function BudgetDashboard() {
       : getContextualFollowUps(q)
 
     finishAiAnswer(data.answer, followUps)
-    if (ttsEnabled) playGoogleTTS(data.answer)
+
   }
 
   const recentThreshold = 5
@@ -3880,14 +3844,7 @@ return (
           <section style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <p style={{ color: '#4ECDC4', fontSize: 12, fontWeight: 700, margin: 0, letterSpacing: 1 }}>직접 질문</p>
-              <button
-                type="button"
-                aria-pressed={ttsEnabled}
-                onClick={() => setTtsEnabled(!ttsEnabled)}
-                style={{ background: ttsEnabled ? '#4ECDC422' : '#1A1A2E', border: `1px solid ${ttsEnabled ? '#4ECDC4' : '#2A2A3E'}`, borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: ttsEnabled ? '#4ECDC4' : '#D0D0E0', fontSize: 11 }}
-              >
-                {ttsEnabled ? '🔊 자동 읽기 켜짐' : '🔇 자동 읽기 꺼짐'}
-              </button>
+              <span style={{ color: "#D0D0E0", fontSize: 11 }}>답변을 누르면 Zephyr로 읽어요</span>
             </div>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -3912,7 +3869,7 @@ return (
                   <div style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 1.7 }}>
                     {aiAnswer.split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}
                   </div>
-                  <button type="button" onClick={() => playGoogleTTS(aiAnswer)} style={{ marginTop: 10, background: 'rgba(26,26,46,0.75)', border: '1px solid #2A2A3E', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', color: '#4ECDC4', fontSize: 12, fontWeight: 700 }}>🔊 답변 읽기</button>
+                  <ZephyrReadButton text={aiAnswer} />
                   {aiFollowUpQuestions.length > 0 && (
                     <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #2A2A3E' }}>
                       <p style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, margin: '0 0 8px' }}>이어서 물어보기</p>
