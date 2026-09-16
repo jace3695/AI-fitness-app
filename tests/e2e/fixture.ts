@@ -2,6 +2,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { RouteDrain } from './route-drain';
 
 export { expect };
 export type State = Record<string, unknown>;
@@ -60,6 +61,7 @@ export class Traffic {
   private next?: Hold;
   private releases: (() => void)[] = [];
   private label: string;
+  private routes = new RouteDrain();
   constructor(label = 'A') { this.label = label; }
   holdNext(method: string, phase: Hold['phase'], table: SyncTable = 'user_app_state') {
     if (this.next) throw new Error('A hold is already armed');
@@ -69,8 +71,9 @@ export class Traffic {
     return { arrived: arrived.promise, release: release.resolve };
   }
   releaseAll() { this.releases.forEach(release => release()); this.next = undefined; this.failReads = false; }
+  async drain() { await this.routes.wait(); }
   async install(context: BrowserContext) {
-    await context.route('**/*', async (route: Route) => {
+    await context.route('**/*', (route: Route) => this.routes.run(async () => {
       const request = route.request();
       const url = new URL(request.url());
       if (!['http://127.0.0.1:3000', 'http://127.0.0.1:54321'].includes(url.origin)) {
@@ -102,7 +105,7 @@ export class Traffic {
       if (hold && hold.phase !== 'request') { hold.arrived(); await hold.wait; }
       if (hold?.phase === 'loss') { entry.delivered = false; await route.abort('failed'); }
       else { entry.delivered = true; await route.fulfill({ response }); }
-    });
+    }));
   }
   assertConfirmed(expected: State) {
     const writes = this.entries.filter(e => e.table === 'user_app_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
@@ -172,6 +175,9 @@ export const test = base.extend<{ qa: Qa }>({
       await runTest({ account, traffic, createAccount, read, readLanguage });
     } finally {
       traffic.releaseAll();
+      // Drain while the routing list is still installed. Removing it first can
+      // auto-continue a second response before its callback calls fulfill.
+      await traffic.drain();
       // Finish in-flight route.fetch/fulfill callbacks before closing their
       // request context. Keep callback errors visible; do not ignore them.
       await context.unrouteAll({ behavior: 'wait' });
