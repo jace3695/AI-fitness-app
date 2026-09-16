@@ -28,8 +28,10 @@ test('growth confirmation cancels, recovers lost responses, displays unknown tim
   await page.goto('/assistant');const input=page.getByLabel('연이에게 보낼 명령');await expect(input).toBeEnabled();await input.fill('오늘 타자 연습 완료했어');await input.press('Enter');await expect(review).toBeVisible();
   await page.goto('/assistant/quick');await expect(review).toBeVisible();const draft=await page.evaluate(()=>sessionStorage.getItem('yeoni:task-command-drafts:v1'));
   await page.reload();await expect(review).toBeVisible();expect(await page.evaluate(()=>sessionStorage.getItem('yeoni:task-command-drafts:v1'))).toBe(draft);
-  let lose=true;await page.route('**/api/assistant/growth-commands',async route=>{
-    if(route.request().method()==='POST'&&route.request().postDataJSON().decision==='apply'&&lose){lose=false;const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');}else await route.continue();
+  // Keep fault injection in the fixture's context routing chain. A separate
+  // page interceptor can be removed while a forwarded DB response is in flight.
+  let lose=true;await page.context().route('**/api/assistant/growth-commands',async route=>{
+    if(route.request().method()==='POST'&&route.request().postDataJSON().decision==='apply'&&lose){lose=false;const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');}else await route.fallback();
   });
   await review.getByRole('button',{name:'확인하고 저장'}).click();await expect(review.getByRole('alert')).toBeVisible();
   const committed=(await sessions(qa.account.client)).find(row=>row.session_date===today())!;
@@ -45,6 +47,7 @@ test('growth confirmation cancels, recovers lost responses, displays unknown tim
   await receipt.getByRole('button',{name:'이 변경 되돌리기'}).click();expect((await sessions(qa.account.client)).length).toBe(2);
   await receipt.getByRole('button',{name:'확인하고 되돌리기'}).click();await expect(receipt).toContainText('되돌리기 완료');expect(await sessions(qa.account.client)).toEqual(before);
   await page.reload();await expect(receipt).toContainText('되돌리기 완료');await page.goto('/growth');await expect(page.getByRole('heading',{name:'최근 기록',exact:true})).toBeVisible();
+  await synced(page);
   await expect(page.getByText(`${today()} · 시간 미기록`,{exact:true})).toHaveCount(0);expect(await sessions(qa.account.client)).toEqual(before);
   const after=await qa.read();for(const key of Object.keys(state)) expect(after[key]).toEqual(state[key]);
 });
@@ -87,7 +90,7 @@ test('growth owner isolation, expiry and history error recovery are visible with
   const hidden=await page.request.get('/api/assistant/growth-commands',{headers:{Authorization:`Bearer ${otherToken}`}});expect(hidden.status()).toBe(200);expect((await hidden.json()).history).toEqual([]);expect(hidden.headers()['cache-control']).toBe('no-store');
   expect((await page.request.post('/api/assistant/growth-commands',{headers:{Authorization:`Bearer ${otherToken}`},data:{decision:'undo',requestId:proposal.requestId}})).status()).toBe(409);
   expect((await page.request.get('/api/assistant/growth-commands')).status()).toBe(401);
-  await page.route('**/api/assistant/growth-commands?*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'자기계발 실행 이력을 불러오지 못했습니다. 다시 시도해 주세요.'})}));
+  await page.context().route('**/api/assistant/growth-commands?*',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'자기계발 실행 이력을 불러오지 못했습니다. 다시 시도해 주세요.'})}));
   await page.goto('/assistant/history?area=growth');await expect(page.getByRole('region',{name:'자기계발 실행 이력 목록'}).getByRole('alert')).toContainText('이력을 불러오지 못했습니다');await expect(page.getByText('아직 확인하고 저장한 자기계발 명령이 없습니다.')).toHaveCount(0);
-  await page.unroute('**/api/assistant/growth-commands?*');await page.getByRole('button',{name:'이력 새로고침'}).click();await expect(receiptFor(page)).toBeVisible();
+  await page.context().unroute('**/api/assistant/growth-commands?*');await page.getByRole('button',{name:'이력 새로고침'}).click();await expect(receiptFor(page)).toBeVisible();
 });
