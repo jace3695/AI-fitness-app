@@ -6,7 +6,7 @@ export async function proposeDietCommand(db: SupabaseClient, owner: string, date
   if (error) throw new Error('식단 기록을 확인하지 못했습니다. 다시 시도해 주세요.');
   const state = data?.state ?? {};
   if (!state || typeof state !== 'object' || Array.isArray(state)) throw new Error('식단 기록 형식을 확인하지 못했습니다.');
-  const expected = dietDaySnapshot(state, date);
+  const expected = dietDaySnapshot(state, date, change);
   dietNextSnapshot(expected, change);
   const proposal: DietCommandProposal = {
     domain: 'diet', ownerId: owner, requestId: crypto.randomUUID(), date, change, expected,

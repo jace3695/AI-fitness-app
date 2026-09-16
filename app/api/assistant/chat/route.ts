@@ -17,7 +17,7 @@ import { parseLanguageCompletion, type LanguageCommandProposal } from '@/lib/ass
 import { proposeLanguageCompletion } from '@/lib/assistant-language-server';
 import { parseWorkoutCompletion, type WorkoutCommandProposal } from '@/lib/assistant-workout-command';
 import { proposeWorkoutCompletion } from '@/lib/assistant-workout-server';
-import { isDietRecordIntent, isDietMemoCommand, parseDietCommand, type DietCommandProposal } from '@/lib/assistant-diet-command';
+import { isDietRecordIntent, isDietMemoCommand, parseDietCommand, dietCommandLabel, type DietCommandProposal } from '@/lib/assistant-diet-command';
 import { proposeDietCommand } from '@/lib/assistant-diet-server';
 
 export const dynamic = "force-dynamic";
@@ -217,7 +217,7 @@ async function processSingleCommand(
   if (isDietRecordIntent(message)) {
     const change = parseDietCommand(message);
     const proposal = await proposeDietCommand(supabase, userId, today, change);
-    result = { reply: `${today} ${change.kind === 'water' ? '수분 총량' : '식단 메모 추가'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
+    result = { reply: `${today} ${dietCommandLabel(change)} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
   } else if (isGrowthCompletionIntent(message)) {
     const command = parseGrowthCompletion(message);
     const proposal = await proposeGrowthCompletion(supabase, userId, today, command);

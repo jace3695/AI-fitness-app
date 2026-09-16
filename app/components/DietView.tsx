@@ -356,7 +356,7 @@ export default function DietView() {
     const savedDinnerTimes = readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, {});
     const savedSocial = readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, {});
     const today = savedDiet[todayKey] || {};
-    const todayMeal = savedMeals[todayKey] || DEFAULT_MEAL_LOG;
+    const todayMeal = { ...DEFAULT_MEAL_LOG, ...savedMeals[todayKey], lastMealTime: savedMeals[todayKey]?.lastMealTime ?? '' };
 
     setStore(savedDiet);
     setMealStore(savedMeals);
@@ -1146,6 +1146,7 @@ export default function DietView() {
                       <p className="text-[11px] font-bold text-gray-600">
                         점심 단백질은 어땠나요?
                       </p>
+                      {mealLog.lunchProteinChoice !== 'none' && <p className="mt-2 text-xs font-bold text-[#5148A5]">식품 단백질 기록: {mealLog.lunchProteinChoice === 'custom' ? mealLog.lunchProteinCustom : mealLog.lunchProteinChoice}g</p>}
                       <p className="mt-1 text-[11px] leading-5 text-gray-500">
                         정확한 양을 계산하지 말고 가장 가까운 항목만 선택하세요.
                       </p>

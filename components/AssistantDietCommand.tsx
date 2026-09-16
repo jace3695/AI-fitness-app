@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
-import { describeDietSnapshot, dietNextSnapshot, type DietCommandProposal, type DietCommandReceipt } from '@/lib/assistant-diet-command';
+import { describeDietSnapshot, dietNextSnapshot, dietCommandLabel, type DietCommandProposal, type DietCommandReceipt } from '@/lib/assistant-diet-command';
 import { taskCommandDateLabel } from '@/lib/assistant-task-command';
 import { requestCloudRecordsRefresh } from '@/app/data/storageTransaction';
 
@@ -40,9 +40,9 @@ export function AssistantDietReceipt({ receipt, onChanged }: { receipt: DietComm
     finally { lock.current = false; setBusy(false); }
   };
   return <article aria-label="식단 실행 이력" className="rounded-2xl border border-violet-100 bg-white p-4 text-sm text-gray-800">
-    <p className="font-bold">{saved.record_date} · {saved.change.kind === 'water' ? '수분 총량' : '식단 메모 추가'}</p>
+    <p className="font-bold">{saved.record_date} · {dietCommandLabel(saved.change)}</p>
     <p role="status" className="mt-1 text-xs text-violet-700">{saved.undone_at ? '되돌리기 완료' : '식단 기록 저장'} · {taskCommandDateLabel(saved.created_at)}</p>
-    <dl className="mt-3 space-y-1"><div><dt className="inline font-bold">변경 전: </dt><dd className="whitespace-pre-wrap break-all">{describe(saved.before_values, saved.change.kind)}</dd></div><div><dt className="inline font-bold">변경 후: </dt><dd className="whitespace-pre-wrap break-all">{describe(saved.after_values, saved.change.kind)}</dd></div></dl>
+    <dl className="mt-3 space-y-1"><div><dt className="inline font-bold">변경 전: </dt><dd className="whitespace-pre-wrap break-all">{describe(saved.before_values, saved.change)}</dd></div><div><dt className="inline font-bold">변경 후: </dt><dd className="whitespace-pre-wrap break-all">{describe(saved.after_values, saved.change)}</dd></div></dl>
     {!saved.undone_at && (confirm ? <div className="mt-3 rounded-xl bg-amber-50 p-3">
       <p>이 명령으로 저장한 식단 변경을 되돌릴까요?</p><p className="mt-1 text-xs">이후에 같은 날짜의 식단 기록이 변경되었으면 되돌리지 않습니다.</p>
       <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void undo()} className="rounded-xl bg-violet-700 px-3 py-2 font-bold text-white disabled:opacity-50">{busy ? '처리 중…' : '확인하고 되돌리기'}</button><button type="button" disabled={busy} onClick={() => setConfirm(false)} className="rounded-xl bg-white px-3 py-2">유지하기</button></div>
@@ -89,8 +89,8 @@ export function AssistantDietReview({ proposal, onChanged, ownerId, initiallyAtt
   if (receipt) return <div className="mt-3">{error && <p role="alert" className="text-red-700">{error}</p>}<AssistantDietReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history?area=diet" className="mt-2 inline-block font-bold text-violet-700">식단 실행 이력 보기 →</Link><Link href="/diet" className="ml-4 inline-block font-bold text-violet-700">식단 기록 보기 →</Link></div>;
   return <section aria-label="식단 기록 확인" className="mt-3 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-gray-800">
     <h3 className="font-bold">식단 기록 확인</h3><p className="mt-1">{proposal.date} (한국 시간)</p>
-    <p className="mt-2 whitespace-pre-wrap break-all text-sm">변경 전: {describe(proposal.expected, proposal.change.kind)}</p><p className="mt-2 whitespace-pre-wrap break-all text-sm">저장할 내용: {describe(dietNextSnapshot(proposal.expected, proposal.change), proposal.change.kind)}</p>
-    <p className="mt-2 text-xs text-gray-600">{proposal.change.kind === 'water' ? '오늘 마신 물의 총량을 저장합니다. 기존 수분량에 더하지 않습니다.' : '입력한 내용을 기존 식단 메모 뒤에 추가합니다.'} 음식·단백질·공복·식사 완료는 식단 화면에서 입력해 주세요. 확인 화면은 15분간 유효하며 같은 탭에서 새로고침하면 복구됩니다.</p>
+    <p className="mt-2 whitespace-pre-wrap break-all text-sm">변경 전: {describe(proposal.expected, proposal.change)}</p><p className="mt-2 whitespace-pre-wrap break-all text-sm">저장할 내용: {describe(dietNextSnapshot(proposal.expected, proposal.change), proposal.change)}</p>
+    <p className="mt-2 text-xs text-gray-600">{proposal.change.kind === 'meal' ? `해당 끼니의 ${proposal.change.field === 'protein' ? '식품에 들어 있는 단백질 g(음식 자체의 무게가 아님)' : '조리된 밥의 무게 g'}을 입력한 총량으로 바꿉니다. 다른 식사와 보충제 기록은 유지합니다.` : proposal.change.kind === 'water' ? '오늘 마신 물의 총량을 저장합니다. 기존 수분량에 더하지 않습니다.' : '입력한 내용을 기존 식단 메모 뒤에 추가합니다.'} 확인 화면은 15분간 유효하며 같은 탭에서 새로고침하면 복구됩니다.</p>
     {expired && <p role="status" className="mt-2 text-sm text-amber-800">확인 시간이 지났습니다. {attempted ? '같은 요청으로 저장 결과를 재확인할 수 있습니다.' : '명령을 다시 입력해 주세요.'}</p>}
     <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy || (expired && !attempted)} onClick={() => void apply()} className="rounded-xl bg-violet-700 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{busy ? '저장 중…' : attempted ? '같은 요청으로 다시 확인' : '확인하고 저장'}</button><button type="button" disabled={busy} onClick={() => void cancel()} className="rounded-xl bg-white px-3 py-2 text-sm">{attempted ? '확인 화면 닫기' : '취소'}</button></div>
     {error && <div role="alert" className="mt-3 text-sm text-red-700"><p>{error}</p><Link href="/assistant/history?area=diet" className="mt-2 inline-block underline">저장 여부를 실행 이력에서 확인</Link></div>}
