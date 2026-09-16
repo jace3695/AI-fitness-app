@@ -1,4 +1,5 @@
 'use client';
+import { AssistantGrowthReview } from './AssistantGrowthCommand';
 import { AssistantDietReview } from './AssistantDietCommand';
 import { AssistantTaskReview } from './AssistantTaskCommand';
 import { AssistantBudgetReview } from './AssistantBudgetCommand';
@@ -10,6 +11,7 @@ export function AssistantCommandReview(props: {
   proposal: AssistantCommandProposal; ownerId?: string; initiallyAttempted?: boolean;
   onChanged?: () => void | Promise<void>; onAttempt?: () => Promise<void>; onSettled?: () => Promise<void>;
 }) {
+  if (props.proposal.domain === 'growth') return <AssistantGrowthReview {...props} proposal={props.proposal} />;
   if (props.proposal.domain === 'diet') return <AssistantDietReview {...props} proposal={props.proposal} />;
   if (props.proposal.domain === 'workout') return <AssistantWorkoutReview {...props} proposal={props.proposal} />;
   if (props.proposal.domain === 'budget') return <AssistantBudgetReview {...props} proposal={props.proposal} />;

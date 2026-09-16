@@ -1,5 +1,7 @@
 "use client";
 
+import { growthSessionTimeLabel } from "@/lib/assistant-growth-command";
+
 import AppCompanion from "@/components/AppCompanion";
 import RoutineElapsedTime from "@/components/RoutineElapsedTime";
 import Link from "next/link";
@@ -409,7 +411,7 @@ export default function GrowthPage() {
           )}
         </section>
 
-        <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-bold text-violet-600">실행 이력</p><h2 className="mt-1 text-xl font-bold">최근 기록</h2></div><button type="button" onClick={() => void growth.refresh()} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">새로고침</button></div><div className="mt-4 space-y-2">{recentSessions.length ? recentSessions.map((session) => { const routine = visibleRoutines.find((item) => item.id === session.routine_id); const statusLabel = session.status === "completed" ? "완료" : session.status === "partial" ? "진행" : "중단"; return <article key={session.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-gray-50 p-4"><div><div className="flex flex-wrap items-center gap-2"><strong>{routine?.title ?? "삭제된 루틴"}</strong><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${session.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{statusLabel}</span></div><p className="mt-1 text-xs text-gray-500">{session.session_date} · {session.actual_minutes}분{session.memo ? ` · ${session.memo}` : ""}</p></div><button type="button" aria-label="기록 삭제" onClick={() => void growth.deleteSession(session.id)} className="text-xl text-gray-300">×</button></article>; }) : <p className="py-7 text-center text-sm text-gray-400">아직 실행 기록이 없습니다.</p>}</div></section>
+        <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-bold text-violet-600">실행 이력</p><h2 className="mt-1 text-xl font-bold">최근 기록</h2></div><button type="button" onClick={() => void growth.refresh()} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">새로고침</button></div><div className="mt-4 space-y-2">{recentSessions.length ? recentSessions.map((session) => { const routine = visibleRoutines.find((item) => item.id === session.routine_id); const statusLabel = session.status === "completed" ? "완료" : session.status === "partial" ? "진행" : "중단"; return <article key={session.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-gray-50 p-4"><div><div className="flex flex-wrap items-center gap-2"><strong>{routine?.title ?? "삭제된 루틴"}</strong><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${session.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{statusLabel}</span></div><p className="mt-1 text-xs text-gray-500">{session.session_date} · {growthSessionTimeLabel(session)}{session.memo ? ` · ${session.memo}` : ""}</p></div><button type="button" aria-label="기록 삭제" onClick={() => void growth.deleteSession(session.id)} className="text-xl text-gray-300">×</button></article>; }) : <p className="py-7 text-center text-sm text-gray-400">아직 실행 기록이 없습니다.</p>}</div></section>
 
       </div>
     </main>

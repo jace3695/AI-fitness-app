@@ -1,9 +1,10 @@
+import { isGrowthCommandProposal, type GrowthCommandProposal } from './assistant-growth-command.ts';
 import type { TaskCommandProposal } from './assistant-task-command.ts';
 import { isBudgetCommandProposal, type BudgetCommandProposal } from './assistant-budget-command.ts';
 import { isLanguageCommandProposal, type LanguageCommandProposal } from './assistant-language-command.ts';
 import { isWorkoutCommandProposal, type WorkoutCommandProposal } from './assistant-workout-command.ts';
 import { isDietCommandProposal, type DietCommandProposal } from './assistant-diet-command.ts';
-export type AssistantCommandProposal = TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal;
+export type AssistantCommandProposal = TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal | GrowthCommandProposal;
 
 export const COMMAND_DRAFT_KEY = 'yeoni:task-command-drafts:v1';
 export type CommandDraft = { proposal: AssistantCommandProposal; attempted: boolean };
@@ -21,6 +22,10 @@ export function readCommandDrafts(raw: string | null, ownerId: string): CommandD
     && typeof record.recurrence_rule === 'string' && nullableString(record.due_at);
   for (const draft of data.drafts) {
     const p = draft?.proposal;
+    if (p && p.domain === 'growth') {
+      if (typeof draft.attempted !== 'boolean' || !isGrowthCommandProposal(p) || p.ownerId !== ownerId) throw new Error('invalid growth draft');
+      continue;
+    }
     if (p && p.domain === 'diet') {
       if (typeof draft.attempted !== 'boolean' || !isDietCommandProposal(p) || p.ownerId !== ownerId) throw new Error('invalid diet draft');
       continue;

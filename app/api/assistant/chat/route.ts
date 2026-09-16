@@ -1,3 +1,5 @@
+import { isGrowthCompletionIntent, parseGrowthCompletion, type GrowthCommandProposal } from '@/lib/assistant-growth-command';
+import { proposeGrowthCompletion } from '@/lib/assistant-growth-server';
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
@@ -20,7 +22,7 @@ import { proposeDietCommand } from '@/lib/assistant-diet-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal };
+type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal | GrowthCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -128,7 +130,7 @@ function normalizeGenerativeReply(value: unknown) {
 }
 
 function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
-  if (isDietRecordIntent(message)) return message;
+  if (isDietRecordIntent(message) || isGrowthCompletionIntent(message)) return message;
   if (!/(그거|그것|그\s*일|방금\s*말한)/.test(message)) return message;
   const previous = [...history].reverse().find((item) => item.role === "user" && /(할\s*일|일정)/.test(item.text));
   if (!previous) return message;
@@ -216,6 +218,10 @@ async function processSingleCommand(
     const change = parseDietCommand(message);
     const proposal = await proposeDietCommand(supabase, userId, today, change);
     result = { reply: `${today} ${change.kind === 'water' ? '수분 총량' : '식단 메모 추가'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
+  } else if (isGrowthCompletionIntent(message)) {
+    const command = parseGrowthCompletion(message);
+    const proposal = await proposeGrowthCompletion(supabase, userId, today, command);
+    result = { reply: `오늘 ‘${proposal.expected.title}’ 완료 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal, action: { label: '자기계발 기록 보기', href: '/growth' } };
   } else if (isBudgetEditIntent(message)) {
     const target = parseBudgetAmountCommand(message, today);
     const proposal = await proposeBudgetAmount(supabase, userId, target);
@@ -338,28 +344,6 @@ async function processSingleCommand(
     else {
       const details = workoutInfo.exerciseNames.length ? workoutInfo.exerciseNames.map((name, index) => `${index + 1}. ${name}`).join(" · ") : workoutInfo.cardioOptions.join(" · ");
       result = { reply: `오늘은 ‘${workoutInfo.group.name}’ 계획이며 예상 시간은 ${workoutInfo.group.duration}입니다.${workoutInfo.completed ? " 이미 완료로 기록되어 있어요." : ""} ${details}`, action: { label: "운동 세부 화면 열기", href: "/fitness" } };
-    }
-  } else if (/(자기계발|성장|타자|손글씨|AI\s*허브|개발).*(완료|끝|마쳤|했어|했어요)/.test(message)) {
-    const { data: routines, error } = await supabase.from("growth_routines").select("id,title,category,target_minutes").eq("user_id", userId).eq("enabled", true).order("sort_order");
-    if (error) throw new Error("자기계발 루틴을 불러오지 못했습니다.");
-    const candidates = (routines ?? []).filter((routine) => !isRetiredGrowthRoutine(routine)).filter((routine) =>
-      message.includes(routine.title)
-      || (/타자/.test(message) && routine.category === "typing")
-      || (/손글씨/.test(message) && routine.category === "handwriting")
-      || (/(AI\s*허브|개발)/.test(message) && routine.category === "development")
-    );
-    if (candidates.length !== 1) {
-      result = { reply: candidates.length ? `비슷한 자기계발 루틴이 ${candidates.length}개 있어요. 이름을 더 정확히 말씀해 주세요.` : "완료할 자기계발 루틴을 찾지 못했어요. 예: ‘타자 연습 완료했어’", action: { label: "자기계발 루틴 보기", href: "/growth" } };
-    } else {
-      const routine = candidates[0];
-      const { data: existing, error: existingError } = await supabase.from("growth_sessions").select("id").eq("user_id", userId).eq("routine_id", routine.id).eq("session_date", today).eq("status", "completed").limit(1).maybeSingle();
-      if (existingError) throw new Error("오늘 자기계발 기록을 확인하지 못했습니다.");
-      if (existing) result = { reply: `오늘 ‘${routine.title}’은 이미 완료로 기록되어 있습니다.`, action: { label: "자기계발 기록 보기", href: "/growth" } };
-      else {
-        const { error: saveError } = await supabase.from("growth_sessions").insert({ user_id: userId, routine_id: routine.id, session_date: today, status: "completed", planned_minutes: routine.target_minutes, actual_minutes: routine.target_minutes, memo: "AI 연이에서 빠른 완료", source: "assistant", metrics: {} });
-        if (saveError) throw new Error("자기계발 완료 기록을 저장하지 못했습니다.");
-        result = { reply: `오늘 ‘${routine.title}’을 완료로 기록했습니다. 자기계발 화면과 통합 달력에도 바로 반영됩니다.`, action: { label: "자기계발 기록 보기", href: "/growth" }, changed: true };
-      }
     }
   } else if (/(자기계발|성장|타자|손글씨).*(현황|진도|뭐|알려|보여|몇)/.test(message)) {
     const [routines, sessions] = await Promise.all([
