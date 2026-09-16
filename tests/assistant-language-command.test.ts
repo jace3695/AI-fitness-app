@@ -18,13 +18,15 @@ const state = async () => (await db.query<{state: Row}>('select state from publi
 const count = async () => Number((await db.query<{n: number}>('select count(*) n from public.assistant_language_command_history')).rows[0].n);
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 before(async () => {
-  await db.exec(`create role authenticated; create role anon; create role service_role;
+  await db.exec(`create role authenticated; create role anon; create role service_role; create role synthetic_auth_admin;
     create schema auth; create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.test_user',true),'')::uuid $$;
-    grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
+    grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;
+    grant usage on schema auth to synthetic_auth_admin; grant select,delete on auth.users to synthetic_auth_admin;`);
   await db.exec(read('./e2e/schema.sql'));
   await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
   await db.exec(read('../supabase/migrations/20260916043619_assistant_language_commands.sql'));
+  await db.exec(read('../supabase/migrations/20260916045546_language_history_reset_triggers.sql'));
 });
 after(async () => db.close());
 beforeEach(async () => {
@@ -108,8 +110,10 @@ for (const area of ['language', 'assistant']) test(`${area} reset removes snapsh
   assert.equal(await count(), 0);
   await assert.rejects(apply(pending), /초기화/); await assert.rejects(undo(saved.id), /이력을 찾을 수/);
 });
-test('account deletion cascades learning command snapshots', async () => {
-  await apply(request()); await db.exec(`reset role; delete from auth.users where id='${owner}';`); assert.equal(await count(), 0);
+test('Auth admin account deletion cascades snapshots without permission on application history', async () => {
+  await apply(request());
+  await db.exec(`reset role; set role synthetic_auth_admin; delete from auth.users where id='${owner}'; reset role;`);
+  assert.equal(await count(), 0);
 });
 test('ambiguous, negated and non-today language commands do not become completion proposals', () => {
   assert.equal(parseLanguageCompletion('오늘 단어 학습 완료했어'), 'words');
