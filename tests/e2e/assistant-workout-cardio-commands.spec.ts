@@ -93,6 +93,10 @@ test('two sessions reject stale cardio confirmation and a later calendar edit pr
 });
 
 test('invalid or expired cardio and other owners cannot write; first-record undo removes only its own entry', async ({ page, qa }) => {
+  // Start with current plan settings so the first calendar visit does not run
+  // the separate one-time workout-direction migration during this undo check.
+  const initial = { ...seed(), [key]: original[key] };
+  expect((await qa.account.client.from('user_app_state').update({ state: initial }).eq('user_id', qa.account.id)).error).toBeNull();
   await login(page, qa.account); await synced(page); const before = await qa.read();
   await openCommand(page, '오늘 유산소 운동 몇 분 할지 계획 보여줘');
   await expect(page.getByRole('status').filter({ hasText: /계획이며|회복일입니다/ })).toBeVisible();
