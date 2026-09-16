@@ -13,7 +13,9 @@ test('language confirmation cancels without writes, recovers after lost response
   await review.getByRole('button', { name: '취소', exact: true }).click();
   await expect(page.getByText('취소했습니다. 학습 기록은 변경하지 않았습니다.')).toBeVisible();
   await page.reload(); await expect(review).toHaveCount(0); expect(await qa.readLanguage()).toEqual(before);
-  await page.goto('/assistant');
+  // Readiness is the enabled command input below; a WebKit load event can
+  // remain pending after the page itself is ready for interaction.
+  await page.goto('/assistant', { waitUntil: 'domcontentloaded' });
   const input = page.getByLabel('연이에게 보낼 명령'); await expect(input).toBeEnabled();
   await input.fill('오늘 단어 학습 완료했어'); await input.press('Enter'); await expect(review).toBeVisible();
   await page.goto('/assistant/quick'); await expect(review).toBeVisible();

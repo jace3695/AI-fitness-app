@@ -65,6 +65,7 @@ test('two real workout sessions reject stale confirmation and a later calendar e
     await reviewFor(page).getByRole('button', { name: '확인하고 저장' }).click(); await expect(page.getByText(/운동 완료 저장/)).toBeVisible();
     await reviewFor(second).getByRole('button', { name: '확인하고 저장' }).click(); await expect(reviewFor(second).getByRole('alert')).toContainText('다른 곳에서 오늘 운동 기록이 변경');
     expect((await qa.account.client.from('assistant_workout_command_history').select('id')).data).toHaveLength(1);
+    await reviewFor(second).getByRole('button', { name: '확인 화면 닫기', exact: true }).click(); await expect(reviewFor(second)).toHaveCount(0);
     await openRecords(second); await second.getByRole('button', { name: '이 운동 기록 수정하기', exact: true }).click();
     await second.getByRole('button', { name: '일부 완료', exact: true }).click(); await second.getByRole('button', { name: '바뀐 기록 저장', exact: true }).click();
     await expect.poll(async () => dayRecord(await qa.read()).workoutStatus).toBe('partial'); await synced(second);
@@ -91,6 +92,6 @@ test('ambiguous workout commands, expiry and another owner cannot write; history
   const hidden = await page.request.get('/api/assistant/workout-commands', { headers: { Authorization: `Bearer ${otherToken}` } }); expect(hidden.status()).toBe(200); expect((await hidden.json()).history).toEqual([]); expect(hidden.headers()['cache-control']).toBe('no-store');
   expect((await page.request.get('/api/assistant/workout-commands')).status()).toBe(401);
   await page.route('**/api/assistant/workout-commands?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: '운동 실행 이력을 불러오지 못했습니다. 다시 시도해 주세요.' }) }));
-  await page.goto('/assistant/history?area=workout'); await expect(page.getByRole('alert')).toContainText('이력을 불러오지 못했습니다'); await expect(page.getByText('아직 확인하고 저장한 운동 명령이 없습니다.')).toHaveCount(0);
+  await page.goto('/assistant/history?area=workout'); await expect(page.getByRole('region', { name: '운동 실행 이력 목록' }).getByRole('alert')).toContainText('이력을 불러오지 못했습니다'); await expect(page.getByText('아직 확인하고 저장한 운동 명령이 없습니다.')).toHaveCount(0);
   await page.unroute('**/api/assistant/workout-commands?*'); await page.getByRole('button', { name: '이력 새로고침' }).click(); await expect(page.getByRole('article', { name: '운동 실행 이력' })).toBeVisible();
 });

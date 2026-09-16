@@ -93,7 +93,13 @@ test('date payment place and blank memo edits each restore exact records and ori
   ]).select('*').order('id'); expect(seed.error).toBeNull(); const originals=seed.data!;
   await login(page,qa.account,'/budget'); let panel=await openEditor(page);
   for (const [field,label,value] of [['date','날짜','2024-02-29'],['payment','결제수단','현금'],['place','장소','수정된 장소'],['memo','메모','']]) {
-    for (const place of ['항목 A','항목 B']) await panel.getByRole('checkbox',{name:`${place} ${date} 내역 선택`}).check();
+    for (const place of ['항목 A','항목 B']) {
+      const checkbox = panel.getByRole('checkbox',{name:`${place} ${date} 내역 선택`});
+      // Scroll clear of the sticky header and bottom navigation before the
+      // real pointer check; no forced clicks or programmatic state changes.
+      await checkbox.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await checkbox.check();
+    }
     await panel.getByLabel('수정할 항목').selectOption(field);
     if(field==='payment') await panel.getByLabel(`변경할 ${label}`).selectOption(value); else await panel.getByLabel(`변경할 ${label}`).fill(value);
     await panel.getByRole('button',{name:`선택 2건 ${label} 변경`}).click();
