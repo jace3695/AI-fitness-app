@@ -144,7 +144,7 @@ function createDevice(server, seed = {}) {
       return { data: { subscription: { unsubscribe: () => authCallbacks.delete(callback) } } };
     },
   };
-  const context = vm.createContext({ window, document, Event, AbortController, queueMicrotask, Date: FixtureDate });
+  const context = vm.createContext({ window, document, Event, CustomEvent, AbortController, queueMicrotask, Date: FixtureDate });
   const cache = new Map();
   const allowed = new Set(['app/data/cloudSync.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts']);
   function load(path) {
@@ -279,6 +279,7 @@ function createDevice(server, seed = {}) {
     get lastSynced() { return refs.lastSynced.current; },
     leaveRoute: () => { if (!rootOwnsSync) cleanup?.(); },
     focus: async () => { window.dispatchEvent(new Event('focus')); await flush(); },
+    remoteRefresh: async ownerId => { events.requestCloudRecordsRefresh(ownerId); await flush(); },
     advance: async milliseconds => {
       const target = now + milliseconds;
       while (true) {
@@ -557,6 +558,30 @@ await check('조회 실패: 기존 기록 유지·오류 표시·포커스 재�
   assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 0, 'Read failure triggered a write');
   await device.focus(); assert.equal(device.status, 'synced');
   expectState(device.read(), fixture, 'Retry changed records'); device.unmount();
+});
+
+await check('서버 명령 저장 후 즉시 재조회: 본인 알림만 반영하고 기존 로컬 값을 다시 쓰지 않음', async () => {
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const expected = copy(fixture); expected[key]['2030-01-01'].workoutMemo = 'fixture-server-command';
+  server.row = { state: expected, updated_at: '2030-02-01T00:01:00.000Z' };
+  const count = server.requests.length;
+  await device.remoteRefresh('another-owner'); assert.equal(server.requests.length, count);
+  await device.remoteRefresh('fixture-user');
+  expectState(device.read(), expected, 'Server command stayed invisible on the device');
+  assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 0);
+  device.unmount();
+});
+
+await check('이전 GET 응답 대기 중 서버 명령 알림: 완료 뒤 재조회하여 최신 기록을 복구', async () => {
+  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const pause = server.pauseNext('GET'); await device.focus(); await pause.arrived;
+  const expected = copy(fixture); expected[key]['2030-01-01'].workoutMemo = 'fixture-command-during-read';
+  server.row = { state: expected, updated_at: '2030-02-01T00:02:00.000Z' };
+  await device.remoteRefresh('fixture-user'); pause.release(); await flush(); await device.advance(0);
+  expectState(device.read(), expected, 'An older in-flight GET swallowed the refresh notification');
+  assert.equal(server.requests.filter(request => request.method === 'GET').length, 3);
+  assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 0);
+  device.unmount();
 });
 
 await check('달력의 동기화 전 스냅샷으로 첫 저장: 원본 4일 보존', async () => {

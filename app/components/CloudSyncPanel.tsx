@@ -24,7 +24,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
+import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import { requestSafeReload } from "../lib/unsavedChanges";
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
@@ -86,6 +86,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     if (!userId || !supabase) return;
     let active = true;
     let syncing = false;
+    let refreshRequested = false;
     let resetVersion = 0;
     let followUpTimer: number | undefined;
     const controller = new AbortController();
@@ -107,6 +108,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       const cancelled = () => !active || !isCurrentCloudSession(userId, epoch)
         || version !== resetVersion || isRecordResetRunning();
       syncing = true;
+      refreshRequested = false;
       setStatus("syncing");
       try {
         let local = readLocalCloudState();
@@ -208,6 +210,12 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         }
       } finally {
         syncing = false;
+        // A server command may finish while an older GET is in flight. Read again
+        // after that response settles, even if local storage has not changed.
+        if (refreshRequested && !cancelled()) {
+          window.clearTimeout(followUpTimer);
+          followUpTimer = window.setTimeout(() => void sync(), 0);
+        }
       }
     };
 
@@ -220,6 +228,11 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     };
     const onOnline = () => void sync();
     const onFocus = () => void sync();
+    const onRemoteRecordsChanged = (event: Event) => {
+      if ((event as CustomEvent<{ ownerId?: string }>).detail?.ownerId !== userId || !active || !isCurrentCloudSession(userId, epoch)) return;
+      refreshRequested = true;
+      void sync();
+    };
     const onRecordsChanged = () => {
       if (!isCurrentCloudSession(userId, epoch)) { stop(); return; }
       if (syncing || !active) return;
@@ -229,6 +242,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       followUpTimer = window.setTimeout(() => void sync(), 500);
     };
     window.addEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+    window.addEventListener(CLOUD_RECORDS_REFRESH_EVENT, onRemoteRecordsChanged);
     window.addEventListener("storage", onRecordsChanged);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("online", onOnline);
@@ -241,6 +255,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       window.clearInterval(interval);
       window.clearTimeout(followUpTimer);
       window.removeEventListener(RECORDS_CHANGED_EVENT, onRecordsChanged);
+      window.removeEventListener(CLOUD_RECORDS_REFRESH_EVENT, onRemoteRecordsChanged);
       window.removeEventListener("storage", onRecordsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);

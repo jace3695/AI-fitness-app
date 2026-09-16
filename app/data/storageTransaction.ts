@@ -33,6 +33,11 @@ export function writeStorageBatch(storage: StorageLike, changes: Record<string, 
 }
 
 export const RECORDS_CHANGED_EVENT = 'yeoni-records-changed';
+export const CLOUD_RECORDS_REFRESH_EVENT = 'yeoni-cloud-records-refresh';
+/** A confirmed server command changed records without changing local storage. */
+export function requestCloudRecordsRefresh(ownerId: string) {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CLOUD_RECORDS_REFRESH_EVENT, { detail: { ownerId } }));
+}
 let notificationQueued = false;
 export function notifyRecordsChanged() {
   if (typeof window === 'undefined' || notificationQueued) return;

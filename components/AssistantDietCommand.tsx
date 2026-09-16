@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { describeDietSnapshot, dietNextSnapshot, type DietCommandProposal, type DietCommandReceipt } from '@/lib/assistant-diet-command';
 import { taskCommandDateLabel } from '@/lib/assistant-task-command';
+import { requestCloudRecordsRefresh } from '@/app/data/storageTransaction';
 
 async function dietRequest(body?: unknown, offset = 0, ownerId?: string) {
   const session = (await supabase?.auth.getSession())?.data.session;
@@ -18,6 +19,7 @@ async function dietRequest(body?: unknown, offset = 0, ownerId?: string) {
   const result = await response.json();
   if ((await supabase?.auth.getSession())?.data.session?.user.id !== session.user.id) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
   if (!response.ok) throw new Error(result.error || '식단 실행 이력을 확인하지 못했습니다.');
+  if (body) requestCloudRecordsRefresh(session.user.id);
   return result;
 }
 const describe = describeDietSnapshot;
