@@ -1,5 +1,6 @@
 "use client";
 
+import { growthSessionTimeLabel } from "@/lib/assistant-growth-command";
 import { useDialogFocus } from "@/components/useDialogFocus";
 import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import AppCompanion from "@/components/AppCompanion";
@@ -16,7 +17,7 @@ import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Task = { id: string; title: string; due_at: string | null; status: string };
 type Budget = { id: string; date: string; amount: number | string; category?: string; description?: string; memo?: string };
-type GrowthSession = { id: string; session_date: string; status: string; actual_minutes: number; memo: string; growth_routines: { title: string } | null };
+type GrowthSession = { id: string; session_date: string; status: string; actual_minutes: number; metrics: Record<string, unknown>; memo: string; growth_routines: { title: string } | null };
 type DayInfo = { workout?: WorkoutDayRecord; diet?: DietDayRecord; water?: number; note?: string; language?: { count: number; ids: string[] }; growth?: GrowthSession[]; tasks?: Task[]; budget?: Budget[] };
 const LANGUAGE: Record<string, string> = { kana: "가나", words: "단어", sentences: "문장", grammar: "문법", review: "복습" };
 
@@ -62,7 +63,7 @@ function UnifiedCalendar() {
           const [tasks, budget, growth] = await Promise.all([
             supabase.from("assistant_items").select("id,title,due_at,status").eq("user_id", user.id).gte("due_at", `${monthKey}-01T00:00:00+09:00`).lte("due_at", `${end}T23:59:59+09:00`).neq("status", "cancelled"),
             supabase.from("budget_transactions").select("*").eq("user_id", user.id).gte("date", `${monthKey}-01`).lte("date", end),
-            supabase.from("growth_sessions").select("id,session_date,status,actual_minutes,memo,growth_routines(title)").eq("user_id", user.id).gte("session_date", `${monthKey}-01`).lte("session_date", end),
+            supabase.from("growth_sessions").select("id,session_date,status,actual_minutes,metrics,memo,growth_routines(title)").eq("user_id", user.id).gte("session_date", `${monthKey}-01`).lte("session_date", end),
           ]);
           if (tasks.error) failed.push('일정');
           if (budget.error) failed.push('가계부');
@@ -159,7 +160,7 @@ function UnifiedCalendar() {
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.diet ? <CalendarCard title="식단" href="/diet" tone="border-emerald-100 bg-emerald-50">{(diet.length ? diet : ["식단 기록 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
-      {row?.growth?.length ? <CalendarCard title="자기계발" href="/growth" tone="border-fuchsia-100 bg-fuchsia-50">{row.growth.map((item) => <p key={item.id}>• {item.growth_routines?.title || "삭제된 루틴"} · {item.actual_minutes}분 · {item.status === "completed" ? "완료" : item.status === "partial" ? "진행" : "중단"}</p>)}</CalendarCard> : null}
+      {row?.growth?.length ? <CalendarCard title="자기계발" href="/growth" tone="border-fuchsia-100 bg-fuchsia-50">{row.growth.map((item) => <p key={item.id}>• {item.growth_routines?.title || "삭제된 루틴"} · {growthSessionTimeLabel(item)} · {item.status === "completed" ? "완료" : item.status === "partial" ? "진행" : "중단"}</p>)}</CalendarCard> : null}
       {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
     </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">{loading ? "기록을 확인하고 있어요." : loadFailures.length ? "조회하지 못한 기록이 있어요. 다시 불러온 뒤 확인해 주세요." : "이 날짜에 저장된 기록이 없습니다."}</p> : null}</section></div> : null}
   </div></main>;

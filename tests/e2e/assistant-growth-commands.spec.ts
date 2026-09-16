@@ -38,6 +38,8 @@ test('growth confirmation cancels, recovers lost responses, displays unknown tim
   expect((await qa.account.client.from('assistant_growth_command_history').select('id')).data).toHaveLength(1);
   await page.getByRole('link',{name:'자기계발 기록 보기 →',exact:true}).click();await expect(page).toHaveURL(/\/growth$/);await expect(page.getByText(`${today()} · 시간 미기록`,{exact:true})).toBeVisible();
   await page.reload();await expect(page.getByText(`${today()} · 시간 미기록`,{exact:true})).toBeVisible();
+  await page.goto('/calendar');const day=page.getByRole('button',{name:`${today()} 기록 상세 보기`,exact:true});await expect(day).toContainText('성1');await day.click();await expect(page.getByRole('dialog')).toContainText('정확도 중심 타자 연습 · 시간 미기록 · 완료');
+  await page.getByRole('button',{name:'기록 상세 닫기',exact:true}).click();
   await page.goto('/assistant/history?area=growth');const receipt=receiptFor(page);await expect(receipt).toContainText('시간 미기록');await page.reload();await expect(receipt).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await receipt.getByRole('button',{name:'이 변경 되돌리기'}).click();expect((await sessions(qa.account.client)).length).toBe(2);
