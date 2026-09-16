@@ -33,6 +33,7 @@ before(async () => {
   await db.exec(read('../supabase/migrations/20260906141943_add_app_record_resets.sql'));
   await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
   await db.exec(read('../supabase/migrations/20260916094552_assistant_workout_commands.sql'));
+  await db.exec(read('../supabase/migrations/20260916232300_assistant_workout_cardio_commands.sql'));
 });
 after(async () => db.close());
 beforeEach(async () => {

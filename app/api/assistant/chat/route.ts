@@ -16,7 +16,8 @@ import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
 import { parseLanguageCompletion, type LanguageCommandProposal } from '@/lib/assistant-language-command';
 import { proposeLanguageCompletion } from '@/lib/assistant-language-server';
 import { parseWorkoutCompletion, type WorkoutCommandProposal } from '@/lib/assistant-workout-command';
-import { proposeWorkoutCompletion } from '@/lib/assistant-workout-server';
+import { proposeWorkoutCommand } from '@/lib/assistant-workout-server';
+import { isWorkoutCardioIntent, parseWorkoutCardioCommand } from '@/lib/assistant-workout-cardio-command';
 import { isDietRecordIntent, isDietMemoCommand, parseDietCommand, dietCommandLabel, type DietCommandProposal } from '@/lib/assistant-diet-command';
 import { proposeDietCommand } from '@/lib/assistant-diet-server';
 
@@ -130,7 +131,7 @@ function normalizeGenerativeReply(value: unknown) {
 }
 
 function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
-  if (isDietRecordIntent(message) || isGrowthCompletionIntent(message)) return message;
+  if (isDietRecordIntent(message) || isGrowthCompletionIntent(message) || isWorkoutCardioIntent(message)) return message;
   if (!/(그거|그것|그\s*일|방금\s*말한)/.test(message)) return message;
   const previous = [...history].reverse().find((item) => item.role === "user" && /(할\s*일|일정)/.test(item.text));
   if (!previous) return message;
@@ -329,9 +330,15 @@ async function processSingleCommand(
     const { data, error } = await supabase.from("assistant_items").select("title").eq("user_id", userId).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5);
     if (error) throw new Error("할 일을 불러오지 못했습니다.");
     result = { reply: data?.length ? `오늘 할 일은 ${data.length}건입니다. ${data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ")}` : "오늘 마감인 미완료 할 일이 없습니다.", action: { label: "할 일 목록 보기", href: "#assistant-list" } };
+  } else if (isWorkoutCardioIntent(message)) {
+    const change = parseWorkoutCardioCommand(message);
+    const proposal = await proposeWorkoutCommand(supabase, userId, today, change);
+    result = proposal
+      ? { reply: '오늘 유산소 종류와 총시간을 기록할까요? 아래 변경 전후를 확인하고 저장해 주세요.', proposal, action: { label: '운동 기록 확인', href: '/fitness' } }
+      : { reply: '오늘 유산소 종류와 총시간은 이미 같은 값으로 기록되어 있습니다.', action: { label: '운동 기록 확인', href: '/fitness' } };
   } else if (/(오늘\s*)?운동.*(완료|끝|마쳤|했어|했어요)/.test(message)) {
     parseWorkoutCompletion(message);
-    const proposal = await proposeWorkoutCompletion(supabase, userId, today);
+    const proposal = await proposeWorkoutCommand(supabase, userId, today);
     result = proposal
       ? { reply: "오늘 운동의 완료 사실을 기록할까요? 아래 내용을 확인하고 저장해 주세요.", proposal, action: { label: "운동 기록 확인", href: "/fitness" } }
       : { reply: "오늘 운동은 이미 완료로 기록되어 있습니다.", action: { label: "운동 기록 확인", href: "/fitness" } };
@@ -387,6 +394,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const body = await request.json().catch(() => null) as { message?: unknown; history?: unknown } | null;
+  if (typeof body?.message === "string" && isWorkoutCardioIntent(body.message) && body.message.trim().length > 500) return NextResponse.json({ error: "유산소 명령이 너무 깁니다. 종류와 오늘 총시간만 입력해 주세요." }, { status: 400 });
   if (typeof body?.message === "string" && isDietRecordIntent(body.message) && body.message.trim().length > 500) return NextResponse.json({ error: "식단 명령이 너무 깁니다. 추가할 메모는 400자 이내로 입력해 주세요." }, { status: 400 });
   const message = typeof body?.message === "string" ? body.message.trim().slice(0, 500) : "";
   if (!message) return NextResponse.json({ error: "명령을 입력해 주세요." }, { status: 400 });
