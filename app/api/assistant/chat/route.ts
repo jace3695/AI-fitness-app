@@ -6,10 +6,10 @@ import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
-import { parseRecurrence, recurrenceLabel, type RecurrenceRule } from "@/app/lib/assistantRecurrence";
+import { parseRecurrence } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
 import { isRetiredGrowthRoutine } from "@/app/data/growthRoutines";
-import { commandDueDate, type TaskCommandProposal, type TaskCommandValues } from "@/lib/assistant-task-command";
+import { commandDueDate, parseTaskCompletionTarget, type TaskCommandProposal, type TaskCommandValues } from "@/lib/assistant-task-command";
 
 import { isBudgetEditIntent, parseBudgetAmountCommand, type BudgetCommandProposal } from '@/lib/assistant-budget-command';
 import { proposeBudgetAmount } from '@/lib/assistant-budget-server';
@@ -148,19 +148,20 @@ function splitCompoundCommands(message: string) {
 
 async function proposeTaskCommand(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>, userId: string,
-  operation: 'create' | 'update', values: TaskCommandValues, expected: Record<string, unknown> | null,
+  operation: 'create' | 'update' | 'complete', values: TaskCommandValues, expected: Record<string, unknown> | null,
 ): Promise<AssistantReply> {
   const { data, error } = await supabase.from('user_app_state').select('state').eq('user_id', userId).maybeSingle();
   if (error) throw new Error('기록 상태를 확인하지 못했습니다. 다시 시도해 주세요.');
   let projectName: string | null = null;
   if (values.project_id) {
-    const project = await supabase.from('assistant_projects').select('name').eq('user_id', userId).eq('id', values.project_id).neq('status', 'archived').maybeSingle();
+    const projectQuery = supabase.from('assistant_projects').select('name').eq('user_id', userId).eq('id', values.project_id);
+    const project = await (operation === 'complete' ? projectQuery : projectQuery.neq('status', 'archived')).maybeSingle();
     if (project.error || !project.data) throw new Error('연결할 프로젝트를 확인하지 못했습니다.');
     projectName = project.data.name;
   }
   const resetMarker = parseState(data?.state)['ai-fitness-record-reset-assistant'];
   return {
-    reply: `‘${values.title}’ ${operation === 'create' ? '추가' : '수정'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다. 확인 화면을 닫았다면 명령을 다시 입력해 주세요.`,
+    reply: `‘${values.title}’ ${operation === 'create' ? '추가' : operation === 'complete' ? '완료' : '수정'} 내용을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다. 확인 화면을 닫았다면 명령을 다시 입력해 주세요.`,
     proposal: { requestId: crypto.randomUUID(), operation, itemId: typeof expected?.id === 'string' ? expected.id : null,
       expected, values, projectName, resetMarker: typeof resetMarker === 'string' ? resetMarker : null,
       expiresAt: new Date(Date.now() + 15 * 60_000).toISOString() },
@@ -228,20 +229,17 @@ async function processSingleCommand(
     const proposal = await proposeBudgetAmount(supabase, userId, target);
     result = { reply: `${target.date} ‘${target.place}’의 금액 변경을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
   } else if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
-    const target = cleanTaskTarget(message);
-    if (!target) {
-      result = { reply: "완료할 할 일 제목을 함께 말해 주세요. 예: ‘우유 사기 할 일 완료해줘’" };
-    } else {
-      const { data, error } = await supabase.from("assistant_items").select("id,title,kind,priority,project_id,due_at,recurrence_rule,updated_at").eq("user_id", userId).neq("status", "completed").order("created_at", { ascending: false }).limit(50);
-      if (error) throw new Error("할 일을 확인하지 못했습니다.");
-      const matches = (data ?? []).filter((item) => item.title.includes(target) || target.includes(item.title));
-      if (matches.length !== 1) result = { reply: matches.length ? `비슷한 할 일이 ${matches.length}개 있어요. 제목을 더 정확히 말씀해 주세요: ${matches.slice(0, 3).map((item) => item.title).join(" · ")}` : `‘${target}’과 일치하는 미완료 할 일을 찾지 못했습니다.` };
-      else {
-        const { error: updateError } = await supabase.rpc("set_assistant_item_completion", { p_item_id: matches[0].id, p_completed: true, p_expected_updated_at: matches[0].updated_at });
-        if (updateError) throw new Error("완료와 다음 반복 일정을 저장하지 못했습니다. 최신 목록을 확인한 뒤 다시 시도해 주세요.");
-        const rule = (matches[0].recurrence_rule || "none") as RecurrenceRule;
-        result = { reply: `‘${matches[0].title}’을 완료 처리했습니다.${rule !== 'none' ? ` 다음 ${recurrenceLabel(rule)} 일정도 함께 저장했습니다.` : ""}`, action: { label: "할 일 목록 보기", href: "#assistant-list" }, changed: true };
-      }
+    const target = parseTaskCompletionTarget(message);
+    const { data, error } = await supabase.from("assistant_items").select("*").eq("user_id", userId)
+      .in("status", ["open", "in_progress", "waiting"]).eq("title", target).limit(2);
+    if (error) throw new Error("할 일을 확인하지 못했습니다.");
+    if (data?.length !== 1) result = { reply: data?.length ? `‘${target}’ 제목의 미완료 할 일이 여러 개입니다. 할 일 화면에서 대상을 선택해 주세요.` : `‘${target}’ 제목과 정확히 일치하는 미완료 할 일을 찾지 못했습니다.`, action: { label: '할 일 목록 보기', href: '/assistant' } };
+    else {
+      const item = data[0];
+      result = await proposeTaskCommand(supabase, userId, 'complete', {
+        title: item.title, due_at: item.due_at, priority: item.priority,
+        recurrence_rule: item.recurrence_rule, project_id: item.project_id,
+      }, item);
     }
   } else if (/(할\s*일|일정).*(수정|변경)|(수정|변경).*(할\s*일|일정)/.test(message)) {
     const target = cleanTaskTarget(message);

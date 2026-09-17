@@ -43,7 +43,7 @@ export function readCommandDrafts(raw: string | null, ownerId: string): CommandD
       continue;
     }
     if (!p || (p.domain !== undefined && p.domain !== 'task') || typeof draft.attempted !== 'boolean' || typeof p.requestId !== 'string'
-      || !['create', 'update'].includes(p.operation) || !p.values || typeof p.values.title !== 'string'
+      || !['create', 'update', 'complete'].includes(p.operation) || !p.values || typeof p.values.title !== 'string'
       || !renderable(p.values) || !nullableString(p.projectName) || !nullableString(p.resetMarker)
       || !nullableString(p.itemId) || (p.expected !== null && (typeof p.expected !== 'object' || !renderable(p.expected)))
       || !Number.isFinite(Date.parse(p.expiresAt))) throw new Error('invalid draft');

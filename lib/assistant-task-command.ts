@@ -11,7 +11,7 @@ export type TaskCommandValues = {
 export type TaskCommandProposal = {
   domain?: 'task';
   requestId: string;
-  operation: 'create' | 'update';
+  operation: 'create' | 'update' | 'complete';
   itemId: string | null;
   expected: Record<string, unknown> | null;
   values: TaskCommandValues;
@@ -22,13 +22,24 @@ export type TaskCommandProposal = {
 
 export type TaskCommandReceipt = {
   id: string;
-  operation: 'create' | 'update';
+  operation: 'create' | 'update' | 'complete';
   item_id: string;
   before_record: Record<string, unknown> | null;
   after_record: TaskCommandValues;
   created_at: string;
   undone_at: string | null;
+  spawned_record?: Record<string, unknown> | null;
 };
+
+export function parseTaskCompletionTarget(message: string): string {
+  const text = message.trim();
+  const suffix = '(?:완료|끝)(?:\\s*처리)?(?:해\\s*줘|해주세요|해요|했어|했어요)[.!。]*$';
+  const match = text.match(new RegExp('^(?:오늘\\s*)?(?:할\\s*일|일정)\\s+(.+?)(?:을|를)?\\s*' + suffix))
+    ?? text.match(new RegExp('^(?:오늘\\s*)?(.+?)\\s+(?:할\\s*일|일정)(?:을|를)?\\s*' + suffix));
+  const target = match?.[1].trim().replace(/^['‘“](.*)['’”]$/, '$1').trim();
+  if (!target || target.length > 200) throw new Error('완료할 제목을 정확히 말씀해 주세요. 예: ‘우유 사기 할 일 완료해줘’. 확인 후 저장합니다.');
+  return target;
+}
 
 export function commandDueDate(message: string, today: string) {
   const explicit = message.match(/(20\d{2})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})일?/);

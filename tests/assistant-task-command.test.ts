@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { before, beforeEach, after, test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
-import { commandDueDate, taskCommandDateLabel } from '../lib/assistant-task-command.ts';
+import { commandDueDate, taskCommandDateLabel, parseTaskCompletionTarget } from '../lib/assistant-task-command.ts';
 
 const db = new PGlite();
 const owner = randomUUID(), other = randomUUID();
@@ -24,6 +24,7 @@ before(async () => {
     grant usage on schema auth,public to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
   await db.exec(read('./e2e/schema.sql'));
   await db.exec(read('../supabase/migrations/20260915034857_assistant_task_command_history.sql'));
+  await db.exec(read('../supabase/migrations/20260917031601_assistant_task_completion_commands.sql'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => {
@@ -148,4 +149,74 @@ test('Korean command dates preserve the reviewed date across month/year boundari
   assert.throws(() => commandDueDate('2월 30일 일정', '2026-09-15'), /존재하는 날짜/);
   assert.throws(() => commandDueDate('2026-13-01 일정', '2026-09-15'), /존재하는 날짜/);
   assert.match(taskCommandDateLabel('2026-09-20T14:59:00Z'), /23:59/);
+});
+
+const complete = async (p: Request) => (await db.query<{receipt: Row}>('select public.apply_assistant_task_completion($1,$2,$3,$4,$5) receipt', [p.id,p.item,p.expected,p.reset,p.expires])).rows[0].receipt;
+async function completionRequest(rule = 'none', status = 'open') {
+  const p = request({ values: { ...values, recurrence_rule: rule } }); await apply(p);
+  if (status !== 'open') await db.query('update public.assistant_items set status=$1 where id=$2',[status,p.id]);
+  const expected = await item(p.id);
+  return request({operation:'complete',item:p.id,expected});
+}
+
+test('completion is atomic and idempotent and undo restores the exact parent before addition undo',async()=>{
+  const p=await completionRequest(); const before=p.expected;
+  const first=await complete(p); assert.equal((first.after_record as Row).status,'completed'); assert.equal(first.spawned_record,null);
+  assert.deepEqual(await complete(p),first); assert.equal(await count('assistant_items'),1);
+  await undo(p.id); assert.deepEqual(await item(p.item!),before);
+  assert.ok((await complete(p)).undone_at); assert.equal((await item(p.item!)).status,'open');
+  await undo(p.item!); assert.equal(await count('assistant_items'),0);
+});
+
+test('daily weekly monthly and no-date waiting tasks create one next occurrence and restore exactly',async()=>{
+  for(const [rule,day] of [['daily','2026-02-01'],['weekly','2026-02-07'],['monthly','2026-02-28']]) {
+    const p=await completionRequest(rule,'waiting');
+    await db.query("update public.assistant_items set due_at='2026-01-31T23:59:00+09:00' where id=$1",[p.item]);p.expected=await item(p.item!);
+    const receipt=await complete(p); const child=receipt.spawned_record as Row;
+    assert.equal(child.status,'open'); // kind remains task, as in existing completion behavior
+    assert.equal(new Date(child.due_at as string).toISOString(),day+'T14:59:00.000Z');
+    assert.deepEqual(await complete(p),receipt); await undo(p.id);assert.deepEqual(await item(p.item!),p.expected);
+    assert.equal(await item(child.id as string),undefined);
+  }
+  const p=await completionRequest('daily');await db.query("update public.assistant_items set kind='waiting',status='waiting',due_at=null where id=$1",[p.item]);p.expected=await item(p.item!);
+  const r=await complete(p);assert.equal((r.spawned_record as Row).status,'waiting');await undo(p.id);assert.deepEqual(await item(p.item!),p.expected);
+});
+
+test('modified or missing next occurrence blocks completion undo and preserves the newer records',async()=>{
+  for(const action of ['edit','delete','descendant']){
+    const p=await completionRequest('daily');const r=await complete(p);const child=r.spawned_record as Row;
+    if(action==='edit')await db.query("update public.assistant_items set title='사용자가 바꾼 일정' where id=$1",[child.id]);
+    if(action==='delete')await db.query('delete from public.assistant_items where id=$1',[child.id]);
+    if(action==='descendant')await db.query('insert into public.assistant_items(user_id,title,recurrence_parent_id) values($1,$2,$3)',[owner,'그 다음',child.id]);
+    const saved=await item(p.item!);await assert.rejects(undo(p.id),/다음 반복 일정/);assert.deepEqual(await item(p.item!),saved);
+  }
+});
+
+test('completion refuses stale snapshots, cancelled tasks, preexisting recurrence, changed requests and expired confirmations',async()=>{
+  const p=await completionRequest();await db.query("update public.assistant_items set notes='new' where id=$1",[p.item]);await assert.rejects(complete(p),/다른 곳에서/);
+  const cancelled=await completionRequest('none','cancelled');await assert.rejects(complete(cancelled),/미완료/);
+  const q=await completionRequest('daily');await db.query('insert into public.assistant_items(user_id,title,recurrence_parent_id) values($1,$2,$3)',[owner,'existing',q.item]);await assert.rejects(complete(q),/이미 다음/);
+  const x=await completionRequest();await assert.rejects(complete({...x,expires:new Date(0).toISOString()}),/확인 시간이/);
+  await complete(x);await assert.rejects(complete({...x,expected:{...x.expected,title:'changed'}}),/이미 사용/);
+});
+
+test('history failure rolls back completion and its next occurrence',async()=>{
+  const p=await completionRequest('weekly');const n=await count('assistant_items');
+  await db.exec("reset role; alter table public.assistant_task_command_history add constraint completion_failure check(operation<>'complete');set role authenticated;");
+  await assert.rejects(complete(p));assert.deepEqual(await item(p.item!),p.expected);assert.equal(await count('assistant_items'),n);
+  await db.exec('reset role; alter table public.assistant_task_command_history drop constraint completion_failure;set role authenticated;');
+  await complete(p);assert.equal(await count('assistant_items'),n+1);
+});
+
+test('completion enforces ownership, authentication and reset markers',async()=>{
+  const p=await completionRequest();await db.exec(`set app.test_user='${other}';`);await assert.rejects(complete(p),/다른 곳에서/);
+  await db.exec(`set app.test_user='${owner}';`);await db.query("select public.reset_my_app_records('assistant',$1,'초기화')",[randomUUID()]);await assert.rejects(complete(p),/초기화/);
+  await db.exec('reset role;set role anon;');await assert.rejects(complete(p));
+});
+
+test('completion parser requires a direct request and preserves titles without guessing',()=>{
+  assert.equal(parseTaskCompletionTarget('우유 사기 할 일 완료해줘'),'우유 사기');
+  assert.equal(parseTaskCompletionTarget('할 일 보고서 끝내기 완료해주세요'),'보고서 끝내기');
+  assert.equal(parseTaskCompletionTarget('오늘 일정 보고서 완료해줘'),'보고서');
+  for(const text of ['우유 사기 할 일 완료하지 마','우유 사기 할 일 완료했어?','할 일 완료해줘','할 일 우유 사기 완료하면 어떻게 돼','할 일 우유 사기 완료해줘 그리고 삭제해줘'])assert.throws(()=>parseTaskCompletionTarget(text));
 });
