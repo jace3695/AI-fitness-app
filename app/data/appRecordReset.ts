@@ -24,7 +24,7 @@ export const APP_RECORD_KEYS: Record<RecordResetApp, readonly string[]> = {
 };
 
 export const APP_RESET_INFO: Record<RecordResetApp, { label: string; href: string; removes: string; keeps: string }> = {
-  fitness: { label: "운동", href: "/fitness/settings", removes: "운동·세트·철봉 진도, 체중·체성분, 컨디션·메모, AI 운동 분석과 선택 이력", keeps: "운동표·운동 설정·체중 목표·알림, 식단 기록" },
+  fitness: { label: "운동", href: "/fitness/settings", removes: "운동·세트·철봉 진도·직접 기록한 운동 시각, 체중·체성분, 컨디션·메모, AI 운동 분석과 선택 이력", keeps: "운동표·운동 설정·체중 목표·알림, 식단 기록" },
   diet: { label: "식단", href: "/diet/settings", removes: "식사·단백질·물·공복 기록, 외식·증상 체크", keeps: "식단 단계·시작일·공복 방식, 운동·체중 기록" },
   language: { label: "일본어", href: "/language/settings", removes: "가나·수업 진도와 점수, 진행 중 수업, 오답·복습·학습 달력, 저장한 단어·문장", keeps: "교재·예문, 학습 시간·음성·캐릭터 설정" },
   growth: { label: "자기계발", href: "/growth/settings", removes: "루틴 실행·타자·손글씨 연습 기록, 주간 코칭 이력", keeps: "만든 루틴·목표, 자료함의 파일과 작품, 운동·일본어 원본 기록" },

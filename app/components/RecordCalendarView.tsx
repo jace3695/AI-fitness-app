@@ -49,6 +49,7 @@ import {
   saveWeightGoal,
   writeJson,
 } from "../data/recordStorage";
+import WorkoutTimes from "./WorkoutTimes";
 import BodyRecordCard from "./BodyRecordCard";
 import MonthlySummaryCard from "./MonthlySummaryCard";
 import RecordDashboard from "./RecordDashboard";
@@ -93,6 +94,7 @@ export default function RecordCalendarView() {
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selected, setSelected] = useState(todayKey);
+  const [timePending, setTimePending] = useState(false);
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [editingWorkout, setEditingWorkout] = useState(false);
@@ -423,6 +425,7 @@ export default function RecordCalendarView() {
             return (
               <button
                 key={key}
+                disabled={timePending}
                 onClick={() => { setSelected(key); setWorkoutNotice(""); }}
                 className={`min-h-[60px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
               >
@@ -561,6 +564,7 @@ export default function RecordCalendarView() {
               <b>시간: {selectedWorkoutRecord?.postWorkoutCardioMinutes}분</b>
             </div>
           )}
+          <div className="sm:col-span-2"><WorkoutTimes key={selected} initialDate={selected} fixedDate onPendingChange={setTimePending} /></div>
           <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
             운동 완료 상세
             <br />

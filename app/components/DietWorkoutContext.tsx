@@ -18,6 +18,6 @@ export default function DietWorkoutContext({ diet, workout, today }: { diet: unk
         </li>)}</ul> : <p>이 기간에 저장된 운동·식단 기록이 없습니다.</p>}
       </details>
     </>}
-    <p className="mt-3 text-xs leading-5 text-gray-500">마지막 식사와 운동 후 식사 응답은 별개입니다. 실제 운동 시작·종료 시각이 없어 시간 간격이나 식사의 적절성은 계산하지 않습니다.</p>
+    <p className="mt-3 text-xs leading-5 text-gray-500">마지막 식사와 운동 후 식사 응답은 별개입니다. 시각 간격은 아래 실제 운동 시각 기록에서 확인할 수 있습니다. 이 집계는 운동 완료 표시와 식사 응답만 사용합니다.</p>
   </section>;
 }

@@ -60,6 +60,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260902223000_harden_growth_routine_links.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917084426_growth_resource_usage.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917114328_diet_meal_favorites.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917133223_workout_actual_times.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));
