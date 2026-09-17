@@ -458,3 +458,144 @@ test('growth workout comparison blocks malformed records and refresh shows a cor
   await expect(comparison.getByRole('alert')).toHaveCount(0);
   expect(await qa.read()).toEqual(corrected);
 });
+
+test('resource usage reviews dates at 320px, filters reported dates only, reloads and restores unrecorded', async ({ page, qa }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const id = randomUUID(); const older = dateMinus(today(), 30);
+  const seed = await qa.account.client.from('growth_resources').insert({ id, user_id: qa.account.id, title: '합성 활용 자료', storage_path: `${qa.account.id}/${id}.txt`, mime_type: 'text/plain', size_bytes: 100, notes: '그대로 보존', classification: 'deferred', created_at: '2001-01-02T00:00:00Z' }).select().single();
+  expect(seed.error).toBeNull();
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth/resources');
+  const card = page.getByRole('article', { name: '합성 활용 자료', exact: true });
+  await expect(card).toContainText('활용일 미기록');
+  const state = await qa.read();
+  await page.getByLabel('활용일 필터').selectOption('revisit');
+  await expect(card).toHaveCount(0); // An old upload date is not evidence of non-use.
+  await page.getByLabel('활용일 필터').selectOption('unknown');
+  await expect(card).toBeVisible();
+  await page.getByLabel('활용일 필터').selectOption('all');
+  const read = async () => (await qa.account.client.from('growth_resources').select('*').eq('id', id).single()).data;
+  await card.getByRole('button', { name: '활용일 기록·수정' }).click();
+  await card.getByLabel('합성 활용 자료 마지막 활용일').fill(dateMinus(today(), -1));
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  await expect(card.getByRole('alert')).toContainText('오늘까지');
+  await card.getByLabel('합성 활용 자료 마지막 활용일').fill(older);
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  await expect(card).toContainText(`이전: 미기록 → 변경: ${older}`);
+  expect(await read()).toEqual(seed.data);
+  await card.getByRole('button', { name: '취소', exact: true }).click();
+  expect(await read()).toEqual(seed.data);
+  await card.getByRole('button', { name: '활용일 기록·수정' }).click();
+  await card.getByLabel('합성 활용 자료 마지막 활용일').fill(older);
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  await card.getByRole('button', { name: '확인 후 저장', exact: true }).click();
+  await expect(card).toContainText('기록한 활용일로부터 30일 지났어요');
+  const stored = await read();
+  expect(stored).toEqual({ ...seed.data, last_used_on: older, updated_at: stored.updated_at });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload();
+  await expect(card).toContainText(`마지막 활용일 ${older}`);
+  await page.getByLabel('활용일 필터').selectOption('revisit');
+  await expect(card).toBeVisible();
+  await page.getByLabel('활용일 필터').selectOption('all');
+  await card.getByRole('button', { name: '활용일 기록·수정' }).click();
+  await card.getByLabel('합성 활용 자료 마지막 활용일').fill('');
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  await expect(card).toContainText(`이전: ${older} → 변경: 미기록`);
+  await card.getByRole('button', { name: '확인 후 저장', exact: true }).click();
+  await expect(card).toContainText('활용일 미기록');
+  await page.reload();
+  await expect(card).toContainText('활용일 미기록');
+  const restored = await read();
+  expect(restored).toEqual({ ...seed.data, updated_at: restored.updated_at });
+  await synced(page);
+  expect(await qa.read()).toEqual(state);
+});
+
+test('resource usage protects newer metadata and other owners', async ({ page, qa }) => {
+  const id = randomUUID(); const other = await qa.createAccount();
+  expect((await qa.account.client.from('growth_resources').insert({ id, user_id: qa.account.id, title: '합성 충돌 자료', storage_path: `${qa.account.id}/${id}.txt`, mime_type: 'text/plain', size_bytes: 100 })).error).toBeNull();
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth/resources');
+  const card = page.getByRole('article', { name: '합성 충돌 자료', exact: true });
+  await card.getByRole('button', { name: '활용일 기록·수정' }).click();
+  await card.getByLabel('합성 충돌 자료 마지막 활용일').fill(today());
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  const newer = await qa.account.client.from('growth_resources').update({ last_used_on: dateMinus(today(), 1), notes: '새 메모', updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  expect(newer.error).toBeNull();
+  await card.getByRole('button', { name: '확인 후 저장', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '저장한 값과 달라요' })).toBeVisible();
+  await expect(card).toContainText('새 메모');
+  await expect(card).toContainText(`마지막 활용일 ${dateMinus(today(), 1)}`);
+  expect((await qa.account.client.from('growth_resources').select('*').eq('id', id).single()).data).toEqual(newer.data);
+  const hidden = await other.client.from('growth_resources').select('*').eq('id', id);
+  expect(hidden.error).toBeNull(); expect(hidden.data).toEqual([]);
+  const denied = await other.client.from('growth_resources').update({ last_used_on: today() }).eq('id', id).select();
+  expect(denied.error).toBeNull(); expect(denied.data).toEqual([]);
+  expect((await qa.account.client.from('growth_resources').select('*').eq('id', id).single()).data).toEqual(newer.data);
+  await synced(page);
+});
+
+test('resource usage recovers a committed write with read-only confirmation after response loss', async ({ page, qa }) => {
+  const { RouteDrain } = await import('./route-drain');
+  const drain = new RouteDrain(); const id = randomUUID();
+  expect((await qa.account.client.from('growth_resources').insert({ id, user_id: qa.account.id, title: '합성 응답 유실 자료', storage_path: `${qa.account.id}/${id}.txt`, mime_type: 'text/plain', size_bytes: 100 })).error).toBeNull();
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth/resources');
+  const card = page.getByRole('article', { name: '합성 응답 유실 자료', exact: true });
+  await card.getByRole('button', { name: '활용일 기록·수정' }).click();
+  await card.getByLabel('합성 응답 유실 자료 마지막 활용일').fill(today());
+  await card.getByRole('button', { name: '변경 내용 확인' }).click();
+  let patches = 0; let failReads = true;
+  const pattern = '**/rest/v1/growth_resources?*';
+  await page.route(pattern, route => drain.run(async () => {
+    const request = route.request();
+    if (request.method() === 'PATCH') {
+      patches++;
+      expect(Object.keys(request.postDataJSON()).sort()).toEqual(['last_used_on', 'updated_at']);
+      const url = new URL(request.url());
+      expect(url.searchParams.get('last_used_on')).toBe('is.null');
+      expect(url.searchParams.get('updated_at')).toMatch(/^eq\./);
+      const result = await route.fetch({ maxRetries: 0 });
+      expect(result.ok()).toBe(true);
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic lost response"}' });
+    } else if (request.method() === 'GET' && failReads) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic unavailable"}' });
+    } else await route.continue();
+  }));
+  try {
+    await card.getByRole('button', { name: '확인 후 저장', exact: true }).click();
+    await expect(card.getByRole('alert')).toContainText('저장 결과를 확인하지 못했어요');
+    expect(patches).toBe(1);
+    const before = (await qa.account.client.from('growth_resources').select('*').eq('id', id).single()).data;
+    expect(before.last_used_on).toBe(today());
+    failReads = false;
+    await card.getByRole('button', { name: '저장 결과 다시 확인' }).click();
+    await expect(card.getByRole('button', { name: '활용일 기록·수정' })).toBeVisible();
+    expect(patches).toBe(1);
+    expect((await qa.account.client.from('growth_resources').select('*').eq('id', id).single()).data).toEqual(before);
+    await synced(page);
+  } finally {
+    failReads = false;
+    await drain.wait();
+    await page.unroute(pattern);
+  }
+  await page.reload();
+  await expect(card).toContainText(`마지막 활용일 ${today()}`);
+});
+
+test('resource list failure never claims no matching resources and refresh recovers', async ({ page, qa }) => {
+  const id = randomUUID();
+  expect((await qa.account.client.from('growth_resources').insert({ id, user_id: qa.account.id, title: '합성 조회 자료', storage_path: `${qa.account.id}/${id}.txt`, mime_type: 'text/plain', size_bytes: 100 })).error).toBeNull();
+  await login(page, qa.account); await synced(page);
+  await page.route('**/rest/v1/growth_resources?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"Synthetic unavailable"}' }));
+  await page.goto('/growth/resources');
+  const panel = page.getByRole('region', { name: '저장된 자료', exact: true });
+  await expect(panel.getByRole('alert')).toContainText('자료 목록을 불러오지 못했어요');
+  await expect(panel).not.toContainText('조건에 맞는 자료가 없습니다');
+  await page.unroute('**/rest/v1/growth_resources?*');
+  await panel.getByRole('button', { name: '자료 새로고침' }).click();
+  await expect(page.getByRole('article', { name: '합성 조회 자료' })).toContainText('활용일 미기록');
+  expect((await qa.account.client.from('growth_resources').select('last_used_on').eq('id', id).single()).data!.last_used_on).toBeNull();
+  await synced(page);
+});

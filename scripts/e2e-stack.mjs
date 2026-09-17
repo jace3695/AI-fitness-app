@@ -47,6 +47,18 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916142043_assistant_diet_time_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916232300_assistant_workout_cardio_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917031601_assistant_task_completion_commands.sql', 'utf8'));
+    const growthSchema = readFileSync('supabase/migrations/20260902120000_add_growth_platform.sql', 'utf8');
+    const resourceTable = growthSchema.slice(growthSchema.indexOf('create table if not exists public.growth_resources'), growthSchema.indexOf('create table if not exists public.growth_ai_reviews'));
+    const resourcePolicies = growthSchema.slice(growthSchema.indexOf('drop policy if exists "Users can read own growth resources"'), growthSchema.indexOf('drop policy if exists "Users can read own growth AI reviews"'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + resourceTable + '\n' + `
+      alter table public.growth_resources enable row level security;
+      revoke all on public.growth_resources from anon, authenticated;
+      grant select, insert, delete on public.growth_resources to authenticated;
+      grant update (routine_id, title, category, classification, notes, updated_at) on public.growth_resources to authenticated;
+      grant all on public.growth_resources to service_role;
+    ` + resourcePolicies);
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260902223000_harden_growth_routine_links.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917084426_growth_resource_usage.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,storage-api,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));

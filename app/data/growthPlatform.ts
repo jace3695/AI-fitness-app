@@ -51,6 +51,7 @@ export type GrowthResourceRow = {
   size_bytes: number;
   classification: GrowthResourceClassification;
   notes: string;
+  last_used_on?: string | null;
   created_at: string;
   updated_at: string;
 };
