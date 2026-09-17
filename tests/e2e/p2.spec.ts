@@ -321,10 +321,77 @@ test('growth pattern loading failure is distinct from no records and retry recov
   const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
   await expect(panel.getByRole('alert')).toContainText('실행 기록을 모두 확인하지 못했어요');
   await expect(panel).not.toContainText('이 기간에는 실행 기록이 없어요');
+  await expect(page.getByRole('region', { name: '루틴 시작 시간대별 패턴' })).toHaveCount(0);
   await page.unroute('**/rest/v1/growth_sessions?*');
   await panel.getByRole('button', { name: '기록 다시 불러오기' }).click();
   await expect(panel).toContainText('이 기간에는 실행 기록이 없어요');
   expect((await qa.account.client.from('growth_sessions').select('id')).data).toHaveLength(0);
+});
+
+test('growth start times compare Korean slots at 320px without inventing clocks or changing original records', async ({ page, qa }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  await expect(page.getByText('개인 루틴을 안전하게 동기화하고 있어요…', { exact: true })).toHaveCount(0);
+  const routine = await qa.account.client.from('growth_routines').insert({ user_id: qa.account.id, title: '합성 시작 시간 비교', category: 'custom', target_minutes: 10, enabled: true, sort_order: 999, preferred_days: [1,3,5], target_sessions_per_week: 3 }).select().single();
+  expect(routine.error).toBeNull();
+  const rows = Array.from({ length: 10 }, (_, i) => {
+    const date = dateMinus(today(), i + 1);
+    return { user_id: qa.account.id, routine_id: routine.data!.id, session_date: date, status: i < 4 ? 'stopped' : 'completed', planned_minutes: 10, actual_minutes: 5, source: 'manual', started_at: i < 8 ? `${date}T${i < 4 ? '08' : '20'}:00:00+09:00` : i === 9 ? `${date}T08:00:00+09:00` : null };
+  });
+  expect((await qa.account.client.from('growth_sessions').insert([...rows, { ...rows[4], status: 'stopped', started_at: `${rows[4].session_date}T08:00:00+09:00` }, { ...rows[9], started_at: `${rows[9].session_date}T20:00:00+09:00` }])).error).toBeNull();
+  const before = (await qa.account.client.from('growth_sessions').select('*').order('id')).data;
+  const routinesBefore = (await qa.account.client.from('growth_routines').select('*').order('id')).data;
+  const stateBefore = await qa.read();
+  await page.goto('/growth/review', { waitUntil: 'domcontentloaded' });
+  const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
+  const times = page.getByRole('region', { name: '루틴 시작 시간대별 패턴' });
+  await panel.getByLabel('살펴볼 루틴').selectOption(routine.data!.id);
+  await expect(times).toContainText('시간대 확인 8일 · 비교 제외 2일');
+  await expect(times.getByRole('group', { name: '오전 시작', exact: true })).toContainText('완료 0일 / 기록 4일');
+  await expect(times.getByRole('group', { name: '저녁 시작', exact: true })).toContainText('완료 4일 / 기록 4일');
+  await expect(times).toContainText('저녁의 기록일 중 완료 비율이 더 높았어요');
+  await times.getByText('시간대별 근거 보기', { exact: true }).click();
+  await expect(times.getByRole('table').getByRole('row')).toHaveCount(11);
+  await expect(times.getByRole('table')).toContainText('시각 미기록');
+  await expect(times.getByRole('table')).toContainText('여러 시간대');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await panel.getByLabel('살펴볼 루틴').selectOption(routine.data!.id);
+  await expect(times).toContainText('시간대 확인 8일 · 비교 제외 2일');
+  await panel.getByRole('button', { name: '기록 다시 불러오기', exact: true }).click();
+  await expect(times).toContainText('시간대 확인 8일 · 비교 제외 2일');
+  expect(await qa.read()).toEqual(stateBefore);
+  expect((await qa.account.client.from('growth_sessions').select('*').order('id')).data).toEqual(before);
+  expect((await qa.account.client.from('growth_routines').select('*').order('id')).data).toEqual(routinesBefore);
+});
+
+test('growth start time exclusions and explicit refresh use the saved start instead of the insertion time', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  await expect(page.getByText('개인 루틴을 안전하게 동기화하고 있어요…', { exact: true })).toHaveCount(0);
+  const routine = await qa.account.client.from('growth_routines').select('*').order('sort_order').limit(1).single();
+  expect(routine.error).toBeNull();
+  const date = dateMinus(today(), 1);
+  const session = await qa.account.client.from('growth_sessions').insert({ user_id: qa.account.id, routine_id: routine.data!.id, session_date: date, status: 'completed', planned_minutes: 10, actual_minutes: 5, source: 'manual', started_at: `${dateMinus(date,1)}T23:55:00+09:00`, ended_at: `${date}T00:05:00+09:00` }).select().single();
+  expect(session.error).toBeNull();
+  await page.goto('/growth/review', { waitUntil: 'domcontentloaded' });
+  const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
+  const times = page.getByRole('region', { name: '루틴 시작 시간대별 패턴' });
+  await panel.getByLabel('살펴볼 루틴').selectOption(routine.data!.id);
+  await expect(times).toContainText('시간대 확인 0일 · 비교 제외 1일');
+  await times.getByText('시간대별 근거 보기', { exact: true }).click();
+  await expect(times.getByRole('table')).toContainText('시작 날짜 다름');
+  expect((await qa.account.client.from('growth_sessions').update({ started_at: `${date}T12:00:00+09:00`, ended_at: `${date}T12:05:00+09:00` }).eq('id',session.data!.id)).error).toBeNull();
+  const before = (await qa.account.client.from('growth_sessions').select('*').order('id')).data;
+  await panel.getByRole('button', { name: '기록 다시 불러오기', exact: true }).click();
+  await expect(times.getByRole('group', { name: '오후 시작', exact: true })).toContainText('완료 1일 / 기록 1일');
+  await expect(times).toContainText('시간대 확인 1일 · 비교 제외 0일');
+  await expect(times).toContainText('각각 4일 이상');
+  expect((await qa.account.client.from('growth_sessions').select('*').order('id')).data).toEqual(before);
+  expect(await qa.read()).toEqual(original);
 });
 
 test('growth workout comparison uses explicit marks, reloads and preserves both apps at 320px', async ({ page, qa }) => {
