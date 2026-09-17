@@ -1,7 +1,9 @@
 import { expect, login, synced, test, today, canonical } from './fixture';
 import type { Page } from '@playwright/test';
 const command = (amount = 4500, place = '합성 명령카페') => `가계부 오늘 ${place} 지출 금액을 ${amount}원으로 수정해줘`;
-const openCommand = (page: Page, text: string) => page.goto(`/assistant/quick?command=${encodeURIComponent(text)}`);
+// The review/error assertions below establish readiness; unrelated resource
+// loading must not gate command navigation (WebKit can fail at the load event).
+const openCommand = (page: Page, text: string) => page.goto(`/assistant/quick?command=${encodeURIComponent(text)}`, { waitUntil: 'domcontentloaded' });
 const reviewFor = (page: Page) => page.getByRole('region', { name: '가계부 변경 확인' });
 const expense = (userId: string, place = '합성 명령카페') => ({ user_id: userId, date: today(), place, amount: 5000, category: '카페', payment: '체크카드', transaction_type: '일반 지출', memo: '그대로 보존할 메모' });
 

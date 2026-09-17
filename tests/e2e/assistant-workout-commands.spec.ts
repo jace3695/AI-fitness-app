@@ -2,7 +2,9 @@ import { expect, login, original, synced, test, today, type State } from './fixt
 import type { Page } from '@playwright/test';
 import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 const key = 'ai-fitness-workout-completed-days';
-const openCommand = (page: Page, command = '오늘 운동 완료했어') => page.goto(`/assistant/quick?command=${encodeURIComponent(command)}`);
+// Each caller checks the review/error UI after the document is ready, rather
+// than waiting for unrelated resources to finish loading in WebKit.
+const openCommand = (page: Page, command = '오늘 운동 완료했어') => page.goto(`/assistant/quick?command=${encodeURIComponent(command)}`, { waitUntil: 'domcontentloaded' });
 const reviewFor = (page: Page) => page.getByRole('region', { name: '운동 완료 확인' });
 const dayRecord = (state: State) => (state[key] as Record<string, State>)[today()];
 const seed = () => ({
