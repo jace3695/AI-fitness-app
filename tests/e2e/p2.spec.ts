@@ -332,13 +332,14 @@ test('growth workout comparison uses explicit marks, reloads and preserves both 
   await login(page, qa.account); await synced(page);
   await page.goto('/growth', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  await expect(page.getByText('개인 루틴을 안전하게 동기화하고 있어요…', { exact: true })).toHaveCount(0);
   const routine = await qa.account.client.from('growth_routines').insert({ user_id: qa.account.id, title: '합성 운동 비교', category: 'custom', target_minutes: 10, enabled: true, sort_order: 999, preferred_days: [1,3,5], target_sessions_per_week: 3 }).select().single();
   expect(routine.error).toBeNull();
   const rows = Array.from({ length: 8 }, (_, i) => ({ user_id: qa.account.id, routine_id: routine.data!.id, session_date: dateMinus(today(), i + 1), status: i < 4 ? 'stopped' : 'completed', planned_minutes: 10, actual_minutes: 5, source: 'manual' }));
   expect((await qa.account.client.from('growth_sessions').insert([...rows, { ...rows[4], status: 'stopped' }])).error).toBeNull();
   const original = await qa.read();
   const values = [{workoutStatus:'partial'}, {cardioDone:true}, {pullupDone:true}, true, false, {}, {foamRollerDone:true}];
-  const state = { ...original, 'ai-fitness-workout-completed-days': JSON.stringify(Object.fromEntries(values.map((value, i) => [rows[i].session_date, value]))) };
+  const state = { ...original, 'ai-fitness-workout-completed-days': { ...(original['ai-fitness-workout-completed-days'] as Record<string, unknown>), ...Object.fromEntries(values.map((value, i) => [rows[i].session_date, value])) } };
   expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id', qa.account.id)).error).toBeNull();
   const before = (await qa.account.client.from('growth_sessions').select('*').order('id')).data;
   const routinesBefore = (await qa.account.client.from('growth_routines').select('*').order('id')).data;
@@ -367,6 +368,7 @@ test('growth workout comparison blocks malformed records and refresh shows a cor
   await login(page, qa.account); await synced(page);
   await page.goto('/growth', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  await expect(page.getByText('개인 루틴을 안전하게 동기화하고 있어요…', { exact: true })).toHaveCount(0);
   const routine = await qa.account.client.from('growth_routines').select('*').order('sort_order').limit(1).single();
   expect(routine.error).toBeNull();
   const date = dateMinus(today(), 1);
