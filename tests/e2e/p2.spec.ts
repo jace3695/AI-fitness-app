@@ -663,7 +663,9 @@ test('diet workout context combines saved evidence at 320px without inferring cl
   await input.selectOption('yes'); await expect(panel).toContainText('예 1일 · 아니요 0일 · 미기록 0일'); await input.selectOption(old);
   await page.reload({waitUntil:'domcontentloaded'}); await synced(page); await expect(panel).toContainText('운동 표시 1일');
   await page.goto('/',{waitUntil:'domcontentloaded'}); await page.goto('/diet',{waitUntil:'domcontentloaded'}); await synced(page);
-  await expect(panel).toContainText('운동 표시 1일'); expect(await qa.read()).toEqual(state); assertOriginalPreserved(await qa.read());
+  // Compare every key and nested value against the actual seeded start state.
+  // The generic helper expects no added workout dates, unlike this fixture.
+  await expect(panel).toContainText('운동 표시 1일'); expect(await qa.read()).toEqual(state);
 });
 
 test('diet workout context distinguishes malformed workout data from an empty history', async ({page,qa})=>{
