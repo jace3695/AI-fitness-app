@@ -82,10 +82,24 @@ test('two sessions reject stale cardio confirmation and a later calendar edit pr
   try {
     const second = await context.newPage(); await login(second, qa.account); await synced(second); await openCommand(second); await expect(reviewFor(second)).toBeVisible();
     await reviewFor(page).getByRole('button', { name: '확인하고 저장' }).click(); await expect(receiptFor(page)).toContainText('유산소 기록 저장');
+    const savedHistory = await qa.account.client.from('assistant_workout_command_history').select('record_date').single();
+    expect(savedHistory.error).toBeNull(); const recordedDate = savedHistory.data!.record_date;
     await reviewFor(second).getByRole('button', { name: '확인하고 저장' }).click(); await expect(reviewFor(second).getByRole('alert')).toContainText('다른 곳에서 오늘 운동 기록이 변경');
     await reviewFor(second).getByRole('button', { name: '확인 화면 닫기', exact: true }).click();
-    await openRecords(second); await second.getByRole('button', { name: '유산소 기록 수정', exact: true }).click(); await second.getByLabel('시간(분)', { exact: true }).fill('25');
-    await second.getByRole('button', { name: '수정 저장', exact: true }).click(); await expect.poll(async () => day(await qa.read()).cardioMinutes).toBe(25); await synced(second); const modified = await qa.read();
+    await openRecords(second);
+    // This flow can cross Korean midnight after the command commits. Select
+    // the receipt's date explicitly instead of the calendar's new "today".
+    const [year, month, date] = recordedDate.split('-').map(Number);
+    await expect(second.getByRole('heading', { name: /^\d{4}년 \d{1,2}월$/ })).toBeVisible();
+    const monthHeading = second.getByRole('heading', { name: `${year}년 ${month}월`, exact: true });
+    if (!await monthHeading.isVisible()) await second.getByRole('button', { name: '이전', exact: true }).click();
+    await expect(monthHeading).toBeVisible();
+    await monthHeading.locator('..').locator('..').getByRole('button', { name: new RegExp(`^${date}(?:\\s|$)`) }).click();
+    await expect(second.getByRole('heading', { name: `${year}년 ${month}월 ${date}일`, exact: true })).toBeVisible();
+    await second.getByRole('button', { name: '유산소 기록 수정', exact: true }).click(); await second.getByLabel('시간(분)', { exact: true }).fill('25');
+    await second.getByRole('button', { name: '수정 저장', exact: true }).click();
+    await expect.poll(async () => ((await qa.read())[key] as State)[recordedDate] as State).toMatchObject({ cardioMinutes: 25 });
+    await synced(second); const modified = await qa.read();
     await receiptFor(page).getByRole('button', { name: '이 변경 되돌리기' }).click(); await receiptFor(page).getByRole('button', { name: '확인하고 되돌리기' }).click();
     await expect(receiptFor(page).getByRole('alert')).toContainText('새 기록을 보호'); expect(await qa.read()).toEqual(modified);
     expect((await qa.account.client.from('assistant_workout_command_history').select('id')).data).toHaveLength(1);
