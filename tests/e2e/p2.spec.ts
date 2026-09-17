@@ -599,3 +599,45 @@ test('resource list failure never claims no matching resources and refresh recov
   expect((await qa.account.client.from('growth_resources').select('last_used_on').eq('id', id).single()).data!.last_used_on).toBeNull();
   await synced(page);
 });
+
+test('diet 28 day comparison uses saved answers, evidence, reload and 320px without changing records', async ({ page, qa }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  const before = await qa.read();
+  const records = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [dateMinus(today(), i + 1), { digestionStatus: 'bloated', lateSnack: i < 3 ? 'yes' : 'no' }]));
+  Object.assign(records, Object.fromEntries(Array.from({ length: 7 }, (_, i) => [dateMinus(today(), i + 29), { digestionStatus: 'comfortable', lateSnack: 'no' }])));
+  const state = { ...before, 'ai-fitness-diet-completed-days': { ...(before['ai-fitness-diet-completed-days'] as Record<string, unknown>), ...records, [today()]: { digestionStatus: 'comfortable', lateSnack: 'no' }, [dateMinus(today(), 8)]: { dietMemo: '미응답 보존' } } };
+  expect((await qa.account.client.from('user_app_state').update({ state }).eq('user_id', qa.account.id)).error).toBeNull();
+  await login(page, qa.account); await synced(page);
+  await page.goto('/diet', { waitUntil: 'domcontentloaded' });
+  const panel = page.getByRole('region', { name: '28일 식단 기록 비교' });
+  await expect(panel.getByRole('article', { name: '최근 28일', exact: true })).toContainText('소화 불편 7일 / 응답 7일 · 100%');
+  await expect(panel).toContainText('소화 불편: 이전 기간보다 응답일 비율 100%p 높음');
+  await expect(panel).toContainText('야식: 이전 기간보다 응답일 비율 43%p 높음');
+  await panel.getByText('최근 28일 날짜별 근거', { exact: true }).click();
+  await expect(panel.getByText(`${dateMinus(today(), 8)} · 소화 미기록 · 야식 미기록`, { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByLabel('소화 상태', { exact: true }).selectOption('nausea');
+  await expect(panel).toContainText('소화 불편 7일 / 응답 7일 · 100%');
+  await page.getByLabel('소화 상태', { exact: true }).selectOption('comfortable');
+  await page.reload({ waitUntil: 'domcontentloaded' }); await synced(page);
+  await expect(panel).toContainText('야식: 이전 기간보다 응답일 비율 43%p 높음');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto('/diet', { waitUntil: 'domcontentloaded' }); await synced(page);
+  await expect(panel).toContainText('소화 불편: 이전 기간보다 응답일 비율 100%p 높음');
+  expect(await qa.read()).toEqual(state);
+  assertOriginalPreserved(await qa.read());
+});
+
+test('diet comparison with no responses keeps unknown rates and does not infer a trend', async ({ page, qa }) => {
+  const before = await qa.read();
+  await login(page, qa.account); await synced(page);
+  await page.goto('/diet', { waitUntil: 'domcontentloaded' });
+  const panel = page.getByRole('region', { name: '28일 식단 기록 비교' });
+  await expect(panel.getByRole('article', { name: '최근 28일', exact: true })).toContainText('소화 불편 0일 / 응답 0일 · 비율 미기록');
+  await expect(panel).toContainText('소화 불편: 각 기간에 응답 7일 이상이면 차이를 표시합니다.');
+  await panel.getByText('이전 28일 날짜별 근거', { exact: true }).click();
+  await expect(panel.getByText('이 기간에 저장된 식단 기록이 없습니다.', { exact: true })).toBeVisible();
+  await page.reload({ waitUntil: 'domcontentloaded' }); await synced(page);
+  await expect(panel).toContainText('비율 미기록');
+  expect(await qa.read()).toEqual(before);
+});

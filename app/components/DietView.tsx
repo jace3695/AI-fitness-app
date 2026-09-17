@@ -7,6 +7,8 @@ import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, REC
 import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
+import DietPatterns from './DietPatterns';
+import { dietPatternToday } from '../data/dietPatterns';
 import {
   normalizeDietPhotoAnalysis,
   proteinInputFromEstimate,
@@ -1403,6 +1405,7 @@ export default function DietView() {
               <li>운동 후 식사 {weeklyDiet.afterWorkoutDays}일 / 응답 {weeklyDiet.afterWorkoutAnswers}일</li>
             </ul>
           </section>
+          <DietPatterns store={store} today={dietPatternToday(now)} />
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-[15px] font-bold text-gray-900">단백질 합계</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
