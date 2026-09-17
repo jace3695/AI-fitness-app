@@ -7,7 +7,7 @@ const emptyCounts = () => ({ recorded: 0, completed: 0, partial: 0, stopped: 0 }
 
 // Only explicit execution markers count. A plan, memo, duration or missing entry
 // does not establish whether the user exercised. Never migrate or write here.
-function hasWorkoutRecord(value: unknown): boolean | null {
+export function hasWorkoutRecord(value: unknown): boolean | null {
   if (value === undefined || value === null || value === false) return false;
   if (value === true) return true;
   if (typeof value !== 'object' || Array.isArray(value)) return null;

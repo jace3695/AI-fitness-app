@@ -641,3 +641,42 @@ test('diet comparison with no responses keeps unknown rates and does not infer a
   await expect(panel).toContainText('비율 미기록');
   expect(await qa.read()).toEqual(before);
 });
+
+test('diet workout context combines saved evidence at 320px without inferring clocks or changing inputs', async ({ page, qa }) => {
+  await page.setViewportSize({width:320,height:844});
+  const before=await qa.read();
+  const day=dateMinus(today(),1), other=dateMinus(today(),2);
+  const state={...before,
+    'ai-fitness-workout-completed-days':{...(before['ai-fitness-workout-completed-days'] as Record<string,unknown>),[day]:{workoutStatus:'partial'},[other]:{workoutRecordedAt:`${other}T12:00:00Z`}},
+    'ai-fitness-diet-completed-days':{...(before['ai-fitness-diet-completed-days'] as Record<string,unknown>),[day]:{afterWorkoutMeal:'yes',lastMealTime:'18:30'},[other]:{afterWorkoutMeal:'no'}}};
+  expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
+  await login(page,qa.account); await synced(page); await page.goto('/diet',{waitUntil:'domcontentloaded'});
+  const panel=page.getByRole('region',{name:'운동과 식사 기록 함께 보기'});
+  await expect(panel).toContainText('운동 표시 1일');
+  await expect(panel).toContainText('예 1일 · 아니요 0일 · 미기록 0일');
+  await panel.getByText('운동·식사 날짜별 근거',{exact:true}).click();
+  await expect(panel.getByRole('listitem').filter({hasText:day})).toContainText('마지막 식사 18:30');
+  await expect(panel.getByRole('listitem').filter({hasText:other})).toContainText('운동 미확인');
+  await expect(panel.getByRole('listitem').filter({hasText:other})).toContainText('시각 미기록');
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const input=page.getByLabel('운동 후 식사를 했나요?',{exact:true}); const old=await input.inputValue();
+  await input.selectOption('yes'); await expect(panel).toContainText('예 1일 · 아니요 0일 · 미기록 0일'); await input.selectOption(old);
+  await page.reload({waitUntil:'domcontentloaded'}); await synced(page); await expect(panel).toContainText('운동 표시 1일');
+  await page.goto('/',{waitUntil:'domcontentloaded'}); await page.goto('/diet',{waitUntil:'domcontentloaded'}); await synced(page);
+  await expect(panel).toContainText('운동 표시 1일'); expect(await qa.read()).toEqual(state); assertOriginalPreserved(await qa.read());
+});
+
+test('diet workout context distinguishes malformed workout data from an empty history', async ({page,qa})=>{
+  const before=await qa.read();
+  const state={...before,'ai-fitness-workout-completed-days':[]};
+  expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
+  await login(page,qa.account); await synced(page); await page.goto('/diet',{waitUntil:'domcontentloaded'});
+  const panel=page.getByRole('region',{name:'운동과 식사 기록 함께 보기'});
+  await expect(panel.getByRole('alert')).toContainText('기록 형식을 확인할 수 없어');
+  await expect(panel).not.toContainText('운동 표시 0일');
+  const repaired={...state,'ai-fitness-workout-completed-days':{}};
+  expect((await qa.account.client.from('user_app_state').update({state:repaired}).eq('user_id',qa.account.id)).error).toBeNull();
+  await page.reload({waitUntil:'domcontentloaded'}); await synced(page);
+  await expect(panel).toContainText('운동 표시 0일'); await expect(panel.getByRole('alert')).toHaveCount(0);
+  expect(await qa.read()).toEqual(repaired);
+});

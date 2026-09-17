@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
 import DietPatterns from './DietPatterns';
+import DietWorkoutContext from './DietWorkoutContext';
 import DietFavorites from './DietFavorites';
 import { dietPatternToday } from '../data/dietPatterns';
 import {
@@ -43,6 +44,7 @@ import {
   SOCIAL_MEAL_MODE_LABELS,
   SOCIAL_MEAL_MODE_KEY,
   WATER_INTAKE_KEY,
+  WORKOUT_COMPLETED_DAYS_KEY,
   DietMealLog,
   DietMode,
   DietPhaseId,
@@ -265,6 +267,7 @@ export default function DietView() {
   const [mode, setMode] = useState<DietMode>('auto');
   const [manualPhase, setManualPhase] = useState<DietPhaseId>('week1');
   const [store, setStore] = useState<DietCompletedStore>({});
+  const [workoutContext, setWorkoutContext] = useState<string | null>(null);
   const [mealStore, setMealStore] = useState<Record<string, DietMealLog>>({});
   const [mealLog, setMealLog] = useState<DietMealLog>(DEFAULT_MEAL_LOG);
   const [waterStore, setWaterStore] = useState<NumberStore>({});
@@ -339,6 +342,7 @@ export default function DietView() {
     setMode((window.localStorage.getItem(DIET_MODE_KEY) as DietMode | null) || 'auto');
 
     const savedDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {});
+    setWorkoutContext(window.localStorage.getItem(WORKOUT_COMPLETED_DAYS_KEY));
     const savedMeals = readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, {});
     const savedWater = readJson<NumberStore>(WATER_INTAKE_KEY, {});
     const savedLunchCarbs = readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, {});
@@ -1411,6 +1415,7 @@ export default function DietView() {
             if (value.slot === 'lunch') { setLunchCarb(value.carb); setLunchProtein(value.supplement); } else setDinnerCarb(value.carb);
           }} />
           <DietPatterns store={store} today={dietPatternToday(now)} />
+          {hydrated && <DietWorkoutContext diet={store} workout={workoutContext} today={dietPatternToday(now)} />}
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-[15px] font-bold text-gray-900">단백질 합계</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
