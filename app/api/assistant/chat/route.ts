@@ -228,7 +228,7 @@ async function processSingleCommand(
     const target = parseBudgetAmountCommand(message, today);
     const proposal = await proposeBudgetAmount(supabase, userId, target);
     result = { reply: `${target.date} ‘${target.place}’의 금액 변경을 확인해 주세요. 확인 버튼을 눌러야 저장됩니다.`, proposal };
-  } else if (/(할\s*일|일정).*(완료|끝)|(완료|끝).*(할\s*일|일정)/.test(message)) {
+  } else if (/(할\s*일|일정)/.test(message) && /(?:완료|끝)(?:\s*처리)?(?:해\s*줘|해주세요|해요|했어|했어요)[.!。]*$/.test(message.trim())) {
     const target = parseTaskCompletionTarget(message);
     const { data, error } = await supabase.from("assistant_items").select("*").eq("user_id", userId)
       .in("status", ["open", "in_progress", "waiting"]).eq("title", target).limit(2);

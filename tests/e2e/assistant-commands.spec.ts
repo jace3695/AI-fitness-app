@@ -3,7 +3,7 @@ import { expect, login, synced, test, canonical, type State } from './fixture';
 test('shortcut auto-parses without saving; cancel and reload stay unchanged, confirmed retry saves once with history and undo', async ({ page, qa }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page, qa.account); await synced(page);
-  const command = '오늘 할 일에 합성 장보기 추가해줘';
+  const command = '오늘 할 일에 합성 완료 보고서 추가해줘';
   await page.goto(`/assistant/quick?command=${encodeURIComponent(command)}`);
   const review = page.getByRole('region', { name: '할 일 변경 확인' });
   await expect(review).toBeVisible();
@@ -42,7 +42,7 @@ test('shortcut auto-parses without saving; cancel and reload stay unchanged, con
   await page.getByRole('link', { name: '실행 이력 보기 →' }).first().click();
   await expect(page.getByRole('heading', { name: '연이 실행 이력' })).toBeVisible();
   await page.reload();
-  const receipt = page.getByRole('article', { name: '합성 장보기 실행 이력' });
+  const receipt = page.getByRole('article', { name: '합성 완료 보고서 실행 이력' });
   await expect(receipt).toBeVisible();
   await receipt.getByRole('button', { name: '이 변경 되돌리기' }).click();
   expect(await rows()).toHaveLength(1);

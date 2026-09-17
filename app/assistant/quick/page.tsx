@@ -23,7 +23,7 @@ function QuickCommandContent() {
   const pending = useTaskCommandDrafts();
   const { add: saveProposal, ready: draftsReady } = pending;
   const initialCommand = searchParams.get("command")?.slice(0, 500) ?? "";
-  // URL 명령은 자동 해석한다. 할 일 추가·수정·완료은 확인 버튼을 눌러야 저장한다.
+  // URL 명령은 자동 해석한다. 할 일 추가·수정·완료는 확인 버튼을 눌러야 저장한다.
   // 브라우저에서 수동 확인이 필요할 때만 `autorun=0`으로 명시적으로 끈다.
   const shouldAutoRun = initialCommand.trim().length > 0 && searchParams.get("autorun") !== "0";
   const [command, setCommand] = useState(initialCommand);
@@ -108,7 +108,7 @@ function QuickCommandContent() {
             <li><b className="text-[#242231]">2.</b> 그 아래에 ‘텍스트 받아쓰기’를 추가합니다. 이 동작이 Siri 화면을 닫은 다음 실제 명령을 듣습니다.</li>
             <li><b className="text-[#242231]">3.</b> ‘URL 인코딩’을 추가하고 ‘받아쓰기한 텍스트’를 입력으로 지정합니다.</li>
             <li><b className="text-[#242231]">4.</b> ‘텍스트’ 동작에 <code className="break-all rounded bg-gray-100 px-1.5 py-1 text-xs">https://ai-fitness-app-ten.vercel.app/assistant/quick?autorun=1&amp;speak=1&amp;command=</code>를 입력한 뒤, 같은 줄 맨 끝에 ‘URL 인코딩된 텍스트’ 변수를 붙입니다.</li>
-            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘연이’로 저장합니다. “Siri야, 연이”라고 말하면 명령이 자동으로 전달됩니다. 할 일 추가·수정·완료은 화면의 확인 버튼을 누른 뒤 저장됩니다. 기존 단축어 주소도 계속 사용할 수 있어요.</li>
+            <li><b className="text-[#242231]">5.</b> ‘URL 열기’에 바로 앞의 ‘텍스트’를 지정하고 단축어 이름을 ‘연이’로 저장합니다. “Siri야, 연이”라고 말하면 명령이 자동으로 전달됩니다. 할 일 추가·수정·완료는 화면의 확인 버튼을 누른 뒤 저장됩니다. 기존 단축어 주소도 계속 사용할 수 있어요.</li>
           </ol>
           <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm leading-6 text-amber-900"><b>문제 해결</b><br />단축어 실행 후 말한 명령을 Siri가 자기 질문으로 처리하면 맨 위에 ‘Siri 닫기 및 계속’이 빠진 것입니다. ‘유효하지 않은 URL: %EC…’가 나오면 ‘URL’ 동작 대신 위 4번처럼 ‘텍스트’ 동작으로 전체 주소를 한 줄에 만드세요.</div>
         </section>
