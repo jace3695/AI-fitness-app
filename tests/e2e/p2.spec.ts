@@ -284,3 +284,45 @@ test("AI Yeoni shows a seven-day cross-app briefing without a paid AI call", asy
   }).toBe(true);
   expect(qa.traffic.blockedOrigins.size).toBe(0);
 });
+
+test('growth weekday patterns count recorded days, survive reload and preserve routines and sessions at 320px', async ({ page, qa }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth');
+  await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  const routine = await qa.account.client.from('growth_routines').insert({ user_id: qa.account.id, title: '합성 패턴 루틴', category: 'custom', target_minutes: 10, enabled: true, sort_order: 999, preferred_days: [1,3,5], target_sessions_per_week: 3 }).select().single();
+  expect(routine.error).toBeNull();
+  const rows = [-1,-2,-3].map((offset, index) => ({ user_id: qa.account.id, routine_id: routine.data!.id, session_date: dateMinus(today(), -offset), status: index ? 'stopped' : 'completed', planned_minutes: 10, actual_minutes: 5, source: 'manual' }));
+  expect((await qa.account.client.from('growth_sessions').insert([...rows, {...rows[0],status:'stopped'}])).error).toBeNull();
+  const before = (await qa.account.client.from('growth_sessions').select('*').order('id')).data;
+  const routinesBefore = (await qa.account.client.from('growth_routines').select('*').order('id')).data;
+  await page.goto('/growth/review');
+  const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
+  await panel.getByLabel('살펴볼 루틴').selectOption(routine.data!.id);
+  await expect(panel).toContainText('기록 3일 · 기록 없음 25일');
+  await panel.getByText('요일별 근거 보기', { exact: true }).click();
+  await expect(panel.getByRole('table')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload();
+  await panel.getByLabel('살펴볼 루틴').selectOption(routine.data!.id);
+  await expect(panel).toContainText('기록 3일 · 기록 없음 25일');
+  await panel.getByRole('link', { name: '루틴 일정 확인하기 →' }).click();
+  await expect(page.getByRole('button', { name: '루틴 편집', exact: true })).toBeVisible();
+  expect((await qa.account.client.from('growth_sessions').select('*').order('id')).data).toEqual(before);
+  expect((await qa.account.client.from('growth_routines').select('*').order('id')).data).toEqual(routinesBefore);
+});
+
+test('growth pattern loading failure is distinct from no records and retry recovers', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page);
+  await page.goto('/growth');
+  await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
+  await page.route('**/rest/v1/growth_sessions?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({message:'Synthetic unavailable'}) }));
+  await page.goto('/growth/review');
+  const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
+  await expect(panel.getByRole('alert')).toContainText('실행 기록을 모두 확인하지 못했어요');
+  await expect(panel).not.toContainText('이 기간에는 실행 기록이 없어요');
+  await page.unroute('**/rest/v1/growth_sessions?*');
+  await panel.getByRole('button', { name: '기록 다시 불러오기' }).click();
+  await expect(panel).toContainText('이 기간에는 실행 기록이 없어요');
+  expect((await qa.account.client.from('growth_sessions').select('id')).data).toHaveLength(0);
+});

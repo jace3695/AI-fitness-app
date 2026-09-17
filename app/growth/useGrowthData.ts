@@ -126,10 +126,12 @@ export function useGrowthData(historyDays = 90) {
   const [routines, setRoutines] = useState<GrowthRoutineRow[]>([]);
   const [sessions, setSessions] = useState<GrowthSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const [notice, setNotice] = useState("");
   const [legacyBackupAvailable, setLegacyBackupAvailable] = useState(false);
 
   const load = useCallback(async () => {
+    setDataReady(false);
     if (!supabase) {
       setNotice("클라우드 연결 설정을 확인해 주세요.");
       setLoading(false);
@@ -298,6 +300,7 @@ export function useGrowthData(historyDays = 90) {
 
     setRoutines(cloudRoutines);
     setSessions(sessionRows);
+    setDataReady(true);
     try {
       let shouldOfferLegacy = false;
       const legacyRaw = !resetMarker && scopedRaw === null && !pendingImport ? readLocalValue(GROWTH_ROUTINES_STORAGE_KEY) : null;
@@ -457,5 +460,5 @@ export function useGrowthData(historyDays = 90) {
     return result;
   }, [user]);
 
-  return { user, routines, sessions, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
+  return { user, routines, sessions, dataReady, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
 }

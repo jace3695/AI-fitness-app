@@ -1,5 +1,6 @@
 "use client";
 
+import GrowthPatterns from "@/components/GrowthPatterns";
 import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -86,6 +87,7 @@ export default function GrowthReviewPage() {
       <AppCompanion compact quiet>쌓인 기록을 함께 돌아보고, 다음 주에 할 작은 목표를 골라봐요.</AppCompanion>
       <section className="rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-lg sm:p-8"><p className="text-sm font-bold text-white/70">기록을 계산하는 무료 주간 코칭</p><h1 className="mt-2 text-3xl font-bold">이번 주 기록을 살펴보고,<br />다음 주 목표를 조정해요.</h1><p className="mt-3 text-sm leading-6 text-white/75">최근 루틴별 횟수·시간·완료 상태와 선택한 중단 이유를 집계합니다. 유료 AI 요청 없이 결과를 확인할 수 있어요.</p><div className="mt-5 flex flex-wrap gap-2"><button disabled={generating || deciding || growth.loading} onClick={() => void generate(false)} className="min-h-12 rounded-xl bg-white px-5 text-sm font-bold text-[#5146A6] disabled:opacity-50">{generating ? "코칭 만드는 중…" : latest ? "오늘 코칭 보기" : "주간 코칭 만들기"}</button>{latest && <button disabled={generating || deciding} onClick={() => void generate(true)} className="min-h-12 rounded-xl bg-white/10 px-5 text-sm font-bold ring-1 ring-white/30">새로 분석</button>}</div></section>
 
+      <GrowthPatterns routines={growth.routines} sessions={growth.sessions} ready={growth.dataReady} loading={growth.loading} onRefresh={growth.refresh} />
       {growth.notice && <p role="status" className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{growth.notice}</p>}
       {loading ? <p className="py-12 text-center text-sm text-gray-400">지난 코칭을 불러오고 있어요…</p> : latest ? <>
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold text-violet-600">{latest.period_start} ~ {latest.period_end}</p><h2 className="mt-1 text-2xl font-bold">이번 주 요약</h2></div><span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{sourceLabel(latest.source)}</span></div><p className="mt-5 rounded-2xl bg-[#F7F6FF] p-4 text-sm leading-7 text-gray-700">{latest.summary.overview || "기록을 더 모으면 요약이 나타납니다."}</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-emerald-50 p-4"><h3 className="font-bold text-emerald-800">잘 이어간 점</h3><ul className="mt-2 space-y-1 text-sm leading-6 text-emerald-950">{latest.summary.positives?.length ? latest.summary.positives.map((item) => <li key={item}>• {item}</li>) : <li>• 첫 기록부터 차근차근 모아보세요.</li>}</ul></div><div className="rounded-2xl bg-amber-50 p-4"><h3 className="font-bold text-amber-800">주의할 점</h3><ul className="mt-2 space-y-1 text-sm leading-6 text-amber-950">{latest.summary.cautions?.length ? latest.summary.cautions.map((item) => <li key={item}>• {item}</li>) : <li>• 무리하게 시간을 늘리지 않아도 됩니다.</li>}</ul></div></div></section>
