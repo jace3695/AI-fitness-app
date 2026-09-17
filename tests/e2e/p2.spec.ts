@@ -636,7 +636,7 @@ test('diet comparison with no responses keeps unknown rates and does not infer a
   await expect(panel.getByRole('article', { name: '최근 28일', exact: true })).toContainText('소화 불편 0일 / 응답 0일 · 비율 미기록');
   await expect(panel).toContainText('소화 불편: 각 기간에 응답 7일 이상이면 차이를 표시합니다.');
   await panel.getByText('이전 28일 날짜별 근거', { exact: true }).click();
-  await expect(panel.getByText('이 기간에 저장된 식단 기록이 없습니다.', { exact: true })).toBeVisible();
+  await expect(panel.getByRole('article', { name: '이전 28일', exact: true }).getByText('이 기간에 저장된 식단 기록이 없습니다.', { exact: true })).toBeVisible();
   await page.reload({ waitUntil: 'domcontentloaded' }); await synced(page);
   await expect(panel).toContainText('비율 미기록');
   expect(await qa.read()).toEqual(before);
