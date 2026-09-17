@@ -33,5 +33,7 @@ export function summarizeGrowthPatterns(sessions: GrowthSessionRow[], routineId:
       ? `${difference > 0 ? '주말' : '평일'}의 기록일 중 완료 비율이 더 높았어요. 가능한 시간과 함께 루틴 요일을 검토해 보세요. 요일 때문에 차이가 났다고 단정할 수는 없어요.`
       : '평일·주말의 기록일 중 완료 비율 차이가 크지 않아요. 현재 일정을 유지하며 기록을 더 모아도 좋아요.';
   }
-  return { start: new Date(start).toISOString().slice(0, 10), end: new Date(end - DAY).toISOString().slice(0, 10), recorded: days.size, unrecorded: 28 - days.size, weekdays, weekday, weekend, suggestion };
+  return { start: new Date(start).toISOString().slice(0, 10), end: new Date(end - DAY).toISOString().slice(0, 10), recorded: days.size, unrecorded: 28 - days.size, weekdays, weekday, weekend, suggestion,
+    days: [...days].sort(([a], [b]) => b.localeCompare(a)).map(([date, status]) => ({ date, status })),
+  };
 }

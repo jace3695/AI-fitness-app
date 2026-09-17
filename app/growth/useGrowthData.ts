@@ -127,11 +127,13 @@ export function useGrowthData(historyDays = 90) {
   const [sessions, setSessions] = useState<GrowthSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataReady, setDataReady] = useState(false);
+  const [workoutRecords, setWorkoutRecords] = useState<unknown>(undefined);
   const [notice, setNotice] = useState("");
   const [legacyBackupAvailable, setLegacyBackupAvailable] = useState(false);
 
   const load = useCallback(async () => {
     setDataReady(false);
+    setWorkoutRecords(undefined);
     if (!supabase) {
       setNotice("클라우드 연결 설정을 확인해 주세요.");
       setLoading(false);
@@ -300,6 +302,7 @@ export function useGrowthData(historyDays = 90) {
 
     setRoutines(cloudRoutines);
     setSessions(sessionRows);
+    setWorkoutRecords(resetState.data?.state?.['ai-fitness-workout-completed-days']);
     setDataReady(true);
     try {
       let shouldOfferLegacy = false;
@@ -460,5 +463,5 @@ export function useGrowthData(historyDays = 90) {
     return result;
   }, [user]);
 
-  return { user, routines, sessions, dataReady, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
+  return { user, routines, sessions, dataReady, workoutRecords, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
 }
