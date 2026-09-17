@@ -10,6 +10,7 @@ import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal,
 import DietPatterns from './DietPatterns';
 import DietWorkoutContext from './DietWorkoutContext';
 import WorkoutTimes from './WorkoutTimes';
+import WorkoutTimeHistory from './WorkoutTimeHistory';
 import DietFavorites from './DietFavorites';
 import { dietPatternToday } from '../data/dietPatterns';
 import {
@@ -1418,6 +1419,7 @@ export default function DietView() {
           <DietPatterns store={store} today={dietPatternToday(now)} />
           {hydrated && <DietWorkoutContext diet={store} workout={workoutContext} today={dietPatternToday(now)} />}
           {hydrated && <WorkoutTimes initialDate={dietPatternToday(now)} meals={store} />}
+          {hydrated && <WorkoutTimeHistory today={dietPatternToday(now)} meals={store} />}
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <h3 className="text-[15px] font-bold text-gray-900">단백질 합계</h3>
             <div className="mt-3 flex items-end justify-between gap-3">
