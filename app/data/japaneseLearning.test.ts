@@ -15,7 +15,7 @@ import { DEFAULT_CURRICULUM_PROGRESS } from "../../utils/curriculumProgress.ts";
 test("일본어 자료는 필수 필드와 고유 식별자를 유지한다", () => {
   assert.equal(WORDS.length, new Set(WORDS.map((item) => item.word)).size);
   assert.equal(SENTENCES.length, new Set(SENTENCES.map((item) => item.japanese)).size);
-  assert.equal(CURRICULUM.length, 60);
+  assert.equal(CURRICULUM.length, 62);
   assert.equal(GRAMMAR_LESSONS.length, 40);
   for (const word of WORDS) assert.ok(word.word && word.meaning && word.reading && word.exampleReading && word.exampleMeaning);
   for (const sentence of SENTENCES) assert.ok(sentence.japanese && sentence.meaning && sentence.reading);

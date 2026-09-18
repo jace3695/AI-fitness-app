@@ -1,6 +1,6 @@
 import {
   getWorkoutDayForDate,
-  isWorkoutPerformed,
+  getWorkoutRecord,
   type WorkoutCompletionStore,
 } from "./workoutCompletion.ts";
 import {
@@ -94,7 +94,9 @@ export function buildFitnessDailyStatus(
   const completedStore = parseStateObject(
     state["ai-fitness-workout-completed-days"],
   ) as WorkoutCompletionStore;
-  const completed = isWorkoutPerformed(completedStore[todayKey]);
+  const record = getWorkoutRecord(completedStore[todayKey]);
+  const status = record.workoutStatus;
+  const completed = status ? status === 'completed' : Boolean(record.workoutDone);
   const isRest = group.id === "rest";
 
   return {
@@ -102,6 +104,8 @@ export function buildFitnessDailyStatus(
     title: isRest ? "오늘은 회복일" : group.name,
     detail: completed
       ? "오늘 운동을 완료했습니다."
+      : status === 'partial' ? "오늘 운동을 일부 완료했습니다."
+      : status === 'stopped' ? "오늘 운동 중단 기록이 있습니다."
       : isRest
         ? "가볍게 쉬며 몸 상태를 확인하세요."
         : `${dayIdToKoreanLabel[dayId]} 계획 · ${plan.weekLabel}`,

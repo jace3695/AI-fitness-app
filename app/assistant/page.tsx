@@ -2,6 +2,7 @@
 
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import AppCompanion from "@/components/AppCompanion";
+import DailyBriefing from "@/components/DailyBriefing";
 import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { AssistantCommandReview } from '@/components/AssistantCommandReview';
@@ -321,7 +322,7 @@ export default function AssistantPage() {
   };
 
   const remove = async (table: "assistant_items" | "assistant_projects" | "assistant_memories", id: string) => {
-    if (!supabase) return;
+    if (!supabase || !window.confirm("이 항목을 삭제할까요? 삭제한 항목은 복구되지 않습니다.")) return;
     const { error } = await supabase.from(table).delete().eq("id", id);
     if (error) { setMessage("삭제하지 못했어요. 기록을 유지합니다."); return; }
     await load();
@@ -352,12 +353,12 @@ export default function AssistantPage() {
     return [...itemRows, ...projectRows, ...memoryRows].sort((a, b) => b.created.localeCompare(a.created));
   }, [filter, items, memories, projects]);
 
-  const openTasks = items.filter((item) => item.kind !== "waiting" && item.status !== "completed").length;
+  const openTasks = items.filter((item) => item.kind !== "waiting" && !["completed", "cancelled"].includes(item.status)).length;
   const openProjects = projects.filter((project) => project.status !== "completed" && project.status !== "archived").length;
-  const waiting = items.filter((item) => item.kind === "waiting" && item.status !== "completed").length;
+  const waiting = items.filter((item) => item.kind === "waiting" && !["completed", "cancelled"].includes(item.status)).length;
   const todayKey = getLocalDateKey();
   const unavailableAll = loadFailures.includes('연결 확인') || loadFailures.includes('로그인 확인');
-  const nextAction = loading || unavailableAll ? null : buildAssistantNextAction({
+  const nextActionInput = {
     items,
     budget: briefing.budget,
     fitness: briefing.fitness,
@@ -374,8 +375,9 @@ export default function AssistantPage() {
       language: !unavailableAll && !loadFailures.includes('언어학습'),
       growth: !unavailableAll && !loadFailures.includes('성장 기록'),
     },
-  });
-  const todayItems = items.filter((item) => item.status !== "completed" && item.due_at && getLocalDateKey(new Date(item.due_at)) === todayKey).length;
+  };
+  const nextAction = loading || unavailableAll ? null : buildAssistantNextAction(nextActionInput);
+  const todayItems = items.filter((item) => !["completed", "cancelled"].includes(item.status) && item.due_at && getLocalDateKey(new Date(item.due_at)) === todayKey).length;
   const today = new Intl.DateTimeFormat("ko-KR", { dateStyle: "full" }).format(new Date());
   const projectNames = useMemo(() => new Map(projects.map((project) => [project.id, project.name])), [projects]);
   const priorityLabel = (priority: number) => priority >= 5 ? "긴급" : priority === 4 ? "중요" : priority <= 2 ? "낮음" : "보통";
@@ -454,6 +456,7 @@ export default function AssistantPage() {
           </>
         ) : null}
       </section>
+      <DailyBriefing input={nextActionInput} loading={loading} />
       <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
@@ -469,6 +472,7 @@ export default function AssistantPage() {
           <Link href="/diet" className="rounded-2xl bg-emerald-50 px-3 py-3 text-center text-xs font-bold text-emerald-700">식단</Link>
           <Link href="/calendar" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-700">통합 달력</Link>
           <Link href="/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">통합 설정</Link>
+          <Link href="/assistant/memories" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-800">기억 확인·수정</Link>
           <Link href="/assistant/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">연이 설정 · 기록 관리</Link>
         </nav>
       </section>

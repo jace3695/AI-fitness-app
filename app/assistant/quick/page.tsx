@@ -11,7 +11,7 @@ import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
 
 type ShortcutResponse = { reply?: string; error?: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 
-const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "오늘 운동 완료했어", "오늘 유산소 실내 걷기 총 20분 기록해줘", "오늘 타자 연습 완료했어", "오늘 손글씨 15분 완료했어", "오늘 점심 단백질 30g 기록해줘", "오늘 저녁 밥 80g 기록해줘", "오늘 마지막 식사 18:30 기록해줘", "오늘 물 총 500ml 기록해줘", "오늘 식단 메모 추가: 점심 닭가슴살", "일본어 복습 시작해줘", "오늘 단어 학습 완료했어", "오늘 할 일에 우유 사기 추가해줘", "우유 사기 할 일 완료해줘", "가계부 오늘 편의점 지출 금액을 5,000원으로 수정해줘"];
+const samples = ["오늘 브리핑 보여줘", "오늘 운동 계획 보여줘", "오늘 운동 완료했어", "오늘 운동 피로도 4 기록해줘", "오늘 운동 마지막 세트 RPE 7 기록해줘", "오늘 유산소 실내 걷기 총 20분 기록해줘", "오늘 타자 연습 완료했어", "오늘 손글씨 15분 완료했어", "오늘 점심 단백질 30g 기록해줘", "오늘 저녁 밥 80g 기록해줘", "오늘 마지막 식사 18:30 기록해줘", "오늘 물 총 500ml 기록해줘", "오늘 식단 메모 추가: 점심 닭가슴살", "일본어 복습 시작해줘", "오늘 단어 학습 완료했어", "오늘 할 일에 우유 사기 추가해줘", "우유 사기 할 일 완료해줘", "가계부 오늘 편의점 지출 금액을 5,000원으로 수정해줘"];
 
 function isIncompleteVoiceCommand(value: string) {
   const compact = value.replace(/\s/g, "");

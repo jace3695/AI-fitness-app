@@ -1,10 +1,11 @@
+import {isWorkoutFeedbackIntent,parseWorkoutFeedbackCommand} from '@/lib/assistant-workout-feedback-command';
 import { isGrowthCompletionIntent, parseGrowthCompletion, type GrowthCommandProposal } from '@/lib/assistant-growth-command';
 import { proposeGrowthCompletion } from '@/lib/assistant-growth-server';
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
-import { getWorkoutDayForDate, isWorkoutPerformed, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
+import { getWorkoutDayForDate, getWorkoutRecord, type WorkoutCompletionStore } from "@/app/data/workoutCompletion";
 import { dayIdToKoreanLabel, getDayWorkoutForPlan, getWeeklyWorkoutPlanById, getWorkoutGroupForPlanDay } from "@/app/data/workoutPlans";
 import { parseRecurrence } from "@/app/lib/assistantRecurrence";
 import { buildPersonalMemoryContext, selectConversationHistory, type AssistantConversationMessage } from "@/app/lib/assistantConversation";
@@ -115,7 +116,7 @@ function getTodayWorkout(state: Record<string, unknown>, today: string) {
   const exerciseNames = workout.phases.flatMap((phase) => phase.exercises.map((exercise) => exercise.name));
   const cardioOptions = workout.optionalCardio?.options.map((option) => `${option.name} ${option.duration}`) ?? [];
   const completedStore = parseState(state["ai-fitness-workout-completed-days"]) as WorkoutCompletionStore;
-  return { plan, dayId, group, workout, exerciseNames, cardioOptions, completedStore, completed: isWorkoutPerformed(completedStore[today]) };
+  return { plan, dayId, group, workout, exerciseNames, cardioOptions, completedStore, completed: getWorkoutRecord(completedStore[today]).workoutStatus ? getWorkoutRecord(completedStore[today]).workoutStatus === 'completed' : Boolean(getWorkoutRecord(completedStore[today]).workoutDone) };
 }
 
 const ASSISTANT_CAPABILITY_GUIDE = "아직 이 요청을 앱에서 직접 실행할 수는 없어요. 대신 ‘오늘 브리핑 보여줘’, ‘이번 달 지출 알려줘’, ‘오늘 할 일에 우유 사기 추가해줘’, ‘오늘 운동 계획 보여줘’, ‘오늘 물 총 500ml 기록해줘’, ‘오늘 식단 메모 추가: 점심 닭가슴살’, ‘자기계발 현황 알려줘’처럼 말씀해 주세요.";
@@ -131,7 +132,7 @@ function normalizeGenerativeReply(value: unknown) {
 }
 
 function resolveContextualMessage(message: string, history: ChatHistoryItem[]) {
-  if (isDietRecordIntent(message) || isGrowthCompletionIntent(message) || isWorkoutCardioIntent(message)) return message;
+  if (isDietRecordIntent(message) || isGrowthCompletionIntent(message) || isWorkoutCardioIntent(message) || isWorkoutFeedbackIntent(message)) return message;
   if (!/(그거|그것|그\s*일|방금\s*말한)/.test(message)) return message;
   const previous = [...history].reverse().find((item) => item.role === "user" && /(할\s*일|일정)/.test(item.text));
   if (!previous) return message;
@@ -267,15 +268,14 @@ async function processSingleCommand(
     const start = `${today}T00:00:00+09:00`;
     const end = `${today}T23:59:59+09:00`;
     const [taskResult, budgetResult, fitnessResult, languageResult, growthRoutineResult, growthSessionResult] = await Promise.all([
-      supabase.from("assistant_items").select("title").eq("user_id", userId).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5),
+      supabase.from("assistant_items").select("title").eq("user_id", userId).not("status", "in", "(completed,cancelled)").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5),
       supabase.from("budget_transactions").select("amount").eq("user_id", userId).gte("date", monthStart).lte("date", today),
       supabase.from("user_app_state").select("state").eq("user_id", userId).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", userId).maybeSingle(),
       supabase.from("growth_routines").select("id,title").eq("user_id", userId).eq("enabled", true),
       supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", userId).eq("session_date", today),
     ]);
-    const error = taskResult.error || budgetResult.error || fitnessResult.error || languageResult.error || growthRoutineResult.error || growthSessionResult.error;
-    if (error) throw new Error("통합 브리핑 데이터를 불러오지 못했습니다.");
+    const failures = [taskResult.error&&'할 일',budgetResult.error&&'가계부',fitnessResult.error&&'운동·식단',languageResult.error&&'언어학습',(growthRoutineResult.error||growthSessionResult.error)&&'자기계발'].filter(Boolean);
     const spent = (budgetResult.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const workoutInfo = getTodayWorkout(parseState(fitnessResult.data?.state), today);
     const workoutText = !workoutInfo ? "운동 계획 확인 필요" : workoutInfo.group.category === "rest" ? "오늘은 회복일" : workoutInfo.completed ? `${workoutInfo.group.name} 완료` : `${workoutInfo.group.name} 예정`;
@@ -286,7 +286,14 @@ async function processSingleCommand(
     const growthCompleted = new Set(visibleGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id)).size;
     const growthMinutes = visibleGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0);
     const taskText = taskResult.data?.length ? taskResult.data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ") : "오늘 마감 할 일 없음";
-    result = { reply: `오늘 브리핑입니다. 할 일: ${taskText}. 이번 달 지출은 ${won(spent)}입니다. 운동: ${workoutText}. 언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다. 자기계발은 ${growthCompleted}/${visibleGrowthRoutines.length}개 완료, ${growthMinutes}분 기록했습니다.`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
+    const sections = [
+      !taskResult.error && `할 일: ${taskText}.`,
+      !budgetResult.error && `이번 달 지출은 ${won(spent)}입니다.`,
+      !fitnessResult.error && `운동: ${workoutText}.`,
+      !languageResult.error && `언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다.`,
+      !growthRoutineResult.error && !growthSessionResult.error && `자기계발은 활성 루틴 중 ${growthCompleted}개 완료, ${growthMinutes}분 기록했습니다.`,
+    ].filter(Boolean);
+    result = { reply: `${/저녁/.test(message)?'저녁':/아침/.test(message)?'아침':'오늘'} 브리핑입니다. ${sections.join(' ')}${failures.length?` 조회 실패: ${failures.join(' · ')}. 해당 영역은 미기록으로 판단하지 않았습니다.`:''}`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
   } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
     const { data, error } = await supabase.from("budget_transactions").select("amount,type,category").eq("user_id", userId).gte("date", monthStart).lte("date", today);
     if (error) throw new Error("가계부 데이터를 불러오지 못했습니다.");
@@ -325,9 +332,13 @@ async function processSingleCommand(
   } else if (/(오늘).*(할\s*일|일정)|(할\s*일|일정).*(오늘)/.test(message)) {
     const start = `${today}T00:00:00+09:00`;
     const end = `${today}T23:59:59+09:00`;
-    const { data, error } = await supabase.from("assistant_items").select("title").eq("user_id", userId).neq("status", "completed").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5);
+    const { data, error } = await supabase.from("assistant_items").select("title").eq("user_id", userId).not("status", "in", "(completed,cancelled)").gte("due_at", start).lte("due_at", end).order("priority", { ascending: false }).limit(5);
     if (error) throw new Error("할 일을 불러오지 못했습니다.");
     result = { reply: data?.length ? `오늘 할 일은 ${data.length}건입니다. ${data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ")}` : "오늘 마감인 미완료 할 일이 없습니다.", action: { label: "할 일 목록 보기", href: "#assistant-list" } };
+  } else if (isWorkoutFeedbackIntent(message)) {
+    const change = parseWorkoutFeedbackCommand(message);
+    const proposal = await proposeWorkoutCommand(supabase, userId, today, change);
+    result = proposal ? {reply:'입력한 운동 상세 값을 확인한 뒤 저장해 주세요. 완료·세트·통증이 없는 상태를 추정하지 않습니다.',proposal} : {reply:'이미 같은 값으로 기록되어 있습니다.'};
   } else if (isWorkoutCardioIntent(message)) {
     const change = parseWorkoutCardioCommand(message);
     const proposal = await proposeWorkoutCommand(supabase, userId, today, change);

@@ -617,6 +617,7 @@ export default function RecordCalendarView() {
                 <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">{selectedWorkoutRecord.workoutFatigue === undefined ? "피로도 미응답" : `피로도 ${selectedWorkoutRecord.workoutFatigue}/5`}</span>
               </div>
             )}
+            {(selectedWorkoutRecord?.workoutLastSetRpe !== undefined || selectedWorkoutRecord?.workoutPainArea) && <p className="mt-2 text-xs">마지막 세트 RPE {selectedWorkoutRecord.workoutLastSetRpe ?? '미기록'} · 통증 부위 {selectedWorkoutRecord.workoutPainArea ?? '미기록'}</p>}
             {partialCompletionPoint ? <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">일부 완료 지점: {partialCompletionPoint}까지 기록</p> : null}
             {selectedWorkoutRecord?.workoutStatus ? <div className="mt-4 space-y-2">
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">

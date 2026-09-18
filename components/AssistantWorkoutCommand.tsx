@@ -1,4 +1,5 @@
 'use client';
+import {describeWorkoutFeedback,nextWorkoutFeedbackSnapshot} from '@/lib/assistant-workout-feedback-command';
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,7 +31,8 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
   const [error, setError] = useState('');
   const lock = useRef(false);
   const cardio = saved.command_kind === 'cardio';
-  const describeRecord = cardio ? describeWorkoutCardio : describe;
+  const feedback = saved.command_kind === 'feedback';
+  const describeRecord = feedback ? describeWorkoutFeedback : cardio ? describeWorkoutCardio : describe;
   const undo = async () => {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError('');
@@ -41,11 +43,11 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
     finally { lock.current = false; setBusy(false); }
   };
   return <article aria-label="운동 실행 이력" className="rounded-2xl border border-violet-100 bg-white p-4 text-sm text-gray-800">
-    <p className="font-bold">{saved.record_date} · {cardio ? '유산소' : '운동'}</p>
-    <p role="status" className="mt-1 text-xs text-violet-700">{saved.undone_at ? '되돌리기 완료' : cardio ? '유산소 기록 저장' : '운동 완료 저장'} · {taskCommandDateLabel(saved.created_at)}</p>
+    <p className="font-bold">{saved.record_date} · {feedback ? '운동 상세' : cardio ? '유산소' : '운동'}</p>
+    <p role="status" className="mt-1 text-xs text-violet-700">{saved.undone_at ? '되돌리기 완료' : feedback ? '운동 상세 저장' : cardio ? '유산소 기록 저장' : '운동 완료 저장'} · {taskCommandDateLabel(saved.created_at)}</p>
     <dl className="mt-3 space-y-1 break-words"><div><dt className="inline font-bold">변경 전: </dt><dd className="inline">{describeRecord(saved.before_values)}</dd></div><div><dt className="inline font-bold">변경 후: </dt><dd className="inline">{describeRecord(saved.after_values)}</dd></div></dl>
     {!saved.undone_at && (confirm ? <div className="mt-3 rounded-xl bg-amber-50 p-3">
-      <p>이 명령으로 저장한 {cardio ? '유산소 기록을' : '운동 완료를'} 되돌릴까요?</p><p className="mt-1 text-xs">이후에 같은 날짜의 운동 기록이 변경되었으면 되돌리지 않습니다.</p>
+      <p>이 명령으로 저장한 {feedback ? '운동 상세 기록을' : cardio ? '유산소 기록을' : '운동 완료를'} 되돌릴까요?</p><p className="mt-1 text-xs">이후에 같은 날짜의 운동 기록이 변경되었으면 되돌리지 않습니다.</p>
       <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void undo()} className="rounded-xl bg-violet-700 px-3 py-2 font-bold text-white disabled:opacity-50">{busy ? '처리 중…' : '확인하고 되돌리기'}</button><button type="button" disabled={busy} onClick={() => setConfirm(false)} className="rounded-xl bg-white px-3 py-2">유지하기</button></div>
     </div> : <button type="button" onClick={() => setConfirm(true)} className="mt-3 rounded-xl bg-violet-50 px-3 py-2 font-bold text-violet-800">이 변경 되돌리기</button>)}
     {error && <p role="alert" className="mt-3 text-red-700">{error}</p>}
@@ -63,7 +65,7 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
   const [expired, setExpired] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const title = proposal.change ? '유산소 기록 확인' : '운동 완료 확인';
+  const title = proposal.change ? proposal.change.kind==='feedback'?'운동 상세 확인':'유산소 기록 확인' : '운동 완료 확인';
   useEffect(() => {
     if (receipt || cancelled) return;
     const check = () => setExpired(Date.now() >= Date.parse(proposal.expiresAt));
@@ -91,7 +93,7 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
   if (receipt) return <div className="mt-3">{error && <p role="alert" className="text-red-700">{error}</p>}<AssistantWorkoutReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history?area=workout" className="mt-2 inline-block font-bold text-violet-700">운동 실행 이력 보기 →</Link><Link href="/fitness" className="ml-4 inline-block font-bold text-violet-700">운동 기록 보기 →</Link></div>;
   return <section aria-label={title} className="mt-3 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-gray-800">
     <h3 className="font-bold">{title}</h3><p className="mt-1">{proposal.date} (한국 시간)</p>
-    {proposal.change ? <>
+    {proposal.change?.kind==='feedback' ? <><p className="mt-2 text-sm">변경 전: {describeWorkoutFeedback(proposal.expected)}</p><p className="mt-2 text-sm">변경 후: {describeWorkoutFeedback(nextWorkoutFeedbackSnapshot(proposal.expected,proposal.change))}</p><p className="mt-2 text-xs">직접 말한 항목만 저장합니다. 일부 완료·중단은 완료 표시를 해제하고, 통증 부위 입력은 통증 있음으로 기록합니다. 실제 세트와 다른 날짜는 보존합니다.</p></> : proposal.change ? <>
       <p className="mt-2 break-words text-sm">변경 전: {describeWorkoutCardio(proposal.expected)}</p><p className="mt-1 text-sm">변경 후: {describeWorkoutCardio(nextWorkoutCardioSnapshot(proposal.expected, proposal.change))}</p>
       <p className="mt-2 text-xs text-gray-600">입력한 종류와 오늘 총시간으로 저장합니다. 기존 유산소 기록이 있으면 이 값으로 수정합니다. 메모와 다른 운동 기록은 유지됩니다.</p>
     </> : <>

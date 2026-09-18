@@ -184,7 +184,24 @@ export const test = base.extend<{ qa: Qa }>({
       // Stop browser writers before removing the synthetic Auth users. Cascade
       // then removes their rows; verify cleanup even when an assertion fails.
       await context.close();
+      let storageFilesRemoved = 0;
       for (const account of accounts) {
+        const ownedFiles = async (prefix: string): Promise<string[]> => {
+          const result = await admin.storage.from('growth-resources').list(prefix, { limit: 1000 });
+          expect(result.error, 'Synthetic storage listing').toBeNull();
+          const paths: string[] = [];
+          for (const object of result.data ?? []) {
+            if (object.id) paths.push(`${prefix}/${object.name}`);
+            else paths.push(...await ownedFiles(`${prefix}/${object.name}`));
+          }
+          return paths;
+        };
+        const files = await ownedFiles(account.id);
+        if (files.length) {
+          expect((await admin.storage.from('growth-resources').remove(files)).error).toBeNull();
+          storageFilesRemoved += files.length;
+        }
+        expect(await ownedFiles(account.id), 'Synthetic storage cleanup').toEqual([]);
         const removed = await admin.auth.admin.deleteUser(account.id);
         expect(removed.error, 'Synthetic Auth user cleanup').toBeNull();
         const remaining = await admin.from('user_app_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
@@ -203,6 +220,7 @@ export const test = base.extend<{ qa: Qa }>({
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
       }, null, 2));
       console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
+        storageFilesRemoved,
         requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic).length,
         injectedErrors: traffic.entries.filter(e => e.synthetic).length,
         conditionalMisses: traffic.entries.filter(e => e.method === 'PATCH' && e.matched === false).length,

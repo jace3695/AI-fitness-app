@@ -40,7 +40,7 @@ export default function WorkoutTimeHistory({today,meals}:{today:string;meals:Rec
         <p>운동 시각 기록 중 마지막 식사 시각 미기록 {summary.missingMeal}일</p>
         {!summary.days.length?<p className="mt-2">이 기간에 저장된 운동 시각이 없습니다.</p>:<ul className="mt-3 space-y-3">{summary.days.map(day=><li key={day.date} className="rounded-xl bg-gray-50 p-3">
           <p className="font-bold">{day.date}</p><p>운동 {day.start} ~ {day.end} · {day.minutes}분 (휴식 포함 경과 시간)</p>
-          <p>마지막 식사 {day.meal??'시각 미기록'}</p><p>{day.gap??'식사 시각이 없어 간격을 계산하지 않습니다.'}</p>
+          <p>당일 단백질 {day.protein===null?'미기록':`${day.protein}g`} · 운동 후 식사 응답: {day.afterMeal}</p><p>마지막 식사 {day.meal??'시각 미기록'}</p><p>{day.gap??'식사 시각이 없어 간격을 계산하지 않습니다.'}</p>
         </li>)}</ul>}
         <p className="mt-3 text-gray-500">저장된 같은 날짜의 시각만 비교합니다. 다른 식사나 단백질 섭취 시각으로 간주하지 않으며, 식사 적절성·운동 효과를 판정하지 않습니다. 위 입력칸의 미저장 내용은 포함하지 않습니다.</p>
       </>}

@@ -33,13 +33,13 @@ export async function POST(request: NextRequest) {
   const p = body.proposal;
   const { data, error } = body.decision === 'undo'
     ? await db.rpc('undo_assistant_workout_command', { p_request_id: body.requestId })
-    : await db.rpc(p.change ? 'apply_assistant_workout_cardio_command' : 'apply_assistant_workout_command', {
+    : await db.rpc(p.change ? p.change.kind==='feedback'?'apply_assistant_workout_feedback_command':'apply_assistant_workout_cardio_command' : 'apply_assistant_workout_command', {
       p_request_id: p.requestId, p_day: p.date, p_expected: p.expected,
       p_reset_markers: p.resetMarkers, p_expires_at: p.expiresAt,
       ...(p.change ? { p_change: p.change } : {}),
     });
   if (error) return reply({ error: error.code === 'P0001' ? error.message : error.code === 'PGRST202' && p?.change
-    ? '유산소 명령 저장은 아직 준비 중입니다. 운동 화면에서 기록해 주세요.'
+    ? '운동 상세 명령 저장은 아직 준비 중입니다. 운동 화면에서 기록해 주세요.'
     : '운동 저장 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인하거나 실행 이력을 확인해 주세요.' }, error.code === 'PGRST202' ? 503 : 409);
   return reply({ receipt: data });
 }

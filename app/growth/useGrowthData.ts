@@ -437,7 +437,7 @@ export function useGrowthData(historyDays = 90) {
 
   const saveSession = useCallback(async (input: NewSession) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
-    const result = await supabase.from("growth_sessions").insert({
+    const payload = {
       ...(input.id ? { id: input.id } : {}),
       user_id: user.id,
       routine_id: input.routineId,
@@ -451,8 +451,17 @@ export function useGrowthData(historyDays = 90) {
       started_at: input.startedAt ?? null,
       ended_at: input.endedAt ?? null,
       updated_at: new Date().toISOString(),
-    }).select("*").single();
-    if (!result.error) setSessions((current) => [result.data as GrowthSessionRow, ...current]);
+    };
+    let result = await supabase.from("growth_sessions").insert(payload).select("*").abortSignal(AbortSignal.timeout(15000)).single();
+    // A caller retaining a session ID can recover a committed write after a
+    // lost response. Never upsert: later changes must remain untouched.
+    if (result.error && input.id) {
+      const recovered = await supabase.from("growth_sessions").select("*").eq("id", input.id).eq("user_id", user.id).abortSignal(AbortSignal.timeout(15000)).maybeSingle();
+      const row = recovered.data as GrowthSessionRow | null;
+      const canonical = (value: unknown): string => JSON.stringify(value, (_key, nested) => nested && typeof nested === 'object' && !Array.isArray(nested) ? Object.fromEntries(Object.entries(nested).sort(([a], [b]) => a.localeCompare(b))) : nested);
+      if (!recovered.error && row && row.routine_id === payload.routine_id && row.session_date === payload.session_date && row.status === payload.status && row.actual_minutes === payload.actual_minutes && row.planned_minutes === payload.planned_minutes && row.source === payload.source && row.memo === payload.memo && canonical(row.metrics) === canonical(payload.metrics)) result = { ...result, data: row, error: null, success: true };
+    }
+    if (!result.error) setSessions((current) => [result.data as GrowthSessionRow, ...current.filter(row => row.id !== result.data.id)]);
     return result;
   }, [user]);
 

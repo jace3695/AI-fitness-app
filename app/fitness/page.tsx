@@ -59,6 +59,7 @@ import AppIdentity from "../components/AppIdentity";
 import AppModuleNav from "../components/AppModuleNav";
 import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
 import FreeAdvicePanel from "@/components/FreeAdvicePanel";
+import WorkoutEvidence from "../components/WorkoutEvidence";
 import AdaptiveWorkoutReviewCard from "../components/AdaptiveWorkoutReviewCard";
 import DailyWorkoutEditor from "../components/DailyWorkoutEditor";
 import {
@@ -338,6 +339,8 @@ function FitnessApp() {
           workoutStatus: recordedWorkoutStatus,
           workoutDifficulty: feedback ? feedback.difficulty : current.workoutDifficulty,
           workoutFatigue: feedback ? feedback.fatigue : current.workoutFatigue,
+          workoutLastSetRpe: feedback ? feedback.lastSetRpe : current.workoutLastSetRpe,
+          workoutPainArea: feedback ? feedback.painArea : current.workoutPainArea,
           workoutExerciseRecords: exerciseRecords || current.workoutExerciseRecords,
           workoutMethod: dayWorkout?.optionalCardio ? undefined : { ...activeWorkoutMethod },
           workoutRecordedAt: new Date().toISOString(),
@@ -390,6 +393,8 @@ function FitnessApp() {
           workoutStatus: undefined,
           workoutDifficulty: undefined,
           workoutFatigue: undefined,
+          workoutLastSetRpe: undefined,
+          workoutPainArea: undefined,
           workoutExerciseRecords: undefined,
           rosaryCardioDone: undefined,
           rosaryCardioMinutes: undefined,
@@ -815,6 +820,7 @@ function FitnessApp() {
               onApply={handleUserWorkoutSettingsChange}
               onRefresh={refreshWorkoutReview}
             />
+            <WorkoutEvidence workouts={completedStore} conditions={conditionRecords} today={todayKey} onRecords={()=>handleTabChange("record")} />
 
             <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
               <div className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">

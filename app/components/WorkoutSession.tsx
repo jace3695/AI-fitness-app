@@ -36,6 +36,8 @@ interface WorkoutSessionDraft {
   overallStatus: WorkoutOverallStatus;
   difficulty?: WorkoutDifficulty;
   fatigue?: number;
+  lastSetRpe?: number;
+  painArea?: string;
   exerciseRecords: ExerciseRecord[];
 }
 
@@ -46,6 +48,8 @@ export interface WorkoutSessionResult {
   status: WorkoutOverallStatus;
   difficulty?: WorkoutDifficulty;
   fatigue?: number;
+  lastSetRpe?: number;
+  painArea?: string;
   backStatus?: WorkoutBackStatus;
   neurologicalSymptoms: WorkoutNeurologicalSymptom[];
   painExercise?: string;
@@ -377,6 +381,8 @@ export default function WorkoutSession({
   const [overallStatus, setOverallStatus] = useState<WorkoutOverallStatus>(initialDraft?.overallStatus ?? 'completed');
   const [difficulty, setDifficulty] = useState<WorkoutDifficulty | undefined>(initialDraft?.feedbackVersion === 1 ? initialDraft.difficulty : undefined);
   const [fatigue, setFatigue] = useState<number | undefined>(initialDraft?.feedbackVersion === 1 ? initialDraft.fatigue : undefined);
+  const [lastSetRpe,setLastSetRpe]=useState<number|undefined>(initialDraft?.lastSetRpe);
+  const [painArea,setPainArea]=useState(initialDraft?.painArea??'');
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => initialDraft?.exerciseRecords ?? exercises.map((item) => buildExerciseRecord(item, intensity)));
   const [restoredDraftVisible, setRestoredDraftVisible] = useState(Boolean(initialDraft));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
@@ -401,7 +407,7 @@ export default function WorkoutSession({
   const initialTimerSeconds = useMemo(() => getRecommendedExerciseSeconds(exercise, intensity), [exercise, intensity]);
   const isLastExercise = currentIndex === exercises.length - 1;
   const progress = exercises.length ? ((completed.size + skipped.size) / exercises.length) * 100 : 0;
-  const hasSafetyConcern = painScore > 0 || painSymptoms.length > 0 || backStatus === 'pain' || backStatus === 'worse' || neurologicalSymptoms.length > 0;
+  const hasSafetyConcern = Boolean(painArea) || painScore > 0 || painSymptoms.length > 0 || backStatus === 'pain' || backStatus === 'worse' || neurologicalSymptoms.length > 0;
 
   const speak = useCallback((message: string) => {
     if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -518,6 +524,8 @@ export default function WorkoutSession({
       overallStatus,
       difficulty,
       fatigue,
+      lastSetRpe,
+      painArea:painArea||undefined,
       exerciseRecords,
     };
     try {
@@ -525,7 +533,7 @@ export default function WorkoutSession({
     } catch {
       // 사생활 보호 모드나 저장공간 제한에서는 세션을 중단하지 않고 자동저장만 생략합니다.
     }
-  }, [backStatus, completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, neurologicalSymptoms, overallStatus, painExercise, painMemo, painScore, painSet, painSymptoms, skipped]);
+  }, [lastSetRpe, painArea, backStatus, completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, neurologicalSymptoms, overallStatus, painExercise, painMemo, painScore, painSet, painSymptoms, skipped]);
 
   useEffect(() => {
     persistDraft();
@@ -568,7 +576,7 @@ export default function WorkoutSession({
     window.localStorage.removeItem(draftKey);
     notifyRecordsChanged();
     onFinish?.({
-      pain: painScore > 0 || painSymptoms.length > 0,
+      pain: painScore > 0 || painSymptoms.length > 0 || Boolean(painArea),
       memo: buildSessionMemo({
         elapsedSeconds: elapsedSecondsRef.current,
         completedCount: completed.size,
@@ -585,6 +593,8 @@ export default function WorkoutSession({
       status: hasSafetyConcern ? 'stopped' : overallStatus,
       difficulty,
       fatigue,
+      lastSetRpe,
+      painArea:painArea||undefined,
       backStatus,
       neurologicalSymptoms,
       painExercise: painExercise || undefined,
@@ -761,6 +771,8 @@ export default function WorkoutSession({
                 <div><p className="text-[12px] font-bold text-gray-700">전체 완료 상태</p><div className="mt-2 grid grid-cols-3 gap-2">{([['completed', '완료'], ['partial', '일부 완료'], ['stopped', '중단']] as [WorkoutOverallStatus, string][]).map(([value, label]) => <button key={value} type="button" disabled={hasSafetyConcern} onClick={() => setOverallStatus(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${(hasSafetyConcern ? 'stopped' : overallStatus) === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-600'} disabled:opacity-70`}>{label}</button>)}</div></div>
                 <div><p className="text-[12px] font-bold text-gray-700">체감 난이도</p><div className="mt-2 grid grid-cols-3 gap-2">{([['easy', '쉬움'], ['moderate', '적당함'], ['hard', '힘듦']] as [WorkoutDifficulty, string][]).map(([value, label]) => <button key={value} type="button" aria-pressed={difficulty === value} onClick={() => setDifficulty(value)} className={`rounded-xl px-2 py-2 text-[12px] font-bold ${difficulty === value ? 'bg-emerald-600 text-white' : 'bg-gray-50 text-gray-600'}`}>{label}</button>)}</div></div>
                 <div><p className="text-[12px] font-bold text-gray-700">운동 후 피로도</p><div className="mt-2 grid grid-cols-5 gap-2">{[1, 2, 3, 4, 5].map(value => <button key={value} type="button" aria-pressed={fatigue === value} onClick={() => setFatigue(value)} className={`min-h-11 rounded-xl text-sm font-bold ${fatigue === value ? 'bg-[#534AB7] text-white' : 'bg-gray-50 text-gray-700'}`}>{value}</button>)}</div><p className="mt-1 text-[11px] text-gray-500">1 아주 가벼움 · 3 보통 · 5 매우 피곤함</p></div>
+                <label className="block text-xs font-bold">마지막 세트 체감 난이도 (RPE)<select aria-label="마지막 세트 RPE" value={lastSetRpe??''} onChange={e=>setLastSetRpe(e.target.value?Number(e.target.value):undefined)} className="mt-2 min-h-11 w-full rounded-xl border p-2"><option value="">미응답</option>{[1,2,3,4,5,6,7,8,9,10].map(value=><option key={value} value={value}>{value} / 10</option>)}</select><span className="mt-1 block font-normal text-gray-500">1 아주 가벼움 · 10 더 할 수 없을 만큼 힘듦. 마지막 세트에서 느낀 값만 선택하세요.</span></label>
+                <label className="block text-xs font-bold">통증 부위<select aria-label="운동 통증 부위" value={painArea} onChange={e=>setPainArea(e.target.value)} className="mt-2 min-h-11 w-full rounded-xl border p-2"><option value="">선택 안 함</option>{['허리','골반','무릎','발목','어깨','손목','기타'].map(value=><option key={value}>{value}</option>)}</select></label>
                 {(!backStatus || !difficulty || fatigue === undefined) && <p className="text-[12px] leading-5 text-amber-700">선택하지 않은 항목은 ‘미응답’으로 저장해요. 다음 운동 조정에 필요한 정보가 부족하면 현재 구성을 유지합니다.</p>}
               </div>
               <button type="button" onClick={completeSession} className="mt-5 w-full rounded-2xl bg-[#534AB7] px-4 py-3.5 text-[14px] font-bold text-white">

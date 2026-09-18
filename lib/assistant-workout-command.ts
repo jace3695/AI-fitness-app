@@ -1,3 +1,4 @@
+import {isWorkoutFeedbackChange,type WorkoutFeedbackChange} from './assistant-workout-feedback-command.ts';
 import { isWorkoutCardioChange, isWorkoutCardioSnapshot, type WorkoutCardioChange } from './assistant-workout-cardio-command.ts';
 
 export const WORKOUT_RECORD_KEY = 'ai-fitness-workout-completed-days';
@@ -5,12 +6,12 @@ export type WorkoutDaySnapshot = { record?: boolean | Record<string, unknown> };
 export type WorkoutCommandProposal = {
   domain: 'workout'; ownerId: string; requestId: string; date: string; expected: WorkoutDaySnapshot;
   resetMarkers: { fitness: string | null; assistant: string | null }; expiresAt: string;
-  change?: WorkoutCardioChange;
+  change?: WorkoutCardioChange | WorkoutFeedbackChange;
 };
 export type WorkoutCommandReceipt = {
   user_id: string; id: string; record_date: string; before_values: WorkoutDaySnapshot; after_values: WorkoutDaySnapshot;
   created_at: string; undone_at: string | null;
-  command_kind?: 'completion' | 'cardio';
+  command_kind?: 'completion' | 'cardio' | 'feedback';
 };
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === 'object' && !Array.isArray(value));
 export function workoutDaySnapshot(state: Record<string, unknown>, date: string): WorkoutDaySnapshot {
@@ -45,7 +46,7 @@ export function isWorkoutCommandProposal(value: unknown): value is WorkoutComman
     && typeof value.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.date) && Number.isFinite(Date.parse(value.date))
     && new Date(value.date).toISOString().slice(0, 10) === value.date
     && isWorkoutSnapshot(value.expected) && JSON.stringify(value.expected).length <= 200000
-    && (!Object.hasOwn(value, 'change') || isWorkoutCardioChange(value.change) && isWorkoutCardioSnapshot(value.expected))
+    && (!Object.hasOwn(value, 'change') || ((isWorkoutCardioChange(value.change) && isWorkoutCardioSnapshot(value.expected)) || isWorkoutFeedbackChange(value.change)))
     && object(value.resetMarkers) && Object.keys(value.resetMarkers).sort().join() === 'assistant,fitness'
     && Object.values(value.resetMarkers).every(marker => marker === null || (typeof marker === 'string' && marker.length <= 120))
     && typeof value.expiresAt === 'string' && Number.isFinite(Date.parse(value.expiresAt));

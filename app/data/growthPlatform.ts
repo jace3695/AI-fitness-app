@@ -223,7 +223,7 @@ export function buildLocalGrowthCoach(
     id: "local-consistency",
     routineId: leastUsed.routine.id,
     title: `${leastUsed.routine.title} 시작 문턱 낮추기`,
-    reason: leastUsed.count === 0 ? "이번 주 기록이 없어 5분만 시작하는 방식이 부담을 줄여줘요." : "가장 적게 실행한 루틴이라 짧게 이어가는 편이 좋아요.",
+    reason: leastUsed.count === 0 ? "이번 주 저장 기록이 없어요. 실제 미수행을 뜻하지는 않습니다. 짧게 시작할지 확인해 주세요." : "이번 주 기록 수가 가장 적은 루틴입니다. 목표 시간을 줄일지 직접 검토해 주세요.",
     recommendedMinutes: Math.max(5, Math.min(leastUsed.routine.target_minutes, 15)),
   }] : [];
   if (interrupted) {

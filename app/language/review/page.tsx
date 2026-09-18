@@ -8,6 +8,7 @@ import type { RubySegment as SentenceRubySegment } from "@/data/sentences";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 import { CURRICULUM_REVIEW_KEY, type CurriculumReviewItem } from "@/utils/curriculumProgress";
 import { reviewInterval, reviewObservationFields, summarizeReviewMastery, type ReviewObservation } from "@/utils/learningReview";
+import { reviewFocus, type ReviewTrack } from "@/utils/reviewFocus";
 import CourseReviewQuestion from "@/components/language/CourseReviewQuestion";
 
 type Word = {
@@ -393,6 +394,9 @@ export default function ReviewPage() {
     boxShadow: done ? "0 6px 14px rgba(34, 197, 94, 0.24)" : "0 8px 18px rgba(37, 99, 235, 0.22)",
   });
 
+  const [focusTrack, setFocusTrack] = useState<ReviewTrack>("all");
+  const [focusedId, setFocusedId] = useState("");
+  const focusItems = reviewFocus(curriculumReviewItems, reviewOpenedAt, focusTrack);
   const showWords = activeReviewTab === "all" || activeReviewTab === "words";
   const showCourse = activeReviewTab === "all" || activeReviewTab === "course";
   const showSentences = activeReviewTab === "all" || activeReviewTab === "sentences";
@@ -426,6 +430,13 @@ export default function ReviewPage() {
           ))}
         </div>
       </div>
+
+      <section className="card" aria-label="집중 복습 추천" style={{ marginBottom:14 }}>
+        <h2>먼저 확인할 문제</h2><p className="muted">복습일이 된 문제 중 최근 힌트를 사용한 문제, 누적 오답이 많은 문제 순서입니다. 기록만으로 전체 일본어 실력을 평가하지 않습니다.</p>
+        <label>관심 복습 분야<select aria-label="관심 복습 분야" value={focusTrack} onChange={event=>{setFocusTrack(event.target.value as ReviewTrack);setFocusedId('');}} style={{minHeight:44,marginLeft:8}}><option value="all">전체</option><option value="foundation">기초</option><option value="work">업무</option><option value="travel">여행</option></select></label>
+        {focusItems.length?<ul>{focusItems.map(item=><li key={item.id} style={{marginTop:12}}><strong>{item.lessonTitle}</strong><p>{item.prompt}</p><p className="muted">누적 오답 {item.wrongCount??0}회{item.lastNeededHelp?' · 최근 힌트 사용':''}{item.lastModality?` · ${item.lastModality==='listening'?'듣기':item.lastModality==='typing'?'입력':'뜻 확인'}`:''}</p><button className="btn" onClick={()=>{setFocusedId(item.id);setActiveReviewTab('course');}}>이 문제 먼저 복습</button></li>)}</ul>:<p className="muted">선택한 분야에서 복습일이 된 문제는 없습니다.</p>}
+        <div style={{display:'flex',flexWrap:'wrap',gap:12,marginTop:16}}><Link className="btn" href="/language/learn?lesson=w21">도면·공차 수업</Link><Link className="btn" href="/language/learn?lesson=w22">측정·품질 수업</Link></div>
+      </section>
 
       <section className="card" aria-label="복습 숙련도" style={{ marginBottom: 14 }}>
         <h2>연습한 문제의 숙련도</h2>
@@ -469,7 +480,7 @@ export default function ReviewPage() {
           {courseSaveError && <p role="alert">{courseSaveError}</p>}
           {dueCurriculumReviewItems.length === 0 ? <div className="empty-state">오늘 예정된 과정 복습을 모두 마쳤어요. 전체 보관 항목은 {curriculumReviewItems.length}개예요. <Link href="/language/learn">[배우기]</Link>에서 다음 수업을 시작해 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px" }}>
-              {dueCurriculumReviewItems.slice(0, 1).map((item) => <CourseReviewQuestion key={item.id} item={item} onSchedule={scheduleCurriculumReview} onDelete={handleDeleteCurriculumReview} />)}
+              {(dueCurriculumReviewItems.find(item => item.id === focusedId) ? dueCurriculumReviewItems.filter(item => item.id === focusedId) : focusItems.length ? focusItems.slice(0, 1) : dueCurriculumReviewItems.slice(0, 1)).map((item) => <CourseReviewQuestion key={item.id} item={item} onSchedule={scheduleCurriculumReview} onDelete={handleDeleteCurriculumReview} />)}
             </ul>
           )}
         </>

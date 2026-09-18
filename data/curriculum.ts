@@ -24,6 +24,7 @@ export type CurriculumLesson = {
 };
 
 import { EXPANDED_CURRICULUM } from "./curriculumExpansion.ts";
+import { MANUFACTURING_CURRICULUM } from "./curriculumManufacturing.ts";
 import { ADVANCED_CURRICULUM } from "./curriculumAdvanced.ts";
 
 export const TRACKS: Record<CourseTrack, { title: string; description: string; accent: string }> = {
@@ -497,7 +498,7 @@ const expandLessonQuiz = (item: CurriculumLesson): CurriculumLesson => {
   return { ...item, quiz: [...item.quiz, ...wordQuestions].slice(0, 8) };
 };
 
-export const CURRICULUM: CurriculumLesson[] = [...CORE_CURRICULUM, ...EXPANDED_CURRICULUM, ...ADVANCED_CURRICULUM].map(expandLessonQuiz);
+export const CURRICULUM: CurriculumLesson[] = [...CORE_CURRICULUM, ...EXPANDED_CURRICULUM, ...ADVANCED_CURRICULUM, ...MANUFACTURING_CURRICULUM].map(expandLessonQuiz);
 
 export const getTrackLessons = (track: CourseTrack) =>
   CURRICULUM.filter((item) => item.track === track).sort((a, b) => a.order - b.order);
