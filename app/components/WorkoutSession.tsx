@@ -613,8 +613,8 @@ export default function WorkoutSession({
   };
 
   return (
-    // The global bottom navigation uses z-index 90; the entire workout must cover it.
-    <div className="fixed inset-0 z-[100] bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
+    // Cover global navigation (90) and install/update notices (110) for the whole session.
+    <div className="fixed inset-0 z-[120] bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
       <audio ref={voice.audio} preload="none" aria-label="연이 운동 안내 음성" data-voice="ko-KR-Chirp3-HD-Zephyr" className="hidden" />
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-3xl">
         <header className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4 sm:px-6">

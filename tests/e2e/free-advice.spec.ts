@@ -1,4 +1,4 @@
-import { test, expect, login, original, originalLanguage, today } from './fixture';
+import { test, expect, login, original, originalLanguage, synced, today } from './fixture';
 import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 
 test('free advice previews real owner records across four areas without modifying records', async ({ page, qa }) => {
@@ -74,7 +74,9 @@ test('free advice previews real owner records across four areas without modifyin
 
 test('advice UI requires consent and handles success, quota and changed-record responses (synthetic provider)', async ({ page, qa }) => {
   expect((await qa.account.client.from('user_app_state').update({ state: { ...original, 'ai-fitness-water-intake': { [today()]: 300 } } }).eq('user_id', qa.account.id)).error).toBeNull();
-  await login(page, qa.account); await page.goto('/fitness');
+  await login(page, qa.account);
+  await page.goto('/fitness', { waitUntil: 'domcontentloaded' });
+  await synced(page);
   let mode: 'success' | 'quota' | 'changed' = 'success'; let analyzeCalls = 0;
   await page.route('**/api/ai/free-advice', async route => {
     const body = route.request().postDataJSON();
