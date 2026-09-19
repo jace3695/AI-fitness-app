@@ -66,6 +66,29 @@ test('first timer click, pause, resume and automatic transition reuse Zephyr aud
   expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(original['ai-fitness-workout-completed-days']);
 });
 
+test('rapid next-exercise then timer start respects the synthesis interval without delaying the timer', async ({ page, qa }) => {
+  const submissions: number[] = [];
+  await page.route('**/api/tts', async route => {
+    if (route.request().method() === 'GET') { await route.fulfill({ json: { ...policy, enabled: true, remainingCharacters: 100000 } }); return; }
+    submissions.push(Date.now());
+    const { requestId } = route.request().postDataJSON();
+    await route.fulfill({ json: { ...policy, requestId, audioContent: syntheticAudio, remainingCharacters: 99900 } });
+  });
+  await openWorkout(page, qa.account);
+  await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
+  await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
+  const timer = page.getByRole('region', { name: '동작 타이머', exact: true });
+  await timer.getByRole('button', { name: '시작', exact: true }).click();
+  await expect(timer.getByRole('button', { name: '일시정지', exact: true })).toBeVisible();
+  await expect.poll(() => submissions.length).toBe(2);
+  expect(submissions[1] - submissions[0]).toBeGreaterThanOrEqual(5000);
+  await expect(page.getByText('연이 음성 준비 중…', { exact: true })).toHaveCount(0);
+  await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('heading', { name: '기본 정리운동', exact: true })).toBeVisible();
+  await expect(page.locator('audio[aria-label="연이 운동 안내 음성"]')).toHaveAttribute('src', /^data:audio\/mpeg;base64,/);
+  expect(submissions).toHaveLength(2); await discard(page);
+});
+
 test('workout timer continues at limits and never regenerates a lost response', async ({ page, qa }) => {
   let limited = true; let posts = 0;
   await page.route('**/api/tts', async route => {

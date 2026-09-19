@@ -6,6 +6,20 @@ import { prepareZephyrSpeech, ZephyrAudioCache } from '@/lib/zephyr-playback';
 
 const cache = new ZephyrAudioCache();
 const playEvent = 'yeoni-zephyr-play';
+let synthesisQueue: Promise<unknown> = Promise.resolve();
+let lastSubmission = 0;
+
+// The server reserves at most one request per five seconds. A quick exercise
+// change followed by timer start must not consume a cue's attempt on TOO_FAST.
+function scheduleSynthesis(send: () => Promise<Response>) {
+  const pending = synthesisQueue.then(async () => {
+    const delay = Math.max(0, lastSubmission + 5500 - Date.now());
+    if (delay) await new Promise(resolve => window.setTimeout(resolve, delay));
+    return send();
+  });
+  synthesisQueue = pending.then(() => undefined, () => undefined);
+  return pending;
+}
 // A short silent WAV unlocks this same media element during the timer's gesture.
 const silence = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YQIAAACAgA==';
 
@@ -71,11 +85,16 @@ export function useWorkoutVoice(enabled: boolean) {
     const result = await cache.get(userId, prepareZephyrSpeech(message).text, {
       storage: window.sessionStorage, retainWorkoutAudio: true,
       request: async init => {
-        const { data: { session: current } } = await createClient().auth.getSession();
-        if (!alive.current || !enabledRef.current || current?.user.id !== userId || owner.current !== userId) throw new Error('운동 음성 준비를 중단했어요.');
-        const headers = new Headers(init.headers);
-        headers.set('Authorization', `Bearer ${current.access_token}`);
-        return fetch('/api/tts', { ...init, headers });
+        const send = async () => {
+          init.signal?.throwIfAborted();
+          const { data: { session: current } } = await createClient().auth.getSession();
+          if (!alive.current || !enabledRef.current || current?.user.id !== userId || owner.current !== userId) throw new Error('운동 음성 준비를 중단했어요.');
+          const headers = new Headers(init.headers);
+          headers.set('Authorization', `Bearer ${current.access_token}`);
+          if (init.method === 'POST') lastSubmission = Date.now();
+          return fetch('/api/tts', { ...init, headers });
+        };
+        return init.method === 'POST' ? scheduleSynthesis(send) : send();
       },
     });
     if (owner.current !== userId) throw new Error('로그인 계정이 바뀌었어요.');

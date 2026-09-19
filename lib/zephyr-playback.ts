@@ -46,7 +46,7 @@ export class ZephyrAudioCache {
       if (retainWorkoutAudio && characters <= 200) {
         try {
           const saved = JSON.parse(previous);
-          if (saved.voice === YEONI_VOICE_NAME && saved.audioContent?.length <= 600_000
+          if (saved.voice === YEONI_VOICE_NAME && typeof saved.audioContent === 'string' && saved.audioContent.length <= 600_000
             && /^[A-Za-z0-9+/]+={0,2}$/.test(saved.audioContent)
             && Number.isSafeInteger(saved.remainingCharacters) && saved.remainingCharacters >= 0) {
             return { audioContent: saved.audioContent, remainingCharacters: saved.remainingCharacters };
