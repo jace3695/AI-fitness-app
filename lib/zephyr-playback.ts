@@ -12,9 +12,11 @@ type Dependencies = {
   request: (init: RequestInit) => Promise<Response>;
   storage: Pick<Storage, 'getItem' | 'setItem'>;
   now?: Date;
+  // Short workout cues may survive a reload in this tab. General answers do not.
+  retainWorkoutAudio?: boolean;
 };
 
-// Audio stays in memory; storage contains only a text/owner hash and request ID.
+// General answers stay in memory. Short workout cues can opt into tab storage.
 // Losing an audio response must never create a fresh billable request on reload.
 export class ZephyrAudioCache {
   private entries = new Map<string, Promise<AudioResult>>();
@@ -34,13 +36,25 @@ export class ZephyrAudioCache {
     catch (error) { if (this.entries.get(key) === pending) this.entries.delete(key); throw error; }
   }
 
-  private async generate(key: string, text: string, { request, storage }: Dependencies): Promise<AudioResult> {
+  private async generate(key: string, text: string, { request, storage, retainWorkoutAudio }: Dependencies): Promise<AudioResult> {
     const characters = Array.from(text).length;
     if (!characters || characters > 1200) throw new Error('읽을 답변을 확인해 주세요.');
     let previous: string | null;
     try { previous = storage.getItem(key); }
     catch { throw new Error('중복 생성 방지 기록을 보관할 수 없어 음성을 생성하지 않았어요.'); }
-    if (previous) throw new Error('이 답변은 이미 음성 생성을 요청했어요. 중복 생성을 막기 위해 다시 요청하지 않아요.');
+    if (previous) {
+      if (retainWorkoutAudio && characters <= 200) {
+        try {
+          const saved = JSON.parse(previous);
+          if (saved.voice === YEONI_VOICE_NAME && saved.audioContent?.length <= 600_000
+            && /^[A-Za-z0-9+/]+={0,2}$/.test(saved.audioContent)
+            && Number.isSafeInteger(saved.remainingCharacters) && saved.remainingCharacters >= 0) {
+            return { audioContent: saved.audioContent, remainingCharacters: saved.remainingCharacters };
+          }
+        } catch { /* An attempt receipt alone must never trigger another synthesis. */ }
+      }
+      throw new Error('이 답변은 이미 음성 생성을 요청했어요. 중복 생성을 막기 위해 다시 요청하지 않아요.');
+    }
 
     const statusResponse = await request({ method: 'GET', cache: 'no-store', signal: AbortSignal.timeout(15_000) });
     const status = await statusResponse.json();
@@ -66,6 +80,12 @@ export class ZephyrAudioCache {
       || !Number.isSafeInteger(data.remainingCharacters) || data.remainingCharacters < 0) {
       throw new Error('생성된 음성을 확인하지 못했어요. 추가 생성은 멈췄어요.');
     }
-    return { audioContent: data.audioContent, remainingCharacters: data.remainingCharacters };
+    const result = { audioContent: data.audioContent, remainingCharacters: data.remainingCharacters };
+    if (retainWorkoutAudio && characters <= 200 && data.audioContent.length <= 600_000) {
+      // Best effort: quota failure leaves the original receipt and memory audio intact.
+      // The owner/month/text hash keeps this separate from records and other accounts.
+      try { storage.setItem(key, JSON.stringify({ requestId, voice: YEONI_VOICE_NAME, ...result })); } catch { /* No retry. */ }
+    }
+    return result;
   }
 }

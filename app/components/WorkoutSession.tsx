@@ -11,6 +11,7 @@ import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { elapsedSecondsSince, remainingSecondsUntil } from '../data/timerClock';
 import { IntervalTimer } from './WorkoutControls';
 import { notifyRecordsChanged } from '../data/storageTransaction';
+import { useWorkoutVoice } from './useWorkoutVoice';
 
 type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
 
@@ -269,17 +270,17 @@ function TimerButton({
 
   if (!initialSeconds) return null;
   return (
-    <section className="mt-4 rounded-2xl bg-[#111827] p-4 text-white">
+    <section aria-label="동작 타이머" className="mt-4 rounded-2xl bg-[#111827] p-4 text-white">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold text-white/60">동작 타이머</p>
           <p className="mt-1 font-mono text-[34px] font-bold tracking-tight">{formatClock(seconds)}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => { setRunning(false); setSeconds(initialSeconds); }} className="rounded-xl bg-white/10 px-3 py-2 text-[12px] font-bold">
+          <button type="button" onClick={() => { setRunning(false); remainingRef.current = initialSeconds; setSeconds(initialSeconds); }} className="min-h-11 rounded-xl bg-white/10 px-3 py-2 text-[12px] font-bold">
             초기화
           </button>
-          <button type="button" onClick={() => { setRunning((value) => !value); onStart(); }} className="min-w-20 rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-gray-900">
+          <button type="button" onClick={() => { if (!running) onStart(); setRunning((value) => !value); }} className="min-h-11 min-w-20 touch-manipulation rounded-xl bg-white px-3 py-2 text-[12px] font-bold text-gray-900">
             {running ? '일시정지' : seconds === initialSeconds ? '시작' : '계속'}
           </button>
         </div>
@@ -409,14 +410,15 @@ export default function WorkoutSession({
   const progress = exercises.length ? ((completed.size + skipped.size) / exercises.length) * 100 : 0;
   const hasSafetyConcern = Boolean(painArea) || painScore > 0 || painSymptoms.length > 0 || backStatus === 'pain' || backStatus === 'worse' || neurologicalSymptoms.length > 0;
 
-  const speak = useCallback((message: string) => {
-    if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = 'ko-KR';
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
-  }, [voiceEnabled]);
+  const voice = useWorkoutVoice(voiceEnabled);
+  const { speak, stop: stopVoice } = voice;
+  const advanceMessage = currentSetIndex >= 0 && currentSetIndex < currentSetCount - 1
+    ? `${currentSetIndex + 1}세트를 완료했습니다. ${exercise.restSeconds || 45}초 세트 휴식을 시작합니다.`
+    : isLastExercise ? '오늘 운동을 모두 마쳤습니다.'
+      : exercise.restSeconds ? `${exercise.restSeconds}초 휴식을 시작합니다.`
+        : `다음 운동은 ${exercises[currentIndex + 1]?.name}입니다.`;
+
+  useEffect(() => { if (mode === 'pain' || showExitConfirm) stopVoice(); }, [mode, showExitConfirm, stopVoice]);
 
   const releaseWakeLock = useCallback(async () => {
     if (!wakeLockRef.current) return;
@@ -495,7 +497,6 @@ export default function WorkoutSession({
     void requestWakeLock();
     return () => {
       document.body.style.overflow = '';
-      window.speechSynthesis?.cancel();
       void releaseWakeLock();
     };
   }, [releaseWakeLock, requestWakeLock]);
@@ -604,6 +605,7 @@ export default function WorkoutSession({
   };
 
   const skipCurrent = () => {
+    stopVoice();
     setSkipped((current) => new Set(current).add(currentIndex));
     setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, status: 'skipped' } : record));
     if (isLastExercise) setMode('summary');
@@ -611,7 +613,8 @@ export default function WorkoutSession({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`}>
+    <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
+      <audio ref={voice.audio} preload="none" aria-label="연이 운동 안내 음성" data-voice="ko-KR-Chirp3-HD-Zephyr" className="hidden" />
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white sm:rounded-3xl">
         <header className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
@@ -622,7 +625,7 @@ export default function WorkoutSession({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button type="button" aria-pressed={voiceEnabled} onClick={() => setVoiceEnabled((value) => !value)} className={`rounded-xl px-3 py-2 text-[12px] font-bold ${voiceEnabled ? 'bg-[#EEEDFE] text-[#3C3489]' : 'bg-gray-100 text-gray-500'}`}>
+              <button type="button" aria-pressed={voiceEnabled} onClick={() => { if (voiceEnabled) voice.stop(); setVoiceEnabled((value) => !value); }} className={`rounded-xl px-3 py-2 text-[12px] font-bold ${voiceEnabled ? 'bg-[#EEEDFE] text-[#3C3489]' : 'bg-gray-100 text-gray-500'}`}>
                 음성 {voiceEnabled ? '켜짐' : '꺼짐'}
               </button>
               <button type="button" onClick={() => setShowExitConfirm(true)} className="rounded-xl bg-gray-100 px-3 py-2 text-[12px] font-bold text-gray-600">
@@ -636,6 +639,12 @@ export default function WorkoutSession({
           <p className="mt-2 text-[11px] text-gray-400">
             {Math.round(progress)}% 완료 · 화면 꺼짐 방지 {wakeLockActive ? '작동 중' : '대기 중'}
           </p>
+          {voiceEnabled && <div className="mt-2 text-[11px] leading-5 text-[#534AB7]" aria-label="연이 운동 음성">
+            <p>연이 음성 · Google Zephyr</p>
+            {voice.announcement && <p>{voice.announcement}</p>}
+            {voice.notice && <p role="status">{voice.notice}</p>}
+            {voice.replayAvailable && <button type="button" onClick={voice.replay} className="min-h-11 rounded-xl bg-[#EEEDFE] px-3 font-bold">안내 재생</button>}
+          </div>}
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
@@ -671,8 +680,8 @@ export default function WorkoutSession({
                 initialSeconds={initialTimerSeconds}
                 restoredSeconds={timerSecondsRef.current}
                 onSecondsChange={(seconds) => { timerSecondsRef.current = seconds; }}
-                onStart={() => { void requestWakeLock(); }}
-                onComplete={() => { speak('동작 시간이 끝났습니다.'); finishOrAdvance(); }}
+                onStart={() => { void requestWakeLock(); voice.prepare(advanceMessage); }}
+                onComplete={finishOrAdvance}
               />
               {exercise.intervalPlan ? <IntervalTimer plan={exercise.intervalPlan} /> : null}
               <ExerciseRecordEditor
@@ -697,8 +706,8 @@ export default function WorkoutSession({
                   key={`${mode}:${currentIndex}:${restSecondsRef.current}`}
                   initialSeconds={restSecondsRef.current}
                   onSecondsChange={(seconds) => { restSecondsRef.current = seconds; }}
-                  onComplete={() => mode === 'setRest' ? setMode('exercise') : goToExercise(currentIndex + 1)}
-                  onSkip={() => mode === 'setRest' ? setMode('exercise') : goToExercise(currentIndex + 1)}
+                  onComplete={() => { if (mode === 'setRest') { stopVoice(); setMode('exercise'); } else goToExercise(currentIndex + 1); }}
+                  onSkip={() => { if (mode === 'setRest') { stopVoice(); setMode('exercise'); } else goToExercise(currentIndex + 1); }}
                 />
                 <p className="mt-3 text-[14px] text-gray-500">{mode === 'setRest' ? `다음: ${exercise.name} ${(exerciseRecords[currentIndex]?.sets?.findIndex((set) => !set.completed) ?? 0) + 1}세트` : `다음: ${exercises[currentIndex + 1]?.name}`}</p>
               </div>

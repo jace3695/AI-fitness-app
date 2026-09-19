@@ -86,3 +86,36 @@ test('audio is isolated by owner and month; cache eviction preserves attempt rec
   await assert.rejects(cache.get('one', '같은 답변', f), /이미 음성/);
   cache.clear(); await assert.rejects(cache.get('two', '같은 답변', f), /이미 음성/);
 });
+
+test('short workout audio survives reload and memory eviction without generating again', async () => {
+  const f = { ...fixture(), retainWorkoutAudio: true };
+  await new ZephyrAudioCache().get('owner', '45초 휴식을 시작합니다.', f);
+  const replay = await new ZephyrAudioCache().get('owner', '45초 휴식을 시작합니다.', f);
+  assert.equal(replay.audioContent, 'SUQz');
+  assert.equal(f.calls.filter(call => call.method === 'POST').length, 1);
+  await assert.rejects(new ZephyrAudioCache().get('owner', '45초 휴식을 시작합니다.', { ...f, retainWorkoutAudio: false }), /이미 음성/);
+  await new ZephyrAudioCache().get('other-owner', '45초 휴식을 시작합니다.', f);
+  assert.equal(f.calls.filter(call => call.method === 'POST').length, 2);
+});
+
+test('workout retention never retries a lost or corrupt response and tolerates a full audio store', async () => {
+  const f = { ...fixture(), retainWorkoutAudio: true };
+  const request = async (init: RequestInit) => {
+    if (init.method === 'POST') { f.calls.push(init); throw new TypeError('Response lost'); }
+    return f.request(init);
+  };
+  await assert.rejects(new ZephyrAudioCache().get('owner', '응답 유실', { ...f, request }));
+  await assert.rejects(new ZephyrAudioCache().get('owner', '응답 유실', f), /이미 음성/);
+  assert.equal(f.calls.filter(call => call.method === 'POST').length, 1);
+  const full = { ...fixture(), retainWorkoutAudio: true };
+  const storage = { getItem: full.storage.getItem, setItem: (key: string, value: string) => {
+    if (value.startsWith('{')) throw new Error('QuotaExceeded');
+    full.storage.setItem(key, value);
+  } };
+  const cache = new ZephyrAudioCache();
+  assert.equal((await cache.get('owner', '안내', { ...full, storage })).audioContent, 'SUQz');
+  assert.equal((await cache.get('owner', '안내', { ...full, storage })).audioContent, 'SUQz');
+  await assert.rejects(new ZephyrAudioCache().get('owner', '안내', full), /이미 음성/);
+  for (const key of f.rows.keys()) f.rows.set(key, JSON.stringify({ voice: 'device', audioContent: 'SUQz', remainingCharacters: 10 }));
+  await assert.rejects(new ZephyrAudioCache().get('owner', '응답 유실', f), /이미 음성/);
+});
