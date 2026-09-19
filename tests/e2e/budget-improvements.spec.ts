@@ -125,13 +125,34 @@ test('lost field response reuses one request across reload and a second browser 
   expect((await qa.account.client.from('budget_transactions').insert([expense(qa.account.id,date,'충돌 A'),expense(qa.account.id,date,'충돌 B')])).error).toBeNull();
   await login(page,qa.account,'/budget'); let panel=await openEditor(page);
   for(const place of ['충돌 A','충돌 B']) await panel.getByRole('checkbox',{name:`${place} ${date} 내역 선택`}).check();
-  await panel.getByLabel('수정할 항목').selectOption('memo'); await panel.getByLabel('변경할 메모').fill('응답 유실 합성');
+  await panel.getByLabel('수정할 항목').selectOption('memo');
+  const memoInput = panel.getByLabel('변경할 메모');
+  await memoInput.fill('응답 유실 합성');
+  await memoInput.press('Tab');
+  await expect(panel.getByLabel('수정할 항목')).toHaveValue('memo');
+  await expect(memoInput).toHaveValue('응답 유실 합성');
   let lose=true;
   await page.route('**/rest/v1/rpc/change_budget_expense_fields',async route=>{
     if(lose){lose=false;const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');}else await route.continue();
   });
   await panel.getByRole('button',{name:'선택 2건 메모 변경'}).click();
-  await page.getByRole('dialog',{name:'선택한 메모 변경'}).getByRole('button',{name:'메모 변경',exact:true}).click();
+  const memoDialog = page.getByRole('dialog',{name:'선택한 메모 변경'});
+  try {
+    await expect(memoDialog).toBeVisible();
+    await expect(memoDialog.getByLabel('저장 전 변경 내역')).toContainText('응답 유실 합성');
+  } catch (error) {
+    // Disposable fixture values only; never emit auth, storage or network bodies.
+    console.log('BUDGET_MEMO_REVIEW_DIAGNOSTIC', JSON.stringify({
+      field: await panel.getByLabel('수정할 항목').inputValue(),
+      memo: await memoInput.inputValue(),
+      selected: await panel.getByRole('checkbox').evaluateAll(nodes => nodes.filter(node => (node as HTMLInputElement).checked).length),
+      dialogs: await page.getByRole('dialog', { includeHidden: true }).count(),
+      editorVisible: await panel.isVisible(),
+      alerts: await panel.getByRole('alert').allTextContents(),
+    }));
+    throw error;
+  }
+  await memoDialog.getByRole('button',{name:'메모 변경',exact:true}).click();
   await expect(panel.getByText(/변경 응답을 확인하지 못했어요/)).toBeVisible();
   page.once('dialog',dialog=>dialog.accept()); await page.reload();
   await menu(page).getByRole('button',{name:'상세 내역',exact:true}).click(); await page.getByText('지출 수정·분류 기억·변경 이력',{exact:true}).click();
