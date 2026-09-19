@@ -613,9 +613,10 @@ export default function WorkoutSession({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
+    // The global bottom navigation uses z-index 90; the entire workout must cover it.
+    <div className="fixed inset-0 z-[100] bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
       <audio ref={voice.audio} preload="none" aria-label="연이 운동 안내 음성" data-voice="ko-KR-Chirp3-HD-Zephyr" className="hidden" />
-      <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white sm:rounded-3xl">
+      <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-3xl">
         <header className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

@@ -30,6 +30,36 @@ async function discard(page: Page) {
   await expect(page.getByRole('dialog')).toHaveCount(0); await synced(page);
 }
 
+for (const width of [320, 390]) {
+  test(`workout controls and summary save stay above the hub menu at ${width}px`, async ({ page, qa }) => {
+    await openWorkout(page, qa.account);
+    await page.setViewportSize({ width, height: 640 });
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: '음성 켜짐', exact: true }).click();
+    const skip = dialog.getByRole('button', { name: '건너뛰기', exact: true });
+    await expect(skip).toBeInViewport({ ratio: 1 });
+    // A normal click must reach the workout, never the fixed global navigation.
+    await skip.click(); await skip.click(); await skip.click();
+    await expect(dialog.getByRole('heading', { name: '오늘 운동을 마쳤습니다' })).toBeVisible();
+    const save = dialog.getByRole('button', { name: '기록 저장하고 종료', exact: true });
+    await save.scrollIntoViewIfNeeded();
+    await expect(save).toBeInViewport({ ratio: 1 });
+    expect(await save.evaluate(el => {
+      const box = el.getBoundingClientRect();
+      return [0.1, 0.5, 0.9].every(y => [0.1, 0.5, 0.9].every(x =>
+        el.contains(document.elementFromPoint(box.left + box.width * x, box.top + box.height * y))));
+    })).toBe(true);
+    await save.click(); await expect(dialog).toHaveCount(0); await synced(page);
+    const saved = (await qa.read())['ai-fitness-workout-completed-days'] as Record<string, unknown>;
+    expect(saved[today()]).toBeTruthy();
+    expect(saved['2001-01-02']).toEqual((original['ai-fitness-workout-completed-days'] as Record<string, unknown>)['2001-01-02']);
+    await page.reload(); await synced(page);
+    expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(saved);
+    await page.getByRole('navigation', { name: 'AI 연이 공통 메뉴' }).getByRole('button', { name: '전체', exact: true }).click();
+    await expect(page.getByRole('heading', { name: '어디로 이동할까요?' })).toBeVisible();
+  });
+}
+
 test('first timer click, pause, resume and automatic transition reuse Zephyr audio across reload', async ({ page, qa }) => {
   let posts = 0; let gets = 0; let speech = '';
   await page.route('**/api/tts', async route => {
