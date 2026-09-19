@@ -1,8 +1,21 @@
 import {randomUUID} from 'node:crypto';
 import {expect,login,synced,test} from './fixture';
 import {RouteDrain} from './route-drain';
+import type {Locator, Page} from '@playwright/test';
 const day='2020-01-02';
 const panelName='실제 운동 시각';
+
+async function selectWorkoutDate(page:Page,panel:Locator,date:string){
+ const loaded=page.waitForResponse(response=>{
+  const url=new URL(response.url());
+  return url.pathname.endsWith('/rest/v1/workout_actual_times')&&url.searchParams.get('recorded_on')===`eq.${date}`&&response.request().method()==='GET';
+ });
+ const input=panel.getByLabel('운동 시각 날짜');
+ await expect(input).toBeEnabled();await input.fill(date);await input.press('Tab');
+ expect((await loaded).ok()).toBe(true);
+ await expect(input).toHaveValue(date);
+ await expect(panel.getByLabel('운동 시작 시각')).toBeEnabled();
+}
 
 test('actual workout times review, save, revise, compare and delete preserve all app records at 320px',async({page,qa})=>{
  await page.setViewportSize({width:320,height:844});
@@ -10,8 +23,14 @@ test('actual workout times review, save, revise, compare and delete preserve all
  expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
  await login(page,qa.account);await synced(page);await page.goto('/diet',{waitUntil:'domcontentloaded'});
  const panel=page.getByRole('region',{name:panelName,exact:true});const review=panel.getByRole('region',{name:'운동 시각 확인'});
- await expect(panel.getByLabel('운동 시각 날짜')).toBeEnabled();await panel.getByLabel('운동 시각 날짜').fill(day);await expect(panel.getByLabel('운동 시작 시각')).toBeEnabled();
- await panel.getByLabel('운동 시작 시각').fill('20:00');await panel.getByLabel('운동 종료 시각').fill('20:40');await panel.getByRole('button',{name:'시각 저장 검토',exact:true}).click();await expect(review).toContainText('20:00 ~ 20:40');
+ await selectWorkoutDate(page,panel,day);
+ await panel.getByLabel('운동 시작 시각').fill('20:00');await panel.getByLabel('운동 종료 시각').fill('20:40');
+ await expect(panel.getByLabel('운동 시작 시각')).toHaveValue('20:00');await expect(panel.getByLabel('운동 종료 시각')).toHaveValue('20:40');
+ await panel.getByRole('button',{name:'시각 저장 검토',exact:true}).click();
+ try{await expect(review).toContainText('20:00 ~ 20:40');}catch(error){
+  // Synthetic fixture values only: distinguish native-input commits from validation or loading failures.
+  console.log('WORKOUT_TIME_REVIEW_DIAGNOSTIC',JSON.stringify({date:await panel.getByLabel('운동 시각 날짜').inputValue(),start:await panel.getByLabel('운동 시작 시각').inputValue(),end:await panel.getByLabel('운동 종료 시각').inputValue(),notice:await panel.getByRole('status').allTextContents(),errors:await panel.getByRole('alert').allTextContents()}));throw error;
+ }
  expect((await qa.account.client.from('workout_actual_times').select('*')).data).toEqual([]);
  await review.getByRole('button',{name:'시각 검토 취소'}).click();await panel.getByRole('button',{name:'시각 저장 검토',exact:true}).click();await review.getByRole('button',{name:'확인 후 시각 반영'}).click();await expect(panel).toContainText('마지막 식사 90분 후 운동 시작');
  expect(await qa.read()).toEqual(state);await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

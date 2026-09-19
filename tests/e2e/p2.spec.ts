@@ -314,10 +314,10 @@ test('growth weekday patterns count recorded days, survive reload and preserve r
 
 test('growth pattern loading failure is distinct from no records and retry recovers', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page);
-  await page.goto('/growth');
+  await page.goto('/growth', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: '나의 루틴', exact: true })).toBeVisible();
   await page.route('**/rest/v1/growth_sessions?*', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({message:'Synthetic unavailable'}) }));
-  await page.goto('/growth/review');
+  await page.goto('/growth/review', { waitUntil: 'domcontentloaded' });
   const panel = page.getByRole('region', { name: '루틴 요일별 실행 패턴' });
   await expect(panel.getByRole('alert')).toContainText('실행 기록을 모두 확인하지 못했어요');
   await expect(panel).not.toContainText('이 기간에는 실행 기록이 없어요');
