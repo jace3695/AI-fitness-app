@@ -12,7 +12,7 @@ export type AiUsageKind = "tokens" | "characters";
 export type AiBudgetRestriction = "high_performance_limited" | "paid_ai_paused" | "monthly_limit";
 export type AiBudgetStatus = "normal" | "notice" | "high_performance_limited" | "paid_ai_paused";
 
-export type AiUsageAppId = "assistant" | "fitness" | "budget" | "language" | "growth" | "other";
+export type AiUsageAppId = "assistant" | "fitness" | "budget" | "language" | "growth" | "diet" | "other";
 export type AiUsageByApp = {
   id: AiUsageAppId;
   label: string;
@@ -36,6 +36,7 @@ const AI_USAGE_APP_LABELS: Record<AiUsageAppId, string> = {
   budget: "가계부",
   language: "언어 학습",
   growth: "자기계발",
+  diet: "식단",
   other: "기타 기능",
 };
 
@@ -72,6 +73,7 @@ export function getAiUsageAppId(feature: unknown): AiUsageAppId {
   const normalized = typeof feature === "string" ? feature.trim().toLowerCase() : "";
   if (normalized.startsWith("fitness-")) return "fitness";
   if (normalized.startsWith("growth-")) return "growth";
+  if (normalized.startsWith("diet-")) return "diet";
   if (normalized === "budget-analysis" || normalized === "legacy-ai-analysis") return "budget";
   if (normalized.startsWith("language-") || normalized === "handwriting-feedback" || normalized === "japanese-tts") return "language";
   if (normalized.startsWith("assistant-") || normalized === "korean-tts") return "assistant";

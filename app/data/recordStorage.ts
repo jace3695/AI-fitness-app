@@ -1,8 +1,10 @@
+import { fastingStartForDay } from '../../lib/diet-time.ts';
 import { DIET_COMPLETED_DAYS_KEY, DIET_GOAL_CHECK_ITEMS, DIET_SAFETY_CHECK_ITEMS, DINNER_CARB_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, LUNCH_CARB_CHOICE_KEY, LUNCH_PROTEIN_CHOICE_KEY, FASTING_START_TIME_KEY, WATER_INTAKE_KEY, getLocalDateKey, normalizeDinnerCarbStore, normalizeLunchCarbStore, normalizeLunchProteinStore } from './dietPlans.ts';
 import type { DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './dietPlans.ts';
 import { WORKOUT_COMPLETED_DAYS_KEY } from './workoutCompletion.ts';
 import type { WorkoutCompletionStore } from './workoutCompletion.ts';
 import type { DailyConditionRecord } from './recoveryMode.ts';
+import { notifyRecordsChanged, recoverStorageTransaction } from './storageTransaction.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
@@ -80,6 +82,7 @@ export interface RecordStores {
 
 export function readJson<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
+  recoverStorageTransaction(window.localStorage);
   const raw = window.localStorage.getItem(key);
   if (!raw) return fallback;
   try { return JSON.parse(raw) as T; } catch { return fallback; }
@@ -88,6 +91,7 @@ export function readJson<T>(key: string, fallback: T): T {
 export function writeJson<T>(key: string, value: T) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(key, JSON.stringify(value));
+  notifyRecordsChanged();
 }
 
 export function normalizeWeightGoal(value: unknown): WeightGoal {
@@ -124,7 +128,7 @@ export function readRecordStores(): RecordStores {
     dinnerCarbs: normalizeDinnerCarbStore(readJson<Record<string, unknown>>(DINNER_CARB_CHOICE_KEY, {})),
     lunchCarbs: normalizeLunchCarbStore(readJson<Record<string, unknown>>(LUNCH_CARB_CHOICE_KEY, {})),
     lunchProteins: normalizeLunchProteinStore(readJson<Record<string, unknown>>(LUNCH_PROTEIN_CHOICE_KEY, {})),
-    fastingStart: typeof window === 'undefined' ? '' : window.localStorage.getItem(FASTING_START_TIME_KEY) || '',
+    fastingStart: typeof window === 'undefined' ? '' : fastingStartForDay(window.localStorage.getItem(FASTING_START_TIME_KEY) ?? undefined, getLocalDateKey()),
     weights: readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
     inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
     weightGoal: normalizeWeightGoal(readJson<unknown>(WEIGHT_GOAL_KEY, DEFAULT_WEIGHT_GOAL)),

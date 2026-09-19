@@ -2,10 +2,14 @@
 
 import { useState } from 'react'
 import { Search } from 'lucide-react'
+import CategoryEditor from './category-editor'
+import { amountRange, historyCsv } from '../lib/history-edit'
 
 type HistoryType = 'all' | 'income' | 'expense' | 'saving'
 
 type HistoryScreenProps = {
+  userId: string
+  onChanged: () => Promise<void>
   incomeList: any[]
   transactions: any[]
   savings: any[]
@@ -47,7 +51,7 @@ function getPaymentBadgeStyle(payment?: string) {
   return { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, color, background: `${color}22`, border: `1px solid ${color}55` } as const
 }
 
-export default function HistoryScreen({ incomeList, transactions, savings, currency, processingRecordKey, onDeleteIncome, onDeleteExpense, onDeleteSaving, onNavigateInput, onNotice }: HistoryScreenProps) {
+export default function HistoryScreen({ userId, onChanged, incomeList, transactions, savings, currency, processingRecordKey, onDeleteIncome, onDeleteExpense, onDeleteSaving, onNavigateInput, onNotice }: HistoryScreenProps) {
   const [showAllIncomeList, setShowAllIncomeList] = useState(false)
   const [showAllExpenseList, setShowAllExpenseList] = useState(false)
   const [showAllSavingsList, setShowAllSavingsList] = useState(false)
@@ -56,15 +60,21 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
   const [historyEndDate, setHistoryEndDate] = useState('')
   const [historyTypeFilter, setHistoryTypeFilter] = useState<HistoryType>('all')
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState('all')
+  const [minimumAmount, setMinimumAmount] = useState('')
+  const [maximumAmount, setMaximumAmount] = useState('')
+  const [paymentFilter, setPaymentFilter] = useState('all')
   const formatKRW = (n: number) => formatDisplayCurrency(n, currency)
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase('ko-KR')
-  const matchesHistoryDate = (date?: string) => (!historyStartDate || String(date || '') >= historyStartDate) && (!historyEndDate || String(date || '') <= historyEndDate)
+  const range = amountRange(minimumAmount, maximumAmount)
+  const filterError = range.error || (historyStartDate && historyEndDate && historyStartDate > historyEndDate ? '시작일이 종료일보다 늦습니다.' : '')
+  const matchesHistoryDate = (date?: string) => !filterError && (!historyStartDate || String(date || '') >= historyStartDate) && (!historyEndDate || String(date || '') <= historyEndDate)
   const includesHistoryQuery = (...values: unknown[]) => !normalizedSearchQuery || values.some((value) => String(value || '').toLocaleLowerCase('ko-KR').includes(normalizedSearchQuery))
-  const filteredIncomeItems = incomeList.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'income') && matchesHistoryDate(item.date) && includesHistoryQuery(item.name, item.memo, item.date))
-  const filteredExpenseItems = transactions.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'expense') && (historyCategoryFilter === 'all' || item.category === historyCategoryFilter) && matchesHistoryDate(item.date) && includesHistoryQuery(item.place, item.category, item.memo, item.payment, item.date))
-  const filteredSavingItems = savings.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'saving') && matchesHistoryDate(item.date) && includesHistoryQuery(item.goal_name, item.memo, item.date))
+  const filteredIncomeItems = incomeList.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'income') && range.matches(item.amount) && matchesHistoryDate(item.date) && includesHistoryQuery(item.name, item.memo, item.date))
+  const filteredExpenseItems = transactions.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'expense') && (historyCategoryFilter === 'all' || item.category === historyCategoryFilter) && (paymentFilter === 'all' || (item.payment || '') === paymentFilter) && range.matches(item.amount) && matchesHistoryDate(item.date) && includesHistoryQuery(item.place, item.category, item.memo, item.payment, item.date))
+  const filteredSavingItems = savings.filter((item: any) => (historyTypeFilter === 'all' || historyTypeFilter === 'saving') && range.matches(item.amount) && matchesHistoryDate(item.date) && includesHistoryQuery(item.goal_name, item.memo, item.date))
   const historyCategoryOptions = Array.from(new Set(transactions.map((item: any) => String(item.category || '')).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko-KR'))
-  const resetHistoryFilters = () => { setSearchQuery(''); setHistoryStartDate(''); setHistoryEndDate(''); setHistoryTypeFilter('all'); setHistoryCategoryFilter('all') }
+  const paymentOptions = Array.from(new Set(transactions.map((item: any) => String(item.payment || '')))).sort((a, b) => a.localeCompare(b, 'ko-KR'))
+  const resetHistoryFilters = () => { setSearchQuery(''); setHistoryStartDate(''); setHistoryEndDate(''); setHistoryTypeFilter('all'); setHistoryCategoryFilter('all'); setMinimumAmount(''); setMaximumAmount(''); setPaymentFilter('all') }
   const exportFilteredHistoryCsv = () => {
     const rows = [
       ...filteredIncomeItems.map((item: any) => ({ date: item.date, type: '수입', name: item.name || '', category: item.category || '', payment: '', amount: Number(item.amount || 0), memo: item.memo || '' })),
@@ -72,10 +82,9 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
       ...filteredSavingItems.map((item: any) => ({ date: item.date, type: '저축', name: item.goal_name || '일반저축', category: '저축', payment: '', amount: Number(item.amount || 0), memo: item.memo || '' }))
     ].sort((a, b) => String(b.date).localeCompare(String(a.date)))
     if (!rows.length) { onNotice('내보낼 내역이 없어요.'); return }
-    const escapeCsvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
     const header = ['날짜', '유형', '내용', '카테고리', '결제수단', '금액', '메모']
-    const csv = [header.map(escapeCsvCell).join(','), ...rows.map((row) => [row.date, row.type, row.name, row.category, row.payment, row.amount, row.memo].map(escapeCsvCell).join(','))].join('\\r\\n')
-    const blob = new Blob(['\\uFEFF', csv], { type: 'text/csv;charset=utf-8' })
+    const csv = historyCsv([header, ...rows.map((row) => [row.date, row.type, row.name, row.category, row.payment, row.amount, row.memo])])
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
@@ -111,7 +120,7 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
                   </label>
                   <label style={{ display: 'grid', gap: 5, color: '#E0E0EA', fontSize: 12 }}>
                     유형
-                    <select value={historyTypeFilter} onChange={(e) => setHistoryTypeFilter(e.target.value as 'all' | 'income' | 'expense' | 'saving')} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
+                    <select aria-label="내역 유형" value={historyTypeFilter} onChange={(e) => setHistoryTypeFilter(e.target.value as 'all' | 'income' | 'expense' | 'saving')} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
                       <option value="all">전체</option>
                       <option value="income">수입</option>
                       <option value="expense">지출</option>
@@ -120,20 +129,39 @@ export default function HistoryScreen({ incomeList, transactions, savings, curre
                   </label>
                   <label style={{ display: 'grid', gap: 5, color: '#E0E0EA', fontSize: 12 }}>
                     지출 카테고리
-                    <select value={historyCategoryFilter} disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} onChange={(e) => setHistoryCategoryFilter(e.target.value)} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
+                    <select aria-label="지출 카테고리" value={historyCategoryFilter} disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} onChange={(e) => setHistoryCategoryFilter(e.target.value)} style={{ minHeight: 42, borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 10px' }}>
                       <option value="all">전체</option>
                       {historyCategoryOptions.map((category) => <option key={category} value={category}>{category}</option>)}
                     </select>
                   </label>
+                  <label className="history-extra-filter">최소 금액
+                    <input inputMode="numeric" placeholder="제한 없음" value={minimumAmount} onChange={event => setMinimumAmount(event.target.value)} />
+                  </label>
+                  <label className="history-extra-filter">최대 금액
+                    <input inputMode="numeric" placeholder="제한 없음" value={maximumAmount} onChange={event => setMaximumAmount(event.target.value)} />
+                  </label>
+                  <label className="history-extra-filter">지출 결제수단
+                    <select aria-label="지출 결제수단" disabled={historyTypeFilter === 'income' || historyTypeFilter === 'saving'} value={paymentFilter} onChange={event => setPaymentFilter(event.target.value)}>
+                      <option value="all">전체</option>
+                      {paymentOptions.map(payment => <option key={payment} value={payment}>{payment || '미입력'}</option>)}
+                    </select>
+                  </label>
                 </div>
+                <p style={{ fontSize: 12 }}>금액은 최소·최대 값을 포함해 검색합니다. 같은 값을 넣으면 해당 금액만 찾아요.</p>
+                {filterError && <p role="alert">{filterError}</p>}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                   <button type="button" onClick={resetHistoryFilters} style={{ minHeight: 40, flex: '1 1 120px', borderRadius: 9, border: '1px solid #2A2A3E', padding: '8px 12px', cursor: 'pointer' }}>필터 초기화</button>
-                  <button type="button" onClick={exportFilteredHistoryCsv} style={{ minHeight: 40, flex: '1 1 150px', borderRadius: 9, border: '1px solid #4ECDC4', padding: '8px 12px', cursor: 'pointer', color: '#4ECDC4' }}>현재 결과 CSV 저장</button>
+                  <button type="button" disabled={Boolean(filterError)} onClick={exportFilteredHistoryCsv} style={{ minHeight: 40, flex: '1 1 150px', borderRadius: 9, border: '1px solid #4ECDC4', padding: '8px 12px', cursor: 'pointer', color: '#4ECDC4' }}>현재 결과 CSV 저장</button>
                 </div>
                 <p aria-live="polite" style={{ color: '#9CA3AF', fontSize: 11, margin: '10px 0 0' }}>
                   총 {filteredIncomeItems.length + filteredExpenseItems.length + filteredSavingItems.length}건
                 </p>
               </section>
+
+              <details className="budget-improvement-card">
+                <summary>지출 수정·분류 기억·변경 이력</summary>
+                <CategoryEditor key={JSON.stringify([userId, searchQuery, historyStartDate, historyEndDate, historyTypeFilter, historyCategoryFilter, minimumAmount, maximumAmount, paymentFilter])} userId={userId} records={filteredExpenseItems} currency={currency} onChanged={onChanged} />
+              </details>
     
               {filteredSavingItems.length > 0 && (
                 <>

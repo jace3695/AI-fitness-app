@@ -3,6 +3,8 @@ import './globals.css';
 import PwaManager from './components/PwaManager';
 import AiBudgetNotifier from './components/AiBudgetNotifier';
 import RecordResetListener from './components/RecordResetListener';
+import CloudSyncPanel from './components/CloudSyncPanel';
+import SyncQaPanel from './components/SyncQaPanel';
 
 export const metadata: Metadata = {
   title: 'AI 연이 | 개인 AI 비서',
@@ -43,7 +45,9 @@ export default function RootLayout({
         <PwaManager />
         <AiBudgetNotifier />
         <RecordResetListener />
+        {process.env.NODE_ENV === 'development' && <SyncQaPanel />}
         {children}
+        <div className="mx-auto w-full max-w-5xl px-4 pb-28"><CloudSyncPanel hideSignedOut /></div>
       </body>
     </html>
   );

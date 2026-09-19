@@ -1,5 +1,6 @@
 import type { CurriculumLesson } from "../data/curriculum";
 import type { CurriculumProgress, CurriculumReviewItem } from "./curriculumProgress";
+import { cleanResponseMs, reviewInterval, reviewModality, reviewObservationFields, type ReviewObservation } from './learningReview.ts';
 
 export type LearnerMode = "starter" | "reader";
 export type LearningMinutes = 5 | 10 | 20;
@@ -16,6 +17,7 @@ export type LearningSession = {
   firstAnswers: Record<number, boolean>;
   responses: Record<number, string>;
   speakingChecks: boolean[];
+  observations?: Record<number, ReviewObservation>;
 };
 
 export function createLearningSession(lessonId: string, minutes: LearningMinutes, mode: LearnerMode): LearningSession {
@@ -48,11 +50,13 @@ export function normalizeLearningSession(value: unknown, lesson: CurriculumLesso
   clean.firstAnswers = answerMap(draft.firstAnswers);
   clean.responses = draft.responses && typeof draft.responses === "object" ? Object.fromEntries(Object.entries(draft.responses).filter(([key, result]) => /^\d+$/.test(key) && Number(key) < lesson.quiz.length && typeof result === "string" && result.length < 500)) : {};
   clean.speakingChecks = Array.from({ length: 3 }, (_, index) => draft.speakingChecks?.[index] === true);
+  if (draft.observations && typeof draft.observations === 'object') clean.observations = Object.fromEntries(Object.entries(draft.observations).filter(([key, item]) => /^\d+$/.test(key) && Number(key) < lesson.quiz.length && item && typeof item === 'object').map(([key, item]) => [key, { responseMs: cleanResponseMs(item.responseMs), neededHelp: item.neededHelp === true, modality: reviewModality(lesson.quiz[Number(key)].kind, clean.mode) }]));
   return clean;
 }
 
-export function answerSessionQuestion(session: LearningSession, index: number, correct: boolean, response: string): LearningSession {
-  return { ...session, answers: { ...session.answers, [index]: correct }, firstAnswers: { ...session.firstAnswers, [index]: session.firstAnswers[index] ?? correct }, responses: { ...session.responses, [index]: response } };
+export function answerSessionQuestion(session: LearningSession, index: number, correct: boolean, response: string, observation?: ReviewObservation): LearningSession {
+  const previous = session.observations?.[index];
+  return { ...session, answers: { ...session.answers, [index]: correct }, firstAnswers: { ...session.firstAnswers, [index]: session.firstAnswers[index] ?? correct }, responses: { ...session.responses, [index]: response }, ...(observation ? { observations: { ...session.observations, [index]: { ...observation, responseMs: previous?.responseMs ?? cleanResponseMs(observation.responseMs), neededHelp: Boolean(previous?.neededHelp || observation.neededHelp) } } } : {}) };
 }
 
 export function withLearningSessionDraft(progress: CurriculumProgress, session: LearningSession): CurriculumProgress {
@@ -117,14 +121,19 @@ export function updateSessionReviews(existing: CurriculumReviewItem[], lesson: C
     const repeatedSave = previous?.lastSessionId === session.id;
     if (repeatedSave && previous.lastSessionResult === session.answers[index]) continue;
     const firstWrong = session.firstAnswers[index] === false;
-    if (!firstWrong && session.answers[index] && !previous) continue;
-    const intervalDays = session.answers[index] === false ? 0 : firstWrong ? 1 : getNextReviewInterval(previous?.intervalDays);
+    // Old drafts retain their old behavior. Newly observed correct answers also
+    // enter spaced review, so one correct answer never means permanent mastery.
+    const observation = session.observations?.[index];
+    if (!firstWrong && session.answers[index] && !previous && !observation) continue;
+    const effectiveObservation = observation ? { ...observation, neededHelp: observation.neededHelp || firstWrong } : undefined;
+    const intervalDays = session.answers[index] === false ? 0 : firstWrong ? 1 : reviewInterval(previous?.intervalDays, true, effectiveObservation);
     updated.set(id, {
       ...previous, id, lastSessionId: session.id, lastSessionResult: session.answers[index], lessonId: lesson.id, lessonTitle: lesson.title,
       prompt: lesson.quiz[index].prompt, explanation: lesson.quiz[index].explanation,
       createdAt: previous?.createdAt ?? now.toISOString(),
       wrongCount: (previous?.wrongCount ?? 0) + (firstWrong && !repeatedSave ? 1 : 0),
       lastWrongAt: firstWrong && !repeatedSave ? now.toISOString() : previous?.lastWrongAt,
+      ...(effectiveObservation ? reviewObservationFields(repeatedSave ? { ...previous, reviewCount: Math.max(0, (previous?.reviewCount ?? 1) - 1) } as CurriculumReviewItem : previous, session.answers[index], effectiveObservation) : {}),
       intervalDays, nextReviewAt: new Date(now.getTime() + intervalDays * 86_400_000).toISOString(),
     });
   }

@@ -15,7 +15,7 @@ type LocalPlanResult = {
   planProposal: WorkoutPlanProposal;
 };
 
-type LocalPlanFallbackReason = "provider_unavailable" | "budget_protected" | "model_response_unusable";
+type LocalPlanFallbackReason = "free_mode" | "provider_unavailable" | "budget_protected" | "model_response_unusable";
 
 function objectValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -79,12 +79,16 @@ export function buildLocalWorkoutPlanResult(
   const changes = recoveryDayChanged
     ? ["근력 운동일 1일을 회복형 전신 서킷으로 변경", "운동별 세트·횟수는 임의로 늘리지 않음"]
     : ["현재 요일별 계획을 유지", "운동별 세트·횟수는 임의로 늘리지 않음"];
-  const sourceText = fallbackReason === "budget_protected"
+  const sourceText = fallbackReason === "free_mode"
+    ? "무료 사용 설정에 따라 저장된 운동 기록을 안전 규칙으로 계산했습니다."
+    : fallbackReason === "budget_protected"
     ? "이번 달 유료 AI 예산을 보호하기 위해 비용 없는 로컬 안전 규칙으로 기록을 분석했습니다."
     : fallbackReason === "model_response_unusable"
       ? "AI 응답을 끝까지 읽지 못해 추가 호출 없이 로컬 안전 규칙으로 기록을 분석했습니다."
       : "클라우드 AI 연결을 사용할 수 없어 기기 기록을 안전 규칙으로 분석했습니다.";
-  const planSummary = fallbackReason === "budget_protected"
+  const planSummary = fallbackReason === "free_mode"
+    ? "저장된 기록으로 만든 무료 계획입니다. 현재 설정을 우선하고 위험 신호가 있을 때 회복일을 제안합니다."
+    : fallbackReason === "budget_protected"
     ? "월 AI 예산을 보호하기 위해 비용이 들지 않는 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다."
     : fallbackReason === "model_response_unusable"
       ? "AI 응답 형식이 완전하지 않아 다시 호출하지 않고 로컬 안전 규칙으로 만들었습니다. 현재 설정을 우선하며 위험 신호가 있을 때만 회복일을 추가합니다."

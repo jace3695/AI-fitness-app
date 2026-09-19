@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { APP_RECORD_KEYS, RECORD_RESET_STORAGE_EVENT, resetMarkerKey, type RecordResetApp } from "../data/appRecordReset";
 import { getGrowthRoutinesStorageKey, parseGrowthRoutines } from "../data/growthRoutines";
+import { pendingBudgetSaveKey } from "../budget/lib/pending-save";
 
 export function clearGrowthRecordBackup(userId: string, marker: string) {
   const key = getGrowthRoutinesStorageKey(userId);
@@ -30,6 +31,7 @@ async function performReset(app: RecordResetApp, requestId: string, expectedUser
   }
   const { data: current } = await supabase.auth.getUser();
   if (current.user?.id !== userId) throw new Error("계정이 바뀌었어요. 원래 계정에서 초기화 결과를 확인해 주세요.");
+  if (app === "budget") window.localStorage.removeItem(pendingBudgetSaveKey(userId));
   if (window.localStorage.getItem(resetMarkerKey(app)) !== data.marker) {
     for (const key of APP_RECORD_KEYS[app]) window.localStorage.removeItem(key);
     window.localStorage.setItem(resetMarkerKey(app), data.marker);

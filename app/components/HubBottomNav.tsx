@@ -1,8 +1,9 @@
 "use client";
 
+import { useDialogFocus } from "@/components/useDialogFocus";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import {
   DEFAULT_HUB_NAV_IDS,
@@ -20,6 +21,8 @@ export default function HubBottomNav() {
   const pathname = usePathname();
   const hidden = hiddenRoutes.some((route) => pathname.startsWith(route));
   const [moreOpen, setMoreOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(moreOpen, dialogRef);
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState("");
   const [visibleIds, setVisibleIds] = useState<HubAppId[]>(DEFAULT_HUB_NAV_IDS);
@@ -141,7 +144,7 @@ export default function HubBottomNav() {
             <span>전체</span>
           </button>
           {moreOpen && (
-            <section id="hub-more-menu" className="hub-more-menu" role="dialog" aria-labelledby="hub-more-menu-title">
+            <section ref={dialogRef} tabIndex={-1} id="hub-more-menu" className="hub-more-menu" role="dialog" aria-modal="true" aria-labelledby="hub-more-menu-title">
               <div className="hub-more-menu-header">
                 <div>
                   <p className="hub-more-menu-kicker">전체 앱</p>

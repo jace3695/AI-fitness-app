@@ -3,6 +3,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { FREE_MODE } from "@/lib/free-mode";
+import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 
 function getStrokeSvgPaths(char: string, tab: "hiragana" | "katakana") {
@@ -1304,6 +1306,10 @@ async function speakKana(
   onStart?: () => void,
   onEnd?: () => void
 ) {
+  if (FREE_MODE) {
+    await speakJapaneseWithPreferredTts(char, { rate: settings.ttsRate, repeatCount: settings.repeatCount, repeatDelayMs: settings.repeatDelayMs, onStart, onEnd });
+    return;
+  }
   try {
     if (onStart) onStart();
     const res = await fetch("/api/language/tts", {
@@ -1557,6 +1563,7 @@ export default function KanaPage() {
   const [writingQuizScore, setWritingQuizScore] = useState({ correct: 0, wrong: 0, total: 0 });
   const [writingFeedback, setWritingFeedback] = useState<HandwritingFeedback | null>(null);
   const [writingFeedbackLoading, setWritingFeedbackLoading] = useState(false);
+  const [audioError, setAudioError] = useState("");
   const [writingFeedbackError, setWritingFeedbackError] = useState<string | null>(null);
   const writingCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const writingAreaRef = useRef<HTMLDivElement | null>(null);
@@ -1568,14 +1575,15 @@ export default function KanaPage() {
   const handleSpeak = useCallback((char: string) => {
     if (playingTimerRef.current) clearTimeout(playingTimerRef.current);
     setPlayingChar(char);
-    speakKana(
+    setAudioError("");
+    void speakKana(
       char,
       settings,
       () => { setPlayingChar(char); },
       () => {
         playingTimerRef.current = setTimeout(() => setPlayingChar(null), 300);
       }
-    );
+    ).catch(error => { setAudioError(japaneseAudioErrorMessage(error)); setPlayingChar(null); });
     // 최대 6초 후 강제 초기화 (onEnd 미발동 대비)
     playingTimerRef.current = setTimeout(() => setPlayingChar(null), 6000);
   }, [settings]);
@@ -2033,6 +2041,7 @@ export default function KanaPage() {
 
   return (
     <>
+    {audioError ? <p role="alert" className="mb-3 text-sm text-amber-800">{audioError}</p> : null}
     <div style={{ padding: "1.25rem 0 2.25rem", maxWidth: "72rem", margin: "0 auto" }}>
       <div style={{ marginBottom: "1rem", border: "1px solid #dbeafe", background: "linear-gradient(180deg, #f8fbff 0%, #ffffff 100%)", borderRadius: "16px", padding: "1rem 1.1rem", boxShadow: "0 8px 24px rgba(59,130,246,0.08)" }}>
         <h1 style={{ fontSize: "1.5rem", fontWeight: "bold", marginBottom: "0.35rem", color: "#1e3a8a" }}>
@@ -2668,7 +2677,7 @@ export default function KanaPage() {
                 </button>
                 <button
                   onClick={requestHandwritingFeedback}
-                  disabled={writingFeedbackLoading}
+                  disabled={FREE_MODE || writingFeedbackLoading}
                   style={{
                     padding: "0.65rem 0.9rem",
                     borderRadius: "14px",
@@ -2679,7 +2688,7 @@ export default function KanaPage() {
                     fontWeight: 700,
                   }}
                 >
-                  AI 피드백 받기
+                  {FREE_MODE ? "자동 필기 평가 · 보류" : "AI 피드백 받기"}
                 </button>
                 <button
                   onClick={() => setWritingQuizShowAnswer(true)}

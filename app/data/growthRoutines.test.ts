@@ -24,8 +24,8 @@ test("사용자 루틴의 중복과 잘못된 값을 안전하게 정리한다",
     { id: "two", category: "unknown", title: "새 연습", targetMinutes: 999 },
   ]);
   assert.deepEqual(result, [
-    { id: "one", category: "typing", title: "타자 연습", targetMinutes: 5, enabled: true, completedDates: ["2026-09-02"] },
-    { id: "two", category: "custom", title: "새 연습", targetMinutes: 240, enabled: true, completedDates: [] },
+    { id: "one", category: "typing", title: "타자 연습", targetMinutes: 5, preferredDays: [1, 2, 3, 4, 5, 6, 7], targetSessionsPerWeek: 7, enabled: true, completedDates: ["2026-09-02"] },
+    { id: "two", category: "custom", title: "새 연습", targetMinutes: 240, preferredDays: [1, 2, 3, 4, 5, 6, 7], targetSessionsPerWeek: 7, enabled: true, completedDates: [] },
   ]);
 });
 

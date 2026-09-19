@@ -1,5 +1,11 @@
 'use client'
+import ZephyrReadButton from '@/components/ZephyrReadButton';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges'
+import { getLocalDateKey } from '@/utils/dateKey'
+import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
+import ConfirmDialog from "@/components/ConfirmDialog";
 import AppCompanion from "@/components/AppCompanion";
+import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
@@ -11,14 +17,26 @@ import { ArrowRight, ChevronDown, ChevronUp, CircleDollarSign, PiggyBank, Receip
 import FixedSpaceBackground from './components/fixed-space-background'
 import PreferencesSettingsCards from './components/preferences-settings-cards'
 import HistoryScreen from './components/history-screen'
+import PaymentPlans from './components/payment-plans'
+import { applyCategoryMemory } from './lib/category-memory'
+import { loadBudgetRows } from './lib/load-records'
 import SettingsUtilityCards from './components/settings-utility-cards'
 import UserGuide from './components/user-guide'
-import { PARSE_SYSTEM, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
+import { buildTransactionParseSystem, FIXED_EXPENSE_PRIORITY_CATEGORIES, detectLocalExpenseCategory, getFixedExpenseSignature, getRecurringPatternText, hasLocalExpenseMetaSignal, inferExpenseMeta, parseInputLocally } from './lib/transaction-parser'
 import AuthGate from '../components/AuthGate'
 import AppIdentity, { AppIcon } from '../components/AppIdentity'
 import AppModuleNav from '../components/AppModuleNav'
 import { resetAppRecords } from '../lib/resetAppRecords'
 import { setRecordResetRunning } from '../data/appRecordReset'
+import {
+  BUDGET_RECORD_LABEL,
+  BUDGET_RECORD_TABLE,
+  buildBudgetDeleteNotice,
+  isSameBudgetRecord,
+  type BudgetDeleteUndo,
+  type BudgetRecord,
+  type BudgetRecordKind,
+} from './lib/delete-undo'
 
 const CATEGORY_MAP: Record<string, { icon: string; color: string }> = {
   식비: { icon: '🍔', color: '#FF6B6B' },
@@ -166,6 +184,29 @@ function BudgetDashboard() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [isSavingRecords, setIsSavingRecords] = useState(false)
+  const savingRecordsRef = useRef(false)
+  const pendingSaveRef = useRef<PendingBudgetSave | null>(null)
+  const [hasPendingSave, setHasPendingSave] = useState(false)
+  useUnsavedChanges(Boolean(input.trim() || parsedItems.length || isSavingRecords))
+  useEffect(() => {
+    pendingSaveRef.current = null
+    setHasPendingSave(false)
+    setParsedItems([])
+    setInput('')
+    setShowConfirm(false)
+    setFeedback('')
+    if (!user?.id) return
+    try {
+      const pending = readPendingBudgetSave(window.localStorage, user.id)
+      if (!pending) return
+      pendingSaveRef.current = pending
+      setHasPendingSave(true)
+      setParsedItems(pending.items)
+      setShowConfirm(true)
+      setTab('input')
+      setFeedback('이전 저장 결과를 확인해야 해요. 아래 버튼으로 같은 요청을 다시 확인하면 중복 없이 처리합니다.')
+    } catch { setFeedback('이전 저장 내용을 읽지 못했어요. 저장 공간 설정을 확인해 주세요.') }
+  }, [user?.id])
   const [question, setQuestion] = useState('')
   const suggestedQuestions = [
     '이번 달 가장 많이 쓴 항목은?',
@@ -182,7 +223,6 @@ function BudgetDashboard() {
   const [aiFollowUpQuestions, setAiFollowUpQuestions] = useState<string[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [listening, setListening] = useState(false)
-  const [ttsEnabled, setTtsEnabled] = useState(false)
   const [savings, setSavings] = useState<any[]>([])
   const [showAllRecent, setShowAllRecent] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -225,10 +265,19 @@ function BudgetDashboard() {
   const [pageNotice, setPageNotice] = useState('')
   const [actionError, setActionError] = useState('')
   const [processingRecordKey, setProcessingRecordKey] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'expense' | 'income' | 'saving' | 'all'; id: string } | null>(null)
+  const [deleteUndo, setDeleteUndo] = useState<BudgetDeleteUndo | null>(null)
   const [settingsSavingAction, setSettingsSavingAction] = useState('')
-  const [dataLoadError, setDataLoadError] = useState('')
+  const [recordLoads, setRecordLoads] = useState<Record<string, string>>({ expense: 'loading', income: 'loading', saving: 'loading' })
+  const dataLoadError = Object.values(recordLoads).find(status => status !== 'ready' && status !== 'loading') || ''
+  const recordsReady = Object.values(recordLoads).every(status => status === 'ready')
   const [lastActiveAt, setLastActiveAt] = useState(Date.now())
   const LOCK_TIMEOUT = 1000 * 60 * 3
+
+  useEffect(() => {
+    // A deleted row may only be restored by the account that deleted it.
+    setDeleteUndo(null)
+  }, [user?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -639,53 +688,30 @@ function BudgetDashboard() {
     }
   }, [isLockReady, user, simplePinEnabled, hasSimplePin, isUnlocked, lastActiveAt, LOCK_TIMEOUT])
 
-  const fetchTransactions = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
-
-    if (!currentUser) {
-      setTransactions([])
-      setRecurringTransactions([])
-      return
+  const fetchRecordKind = async (kind: BudgetRecordKind) => {
+    setRecordLoads(current => ({ ...current, [kind]: 'loading' }))
+    try {
+      const { data: { user: owner }, error: authError } = await supabase.auth.getUser()
+      if (authError || !owner) throw new Error('로그인 상태를 확인해 주세요.')
+      const table = BUDGET_RECORD_TABLE[kind] as 'budget_transactions' | 'budget_income' | 'budget_savings'
+      const rows = await loadBudgetRows(supabase, table, owner.id)
+      const { data: { user: currentOwner } } = await supabase.auth.getUser()
+      if (currentOwner?.id !== owner.id) return false
+      if (kind === 'expense') {
+        setTransactions(rows)
+        const start = new Date()
+        start.setDate(1); start.setMonth(start.getMonth() - 2)
+        setRecurringTransactions(rows.filter(row => String(row.date) >= getLocalDateKey(start)))
+      } else if (kind === 'income') setIncomeList(rows)
+      else setSavings(rows)
+      setRecordLoads(current => ({ ...current, [kind]: 'ready' }))
+      return true
+    } catch {
+      setRecordLoads(current => ({ ...current, [kind]: '전체 내역을 불러오지 못했어요. 연결을 확인한 뒤 다시 불러와 주세요.' }))
+      return false
     }
-
-    const startOfMonth = new Date()
-    startOfMonth.setDate(1)
-    startOfMonth.setHours(0, 0, 0, 0)
-
-    const recurringStartDate = new Date(startOfMonth)
-    recurringStartDate.setMonth(recurringStartDate.getMonth() - 2)
-
-    const normalizeTransaction = (item: any) => ({
-      ...item,
-      payment: item.payment || '체크카드',
-      transaction_type: item.transaction_type || '일반 지출'
-    })
-
-    const { data, error } = await supabase
-      .from('budget_transactions')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .gte('date', startOfMonth.toISOString().split('T')[0])
-      .order('date', { ascending: false })
-
-    const { data: recurringData, error: recurringError } = await supabase
-      .from('budget_transactions')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .gte('date', recurringStartDate.toISOString().split('T')[0])
-      .order('date', { ascending: false })
-
-    if (error || recurringError) {
-      console.error('transactions 조회 오류:', error || recurringError)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setTransactions((data || []).map(normalizeTransaction))
-    setRecurringTransactions((recurringData || []).map(normalizeTransaction))
   }
+  const fetchTransactions = () => fetchRecordKind('expense')
 
   const fetchRecurringExpensePreferences = async () => {
     const { data: authData } = await supabase.auth.getUser()
@@ -778,55 +804,9 @@ function BudgetDashboard() {
     setRecurringDecisionSavingKey('')
   }
 
-  const fetchSavings = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
+  const fetchSavings = () => fetchRecordKind('saving')
 
-    if (!currentUser) {
-      setSavings([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('budget_savings')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('date', { ascending: false })
-
-    if (error) {
-      console.error('savings 조회 오류:', error)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setSavings(data || [])
-  }
-
-  const fetchIncome = async () => {
-    const { data: authData } = await supabase.auth.getUser()
-    const currentUser = authData.user
-
-    if (!currentUser) {
-      setIncomeList([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('budget_income')
-      .select('*')
-      .eq('user_id', currentUser.id)
-      .order('date', { ascending: false })
-
-    if (error) {
-      console.error('income 조회 오류:', error)
-      setDataLoadError('일부 데이터를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.')
-      return
-    }
-
-    setDataLoadError('')
-    setIncomeList(data || [])
-  }
+  const fetchIncome = () => fetchRecordKind('income')
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -1400,7 +1380,7 @@ function BudgetDashboard() {
 
           return {
             type,
-            date: item.date || new Date().toISOString().split('T')[0],
+            date: item.date || getLocalDateKey(),
             amount: Number(item.amount) || 0,
             place: item.place || (type === 'income' ? '수입' : type === 'saving' ? '일반저축' : '미분류'),
             category: type === 'income'
@@ -1422,7 +1402,7 @@ function BudgetDashboard() {
     }
 
     try {
-      const system = PARSE_SYSTEM.replace('DATE_PLACEHOLDER', new Date().toISOString().split('T')[0])
+      const system = buildTransactionParseSystem()
 
       const res = await authenticatedFetch(`${API_BASE_URL}/api/claude`, {
         method: 'POST',
@@ -1456,13 +1436,20 @@ function BudgetDashboard() {
   }
 
   const handleAddTransaction = async () => {
-    if (!input.trim()) return
+    if (!input.trim() || savingRecordsRef.current || pendingSaveRef.current) return
     setAiLoading(true)
     setFeedback('')
 
     try {
       const parsed = await parseInput(input)
-      setParsedItems(parsed)
+      const { data: rules, error: rulesError, count } = await supabase.from('budget_category_rules')
+        .select('merchant_key,category,revision', { count: 'exact' }).eq('user_id', user.id).order('merchant_key').limit(1000)
+      if (rulesError || count !== rules?.length) {
+        setFeedback('기억한 분류를 읽지 못했어요. 연결을 확인한 뒤 다시 해석해 주세요.')
+        setAiLoading(false)
+        return
+      }
+      setParsedItems(applyCategoryMemory(parsed, rules || []))
       setShowConfirm(true)
     } catch {
       setFeedback('입력 내용을 완전히 해석하지 못했어요. 내용을 조금만 다듬어서 다시 해석해보세요.')
@@ -1472,166 +1459,126 @@ function BudgetDashboard() {
   }
 
   const updateParsedItem = (index: number, patch: Record<string, unknown>) => {
+    if (savingRecordsRef.current || pendingSaveRef.current) return
     setParsedItems((current) => current.map((item, itemIndex) => (
       itemIndex === index ? { ...item, ...patch } : item
     )))
   }
 
   const handleConfirmSave = async () => {
-    if (!parsedItems.length || isSavingRecords) return
-
-    if (!user?.id) {
-      setFeedback('로그인 정보를 확인할 수 없어요.')
-      return
-    }
-
-    const hasInvalidItem = parsedItems.some((item) => (
-      !item.place?.trim()
-      || !Number.isFinite(Number(item.amount))
-      || Number(item.amount) <= 0
-      || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || '')
-    ))
-
-    if (hasInvalidItem) {
-      setFeedback('날짜, 이름, 금액을 다시 확인해주세요. 금액은 0원보다 커야 해요.')
-      return
-    }
-
+    if (!parsedItems.length || savingRecordsRef.current || !user?.id) return
+    const hasInvalidItem = parsedItems.some((item) => !item.place?.trim()
+      || !Number.isSafeInteger(Number(item.amount)) || Number(item.amount) <= 0
+      || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || ''))
+    if (hasInvalidItem) { setFeedback('날짜, 이름, 금액을 확인해 주세요. 금액은 0원보다 큰 정수로 입력해요.'); return }
+    savingRecordsRef.current = true
     setIsSavingRecords(true)
     setFeedback('')
-
     try {
-      for (const item of parsedItems) {
-        if (item.type === 'income') {
-          const { error } = await supabase
-            .from('budget_income')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              name: item.place.trim(),
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
-        } else if (item.type === 'saving') {
-          const { error } = await supabase
-            .from('budget_savings')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              goal_name: item.place.trim() || '일반저축',
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
-        } else {
-          const { error } = await supabase
-            .from('budget_transactions')
-            .insert([{
-              user_id: user.id,
-              date: item.date,
-              amount: Number(item.amount),
-              place: item.place.trim(),
-              category: item.category || '기타',
-              payment: item.payment || '체크카드',
-              transaction_type: item.transaction_type || '일반 지출',
-              memo: item.memo?.trim() || ''
-            }])
-
-          if (error) throw error
+      const pending = pendingSaveRef.current ?? { id: crypto.randomUUID(), items: parsedItems.map(item => ({
+        type: item.type || 'expense', date: item.date, amount: Number(item.amount), place: item.place.trim(),
+        memo: item.memo?.trim() || '', category: item.category || '기타', payment: item.payment || '체크카드', transaction_type: item.transaction_type || '일반 지출',
+      })) }
+      // Keep the exact request across reloads and ambiguous network failures.
+      window.localStorage.setItem(pendingBudgetSaveKey(user.id), JSON.stringify(pending))
+      pendingSaveRef.current = pending
+      setHasPendingSave(true)
+      const { data, error } = await supabase.rpc('save_budget_batch', { p_batch_id: pending.id, p_items: pending.items })
+      if (error) {
+        // A SQL rejection rolls back the whole transaction, so editing is safe.
+        if (error.code === 'P0001' || error.code?.startsWith('22') || error.code?.startsWith('23') || error.code === 'PGRST202') {
+          window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+          pendingSaveRef.current = null
+          setHasPendingSave(false)
         }
+        throw error
       }
-
-      await Promise.all([
-        fetchIncome(),
-        fetchTransactions(),
-        fetchSavings(),
-      ])
-
-      setFeedback(parsedItems.length + '건을 저장했어요.')
+      window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+      pendingSaveRef.current = null
+      setHasPendingSave(false)
       setShowConfirm(false)
       setParsedItems([])
       setInput('')
-    } catch (e) {
-      console.error('저장 중 오류:', e)
-      setFeedback('저장 중 오류가 발생했어요. 저장된 내역이 있는지 상세 내역에서 확인해주세요.')
+      setFeedback(String(data?.count ?? pending.items.length) + '건의 저장을 확인했어요.')
+      await Promise.all([fetchIncome(), fetchTransactions(), fetchSavings()])
+    } catch {
+      setFeedback(pendingSaveRef.current
+        ? '저장 응답을 확인하지 못했어요. 같은 내용으로 다시 확인해 주세요. 중복 저장되지 않습니다.'
+        : '내역을 저장하지 못했어요. 입력 내용과 연결·저장 공간을 확인한 뒤 다시 시도해 주세요.')
     } finally {
+      savingRecordsRef.current = false
       setIsSavingRecords(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const refreshBudgetRecordList = async (kind: BudgetRecordKind) => {
+    if (kind === 'expense') await fetchTransactions()
+    else if (kind === 'income') await fetchIncome()
+    else await fetchSavings()
+  }
+
+  const handleDeleteRecord = async (kind: BudgetRecordKind, id: string) => {
     if (!user?.id || processingRecordKey) return
 
-    setProcessingRecordKey(`expense:${id}`)
+    setProcessingRecordKey(`${kind}:${id}`)
     setActionError('')
 
     try {
-      const { error } = await supabase
-        .from('budget_transactions')
+      const { data, error } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
         .delete()
         .eq('id', id)
         .eq('user_id', user.id)
+        .select('*')
+        .maybeSingle()
 
       if (error) throw error
+      if (!data) throw new Error('삭제할 기록을 찾지 못했습니다.')
 
-      await fetchTransactions()
-      setPageNotice('지출 내역을 삭제했어요.')
+      setDeleteUndo({ kind, record: data as BudgetRecord })
+      await refreshBudgetRecordList(kind)
+      setPageNotice(buildBudgetDeleteNotice(kind))
     } catch (error) {
-      console.error('transactions 삭제 오류:', error)
-      setActionError('지출 내역 삭제에 실패했어요. 다시 시도해주세요.')
+      console.error(`${BUDGET_RECORD_TABLE[kind]} 삭제 오류:`, error)
+      setActionError(`${BUDGET_RECORD_LABEL[kind]} 내역 삭제에 실패했어요. 다시 시도해주세요.`)
     } finally {
       setProcessingRecordKey('')
     }
   }
 
-  const handleDeleteIncome = async (id: string) => {
-    if (!user?.id || processingRecordKey) return
-
-    setProcessingRecordKey(`income:${id}`)
-    setActionError('')
-
-    try {
-      const { error } = await supabase
-        .from('budget_income')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id)
-
-      if (error) throw error
-
-      await fetchIncome()
-      setPageNotice('수입 내역을 삭제했어요.')
-    } catch (error) {
-      console.error('income 삭제 오류:', error)
-      setActionError('수입 내역 삭제에 실패했어요. 다시 시도해주세요.')
-    } finally {
-      setProcessingRecordKey('')
+  const restoreDeletedBudgetRecord = async () => {
+    if (!user?.id || !deleteUndo || processingRecordKey) return
+    if (deleteUndo.record.user_id !== user.id) {
+      setDeleteUndo(null)
+      setActionError('로그인 계정이 바뀌어 이전 삭제를 되돌리지 않았어요.')
+      return
     }
-  }
-
-  const handleDeleteSaving = async (id: string) => {
-    if (!user?.id || processingRecordKey) return
-
-    setProcessingRecordKey(`saving:${id}`)
+    const { kind, record } = deleteUndo
+    setProcessingRecordKey(`undo:${record.id}`)
     setActionError('')
 
     try {
-      const { error } = await supabase
-        .from('budget_savings')
-        .delete()
-        .eq('id', id)
+      const { error: insertError } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
+        .insert(record)
+      if (insertError && insertError.code !== '23505') throw insertError
+
+      const { data, error: verifyError } = await supabase
+        .from(BUDGET_RECORD_TABLE[kind])
+        .select('*')
+        .eq('id', record.id)
         .eq('user_id', user.id)
+        .maybeSingle()
 
-      if (error) throw error
-
-      await fetchSavings()
-      setPageNotice('저축 내역을 삭제했어요.')
+      if (verifyError || !isSameBudgetRecord(record, data as BudgetRecord | null)) {
+        throw verifyError ?? new Error('복원 결과가 삭제 전 기록과 다릅니다.')
+      }
+      await refreshBudgetRecordList(kind)
+      setDeleteUndo(null)
+      setPageNotice(`${BUDGET_RECORD_LABEL[kind]} 내역을 삭제 전 그대로 복원했어요.`)
     } catch (error) {
-      console.error('savings 삭제 오류:', error)
-      setActionError('저축 내역 삭제에 실패했어요. 다시 시도해주세요.')
+      console.error(`${BUDGET_RECORD_TABLE[kind]} 복원 오류:`, error)
+      setActionError(`${BUDGET_RECORD_LABEL[kind]} 내역을 복원하지 못했어요. 다시 시도해주세요.`)
     } finally {
       setProcessingRecordKey('')
     }
@@ -1639,33 +1586,31 @@ function BudgetDashboard() {
 
   const handleResetAllData = async () => {
     if (!user?.email) {
-      alert('로그인 정보를 확인할 수 없어요.')
+      setActionError('로그인 정보를 확인할 수 없어요.')
       return
     }
 
     if (!resetPassword.trim()) {
-      alert('비밀번호를 입력해주세요.')
+      setActionError('비밀번호를 입력해주세요.')
       return
     }
 
     if (resetLoading) return
-    const ok = window.confirm('이 계정의 전체 기간 지출·수입·저축 기록을 영구 삭제할까요? 예산·설정과 다른 앱 기록은 유지됩니다. 되돌릴 수 없어요.')
-    if (!ok) return
 
     setResetLoading(true)
-
+    setActionError('')
+    setPageNotice('')
+    try {
     const { error } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: resetPassword
     })
 
     if (error) {
-      setResetLoading(false)
-      alert('비밀번호가 올바르지 않아요.')
+      setActionError('비밀번호를 확인하지 못했어요. 입력 내용과 연결을 확인해 주세요.')
       return
     }
 
-    try {
       setRecordResetRunning(true)
       resetRequestId.current ||= crypto.randomUUID()
       await resetAppRecords('budget', resetRequestId.current, user.id)
@@ -1677,48 +1622,24 @@ function BudgetDashboard() {
 
       setShowResetConfirm(false)
       setResetPassword('')
+      window.localStorage.removeItem(pendingBudgetSaveKey(user.id))
+      pendingSaveRef.current = null
+      setHasPendingSave(false)
       setParsedItems([])
       setShowConfirm(false)
       setFeedback('')
       setAiAnswer('')
       setInput('')
       setQuestion('')
+      setDeleteUndo(null)
 
-      alert('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
+      setPageNotice('가계부의 전체 기간 지출·수입·저축 기록을 초기화했어요.')
     } catch (e) {
       console.error(e)
-      alert('초기화 완료 여부를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요.')
+      setActionError('초기화 완료 여부를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요.')
     } finally {
       setResetLoading(false)
       setRecordResetRunning(false)
-    }
-  }
-
-  const playGoogleTTS = async (text: string) => {
-    try {
-      const cleanText = text
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/^\* /gm, '')
-        .replace(/#{1,6}\s/g, '')
-        .replace(/😊|😄|😅|🎉|✓|✗|⚠️|💰|📊|🔒|🎯/g, '')
-        .replace(/(\d{4})-(\d{2})-(\d{2})/g, '$1년 $2월 $3일')
-        .replace(/[_~`]/g, '')
-        .trim()
-
-      const res = await authenticatedFetch(`${API_BASE_URL}/api/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText })
-      })
-
-      const data = await res.json()
-      if (data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`)
-        audio.play()
-      }
-    } catch (e) {
-      console.error('TTS 오류', e)
     }
   }
 
@@ -2562,7 +2483,7 @@ function BudgetDashboard() {
         monthEndAdvice
 
       finishAiAnswer(answer, ['가장 많이 쓴 항목은?', '반복지출 중 줄일 항목은?', '다음 달 예산은 얼마가 적당해?'])
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2574,7 +2495,7 @@ function BudgetDashboard() {
           '통신비, 공과금, 구독, 보험, 월세, 대출, 관리비는 우선 감지해서 더 빠르게 확인해드릴게요.'
 
         finishAiAnswer(emptyAnswer)
-        if (ttsEnabled) playGoogleTTS(emptyAnswer)
+
         return
       }
 
@@ -2592,7 +2513,7 @@ function BudgetDashboard() {
         `${fixedExpenseCandidates.length > 0 ? `새로 확인할 후보는 ${fixedExpenseCandidates.length}건이에요.\n${candidateLines.join('\n')}\n후보는 확정하기 전까지 예산의 고정지출 합계에 포함하지 않아요.` : '새로 확인할 후보는 없어요.'}`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2603,7 +2524,7 @@ function BudgetDashboard() {
           : '최근 두 달의 지출 기록과 설정된 월 예산이 없어 다음 달 권장 예산을 계산하기 어려워요.\n지출 기록을 쌓거나 월 예산을 먼저 설정해주세요.\n데이터가 생기면 실제 소비 흐름을 기준으로 무리 없는 예산을 제안해드릴게요.'
 
         finishAiAnswer(emptyBudgetAnswer, ['월 예산을 설정하는 방법은?', '예산 없이 지출 흐름만 요약해줘', '반복지출 후보가 있는지 알려줘'])
-        if (ttsEnabled) playGoogleTTS(emptyBudgetAnswer)
+
         return
       }
 
@@ -2621,7 +2542,7 @@ function BudgetDashboard() {
         `최근 두 달 중 기록이 있는 달을 기준으로 5% 정도 조정한 보수적인 예산이에요.`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2637,7 +2558,7 @@ function BudgetDashboard() {
       if (!topEntry) {
         const emptyAnswer = '조건에 맞는 지출 데이터가 아직 없어요.\n핵심 수치를 계산할 거래가 없어요.\n기간이나 조건을 조금 바꿔서 다시 물어보면 더 정확히 보여드릴게요.'
         finishAiAnswer(emptyAnswer)
-        if (ttsEnabled) playGoogleTTS(emptyAnswer)
+
         return
       }
 
@@ -2651,7 +2572,7 @@ function BudgetDashboard() {
         `${topName} 비중이 가장 커서 먼저 점검하면 절약 효과를 가장 빨리 체감할 가능성이 커요.`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2708,7 +2629,7 @@ function BudgetDashboard() {
           `${diff > 0 ? '해당 조건의 소비가 늘어난 흐름이라 원인 항목을 같이 점검해보는 게 좋아요.' : diff < 0 ? '이전보다 줄어든 흐름이라 현재 패턴을 유지하면 좋아요.' : '큰 변화는 없어서 현재 소비 패턴이 비슷하게 유지되고 있어요.'}`
 
         finishAiAnswer(answer)
-        if (ttsEnabled) playGoogleTTS(answer)
+
         return
       }
     }
@@ -2724,7 +2645,7 @@ function BudgetDashboard() {
         `${detailCount > 0 ? '조건에 맞는 지출만 따로 본 값이라 해당 소비 습관을 점검하기 좋아요.' : '아직 해당 조건에 맞는 거래가 없어요.'}`
 
       finishAiAnswer(answer)
-      if (ttsEnabled) playGoogleTTS(answer)
+
       return
     }
 
@@ -2813,7 +2734,7 @@ function BudgetDashboard() {
       : getContextualFollowUps(q)
 
     finishAiAnswer(data.answer, followUps)
-    if (ttsEnabled) playGoogleTTS(data.answer)
+
   }
 
   const recentThreshold = 5
@@ -3218,6 +3139,11 @@ return (
               다시 불러오기
             </button>
           )}
+          {deleteUndo && !isOffline && !actionError && !dataLoadError && (
+            <button type="button" disabled={Boolean(processingRecordKey)} onClick={() => void restoreDeletedBudgetRecord()} style={{ minHeight: 36, marginLeft: 10, border: '1px solid rgba(15,15,20,.22)', borderRadius: 9, padding: '5px 10px', color: '#0F0F14', background: 'rgba(255,255,255,.72)', fontSize: 12, fontWeight: 800, cursor: processingRecordKey ? 'wait' : 'pointer' }}>
+              {processingRecordKey.startsWith('undo:') ? '복원 확인 중…' : '삭제 되돌리기'}
+            </button>
+          )}
         </div>
       )}
 
@@ -3284,6 +3210,11 @@ return (
       </header>
 
 
+      <ConfirmDialog open={Boolean(pendingDelete)} title={pendingDelete?.kind === 'all' ? '가계부 기록 전체 삭제' : '선택한 기록 삭제'} description={pendingDelete?.kind === 'all' ? '전체 기간의 지출·수입·저축 기록을 삭제합니다. 예산·설정과 다른 앱 기록은 유지됩니다. 삭제한 기록은 되돌릴 수 없어요.' : '선택한 기록만 삭제합니다. 삭제 직후에는 이 화면의 “삭제 되돌리기”로 원래 기록을 복원할 수 있어요.'} busy={Boolean(processingRecordKey) || resetLoading} onCancel={() => setPendingDelete(null)} onConfirm={() => {
+        if (!pendingDelete) return
+        const action = pendingDelete.kind === 'all' ? handleResetAllData() : handleDeleteRecord(pendingDelete.kind, pendingDelete.id)
+        void action.finally(() => setPendingDelete(null))
+      }} />
       <div className="budget-guide"><AppCompanion home={tab === 'home'} compact={tab !== 'home'} quiet={tab !== 'home'}>{tab === 'home' ? '오늘 쓴 내역부터 가볍게 남겨봐요.' : tab === 'input' ? '금액과 날짜를 확인하고 저장해 주세요.' : tab === 'analysis' ? '항목별 흐름을 비교해봐요. 기록이 쌓이면 소비 습관이 더 잘 보여요.' : tab === 'settings' ? '설정을 바꾸기 전에 안내를 확인해 주세요. 초기화는 지워지는 기록부터 살펴봐요.' : '찾고 싶은 기간과 항목을 골라봐요. 저장한 내역을 다시 확인할 수 있어요.'}</AppCompanion></div>
 
       {tab === 'home' && (
@@ -3317,6 +3248,7 @@ return (
             </div>
           </header>
 
+          {user?.id && <PaymentPlans key={`home-plans:${user.id}`} userId={user.id} records={transactions} month={selectedMonth} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} compact onManage={() => { setTab('analysis'); setAnalysisView('stats'); }} onRefreshRecords={fetchTransactions} />}
           <section className="home-ai-card home-ai-card-primary">
             <div className="home-ai-icon" aria-hidden="true"><Sparkles size={22} strokeWidth={1.8} /></div>
             <div className="home-ai-content">
@@ -3647,7 +3579,7 @@ return (
                 </strong>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              <fieldset disabled={isSavingRecords || hasPendingSave} style={{ border: 0, padding: 0, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
                 {parsedItems.map((item, idx) => (
                   <article key={idx} style={{ position: 'relative', background: 'rgba(8,8,12,0.38)', border: '1px solid #2A2A3A', borderRadius: 14, padding: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -3721,10 +3653,10 @@ return (
 
                     {item.type !== 'saving' && (
                       <label style={{ display: 'block', color: '#AEB7C6', fontSize: 11, marginBottom: 10 }}>
-                        카테고리
+                        카테고리 {item.categorySource && <span>· {item.categorySource}</span>}
                         <select
                           value={item.category || (item.type === 'income' ? '기타수입' : '기타')}
-                          onChange={(e) => updateParsedItem(idx, { category: e.target.value })}
+                          onChange={(e) => updateParsedItem(idx, { category: e.target.value, categorySource: undefined })}
                           style={{ width: '100%', minHeight: 40, marginTop: 5, background: '#101018', border: '1px solid #343443', borderRadius: 8, color: '#FFFFFF', padding: '8px 9px', boxSizing: 'border-box' }}
                         >
                           {item.type === 'income' ? (
@@ -3776,7 +3708,7 @@ return (
                     </label>
                   </article>
                 ))}
-              </div>
+              </fieldset>
 
               <div aria-live="polite">
                 {feedback && <p style={{ color: feedback.includes('오류') || feedback.includes('확인') ? '#FF9B9B' : '#4ECDC4', fontSize: 12, lineHeight: 1.5, margin: '0 0 10px' }}>{feedback}</p>}
@@ -3785,7 +3717,7 @@ return (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
-                  disabled={isSavingRecords}
+                  disabled={isSavingRecords || hasPendingSave}
                   onClick={() => {
                     setShowConfirm(false)
                     setParsedItems([])
@@ -3801,7 +3733,7 @@ return (
                   disabled={isSavingRecords}
                   style={{ flex: 2, minHeight: 46, background: isSavingRecords ? '#715943' : 'linear-gradient(135deg,#E8A87C,#D4916A)', border: 'none', borderRadius: 12, padding: '12px', cursor: isSavingRecords ? 'wait' : 'pointer', color: '#0F0F14', fontWeight: 700, fontSize: 14, opacity: isSavingRecords ? 0.7 : 1 }}
                 >
-                  {isSavingRecords ? '저장하는 중…' : parsedItems.length + '건 확인 후 저장'}
+                  {isSavingRecords ? '저장 확인 중…' : hasPendingSave ? '같은 요청으로 저장 확인' : parsedItems.length + '건 확인 후 저장'}
                 </button>
               </div>
             </section>
@@ -3817,14 +3749,16 @@ return (
 
       {tab === 'list' && (
         <HistoryScreen
+          userId={user.id}
+          onChanged={async () => { if (!(await fetchTransactions())) throw new Error('내역 재조회에 실패했어요. 변경 이력 다시 불러오기로 현재 기록을 확인해 주세요.') }}
           incomeList={incomeList}
           transactions={transactions}
           savings={savings}
           currency={currency}
           processingRecordKey={processingRecordKey}
-          onDeleteIncome={handleDeleteIncome}
-          onDeleteExpense={handleDelete}
-          onDeleteSaving={handleDeleteSaving}
+          onDeleteIncome={id => setPendingDelete({ kind: 'income', id })}
+          onDeleteExpense={id => setPendingDelete({ kind: 'expense', id })}
+          onDeleteSaving={id => setPendingDelete({ kind: 'saving', id })}
           onNavigateInput={() => setTab('input')}
           onNotice={setPageNotice}
         />
@@ -3867,6 +3801,7 @@ return (
 
       {tab === 'analysis' && analysisView === 'ai' && (
         <main className="living-finance-view ai-screen" style={{ padding: '20px 20px 96px' }}>
+          <FreeAdvicePanel scope="budget" />
           <section style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>
@@ -3909,14 +3844,7 @@ return (
           <section style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <p style={{ color: '#4ECDC4', fontSize: 12, fontWeight: 700, margin: 0, letterSpacing: 1 }}>직접 질문</p>
-              <button
-                type="button"
-                aria-pressed={ttsEnabled}
-                onClick={() => setTtsEnabled(!ttsEnabled)}
-                style={{ background: ttsEnabled ? '#4ECDC422' : '#1A1A2E', border: `1px solid ${ttsEnabled ? '#4ECDC4' : '#2A2A3E'}`, borderRadius: 8, padding: '5px 10px', cursor: 'pointer', color: ttsEnabled ? '#4ECDC4' : '#D0D0E0', fontSize: 11 }}
-              >
-                {ttsEnabled ? '🔊 자동 읽기 켜짐' : '🔇 자동 읽기 꺼짐'}
-              </button>
+              <span style={{ color: "#D0D0E0", fontSize: 11 }}>답변을 누르면 Zephyr로 읽어요</span>
             </div>
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -3941,7 +3869,7 @@ return (
                   <div style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 1.7 }}>
                     {aiAnswer.split('\n').map((line, i) => <span key={i}>{line}<br /></span>)}
                   </div>
-                  <button type="button" onClick={() => playGoogleTTS(aiAnswer)} style={{ marginTop: 10, background: 'rgba(26,26,46,0.75)', border: '1px solid #2A2A3E', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', color: '#4ECDC4', fontSize: 12, fontWeight: 700 }}>🔊 답변 읽기</button>
+                  <ZephyrReadButton text={aiAnswer} />
                   {aiFollowUpQuestions.length > 0 && (
                     <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #2A2A3E' }}>
                       <p style={{ color: '#9CA3AF', fontSize: 11, fontWeight: 700, margin: '0 0 8px' }}>이어서 물어보기</p>
@@ -3983,6 +3911,7 @@ return (
             <h3 style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>{selectedMonthLabel} 돈의 흐름</h3>
             <p style={{ color: '#9CA3AF', fontSize: 12, lineHeight: 1.6, margin: 0 }}>핵심 수치부터 지출 구성과 반복 흐름 순서로 확인하세요.</p>
           </div>
+          {user?.id && <PaymentPlans key={`analysis-plans:${user.id}`} userId={user.id} records={transactions} month={selectedMonth} budget={monthlyBudget} ready={recordsReady && !budgetLoading} currency={currency} onRefreshRecords={fetchTransactions} />}
           <section aria-labelledby="month-end-report-title" style={{ background: 'linear-gradient(145deg, rgba(32,31,48,0.92), rgba(20,27,40,0.88))', border: '1px solid rgba(78,205,196,0.28)', borderRadius: 20, padding: 18, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>
@@ -4568,7 +4497,7 @@ return (
             onAutoQuestionChange={setAutoQuestion}
             onShowResetConfirmChange={setShowResetConfirm}
             onResetPasswordChange={setResetPassword}
-            onResetAllData={handleResetAllData}
+            onResetAllData={() => setPendingDelete({ kind: 'all', id: '' })}
           />
         </div>
       )}

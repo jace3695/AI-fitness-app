@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
+import { buildFreeConversation } from "@/data/freeConversation";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -110,16 +111,7 @@ async function callOpenAI(
   userId: string,
 ): Promise<AIResponse> {
   if (!isAiFeatureAvailable("language-conversation")) {
-    return {
-      reply: "（モック）こんにちは！何かお手伝いできますか？",
-      replyReading: "（モック）こんにちは！なにかおてつだいできますか？",
-      replyKoreanPronunciation: "(모크) 곤니치와! 나니카 오테츠다이 데키마스카?",
-      correction: message,
-      correctionReading: message,
-      correctionKoreanPronunciation: "입력 문장의 발음 참고를 생성하지 못했습니다.",
-      explanation:
-        "OPENAI_API_KEY가 없어 임시 응답입니다. .env.local에 키를 추가해 주세요.",
-    };
+    return buildFreeConversation(situation, message);
   }
 
   const pastMessages: { role: "user" | "assistant"; content: string }[] = [];

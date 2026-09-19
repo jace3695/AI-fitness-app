@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildDietDailyStatus,
   buildFitnessDailyStatus,
   buildLanguageDailyStatus,
   parseStateObject,
@@ -34,7 +35,7 @@ test("다른 날짜의 일본어 완료 기록은 오늘 기록으로 세지 않
   assert.equal(status.nextHref, "/language/kana");
 });
 
-test("운동 계획과 오늘 완료 기록을 기존 상태에서 읽는다", () => {
+test("일부 완료를 전체 운동 완료로 바꾸지 않는다", () => {
   const status = buildFitnessDailyStatus({
     "ai-fitness-selected-weekly-workout-plan": "week1-cardio-back",
     "ai-fitness-workout-completed-days": {
@@ -43,9 +44,9 @@ test("운동 계획과 오늘 완료 기록을 기존 상태에서 읽는다", (
   }, "2026-09-02", new Date(2026, 8, 2));
 
   assert.equal(status.synced, true);
-  assert.equal(status.completed, true);
+  assert.equal(status.completed, false);
   assert.equal(status.isRest, false);
-  assert.equal(status.detail, "오늘 운동을 완료했습니다.");
+  assert.equal(status.detail, "오늘 운동을 일부 완료했습니다.");
 });
 
 test("운동 쉬는 날은 완료 여부와 별개로 회복일을 표시한다", () => {
@@ -53,4 +54,16 @@ test("운동 쉬는 날은 완료 여부와 별개로 회복일을 표시한다"
   assert.equal(status.title, "오늘은 회복일");
   assert.equal(status.isRest, true);
   assert.equal(status.completed, false);
+});
+
+test("오늘 저장한 식단만 완료로 보고 다른 날짜 기록은 유지한다", () => {
+  const completed = buildDietDailyStatus({
+    "ai-fitness-diet-completed-days": {
+      "2026-09-01": { dietStatus: "normal" },
+      "2026-09-02": { dietStatus: "social", dietMemo: "합성 기록" },
+    },
+  }, "2026-09-02");
+  assert.equal(completed.completed, true);
+  assert.equal(completed.title, "오늘 식단 기록 완료");
+  assert.equal(buildDietDailyStatus({ "ai-fitness-diet-completed-days": { "2026-09-01": { dietStatus: "normal" } } }, "2026-09-02").completed, false);
 });

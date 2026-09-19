@@ -53,14 +53,16 @@ export type GrowthRoutine = {
   category: GrowthCategoryId;
   title: string;
   targetMinutes: number;
+  preferredDays: number[];
+  targetSessionsPerWeek: number;
   enabled: boolean;
   completedDates: string[];
 };
 
 export const DEFAULT_GROWTH_ROUTINES: GrowthRoutine[] = [
-  { id: "development-default", category: "development", title: "AI 허브 개발", targetMinutes: 60, enabled: true, completedDates: [] },
-  { id: "typing-default", category: "typing", title: "정확도 중심 타자 연습", targetMinutes: 10, enabled: true, completedDates: [] },
-  { id: "handwriting-default", category: "handwriting", title: "손글씨 교정 연습", targetMinutes: 15, enabled: true, completedDates: [] },
+  { id: "development-default", category: "development", title: "AI 허브 개발", targetMinutes: 60, preferredDays: [1, 2, 3, 4, 5, 6, 7], targetSessionsPerWeek: 7, enabled: true, completedDates: [] },
+  { id: "typing-default", category: "typing", title: "정확도 중심 타자 연습", targetMinutes: 10, preferredDays: [1, 2, 3, 4, 5, 6, 7], targetSessionsPerWeek: 7, enabled: true, completedDates: [] },
+  { id: "handwriting-default", category: "handwriting", title: "손글씨 교정 연습", targetMinutes: 15, preferredDays: [1, 2, 3, 4, 5, 6, 7], targetSessionsPerWeek: 7, enabled: true, completedDates: [] },
 ];
 
 const categoryIds = new Set<GrowthCategoryId>(GROWTH_CATEGORIES.map((item) => item.id));
@@ -90,11 +92,23 @@ export function normalizeGrowthRoutines(value: unknown): GrowthRoutine[] {
         (date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date),
       ))).slice(-90)
       : [];
+    const preferredDays = Array.isArray(record.preferredDays)
+      ? Array.from(new Set(record.preferredDays.map(Number).filter(
+        (day) => Number.isInteger(day) && day >= 1 && day <= 7,
+      ))).sort((left, right) => left - right)
+      : [1, 2, 3, 4, 5, 6, 7];
+    const safePreferredDays = preferredDays.length ? preferredDays : [1, 2, 3, 4, 5, 6, 7];
+    const rawWeeklyTarget = Number(record.targetSessionsPerWeek);
     normalized.push({
       id,
       category,
       title,
       targetMinutes: Number.isFinite(rawMinutes) ? Math.min(240, Math.max(5, Math.round(rawMinutes))) : 15,
+      preferredDays: safePreferredDays,
+      targetSessionsPerWeek: Math.min(
+        safePreferredDays.length,
+        Math.max(1, Number.isFinite(rawWeeklyTarget) ? Math.round(rawWeeklyTarget) : safePreferredDays.length),
+      ),
       enabled: record.enabled !== false,
       completedDates,
     });
