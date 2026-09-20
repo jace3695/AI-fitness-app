@@ -3,6 +3,9 @@
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import AppCompanion from "@/components/AppCompanion";
 import DailyBriefing from "@/components/DailyBriefing";
+import { ADVICE_QUESTIONS } from '@/lib/assistant-advice-intent';
+import { isFreeAdviceScope, type FreeAdviceScope, type FreeAdviceContext } from '@/lib/free-advice-context';
+import type { FreeAdvice } from '@/lib/free-advice';
 import FreeAdvicePanel from "@/components/FreeAdvicePanel";
 import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { AssistantCommandReview } from '@/components/AssistantCommandReview';
@@ -88,7 +91,7 @@ const EMPTY_BRIEFING: BriefingSnapshot = {
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
-  text: "무엇을 도와드릴까요? 가계부·할 일·운동·언어 데이터를 조회하고 기록할 수 있어요.",
+  text: "무엇을 도와드릴까요? 기록 확인·입력과 기록을 바탕으로 한 무료 AI 조언을 여기서 함께 할 수 있어요.",
 };
 
 function formatWon(value: number) {
@@ -126,14 +129,37 @@ export default function AssistantPage() {
   const [message, setMessage] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
+  const [activeAdvice, setActiveAdvice] = useState<{ id: string; scope: FreeAdviceScope; question: string } | null>(null);
+  const [adviceBusy, setAdviceBusy] = useState(false);
+  const chatLock = useRef(false);
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
   const [chatHistoryNotice, setChatHistoryNotice] = useState("");
   const pending = useTaskCommandDrafts();
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const mutationLocks = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<string[]>([]);
-  useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending));
+  useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy));
   const chatBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scope = new URLSearchParams(window.location.search).get('advice');
+    if (isFreeAdviceScope(scope)) setChatInput(ADVICE_QUESTIONS[scope]);
+  }, []);
+
+  const finishAdvice = async (advice: FreeAdvice, source: FreeAdviceContext['recordSource']) => {
+    if (!supabase) return;
+    const text = [source === 'example' ? '【가상 예시 기록의 AI 조언】' : '【내 기록을 바탕으로 한 AI 조언】',
+      advice.summary, ...advice.nextSteps.map((step, index) => `${index + 1}. ${step}`),
+      `기록 근거: ${advice.basis}`, advice.limitations, '조언은 기록이나 계획을 자동으로 바꾸지 않아요.'].join('\n');
+    const id = crypto.randomUUID();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user || auth.user.id !== pending.ownerId) throw new Error('로그인 계정이 바뀌었어요. 기록을 다시 확인해 주세요.');
+    const { error } = await supabase.from('assistant_chat_messages').insert({ id, user_id: auth.user.id, role: 'assistant', content: text });
+    setChatMessages(current => [...current, { id, role: 'assistant', text }]);
+    setActiveAdvice(null);
+    setAdviceBusy(false);
+    if (error) setChatHistoryNotice('조언은 받았지만 대화 이력을 저장하지 못했어요. 새로고침 전에 필요한 내용을 복사해 주세요.');
+  };
 
   const signOut = async () => {
     await supabase?.auth.signOut();
@@ -168,7 +194,9 @@ export default function AssistantPage() {
 
   const sendChat = async (command?: string) => {
     const value = (command ?? chatInput).trim();
-    if (!value || !supabase || chatSending || chatHistoryLoading || !pending.ready) return;
+    if (!value || !supabase || chatLock.current || adviceBusy || chatHistoryLoading || !pending.ready) return;
+    chatLock.current = true;
+    setActiveAdvice(null);
     setChatInput("");
     setChatSending(true);
     const history = chatMessages.filter((chat) => chat.id !== "welcome").slice(-8).map(({ role, text }) => ({ role, text }));
@@ -180,13 +208,16 @@ export default function AssistantPage() {
       const response = await fetch("/api/assistant/chat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: value, history }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "응답을 받지 못했습니다.");
+      if (data.adviceRequest && isFreeAdviceScope(data.adviceRequest.scope)) {
+        setActiveAdvice({ id: crypto.randomUUID(), scope: data.adviceRequest.scope, question: value });
+      }
       if (data.proposal) await pending.add(data.proposal, sessionData.session!.user.id);
-      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.action }]);
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.adviceRequest ? undefined : data.action }]);
       if (data.historySaved === false) setChatHistoryNotice("응답은 받았지만 대화 이력을 저장하지 못했어요. 새로고침하면 이 대화가 보이지 않을 수 있어요.");
       if (data.changed) await load();
     } catch (error) {
       setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요." }]);
-    } finally { setChatSending(false); }
+    } finally { chatLock.current = false; setChatSending(false); }
   };
 
   const load = useMemo(() => createQueuedRefresh(async () => {
@@ -329,13 +360,14 @@ export default function AssistantPage() {
   };
 
   const clearChatHistory = async () => {
-    if (!supabase || chatMessages.length <= 1 || !window.confirm("연이와 나눈 지난 대화를 모두 지울까요? 할 일·기억·운동 기록은 지워지지 않습니다.")) return;
+    if (!supabase || chatSending || adviceBusy || chatMessages.length <= 1 || !window.confirm("연이와 나눈 지난 대화를 모두 지울까요? 할 일·기억·운동 기록은 지워지지 않습니다.")) return;
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return;
     const { error } = await supabase.from("assistant_chat_messages").delete().eq("user_id", auth.user.id);
     if (error) setChatHistoryNotice("대화 기록을 지우지 못했어요. 잠시 후 다시 시도해 주세요.");
     else {
-      setChatMessages([WELCOME_MESSAGE]);
+      setActiveAdvice(null);
+    setChatMessages([WELCOME_MESSAGE]);
       setChatHistoryNotice("대화 기록을 지웠습니다.");
     }
   };
@@ -412,7 +444,7 @@ export default function AssistantPage() {
           <Link href={nextAction.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm">{nextAction.label} →</Link>
         </div>
       </section>}
-      <FreeAdvicePanel scope="assistant" />
+
       <section aria-label="최근 7일 통합 브리핑" className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -477,20 +509,31 @@ export default function AssistantPage() {
         </nav>
       </section>
 
-      <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">지난 대화를 기억하고, 직접 저장한 기억을 관련 답변에 반영합니다.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div></div>
+      <section id="yeoni-chat" aria-label="연이에게 말하기" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서. 저장하거나 AI에 보낼 내용은 먼저 보여드려요.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div></div>
         <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
-          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p>{chat.text}</p>{chat.action && <Link href={chat.action.href} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} />}</div></div>)}
+          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p className="whitespace-pre-wrap break-words">{chat.text}</p>{chat.action && <Link href={chat.action.href} onClick={(event) => {
+                if (!chat.action?.href.startsWith('/assistant?advice=')) return;
+                const scope = new URLSearchParams(chat.action.href.split('?')[1].split('#')[0]).get('advice');
+                if (isFreeAdviceScope(scope)) {
+                  event.preventDefault();
+                  if (!chatSending && !adviceBusy) setChatInput(ADVICE_QUESTIONS[scope]);
+                }
+              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} />}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
+        {activeAdvice && <div aria-label="대화 중 조언 확인">
+          <FreeAdvicePanel key={activeAdvice.id} scope={activeAdvice.scope} initialQuestion={activeAdvice.question} onComplete={finishAdvice} onBusyChange={setAdviceBusy} />
+          <button type="button" disabled={adviceBusy} onClick={() => setActiveAdvice(null)} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>
+        </div>}
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">{["오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <div className="mt-3 flex flex-wrap gap-2">{["내 기록을 보고 오늘 할 일을 조언해줘", "오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || adviceBusy || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 할 일에 우유 사기 추가해줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
-          <button disabled={chatSending || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 알려줘 / 요즘 운동 잘하고 있어?" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
         </form>
       </section>
 

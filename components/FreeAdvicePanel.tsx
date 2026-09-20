@@ -9,10 +9,14 @@ import ZephyrReadButton from './ZephyrReadButton';
 type Preview = { context: FreeAdviceContext; fingerprint: string; configured: boolean };
 type ApiBody = Partial<Preview> & { advice?: FreeAdvice; error?: string; code?: string };
 
-export default function FreeAdvicePanel({ scope }: { scope: FreeAdviceScope }) {
+export default function FreeAdvicePanel({ scope, initialQuestion = "", onComplete, onBusyChange }: {
+  scope: FreeAdviceScope; initialQuestion?: string;
+  onComplete?: (advice: FreeAdvice, source: FreeAdviceContext["recordSource"]) => Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const id = useId();
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion);
   const [acknowledged, setAcknowledged] = useState(false);
   const [advice, setAdvice] = useState<FreeAdvice | null>(null);
   const [notice, setNotice] = useState("");
@@ -37,7 +41,7 @@ export default function FreeAdvicePanel({ scope }: { scope: FreeAdviceScope }) {
 
   async function requestAdvice(action: "preview" | "analyze", recordSource: FreeAdviceContext["recordSource"] = "user-records") {
     if (inFlight.current || action === "analyze" && (!preview || !acknowledged || !preview.configured)) return;
-    inFlight.current = true; setBusy(true); setNotice(""); setAdvice(null);
+    inFlight.current = true; setBusy(true); onBusyChange?.(true); setNotice(""); setAdvice(null);
     const currentRequest = ++requestNumber.current;
     const abort = new AbortController(); controller.current = abort;
     const timeout = window.setTimeout(() => abort.abort("timeout"), 45_000);
@@ -58,19 +62,20 @@ export default function FreeAdvicePanel({ scope }: { scope: FreeAdviceScope }) {
         setPreview({ context: body.context, fingerprint: body.fingerprint, configured: body.configured });
       } else {
         if (!body.advice) throw new Error("조언을 확인하지 못했어요.");
-        setAdvice(body.advice);
+        if (onComplete) await onComplete(body.advice, preview!.context.recordSource);
+        else setAdvice(body.advice);
       }
     } catch (error) {
       if (currentRequest === requestNumber.current) setNotice(abort.signal.reason === "timeout" ? "기록 확인에 시간이 오래 걸려 중단했어요. 나중에 다시 요청해 주세요." : error instanceof Error ? error.message : "연결을 확인한 뒤 다시 이용해 주세요.");
     } finally {
       window.clearTimeout(timeout);
-      if (currentRequest === requestNumber.current) { inFlight.current = false; setBusy(false); }
+      if (currentRequest === requestNumber.current) { inFlight.current = false; setBusy(false); onBusyChange?.(false); }
     }
   }
 
   const areas = scope === "assistant" ? "운동·식단·학습·가계부" : scope === "fitness" ? "운동·식단" : FREE_ADVICE_LABELS[scope];
   return <section aria-label={`${FREE_ADVICE_LABELS[scope]} 무료 AI 조언`} className="my-5 rounded-3xl border border-violet-100 bg-white p-4 text-[#353052] shadow-sm sm:p-5">
-    <p className="text-xs font-bold text-[#766DB8]">무료 AI 조언</p>
+    <p className="text-xs font-bold text-[#766DB8]">연이와 기록 살펴보기 · 무료 AI</p>
     <h2 className="mt-2 text-lg font-extrabold">기록을 보고 연이가 조언해요</h2>
     <p className="mt-2 text-sm leading-6 text-gray-600">{areas} 기록의 숫자를 함께 보고 오늘 할 일을 제안해요. 보낼 요약을 먼저 확인할 수 있어요.</p>
     <button type="button" disabled={busy} onClick={() => void requestAdvice("preview")} className="mt-4 min-h-11 rounded-2xl bg-[#F1EFFF] px-4 py-2 text-sm font-bold text-[#5146A6] disabled:opacity-50">{busy && !preview ? "기록 확인 중…" : preview ? "최신 기록 다시 확인" : "조언받을 기록 확인"}</button>
@@ -83,8 +88,8 @@ export default function FreeAdvicePanel({ scope }: { scope: FreeAdviceScope }) {
         {preview.context.notes.map(note => <p key={note} className="mt-2 text-xs leading-5 text-gray-500">{note}</p>)}
       </div>
       {preview.context.recordCount === 0 ? <p role="status" className="text-sm leading-6 text-gray-600">아직 분석할 기록이 없어요. 기록을 서버에 저장한 뒤 다시 확인해 주세요.</p> : <>
-        <label htmlFor={`${id}-question`} className="block text-sm font-bold">궁금한 점 <span className="font-normal text-gray-500">(선택)</span></label>
-        <textarea id={`${id}-question`} value={question} maxLength={500} disabled={busy} onChange={event => setQuestion(event.target.value)} rows={3} placeholder="이 기록에서 오늘 한 가지만 바꾼다면 무엇이 좋을까?" className="w-full rounded-2xl border border-violet-200 bg-white p-3 text-sm text-gray-900" />
+        {onComplete ? <p className="rounded-xl bg-white p-3 text-sm"><b>질문</b> · {question}</p> : <><label htmlFor={`${id}-question`} className="block text-sm font-bold">궁금한 점 <span className="font-normal text-gray-500">(선택)</span></label>
+        <textarea id={`${id}-question`} value={question} maxLength={500} disabled={busy} onChange={event => setQuestion(event.target.value)} rows={3} placeholder="이 기록에서 오늘 한 가지만 바꾼다면 무엇이 좋을까?" className="w-full rounded-2xl border border-violet-200 bg-white p-3 text-sm text-gray-900" /></>}
         <p className="text-xs leading-5 text-gray-500">위 집계 수치와 질문을 Google에 보냅니다. 이름·이메일·거래처·개인 메모는 기록 요약에 포함하지 않아요. 질문에도 비밀번호나 개인 식별정보를 적지 마세요.</p>
         <label className="flex items-start gap-2 text-xs leading-5 text-gray-600"><input type="checkbox" checked={acknowledged} disabled={busy} onChange={event => setAcknowledged(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#665CC0]" /><span>요약과 질문이 Google에 전송되고 서비스 개선에 사용될 수 있음을 확인했어요.</span></label>
         <button type="button" disabled={busy || !acknowledged || !preview.configured} onClick={() => void requestAdvice("analyze")} className="min-h-11 w-full rounded-2xl bg-[#665CC0] px-4 py-3 text-sm font-bold text-white disabled:opacity-40">{busy ? "연이가 기록을 살펴보는 중…" : "무료 AI 조언받기"}</button>

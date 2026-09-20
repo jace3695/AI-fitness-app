@@ -8,7 +8,7 @@ import {
   saveTodayRoutineCompletedIds,
 } from "@/utils/dailyRoutineProgress";
 import LearningWelcome from "@/components/language/LearningWelcome";
-import FreeAdvicePanel from "@/components/FreeAdvicePanel";
+import YeoniAdviceEntry from "@/components/YeoniAdviceEntry";
 
 type RoutineItem = {
   id: string;
@@ -193,7 +193,7 @@ export default function HomePage() {
     <section className="home-page">
       <div className="home-container">
         <LearningWelcome />
-        <FreeAdvicePanel scope="language" />
+        <YeoniAdviceEntry scope="language" />
 
         <details className="routine-details">
           <summary>기존 자유 학습 바로가기 <span>{completedCount}/{todayRoutine.length} 완료</span></summary>

@@ -5,7 +5,7 @@ import { getLocalDateKey } from '@/utils/dateKey'
 import { pendingBudgetSaveKey, readPendingBudgetSave, type PendingBudgetSave } from './lib/pending-save'
 import ConfirmDialog from "@/components/ConfirmDialog";
 import AppCompanion from "@/components/AppCompanion";
-import FreeAdvicePanel from "@/components/FreeAdvicePanel";
+import YeoniAdviceEntry from "@/components/YeoniAdviceEntry";
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { SpeechRecognition } from '@capacitor-community/speech-recognition'
@@ -3801,7 +3801,7 @@ return (
 
       {tab === 'analysis' && analysisView === 'ai' && (
         <main className="living-finance-view ai-screen" style={{ padding: '20px 20px 96px' }}>
-          <FreeAdvicePanel scope="budget" />
+          <YeoniAdviceEntry scope="budget" />
           <section style={{ background: 'rgba(19,19,28,0.75)', border: '1px solid #1A1A24', borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
               <div>

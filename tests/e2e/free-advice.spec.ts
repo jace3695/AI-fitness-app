@@ -1,5 +1,17 @@
-import { test, expect, login, original, originalLanguage, synced, today } from './fixture';
+import { test, expect, login, original, originalLanguage, today } from './fixture';
+import type { Page } from '@playwright/test';
+import { ADVICE_QUESTIONS } from '../../lib/assistant-advice-intent';
 import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
+
+async function askAdvice(page: Page, scope: keyof typeof ADVICE_QUESTIONS) {
+  await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill(ADVICE_QUESTIONS[scope]);
+  await page.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(page.getByRole('region', { name: /무료 AI 조언$/ })).toBeVisible();
+}
+async function enterAdvice(page: Page, scope: keyof typeof ADVICE_QUESTIONS) {
+  if (scope !== 'assistant') await page.getByRole('link', { name: '연이에게 물어보기', exact: true }).click();
+  await askAdvice(page, scope);
+}
 
 test('free advice previews real owner records across four areas without modifying records', async ({ page, qa }) => {
   const day = today();
@@ -38,19 +50,26 @@ test('free advice previews real owner records across four areas without modifyin
   expect((await page.request.post('/api/ai/free-advice', { headers, data: { action: 'preview', scope: 'budget', userId: other.id } })).status()).toBe(400);
   await page.setViewportSize({ width: 320, height: 844 });
   await login(page, qa.account);
-  for (const [path, region] of [['/assistant', '일상'], ['/fitness', '운동'], ['/language', '일본어 학습']] as const) {
+  for (const [path, region, scope] of [['/assistant', '일상', 'assistant'], ['/fitness', '운동', 'fitness'], ['/language', '일본어 학습', 'language']] as const) {
     await page.goto(path);
+    await enterAdvice(page, scope);
     const panel = page.getByRole('region', { name: `${region} 무료 AI 조언`, exact: true });
     await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
     await expect(panel.getByText('보낼 기록 요약', { exact: true })).toBeVisible();
     await expect(panel.getByRole('button', { name: '무료 AI 조언받기', exact: true })).toBeDisabled();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.reload();
-    await expect(panel.getByRole('button', { name: '조언받을 기록 확인', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: '연이에게 말하기', exact: true })).toBeVisible();
+    await expect(panel).toHaveCount(0);
+    await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
+    await page.getByRole('link', { name: '연이와 조언 이어가기 →', exact: true }).last().click();
+    await expect(page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true })).toHaveValue(ADVICE_QUESTIONS[scope]);
+    await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
   }
   await page.goto('/budget');
   await page.getByRole('navigation', { name: '가계부 주요 메뉴' }).getByRole('button', { name: '분석', exact: true }).click();
   await page.getByRole('tab', { name: 'AI 상담', exact: true }).click();
+  await enterAdvice(page, 'budget');
   const budget = page.getByRole('region', { name: '가계부 무료 AI 조언', exact: true });
   await budget.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
   await expect(budget).toContainText('12,000원');
@@ -76,7 +95,7 @@ test('advice UI requires consent and handles success, quota and changed-record r
   expect((await qa.account.client.from('user_app_state').update({ state: { ...original, 'ai-fitness-water-intake': { [today()]: 300 } } }).eq('user_id', qa.account.id)).error).toBeNull();
   await login(page, qa.account);
   await page.goto('/fitness', { waitUntil: 'domcontentloaded' });
-  await synced(page);
+  await enterAdvice(page, 'fitness');
   let mode: 'success' | 'quota' | 'changed' = 'success'; let analyzeCalls = 0;
   await page.route('**/api/ai/free-advice', async route => {
     const body = route.request().postDataJSON();
@@ -97,7 +116,13 @@ test('advice UI requires consent and handles success, quota and changed-record r
   const submit = panel.getByRole('button', { name: '무료 AI 조언받기', exact: true });
   await expect(submit).toBeDisabled(); expect(analyzeCalls).toBe(0);
   await panel.getByRole('checkbox').check(); await submit.click();
-  await expect(panel).toContainText('합성 검증용 조언이에요.'); expect(analyzeCalls).toBe(1);
+  await expect(page.getByRole('region', { name: '연이에게 말하기', exact: true })).toContainText('합성 검증용 조언이에요.'); expect(analyzeCalls).toBe(1);
+  await page.reload();
+  await expect(page.getByRole('region', { name: '연이에게 말하기', exact: true })).toContainText('합성 검증용 조언이에요.');
+  expect((await qa.account.client.from('assistant_chat_messages').select('id').eq('user_id', qa.account.id).like('content', '%합성 검증용 조언이에요.%')).data).toHaveLength(1);
+  await askAdvice(page, 'fitness');
+  await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
+  await panel.getByRole('checkbox').check();
   mode = 'quota'; await submit.click();
   await expect(panel).toContainText('무료 AI 이용 한도에 도달했어요.'); expect(analyzeCalls).toBe(2);
   await expect(panel.getByText('합성 검증용 조언이에요.', { exact: true })).toHaveCount(0);
@@ -111,6 +136,7 @@ test('advice UI requires consent and handles success, quota and changed-record r
 test('empty records stay explicit and quick commands preserve Zephyr without device speech', async ({ page, qa }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await login(page, qa.account); await page.goto('/fitness');
+  await enterAdvice(page, 'fitness');
   const panel = page.getByRole('region', { name: '운동 무료 AI 조언', exact: true });
   await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
   await expect(panel).toContainText('아직 분석할 기록이 없어요.');
@@ -134,4 +160,23 @@ test('empty records stay explicit and quick commands preserve Zephyr without dev
   expect(ttsCalls).toBe(0);
   expect(await page.evaluate(() => (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls)).toBe(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('unified chat keeps ordinary queries and writes on their original review paths', async ({ page, qa }) => {
+  await login(page, qa.account);
+  await page.goto('/assistant');
+  const chat = page.getByRole('region', { name: '연이에게 말하기', exact: true });
+  const input = chat.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true });
+  await input.fill('요즘 운동 잘하고 있어?'); await chat.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(chat.getByRole('region', { name: '운동 무료 AI 조언', exact: true })).toBeVisible();
+  await chat.getByRole('button', { name: '조언 취소', exact: true }).click();
+  await chat.getByRole('button', { name: '오늘 운동 계획 보여줘', exact: true }).click();
+  await expect(chat.getByRole('link', { name: /회복 계획 보기|운동 세부 화면 열기|운동 앱 열기/ }).last()).toBeVisible();
+  await expect(chat.getByRole('region', { name: /무료 AI 조언$/ })).toHaveCount(0);
+  await input.fill('할 일에 운동 조언받기 추가해줘');
+  await chat.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(chat).toContainText('운동 조언받기');
+  await expect(chat.getByRole('region', { name: /무료 AI 조언$/ })).toHaveCount(0);
+  expect((await qa.account.client.from('assistant_items').select('id').eq('user_id', qa.account.id)).data).toHaveLength(0);
+  await expect(chat.getByRole('button', { name: /확인.*저장|저장.*확인/ })).toBeVisible();
 });

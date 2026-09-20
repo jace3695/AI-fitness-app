@@ -58,7 +58,7 @@ import DataBackupPanel from "../components/DataBackupPanel";
 import AppIdentity from "../components/AppIdentity";
 import AppModuleNav from "../components/AppModuleNav";
 import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
-import FreeAdvicePanel from "@/components/FreeAdvicePanel";
+import YeoniAdviceEntry from "@/components/YeoniAdviceEntry";
 import WorkoutEvidence from "../components/WorkoutEvidence";
 import AdaptiveWorkoutReviewCard from "../components/AdaptiveWorkoutReviewCard";
 import DailyWorkoutEditor from "../components/DailyWorkoutEditor";
@@ -851,7 +851,7 @@ function FitnessApp() {
               </button>
             </section>
             <div className="mb-4">
-              <FreeAdvicePanel scope="fitness" />
+              <YeoniAdviceEntry scope="fitness" />
               <FitnessAiCoachPanel mode="plan" onPlanApplied={handleUserWorkoutSettingsChange} managedCircuit={selectedWeeklyWorkoutPlanId === DEFAULT_WEEKLY_WORKOUT_PLAN_ID} />
             </div>
             <details className="mb-3 rounded-2xl border border-amber-100 bg-white shadow-sm">
