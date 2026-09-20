@@ -1,3 +1,5 @@
+import { getLocalDateKey } from '../../../utils/dateKey.ts'
+
 export const FIXED_EXPENSE_PRIORITY_CATEGORIES = ['통신비', '공과금', '구독', '보험', '월세', '대출', '관리비']
 
 const FIXED_EXPENSE_NAME_PATTERNS: Array<{ category: string; label: string; pattern: RegExp }> = [
@@ -72,11 +74,16 @@ function getRelativeDate(text: string) {
     date.setDate(date.getDate() - 2)
   }
 
-  return date.toISOString().split('T')[0]
+  return getLocalDateKey(date)
+}
+
+export function buildTransactionParseSystem(date = new Date()) {
+  return PARSE_SYSTEM.replace('DATE_PLACEHOLDER', getLocalDateKey(date))
 }
 
 function parseLooseAmount(text: string) {
-  const match = text.match(/(\d+(?:[.,]\d+)?)\s*(만원|만 원|천원|천 원|원)?/)
+  const match = text.match(/(\d+(?:\.\d+)?)\s*(만원|만 원|천원|천 원|원)/)
+    ?? text.match(/(?<![A-Za-z0-9])(\d+(?:\.\d+)?)(?![A-Za-z0-9])/)
   if (!match) return 0
 
   const value = Number(String(match[1]).replace(/,/g, ''))
@@ -225,6 +232,7 @@ function detectLocalPlace(text: string, type: string) {
 
 export function parseInputLocally(text: string) {
   const parts = text
+    .replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1')
     .split(/[,\n]|그리고|하고|랑/)
     .map(part => part.trim())
     .filter(Boolean)

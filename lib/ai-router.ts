@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { assertPaidAiAllowed, isPaidAiAllowed } from "./free-mode";
 import {
   AiBudgetExceededError,
   cancelAiBudgetReservation,
@@ -84,11 +85,13 @@ export class AiProviderRequestError extends Error {
 }
 
 export function isAiFeatureAvailable(feature: AiTextFeature) {
+  if (!isPaidAiAllowed()) return false;
   const route = resolveAiRoute(feature);
   return Boolean(process.env[route.environmentVariable]);
 }
 
 export async function generateAiText(input: GenerateAiTextInput): Promise<AiTextResult> {
+  assertPaidAiAllowed();
   const primaryRoute = resolveAiRoute(input.feature);
   const apiKey = process.env[primaryRoute.environmentVariable];
   if (!apiKey) throw new AiRouterConfigurationError(primaryRoute.environmentVariable);

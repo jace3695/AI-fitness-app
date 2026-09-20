@@ -1,5 +1,6 @@
 import { speakJapaneseWithBrowserTts, type JapaneseTtsOptions } from "./japaneseTts.ts";
 import { authenticatedFetch } from "../lib/supabase.ts";
+import { FREE_MODE } from "../lib/free-mode.ts";
 
 type PreferredJapaneseTtsOptions = JapaneseTtsOptions & {
   apiPath?: string;
@@ -15,6 +16,11 @@ export function japaneseAudioErrorMessage(error: unknown) {
 
 export async function speakJapaneseWithPreferredTts(text: string, options: PreferredJapaneseTtsOptions = {}) {
   if (!text || options.signal?.aborted) return;
+  if (FREE_MODE) {
+    try { await speakJapaneseWithBrowserTts(text, options); }
+    catch { if (!options.signal?.aborted) throw new JapaneseAudioError("기기의 일본어 음성을 재생하지 못했어요. 읽는 법을 보며 계속 학습할 수 있어요."); }
+    return;
+  }
 
   const repeatCount = Math.max(1, options.repeatCount ?? 1);
   const repeatDelayMs = Math.max(0, options.repeatDelayMs ?? 0);

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RubySegment } from "@/data/sentences";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
+import { FREE_MODE } from "@/lib/free-mode";
+import { FREE_CONVERSATIONS } from "@/data/freeConversation";
+import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -48,54 +51,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   showKoreanPronunciation: true,
   showReading: true,
 };
-const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-async function speakJapaneseFallback(text: string, settings: AppSettings) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  for (let i = 0; i < settings.repeatCount; i += 1) {
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "ja-JP";
-    utter.rate = settings.ttsRate;
-    await new Promise<void>((resolve) => {
-      utter.onend = () => resolve();
-      utter.onerror = () => resolve();
-      window.speechSynthesis.speak(utter);
-    });
-    if (i < settings.repeatCount - 1 && settings.repeatDelayMs > 0) {
-      await wait(settings.repeatDelayMs);
-    }
-  }
-}
-
-async function speakJapanese(text: string, settings: AppSettings) {
-  try {
-    const res = await fetch("/api/language/tts", {
-      method: "POST",
-      headers: await authenticatedJsonHeaders(),
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error("TTS API error");
-    const { audioContent } = await res.json();
-    if (!audioContent) throw new Error("No audioContent");
-
-    for (let i = 0; i < settings.repeatCount; i += 1) {
-      const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
-      audio.playbackRate = settings.ttsRate;
-      await new Promise<void>((resolve, reject) => {
-        audio.onended = () => resolve();
-        audio.onerror = () => reject(new Error("Audio playback failed"));
-        audio.play().catch(reject);
-      });
-      if (i < settings.repeatCount - 1 && settings.repeatDelayMs > 0) {
-        await wait(settings.repeatDelayMs);
-      }
-    }
-  } catch {
-    await speakJapaneseFallback(text, settings);
-  }
-}
-
 export default function ConversationPage() {
   const [situation, setSituation] = useState<Situation>("일상");
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -104,6 +59,8 @@ export default function ConversationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
+  const audioRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => audioRequest.current?.abort(), []);
 
   useEffect(() => {
     try {
@@ -222,9 +179,15 @@ export default function ConversationPage() {
 
   const handleSpeak = async (text: string, audioKey: string) => {
     if (!text || playingAudioKey) return;
+    audioRequest.current?.abort();
+    const request = new AbortController();
+    audioRequest.current = request;
+    setError(null);
     setPlayingAudioKey(audioKey);
     try {
-      await speakJapanese(text, settings);
+      await speakJapaneseWithPreferredTts(text, { rate: settings.ttsRate, repeatCount: settings.repeatCount, repeatDelayMs: settings.repeatDelayMs, signal: request.signal });
+    } catch (error) {
+      setError(japaneseAudioErrorMessage(error));
     } finally {
       setPlayingAudioKey(null);
     }
@@ -246,9 +209,9 @@ export default function ConversationPage() {
   return (
     <section>
       <div className="page-header">
-        <h1>AI 회화</h1>
+        <h1>{FREE_MODE ? "상황별 회화 연습" : "AI 회화"}</h1>
         <p className="muted" style={{ margin: 0 }}>
-          상황을 선택하고 일본어로 대화를 연습해 보세요.
+          {FREE_MODE ? "무료 예문과 기기 음성으로 연습해요. 자유 문장 교정과 발음 채점은 하지 않아요." : "상황을 선택하고 일본어로 대화를 연습해 보세요."}
         </p>
       </div>
 
@@ -271,7 +234,7 @@ export default function ConversationPage() {
           <select
             id="situation"
             value={situation}
-            onChange={(e) => setSituation(e.target.value as Situation)}
+            onChange={(e) => { setSituation(e.target.value as Situation); setMessages([]); setError(null); }}
             disabled={loading}
           >
             {SITUATIONS.map((s) => (
@@ -290,6 +253,17 @@ export default function ConversationPage() {
           </button>
         </div>
       </div>
+
+      {FREE_MODE ? <section className="card" aria-label="무료 회화 예문" style={{ marginBottom: 14 }}>
+        <strong>{FREE_CONVERSATIONS[situation].meaning}</strong>
+        <p lang="ja">{FREE_CONVERSATIONS[situation].japanese}</p>
+        {settings.showReading ? <p lang="ja">{FREE_CONVERSATIONS[situation].reading}</p> : null}
+        {settings.showKoreanPronunciation ? <p className="muted">{FREE_CONVERSATIONS[situation].pronunciation}</p> : null}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn" disabled={loading} onClick={() => setInput(FREE_CONVERSATIONS[situation].japanese)}>예문으로 연습하기</button>
+          <button className="btn" disabled={Boolean(playingAudioKey)} onClick={() => void handleSpeak(FREE_CONVERSATIONS[situation].japanese, "example")}>예문 듣기</button>
+        </div>
+      </section> : null}
 
       {/* 2) 대화 영역 (학습용 채팅 박스) */}
       <div
@@ -391,7 +365,7 @@ export default function ConversationPage() {
                         marginBottom: "6px",
                       }}
                     >
-                      AI
+                        {FREE_MODE ? "연습 예문" : "AI"}
                     </div>
 
                     {/* 1) AI 답변 */}
@@ -487,7 +461,7 @@ export default function ConversationPage() {
             className="muted"
             style={{ marginTop: "8px", textAlign: "center" }}
           >
-            AI가 응답 중...
+            {FREE_MODE ? "연습 문장을 준비하고 있어요…" : "AI가 응답 중..."}
           </p>
         )}
         {error && (
@@ -521,7 +495,7 @@ export default function ConversationPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={
-            loading ? "AI가 응답 중입니다..." : "일본어로 입력하세요"
+            loading ? "응답을 준비하고 있어요…" : "일본어로 입력하세요"
           }
           disabled={loading}
           style={{ flex: 1 }}

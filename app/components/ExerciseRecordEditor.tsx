@@ -77,6 +77,8 @@ export default function ExerciseRecordEditor({
       ? `좌우 ${firstSet.leftReps ?? '-'}·${firstSet.rightReps ?? '-'} / 목표 각 ${target.reps}회`
       : `횟수 ${firstSet.reps ?? '-'} / 목표 ${target.reps}회` : '',
     target.durationMinutes ? `시간 ${value.durationMinutes ?? '-'} / 목표 ${target.durationMinutes}분` : '',
+    exercise.suggestedWeightKg ? `계획 중량 ${exercise.suggestedWeightKg}kg` : '',
+    exercise.suggestedBandLevel ? `계획 밴드 ${exercise.suggestedBandLevel}` : '',
   ].filter(Boolean);
 
   useEffect(() => {

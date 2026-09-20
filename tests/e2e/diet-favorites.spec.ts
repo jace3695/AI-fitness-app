@@ -1,0 +1,110 @@
+import { randomUUID } from 'node:crypto';
+import { assertOriginalPreserved, expect, login, synced, test, today } from './fixture';
+import { RouteDrain } from './route-drain';
+
+test('meal favorites review save, cancel, reload, apply and delete preserve daily history at 320px', async ({page,qa}) => {
+  await page.setViewportSize({width:320,height:844});
+  await login(page,qa.account); await synced(page); await page.goto('/diet', {waitUntil:'domcontentloaded'});
+  const panel=page.getByRole('region',{name:'식사 즐겨찾기',exact:true});
+  const review=panel.getByRole('region',{name:'즐겨찾기 내용 확인'});
+  const lunch=page.getByRole('article').filter({has:page.getByText('점심',{exact:true})});
+  await expect(panel.getByText('저장한 식사 즐겨찾기가 없습니다.',{exact:true})).toBeVisible();
+  const state=await qa.read();
+  await lunch.getByRole('combobox',{name:'식품 단백질',exact:true}).selectOption('30');
+  await lunch.getByRole('button',{name:'100g 밥량',exact:true}).click();
+  await lunch.getByRole('button',{name:'0.5회 · 16g',exact:true}).click();
+  await panel.getByLabel('즐겨찾기 이름',{exact:true}).fill('합성 회사 점심');
+  await panel.getByRole('button',{name:'현재 입력 구성 저장하기'}).click();
+  await expect(review).toContainText('식품 단백질 30g'); await expect(review).toContainText('보충 단백질 16g');
+  expect((await qa.account.client.from('diet_meal_favorites').select('*')).data).toEqual([]);
+  await review.getByRole('button',{name:'취소',exact:true}).click();
+  await panel.getByRole('button',{name:'현재 입력 구성 저장하기'}).click();
+  await review.getByRole('button',{name:'확인 후 즐겨찾기 저장',exact:true}).click();
+  await expect(panel.getByRole('status')).toContainText('즐겨찾기에 저장했습니다');
+  const saved=(await qa.account.client.from('diet_meal_favorites').select('*').single()).data!;
+  expect(saved).toMatchObject({food_protein:30,rice_grams:100,supplement_protein:16});
+  expect(await qa.read()).toEqual(state);
+  await lunch.getByRole('combobox',{name:'식품 단백질',exact:true}).selectOption('none');
+  await lunch.getByRole('button',{name:'없음',exact:true}).nth(0).click();
+  await lunch.getByRole('button',{name:'없음',exact:true}).nth(1).click();
+  await page.reload({waitUntil:'domcontentloaded'}); await synced(page);
+  const card=panel.getByRole('listitem',{name:'점심 즐겨찾기 합성 회사 점심',exact:true});
+  await expect(card).toContainText('식품 단백질 30g');
+  await card.getByRole('button',{name:'불러오기',exact:true}).click();
+  await review.getByRole('button',{name:'취소',exact:true}).click();
+  await expect(lunch.getByRole('combobox',{name:'식품 단백질',exact:true})).toHaveValue('none');
+  await card.getByRole('button',{name:'불러오기',exact:true}).click();
+  await review.getByRole('button',{name:'확인 후 입력칸 적용'}).click();
+  await expect(page.getByLabel('점심 식품 단백질 직접 입력')).toHaveValue('30');
+  await expect(page.getByLabel('점심 밥량')).toHaveValue('100');
+  expect(await qa.read()).toEqual(state);
+  await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByRole('button',{name:'오늘 식단 저장',exact:true}).click(); await synced(page);
+  await expect.poll(async()=>((await qa.read())['ai-fitness-diet-meal-log'] as Record<string,{lunchProteinCustom:number}>)[today()]?.lunchProteinCustom).toBe(30);
+  const daily=await qa.read(); assertOriginalPreserved(daily);
+  await card.getByRole('button',{name:'즐겨찾기 삭제',exact:true}).click();
+  await review.getByRole('button',{name:'취소',exact:true}).click();
+  expect((await qa.account.client.from('diet_meal_favorites').select('*').single()).data).toEqual(saved);
+  await card.getByRole('button',{name:'즐겨찾기 삭제',exact:true}).click();
+  await review.getByRole('button',{name:'확인 후 즐겨찾기 삭제',exact:true}).click();
+  await expect(panel).toContainText('저장한 식사 즐겨찾기가 없습니다.');
+  await page.reload({waitUntil:'domcontentloaded'}); await synced(page);
+  await expect(page.getByLabel('점심 식품 단백질 직접 입력')).toHaveValue('30');
+  expect(await qa.read()).toEqual(daily);
+});
+
+test('favorite lost response recovers by GET only and duplicate names never overwrite amounts', async ({page,qa})=>{
+  await login(page,qa.account);await synced(page);await page.goto('/diet',{waitUntil:'domcontentloaded'});
+  const panel=page.getByRole('region',{name:'식사 즐겨찾기',exact:true});
+  await expect(panel.getByText('저장한 식사 즐겨찾기가 없습니다.',{exact:true})).toBeVisible();
+  await panel.getByLabel('즐겨찾기 이름',{exact:true}).fill('결과 복구');
+  await panel.getByRole('button',{name:'현재 입력 구성 저장하기'}).click();
+  const before=await qa.read(); const drain=new RouteDrain(); let writes=0,failReads=true;
+  const pattern='**/rest/v1/diet_meal_favorites*';
+  await page.route(pattern,route=>drain.run(async()=>{
+    if(route.request().method()==='POST'){
+      writes++;const response=await route.fetch({maxRetries:0});expect(response.ok()).toBe(true);
+      await route.fulfill({status:503,contentType:'application/json',body:'{"message":"lost response"}'});
+    }else if(failReads&&route.request().method()==='GET')await route.fulfill({status:503,contentType:'application/json',body:'{"message":"unavailable"}'});
+    else await route.continue();
+  }));
+  try{
+    await panel.getByRole('button',{name:'확인 후 즐겨찾기 저장',exact:true}).click();
+    await expect(panel.getByRole('status')).toContainText('결과를 확인하지 못했어요');
+    expect(writes).toBe(1);
+    failReads=false;await panel.getByRole('button',{name:'서버 결과 다시 확인'}).click();
+    await expect(panel.getByRole('status')).toContainText('즐겨찾기에 저장했습니다');expect(writes).toBe(1);
+    await synced(page);
+  }finally{failReads=false;await drain.wait();await page.unroute(pattern);}
+  const saved=(await qa.account.client.from('diet_meal_favorites').select('*').single()).data;
+  await panel.getByLabel('즐겨찾기 이름',{exact:true}).fill('결과 복구');
+  await panel.getByRole('button',{name:'현재 입력 구성 저장하기'}).click();
+  await panel.getByRole('button',{name:'확인 후 즐겨찾기 저장',exact:true}).click();
+  await expect(panel.getByRole('status')).toContainText('같은 이름의 즐겨찾기가 있어요');
+  expect((await qa.account.client.from('diet_meal_favorites').select('*').single()).data).toEqual(saved);
+  await page.reload({waitUntil:'domcontentloaded'});await expect(panel.getByRole('listitem',{name:'점심 즐겨찾기 결과 복구',exact:true})).toBeVisible();
+  expect(await qa.read()).toEqual(before);await synced(page);
+});
+
+test('favorites isolate owners, preserve dinner and show read errors instead of an empty list',async({page,qa})=>{
+  const id=randomUUID();const row={id,user_id:qa.account.id,name:'합성 저녁',slot:'dinner',food_protein:25,rice_grams:80,rice_name:'현미밥',supplement_protein:0};
+  expect((await qa.account.client.from('diet_meal_favorites').insert(row)).error).toBeNull();
+  const other=await qa.createAccount();
+  expect((await other.client.from('diet_meal_favorites').select('*').eq('id',id)).data).toEqual([]);
+  expect((await other.client.from('diet_meal_favorites').delete().eq('id',id).select()).data).toEqual([]);
+  expect((await other.client.from('diet_meal_favorites').insert({...row,id:randomUUID()})).error).not.toBeNull();
+  await login(page,qa.account);await synced(page);const before=await qa.read();
+  const pattern='**/rest/v1/diet_meal_favorites*';
+  await page.route(pattern,route=>route.fulfill({status:503,contentType:'application/json',body:'{"message":"unavailable"}'}));
+  await page.goto('/diet',{waitUntil:'domcontentloaded'});
+  const panel=page.getByRole('region',{name:'식사 즐겨찾기',exact:true});
+  await expect(panel.getByRole('alert')).toContainText('즐겨찾기를 불러오지 못했어요');
+  await expect(panel.getByText('저장한 식사 즐겨찾기가 없습니다.',{exact:true})).toHaveCount(0);
+  await page.unroute(pattern);await panel.getByRole('button',{name:'즐겨찾기 다시 불러오기'}).click();
+  const card=panel.getByRole('listitem',{name:'저녁 즐겨찾기 합성 저녁',exact:true});await expect(card).toContainText('현미밥 80g');
+  await card.getByRole('button',{name:'불러오기',exact:true}).click();await panel.getByRole('button',{name:'확인 후 입력칸 적용'}).click();
+  await expect(page.getByLabel('저녁 식품 단백질 직접 입력')).toHaveValue('25');
+  await expect(page.getByLabel('저녁 밥량')).toHaveValue('80');
+  expect(await qa.read()).toEqual(before);
+  expect((await qa.account.client.from('diet_meal_favorites').select('*').eq('id',id).single()).data).toMatchObject(row);
+});

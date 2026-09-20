@@ -7,21 +7,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test app/**/*.test.ts"
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/core": "^8.4.2",
     "@capacitor/haptics": "^8.0.2",
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@supabase/ssr": "0.9.0",
     "@supabase/supabase-js": "^2.52.1",
     "lucide-react": "^1.7.0",
     "next": "^16.3.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
     "@types/node": "^20",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
@@ -29,6 +33,7 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.3.2",
     "postcss": "^8.4.38",
+    "supabase": "2.117.0",
     "tailwindcss": "^3.4.3",
     "typescript": "^5"
   }

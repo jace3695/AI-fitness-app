@@ -55,8 +55,10 @@ export type WorkoutNeurologicalSymptom =
   | "leg-weakness";
 export interface WorkoutFeedback {
   status: WorkoutOverallStatus;
-  difficulty: WorkoutDifficulty;
-  fatigue: number;
+  difficulty?: WorkoutDifficulty;
+  fatigue?: number;
+  lastSetRpe?: number;
+  painArea?: string;
   backStatus?: WorkoutBackStatus;
   neurologicalSymptoms?: WorkoutNeurologicalSymptom[];
   painExercise?: string;
@@ -78,6 +80,8 @@ export interface WorkoutDayRecord {
   workoutStatus?: WorkoutOverallStatus;
   workoutDifficulty?: WorkoutDifficulty;
   workoutFatigue?: number;
+  workoutLastSetRpe?: number;
+  workoutPainArea?: string;
   workoutExerciseRecords?: ExerciseRecord[];
   workoutMethod?: {
     method: "standard" | "circuit" | "superset" | "interval" | "free";
@@ -142,6 +146,8 @@ const GENERAL_WORKOUT_FIELDS: (keyof WorkoutDayRecord)[] = [
   "workoutStatus",
   "workoutDifficulty",
   "workoutFatigue",
+  "workoutLastSetRpe",
+  "workoutPainArea",
   "workoutExerciseRecords",
   "workoutMethod",
   "workoutRecordedAt",

@@ -22,6 +22,7 @@ import {
   type GrowthRoutine,
 } from "../data/growthRoutines";
 import { getLocalDateKey } from "@/utils/dateKey";
+import { normalizeGrowthPreferredDays, normalizeGrowthWeeklyTarget } from "../data/growthSchedule";
 import { clearGrowthRecordBackup } from "../lib/resetAppRecords";
 import { resetMarkerKey } from "../data/appRecordReset";
 
@@ -79,7 +80,9 @@ function routineMatches(row: GrowthRoutineRow, routine: GrowthRoutine) {
   return row.title === routine.title
     && row.category === routine.category
     && row.target_minutes === routine.targetMinutes
-    && row.enabled === routine.enabled;
+    && row.enabled === routine.enabled
+    && normalizeGrowthPreferredDays(row.preferred_days).join(",") === routine.preferredDays.join(",")
+    && normalizeGrowthWeeklyTarget(row.target_sessions_per_week, row.preferred_days) === routine.targetSessionsPerWeek;
 }
 
 async function resolveCloudRoutineId(userId: string, routine: GrowthRoutine, rows: GrowthRoutineRow[], source: GrowthRoutine[]) {
@@ -109,6 +112,8 @@ async function localRoutineRows(userId: string, routines: GrowthRoutine[], sortO
     category: routine.category,
     title: routine.title,
     target_minutes: routine.targetMinutes,
+    preferred_days: routine.preferredDays,
+    target_sessions_per_week: routine.targetSessionsPerWeek,
     enabled: routine.enabled,
     sort_order: Math.min(1000, sortOffset + index),
     created_at: now,
@@ -121,10 +126,14 @@ export function useGrowthData(historyDays = 90) {
   const [routines, setRoutines] = useState<GrowthRoutineRow[]>([]);
   const [sessions, setSessions] = useState<GrowthSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
+  const [workoutRecords, setWorkoutRecords] = useState<unknown>(undefined);
   const [notice, setNotice] = useState("");
   const [legacyBackupAvailable, setLegacyBackupAvailable] = useState(false);
 
   const load = useCallback(async () => {
+    setDataReady(false);
+    setWorkoutRecords(undefined);
     if (!supabase) {
       setNotice("클라우드 연결 설정을 확인해 주세요.");
       setLoading(false);
@@ -293,6 +302,8 @@ export function useGrowthData(historyDays = 90) {
 
     setRoutines(cloudRoutines);
     setSessions(sessionRows);
+    setWorkoutRecords(resetState.data?.state?.['ai-fitness-workout-completed-days']);
+    setDataReady(true);
     try {
       let shouldOfferLegacy = false;
       const legacyRaw = !resetMarker && scopedRaw === null && !pendingImport ? readLocalValue(GROWTH_ROUTINES_STORAGE_KEY) : null;
@@ -391,7 +402,7 @@ export function useGrowthData(historyDays = 90) {
     return { error: null };
   }, [load, user]);
 
-  const addRoutine = useCallback(async (input: { id?: string; title: string; category: GrowthCategoryId; targetMinutes: number }) => {
+  const addRoutine = useCallback(async (input: { id?: string; title: string; category: GrowthCategoryId; targetMinutes: number; preferredDays: number[]; targetSessionsPerWeek: number }) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
     const now = new Date().toISOString();
     const result = await supabase.from("growth_routines").insert({
@@ -400,6 +411,8 @@ export function useGrowthData(historyDays = 90) {
       title: input.title.trim().slice(0, 60),
       category: input.category,
       target_minutes: Math.min(240, Math.max(5, Math.round(input.targetMinutes))),
+      preferred_days: normalizeGrowthPreferredDays(input.preferredDays),
+      target_sessions_per_week: normalizeGrowthWeeklyTarget(input.targetSessionsPerWeek, input.preferredDays),
       enabled: true,
       sort_order: routines.length,
       updated_at: now,
@@ -408,7 +421,7 @@ export function useGrowthData(historyDays = 90) {
     return result;
   }, [routines.length, user]);
 
-  const updateRoutine = useCallback(async (routineId: string, updates: Partial<Pick<GrowthRoutineRow, "title" | "category" | "target_minutes" | "enabled" | "sort_order">>) => {
+  const updateRoutine = useCallback(async (routineId: string, updates: Partial<Pick<GrowthRoutineRow, "title" | "category" | "target_minutes" | "preferred_days" | "target_sessions_per_week" | "enabled" | "sort_order">>) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
     const result = await supabase.from("growth_routines").update({ ...updates, updated_at: new Date().toISOString() }).eq("id", routineId).eq("user_id", user.id).select("*").single();
     if (!result.error) setRoutines((current) => current.map((routine) => routine.id === routineId ? result.data as GrowthRoutineRow : routine));
@@ -424,7 +437,7 @@ export function useGrowthData(historyDays = 90) {
 
   const saveSession = useCallback(async (input: NewSession) => {
     if (!supabase || !user) return { error: new Error("로그인이 필요합니다.") };
-    const result = await supabase.from("growth_sessions").insert({
+    const payload = {
       ...(input.id ? { id: input.id } : {}),
       user_id: user.id,
       routine_id: input.routineId,
@@ -438,8 +451,17 @@ export function useGrowthData(historyDays = 90) {
       started_at: input.startedAt ?? null,
       ended_at: input.endedAt ?? null,
       updated_at: new Date().toISOString(),
-    }).select("*").single();
-    if (!result.error) setSessions((current) => [result.data as GrowthSessionRow, ...current]);
+    };
+    let result = await supabase.from("growth_sessions").insert(payload).select("*").abortSignal(AbortSignal.timeout(15000)).single();
+    // A caller retaining a session ID can recover a committed write after a
+    // lost response. Never upsert: later changes must remain untouched.
+    if (result.error && input.id) {
+      const recovered = await supabase.from("growth_sessions").select("*").eq("id", input.id).eq("user_id", user.id).abortSignal(AbortSignal.timeout(15000)).maybeSingle();
+      const row = recovered.data as GrowthSessionRow | null;
+      const canonical = (value: unknown): string => JSON.stringify(value, (_key, nested) => nested && typeof nested === 'object' && !Array.isArray(nested) ? Object.fromEntries(Object.entries(nested).sort(([a], [b]) => a.localeCompare(b))) : nested);
+      if (!recovered.error && row && row.routine_id === payload.routine_id && row.session_date === payload.session_date && row.status === payload.status && row.actual_minutes === payload.actual_minutes && row.planned_minutes === payload.planned_minutes && row.source === payload.source && row.memo === payload.memo && canonical(row.metrics) === canonical(payload.metrics)) result = { ...result, data: row, error: null, success: true };
+    }
+    if (!result.error) setSessions((current) => [result.data as GrowthSessionRow, ...current.filter(row => row.id !== result.data.id)]);
     return result;
   }, [user]);
 
@@ -450,5 +472,5 @@ export function useGrowthData(historyDays = 90) {
     return result;
   }, [user]);
 
-  return { user, routines, sessions, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
+  return { user, routines, sessions, dataReady, workoutRecords, loading, notice, setNotice, legacyBackupAvailable, importLegacyBackup, refresh: load, addRoutine, updateRoutine, removeRoutine, saveSession, deleteSession };
 }
