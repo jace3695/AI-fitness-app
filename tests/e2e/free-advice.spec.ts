@@ -62,6 +62,9 @@ test('free advice previews real owner records across four areas without modifyin
     await expect(page.getByRole('region', { name: '연이에게 말하기', exact: true })).toBeVisible();
     await expect(panel).toHaveCount(0);
     await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
+    await page.getByRole('link', { name: '연이와 조언 이어가기 →', exact: true }).last().click();
+    await expect(page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true })).toHaveValue(ADVICE_QUESTIONS[scope]);
+    await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
   }
   await page.goto('/budget');
   await page.getByRole('navigation', { name: '가계부 주요 메뉴' }).getByRole('button', { name: '분석', exact: true }).click();
