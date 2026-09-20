@@ -70,13 +70,60 @@ test('pull-up posture range stays visible and reaches Zephyr as one minute to tw
     await route.fulfill({ json: { ...policy, requestId, audioContent: syntheticAudio, remainingCharacters: 99900 } });
   });
   await openWorkout(page, qa.account, 'rest');
+  await expect.poll(() => texts).toEqual(['지금 할 운동은 완전 휴식입니다.']);
+  await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
   await expect(page.getByRole('heading', { name: '또는 턱걸이 자세만 1~2분', exact: true })).toBeVisible();
-  await expect.poll(() => texts).toEqual(['다음 운동은 또는 턱걸이 자세만 1분에서 2분입니다.']);
+  await expect.poll(() => texts).toEqual(['지금 할 운동은 완전 휴식입니다.', '다음 운동은 또는 턱걸이 자세만 1분에서 2분입니다.']);
   await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '안내 재생', exact: true }).click();
-  expect(texts).toHaveLength(1);
+  expect(texts).toHaveLength(2);
   await discard(page);
+  expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(original['ai-fitness-workout-completed-days']);
+});
+
+test('late silent unlock rejection and suspended replay preserve cached audio after session reentry', async ({ page, qa }) => {
+  let posts = 0;
+  await page.addInitScript(() => {
+    const nativePlay = HTMLMediaElement.prototype.play;
+    let rejectSilent: (() => void) | undefined;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.getAttribute('src')?.startsWith('data:audio/wav')) {
+        return new Promise<void>((_resolve, reject) => { rejectSilent = () => reject(new DOMException('Synthetic delayed interruption', 'AbortError')); });
+      }
+      const result = nativePlay.call(this);
+      if (rejectSilent) { const reject = rejectSilent; rejectSilent = undefined; queueMicrotask(reject); }
+      return result;
+    };
+  });
+  await page.route('**/api/tts', async route => {
+    if (route.request().method() === 'GET') { await route.fulfill({ json: { ...policy, enabled: true, remainingCharacters: 100000 } }); return; }
+    posts++; const { requestId } = route.request().postDataJSON();
+    await route.fulfill({ json: { ...policy, requestId, audioContent: syntheticAudio, remainingCharacters: 99900 } });
+  });
+  await openWorkout(page, qa.account);
+  const audio = page.locator('audio[aria-label="연이 운동 안내 음성"]');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) {
+      await page.goto('/diet'); await synced(page); await page.goto('/fitness'); await synced(page); await startWorkout(page);
+    }
+    await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
+    await expect(audio).toHaveAttribute('src', /^data:audio\/mpeg;base64,/);
+    await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
+    await page.evaluate(() => {
+      // Model lifecycle notification; this is not a physical iPhone app switch.
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await audio.evaluate(el => { (el as HTMLAudioElement).pause(); el.removeAttribute('src'); (el as HTMLAudioElement).load(); });
+    await page.getByRole('button', { name: '안내 재생', exact: true }).click();
+    await expect(audio).toHaveAttribute('src', /^data:audio\/mpeg;base64,/);
+    await expect.poll(() => audio.evaluate(el => (el as HTMLAudioElement).ended)).toBe(true);
+    expect(posts).toBe(1);
+    await discard(page);
+  }
   expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(original['ai-fitness-workout-completed-days']);
 });
 

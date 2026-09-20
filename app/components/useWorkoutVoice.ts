@@ -23,7 +23,7 @@ function scheduleSynthesis(send: () => Promise<Response>) {
 // A short silent WAV unlocks this same media element during the timer's gesture.
 const silence = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YQIAAACAgA==';
 
-export function useWorkoutVoice(enabled: boolean) {
+export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
   const audio = useRef<HTMLAudioElement>(null);
   const id = useId();
   const alive = useRef(false);
@@ -31,12 +31,18 @@ export function useWorkoutVoice(enabled: boolean) {
   const owner = useRef<string | null>(null);
   const version = useRef(0);
   const unlocked = useRef(false);
+  const source = useRef('');
+  const needsReload = useRef(false);
+  const firstMessage = useRef(initialMessage);
+  const firstAnnounced = useRef(false);
+  const [readyOwner, setReadyOwner] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const [replayAvailable, setReplayAvailable] = useState(false);
 
   const stop = useCallback(() => {
     version.current++;
+    source.current = ''; unlocked.current = false; needsReload.current = false;
     audio.current?.pause();
     audio.current?.removeAttribute('src');
     setReplayAvailable(false);
@@ -52,15 +58,22 @@ export function useWorkoutVoice(enabled: boolean) {
       const next = session?.user.id ?? null;
       if (owner.current !== next) { stop(); cache.clear(); }
       owner.current = next;
+      setReadyOwner(next);
     });
     const stopOther = (event: Event) => {
       if ((event as CustomEvent<string>).detail !== id) stop();
     };
     window.addEventListener(playEvent, stopOther);
+    const suspend = () => {
+      if (document.visibilityState !== 'hidden') return;
+      element?.pause(); unlocked.current = false; needsReload.current = true;
+    };
+    document.addEventListener('visibilitychange', suspend);
     return () => {
       alive.current = false; generation.current++;
       element?.pause(); element?.removeAttribute('src'); element?.load();
       subscription.unsubscribe(); window.removeEventListener(playEvent, stopOther);
+      document.removeEventListener('visibilitychange', suspend);
     };
   }, [id, stop]);
 
@@ -73,8 +86,12 @@ export function useWorkoutVoice(enabled: boolean) {
     const element = audio.current;
     if (!enabledRef.current || !element || unlocked.current || element.getAttribute('src')) return;
     element.src = silence;
-    void element.play().then(() => { unlocked.current = true; }).catch(() => {
-      element.removeAttribute('src');
+    void element.play().then(() => {
+      if (alive.current && element.getAttribute('src') === silence) unlocked.current = true;
+    }).catch(() => {
+      // A cached cue can replace the silent source before this rejection arrives.
+      // Never let that old failure erase the newly assigned voice audio.
+      if (element.getAttribute('src') === silence) element.removeAttribute('src');
     });
   }, []);
 
@@ -128,22 +145,44 @@ export function useWorkoutVoice(enabled: boolean) {
       const element = audio.current;
       // Never play a late response after a new cue, mute, exit, or account switch.
       if (!alive.current || !enabledRef.current || ticket !== version.current || !element) return;
-      element.src = `data:audio/mpeg;base64,${result.audioContent}`;
+      source.current = `data:audio/mpeg;base64,${result.audioContent}`;
+      element.src = source.current;
+      needsReload.current = false;
       setReplayAvailable(true); setNotice('');
+      if (document.visibilityState === 'hidden') {
+        needsReload.current = true;
+        setNotice('안내 재생을 눌러 연이 음성을 들어 주세요.'); return;
+      }
       window.dispatchEvent(new CustomEvent(playEvent, { detail: id }));
       try { await element.play(); }
-      catch { if (alive.current && ticket === version.current) setNotice('안내 재생을 눌러 연이 음성을 들어 주세요.'); }
+      catch { if (alive.current && ticket === version.current) { needsReload.current = true; setNotice('안내 재생을 눌러 연이 음성을 들어 주세요.'); } }
     }).catch(error => {
       if (alive.current && enabledRef.current && ticket === version.current) reportError(error);
     });
   }, [id, load, reportError, unlock]);
 
+  useEffect(() => {
+    if (!readyOwner || !enabled || firstAnnounced.current || !firstMessage.current) return;
+    firstAnnounced.current = true;
+    if (version.current <= 1) speak(firstMessage.current);
+  }, [enabled, readyOwner, speak]);
+
   const replay = useCallback(() => {
     const element = audio.current;
-    if (!enabledRef.current || !element || !replayAvailable) return;
+    if (!enabledRef.current || !element || !replayAvailable || !source.current) return;
+    const ticket = version.current;
+    // Reset a suspended/failed media resource inside this real button gesture.
+    // Reuse downloaded bytes; this must never call synthesis again.
+    if (needsReload.current || element.error || element.getAttribute('src') !== source.current) {
+      element.src = source.current; element.load(); needsReload.current = false;
+    }
     element.currentTime = 0;
     window.dispatchEvent(new CustomEvent(playEvent, { detail: id }));
-    void element.play().then(() => setNotice('')).catch(() => setNotice('음성을 재생하지 못했어요. 화면 안내를 확인해 주세요.'));
+    void element.play().then(() => {
+      if (alive.current && ticket === version.current) setNotice('');
+    }).catch(() => {
+      if (alive.current && ticket === version.current) { needsReload.current = true; setNotice('음성을 재생하지 못했어요. 안내 재생을 눌러 다시 들어 주세요.'); }
+    });
   }, [id, replayAvailable]);
 
   return { audio, speak, prepare, unlock, stop, replay, notice, announcement, replayAvailable };

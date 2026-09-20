@@ -410,7 +410,8 @@ export default function WorkoutSession({
   const progress = exercises.length ? ((completed.size + skipped.size) / exercises.length) * 100 : 0;
   const hasSafetyConcern = Boolean(painArea) || painScore > 0 || painSymptoms.length > 0 || backStatus === 'pain' || backStatus === 'worse' || neurologicalSymptoms.length > 0;
 
-  const voice = useWorkoutVoice(voiceEnabled);
+  const voice = useWorkoutVoice(voiceEnabled, initialTimerSeconds === 0
+    ? `지금 할 운동은 ${exercise.name}입니다.` : '');
   const { speak, stop: stopVoice } = voice;
   const advanceMessage = currentSetIndex >= 0 && currentSetIndex < currentSetCount - 1
     ? `${currentSetIndex + 1}세트를 완료했습니다. ${exercise.restSeconds || 45}초 세트 휴식을 시작합니다.`

@@ -43,7 +43,7 @@ jobs:
       - name: Build the isolated production app
         run: npm run build
       - name: Verify spoken numeric ranges in Chromium and WebKit
-        run: npx playwright test tests/e2e/workout-voice.spec.ts --project=chromium --project=webkit-small --grep 'pull-up posture range stays visible'
+        run: npx playwright test tests/e2e/workout-voice.spec.ts --project=chromium --project=webkit-small --grep 'pull-up posture range stays visible|late silent unlock rejection'
       - name: Repeat the previously failing WebKit flows
         run: npx playwright test tests/e2e/p2.spec.ts tests/e2e/workout-times.spec.ts tests/e2e/budget-improvements.spec.ts --project=webkit-small --grep 'growth pattern loading failure|actual workout times review, save, revise, compare and delete|lost field response reuses one request' --repeat-each=3
       - name: Actual browser flows and HTTP body assertions
