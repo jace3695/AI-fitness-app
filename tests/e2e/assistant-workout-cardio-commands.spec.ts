@@ -36,7 +36,7 @@ test('cardio review cancels, restores a lost reply, appears in the calendar and 
   await openCommand(page); const review = reviewFor(page);
   await expect(review).toContainText('고정식 자전거 · 총 15분'); await expect(review).toContainText('실내 걷기 · 총 20분'); expect(await qa.read()).toEqual(before);
   await review.getByRole('button', { name: '취소', exact: true }).click(); await page.reload(); await expect(review).toHaveCount(0); expect(await qa.read()).toEqual(before);
-  await page.goto('/assistant'); const input = page.getByLabel('연이에게 보낼 명령'); await expect(input).toBeEnabled(); await input.fill(command); await input.press('Enter'); await expect(review).toBeVisible();
+  await page.goto('/assistant', { waitUntil: 'domcontentloaded' }); const input = page.getByLabel('연이에게 보낼 명령'); await expect(input).toBeEnabled(); await input.fill(command); await input.press('Enter'); await expect(review).toBeVisible();
   await page.goto('/assistant/quick'); await expect(review).toBeVisible();
   const draft = await page.evaluate(() => sessionStorage.getItem('yeoni:task-command-drafts:v1')); await page.reload(); await expect(review).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('yeoni:task-command-drafts:v1'))).toBe(draft);

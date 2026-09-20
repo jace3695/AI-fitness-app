@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect, login, synced, today, originalLanguage, type State } from './fixture';
 import { RouteDrain } from './route-drain';
+import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 import { CURRICULUM } from '../../data/curriculum';
 const noOverflow = async (page: Parameters<typeof synced>[0]) => expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
@@ -29,7 +30,10 @@ test('memory create, read-only lost-response recovery, conflict protection, edit
 });
 
 test('morning and evening briefing show failed domains separately and never call a partial workout complete',async({page,qa})=>{
- const before=await qa.read();const state={...before,'ai-fitness-workout-completed-days':{...(before['ai-fitness-workout-completed-days'] as State),[today()]:{workoutStatus:'partial',workoutDone:false}}};expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
+ const before=await qa.read();
+ const settings=buildCurrentWorkoutSettings({weeklyGroups:{},weeklyMethods:{},weeklyEdits:{},exerciseTargets:{},dateOverrides:{}});
+ settings.dateOverrides[today()]={groupId:'current-fullbody-strength-circuit'};
+ const state={...before,'ai-fitness-user-workout-settings':settings,'ai-fitness-selected-weekly-workout-plan':'five-day-fullbody-circuit','ai-fitness-workout-direction-version':'five-day-circuit-v1','ai-fitness-workout-completed-days':{...(before['ai-fitness-workout-completed-days'] as State),[today()]:{workoutStatus:'partial',workoutDone:false}}};expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
  await page.setViewportSize({width:320,height:844});await login(page,qa.account);await synced(page);
  const pattern='**/rest/v1/budget_transactions*';await page.route(pattern,route=>route.fulfill({status:503,contentType:'application/json',body:'{"message":"unavailable"}'}));
  await page.goto('/assistant',{waitUntil:'domcontentloaded'});const panel=page.getByRole('region',{name:'아침·저녁 브리핑'});await expect(panel).toContainText('조회 실패 · 미기록으로 판단하지 않음');await expect(panel).toContainText('오늘 완료 미확인');await expect(panel).not.toContainText('오늘 완료 기록 있음');await panel.getByRole('button',{name:'아침 브리핑'}).click();await expect(panel).toContainText('아침에 확인할 일');await panel.getByRole('button',{name:'저녁 브리핑'}).click();await expect(panel).toContainText('저녁 기록 돌아보기');await noOverflow(page);await page.unroute(pattern);await page.reload({waitUntil:'domcontentloaded'});await expect(panel).not.toContainText('조회 실패');expect(await qa.read()).toEqual(state);

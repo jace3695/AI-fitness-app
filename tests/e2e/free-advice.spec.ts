@@ -129,7 +129,8 @@ test('empty records stay explicit and quick commands preserve Zephyr without dev
   await page.goto('/assistant/quick?autorun=0&speak=1&command=' + encodeURIComponent('오늘 운동 계획 보여줘'));
   await expect(page.getByText('Zephyr 음성', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '명령 실행', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('운동');
+  await expect(page.getByRole('status')).toContainText(/운동|회복/);
+  await expect(page.getByRole('status').getByRole('link')).toHaveAttribute('href', '/fitness');
   expect(ttsCalls).toBe(0);
   expect(await page.evaluate(() => (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls)).toBe(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

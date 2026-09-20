@@ -223,9 +223,16 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-/* Smooth scroll */
+/* Keep automatic focus/scroll positioning immediate so controls do not move
+   underneath a pointer while the fixed navigation remains in place. */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+}
+html:has(body.has-hub-bottom-nav) {
+  scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+body.has-hub-bottom-nav :where(input, select, textarea, button, a) {
+  scroll-margin-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 /* Scrollbar - thin on desktop */
