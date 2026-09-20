@@ -4,9 +4,9 @@ import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirect
 import { syntheticAudio } from './synthetic-audio';
 
 const policy = { voice: 'ko-KR-Chirp3-HD-Zephyr', useDeviceVoice: false };
-async function openWorkout(page: Page, account: Parameters<typeof login>[1]) {
+async function openWorkout(page: Page, account: Parameters<typeof login>[1], groupId = 'current-weekend-recovery') {
   const settings = buildCurrentWorkoutSettings({ weeklyGroups: {}, weeklyMethods: {}, weeklyEdits: {}, exerciseTargets: {}, dateOverrides: {} });
-  settings.dateOverrides[today()] = { groupId: 'current-weekend-recovery', exerciseTargets: { '기본 몸풀기': { durationMinutes: 1 } } };
+  settings.dateOverrides[today()] = { groupId, exerciseTargets: { '기본 몸풀기': { durationMinutes: 1 } } };
   const seeded = { ...original, 'ai-fitness-user-workout-settings': settings,
     'ai-fitness-workout-direction-version': 'five-day-circuit-v1', 'ai-fitness-selected-weekly-workout-plan': 'five-day-fullbody-circuit' };
   expect((await account.client.from('user_app_state').update({ state: seeded }).eq('user_id', account.id)).error).toBeNull();
@@ -16,13 +16,13 @@ async function openWorkout(page: Page, account: Parameters<typeof login>[1]) {
     if (window.speechSynthesis) window.speechSynthesis.speak = () => { (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls++; };
   });
   await login(page, account); await synced(page); await page.goto('/fitness'); await synced(page);
-  await startWorkout(page);
+  await startWorkout(page, groupId !== 'rest');
 }
-async function startWorkout(page: Page) {
+async function startWorkout(page: Page, hasWarmupTimer = true) {
   await page.getByRole('navigation', { name: '운동 주요 메뉴' }).getByRole('button', { name: '운동하기', exact: true }).click();
   await page.getByRole('button', { name: '운동 시작하기', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('region', { name: '동작 타이머', exact: true })).toContainText('01:00');
+  if (hasWarmupTimer) await expect(page.getByRole('region', { name: '동작 타이머', exact: true })).toContainText('01:00');
 }
 async function discard(page: Page) {
   await page.getByRole('dialog').getByRole('button', { name: '나가기', exact: true }).click();
@@ -59,6 +59,26 @@ for (const width of [320, 390]) {
     await expect(page.getByRole('heading', { name: '어디로 이동할까요?' })).toBeVisible();
   });
 }
+
+test('pull-up posture range stays visible and reaches Zephyr as one minute to two minutes', async ({ page, qa }) => {
+  const texts: string[] = [];
+  await page.route('**/api/tts', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...policy, enabled: true, remainingCharacters: 100000 } }); return;
+    }
+    const { text, requestId } = route.request().postDataJSON(); texts.push(text);
+    await route.fulfill({ json: { ...policy, requestId, audioContent: syntheticAudio, remainingCharacters: 99900 } });
+  });
+  await openWorkout(page, qa.account, 'rest');
+  await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '또는 턱걸이 자세만 1~2분', exact: true })).toBeVisible();
+  await expect.poll(() => texts).toEqual(['다음 운동은 또는 턱걸이 자세만 1분에서 2분입니다.']);
+  await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '안내 재생', exact: true }).click();
+  expect(texts).toHaveLength(1);
+  await discard(page);
+  expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(original['ai-fitness-workout-completed-days']);
+});
 
 test('first timer click, pause, resume and automatic transition reuse Zephyr audio across reload', async ({ page, qa }) => {
   let posts = 0; let gets = 0; let speech = '';

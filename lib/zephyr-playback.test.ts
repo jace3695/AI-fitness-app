@@ -4,6 +4,18 @@ import { prepareZephyrSpeech, ZephyrAudioCache } from './zephyr-playback.ts';
 import { YEONI_VOICE_NAME } from './yeoni-voice-policy.ts';
 
 const policy = { voice: YEONI_VOICE_NAME, useDeviceVoice: false };
+test('speech preserves numeric ranges before stripping Markdown', () => {
+  for (const [input, expected] of [
+    ['다음 운동은 또는 턱걸이 자세만 1~2분입니다.', '다음 운동은 또는 턱걸이 자세만 1분에서 2분입니다.'],
+    ['**10 ~ 15초** · 8～10회 · 1〜2세트', '10초에서 15초 · 8회에서 10회 · 1세트에서 2세트'],
+    ['1분~2분, 0.5~1kg, 1~2주차', '1분에서 2분, 0.5kg에서 1kg, 1주차에서 2주차'],
+    ['~~취소선~~ 12분, 1~2 사이', '취소선 12분, 1에서 2 사이'],
+  ]) {
+    const result = prepareZephyrSpeech(input);
+    assert.equal(result.text, expected);
+    assert.equal(result.characters, Array.from(expected).length);
+  }
+});
 function fixture() {
   const rows = new Map<string, string>();
   const calls: RequestInit[] = [];

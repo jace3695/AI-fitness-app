@@ -2,6 +2,10 @@ import { YEONI_VOICE_NAME, YEONI_VOICE_PENDING_MESSAGE } from './yeoni-voice-pol
 
 export function prepareZephyrSpeech(value: string) {
   const clean = value.replace(/https?:\/\/\S+/g, '화면의 링크')
+    // Expand numeric ranges before removing Markdown: deleting '~' joins 1~2 into 12.
+    .replace(/(\d+(?:\.\d+)?)(?:\s*(시간|분|초|세트|라운드|회|주차|주|일|kg|cm|mm|g))?\s*[~～〜]\s*(\d+(?:\.\d+)?)(?:\s*(시간|분|초|세트|라운드|회|주차|주|일|kg|cm|mm|g))?/g,
+      (_match, start: string, startUnit: string | undefined, end: string, endUnit: string | undefined) =>
+        `${start}${startUnit || endUnit || ''}에서 ${end}${endUnit || startUnit || ''}`)
     .replace(/[*#_~`]/g, '').replace(/\s+/g, ' ').trim();
   const characters = Array.from(clean);
   return { text: characters.slice(0, 1200).join(''), characters: Math.min(characters.length, 1200), truncated: characters.length > 1200 };
