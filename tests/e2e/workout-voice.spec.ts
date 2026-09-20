@@ -73,11 +73,14 @@ test('pull-up posture range stays visible and reaches Zephyr as one minute to tw
   await expect.poll(() => texts).toEqual(['지금 할 운동은 완전 휴식입니다.']);
   await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
   await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '또는 턱걸이 자세만 1~2분', exact: true })).toBeVisible();
-  await expect.poll(() => texts).toEqual(['지금 할 운동은 완전 휴식입니다.', '다음 운동은 또는 턱걸이 자세만 1분에서 2분입니다.']);
+  await expect(page.getByRole('heading', { name: '턱걸이 자세 연습 1~2분', exact: true })).toBeVisible();
+  await expect.poll(() => texts).toEqual(['지금 할 운동은 완전 휴식입니다.', '다음 운동은 턱걸이 자세 연습 1분에서 2분입니다.']);
   await expect(page.getByRole('button', { name: '안내 재생', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '안내 재생', exact: true }).click();
   expect(texts).toHaveLength(2);
+  await page.getByRole('dialog').getByRole('button', { name: '완료하고 다음', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '폼롤러 회복 5분', exact: true })).toBeVisible();
+  await expect.poll(() => texts.at(-1)).toBe('다음 운동은 폼롤러 회복 5분입니다.');
   await discard(page);
   expect((await qa.read())['ai-fitness-workout-completed-days']).toEqual(original['ai-fitness-workout-completed-days']);
 });
