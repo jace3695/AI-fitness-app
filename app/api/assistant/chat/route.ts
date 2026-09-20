@@ -1,3 +1,5 @@
+import { detectAdviceScope } from '@/lib/assistant-advice-intent';
+import type { FreeAdviceScope } from '@/lib/free-advice-context';
 import {isWorkoutFeedbackIntent,parseWorkoutFeedbackCommand} from '@/lib/assistant-workout-feedback-command';
 import { isGrowthCompletionIntent, parseGrowthCompletion, type GrowthCommandProposal } from '@/lib/assistant-growth-command';
 import { proposeGrowthCompletion } from '@/lib/assistant-growth-server';
@@ -24,7 +26,7 @@ import { proposeDietCommand } from '@/lib/assistant-diet-server';
 
 export const dynamic = "force-dynamic";
 
-type AssistantReply = { reply: string; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal | GrowthCommandProposal };
+type AssistantReply = { reply: string; adviceRequest?: { scope: FreeAdviceScope; question: string }; action?: { label: string; href: string }; changed?: boolean; proposal?: TaskCommandProposal | BudgetCommandProposal | LanguageCommandProposal | WorkoutCommandProposal | DietCommandProposal | GrowthCommandProposal };
 type ChatHistoryItem = AssistantConversationMessage;
 
 function seoulDate(offsetDays = 0) {
@@ -216,6 +218,12 @@ async function processSingleCommand(
   const today = seoulDate();
   const monthStart = `${today.slice(0, 7)}-01`;
   let result: AssistantReply;
+  const adviceScope = detectAdviceScope(message);
+  if (adviceScope) return {
+    reply: '기록을 보고 함께 생각해 볼게요. 아래에서 보낼 기록을 확인하면 무료 AI 조언을 받을 수 있어요.',
+    adviceRequest: { scope: adviceScope, question: message },
+    action: { label: '연이와 조언 이어가기', href: `/assistant?advice=${adviceScope}#yeoni-chat` },
+  };
 
   if (isDietRecordIntent(message)) {
     const change = parseDietCommand(message);
@@ -418,7 +426,7 @@ export async function POST(request: NextRequest) {
     if (historyLoadError) throw new Error("지난 대화를 불러오지 못했습니다.");
     const history = selectConversationHistory([...(storedMessages ?? [])].reverse(), body?.history);
     const replies: AssistantReply[] = [];
-    const commands = splitCompoundCommands(message);
+    const commands = detectAdviceScope(message) ? [message] : splitCompoundCommands(message);
     if (commands.length > 3 || commands.length > 1 && /(추가|등록|기록|수정|변경|완료|끝|마쳤|했어|했어요|삭제)/.test(message)) {
       return NextResponse.json({ reply: '기록을 바꾸는 명령은 한 번에 하나씩 말씀해 주세요. 변경 내용을 확인한 뒤 다음 명령을 진행할 수 있어요.', changed: false });
     }
@@ -440,6 +448,7 @@ export async function POST(request: NextRequest) {
       reply,
       action: lastAction,
       changed: replies.some((reply) => reply.changed),
+      adviceRequest: replies.find((reply) => reply.adviceRequest)?.adviceRequest,
       proposal: replies.find((reply) => reply.proposal)?.proposal,
       historySaved: !historySaveError,
     });
