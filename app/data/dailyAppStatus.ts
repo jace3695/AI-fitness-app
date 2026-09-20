@@ -9,6 +9,8 @@ import {
   getWorkoutGroupForPlanDay,
 } from "./workoutPlans.ts";
 
+import { getWorkoutGroupById } from "./workoutGroups.ts";
+
 export const LANGUAGE_ROUTINES = [
   { id: "kana", label: "가나", href: "/language/kana" },
   { id: "words", label: "단어", href: "/language/words" },
@@ -90,7 +92,12 @@ export function buildFitnessDailyStatus(
   if (!dayId) return EMPTY_FITNESS_DAILY_STATUS;
 
   const plan = getWeeklyWorkoutPlanById(planId);
-  const group = getWorkoutGroupForPlanDay(plan, dayId);
+  const settings = parseStateObject(state["ai-fitness-user-workout-settings"]);
+  const weeklyGroup = parseStateObject(settings.weeklyGroups)[dayId];
+  const dateGroup = parseStateObject(parseStateObject(settings.dateOverrides)[todayKey]).groupId;
+  const groupId = typeof dateGroup === "string" && dateGroup ? dateGroup
+    : typeof weeklyGroup === "string" && weeklyGroup ? weeklyGroup : null;
+  const group = groupId ? getWorkoutGroupById(groupId) : getWorkoutGroupForPlanDay(plan, dayId);
   const completedStore = parseStateObject(
     state["ai-fitness-workout-completed-days"],
   ) as WorkoutCompletionStore;

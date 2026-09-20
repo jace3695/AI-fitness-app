@@ -67,3 +67,22 @@ test("오늘 저장한 식단만 완료로 보고 다른 날짜 기록은 유지
   assert.equal(completed.title, "오늘 식단 기록 완료");
   assert.equal(buildDietDailyStatus({ "ai-fitness-diet-completed-days": { "2026-09-01": { dietStatus: "normal" } } }, "2026-09-02").completed, false);
 });
+
+
+test("날짜별 운동 변경이 요일 변경과 기본 계획보다 우선하며 다른 날짜에 새지 않는다", () => {
+  const state = { "ai-fitness-user-workout-settings": {
+    weeklyGroups: { sun: "current-fullbody-recovery-circuit" },
+    dateOverrides: { "2026-09-20": { groupId: "current-fullbody-strength-circuit" } },
+  } };
+  const before = JSON.stringify(state);
+  const changed = buildFitnessDailyStatus(state, "2026-09-20", new Date(2026, 8, 20));
+  assert.equal(changed.title, "전신 근력 서킷");
+  assert.equal(changed.isRest, false);
+  const next = buildFitnessDailyStatus(state, "2026-09-27", new Date(2026, 8, 27));
+  assert.equal(next.title, "회복형 전신 서킷");
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(buildFitnessDailyStatus({ "ai-fitness-user-workout-settings": {
+    weeklyGroups: { sun: "current-fullbody-strength-circuit" },
+    dateOverrides: { "2026-09-20": { groupId: "rest" } },
+  } }, "2026-09-20", new Date(2026, 8, 20)).isRest, true);
+});
