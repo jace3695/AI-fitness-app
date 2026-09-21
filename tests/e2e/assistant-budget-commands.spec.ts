@@ -24,6 +24,7 @@ test('budget command reviews one original, survives lost response and reload, th
   await page.goto('/assistant');
   const input = page.getByLabel('연이에게 보낼 명령'); await expect(input).toBeEnabled();
   await input.fill(command()); await input.press('Enter'); await expect(review).toBeVisible();
+  await page.getByText('대화 메뉴', { exact: true }).click();
   await page.getByRole('link', { name: 'Siri 빠른 명령 설정 →' }).click();
   await expect(review).toBeVisible();
   let lose = true;

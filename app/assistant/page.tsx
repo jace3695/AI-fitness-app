@@ -427,12 +427,15 @@ export default function AssistantPage() {
 
     <div className="yeoni-page-content">
       <section id="yeoni-chat" aria-label="연이에게 말하기" className="scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">YEONI AI CHAT</p><h2 className="mt-1 text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서. 저장하거나 AI에 보낼 내용은 먼저 보여드려요.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div></div>
+        <div className="flex items-start justify-between gap-3">
+          <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서.</p></div>
+        </div>
+        <div className="mt-3"><AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion></div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
           <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 알려줘 / 요즘 운동 잘하고 있어?" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
           <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
         </form>
-        <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
+        <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-56 space-y-3 sm:max-h-80 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
           {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p className="whitespace-pre-wrap break-words">{chat.text}</p>{chat.action && <Link href={chat.action.href} onClick={(event) => {
                 if (!chat.action?.href.startsWith('/assistant?advice=')) return;
@@ -451,18 +454,12 @@ export default function AssistantPage() {
           <button type="button" disabled={adviceBusy} onClick={() => setActiveAdvice(null)} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>
         </div>}
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
-        <div className="mt-3 flex flex-wrap gap-2">{["내 기록을 보고 오늘 할 일을 조언해줘", "오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || adviceBusy || chatHistoryLoading} onClick={() => void sendChat(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
-      </section>
-
-      <section className="mt-5 grid gap-4 lg:grid-cols-[1.45fr_.55fr]">
-        <article className="rounded-[30px] border border-violet-100 bg-white p-5 shadow-sm sm:p-7">
-          <p className="text-xs font-bold text-[#766DB8]">함께 시작하는 하루</p>
-          <h2 className="mb-5 mt-2 text-2xl font-bold text-[#353052]">오늘의 브리핑</h2>
-          <AppCompanion home embedded quiet={chatSending}>{loading ? "안녕, Jace님! 오늘도 함께해요." : openTasks + openProjects + waiting ? `확인할 일 ${openTasks + openProjects + waiting}개, 하나씩 해볼까요?` : "오늘은 무엇부터 해볼까요?"}</AppCompanion>
-        </article>
-        <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
-          {[{ label: "중요 업무", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-3xl border border-white bg-white p-4 shadow-sm lg:flex lg:items-center lg:justify-between lg:px-6"><span className="break-keep text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6] lg:mt-0">{loading || (!lastLoadedAt && loadFailures.length > 0) ? "—" : stat.value}</b></article>)}
-        </div>
+        <div aria-label="추천 질문" className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">{["내 기록을 보고 오늘 할 일을 조언해줘", "오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || adviceBusy || chatHistoryLoading} onClick={() => void sendChat(sample)} className="min-h-11 shrink-0 whitespace-nowrap rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <p className="mt-2 text-xs leading-5 text-gray-500">저장하거나 AI에 보낼 내용은 먼저 보여드려요.</p>
+        <details className="mt-2 border-t border-gray-100 pt-2">
+          <summary className="cursor-pointer py-2 text-sm font-semibold text-gray-600">대화 메뉴</summary>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div>
+        </details>
       </section>
 
       {loadFailures.length > 0 && <div role="status" className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800"><p>{loadFailures.join(' · ')} 정보를 불러오지 못했어요. {lastLoadedAt ? `마지막 정상 확인 ${lastLoadedAt}의 값을 유지합니다.` : '아래 숫자를 현재 기록으로 판단하지 마세요.'}</p><button type="button" disabled={loading} onClick={() => void load()} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">다시 불러오기</button></div>}
@@ -473,8 +470,55 @@ export default function AssistantPage() {
         </div>
       </section>}
 
+      <section id="assistant-list" className="mt-5 scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {[{ label: "미완료 할 일", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-2xl bg-[#F7F6FF] p-3"><span className="break-keep text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6]">{loading || (!lastLoadedAt && loadFailures.length > 0) ? "—" : stat.value}</b></article>)}
+        </div>
+
+        <details className="mt-4 rounded-2xl border border-gray-100 p-3">
+          <summary className="cursor-pointer py-2 text-sm font-bold text-[#5146A6]">직접 추가하기</summary>
+        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-yeoni-bg p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto_auto]">
+          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <select value={kind} onChange={(event) => setKind(event.target.value as Exclude<Filter, "all">)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm font-semibold outline-none ring-1 ring-gray-100"><option value="task">할 일</option><option value="project">프로젝트</option><option value="waiting">회신 대기</option><option value="memory">기억</option></select>
+          <select aria-label="우선순위" value={entryPriority} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryPriority(Number(event.target.value))} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value={5}>긴급</option><option value={4}>중요</option><option value={3}>보통</option><option value={2}>낮음</option></select>
+          <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
+          <select aria-label="반복" value={entryRecurrence} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryRecurrence(event.target.value as RecurrenceRule)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select>
+          <select aria-label="연결 프로젝트" value={entryProjectId} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryProjectId(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="">프로젝트 없음</option>{projects.filter((project) => project.status !== "completed" && project.status !== "archived").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
+          <button disabled={saving || !title.trim()} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
+        </form>
+        </details>
+        {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
+
+        <div className="mt-5 grid gap-2">
+          {loading ? <p className="py-10 text-center text-sm text-gray-400">동기화 중…</p> : rows.length === 0 ? <p className="py-10 text-center text-sm leading-6 text-gray-400">{loadFailures.length ? "목록 조회를 확인하지 못했습니다." : "등록된 항목이 없습니다."}<br />떠오르는 일을 자연스럽게 적어보세요.</p> : rows.map((row) => <article key={`${row.kind}-${row.id}`} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-gray-100 p-4 ${row.done ? "opacity-50" : ""}`}>
+            {row.kind === "memory" ? <span aria-hidden="true" className="h-3 w-3 justify-self-center rounded-full bg-amber-400" /> : <button type="button" aria-label="완료 전환" disabled={busyIds.includes(row.id)} onClick={() => void (row.kind === "project" ? toggleProject(row.source as Project) : toggleItem(row.source as Item))} className={`h-11 w-11 rounded-full border-2 disabled:opacity-50 ${row.done ? "border-[#5146A6] bg-[#5146A6]" : "border-gray-300"}`}>{row.done && <span className="text-xs text-white">✓</span>}</button>}
+            <div className="min-w-0"><p className={`truncate font-bold ${row.done ? "line-through" : ""}`}>{row.title}</p><div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400"><span>{new Date(row.created).toLocaleString("ko-KR")}</span>{row.kind === "task" || row.kind === "waiting" ? <><span className={(row.source as Item).priority >= 4 ? "font-bold text-red-500" : ""}>우선순위 {priorityLabel((row.source as Item).priority)}</span>{(row.source as Item).due_at && <span className={!row.done && new Date((row.source as Item).due_at as string) < new Date() ? "font-bold text-red-500" : ""}>마감 {new Date((row.source as Item).due_at as string).toLocaleDateString("ko-KR")}</span>}{(row.source as Item).recurrence_rule !== "none" && <span className="font-bold text-[#766DB8]">{recurrenceLabel((row.source as Item).recurrence_rule)} 반복</span>}{(row.source as Item).project_id && <span>프로젝트 {projectNames.get((row.source as Item).project_id as string)}</span>}</> : null}</div></div>
+            <div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${row.kind === "waiting" ? "bg-orange-50 text-orange-700" : row.kind === "project" ? "bg-blue-50 text-blue-700" : row.kind === "memory" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{filterLabels[row.kind]}</span><button type="button" aria-label="삭제" onClick={() => void remove(row.kind === "project" ? "assistant_projects" : row.kind === "memory" ? "assistant_memories" : "assistant_items", row.id)} className="px-1 text-xl text-gray-300 hover:text-red-500">×</button></div>
+          </article>)}
+        </div>
+      </section>
+      <section id="today-apps" aria-label="앱별 오늘 상태" className="scroll-mt-24 mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
+        <div className="mt-4 grid grid-cols-2 gap-2 [overflow-wrap:anywhere] lg:grid-cols-3">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
+          <Link href="#assistant-list" className="rounded-2xl bg-[#F7F6FF] p-3 ring-1 ring-[#ECE9FF]"><p className="text-xs font-bold text-[#766DB8]">일정·할 일</p><p className="mt-2 text-xl font-bold text-[#312B67]">오늘 {todayItems}건</p><p className="mt-1 text-xs text-gray-500">미완료 전체 {openTasks + waiting}건</p></Link>
+          <Link href="/budget" className="rounded-2xl bg-emerald-50/70 p-3 ring-1 ring-emerald-100"><p className="text-xs font-bold text-emerald-700">이번 달 가계부</p><p className="mt-2 text-xl font-bold text-emerald-950">{formatWon(briefing.budget.spent)} 지출</p><p className={`mt-1 text-xs ${briefing.budget.remaining !== null && briefing.budget.remaining < 0 ? "font-bold text-red-600" : "text-gray-500"}`}>{briefing.budget.remaining === null ? `예산 미설정 · ${briefing.budget.entries}건` : briefing.budget.remaining >= 0 ? `${formatWon(briefing.budget.remaining)} 남음` : `${formatWon(briefing.budget.remaining)} 초과`}</p></Link>
+          <Link href="/fitness" className="rounded-2xl bg-orange-50/70 p-3 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
+          <Link href="/diet" className="rounded-2xl bg-lime-50/70 p-3 ring-1 ring-lime-100"><p className="text-xs font-bold text-lime-700">오늘 식단</p><p className="mt-2 line-clamp-2 text-lg font-bold text-lime-950">{briefing.diet.title}</p><p className={`mt-1 text-xs ${briefing.diet.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.diet.detail}</p></Link>
+          <Link href={briefing.language.nextHref} className="rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
+          <Link href="/growth" className="rounded-2xl bg-fuchsia-50/70 p-3 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">기록 {briefing.growth.minutes}분</p></Link>
+        </>}</div>
+
+      </section>
+
+      <details id="daily-briefing" className="mt-5 scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+        <summary className="cursor-pointer py-2 font-bold text-[#353052]">아침·저녁 브리핑 자세히 보기</summary>
+        <DailyBriefing input={nextActionInput} loading={loading} />
+      </details>
       <section aria-label="최근 7일 통합 브리핑" className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <details>
+        <summary className="cursor-pointer">
+        <div className="inline-flex w-full flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-bold text-[#766DB8]">AI 연이 7일 브리핑</p>
             <h2 className="mt-1 text-xl font-bold">이번 주 흐름 한눈에 보기</h2>
@@ -486,6 +530,7 @@ export default function AssistantPage() {
             </span>
           )}
         </div>
+        </summary>
         {loading && !weeklyBriefing ? (
           <p className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">최근 7일 기록을 모으고 있어요.</p>
         ) : weeklyBriefing ? (
@@ -515,18 +560,10 @@ export default function AssistantPage() {
             )}
           </>
         ) : null}
+        </details>
       </section>
-      <DailyBriefing input={nextActionInput} loading={loading} />
-      <section className="mt-5 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-[#766DB8]">통합 오늘 브리핑</p><h2 className="mt-1 text-xl font-bold">앱별 오늘 상태</h2></div><button type="button" onClick={() => void load()} disabled={loading} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{loading ? "동기화 중…" : "새로고침"}</button></div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{loading || (!lastLoadedAt && loadFailures.length > 0) ? <p className="col-span-full rounded-xl bg-gray-50 p-4 text-sm text-gray-500">{loading ? '앱별 기록을 확인하고 있어요.' : '현재 기록을 확인하지 못했어요. 위에서 다시 불러와 주세요.'}</p> : <>
-          <Link href="#assistant-list" className="rounded-3xl bg-[#F7F6FF] p-5 ring-1 ring-[#ECE9FF]"><p className="text-xs font-bold text-[#766DB8]">일정·할 일</p><p className="mt-2 text-xl font-bold text-[#312B67]">오늘 {todayItems}건</p><p className="mt-1 text-xs text-gray-500">미완료 전체 {openTasks + waiting}건</p></Link>
-          <Link href="/budget" className="rounded-3xl bg-emerald-50/70 p-5 ring-1 ring-emerald-100"><p className="text-xs font-bold text-emerald-700">이번 달 가계부</p><p className="mt-2 text-xl font-bold text-emerald-950">{formatWon(briefing.budget.spent)} 지출</p><p className={`mt-1 text-xs ${briefing.budget.remaining !== null && briefing.budget.remaining < 0 ? "font-bold text-red-600" : "text-gray-500"}`}>{briefing.budget.remaining === null ? `예산 미설정 · ${briefing.budget.entries}건` : briefing.budget.remaining >= 0 ? `${formatWon(briefing.budget.remaining)} 남음` : `${formatWon(briefing.budget.remaining)} 초과`}</p></Link>
-          <Link href="/fitness" className="rounded-3xl bg-orange-50/70 p-5 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
-          <Link href="/diet" className="rounded-3xl bg-lime-50/70 p-5 ring-1 ring-lime-100"><p className="text-xs font-bold text-lime-700">오늘 식단</p><p className="mt-2 line-clamp-2 text-lg font-bold text-lime-950">{briefing.diet.title}</p><p className={`mt-1 text-xs ${briefing.diet.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.diet.detail}</p></Link>
-          <Link href={briefing.language.nextHref} className="rounded-3xl bg-blue-50/70 p-5 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
-          <Link href="/growth" className="rounded-3xl bg-fuchsia-50/70 p-5 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">기록 {briefing.growth.minutes}분</p></Link>
-        </>}</div>
+      <section aria-label="앱과 설정" className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6">
+        <h2 className="text-lg font-bold">앱과 설정</h2>
         <nav aria-label="다른 앱 바로가기" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Link href="/growth" className="rounded-2xl bg-violet-50 px-3 py-3 text-center text-xs font-bold text-violet-700">자기계발</Link>
           <Link href="/diet" className="rounded-2xl bg-emerald-50 px-3 py-3 text-center text-xs font-bold text-emerald-700">식단</Link>
@@ -535,28 +572,6 @@ export default function AssistantPage() {
           <Link href="/assistant/memories" className="rounded-2xl bg-amber-50 px-3 py-3 text-center text-xs font-bold text-amber-800">기억 확인·수정</Link>
           <Link href="/assistant/settings" className="rounded-2xl bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-600">연이 설정 · 기록 관리</Link>
         </nav>
-      </section>
-
-      <section id="assistant-list" className="mt-5 scroll-mt-4 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>
-        <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-yeoni-bg p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto_auto]">
-          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
-          <select value={kind} onChange={(event) => setKind(event.target.value as Exclude<Filter, "all">)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm font-semibold outline-none ring-1 ring-gray-100"><option value="task">할 일</option><option value="project">프로젝트</option><option value="waiting">회신 대기</option><option value="memory">기억</option></select>
-          <select aria-label="우선순위" value={entryPriority} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryPriority(Number(event.target.value))} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value={5}>긴급</option><option value={4}>중요</option><option value={3}>보통</option><option value={2}>낮음</option></select>
-          <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
-          <select aria-label="반복" value={entryRecurrence} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryRecurrence(event.target.value as RecurrenceRule)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select>
-          <select aria-label="연결 프로젝트" value={entryProjectId} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryProjectId(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="">프로젝트 없음</option>{projects.filter((project) => project.status !== "completed" && project.status !== "archived").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
-          <button disabled={saving || !title.trim()} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
-        </form>
-        {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
-
-        <div className="mt-5 grid gap-2">
-          {loading ? <p className="py-10 text-center text-sm text-gray-400">동기화 중…</p> : rows.length === 0 ? <p className="py-10 text-center text-sm leading-6 text-gray-400">{loadFailures.length ? "목록 조회를 확인하지 못했습니다." : "등록된 항목이 없습니다."}<br />떠오르는 일을 자연스럽게 적어보세요.</p> : rows.map((row) => <article key={`${row.kind}-${row.id}`} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-gray-100 p-4 ${row.done ? "opacity-50" : ""}`}>
-            {row.kind === "memory" ? <span aria-hidden="true" className="h-3 w-3 justify-self-center rounded-full bg-amber-400" /> : <button type="button" aria-label="완료 전환" disabled={busyIds.includes(row.id)} onClick={() => void (row.kind === "project" ? toggleProject(row.source as Project) : toggleItem(row.source as Item))} className={`h-11 w-11 rounded-full border-2 disabled:opacity-50 ${row.done ? "border-[#5146A6] bg-[#5146A6]" : "border-gray-300"}`}>{row.done && <span className="text-xs text-white">✓</span>}</button>}
-            <div className="min-w-0"><p className={`truncate font-bold ${row.done ? "line-through" : ""}`}>{row.title}</p><div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400"><span>{new Date(row.created).toLocaleString("ko-KR")}</span>{row.kind === "task" || row.kind === "waiting" ? <><span className={(row.source as Item).priority >= 4 ? "font-bold text-red-500" : ""}>우선순위 {priorityLabel((row.source as Item).priority)}</span>{(row.source as Item).due_at && <span className={!row.done && new Date((row.source as Item).due_at as string) < new Date() ? "font-bold text-red-500" : ""}>마감 {new Date((row.source as Item).due_at as string).toLocaleDateString("ko-KR")}</span>}{(row.source as Item).recurrence_rule !== "none" && <span className="font-bold text-[#766DB8]">{recurrenceLabel((row.source as Item).recurrence_rule)} 반복</span>}{(row.source as Item).project_id && <span>프로젝트 {projectNames.get((row.source as Item).project_id as string)}</span>}</> : null}</div></div>
-            <div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${row.kind === "waiting" ? "bg-orange-50 text-orange-700" : row.kind === "project" ? "bg-blue-50 text-blue-700" : row.kind === "memory" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{filterLabels[row.kind]}</span><button type="button" aria-label="삭제" onClick={() => void remove(row.kind === "project" ? "assistant_projects" : row.kind === "memory" ? "assistant_memories" : "assistant_items", row.id)} className="px-1 text-xl text-gray-300 hover:text-red-500">×</button></div>
-          </article>)}
-        </div>
       </section>
       <footer className="mt-7 flex flex-wrap justify-center gap-x-4 gap-y-2 border-t border-white/80 pt-5 text-xs font-semibold text-gray-500">
         <Link href="/about">앱 소개</Link>

@@ -274,6 +274,7 @@ test("AI Yeoni shows a seven-day cross-app briefing without a paid AI call", asy
   await page.goto("/assistant");
   const weekly = page.getByRole("region", { name: "최근 7일 통합 브리핑" });
   await expect(weekly.getByText("이번 주 흐름 한눈에 보기", { exact: true })).toBeVisible();
+  await weekly.locator("summary").click();
   await expect(weekly.getByRole("link", { name: /가계부.*12,345원 지출.*최근 7일 1건/ })).toBeVisible();
   await expect(weekly.getByRole("link", { name: /운동.*2일 실행/ })).toBeVisible();
   await expect(weekly.getByRole("link", { name: /식단.*1일 기록/ })).toBeVisible();

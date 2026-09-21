@@ -52,6 +52,7 @@ test('free advice previews real owner records across four areas without modifyin
   await login(page, qa.account);
   for (const [path, region, scope] of [['/assistant', '일상', 'assistant'], ['/fitness', '운동', 'fitness'], ['/language', '일본어 학습', 'language']] as const) {
     await page.goto(path);
+    if (scope === 'assistant') await expect(page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true })).toBeInViewport();
     await enterAdvice(page, scope);
     const panel = page.getByRole('region', { name: `${region} 무료 AI 조언`, exact: true });
     await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
