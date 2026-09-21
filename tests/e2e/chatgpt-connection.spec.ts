@@ -85,7 +85,7 @@ test('ChatGPT advice is isolated by owner; missing auth, forged origins and fail
   await expect(page.getByText('아직 저장한 ChatGPT 조언이 없습니다.',{exact:true})).toHaveCount(0);
   await page.unroute('**/api/chatgpt/advice?*'); await page.getByRole('button',{name:'조언 새로고침',exact:true}).click();
   await expect(page.getByRole('article',{name:'본인 전용 조언 조언'})).toBeVisible();
-  await page.getByRole('link',{name:'← 연이',exact:true}).click(); await expect(page.getByRole('link',{name:'ChatGPT 조언 →',exact:true})).toBeVisible();
+  await page.getByRole('link',{name:'← 연이',exact:true}).click(); await page.getByText('대화 메뉴',{exact:true}).click(); await expect(page.getByRole('link',{name:'ChatGPT 조언 →',exact:true})).toBeVisible();
 });
 
 test('ChatGPT token refresh and original-record reset are enforced through real HTTP and the app shows the result',async({page,qa,request})=>{
