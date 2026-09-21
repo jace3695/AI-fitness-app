@@ -42,6 +42,8 @@ jobs:
         run: node scripts/e2e-stack.mjs start
       - name: Build the isolated production app
         run: npm run build
+      - name: Verify typing basics in Chromium and WebKit
+        run: npx playwright test tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
       - name: Verify handwriting course in Chromium and WebKit
         run: npx playwright test tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
       - name: Verify spoken numeric ranges in Chromium and WebKit
