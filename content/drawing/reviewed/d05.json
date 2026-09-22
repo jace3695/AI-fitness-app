@@ -1,0 +1,272 @@
+{
+  "id": "D05",
+  "examples": [
+    {
+      "id": "D05-robot-v1",
+      "name": "둥근 모서리 로봇",
+      "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요.",
+      "lines": [
+        {
+          "id": "top",
+          "label": "위쪽 가로선",
+          "d": "M130 105 H270",
+          "start": [
+            130,
+            105
+          ],
+          "direction": [
+            158,
+            105
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "right",
+          "label": "오른쪽 위 모서리와 옆",
+          "d": "M270 105 Q305 105 305 140 V285",
+          "start": [
+            270,
+            105
+          ],
+          "direction": [
+            294,
+            105
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bottom",
+          "label": "아래 모서리 두 개와 밑",
+          "d": "M305 285 Q305 320 270 320 H130 Q95 320 95 285",
+          "start": [
+            305,
+            285
+          ],
+          "direction": [
+            305,
+            309
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "left",
+          "label": "왼쪽 옆과 위 모서리",
+          "d": "M95 285 V140 Q95 105 130 105",
+          "start": [
+            95,
+            285
+          ],
+          "direction": [
+            95,
+            257
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M152 202 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            157,
+            202
+          ],
+          "direction": [
+            157,
+            202
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M238 202 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            243,
+            202
+          ],
+          "direction": [
+            243,
+            202
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "가로 입",
+          "d": "M183 245 H217",
+          "start": [
+            183,
+            245
+          ],
+          "direction": [
+            204,
+            245
+          ],
+          "group": "detail"
+        }
+      ]
+    },
+    {
+      "id": "D05-rounder-v1",
+      "name": "더 둥근 모서리 로봇",
+      "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요.",
+      "lines": [
+        {
+          "id": "top",
+          "label": "위쪽 가로선",
+          "d": "M146 105 H254",
+          "start": [
+            146,
+            105
+          ],
+          "direction": [
+            174,
+            105
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "right",
+          "label": "오른쪽 위 모서리와 옆",
+          "d": "M254 105 Q305 105 305 156 V269",
+          "start": [
+            254,
+            105
+          ],
+          "direction": [
+            278,
+            105
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bottom",
+          "label": "아래 모서리 두 개와 밑",
+          "d": "M305 269 Q305 320 254 320 H146 Q95 320 95 269",
+          "start": [
+            305,
+            269
+          ],
+          "direction": [
+            305,
+            293
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "left",
+          "label": "왼쪽 옆과 위 모서리",
+          "d": "M95 269 V156 Q95 105 146 105",
+          "start": [
+            95,
+            269
+          ],
+          "direction": [
+            95,
+            241
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M152 202 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            157,
+            202
+          ],
+          "direction": [
+            157,
+            202
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M238 202 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            243,
+            202
+          ],
+          "direction": [
+            243,
+            202
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "가로 입",
+          "d": "M183 245 H217",
+          "start": [
+            183,
+            245
+          ],
+          "direction": [
+            204,
+            245
+          ],
+          "group": "detail"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "완성 예제에서 곧은 부분과 둥근 모서리를 찾아요. 위쪽 가로선의 왼쪽 점을 짚어요.",
+      "lines": [
+        "top"
+      ],
+      "action": "look"
+    },
+    {
+      "text": "위쪽 선을 왼쪽에서 오른쪽으로 그어요.",
+      "lines": [
+        "top"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "이어서 오른쪽 위 모서리를 천천히 돌아 아래로 내려와요.",
+      "lines": [
+        "right"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "오른쪽 아래를 둥글게 돌아 밑을 왼쪽으로 가요. 왼쪽 아래도 돌아요.",
+      "lines": [
+        "bottom"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "왼쪽 옆을 위로 올라가요. 위 모서리를 돌아 첫 가로선에 붙여요.",
+      "lines": [
+        "left"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "점 눈 두 개와 짧은 가로 입을 그려요. 네 모서리에서 방향이 바뀌는 곳을 짚어요.",
+      "lines": [
+        "eyeL",
+        "eyeR",
+        "mouth"
+      ],
+      "action": "draw"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  },
+  "easier": "첫 가로선과 오른쪽 위 모서리까지만 그려요. 왼쪽 위 모서리도 완성 예제에서 찾아 짧게 따라가면 충분해요."
+}
