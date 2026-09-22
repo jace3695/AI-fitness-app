@@ -12,7 +12,7 @@ function attempt(extra: Partial<Attempt['document']> = {}, variant = 0): Attempt
 test('authoritative 80 lessons retain 9-stage allocation and C01–C04, unpublished manuscripts are not playable', () => {
   assert.deepEqual(pack.stages.map(s => pack.lessons.filter(l => l.stage === s.id).length), [8,8,12,6,8,10,8,10,10]);
   assert.deepEqual(pack.projects.map(p => p.id), ['C01','C02','C03','C04']);
-  assert.equal(pack.lessons.filter(playable).length, 1);
+  assert.equal(pack.lessons.filter(playable).length, 8);
   for (const l of pack.lessons) { assert.ok(l.goal && l.check && l.easier); assert.ok(l.instructions.length); }
 });
 test('D01 has one start-only frame then six cumulative actions with no invented head or neck', () => {
@@ -30,7 +30,7 @@ test('malformed remote packs cannot replace the good pack', () => {
     (p: typeof raw) => p.lessons[1].references.push('missing'),
     (p: typeof raw) => p.lessons[0].examples[0].lines[0].d = '<script>alert(1)</script>',
     (p: typeof raw) => p.lessons[0].steps[0].lines.push('unknown-line'),
-    (p: typeof raw) => p.lessons[2].readiness.visualMatch = true,
+    (p: typeof raw) => p.lessons[8].readiness.visualMatch = true,
   ]) { const value = structuredClone(raw); mutate(value); assert.throws(() => parsePack(value)); }
 });
 test('completion count alone, short practice and assisted confirmation never certify a stage', () => {
@@ -58,4 +58,34 @@ test('restoring drawings rejects malformed photo, ink and lesson pointers before
     {step:9},
     {strokes:[{points:[[Infinity,1,.5]],color:'#ffffff',width:2,erase:false}]},
   ]) assert.throws(() => parseAttempt({...valid,document:{...valid.document,...change}}));
+});
+
+test('stage one alternates cover every taught line with distinct geometry and preserve old snapshots', async () => {
+  for (const l of pack.lessons.slice(0,8)) {
+    assert.equal(l.examples.length, 2);
+    assert.equal(l.steps[0].action, 'look');
+    assert.notDeepEqual(l.examples[0].lines.map(x => x.d), l.examples[1].lines.map(x => x.d));
+    for (const ex of l.examples) {
+      assert.deepEqual(new Set(l.steps.filter(s => s.action === 'draw').flatMap(s => s.lines)), new Set(ex.lines.map(x => x.id)));
+      for (const line of ex.lines.filter(x => x.fill !== 'ink')) {
+        const start = /^M\s*([\d.]+)[ ,]+([\d.]+)/.exec(line.d);
+        assert.deepEqual(start?.slice(1).map(Number), line.start, `${l.id} ${ex.id} ${line.id} start`);
+      }
+    }
+  }
+  const {parseAttempt} = await import('./model.ts');
+  const old = {...attempt(), user_id:crypto.randomUUID()};
+  old.document.packVersion = '1.0.0-draft.2';
+  old.document.strokes = [{points:[[100,100,.5],[120,130,.6]],color:'#34314b',width:2.6,erase:false}];
+  assert.deepEqual(parseAttempt(JSON.parse(JSON.stringify(old))), old);
+});
+
+test('stage one advances after two distinct self-confirmed examples, not repeated completions', () => {
+  const evidence = [attempt({check:'independent'}), attempt({check:'independent'},1)];
+  assert.equal(recommend(pack,evidence)?.lessonId, 'D02');
+  const capstone = pack.lessons[7];
+  const cap = capstone.examples.map(ex => ({...attempt(), document:{...newDocument(capstone,ex,pack.version),check:'independent' as const}}));
+  assert.equal(confirmedStage(pack,cap,1), true);
+  assert.equal(confirmedStage(pack,[cap[0],{...cap[1],document:{...cap[1].document,short:true}}],1), false);
+  assert.equal(confirmedStage(pack,[cap[0],{...cap[1],document:{...cap[1].document,difficulty:'긴 선'}}],1), false);
 });
