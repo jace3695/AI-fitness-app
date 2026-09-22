@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { supabase } from "@/app/lib/supabase";
 import catalog from "@/content/drawing/template-catalog.json";
-import { readTemplateZip, sha256, templatePath, type TemplateAsset } from "@/lib/drawing/template-zip";
+import { templatePath, type TemplateAsset } from "@/lib/drawing/template-zip";
+import { loadTemplate, registerTemplates } from "@/lib/drawing/template-store";
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 
 export default function TemplateReferences({ owner, lessonId }: { owner: string | null; lessonId: string }) {
@@ -17,22 +18,34 @@ export default function TemplateReferences({ owner, lessonId }: { owner: string 
   const running = useRef(false);
   const mounted = useRef(true);
   const [revision, setRevision] = useState(0);
+  const [registered, setRegistered] = useState<{ owner: string; count: number } | null>(null);
+  const [listError, setListError] = useState(false);
   useUnsavedChanges(busy);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => {
+    if (!owner || !supabase) return;
+    let active = true;
+    const prefix = templatePath(owner, catalog.assets[0]).split('/').slice(0, -1).join('/');
+    void supabase.storage.from('growth-resources').list(prefix, { limit: 200 }).then(result => {
+      if (!active) return;
+      setListError(Boolean(result.error));
+      if (!result.error) {
+        const names = new Set(result.data.map(item => item.name));
+        setRegistered({ owner, count: catalog.assets.filter(asset => names.has(`${asset.id}-${asset.sha256}.png`)).length });
+      }
+    }).catch(() => { if (active) setListError(true); });
+    return () => { active = false; };
+  }, [owner, revision]);
   useEffect(() => {
     if (!owner || !supabase || !selected) return;
     let active = true; let url = "";
     const client = supabase;
     void (async () => {
-      const result = await client.storage.from("growth-resources").download(templatePath(owner, selected));
+      const blob = await loadTemplate(client.storage.from("growth-resources"), owner, selected);
       if (!active) return;
-      if (result.error) { setStatus("이 자료를 아직 열 수 없어요. 아래에서 원본 ZIP을 한 번 등록하거나 연결 후 다시 열어 주세요."); return; }
-      const bytes = new Uint8Array(await result.data.arrayBuffer());
-      if (await sha256(bytes) !== selected.sha256) { if (active) setStatus("원본 확인에 실패했어요. 다른 그림을 대신 표시하지 않았어요."); return; }
-      if (!active) return;
-      url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+      url = URL.createObjectURL(blob);
       setImage({ owner, assetId: selected.id, url }); setStatus("");
-    })().catch(() => { if (active) setStatus("템플릿을 불러오지 못했어요. 다시 열어 주세요."); });
+    })().catch(e => { if (active) setStatus(e instanceof Error ? e.message : "템플릿을 불러오지 못했어요. 다시 열어 주세요."); });
     return () => { active = false; if (url) URL.revokeObjectURL(url); };
   }, [owner, selected, revision]);
 
@@ -43,18 +56,8 @@ export default function TemplateReferences({ owner, lessonId }: { owner: string 
     running.current = true; setBusy(true); setStatus("원본 템플릿 150종을 확인하고 있어요.");
     try {
       if (file.size > 15_000_000) throw Error("15MB 이하의 템플릿 ZIP을 선택해 주세요.");
-      const files = await readTemplateZip(await file.arrayBuffer(), catalog.assets);
-      for (let i = 0; i < files.length; i++) {
-        if (!active()) throw Error("계정이 바뀌어 등록을 중단했어요.");
-        const { asset, bytes } = files[i];
-        setStatus(`본인 계정에 원본 등록 중… ${i + 1} / 150`);
-        const path = templatePath(id, asset);
-        const uploaded = await client.storage.from("growth-resources").upload(path, bytes, { contentType: "image/png", upsert: false });
-        if (uploaded.error) {
-          const existing = await client.storage.from("growth-resources").download(path);
-          if (existing.error || await sha256(new Uint8Array(await existing.data.arrayBuffer())) !== asset.sha256) throw Error("등록을 마치지 못했어요. 같은 ZIP으로 다시 시도하면 이미 등록한 원본은 그대로 유지해요.");
-        }
-      }
+      await registerTemplates(client.storage.from("growth-resources"), id, await file.arrayBuffer(), catalog.assets, active,
+        (done, total) => { if (active()) setStatus(`저장된 원본 확인 중… ${done} / ${total}`); });
       if (active()) { setStatus("템플릿 150종을 본인 계정에 등록했어요. 같은 계정으로 다른 기기에서도 열 수 있어요."); setRevision(n => n + 1); }
     } catch (e) { if (active()) setStatus(e instanceof Error ? e.message : "등록하지 못했어요."); }
     finally { running.current = false; if (mounted.current) setBusy(false); }
@@ -64,6 +67,8 @@ export default function TemplateReferences({ owner, lessonId }: { owner: string 
   return <section className="drawing-card" aria-label="만능 템플릿 원본 자료">
     <h2 className="text-lg font-bold">내 만능 템플릿 150종</h2>
     <p className="mt-2 text-sm text-slate-600">제공해 주신 실제 원본이에요. 오늘 필요한 부분만 살펴봐요. 단계별 시범과 별도로 참고하는 자료예요.</p>
+    {registered?.owner === owner && <p className="mt-2 text-sm" aria-label="템플릿 등록 상태">보관함에 {registered.count} / 150종 있어요. {registered.count === 150 ? '원본을 선택해 열어 보세요.' : '아래에서 같은 ZIP으로 등록을 마칠 수 있어요.'}</p>}
+    {listError && <p className="mt-2 text-sm">보관함 목록을 확인하지 못했어요. 연결 후 <button className="underline" onClick={() => setRevision(n => n + 1)}>다시 확인</button>해 주세요.</p>}
     <div className="my-3 flex flex-wrap gap-2"><button className="drawing-button" aria-pressed={!all} onClick={() => setAll(false)}>현재 수업 참고</button><button className="drawing-button" aria-pressed={all} onClick={() => setAll(true)}>150종 둘러보기</button></div>
     {all && <label className="text-sm">자료 종류<select className="drawing-input" value={group} onChange={e => setGroup(e.target.value)}>{["동물가이드", "이목구비", "표정", "포즈가이드", "효과선"].map(g => <option key={g}>{g}</option>)}</select></label>}
     {!visible.length && <p className="text-sm">이 수업에 직접 맞는 원본은 아직 연결하지 않았어요. 전체 자료는 둘러볼 수 있어요.</p>}

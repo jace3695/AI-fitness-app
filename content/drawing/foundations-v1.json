@@ -392,7 +392,7 @@
         "manuscript": true,
         "examples": true,
         "visualMatch": true,
-        "browser": false
+        "browser": true
       }
     },
     {

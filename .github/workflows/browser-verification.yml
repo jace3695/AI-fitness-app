@@ -43,7 +43,7 @@ jobs:
       - name: Build the isolated production app
         run: npm run build
       - name: Verify drawing save and restore in Chromium and WebKit
-        run: npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small
+        run: npx playwright test tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small
       - name: Verify typing basics in Chromium and WebKit
         run: npx playwright test tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
       - name: Verify handwriting course in Chromium and WebKit

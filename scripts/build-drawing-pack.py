@@ -14,9 +14,9 @@ for m in re.finditer(r'\*\*(D\d{2})\. (.*?)\*\*\n(.*?)(?=\n\*\*D|\n### |\n## )',
  lessons.append(dict(id=lid,stage=stage,title=title,goal=f['핵심'],instructions=f['순서'].split(' → '),check=f['확인'],easier=f['더 쉽게'],help=3 if stage<=2 else 1 if stage==3 else 0,minutes=15,examples=[],steps=[],references=[f'D{x:02}' for x in refs.get(n,[])],readiness=dict(manuscript=True,examples=False,visualMatch=False,browser=False)))
 reviewed=json.loads((ROOT/'content/drawing/d01-reviewed.json').read_text())
 lessons[0].update(reviewed)
-lessons[0]['readiness'].update(examples=True,visualMatch=True)
+lessons[0]['readiness'].update(examples=True,visualMatch=True,browser=True)
 projects=[dict(id=m[1],title=m[2],sessions=list(m.group(3,4,5,6)),check=m[7]) for m in re.finditer(r'^\| (C0[1-4])\. (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \|$',source,re.M)]
 assert len(lessons)==80 and len(stages)==9 and len(projects)==4
 pack=dict(schemaVersion=1,id='yeoni-character-practice',version='1.0.0-draft.2',title='캐릭터와 함께 시작하는 그림 연습',stages=stages,lessons=lessons,projects=projects)
 (ROOT/'content/drawing/foundations-v1.json').write_text(json.dumps(pack,ensure_ascii=False,indent=2)+'\n')
-print('80 manuscripts, 4 project manuscripts. D01: 2 visually checked examples / 6 steps. Authenticated browser verification pending.')
+print('80 manuscripts, 4 project manuscripts. D01: 2 visually checked examples / 6 steps. D01 authenticated Chromium/WebKit verification: run 35717882199.')
