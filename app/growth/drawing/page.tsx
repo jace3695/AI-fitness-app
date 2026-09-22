@@ -7,6 +7,7 @@ import AppIdentity from "@/app/components/AppIdentity";
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import { DrawingCanvas, paintStrokes } from "@/components/drawing/DrawingCanvas";
 import TemplateReferences from "@/components/drawing/TemplateReferences";
+import PartFinder from "@/components/drawing/PartFinder";
 import { Diagram } from "@/components/drawing/Diagram";
 import { bundledPack, loadDrawingPack } from "@/lib/drawing/pack";
 import { newDocument, playable, type Attempt, type Check, type DrawingDocument, type Help, type Lesson } from "@/lib/drawing/model";
@@ -23,6 +24,7 @@ export default function DrawingPage() {
   const [dirty, setDirty] = useState(false);
   const [original, setOriginal] = useState(true);
   const [overlay, setOverlay] = useState(true);
+  const [referenceOverlay, setReferenceOverlay] = useState(false);
   const [easy, setEasy] = useState(false);
   const [compare, setCompare] = useState<string>("");
   const [album, setAlbum] = useState(false);
@@ -72,11 +74,11 @@ export default function DrawingPage() {
     const document = newDocument(lesson, example, pack.version); document.help = help ?? document.help; document.usedHelp = document.help; document.short = short;
     const now = new Date().toISOString();
     setAttempt({ id: crypto.randomUUID(), user_id: records.owner, revision: 0, status: "draft", document, created_at: now, updated_at: now });
-    setDirty(true); setReview(false); setEasy(short); setOriginal(lesson.stage !== 4); setOverlay(true); setAlbum(false); setCompare("");
+    setDirty(true); setReview(false); setEasy(short); setOriginal(lesson.stage !== 4); setOverlay(true); setReferenceOverlay(false); setAlbum(false); setCompare("");
   }
   async function open(record: Attempt) {
     if (!await preserve()) return;
-    setAttempt(record); setDirty(false); setReview(false); setOriginal(record.document.lesson.stage !== 4); setAlbum(false); setCompare("");
+    setAttempt(record); setEasy(record.document.short); setReferenceOverlay(false); setDirty(false); setReview(false); setOriginal(record.document.lesson.stage !== 4); setAlbum(false); setCompare("");
   }
   async function save(completed: boolean) {
     if (!owned || photoBusy) return;
@@ -113,12 +115,14 @@ export default function DrawingPage() {
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-violet-700">{doc.step + 1} / {doc.lesson.steps.length} · 지금 할 행동</p><h3 className="mt-2 text-lg font-bold">{step?.text}</h3></div></div>
           <div className="my-4 flex flex-wrap gap-2"><button className="drawing-button" disabled={doc.step === 0} onClick={() => update({ step: doc.step - 1 })}>이전 행동</button><button className="drawing-primary" disabled={doc.step >= doc.lesson.steps.length - 1} onClick={() => update({ step: doc.step + 1 })}>다음 행동</button><button className="drawing-button" aria-pressed={original} onClick={() => setOriginal(!original)}>{original ? "원본 숨기기" : "원본 다시 보기"}</button></div>
           {original && <details className="mb-4 rounded-2xl bg-slate-50 p-3" open={doc.tool !== "app" || doc.help === 0}><summary className="cursor-pointer text-sm font-semibold">완성 예제 · {doc.example.name}</summary><div className="mx-auto max-w-xs"><Diagram example={doc.example} original /></div><button className="drawing-button" onClick={() => exportExample(doc.example)}>예제 저장 · 인쇄용</button></details>}
+          {doc.example.lines.some(l => l.group === "guide") && <div className="mb-3"><button className="drawing-button" disabled={!original} aria-pressed={referenceOverlay && original} onClick={() => setReferenceOverlay(!referenceOverlay)}>{referenceOverlay && original ? "완성 외곽 겹치기 끄기" : "완성 외곽 겹치기"}</button><button className="drawing-button ml-2" onClick={() => exportExample(doc.example, doc.lesson.steps.filter(s => s.action === "draw").flatMap(s => s.lines))}>도형 밑그림 내려받기</button><p className="mt-2 text-xs">회색 외곽과 도형의 자리를 비교해요. 겹친 도형은 지우지 않아도 돼요. 원본을 숨기면 겹쳐보기도 숨겨져요.</p></div>}
           <p className="mb-3 text-xs text-slate-600">주황 점은 시작 위치의 예시예요. 이번 행동의 설명을 따라가요. 주황 화살표는 손이 움직일 방향, 보라 선은 이번에 그릴 부분이에요.</p>
           {doc.tool === "app" ? <>
             <label className="mb-3 block text-sm">도움 정도<select className="drawing-input" value={doc.help} onChange={e => { const help = Number(e.target.value) as Help; update({ help, usedHelp: Math.max(help, doc.usedHelp) as Help }); }}>{HELP_LABELS.map((label, i) => <option key={i} value={i}>{label}</option>)}</select></label>
             <button className="drawing-button mb-3" aria-pressed={overlay} onClick={() => setOverlay(!overlay)}>{overlay ? "밑그림 숨기기" : "밑그림 다시 보기"}</button>
-            <DrawingCanvas key={owned.id} strokes={doc.strokes} onChange={strokes => update({ strokes })} disabled={records.busy} guide={overlay && <Diagram example={doc.example} lesson={doc.lesson} step={doc.step} help={doc.help} />} />
-          </> : <><div className="mx-auto max-w-sm"><Diagram example={doc.example} lesson={doc.lesson} step={doc.step} /></div><p className="my-3 text-sm">{doc.tool === "paper" ? "손바닥보다 조금 크게 예제를 인쇄하고 비치는 종이를 얹어요. 종이 모서리를 고정해요. 인쇄가 어렵다면 앱 안에서 그리기를 선택해요. 사진 없이 자기확인만 저장해도 돼요." : "예제를 저장해 그림 앱으로 불러와요. 원본 위에 새 레이어(투명한 종이)를 올려 그려요. 앱마다 버튼 이름이 달라요. 완성한 이미지를 아래에 가져올 수 있어요."}</p><button className="drawing-button" onClick={() => exportExample(doc.example)}>예제 내려받기</button></>}
+            <DrawingCanvas key={owned.id} strokes={doc.strokes} onChange={strokes => update({ strokes })} disabled={records.busy} guide={overlay && <Diagram example={doc.example} lesson={doc.lesson} step={doc.step} help={doc.help} referenceOverlay={referenceOverlay && original} easy={easy || doc.short} />} />
+          </> : <><div className="mx-auto max-w-sm"><Diagram example={doc.example} lesson={doc.lesson} step={doc.step} referenceOverlay={referenceOverlay && original} easy={easy || doc.short} /></div><p className="my-3 text-sm">{doc.tool === "paper" ? "손바닥보다 조금 크게 예제를 인쇄하고 비치는 종이를 얹어요. 종이 모서리를 고정해요. 인쇄가 어렵다면 앱 안에서 그리기를 선택해요. 사진 없이 자기확인만 저장해도 돼요." : "예제를 저장해 그림 앱으로 불러와요. 원본 위에 새 레이어(투명한 종이)를 올려 그려요. 앱마다 버튼 이름이 달라요. 완성한 이미지를 아래에 가져올 수 있어요."}</p><button className="drawing-button" onClick={() => exportExample(doc.example)}>예제 내려받기</button></>}
+          {original && <PartFinder key={owned.id} example={doc.example} checked={doc.partChecks ?? []} disabled={records.busy} onCheck={partChecks => update({partChecks})} onHelp={() => update({usedHelp: Math.max(1, doc.usedHelp) as Help})} />}
           <label className="mt-5 block text-sm font-semibold">종이 그림 사진 · 다른 앱 그림 가져오기<input type="file" accept="image/jpeg,image/png,image/webp" disabled={records.busy || photoBusy} className="mt-2 block max-w-full text-sm" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; const owner = records.owner; setPhotoBusy(true); try { const photo = await compressPhoto(file); if (latestOwner.current === owner) update({ photo }); } catch (error) { records.setNotice(error instanceof Error ? error.message : "사진을 열지 못했어요."); } finally { setPhotoBusy(false); } }} /></label>
           {doc.photo && <><Image src={doc.photo} width={600} height={600} alt="내가 남긴 그림 사진" unoptimized className="mt-3 h-auto max-h-96 w-auto max-w-full rounded-2xl" /><button className="drawing-button mt-2" onClick={() => update({ photo: null })}>사진 빼기</button></>}
         </section>

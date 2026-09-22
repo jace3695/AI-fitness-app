@@ -1,5 +1,6 @@
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
+import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
 
 test('drawing: first dot, ink undo, lost save reply, reload, private CAS and preserved older records', async ({page,qa}) => {
@@ -104,6 +105,85 @@ for (const authored of pack.lessons.slice(1,8)) {
       await expect(lesson).toContainText(`${authored.steps.length} / ${authored.steps.length}`);
       await page.getByLabel('그리는 곳').selectOption('app');
       await expect(page.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+    }
+    expect(await qa.read()).toEqual(before);
+  });
+}
+
+for (const authored of pack.lessons.slice(8,16)) {
+  test(`drawing ${authored.id}: construction overlay, easier guides, both variants and saved part evidence`, async ({page,qa}) => {
+    await login(page,qa.account);await synced(page);const before=await qa.read();
+    await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+    await page.locator('#drawing-map summary').nth(1).click();
+    await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+    const lesson=page.getByRole('region',{name:'한 동작씩 보기'});
+    const canvas=page.getByLabel('내 그림 연습장',{exact:true});
+    const guide=canvas.locator('..').locator('svg[role="img"]');
+    for(const [variant,ex] of authored.examples.entries()) {
+      if(variant)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+      await expect(guide.locator('g > path')).toHaveCount(0);
+      if(['D10','D13'].includes(authored.id)) {
+        const received=page.waitForEvent('download');
+        await page.getByRole('button',{name:'도형 밑그림 내려받기',exact:true}).click();
+        const file=await received;expect(file.suggestedFilename()).toContain('-construction.svg');
+        const svg=readFileSync((await file.path())!,'utf8');
+        const taught=new Set(authored.steps.filter(s=>s.action==='draw').flatMap(s=>s.lines));
+        for(const line of ex.lines.filter(l=>l.group==='guide'))expect(svg.includes(line.d)).toBe(taught.has(line.id));
+        expect(svg).not.toContain('fill="#161616"');
+      }
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
+      if(authored.easyLines?.length)await expect(guide.locator('g > path')).toHaveCount(authored.easyLines.length);
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
+      await page.getByRole('combobox',{name:/^연습 시간/}).selectOption('10');
+      // Hiding the completed reference also hides all reference overlays, but not the learner's ink.
+      await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();
+      await expect(page.getByRole('button',{name:'완성 외곽 겹치기',exact:true})).toBeDisabled();
+      for(const [i,step] of authored.steps.entries()) {
+        if(i)await page.getByRole('button',{name:'다음 행동',exact:true}).click();
+        await expect(lesson.getByRole('heading',{level:3}).first()).toHaveText(step.text);
+      }
+      await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();
+      await page.getByRole('button',{name:'완성 외곽 겹치기',exact:true}).click();
+      await expect(guide.getByTestId('construction-reference')).toBeVisible();
+      await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();
+      await expect(guide.getByTestId('construction-reference')).toHaveCount(0);
+      await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();
+      await page.getByRole('button',{name:'완성 외곽 겹치기 끄기',exact:true}).click();
+      await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;
+      await page.mouse.move(b.x+b.width*.5,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.4,{steps:4});await page.mouse.up();
+      if(authored.id==='D16') {
+        const finder=page.getByRole('region',{name:'부위 찾아보기'});
+        const ref=finder.getByRole('group',{name:'부위 확인 예제'});await ref.scrollIntoViewIfNeeded();const r=(await ref.boundingBox())!;
+        await page.mouse.click(r.x+r.width*.04,r.y+r.height*.96);
+        await expect(finder.getByRole('status')).toContainText('실패로 기록하지 않아요');
+        await page.mouse.click(r.x+r.width*.5,r.y+r.height*.375);
+        await expect(finder.getByRole('button',{name:'머리 · 위치 확인',exact:true})).toBeVisible();
+        await finder.getByRole('button',{name:'위치 도움 보기',exact:true}).click();
+        for(const name of ['몸','왼쪽 귀가 붙는 곳']) {
+          await finder.getByRole('button',{name,exact:true}).click();
+          await finder.getByRole('button',{name:`${name} 표시 짚기`,exact:true}).click();
+          await expect(finder.getByRole('status')).toContainText('교재의 표시 위치와 비교한 결과');
+        }
+        await expect(page.getByRole('button',{name:'아직 확인 전',exact:true})).toHaveAttribute('aria-pressed','true');
+      }
+      await page.getByLabel('남기고 싶은 말',{exact:true}).fill(`${authored.id}-${variant} shape practice`);
+      await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();
+      await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+      await expect(page.getByRole('region',{name:'연이의 연습 정리'})).toContainText('그림 분석은 받지 않았어요');
+      const saved=await qa.account.client.from('growth_drawing_attempts').select('*');expect(saved.error).toBeNull();
+      const row=saved.data!.find(a=>a.document.example.id===ex.id)!;
+      expect(row.document.strokes).toHaveLength(1);expect(row.document.example).toEqual(ex);
+      if(authored.id==='D16')expect(row.document.partChecks).toEqual(['head','body','ear']);
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');
+      await page.getByRole('button',{name:'완성 외곽 겹치기',exact:true}).click();
+      await expect(lesson.getByTestId('construction-reference')).toBeVisible();
+      await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('status,document').eq('id',row.id).single();return [q.data?.status,q.data?.document.tool];}).toEqual(['draft','paper']);
+      await page.reload();await page.getByRole('button',{name:`내 그림 ${variant+1}장`,exact:true}).click();
+      await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+      await expect(page.getByLabel('남기고 싶은 말',{exact:true})).toHaveValue(`${authored.id}-${variant} shape practice`);
+      if(authored.id==='D16')await expect(page.getByRole('region',{name:'부위 찾아보기'}).getByRole('button',{name:'몸 · 위치 확인',exact:true})).toBeVisible();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     }
     expect(await qa.read()).toEqual(before);
   });

@@ -1,0 +1,496 @@
+{
+  "id": "D15",
+  "examples": [
+    {
+      "id": "D15-robot-1-v1",
+      "name": "큰 네모 로봇",
+      "source": "첨부 학습 문서의 도형화 목표에 맞춘 새 단계 시범. 곰·토끼·강아지는 제공하신 만능 템플릿 150종의 부위 구성을 참고했어요. 원본 교재 파일과는 구분해요.",
+      "lines": [
+        {
+          "id": "headGuide",
+          "label": "큰 머리 네모",
+          "d": "M139 75 H261 Q289 75 289 103 V191 Q289 219 261 219 H139 Q111 219 111 191 V103 Q111 75 139 75",
+          "start": [
+            139,
+            75
+          ],
+          "direction": [
+            161,
+            75
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "bodyGuide",
+          "label": "작은 몸 네모",
+          "d": "M165 219 H235 Q249 219 249 233 V291 Q249 305 235 305 H165 Q151 305 151 291 V233 Q151 219 165 219",
+          "start": [
+            165,
+            219
+          ],
+          "direction": [
+            187,
+            219
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "head",
+          "label": "큰 머리 네모",
+          "d": "M139 75 H261 Q289 75 289 103 V191 Q289 219 261 219 H139 Q111 219 111 191 V103 Q111 75 139 75",
+          "start": [
+            139,
+            75
+          ],
+          "direction": [
+            161,
+            75
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "작은 몸 네모",
+          "d": "M165 219 H235 Q249 219 249 233 V291 Q249 305 235 305 H165 Q151 305 151 291 V233 Q151 219 165 219",
+          "start": [
+            165,
+            219
+          ],
+          "direction": [
+            187,
+            219
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "눈",
+          "d": "M161 142 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            166,
+            142
+          ],
+          "direction": [
+            166,
+            142
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "눈",
+          "d": "M229 142 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            234,
+            142
+          ],
+          "direction": [
+            234,
+            142
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M182 179 H218",
+          "start": [
+            182,
+            179
+          ],
+          "direction": [
+            204,
+            179
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "armLGuide",
+          "label": "짧은 막대",
+          "d": "M151 250 L119 272",
+          "start": [
+            151,
+            250
+          ],
+          "direction": [
+            131,
+            264
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "armL",
+          "label": "팔다리",
+          "d": "M151 250 L119 272",
+          "start": [
+            151,
+            250
+          ],
+          "direction": [
+            131,
+            264
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armRGuide",
+          "label": "짧은 막대",
+          "d": "M249 250 L281 272",
+          "start": [
+            249,
+            250
+          ],
+          "direction": [
+            269,
+            264
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "armR",
+          "label": "팔다리",
+          "d": "M249 250 L281 272",
+          "start": [
+            249,
+            250
+          ],
+          "direction": [
+            269,
+            264
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legLGuide",
+          "label": "짧은 막대",
+          "d": "M178 305 V340",
+          "start": [
+            178,
+            305
+          ],
+          "direction": [
+            178,
+            329
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "legL",
+          "label": "팔다리",
+          "d": "M178 305 V340",
+          "start": [
+            178,
+            305
+          ],
+          "direction": [
+            178,
+            329
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legRGuide",
+          "label": "짧은 막대",
+          "d": "M222 305 V340",
+          "start": [
+            222,
+            305
+          ],
+          "direction": [
+            222,
+            329
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "legR",
+          "label": "팔다리",
+          "d": "M222 305 V340",
+          "start": [
+            222,
+            305
+          ],
+          "direction": [
+            222,
+            329
+          ],
+          "group": "shape"
+        }
+      ],
+      "parts": []
+    },
+    {
+      "id": "D15-robot-2-v1",
+      "name": "둥근 네모 로봇",
+      "source": "첨부 학습 문서의 도형화 목표에 맞춘 새 단계 시범. 곰·토끼·강아지는 제공하신 만능 템플릿 150종의 부위 구성을 참고했어요. 원본 교재 파일과는 구분해요.",
+      "lines": [
+        {
+          "id": "headGuide",
+          "label": "큰 머리 네모",
+          "d": "M149 75 H251 Q289 75 289 113 V181 Q289 219 251 219 H149 Q111 219 111 181 V113 Q111 75 149 75",
+          "start": [
+            149,
+            75
+          ],
+          "direction": [
+            171,
+            75
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "bodyGuide",
+          "label": "작은 몸 네모",
+          "d": "M165 219 H235 Q249 219 249 233 V291 Q249 305 235 305 H165 Q151 305 151 291 V233 Q151 219 165 219",
+          "start": [
+            165,
+            219
+          ],
+          "direction": [
+            187,
+            219
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "head",
+          "label": "큰 머리 네모",
+          "d": "M149 75 H251 Q289 75 289 113 V181 Q289 219 251 219 H149 Q111 219 111 181 V113 Q111 75 149 75",
+          "start": [
+            149,
+            75
+          ],
+          "direction": [
+            171,
+            75
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "작은 몸 네모",
+          "d": "M165 219 H235 Q249 219 249 233 V291 Q249 305 235 305 H165 Q151 305 151 291 V233 Q151 219 165 219",
+          "start": [
+            165,
+            219
+          ],
+          "direction": [
+            187,
+            219
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "눈",
+          "d": "M161 142 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            166,
+            142
+          ],
+          "direction": [
+            166,
+            142
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "눈",
+          "d": "M229 142 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            234,
+            142
+          ],
+          "direction": [
+            234,
+            142
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M182 179 H218",
+          "start": [
+            182,
+            179
+          ],
+          "direction": [
+            204,
+            179
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "armLGuide",
+          "label": "짧은 막대",
+          "d": "M151 250 L119 272",
+          "start": [
+            151,
+            250
+          ],
+          "direction": [
+            131,
+            264
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "armL",
+          "label": "팔다리",
+          "d": "M151 250 L119 272",
+          "start": [
+            151,
+            250
+          ],
+          "direction": [
+            131,
+            264
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armRGuide",
+          "label": "짧은 막대",
+          "d": "M249 250 L281 272",
+          "start": [
+            249,
+            250
+          ],
+          "direction": [
+            269,
+            264
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "armR",
+          "label": "팔다리",
+          "d": "M249 250 L281 272",
+          "start": [
+            249,
+            250
+          ],
+          "direction": [
+            269,
+            264
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legLGuide",
+          "label": "짧은 막대",
+          "d": "M178 305 V340",
+          "start": [
+            178,
+            305
+          ],
+          "direction": [
+            178,
+            329
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "legL",
+          "label": "팔다리",
+          "d": "M178 305 V340",
+          "start": [
+            178,
+            305
+          ],
+          "direction": [
+            178,
+            329
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legRGuide",
+          "label": "짧은 막대",
+          "d": "M222 305 V340",
+          "start": [
+            222,
+            305
+          ],
+          "direction": [
+            222,
+            329
+          ],
+          "group": "guide"
+        },
+        {
+          "id": "legR",
+          "label": "팔다리",
+          "d": "M222 305 V340",
+          "start": [
+            222,
+            305
+          ],
+          "direction": [
+            222,
+            329
+          ],
+          "group": "shape"
+        }
+      ],
+      "parts": []
+    }
+  ],
+  "steps": [
+    {
+      "text": "머리 위 가로선의 왼쪽 점을 짚어요. 오늘은 입체 상자를 그리지 않아요.",
+      "lines": [
+        "headGuide"
+      ],
+      "action": "look"
+    },
+    {
+      "text": "머리 위를 오른쪽으로 가요. 모서리를 돌아 아래, 왼쪽, 위로 한 바퀴 돌아 닫아요.",
+      "lines": [
+        "headGuide"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "머리 아래 작은 몸 네모도 위에서 오른쪽으로 돌아 닫아요.",
+      "lines": [
+        "bodyGuide"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "몸 양옆에서 바깥쪽 아래로 짧은 팔 막대 두 개를 그어요.",
+      "lines": [
+        "armLGuide",
+        "armRGuide"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "몸 아래 점 두 개에서 아래로 짧은 다리 막대를 그어요.",
+      "lines": [
+        "legLGuide",
+        "legRGuide"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "「완성 외곽 겹치기」를 켜요. 큰 네모·작은 네모·막대를 하나씩 짚어요. 겹친 선은 지우지 않아도 돼요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  },
+  "easyLines": []
+}
