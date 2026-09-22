@@ -134,7 +134,7 @@ for (const authored of pack.lessons.slice(8,16)) {
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
       if(authored.easyLines?.length)await expect(guide.locator('g > path')).toHaveCount(authored.easyLines.length);
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
-      await page.getByLabel('연습 시간',{exact:true}).selectOption('10');
+      await page.getByRole('combobox',{name:/^연습 시간/}).selectOption('10');
       // Hiding the completed reference also hides all reference overlays, but not the learner's ink.
       await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();
       await expect(page.getByRole('button',{name:'완성 외곽 겹치기',exact:true})).toBeDisabled();
@@ -174,7 +174,7 @@ for (const authored of pack.lessons.slice(8,16)) {
       const row=saved.data!.find(a=>a.document.example.id===ex.id)!;
       expect(row.document.strokes).toHaveLength(1);expect(row.document.example).toEqual(ex);
       if(authored.id==='D16')expect(row.document.partChecks).toEqual(['head','body','ear']);
-      await page.getByLabel('그리는 곳',{exact:true}).selectOption('paper');
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');
       await page.getByRole('button',{name:'완성 외곽 겹치기',exact:true}).click();
       await expect(lesson.getByTestId('construction-reference')).toBeVisible();
       await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
