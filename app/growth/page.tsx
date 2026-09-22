@@ -294,6 +294,7 @@ export default function GrowthPage() {
 
         <nav aria-label="자기계발 연습과 자료" className="mt-5 grid grid-cols-3 gap-3">
           <Link href="/growth/typing" className="rounded-3xl bg-blue-50 p-4 text-center ring-1 ring-blue-100"><span className="text-2xl" aria-hidden="true">⌨️</span><strong className="mt-2 block text-sm text-blue-900">타자 연습</strong><span className="mt-1 block text-xs text-blue-700">속도·정확도 저장</span></Link>
+          <Link href="/growth/drawing" className="rounded-3xl bg-rose-50 p-4 text-center ring-1 ring-rose-100"><span className="text-2xl" aria-hidden="true">🎨</span><strong className="mt-2 block text-sm text-rose-900">그림 연습</strong><span className="mt-1 block text-xs text-rose-700">캐릭터로 한 부분씩</span></Link>
           <Link href="/growth/handwriting" className="rounded-3xl bg-amber-50 p-4 text-center ring-1 ring-amber-100"><span className="text-2xl" aria-hidden="true">✍️</span><strong className="mt-2 block text-sm text-amber-900">손글씨 연습</strong><span className="mt-1 block text-xs text-amber-700">필림 자료 · 53개 수업</span></Link>
           <Link href="/growth/resources" className="rounded-3xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-100"><span className="text-2xl" aria-hidden="true">📚</span><strong className="mt-2 block text-sm text-emerald-900">내 자료</strong><span className="mt-1 block text-xs text-emerald-700">비공개 보관·검색</span></Link>
         </nav>

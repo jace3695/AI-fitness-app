@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import { before, after, test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { PGlite } from '@electric-sql/pglite';
+const db = new PGlite();
+const owner='00000000-0000-4000-8000-000000000501', other='00000000-0000-4000-8000-000000000502', id='00000000-0000-4000-8000-000000000503';
+const document={schemaVersion:1,lesson:{id:'D01',version:'old'},example:{id:'D01-a'},strokes:[],photo:null,check:'assisted'};
+before(async()=>{
+ await db.exec(`create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key);
+ insert into auth.users values('${owner}'),('${other}');
+ create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.test_user',true),'')::uuid $$;
+ grant usage on schema auth,public to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`);
+ await db.exec(readFileSync(new URL('../supabase/migrations/20260922051814_add_private_drawing_attempts.sql',import.meta.url),'utf8'));
+});
+after(async()=>db.close());
+test('atomic private drawing, owner readback, CAS, snapshot preservation and other-account isolation',async()=>{
+ await db.exec(`set app.test_user='${owner}'; set role authenticated;`);
+ await assert.rejects(db.query('insert into growth_drawing_attempts(id,user_id,status,document) values($1,$2,$3,$4)',[id,owner,'draft','{}']));
+ await db.query('insert into growth_drawing_attempts(id,user_id,status,document) values($1,$2,$3,$4)',[id,owner,'draft',JSON.stringify(document)]);
+ assert.equal((await db.query('select * from growth_drawing_attempts')).rows.length,1);
+ await assert.rejects(db.query('insert into growth_drawing_attempts(id,user_id,status,document) values($1,$2,$3,$4)',[id,owner,'draft',JSON.stringify(document)]));
+ const updated=await db.query('update growth_drawing_attempts set status=$1,revision=2 where id=$2 and revision=1 returning document',['completed',id]);
+ assert.deepEqual(updated.rows[0],{document});
+ assert.equal((await db.query('update growth_drawing_attempts set revision=2 where id=$1 and revision=1 returning id',[id])).rows.length,0);
+ await assert.rejects(db.query('update growth_drawing_attempts set user_id=$1 where id=$2',[other,id]));
+ await db.exec(`reset role; set app.test_user='${other}'; set role authenticated;`);
+ assert.equal((await db.query('select * from growth_drawing_attempts')).rows.length,0);
+ assert.equal((await db.query('delete from growth_drawing_attempts where id=$1 returning id',[id])).rows.length,0);
+ assert.equal((await db.query('update growth_drawing_attempts set revision=3 where id=$1 returning id',[id])).rows.length,0);
+ await db.exec('reset role; set role anon;');
+ await assert.rejects(db.query('select * from growth_drawing_attempts'));
+ await db.exec(`reset role; set app.test_user='${owner}'; set role authenticated;`);
+ assert.equal((await db.query('delete from growth_drawing_attempts where id=$1 and revision=2 returning id',[id])).rows.length,1);
+});
