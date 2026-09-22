@@ -10,6 +10,7 @@ export const lineSchema = z.object({
 });
 export const exampleSchema = z.object({
   id, name: text, source: text, lines: z.array(lineSchema).min(1).max(60),
+  parts: z.array(z.object({ id, label: text, point, radius: z.number().min(10).max(80) })).max(12).optional(),
 });
 export const lessonSchema = z.object({
   id, stage: z.number().int().min(1).max(9), title: text, goal: text,
@@ -18,6 +19,7 @@ export const lessonSchema = z.object({
   examples: z.array(exampleSchema).max(4),
   steps: z.array(z.object({ text, lines: z.array(id).max(60), action: z.enum(["look", "draw", "compare", "collect"]) })).max(10),
   references: z.array(id).max(12),
+  easyLines: z.array(id).max(12).optional(),
   readiness: z.object({ manuscript: z.boolean(), examples: z.boolean(), visualMatch: z.boolean(), browser: z.boolean() }),
 });
 export const packSchema = z.object({
@@ -42,6 +44,8 @@ export const packSchema = z.object({
     for (const ex of lesson.examples) {
       if (new Set(ex.lines.map(l => l.id)).size !== ex.lines.length) ctx.addIssue({ code: "custom", message: "선 ID 중복" });
       if (lesson.steps.some(s => s.lines.some(key => !ex.lines.some(l => l.id === key)))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시범 선 누락` });
+      if (lesson.easyLines?.some(key => !ex.lines.some(l => l.id === key))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 쉬운 과제 선 누락` });
+      if (ex.parts && new Set(ex.parts.map(p => p.id)).size !== ex.parts.length) ctx.addIssue({ code: "custom", message: "부위 ID 중복" });
     }
   }
 });
@@ -57,6 +61,7 @@ export type DrawingDocument = {
   strokes: Stroke[]; photo: string | null; tool: "app" | "paper" | "external";
   help: Help; usedHelp: Help; step: number; minutes: number; short: boolean;
   check: Check; difficulty: string; memo: string; references: string[];
+  partChecks?: string[];
   character: { name: string; role: string; personality: string; features: string; improvement: string };
 };
 export type Attempt = {
@@ -75,9 +80,11 @@ const documentSchema = z.object({
   step: z.number().int().min(0).max(9), minutes: z.number().int().min(1).max(20), short: z.boolean(),
   check: z.enum(["unconfirmed", "assisted", "independent", "difficult"]), difficulty: z.string().max(100), memo: z.string().max(1000),
   references: z.array(z.string().uuid()).max(100),
+  partChecks: z.array(id).max(12).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
 }).superRefine((doc, ctx) => {
   if (doc.step >= doc.lesson.steps.length || !doc.lesson.examples.some(e => e.id === doc.example.id)) ctx.addIssue({ code: "custom", message: "그림의 수업 연결이 올바르지 않아요." });
+  if (doc.partChecks?.some(id => !doc.example.parts?.some(p => p.id === id))) ctx.addIssue({ code: "custom", message: "부위 확인 연결 오류" });
 });
 const attemptSchema = z.object({
   id: z.string().uuid(), user_id: z.string().uuid(), revision: z.number().int().min(0),

@@ -12,7 +12,7 @@ function attempt(extra: Partial<Attempt['document']> = {}, variant = 0): Attempt
 test('authoritative 80 lessons retain 9-stage allocation and C01–C04, unpublished manuscripts are not playable', () => {
   assert.deepEqual(pack.stages.map(s => pack.lessons.filter(l => l.stage === s.id).length), [8,8,12,6,8,10,8,10,10]);
   assert.deepEqual(pack.projects.map(p => p.id), ['C01','C02','C03','C04']);
-  assert.equal(pack.lessons.filter(playable).length, 8);
+  assert.equal(pack.lessons.filter(playable).length, 16);
   for (const l of pack.lessons) { assert.ok(l.goal && l.check && l.easier); assert.ok(l.instructions.length); }
 });
 test('D01 has one start-only frame then six cumulative actions with no invented head or neck', () => {
@@ -30,7 +30,7 @@ test('malformed remote packs cannot replace the good pack', () => {
     (p: typeof raw) => p.lessons[1].references.push('missing'),
     (p: typeof raw) => p.lessons[0].examples[0].lines[0].d = '<script>alert(1)</script>',
     (p: typeof raw) => p.lessons[0].steps[0].lines.push('unknown-line'),
-    (p: typeof raw) => p.lessons[8].readiness.visualMatch = true,
+    (p: typeof raw) => p.lessons[16].readiness.visualMatch = true,
   ]) { const value = structuredClone(raw); mutate(value); assert.throws(() => parsePack(value)); }
 });
 test('completion count alone, short practice and assisted confirmation never certify a stage', () => {
@@ -88,4 +88,26 @@ test('stage one advances after two distinct self-confirmed examples, not repeate
   assert.equal(confirmedStage(pack,cap,1), true);
   assert.equal(confirmedStage(pack,[cap[0],{...cap[1],document:{...cap[1].document,short:true}}],1), false);
   assert.equal(confirmedStage(pack,[cap[0],{...cap[1],document:{...cap[1].document,difficulty:'긴 선'}}],1), false);
+});
+
+test('construction examples separate guide geometry from finished outlines and validate saved part checks', async () => {
+  const {parseAttempt} = await import('./model.ts');
+  for(const l of pack.lessons.slice(8,16)) {
+    assert.equal(l.examples.length,2);
+    for(const ex of l.examples) {
+      assert.ok(ex.lines.some(x=>x.group==='guide'));
+      assert.ok(ex.lines.some(x=>x.group==='shape'));
+      assert.ok(l.steps.some(x=>x.action==='compare'));
+      for(const line of ex.lines.filter(x=>x.group==='guide')) {
+        const xy=/^M\s*([\d.]+)[ ,]+([\d.]+)/.exec(line.d)?.slice(1).map(Number);
+        assert.deepEqual(xy,line.start,`${l.id} ${line.id}`);
+      }
+    }
+  }
+  const lesson=pack.lessons[15];
+  const good={...attempt(),user_id:crypto.randomUUID(),document:{...newDocument(lesson,lesson.examples[0],pack.version),partChecks:['head','body']}};
+  assert.deepEqual(parseAttempt(good).document.partChecks,['head','body']);
+  assert.equal(confirmedStage(pack,[good],2),false);
+  assert.throws(()=>parseAttempt({...good,document:{...good.document,partChecks:['not-in-example']}}));
+  const broken=structuredClone(raw);broken.lessons[11].easyLines=['missing'];assert.throws(()=>parsePack(broken));
 });
