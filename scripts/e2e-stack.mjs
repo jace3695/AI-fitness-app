@@ -48,6 +48,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916232300_assistant_workout_cardio_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260918042857_assistant_workout_feedback_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917031601_assistant_task_completion_commands.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260922051814_add_private_drawing_attempts.sql', 'utf8'));
     const growthSchema = readFileSync('supabase/migrations/20260902120000_add_growth_platform.sql', 'utf8');
     const resourceTable = growthSchema.slice(growthSchema.indexOf('create table if not exists public.growth_resources'), growthSchema.indexOf('create table if not exists public.growth_ai_reviews'));
     const resourcePolicies = growthSchema.slice(growthSchema.indexOf('drop policy if exists "Users can read own growth resources"'), growthSchema.indexOf('drop policy if exists "Users can read own growth AI reviews"'));

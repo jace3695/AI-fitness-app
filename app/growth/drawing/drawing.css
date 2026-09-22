@@ -1,0 +1,8 @@
+.drawing-page .drawing-card { border:1px solid #eeebf5; border-radius:24px; background:white; padding:24px; scroll-margin-top:20px; }
+.drawing-page .drawing-button,.drawing-page .drawing-primary { display:inline-block; min-height:44px; border-radius:12px; padding:10px 15px; font-size:14px; font-weight:600; line-height:24px; }
+.drawing-page .drawing-button { background:#f3f1f8; color:#4a4264; }
+.drawing-page .drawing-primary { background:#6145ae; color:white; }
+.drawing-page button:disabled { opacity:.45; cursor:not-allowed; }
+.drawing-page .drawing-input { display:block; min-height:44px; max-width:100%; margin-top:6px; padding:10px; border:1px solid #d7d1e5; border-radius:10px; background:white; }
+.drawing-page :focus-visible { outline:3px solid #b56918; outline-offset:3px; }
+@media(max-width:420px) { .drawing-page .drawing-card { padding:16px; } }
