@@ -36,7 +36,7 @@ test('drawing: first dot, ink undo, lost save reply, reload, private CAS and pre
   await expect(page.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
   const other=await qa.createAccount();expect((await other.client.from('growth_drawing_attempts').select('*')).data).toEqual([]);
   const conflict=await qa.account.client.from('growth_drawing_attempts').update({revision:2,status:'draft'}).eq('id',saved.id).eq('revision',1).select('id');expect(conflict.data).toHaveLength(1);
-  await page.getByLabel('남기고 싶은 말').fill('kept locally');await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+  await page.getByLabel('남기고 싶은 말',{exact:true}).fill('kept locally');await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
   await expect(page.getByRole('status').filter({hasText:'다른 기기에서 바뀐 기록'})).toBeVisible();
   expect((await qa.account.client.from('growth_drawing_attempts').select('document').single()).data!.document.memo).toBe('');
   expect(await qa.read()).toEqual(before);
@@ -74,7 +74,7 @@ for (const authored of pack.lessons.slice(1,8)) {
       await page.mouse.move(box.x+box.width*.75,box.y+box.height*.4);await page.mouse.down();
       await page.mouse.move(box.x+box.width*.6,box.y+box.height*.6,{steps:3});await page.mouse.up();
       const memo=`${authored.id} ${variant}: 오른쪽에서 시작, 아래쪽 긴 선은 나누어 그리기`;
-      await page.getByLabel('남기고 싶은 말').fill(memo);
+      await page.getByLabel('남기고 싶은 말',{exact:true}).fill(memo);
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
       await expect(task).toContainText(authored.easier);
       await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();
@@ -99,7 +99,7 @@ for (const authored of pack.lessons.slice(1,8)) {
       const card=page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:authored.title}).first();
       // Records are ordered by updated_at descending; newest variant is first.
       await card.getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
-      await expect(page.getByLabel('남기고 싶은 말')).toHaveValue(memo);
+      await expect(page.getByLabel('남기고 싶은 말',{exact:true})).toHaveValue(memo);
       await expect(page.getByLabel('그리는 곳')).toHaveValue('paper');
       await expect(lesson).toContainText(`${authored.steps.length} / ${authored.steps.length}`);
       await page.getByLabel('그리는 곳').selectOption('app');
