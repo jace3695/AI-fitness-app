@@ -1,5 +1,6 @@
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
+import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
 
 test('drawing: first dot, ink undo, lost save reply, reload, private CAS and preserved older records', async ({page,qa}) => {
@@ -121,6 +122,15 @@ for (const authored of pack.lessons.slice(8,16)) {
     for(const [variant,ex] of authored.examples.entries()) {
       if(variant)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
       await expect(guide.locator('g > path')).toHaveCount(0);
+      if(['D10','D13'].includes(authored.id)) {
+        const received=page.waitForEvent('download');
+        await page.getByRole('button',{name:'도형 밑그림 내려받기',exact:true}).click();
+        const file=await received;expect(file.suggestedFilename()).toContain('-construction.svg');
+        const svg=readFileSync((await file.path())!,'utf8');
+        const taught=new Set(authored.steps.filter(s=>s.action==='draw').flatMap(s=>s.lines));
+        for(const line of ex.lines.filter(l=>l.group==='guide'))expect(svg.includes(line.d)).toBe(taught.has(line.id));
+        expect(svg).not.toContain('fill="#161616"');
+      }
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
       if(authored.easyLines?.length)await expect(guide.locator('g > path')).toHaveCount(authored.easyLines.length);
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();

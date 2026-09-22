@@ -7,10 +7,10 @@ export function exportAttempt(attempt: Attempt) {
   // Do not include account identifiers in portable exports.
   download(new Blob([JSON.stringify({ schemaVersion: 1, status: attempt.status, document: attempt.document }, null, 2)], { type: "application/json" }), `${attempt.document.lesson.id}-my-drawing.json`);
 }
-export function exportExample(example: Example) {
+export function exportExample(example: Example, constructionIds?: string[]) {
   // Paths have been schema validated and contain no markup or external URLs.
-  const paths = example.lines.filter(l => l.group !== "guide" && l.group !== "gesture").map(l => `<path d="${l.d}"${l.fill === "ink" ? ' fill="#161616" stroke="none"' : ''}/>`).join("");
-  download(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="800" height="800"><rect width="400" height="400" fill="white"/><g fill="none" stroke="#34314b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${paths}</g></svg>`], { type: "image/svg+xml" }), `${example.id}-example.svg`);
+  const paths = example.lines.filter(l => constructionIds ? constructionIds.includes(l.id) && l.group === "guide" : l.group !== "guide" && l.group !== "gesture").map(l => `<path d="${l.d}"${l.fill === "ink" ? ' fill="#161616" stroke="none"' : ''}/>`).join("");
+  download(new Blob([`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="800" height="800"><rect width="400" height="400" fill="white"/><g fill="none" stroke="#34314b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${paths}</g></svg>`], { type: "image/svg+xml" }), `${example.id}-${constructionIds ? "construction" : "example"}.svg`);
 }
 export async function compressPhoto(file: File): Promise<string> {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 15_000_000) throw Error("JPG·PNG·WebP 사진을 15MB 이하로 선택해 주세요.");
