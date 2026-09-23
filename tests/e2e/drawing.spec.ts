@@ -303,11 +303,13 @@ for (const authored of pack.lessons.slice(28,34)) {
       await page.mouse.move(b.x+b.width*.5,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.6,{steps:5});await page.mouse.up();
       await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
       await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.document.example.id===ex.id && r.document.step===2 && r.document.memory?.recalled==='큰 모양과 점 눈을 기억했어요.');}).toBe(true);
       const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;
       const saved=rows.find(r=>r.document.example.id===ex.id)!;expect(saved.document.step).toBe(2);expect(saved.document.memory.peeking).toBe(false);expect(saved.document.memory.peeks).toBe(1);expect(saved.document.strokes).toHaveLength(1);
       await page.reload();await page.getByRole('button',{name:`내 그림 ${variant+1}장`,exact:true}).click();
       await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
       await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      await expect(practice).toBeVisible();
       await expect(practice.getByLabel('기억나는 특징 · 말해도 괜찮아요',{exact:true})).toHaveValue('큰 모양과 점 눈을 기억했어요.');
       await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
       await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
