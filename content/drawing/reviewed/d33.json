@@ -1,0 +1,290 @@
+{
+  "id": "D33",
+  "examples": [
+    {
+      "id": "D33-memory-1-v1",
+      "name": "둥근 귀 곰",
+      "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            170,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            230,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "왼쪽 귀",
+          "d": "M102 162 C62 123 106 77 148 130",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            84,
+            144
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "오른쪽 귀",
+          "d": "M252 130 C294 77 338 123 298 162",
+          "start": [
+            252,
+            130
+          ],
+          "direction": [
+            270,
+            110
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            158,
+            218
+          ],
+          "direction": [
+            158,
+            218
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            242,
+            218
+          ],
+          "direction": [
+            242,
+            218
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "작은 코",
+          "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+          "start": [
+            193,
+            236
+          ],
+          "direction": [
+            199,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ]
+    },
+    {
+      "id": "D33-memory-2-v1",
+      "name": "작은 귀 곰",
+      "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            170,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            230,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "왼쪽 귀",
+          "d": "M102 162 C72 131 115 95 148 130",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            84,
+            144
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "오른쪽 귀",
+          "d": "M252 130 C285 95 328 131 298 162",
+          "start": [
+            252,
+            130
+          ],
+          "direction": [
+            270,
+            110
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            158,
+            218
+          ],
+          "direction": [
+            158,
+            218
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            242,
+            218
+          ],
+          "direction": [
+            242,
+            218
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "작은 코",
+          "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+          "start": [
+            193,
+            236
+          ],
+          "direction": [
+            199,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "이전에 저장한 D29~D32 그림을 이름으로 골라요. 아직 없다면 표시된 곰으로 맛볼 수 있어요. 원본은 아직 열지 않아요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "지난번 기억한 큰 모양과 특징 두 개를 떠올려 골라요. 말하거나 적어도 돼요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "원본 없이 큰 모양과 특징 두 개를 그려요. 막히면 잠깐 확인해도 괜찮아요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "원본을 열고 기억한 부분과 다시 본 부분을 구별해 적어요. 지난 그림 원본은 바꾸지 않아요.",
+      "lines": [],
+      "action": "compare",
+      "memoryPhase": "compare"
+    },
+    {
+      "text": "다시 확인한 부분 중 한 곳만 보완해요. 다음 연습에서 기억할 특징을 하나 정해요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "compare"
+    }
+  ],
+  "help": 0,
+  "memoryPractice": {
+    "features": [
+      {
+        "id": "face",
+        "label": "큰 둥근 얼굴",
+        "lines": [
+          "faceL",
+          "faceR"
+        ]
+      },
+      {
+        "id": "ears",
+        "label": "위쪽 작은 귀",
+        "lines": [
+          "earL",
+          "earR"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "얼굴 안 점 눈",
+        "lines": [
+          "eyeL",
+          "eyeR"
+        ]
+      }
+    ],
+    "hint": "preview",
+    "hintLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

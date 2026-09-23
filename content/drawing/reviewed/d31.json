@@ -1,0 +1,288 @@
+{
+  "id": "D31",
+  "examples": [
+    {
+      "id": "D31-memory-1-v1",
+      "name": "긴 귀 토끼",
+      "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            170,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            230,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "긴 왼쪽 귀",
+          "d": "M126 165 C108 113 109 57 133 57 C161 57 165 104 176 145",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            119,
+            140
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "긴 오른쪽 귀",
+          "d": "M224 145 C235 104 239 57 267 57 C291 57 292 113 274 165",
+          "start": [
+            224,
+            145
+          ],
+          "direction": [
+            231,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            161,
+            234
+          ],
+          "direction": [
+            161,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            239,
+            234
+          ],
+          "direction": [
+            239,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 255 Q200 261 206 255",
+          "start": [
+            194,
+            255
+          ],
+          "direction": [
+            200,
+            261
+          ],
+          "group": "detail"
+        }
+      ]
+    },
+    {
+      "id": "D31-memory-2-v1",
+      "name": "짧은 귀 토끼",
+      "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            170,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            230,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "긴 왼쪽 귀",
+          "d": "M126 165 C111 131 113 97 135 96 C156 94 162 115 176 145",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            119,
+            140
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "긴 오른쪽 귀",
+          "d": "M224 145 C238 115 244 94 265 96 C287 97 289 131 274 165",
+          "start": [
+            224,
+            145
+          ],
+          "direction": [
+            231,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            161,
+            234
+          ],
+          "direction": [
+            161,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            239,
+            234
+          ],
+          "direction": [
+            239,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 255 Q200 261 206 255",
+          "start": [
+            194,
+            255
+          ],
+          "direction": [
+            200,
+            261
+          ],
+          "group": "detail"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "귀 길이·얼굴 모양·눈 중 기억할 두 가지를 골라요. 긴 귀가 얼굴 위 어디에 붙는지도 봐요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "observe"
+    },
+    {
+      "text": "원본을 가렸어요. 내가 고른 두 가지를 떠올려 말하거나 적어요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "고른 특징을 중심으로 토끼를 그려요. 귀 길이와 얼굴 모양을 골랐다면 귀와 얼굴만 그려도 돼요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "원본을 열고 내가 고른 두 특징만 비교해요. 고르지 않은 세부는 확인하지 않아도 돼요.",
+      "lines": [],
+      "action": "compare",
+      "memoryPhase": "compare"
+    },
+    {
+      "text": "고른 특징 중 한 곳만 보완해요. 오늘 기억하려던 부분을 연습했는지 돌아봐요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "compare"
+    }
+  ],
+  "help": 0,
+  "memoryPractice": {
+    "features": [
+      {
+        "id": "ears",
+        "label": "위로 긴 귀",
+        "lines": [
+          "earL",
+          "earR"
+        ]
+      },
+      {
+        "id": "face",
+        "label": "아래쪽 둥근 얼굴",
+        "lines": [
+          "faceL",
+          "faceR"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "얼굴 안 점 눈",
+        "lines": [
+          "eyeL",
+          "eyeR"
+        ]
+      }
+    ],
+    "hint": "choices",
+    "hintLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

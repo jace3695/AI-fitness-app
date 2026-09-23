@@ -69,6 +69,7 @@ jobs:
           path: |
             .e2e/evidence/*.json
             .e2e/evidence/drawing-stage3-*.png
+            .e2e/evidence/drawing-stage4-*.png
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
