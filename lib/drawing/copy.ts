@@ -1,5 +1,19 @@
 import type { Attempt, DrawingDocument, Example, Help, Lesson } from './model.ts';
 
+export function comparisonOptions(lesson: Lesson, example: Example, easy: boolean): [NonNullable<DrawingDocument['comparison']>['focus'], string][] {
+  switch (lesson.id) {
+    case 'D21': return [['ears', '귀 크기']];
+    case 'D22': return [['ears', '귀 길이']];
+    case 'D23': return [['space', '머리와 몸의 위치']];
+    case 'D24': return [['space', '배 양옆의 빈 공간']];
+    case 'D25': return [['ears', '귀가 붙은 위치']];
+    case 'D26': return [['width', '함께 줄인 크기']];
+    case 'D27':
+    case 'D28': return [['width', '전체 폭'], ...(example.lines.some(l => l.id === 'earL') && !easy ? [['ears', '귀 위치·크기'] as ['ears', string]] : []), ['eyes', '눈 높이']];
+    default: return [['width', '전체 폭']];
+  }
+}
+
 export function copyGuide(lesson: Lesson, example: Example, help: Help, step: number, easy: boolean) {
   const p = lesson.practice;
   const ids = new Set(p?.baseLines ?? []);

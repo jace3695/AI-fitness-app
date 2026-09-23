@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import type { Attempt, DrawingDocument, Example, Help, Lesson } from '@/lib/drawing/model';
-import { copyGuide, copyWorksheetSvg, correctionCopy, scaledTransform } from '@/lib/drawing/copy';
+import { comparisonOptions, copyGuide, copyWorksheetSvg, correctionCopy, scaledTransform } from '@/lib/drawing/copy';
 import { download, exportExample } from '@/lib/drawing/export';
 import { HELP_LABELS } from '@/lib/drawing/recommend';
 import { Diagram } from './Diagram';
@@ -61,7 +61,7 @@ export default function CopyPractice({ attempt, records, original, easy, disable
     </details>
     {Number(doc.lesson.id.slice(1)) >= 20 && <fieldset className="rounded-2xl border p-4" disabled={disabled}>
       <legend className="px-1 font-semibold">비교할 한 곳</legend><p className="mb-3 text-sm">직접 살펴본 내용을 남겨요. 원본과 같다고 느꼈다면 그 이유를 적어도 돼요.</p>
-      <div className="flex flex-wrap gap-2">{([['width','전체 폭'],['ears','귀 위치·크기'],['eyes','눈 높이'],['space','안쪽 빈 공간']] as const).map(([focus,label]) => <button key={focus} type="button" className="drawing-button" aria-pressed={doc.comparison?.focus === focus} onClick={() => onChange({ comparison: { focus, reason: doc.comparison?.reason ?? '' } })}>{label}</button>)}</div>
+      <div className="flex flex-wrap gap-2">{comparisonOptions(doc.lesson, referenceExample, easy).map(([focus,label]) => <button key={focus} type="button" className="drawing-button" aria-pressed={doc.comparison?.focus === focus} onClick={() => onChange({ comparison: { focus, reason: doc.comparison?.reason ?? '' } })}>{label}</button>)}</div>
       <label className="mt-3 block text-sm">이곳을 고른 이유<textarea className="drawing-input mt-2 w-full" maxLength={500} value={doc.comparison?.reason ?? ''} disabled={!doc.comparison} placeholder="한 곳을 고른 뒤 내가 본 차이를 적어요." onChange={e => { if (doc.comparison) onChange({ comparison: { ...doc.comparison, reason: e.target.value } }); }} /></label>
     </fieldset>}
   </div>;

@@ -218,7 +218,7 @@ for (const authored of pack.lessons.slice(16,28)) {
       }
       const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();
       const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*.45,b.y+b.height*.25);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.5,{steps:5});await page.mouse.up();
-      if(Number(authored.id.slice(1))>=20){await practice.getByRole('button',{name:'전체 폭',exact:true}).click();await practice.getByLabel('이곳을 고른 이유').fill('원본보다 몸이 넓게 보여 한 곳만 비교했어요.');}
+      if(Number(authored.id.slice(1))>=20){await practice.getByRole('group',{name:'비교할 한 곳',exact:true}).getByRole('button').first().click();await practice.getByLabel('이곳을 고른 이유').fill('원본과 한 부분의 크기나 위치가 달라 보여요.');}
       const received=page.waitForEvent('download');await practice.getByRole('button',{name:'모작 연습장 내려받기',exact:true}).click();const file=await received;
       const svg=readFileSync((await file.path())!,'utf8');expect(svg).toContain('내가 그릴 자리');expect(svg.split('translate(430 45)')[1]).not.toContain(ex.lines.find(l=>l.id==='eyeR')!.d);
       await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();
@@ -226,11 +226,11 @@ for (const authored of pack.lessons.slice(16,28)) {
       await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
       const q=await qa.account.client.from('growth_drawing_attempts').select('*');expect(q.error).toBeNull();expect(q.data).toHaveLength(variant+1);
       const row=q.data!.find(a=>a.document.example.id===ex.id)!;expect(row.document.strokes).toHaveLength(1);expect(row.document.usedHelp).toBe(3);expect(row.document.lesson.practice).toEqual(authored.practice);
-      if(Number(authored.id.slice(1))>=20)expect(row.document.comparison.focus).toBe('width');
+      if(Number(authored.id.slice(1))>=20)expect(row.document.comparison.focus).toBe(['D21','D22','D25'].includes(authored.id)?'ears':['D23','D24'].includes(authored.id)?'space':'width');
       await page.reload();await page.getByRole('button',{name:`내 그림 ${variant+1}장`,exact:true}).click();
       await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
       await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
-      if(Number(authored.id.slice(1))>=20)await expect(practice.getByLabel('이곳을 고른 이유')).toHaveValue('원본보다 몸이 넓게 보여 한 곳만 비교했어요.');
+      if(Number(authored.id.slice(1))>=20)await expect(practice.getByLabel('이곳을 고른 이유')).toHaveValue('원본과 한 부분의 크기나 위치가 달라 보여요.');
       await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('원본을 종이 옆에 두고');
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
       if(!variant&&['D17','D26'].includes(authored.id))await lesson.screenshot({path:`.e2e/evidence/drawing-stage3-${authored.id}-${testInfo.project.name}.png`});
