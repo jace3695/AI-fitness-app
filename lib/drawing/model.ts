@@ -17,7 +17,12 @@ export const lessonSchema = z.object({
   instructions: z.array(text).min(1).max(10), check: text, easier: text,
   help: z.number().int().min(0).max(3), minutes: z.number().int().min(10).max(20),
   examples: z.array(exampleSchema).max(4),
-  steps: z.array(z.object({ text, lines: z.array(id).max(60), action: z.enum(["look", "draw", "compare", "collect"]) })).max(10),
+  steps: z.array(z.object({ text, lines: z.array(id).max(60), action: z.enum(["look", "draw", "compare", "collect"]), hideLines: z.array(id).max(60).optional() })).max(10),
+  practice: z.object({
+    mode: z.literal("copy"), baseLines: z.array(id).max(12), anchors: z.array(id).max(12),
+    easyLines: z.array(id).max(12), easyAnchors: z.array(id).max(12), largeLines: z.array(id).max(12),
+    demoBaseLines: z.array(id).max(12), scale: z.number().min(.4).max(1),
+  }).optional(),
   references: z.array(id).max(12),
   easyLines: z.array(id).max(12).optional(),
   readiness: z.object({ manuscript: z.boolean(), examples: z.boolean(), visualMatch: z.boolean(), browser: z.boolean() }),
@@ -45,6 +50,10 @@ export const packSchema = z.object({
       if (new Set(ex.lines.map(l => l.id)).size !== ex.lines.length) ctx.addIssue({ code: "custom", message: "선 ID 중복" });
       if (lesson.steps.some(s => s.lines.some(key => !ex.lines.some(l => l.id === key)))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시범 선 누락` });
       if (lesson.easyLines?.some(key => !ex.lines.some(l => l.id === key))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 쉬운 과제 선 누락` });
+      const practice = lesson.practice;
+      const copyIds = practice ? [...practice.baseLines, ...practice.anchors, ...practice.easyLines, ...practice.easyAnchors, ...practice.largeLines, ...practice.demoBaseLines] : [];
+      if ([...copyIds, ...lesson.steps.flatMap(s => s.hideLines ?? [])].some(key => !ex.lines.some(l => l.id === key))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 모작 도움 연결 오류` });
+      if (practice && lesson.stage !== 3) ctx.addIssue({ code: "custom", message: `${lesson.id}: 모작 단계 오류` });
       if (ex.parts && new Set(ex.parts.map(p => p.id)).size !== ex.parts.length) ctx.addIssue({ code: "custom", message: "부위 ID 중복" });
     }
   }
@@ -62,6 +71,8 @@ export type DrawingDocument = {
   help: Help; usedHelp: Help; step: number; minutes: number; short: boolean;
   check: Check; difficulty: string; memo: string; references: string[];
   partChecks?: string[];
+  correctionSource?: { attemptId: string; revision: number; lessonId: string; example: Example; scale: number };
+  comparison?: { focus: "width" | "ears" | "eyes" | "space"; reason: string };
   character: { name: string; role: string; personality: string; features: string; improvement: string };
 };
 export type Attempt = {
@@ -81,10 +92,13 @@ const documentSchema = z.object({
   check: z.enum(["unconfirmed", "assisted", "independent", "difficult"]), difficulty: z.string().max(100), memo: z.string().max(1000),
   references: z.array(z.string().uuid()).max(100),
   partChecks: z.array(id).max(12).optional(),
+  correctionSource: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.string().regex(/^D2[0-6]$/), example: exampleSchema, scale: z.number().min(.4).max(1) }).optional(),
+  comparison: z.object({ focus: z.enum(["width", "ears", "eyes", "space"]), reason: z.string().max(500) }).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
 }).superRefine((doc, ctx) => {
   if (doc.step >= doc.lesson.steps.length || !doc.lesson.examples.some(e => e.id === doc.example.id)) ctx.addIssue({ code: "custom", message: "그림의 수업 연결이 올바르지 않아요." });
   if (doc.partChecks?.some(id => !doc.example.parts?.some(p => p.id === id))) ctx.addIssue({ code: "custom", message: "부위 확인 연결 오류" });
+  if (doc.correctionSource && (doc.lesson.id !== "D27" || !doc.references.includes(doc.correctionSource.attemptId))) ctx.addIssue({ code: "custom", message: "수정 전 그림 연결 오류" });
 });
 const attemptSchema = z.object({
   id: z.string().uuid(), user_id: z.string().uuid(), revision: z.number().int().min(0),

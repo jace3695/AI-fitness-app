@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "yeoni-character-practice",
-  "version": "1.2.0-stage2",
+  "version": "1.3.0-stage3",
   "title": "캐릭터와 함께 시작하는 그림 연습",
   "stages": [
     {
@@ -5920,14 +5920,477 @@
       "easier": "오른쪽 몸에 눈 높이를 알려주는 짧은 가로선을 켠다.",
       "help": 1,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D17-copy-1-v1",
+          "name": "첫 병아리 · 보내주신 그림 기준",
+          "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                179,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                221,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 65 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                200,
+                65
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M73 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                76,
+                220
+              ],
+              "direction": [
+                76,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M321 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                324,
+                220
+              ],
+              "direction": [
+                324,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        },
+        {
+          "id": "D17-copy-2-v1",
+          "name": "첫 병아리 · 더 둥근 친구",
+          "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                177,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                223,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 74 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                200,
+                74
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M71 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                74,
+                228
+              ],
+              "direction": [
+                74,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M323 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                326,
+                228
+              ],
+              "direction": [
+                326,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "옆 원본에서 눈의 높이를 봐요. 빈 몸은 준비되어 있어요. 눈이 몸의 위쪽에 있다는 관계부터 찾아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "빈 몸의 위쪽에 왼쪽 눈을 찍고, 비슷한 높이에 오른쪽 눈을 찍어요. 두 눈 사이를 비워요.",
+          "lines": [
+            "eyeL",
+            "eyeR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "눈 사이보다 조금 아래에 작은 세모 부리를 넣어요. 왼쪽 위 → 오른쪽 → 아래 → 처음 자리예요.",
+          "lines": [
+            "beak"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "원본과 눈 높이만 비교해요. 날개와 다리는 이번 과제에서 옮기지 않아도 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "anchors": [],
+        "easyLines": [
+          "eyeLevel"
+        ],
+        "easyAnchors": [],
+        "largeLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -5944,14 +6407,492 @@
       "easier": "네 점 사이의 연결 선을 일부 표시한다.",
       "help": 1,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D18-copy-1-v1",
+          "name": "첫 병아리 · 보내주신 그림 기준",
+          "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                179,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                221,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 65 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                200,
+                65
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M73 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                76,
+                220
+              ],
+              "direction": [
+                76,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M321 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                324,
+                220
+              ],
+              "direction": [
+                324,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        },
+        {
+          "id": "D18-copy-2-v1",
+          "name": "첫 병아리 · 더 둥근 친구",
+          "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                177,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                223,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 74 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                200,
+                74
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M71 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                74,
+                228
+              ],
+              "direction": [
+                74,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M323 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                326,
+                228
+              ],
+              "direction": [
+                326,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "옆 병아리 몸의 꼭대기·바닥·양옆 끝을 봐요. 연습장의 네 점이 몸 크기를 알려줘요.",
+          "lines": [
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ],
+          "action": "look"
+        },
+        {
+          "text": "위 점에서 왼쪽 점을 지나 아래 점까지 둥글게 이어요. 긴 선은 나눠 그려도 돼요.",
+          "lines": [
+            "bodyL"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "다시 위 점에서 오른쪽 점을 지나 아래 점에서 만나요. 작은 얼굴보다 몸을 먼저 잡아요.",
+          "lines": [
+            "bodyR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "몸 위쪽에 눈 두 점, 눈 사이보다 아래에 작은 세모 부리를 옮겨요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "beak"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "원본의 몸과 나란히 봐요. 높이와 폭 중 한 곳만 비교해요. 날개와 다리는 생략해도 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ],
+        "easyLines": [
+          "bodyL"
+        ],
+        "easyAnchors": [],
+        "largeLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -5969,14 +6910,491 @@
       "easier": "D18의 네 점 도움을 다시 켠다.",
       "help": 1,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D19-copy-1-v1",
+          "name": "첫 병아리 · 보내주신 그림 기준",
+          "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                179,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                221,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 65 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                200,
+                65
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M73 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                76,
+                220
+              ],
+              "direction": [
+                76,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M321 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                324,
+                220
+              ],
+              "direction": [
+                324,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        },
+        {
+          "id": "D19-copy-2-v1",
+          "name": "첫 병아리 · 더 둥근 친구",
+          "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                177,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                223,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 74 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                200,
+                74
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M71 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                74,
+                228
+              ],
+              "direction": [
+                74,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M323 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                326,
+                228
+              ],
+              "direction": [
+                326,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "위·아래 두 점만 남았어요. 원본의 높이에 비해 몸이 얼마나 넓은지 먼저 봐요.",
+          "lines": [
+            "top",
+            "bottom"
+          ],
+          "action": "look"
+        },
+        {
+          "text": "양옆 끝을 직접 가볍게 찍어봐요. 시범의 두 점은 한 가지 예시예요.",
+          "lines": [
+            "left",
+            "right"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "위에서 왼쪽 끝을 지나 아래로, 다시 위에서 오른쪽 끝을 지나 아래로 둥글게 이어요.",
+          "lines": [
+            "bodyL",
+            "bodyR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "큰 몸을 만든 뒤 위쪽에 눈 두 점과 작은 부리를 넣어요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "beak"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "내가 정한 양옆 위치를 원본과 비교해요. 너무 어렵다면 네 점 도움을 다시 켜도 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [
+          "top",
+          "bottom"
+        ],
+        "easyLines": [],
+        "easyAnchors": [
+          "left",
+          "right"
+        ],
+        "largeLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -5993,16 +7411,499 @@
       ],
       "check": "빈 공간에 큰 몸부터 그렸나요? 원본보다 넓거나 좁아진 부분 하나를 찾았나요?",
       "easier": "날개·다리를 빼고 원본 옆에 D18의 네 점 도움을 넣는다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D20-copy-1-v1",
+          "name": "첫 병아리 · 보내주신 그림 기준",
+          "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                179,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                221,
+                67
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 65 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                65
+              ],
+              "direction": [
+                200,
+                65
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M73 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                76,
+                220
+              ],
+              "direction": [
+                76,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M321 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                324,
+                220
+              ],
+              "direction": [
+                324,
+                220
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        },
+        {
+          "id": "D20-copy-2-v1",
+          "name": "첫 병아리 · 더 둥근 친구",
+          "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽",
+              "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                177,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽",
+              "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                223,
+                77
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+              "start": [
+                156,
+                152
+              ],
+              "direction": [
+                156,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+              "start": [
+                244,
+                152
+              ],
+              "direction": [
+                244,
+                152
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "세모 부리",
+              "d": "M 190 164 L 210 164 L 200 180 Z",
+              "start": [
+                190,
+                164
+              ],
+              "direction": [
+                203,
+                164
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingL",
+              "label": "왼쪽 날개",
+              "d": "M 98 212 C 86 225 87 241 105 246",
+              "start": [
+                98,
+                212
+              ],
+              "direction": [
+                93,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "wingR",
+              "label": "오른쪽 날개",
+              "d": "M 302 212 C 314 225 313 241 295 246",
+              "start": [
+                302,
+                212
+              ],
+              "direction": [
+                307,
+                219
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legL",
+              "label": "왼쪽 다리",
+              "d": "M 162 315 L 162 339",
+              "start": [
+                162,
+                315
+              ],
+              "direction": [
+                162,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "legR",
+              "label": "오른쪽 다리",
+              "d": "M 238 315 L 238 339",
+              "start": [
+                238,
+                315
+              ],
+              "direction": [
+                238,
+                332
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 74 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                74
+              ],
+              "direction": [
+                200,
+                74
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                317
+              ],
+              "direction": [
+                200,
+                317
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M71 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                74,
+                228
+              ],
+              "direction": [
+                74,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M323 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                326,
+                228
+              ],
+              "direction": [
+                326,
+                228
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeLevel",
+              "label": "눈 높이 도움",
+              "d": "M132 152 L268 152",
+              "start": [
+                132,
+                152
+              ],
+              "direction": [
+                154,
+                152
+              ],
+              "group": "guide"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "연습장이 비어 있어요. 옆 원본을 보고 몸을 놓을 꼭대기와 바닥을 정해요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "정한 꼭대기와 바닥을 가볍게 찍어요. 다음에는 양옆 공간을 살펴봐요.",
+          "lines": [
+            "top",
+            "bottom"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "큰 달걀 몸부터 그려요. 꼭대기 → 왼쪽 → 바닥, 다시 꼭대기 → 오른쪽 → 바닥이에요.",
+          "lines": [
+            "bodyL",
+            "bodyR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "몸 위쪽에 눈 두 점을 놓고 그 사이 아래에 세모 부리를 넣어요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "beak"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "몸 양옆에 짧게 굽은 날개, 아래에 짧은 다리를 더해요. 선을 한 번씩 끊어 그려도 돼요.",
+          "lines": [
+            "wingL",
+            "wingR",
+            "legL",
+            "legR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "몸이 원본보다 넓거나 좁아진 곳이 있는지 한 곳만 찾아봐요. 매끈한 선은 오늘 목표가 아니에요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ],
+        "largeLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6018,16 +7919,291 @@
       ],
       "check": "큰 얼굴과 작은 귀의 크기 차이를 표현했나요?",
       "easier": "큰 얼굴은 제공하고 귀만 직접 그린다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D21-copy-1-v1",
+          "name": "둥근 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C62 123 106 77 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C294 77 338 123 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D21-copy-2-v1",
+          "name": "작은 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C72 131 115 95 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C285 95 328 131 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "귀보다 큰 얼굴부터 살펴요. 귀 한 개가 얼굴 전체보다 훨씬 작다는 점을 봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "얼굴 꼭대기에서 왼쪽으로 돌아 턱까지, 다시 꼭대기에서 오른쪽으로 돌아 턱에서 만나요.",
+          "lines": [
+            "faceL",
+            "faceR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "왼쪽 귀가 붙을 얼굴 위쪽을 정해요. 왼쪽 위로 작게 둥글려 얼굴에 붙여요.",
+          "lines": [
+            "earL"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "오른쪽도 위쪽에 작은 귀를 붙여요. 얼굴보다 귀가 작게 보이도록 먼저 자리를 정해요.",
+          "lines": [
+            "earR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴 가운데쯤에 눈 두 점, 그 사이 아래에 작은 코를 넣어요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "nose"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "원본과 귀 크기만 비교해요. 더 쉽게에서는 얼굴이 준비되니 귀만 그려도 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [
+          "faceL",
+          "faceR"
+        ],
+        "easyAnchors": [],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6043,16 +8219,349 @@
       ],
       "check": "‘귀가 얼굴보다 얼마나 길게 보이는지’를 먼저 살펴봤나요?",
       "easier": "한쪽 귀의 밑·끝 두 점을 제공한다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D22-copy-1-v1",
+          "name": "긴 귀 토끼",
+          "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+              "start": [
+                200,
+                142
+              ],
+              "direction": [
+                170,
+                142
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+              "start": [
+                200,
+                142
+              ],
+              "direction": [
+                230,
+                142
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "긴 왼쪽 귀",
+              "d": "M126 165 C108 113 109 57 133 57 C161 57 165 104 176 145",
+              "start": [
+                126,
+                165
+              ],
+              "direction": [
+                119,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "긴 오른쪽 귀",
+              "d": "M224 145 C235 104 239 57 267 57 C291 57 292 113 274 165",
+              "start": [
+                224,
+                145
+              ],
+              "direction": [
+                231,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                161,
+                234
+              ],
+              "direction": [
+                161,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                239,
+                234
+              ],
+              "direction": [
+                239,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M194 255 Q200 261 206 255",
+              "start": [
+                194,
+                255
+              ],
+              "direction": [
+                200,
+                261
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "earBase",
+              "label": "위치 도움",
+              "d": "M123 165 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                126,
+                165
+              ],
+              "direction": [
+                126,
+                165
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "earTip",
+              "label": "위치 도움",
+              "d": "M130 57 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                133,
+                57
+              ],
+              "direction": [
+                133,
+                57
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D22-copy-2-v1",
+          "name": "짧은 귀 토끼",
+          "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+              "start": [
+                200,
+                142
+              ],
+              "direction": [
+                170,
+                142
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+              "start": [
+                200,
+                142
+              ],
+              "direction": [
+                230,
+                142
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "긴 왼쪽 귀",
+              "d": "M126 165 C111 131 113 97 135 96 C156 94 162 115 176 145",
+              "start": [
+                126,
+                165
+              ],
+              "direction": [
+                119,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "긴 오른쪽 귀",
+              "d": "M224 145 C238 115 244 94 265 96 C287 97 289 131 274 165",
+              "start": [
+                224,
+                145
+              ],
+              "direction": [
+                231,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                161,
+                234
+              ],
+              "direction": [
+                161,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                239,
+                234
+              ],
+              "direction": [
+                239,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M194 255 Q200 261 206 255",
+              "start": [
+                194,
+                255
+              ],
+              "direction": [
+                200,
+                261
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "earBase",
+              "label": "위치 도움",
+              "d": "M123 165 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                126,
+                165
+              ],
+              "direction": [
+                126,
+                165
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "earTip",
+              "label": "위치 도움",
+              "d": "M132 96 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                135,
+                96
+              ],
+              "direction": [
+                135,
+                96
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "옆 원본에서 얼굴 높이와 귀 길이를 번갈아 봐요. 얼굴을 먼저 놓아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "얼굴 위에서 왼쪽으로 돌아 턱까지, 다시 오른쪽으로 돌아 큰 얼굴을 닫아요.",
+          "lines": [
+            "faceL",
+            "faceR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "왼쪽 귀의 밑과 끝을 정한 뒤 위로 길게 올라가요. 둥글게 돌아 얼굴 위쪽으로 내려와요.",
+          "lines": [
+            "earL"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "오른쪽 귀도 밑과 끝을 먼저 정해요. 위로 올라갔다가 둥글게 돌아 내려와요.",
+          "lines": [
+            "earR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴 안에 눈과 작은 입을 넣어요. 귀를 그릴 공간과 얼굴 자리를 따로 살펴요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "mouth"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "원본과 귀 길이만 비교해요. 정확히 재지 않아도 얼굴과 귀의 길이 관계를 살펴보면 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [
+          "earBase",
+          "earTip"
+        ],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6068,16 +8577,254 @@
       ],
       "check": "머리와 몸 사이의 위치를 원본과 비교했나요?",
       "easier": "몸의 중심 위치를 한 점으로 표시한다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D23-copy-1-v1",
+          "name": "작은 머리 눈사람",
+          "source": "첨부 학습 문서의 도형화 목표에 맞춘 새 단계 시범. 곰·토끼·강아지는 제공하신 만능 템플릿 150종의 부위 구성을 참고했어요. 원본 교재 파일과는 구분해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "머리 외곽",
+              "d": "M200.0 78.0 L197.941 78.036 L195.884 78.144 L193.833 78.323 L191.789 78.574 L189.755 78.896 L187.733 79.289 L185.727 79.753 L183.737 80.286 L181.768 80.888 L179.821 81.558 L177.898 82.296 L176.003 83.101 L174.136 83.971 L172.301 84.906 L170.5 85.905 L168.735 86.965 L167.008 88.087 L165.321 89.268 L163.676 90.507 L162.076 91.803 L160.521 93.154 L159.015 94.559 L157.559 96.015 L156.154 97.521 L154.803 99.076 L153.507 100.676 L152.268 102.321 L151.087 104.008 L149.965 105.735 L148.905 107.5 L147.906 109.301 L146.971 111.136 L146.101 113.003 L145.296 114.898 L144.558 116.821 L143.888 118.768 L143.286 120.737 L142.753 122.727 L142.289 124.733 L141.896 126.755 L141.574 128.789 L141.323 130.833 L141.144 132.884 L141.036 134.941 L141.0 137.0 L141.036 139.059 L141.144 141.116 L141.323 143.167 L141.574 145.211 L141.896 147.245 L142.289 149.267 L142.753 151.273 L143.286 153.263 L143.888 155.232 L144.558 157.179 L145.296 159.102 L146.101 160.997 L146.971 162.864 L147.906 164.699 L148.905 166.5 L149.965 168.265 L151.087 169.992 L152.268 171.679 L153.507 173.324 L154.803 174.924 L156.154 176.479 L157.559 177.985 L159.015 179.441 L160.521 180.846 L162.076 182.197 L163.676 183.493 L165.321 184.732 L167.008 185.913 L168.735 187.035 L170.5 188.095 L172.301 189.094 L174.136 190.029 L176.003 190.899 L177.898 191.704 L179.821 192.442 L181.768 193.112 L183.737 193.714 L185.727 194.247 L187.733 194.711 L189.755 195.104 L191.789 195.426 L193.833 195.677 L195.884 195.856 L197.941 195.964 L200.0 196.0 L202.059 195.964 L204.116 195.856 L206.167 195.677 L208.211 195.426 L210.245 195.104 L212.267 194.711 L214.273 194.247 L216.263 193.714 L218.232 193.112 L220.179 192.442 L222.102 191.704 L223.997 190.899 L225.864 190.029 L227.699 189.094 L229.5 188.095 L231.265 187.035 L232.992 185.913 L234.679 184.732 L236.324 183.493 L237.924 182.197 L239.479 180.846 L240.985 179.441 L242.441 177.985 L243.846 176.479 L245.197 174.924 L246.493 173.324 L247.732 171.679 L248.913 169.992 L250.035 168.265 L251.095 166.5 L252.094 164.699 L253.029 162.864 L253.899 160.997 L254.704 159.102 L255.442 157.179 L256.112 155.232 L256.714 153.263 L257.247 151.273 L257.711 149.267 L258.104 147.245 L258.426 145.211 L258.677 143.167 L258.856 141.116 L258.964 139.059 L259.0 137.0 L258.964 134.941 L258.856 132.884 L258.677 130.833 L258.426 128.789 L258.104 126.755 L257.711 124.733 L257.247 122.727 L256.714 120.737 L256.112 118.768 L255.442 116.821 L254.704 114.898 L253.899 113.003 L253.029 111.136 L252.094 109.301 L251.095 107.5 L250.035 105.735 L248.913 104.008 L247.732 102.321 L246.493 100.676 L245.197 99.076 L243.846 97.521 L242.441 96.015 L240.985 94.559 L239.479 93.154 L237.924 91.803 L236.324 90.507 L234.679 89.268 L232.992 88.087 L231.265 86.965 L229.5 85.905 L227.699 84.906 L225.864 83.971 L223.997 83.101 L222.102 82.296 L220.179 81.558 L218.232 80.888 L216.263 80.286 L214.273 79.753 L212.267 79.289 L210.245 78.896 L208.211 78.574 L206.167 78.323 L204.116 78.144 L202.059 78.036 L200.0 78.0",
+              "start": [
+                200.0,
+                78.0
+              ],
+              "direction": [
+                180.0,
+                78.0
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "몸 외곽",
+              "d": "M171.954 188.945 L169.282 189.971 L166.648 191.089 L164.054 192.299 L161.503 193.598 L159.0 194.986 L156.547 196.46 L154.146 198.019 L151.802 199.661 L149.516 201.383 L147.291 203.184 L145.131 205.062 L143.038 207.014 L141.014 209.038 L139.062 211.131 L137.184 213.291 L135.383 215.516 L133.661 217.802 L132.019 220.146 L130.46 222.547 L128.986 225.0 L127.598 227.503 L126.299 230.054 L125.089 232.648 L123.971 235.282 L122.945 237.954 L122.013 240.661 L121.177 243.398 L120.436 246.162 L119.792 248.951 L119.246 251.761 L118.798 254.588 L118.449 257.429 L118.2 260.28 L118.05 263.138 L118.0 266.0 L118.05 268.862 L118.2 271.72 L118.449 274.571 L118.798 277.412 L119.246 280.239 L119.792 283.049 L120.436 285.838 L121.177 288.602 L122.013 291.339 L122.945 294.046 L123.971 296.718 L125.089 299.352 L126.299 301.946 L127.598 304.497 L128.986 307.0 L130.46 309.453 L132.019 311.854 L133.661 314.198 L135.383 316.484 L137.184 318.709 L139.062 320.869 L141.014 322.962 L143.038 324.986 L145.131 326.938 L147.291 328.816 L149.516 330.617 L151.802 332.339 L154.146 333.981 L156.547 335.54 L159.0 337.014 L161.503 338.402 L164.054 339.701 L166.648 340.911 L169.282 342.029 L171.954 343.055 L174.661 343.987 L177.398 344.823 L180.162 345.564 L182.951 346.208 L185.761 346.754 L188.588 347.202 L191.429 347.551 L194.28 347.8 L197.138 347.95 L200.0 348.0 L202.862 347.95 L205.72 347.8 L208.571 347.551 L211.412 347.202 L214.239 346.754 L217.049 346.208 L219.838 345.564 L222.602 344.823 L225.339 343.987 L228.046 343.055 L230.718 342.029 L233.352 340.911 L235.946 339.701 L238.497 338.402 L241.0 337.014 L243.453 335.54 L245.854 333.981 L248.198 332.339 L250.484 330.617 L252.709 328.816 L254.869 326.938 L256.962 324.986 L258.986 322.962 L260.938 320.869 L262.816 318.709 L264.617 316.484 L266.339 314.198 L267.981 311.854 L269.54 309.453 L271.014 307.0 L272.402 304.497 L273.701 301.946 L274.911 299.352 L276.029 296.718 L277.055 294.046 L277.987 291.339 L278.823 288.602 L279.564 285.838 L280.208 283.049 L280.754 280.239 L281.202 277.412 L281.551 274.571 L281.8 271.72 L281.95 268.862 L282.0 266.0 L281.95 263.138 L281.8 260.28 L281.551 257.429 L281.202 254.588 L280.754 251.761 L280.208 248.951 L279.564 246.162 L278.823 243.398 L277.987 240.661 L277.055 237.954 L276.029 235.282 L274.911 232.648 L273.701 230.054 L272.402 227.503 L271.014 225.0 L269.54 222.547 L267.981 220.146 L266.339 217.802 L264.617 215.516 L262.816 213.291 L260.938 211.131 L258.986 209.038 L256.962 207.014 L254.869 205.062 L252.709 203.184 L250.484 201.383 L248.198 199.661 L245.854 198.019 L243.453 196.46 L241.0 194.986 L238.497 193.598 L235.946 192.299 L233.352 191.089 L230.718 189.971 L228.046 188.945",
+              "start": [
+                171.954,
+                188.945
+              ],
+              "direction": [
+                151.954,
+                198.945
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "눈",
+              "d": "M173 137 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                178,
+                137
+              ],
+              "direction": [
+                178,
+                137
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "눈",
+              "d": "M217 137 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                222,
+                137
+              ],
+              "direction": [
+                222,
+                137
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M192 156 Q200 166 208 156",
+              "start": [
+                192,
+                156
+              ],
+              "direction": [
+                200,
+                161
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "bodyCenter",
+              "label": "위치 도움",
+              "d": "M197 266 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                266
+              ],
+              "direction": [
+                200,
+                266
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D23-copy-2-v1",
+          "name": "더 작은 머리 눈사람",
+          "source": "첨부 학습 문서의 도형화 목표에 맞춘 새 단계 시범. 곰·토끼·강아지는 제공하신 만능 템플릿 150종의 부위 구성을 참고했어요. 원본 교재 파일과는 구분해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "머리 외곽",
+              "d": "M200.0 84.0 L198.15 84.032 L196.303 84.129 L194.46 84.29 L192.624 84.516 L190.797 84.805 L188.981 85.158 L187.178 85.574 L185.391 86.053 L183.622 86.594 L181.873 87.196 L180.146 87.859 L178.443 88.582 L176.766 89.364 L175.118 90.204 L173.5 91.101 L171.914 92.053 L170.363 93.061 L168.847 94.122 L167.37 95.235 L165.932 96.4 L164.536 97.613 L163.183 98.875 L161.875 100.183 L160.613 101.536 L159.4 102.932 L158.235 104.37 L157.122 105.847 L156.061 107.363 L155.053 108.914 L154.101 110.5 L153.204 112.118 L152.364 113.766 L151.582 115.443 L150.859 117.146 L150.196 118.873 L149.594 120.622 L149.053 122.391 L148.574 124.178 L148.158 125.981 L147.805 127.797 L147.516 129.624 L147.29 131.46 L147.129 133.303 L147.032 135.15 L147.0 137.0 L147.032 138.85 L147.129 140.697 L147.29 142.54 L147.516 144.376 L147.805 146.203 L148.158 148.019 L148.574 149.822 L149.053 151.609 L149.594 153.378 L150.196 155.127 L150.859 156.854 L151.582 158.557 L152.364 160.234 L153.204 161.882 L154.101 163.5 L155.053 165.086 L156.061 166.637 L157.122 168.153 L158.235 169.63 L159.4 171.068 L160.613 172.464 L161.875 173.817 L163.183 175.125 L164.536 176.387 L165.932 177.6 L167.37 178.765 L168.847 179.878 L170.363 180.939 L171.914 181.947 L173.5 182.899 L175.118 183.796 L176.766 184.636 L178.443 185.418 L180.146 186.141 L181.873 186.804 L183.622 187.406 L185.391 187.947 L187.178 188.426 L188.981 188.842 L190.797 189.195 L192.624 189.484 L194.46 189.71 L196.303 189.871 L198.15 189.968 L200.0 190.0 L201.85 189.968 L203.697 189.871 L205.54 189.71 L207.376 189.484 L209.203 189.195 L211.019 188.842 L212.822 188.426 L214.609 187.947 L216.378 187.406 L218.127 186.804 L219.854 186.141 L221.557 185.418 L223.234 184.636 L224.882 183.796 L226.5 182.899 L228.086 181.947 L229.637 180.939 L231.153 179.878 L232.63 178.765 L234.068 177.6 L235.464 176.387 L236.817 175.125 L238.125 173.817 L239.387 172.464 L240.6 171.068 L241.765 169.63 L242.878 168.153 L243.939 166.637 L244.947 165.086 L245.899 163.5 L246.796 161.882 L247.636 160.234 L248.418 158.557 L249.141 156.854 L249.804 155.127 L250.406 153.378 L250.947 151.609 L251.426 149.822 L251.842 148.019 L252.195 146.203 L252.484 144.376 L252.71 142.54 L252.871 140.697 L252.968 138.85 L253.0 137.0 L252.968 135.15 L252.871 133.303 L252.71 131.46 L252.484 129.624 L252.195 127.797 L251.842 125.981 L251.426 124.178 L250.947 122.391 L250.406 120.622 L249.804 118.873 L249.141 117.146 L248.418 115.443 L247.636 113.766 L246.796 112.118 L245.899 110.5 L244.947 108.914 L243.939 107.363 L242.878 105.847 L241.765 104.37 L240.6 102.932 L239.387 101.536 L238.125 100.183 L236.817 98.875 L235.464 97.613 L234.068 96.4 L232.63 95.235 L231.153 94.122 L229.637 93.061 L228.086 92.053 L226.5 91.101 L224.882 90.204 L223.234 89.364 L221.557 88.582 L219.854 87.859 L218.127 87.196 L216.378 86.594 L214.609 86.053 L212.822 85.574 L211.019 85.158 L209.203 84.805 L207.376 84.516 L205.54 84.29 L203.697 84.129 L201.85 84.032 L200.0 84.0",
+              "start": [
+                200.0,
+                84.0
+              ],
+              "direction": [
+                180.0,
+                84.0
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "몸 외곽",
+              "d": "M180.162 186.436 L177.398 187.177 L174.661 188.013 L171.954 188.945 L169.282 189.971 L166.648 191.089 L164.054 192.299 L161.503 193.598 L159.0 194.986 L156.547 196.46 L154.146 198.019 L151.802 199.661 L149.516 201.383 L147.291 203.184 L145.131 205.062 L143.038 207.014 L141.014 209.038 L139.062 211.131 L137.184 213.291 L135.383 215.516 L133.661 217.802 L132.019 220.146 L130.46 222.547 L128.986 225.0 L127.598 227.503 L126.299 230.054 L125.089 232.648 L123.971 235.282 L122.945 237.954 L122.013 240.661 L121.177 243.398 L120.436 246.162 L119.792 248.951 L119.246 251.761 L118.798 254.588 L118.449 257.429 L118.2 260.28 L118.05 263.138 L118.0 266.0 L118.05 268.862 L118.2 271.72 L118.449 274.571 L118.798 277.412 L119.246 280.239 L119.792 283.049 L120.436 285.838 L121.177 288.602 L122.013 291.339 L122.945 294.046 L123.971 296.718 L125.089 299.352 L126.299 301.946 L127.598 304.497 L128.986 307.0 L130.46 309.453 L132.019 311.854 L133.661 314.198 L135.383 316.484 L137.184 318.709 L139.062 320.869 L141.014 322.962 L143.038 324.986 L145.131 326.938 L147.291 328.816 L149.516 330.617 L151.802 332.339 L154.146 333.981 L156.547 335.54 L159.0 337.014 L161.503 338.402 L164.054 339.701 L166.648 340.911 L169.282 342.029 L171.954 343.055 L174.661 343.987 L177.398 344.823 L180.162 345.564 L182.951 346.208 L185.761 346.754 L188.588 347.202 L191.429 347.551 L194.28 347.8 L197.138 347.95 L200.0 348.0 L202.862 347.95 L205.72 347.8 L208.571 347.551 L211.412 347.202 L214.239 346.754 L217.049 346.208 L219.838 345.564 L222.602 344.823 L225.339 343.987 L228.046 343.055 L230.718 342.029 L233.352 340.911 L235.946 339.701 L238.497 338.402 L241.0 337.014 L243.453 335.54 L245.854 333.981 L248.198 332.339 L250.484 330.617 L252.709 328.816 L254.869 326.938 L256.962 324.986 L258.986 322.962 L260.938 320.869 L262.816 318.709 L264.617 316.484 L266.339 314.198 L267.981 311.854 L269.54 309.453 L271.014 307.0 L272.402 304.497 L273.701 301.946 L274.911 299.352 L276.029 296.718 L277.055 294.046 L277.987 291.339 L278.823 288.602 L279.564 285.838 L280.208 283.049 L280.754 280.239 L281.202 277.412 L281.551 274.571 L281.8 271.72 L281.95 268.862 L282.0 266.0 L281.95 263.138 L281.8 260.28 L281.551 257.429 L281.202 254.588 L280.754 251.761 L280.208 248.951 L279.564 246.162 L278.823 243.398 L277.987 240.661 L277.055 237.954 L276.029 235.282 L274.911 232.648 L273.701 230.054 L272.402 227.503 L271.014 225.0 L269.54 222.547 L267.981 220.146 L266.339 217.802 L264.617 215.516 L262.816 213.291 L260.938 211.131 L258.986 209.038 L256.962 207.014 L254.869 205.062 L252.709 203.184 L250.484 201.383 L248.198 199.661 L245.854 198.019 L243.453 196.46 L241.0 194.986 L238.497 193.598 L235.946 192.299 L233.352 191.089 L230.718 189.971 L228.046 188.945 L225.339 188.013 L222.602 187.177 L219.838 186.436",
+              "start": [
+                180.162,
+                186.436
+              ],
+              "direction": [
+                160.162,
+                196.436
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "눈",
+              "d": "M173 137 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                178,
+                137
+              ],
+              "direction": [
+                178,
+                137
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "눈",
+              "d": "M217 137 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                222,
+                137
+              ],
+              "direction": [
+                222,
+                137
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M192 156 Q200 166 208 156",
+              "start": [
+                192,
+                156
+              ],
+              "direction": [
+                200,
+                161
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "bodyCenter",
+              "label": "위치 도움",
+              "d": "M197 266 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                266
+              ],
+              "direction": [
+                200,
+                266
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "작은 머리 아래에 큰 몸이 들어갈 공간을 남겨요. 머리만 종이 가운데에 크게 놓지 않아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "위쪽에 작은 머리를 둥글게 그려요. 시범은 위에서 왼쪽으로 돌아온 한 가지 순서예요.",
+          "lines": [
+            "head"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "머리 아래에 더 큰 몸을 붙여요. 만나는 부분의 선은 겹쳐 그려도 괜찮아요.",
+          "lines": [
+            "body"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "머리 안에 눈 두 점과 짧은 입을 넣어요. 몸에 세부를 더하지 않아도 돼요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "mouth"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "머리와 몸이 만나는 위치만 원본과 비교해요. 더 쉽게를 켜면 몸의 중심점이 보여요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [
+          "bodyCenter"
+        ],
+        "largeLines": [
+          "head",
+          "body"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6093,16 +8840,253 @@
       ],
       "check": "배를 그리기 전에 주변에 남을 공간을 살펴봤나요?",
       "easier": "배의 크기 틀만 연하게 제공한다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D24-copy-1-v1",
+          "name": "달걀 몸 펭귄",
+          "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽 반",
+              "d": "M200 72 C135 72 100 169 100 258 C100 310 136 330 200 330",
+              "start": [
+                200,
+                72
+              ],
+              "direction": [
+                172,
+                72
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽 반",
+              "d": "M200 72 C265 72 300 169 300 258 C300 310 264 330 200 330",
+              "start": [
+                200,
+                72
+              ],
+              "direction": [
+                228,
+                72
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "belly",
+              "label": "몸 안쪽 배",
+              "d": "M200 190 C163 190 134 214 134 245 C134 276 163 300 200 300 C237 300 266 276 266 245 C266 214 237 190 200 190",
+              "start": [
+                200,
+                190
+              ],
+              "direction": [
+                175,
+                190
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M160 148 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                165,
+                148
+              ],
+              "direction": [
+                165,
+                148
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M230 148 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                235,
+                148
+              ],
+              "direction": [
+                235,
+                148
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "작은 부리",
+              "d": "M190 168 H210 L200 180 Z",
+              "start": [
+                190,
+                168
+              ],
+              "direction": [
+                208,
+                168
+              ],
+              "group": "detail"
+            }
+          ]
+        },
+        {
+          "id": "D24-copy-2-v1",
+          "name": "작은 배 펭귄",
+          "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "bodyL",
+              "label": "몸 왼쪽 반",
+              "d": "M200 72 C135 72 100 169 100 258 C100 310 136 330 200 330",
+              "start": [
+                200,
+                72
+              ],
+              "direction": [
+                172,
+                72
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "bodyR",
+              "label": "몸 오른쪽 반",
+              "d": "M200 72 C265 72 300 169 300 258 C300 310 264 330 200 330",
+              "start": [
+                200,
+                72
+              ],
+              "direction": [
+                228,
+                72
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "belly",
+              "label": "몸 안쪽 배",
+              "d": "M200 207 C173 207 151 226 151 250 C151 274 173 293 200 293 C227 293 249 274 249 250 C249 226 227 207 200 207",
+              "start": [
+                200,
+                207
+              ],
+              "direction": [
+                175,
+                207
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M160 148 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                165,
+                148
+              ],
+              "direction": [
+                165,
+                148
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M230 148 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                235,
+                148
+              ],
+              "direction": [
+                235,
+                148
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "작은 부리",
+              "d": "M190 168 H210 L200 180 Z",
+              "start": [
+                190,
+                168
+              ],
+              "direction": [
+                208,
+                168
+              ],
+              "group": "detail"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "배 모양 옆에 남은 빈 공간을 봐요. 배를 바깥 몸에 꽉 붙이지 않는 것이 오늘 목표예요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "먼저 큰 몸 바깥을 위에서 왼쪽으로, 다시 위에서 오른쪽으로 그려 닫아요.",
+          "lines": [
+            "bodyL",
+            "bodyR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "안쪽 배의 위·아래 자리를 정해요. 바깥선과 사이를 남기며 둥근 배를 그려요.",
+          "lines": [
+            "belly"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "배 위쪽에 눈 두 점과 부리를 넣어요. 얼굴보다 양옆 빈 공간을 먼저 살펴요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "beak"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "배와 몸 사이 왼쪽·오른쪽 공간을 원본과 비교해요. 완벽한 대칭은 필요 없어요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [
+          "belly"
+        ],
+        "easyAnchors": [],
+        "largeLines": [
+          "bodyL",
+          "bodyR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6118,16 +9102,343 @@
       ],
       "check": "귀 밑의 위치를 정한 뒤 귀를 그렸나요?",
       "easier": "귀 한쪽의 시작·끝 점을 제공한다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D25-copy-1-v1",
+          "name": "삼각 귀 고양이",
+          "source": "제공하신 만능 템플릿 150종의 고양이 자료에서 얼굴과 삼각 귀의 위치를 관찰했어요. 첫 트레이싱에서는 수염·몸·꼬리를 빼고 얼굴부터 연습해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 삼각 귀",
+              "d": "M102 162 L107 83 Q132 91 153 128",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                104,
+                134
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 삼각 귀",
+              "d": "M247 128 Q268 91 293 83 L298 162",
+              "start": [
+                247,
+                128
+              ],
+              "direction": [
+                263,
+                101
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M152 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                157,
+                222
+              ],
+              "direction": [
+                157,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M238 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                243,
+                222
+              ],
+              "direction": [
+                243,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M194 246 Q200 252 206 246",
+              "start": [
+                194,
+                246
+              ],
+              "direction": [
+                200,
+                252
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "earStart",
+              "label": "위치 도움",
+              "d": "M99 162 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                102,
+                162
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "earEnd",
+              "label": "위치 도움",
+              "d": "M150 128 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                153,
+                128
+              ],
+              "direction": [
+                153,
+                128
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D25-copy-2-v1",
+          "name": "작은 귀 고양이",
+          "source": "제공하신 만능 템플릿 150종의 고양이 자료에서 얼굴과 삼각 귀의 위치를 관찰했어요. 첫 트레이싱에서는 수염·몸·꼬리를 빼고 얼굴부터 연습해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 삼각 귀",
+              "d": "M102 162 L112 110 Q136 115 153 128",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                104,
+                134
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 삼각 귀",
+              "d": "M247 128 Q264 115 288 110 L298 162",
+              "start": [
+                247,
+                128
+              ],
+              "direction": [
+                267,
+                118
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M152 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                157,
+                222
+              ],
+              "direction": [
+                157,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M238 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                243,
+                222
+              ],
+              "direction": [
+                243,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M194 246 Q200 252 206 246",
+              "start": [
+                194,
+                246
+              ],
+              "direction": [
+                200,
+                252
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "earStart",
+              "label": "위치 도움",
+              "d": "M99 162 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                102,
+                162
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "earEnd",
+              "label": "위치 도움",
+              "d": "M150 128 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                153,
+                128
+              ],
+              "direction": [
+                153,
+                128
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "귀 모양보다 귀 밑이 얼굴 어디에 붙었는지 먼저 봐요. 얼굴의 위쪽 양옆이에요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "큰 얼굴을 먼저 그려요. 위에서 왼쪽으로 돌아 턱, 다시 오른쪽으로 돌아 턱에서 만나요.",
+          "lines": [
+            "faceL",
+            "faceR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "양쪽 귀 밑의 시작과 끝을 정해요. 각 시작점에서 꼭짓점으로 올라갔다가 끝점으로 내려와요.",
+          "lines": [
+            "earL",
+            "earR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴 안에 눈 두 점과 짧은 입을 넣어요. 수염은 생략해도 돼요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "mouth"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "귀가 붙은 위치 한 곳을 원본과 비교해요. 더 쉽게에서는 왼쪽 귀 밑 두 점을 보여줘요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [
+          "earStart",
+          "earEnd"
+        ],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {
@@ -6143,16 +9454,312 @@
       ],
       "check": "얼굴만 줄이지 않고 귀도 함께 줄였나요?",
       "easier": "축소한 원본을 옆에 함께 보여준다. 정확한 축척 계산은 하지 않는다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D26-copy-1-v1",
+          "name": "둥근 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C62 123 106 77 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C294 77 338 123 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "frame",
+              "label": "작은 자리 틀",
+              "d": "M65 80 L335 80 L335 335 L65 335 Z",
+              "start": [
+                65,
+                80
+              ],
+              "direction": [
+                90,
+                80
+              ],
+              "group": "guide"
+            }
+          ]
+        },
+        {
+          "id": "D26-copy-2-v1",
+          "name": "작은 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C72 131 115 95 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C285 95 328 131 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "frame",
+              "label": "작은 자리 틀",
+              "d": "M65 80 L335 80 L335 335 L65 335 Z",
+              "start": [
+                65,
+                80
+              ],
+              "direction": [
+                90,
+                80
+              ],
+              "group": "guide"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "원본보다 작은 곰을 그려요. 얼굴과 귀가 함께 들어갈 작은 자리를 먼저 정해요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "작게 정한 자리 안에 큰 얼굴부터 넣어요. 얼굴 높이와 폭을 함께 줄여요.",
+          "lines": [
+            "faceL",
+            "faceR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴이 작아진 만큼 양쪽 귀도 함께 작게 붙여요. 귀만 원래 크기로 남기지 않아요.",
+          "lines": [
+            "earL",
+            "earR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "눈 간격과 코 크기도 얼굴에 맞게 작게 넣어요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "nose"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴·귀·눈이 함께 작아졌는지 비교해요. 더 쉽게를 켜면 작게 줄인 원본도 옆에 보여요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [
+          "frame"
+        ],
+        "easyAnchors": [],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 0.65,
+        "demoBaseLines": []
       }
     },
     {
@@ -6168,10 +9775,285 @@
       ],
       "check": "수정할 한 곳을 고르고 이유를 말하거나 선택했나요?",
       "easier": "가능한 차이 2개만 확대해서 제시한다. 나머지는 수정하지 않는다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D27-copy-1-v1",
+          "name": "둥근 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C62 123 106 77 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C294 77 338 123 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "lowEye",
+              "label": "낮아진 오른쪽 눈",
+              "d": "M237 250 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                250
+              ],
+              "direction": [
+                242,
+                250
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D27-copy-2-v1",
+          "name": "작은 귀 곰",
+          "source": "제공하신 만능 템플릿 150종의 곰 자료에서 둥근 얼굴과 귀의 연결 위치를 관찰하고, 얼굴만 연습하도록 새로 구성했어요. 원본은 내 교재에서 확인해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽 반",
+              "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                170,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽 반",
+              "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+              "start": [
+                200,
+                120
+              ],
+              "direction": [
+                230,
+                120
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 귀",
+              "d": "M102 162 C72 131 115 95 148 130",
+              "start": [
+                102,
+                162
+              ],
+              "direction": [
+                84,
+                144
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 귀",
+              "d": "M252 130 C285 95 328 131 298 162",
+              "start": [
+                252,
+                130
+              ],
+              "direction": [
+                270,
+                110
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M153 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                158,
+                218
+              ],
+              "direction": [
+                158,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M237 218 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                218
+              ],
+              "direction": [
+                242,
+                218
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "작은 코",
+              "d": "M193 236 Q200 232 207 236 Q207 242 200 245 Q193 242 193 236",
+              "start": [
+                193,
+                236
+              ],
+              "direction": [
+                199,
+                234
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "lowEye",
+              "label": "낮아진 오른쪽 눈",
+              "d": "M237 250 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                242,
+                250
+              ],
+              "direction": [
+                242,
+                250
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "내 이전 그림을 불러오거나 곰 얼굴을 한 번 그려요. 시범은 오른쪽 눈이 낮은 예예요. 수정 전 그림을 먼저 봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "전체 폭·귀 위치·눈 높이 중 한 곳만 골라요. 시범에서는 낮은 오른쪽 눈을 골랐어요. 내 그림은 내가 선택해요.",
+          "lines": [
+            "lowEye"
+          ],
+          "action": "compare"
+        },
+        {
+          "text": "고른 부분의 새 위치를 연하게 정하고 한 번만 고쳐요. 시범은 오른쪽 눈을 지우고 왼쪽 눈 높이에 맞춰 찍어요.",
+          "lines": [
+            "eyeR"
+          ],
+          "action": "draw",
+          "hideLines": [
+            "lowEye"
+          ]
+        },
+        {
+          "text": "수정 전과 후를 나란히 비교해요. 어디를 왜 골랐는지 한 문장으로 남겨요. 나머지는 그대로 두어도 돼요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [
         "D20",
         "D21",
@@ -6183,9 +10065,30 @@
       ],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 1,
+        "demoBaseLines": [
+          "faceL",
+          "faceR",
+          "earL",
+          "earR",
+          "eyeL",
+          "nose",
+          "lowEye"
+        ]
       }
     },
     {
@@ -6201,16 +10104,411 @@
       ],
       "check": "큰 모양부터 시작했나요? 크기나 위치 차이를 하나 찾았나요?",
       "easier": "얼굴의 네 끝을 표시하고, 귀와 눈 중 하나만 직접 옮긴다.",
-      "help": 1,
+      "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "D28-hamster-1-v1",
+          "name": "둥근 볼 햄스터",
+          "source": "D28의 새 쉬운 캐릭터 목표에 맞춘 자체 제작 좌표 도해. 점 눈·작은 귀·짧은 입과 큰 얼굴만 사용함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽",
+              "d": "M200 140 C131.0 140 85 172 85 225 C85 285 145 320 200 320",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                178,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽",
+              "d": "M200 140 C269.0 140 315 172 315 225 C315 285 255 320 200 320",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                222,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 작은 귀",
+              "d": "M116.625 162.625 C92.625 117.625 124.612 98.37799999999999 154.612 145.378",
+              "start": [
+                116.625,
+                162.625
+              ],
+              "direction": [
+                104.625,
+                140.625
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 작은 귀",
+              "d": "M245.388 145.378 C275.38800000000003 98.37799999999999 307.375 117.625 283.375 162.625",
+              "start": [
+                245.388,
+                145.378
+              ],
+              "direction": [
+                260.38800000000003,
+                123.37799999999999
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M157 219 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                162,
+                219
+              ],
+              "direction": [
+                162,
+                219
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M233 219 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                238,
+                219
+              ],
+              "direction": [
+                238,
+                219
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M190 246 Q200 258 210 246",
+              "start": [
+                190,
+                246
+              ],
+              "direction": [
+                198,
+                252
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 140 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                200,
+                140
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 320 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                320
+              ],
+              "direction": [
+                200,
+                320
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M82 225 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                85,
+                225
+              ],
+              "direction": [
+                85,
+                225
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M312 225 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                315,
+                225
+              ],
+              "direction": [
+                315,
+                225
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        },
+        {
+          "id": "D28-hamster-2-v1",
+          "name": "넓은 볼 햄스터",
+          "source": "D28의 새 쉬운 캐릭터 목표에 맞춘 자체 제작 좌표 도해. 점 눈·작은 귀·짧은 입과 큰 얼굴만 사용함.",
+          "lines": [
+            {
+              "id": "faceL",
+              "label": "얼굴 왼쪽",
+              "d": "M200 140 C125.0 140 75 172 75 225 C75 285 145 320 200 320",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                178,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "faceR",
+              "label": "얼굴 오른쪽",
+              "d": "M200 140 C275.0 140 325 172 325 225 C325 285 255 320 200 320",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                222,
+                140
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earL",
+              "label": "왼쪽 작은 귀",
+              "d": "M109.375 162.625 C85.375 117.625 120.666 98.37799999999999 150.666 145.378",
+              "start": [
+                109.375,
+                162.625
+              ],
+              "direction": [
+                97.375,
+                140.625
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "오른쪽 작은 귀",
+              "d": "M249.334 145.378 C279.334 98.37799999999999 314.625 117.625 290.625 162.625",
+              "start": [
+                249.334,
+                145.378
+              ],
+              "direction": [
+                264.334,
+                123.37799999999999
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "왼쪽 눈",
+              "d": "M157 219 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                162,
+                219
+              ],
+              "direction": [
+                162,
+                219
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "오른쪽 눈",
+              "d": "M233 219 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+              "start": [
+                238,
+                219
+              ],
+              "direction": [
+                238,
+                219
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "짧은 입",
+              "d": "M190 246 Q200 258 210 246",
+              "start": [
+                190,
+                246
+              ],
+              "direction": [
+                198,
+                252
+              ],
+              "group": "detail"
+            },
+            {
+              "id": "top",
+              "label": "위치 도움",
+              "d": "M197 140 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                140
+              ],
+              "direction": [
+                200,
+                140
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "bottom",
+              "label": "위치 도움",
+              "d": "M197 320 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                200,
+                320
+              ],
+              "direction": [
+                200,
+                320
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "left",
+              "label": "위치 도움",
+              "d": "M72 225 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                75,
+                225
+              ],
+              "direction": [
+                75,
+                225
+              ],
+              "group": "guide",
+              "fill": "ink"
+            },
+            {
+              "id": "right",
+              "label": "위치 도움",
+              "d": "M322 225 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+              "start": [
+                325,
+                225
+              ],
+              "direction": [
+                325,
+                225
+              ],
+              "group": "guide",
+              "fill": "ink"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "text": "처음 보는 햄스터예요. 가장 큰 얼굴의 높이와 폭부터 보고, 작은 귀는 나중에 놓아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "얼굴 꼭대기에서 왼쪽으로 둥글게 내려가 턱에서 멈춰요.",
+          "lines": [
+            "faceL"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "다시 꼭대기에서 오른쪽으로 내려가 턱에서 만나요.",
+          "lines": [
+            "faceR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴 위쪽 양옆에 작은 둥근 귀를 붙여요. 얼굴보다 훨씬 작게 자리를 정해요.",
+          "lines": [
+            "earL",
+            "earR"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "얼굴 안에 눈 두 점을 놓고 그 사이 아래에 짧은 입을 넣어요.",
+          "lines": [
+            "eyeL",
+            "eyeR",
+            "mouth"
+          ],
+          "action": "draw"
+        },
+        {
+          "text": "큰 모양부터 그렸는지 돌아봐요. 원본과 크기 또는 위치 차이를 한 곳만 찾아요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
+      },
+      "practice": {
+        "mode": "copy",
+        "baseLines": [],
+        "anchors": [],
+        "easyLines": [],
+        "easyAnchors": [
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ],
+        "largeLines": [
+          "faceL",
+          "faceR"
+        ],
+        "scale": 1,
+        "demoBaseLines": []
       }
     },
     {

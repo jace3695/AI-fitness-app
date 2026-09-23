@@ -1,0 +1,345 @@
+{
+  "id": "D22",
+  "examples": [
+    {
+      "id": "D22-copy-1-v1",
+      "name": "긴 귀 토끼",
+      "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            170,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            230,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "긴 왼쪽 귀",
+          "d": "M126 165 C108 113 109 57 133 57 C161 57 165 104 176 145",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            119,
+            140
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "긴 오른쪽 귀",
+          "d": "M224 145 C235 104 239 57 267 57 C291 57 292 113 274 165",
+          "start": [
+            224,
+            145
+          ],
+          "direction": [
+            231,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            161,
+            234
+          ],
+          "direction": [
+            161,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            239,
+            234
+          ],
+          "direction": [
+            239,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 255 Q200 261 206 255",
+          "start": [
+            194,
+            255
+          ],
+          "direction": [
+            200,
+            261
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "earBase",
+          "label": "위치 도움",
+          "d": "M123 165 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            126,
+            165
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "earTip",
+          "label": "위치 도움",
+          "d": "M130 57 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            133,
+            57
+          ],
+          "direction": [
+            133,
+            57
+          ],
+          "group": "guide",
+          "fill": "ink"
+        }
+      ]
+    },
+    {
+      "id": "D22-copy-2-v1",
+      "name": "짧은 귀 토끼",
+      "source": "제공하신 만능 템플릿 150종의 토끼 자료에서 긴 귀와 둥근 얼굴의 연결을 관찰하고, 몸과 중심선을 빼고 얼굴 수업으로 구성했어요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 142 C139.247 142 90 181.398 90 230 C90 278.602 139.247 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            170,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 142 C260.753 142 310 181.398 310 230 C310 278.602 260.753 318 200 318",
+          "start": [
+            200,
+            142
+          ],
+          "direction": [
+            230,
+            142
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "긴 왼쪽 귀",
+          "d": "M126 165 C111 131 113 97 135 96 C156 94 162 115 176 145",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            119,
+            140
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "긴 오른쪽 귀",
+          "d": "M224 145 C238 115 244 94 265 96 C287 97 289 131 274 165",
+          "start": [
+            224,
+            145
+          ],
+          "direction": [
+            231,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M156 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            161,
+            234
+          ],
+          "direction": [
+            161,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M234 234 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            239,
+            234
+          ],
+          "direction": [
+            239,
+            234
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 255 Q200 261 206 255",
+          "start": [
+            194,
+            255
+          ],
+          "direction": [
+            200,
+            261
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "earBase",
+          "label": "위치 도움",
+          "d": "M123 165 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            126,
+            165
+          ],
+          "direction": [
+            126,
+            165
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "earTip",
+          "label": "위치 도움",
+          "d": "M132 96 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            135,
+            96
+          ],
+          "direction": [
+            135,
+            96
+          ],
+          "group": "guide",
+          "fill": "ink"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "옆 원본에서 얼굴 높이와 귀 길이를 번갈아 봐요. 얼굴을 먼저 놓아요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "얼굴 위에서 왼쪽으로 돌아 턱까지, 다시 오른쪽으로 돌아 큰 얼굴을 닫아요.",
+      "lines": [
+        "faceL",
+        "faceR"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "왼쪽 귀의 밑과 끝을 정한 뒤 위로 길게 올라가요. 둥글게 돌아 얼굴 위쪽으로 내려와요.",
+      "lines": [
+        "earL"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "오른쪽 귀도 밑과 끝을 먼저 정해요. 위로 올라갔다가 둥글게 돌아 내려와요.",
+      "lines": [
+        "earR"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "얼굴 안에 눈과 작은 입을 넣어요. 귀를 그릴 공간과 얼굴 자리를 따로 살펴요.",
+      "lines": [
+        "eyeL",
+        "eyeR",
+        "mouth"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "원본과 귀 길이만 비교해요. 정확히 재지 않아도 얼굴과 귀의 길이 관계를 살펴보면 돼요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "help": 0,
+  "practice": {
+    "mode": "copy",
+    "baseLines": [],
+    "anchors": [],
+    "easyLines": [],
+    "easyAnchors": [
+      "earBase",
+      "earTip"
+    ],
+    "largeLines": [
+      "faceL",
+      "faceR"
+    ],
+    "scale": 1,
+    "demoBaseLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

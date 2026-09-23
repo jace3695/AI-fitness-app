@@ -22,7 +22,7 @@ export function paintStrokes(canvas: HTMLCanvasElement, strokes: Stroke[], white
   if (white) { ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = "source-over"; }
 }
 
-export function DrawingCanvas({ strokes, onChange, guide, disabled, preview = false }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; disabled?: boolean; preview?: boolean }) {
+export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, preview = false }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; reference?: ReactNode; disabled?: boolean; preview?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const active = useRef<{ id: number; stroke: Stroke } | null>(null);
   const [redo, setRedo] = useState<Stroke[]>([]);
@@ -61,11 +61,14 @@ export function DrawingCanvas({ strokes, onChange, guide, disabled, preview = fa
       <label className="drawing-button flex items-center gap-2">선 색<input aria-label="선 색" type="color" value={color} onChange={e => setColor(e.target.value)} className="h-6 w-8" /></label>
       <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={penOnly} onChange={e => setPenOnly(e.target.checked)} />Pencil만 사용</label>
     </div>}
-    <div className="overflow-auto rounded-3xl border border-violet-100 bg-white">
+    <div className={reference ? "grid grid-cols-1 items-start gap-4 md:grid-cols-2" : ""}>
+    {reference && <div className="min-w-0">{reference}</div>}
+    <div className="min-w-0 overflow-auto rounded-3xl border border-violet-100 bg-white">
       <div className="relative aspect-square" style={{ width: zoom ? "160%" : "100%" }}>
         <div className="pointer-events-none absolute inset-0">{guide}</div>
-        <canvas ref={ref} width={800} height={800} aria-label="내 그림 연습장" className={`relative h-full w-full ${preview ? "" : "touch-none"}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} />
+        <canvas ref={ref} width={800} height={800} aria-label={preview ? "저장한 그림 미리보기" : "내 그림 연습장"} className={`relative h-full w-full ${preview ? "" : "touch-none"}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up} />
       </div>
+    </div>
     </div>
     {limit && <p role="alert">이 그림의 선이 많아졌어요. 먼저 저장하거나 내보낸 뒤 새 시도로 이어가 주세요.</p>}
     {!preview && <p className="mt-2 text-xs text-slate-500">화면 왼쪽·오른쪽을 기준으로 설명해요. Pencil만 사용을 켜면 손가락은 그림을 남기지 않아요. 확대했을 때는 연습장 바깥을 잡고 화면을 움직여요.</p>}

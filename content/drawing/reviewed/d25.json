@@ -1,0 +1,339 @@
+{
+  "id": "D25",
+  "examples": [
+    {
+      "id": "D25-copy-1-v1",
+      "name": "삼각 귀 고양이",
+      "source": "제공하신 만능 템플릿 150종의 고양이 자료에서 얼굴과 삼각 귀의 위치를 관찰했어요. 첫 트레이싱에서는 수염·몸·꼬리를 빼고 얼굴부터 연습해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            170,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            230,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "왼쪽 삼각 귀",
+          "d": "M102 162 L107 83 Q132 91 153 128",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            104,
+            134
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "오른쪽 삼각 귀",
+          "d": "M247 128 Q268 91 293 83 L298 162",
+          "start": [
+            247,
+            128
+          ],
+          "direction": [
+            263,
+            101
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M152 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            157,
+            222
+          ],
+          "direction": [
+            157,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M238 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            243,
+            222
+          ],
+          "direction": [
+            243,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 246 Q200 252 206 246",
+          "start": [
+            194,
+            246
+          ],
+          "direction": [
+            200,
+            252
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "earStart",
+          "label": "위치 도움",
+          "d": "M99 162 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            102,
+            162
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "earEnd",
+          "label": "위치 도움",
+          "d": "M150 128 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            153,
+            128
+          ],
+          "direction": [
+            153,
+            128
+          ],
+          "group": "guide",
+          "fill": "ink"
+        }
+      ]
+    },
+    {
+      "id": "D25-copy-2-v1",
+      "name": "작은 귀 고양이",
+      "source": "제공하신 만능 템플릿 150종의 고양이 자료에서 얼굴과 삼각 귀의 위치를 관찰했어요. 첫 트레이싱에서는 수염·몸·꼬리를 빼고 얼굴부터 연습해요. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "faceL",
+          "label": "얼굴 왼쪽 반",
+          "d": "M200 120 C133.724 120 80 164.77 80 220 C80 275.23 133.724 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            170,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "faceR",
+          "label": "얼굴 오른쪽 반",
+          "d": "M200 120 C266.276 120 320 164.77 320 220 C320 275.23 266.276 320 200 320",
+          "start": [
+            200,
+            120
+          ],
+          "direction": [
+            230,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "왼쪽 삼각 귀",
+          "d": "M102 162 L112 110 Q136 115 153 128",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            104,
+            134
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "오른쪽 삼각 귀",
+          "d": "M247 128 Q264 115 288 110 L298 162",
+          "start": [
+            247,
+            128
+          ],
+          "direction": [
+            267,
+            118
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M152 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            157,
+            222
+          ],
+          "direction": [
+            157,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M238 222 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            243,
+            222
+          ],
+          "direction": [
+            243,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M194 246 Q200 252 206 246",
+          "start": [
+            194,
+            246
+          ],
+          "direction": [
+            200,
+            252
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "earStart",
+          "label": "위치 도움",
+          "d": "M99 162 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            102,
+            162
+          ],
+          "direction": [
+            102,
+            162
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "earEnd",
+          "label": "위치 도움",
+          "d": "M150 128 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            153,
+            128
+          ],
+          "direction": [
+            153,
+            128
+          ],
+          "group": "guide",
+          "fill": "ink"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "귀 모양보다 귀 밑이 얼굴 어디에 붙었는지 먼저 봐요. 얼굴의 위쪽 양옆이에요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "큰 얼굴을 먼저 그려요. 위에서 왼쪽으로 돌아 턱, 다시 오른쪽으로 돌아 턱에서 만나요.",
+      "lines": [
+        "faceL",
+        "faceR"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "양쪽 귀 밑의 시작과 끝을 정해요. 각 시작점에서 꼭짓점으로 올라갔다가 끝점으로 내려와요.",
+      "lines": [
+        "earL",
+        "earR"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "얼굴 안에 눈 두 점과 짧은 입을 넣어요. 수염은 생략해도 돼요.",
+      "lines": [
+        "eyeL",
+        "eyeR",
+        "mouth"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "귀가 붙은 위치 한 곳을 원본과 비교해요. 더 쉽게에서는 왼쪽 귀 밑 두 점을 보여줘요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "help": 0,
+  "practice": {
+    "mode": "copy",
+    "baseLines": [],
+    "anchors": [],
+    "easyLines": [],
+    "easyAnchors": [
+      "earStart",
+      "earEnd"
+    ],
+    "largeLines": [
+      "faceL",
+      "faceR"
+    ],
+    "scale": 1,
+    "demoBaseLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}
