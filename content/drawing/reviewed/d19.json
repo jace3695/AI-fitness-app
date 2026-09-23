@@ -1,0 +1,489 @@
+{
+  "id": "D19",
+  "examples": [
+    {
+      "id": "D19-copy-1-v1",
+      "name": "첫 병아리 · 보내주신 그림 기준",
+      "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "bodyL",
+          "label": "몸 왼쪽",
+          "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+          "start": [
+            200,
+            65
+          ],
+          "direction": [
+            179,
+            67
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bodyR",
+          "label": "몸 오른쪽",
+          "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+          "start": [
+            200,
+            65
+          ],
+          "direction": [
+            221,
+            67
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+          "start": [
+            156,
+            152
+          ],
+          "direction": [
+            156,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+          "start": [
+            244,
+            152
+          ],
+          "direction": [
+            244,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "세모 부리",
+          "d": "M 190 164 L 210 164 L 200 180 Z",
+          "start": [
+            190,
+            164
+          ],
+          "direction": [
+            203,
+            164
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingL",
+          "label": "왼쪽 날개",
+          "d": "M 98 212 C 86 225 87 241 105 246",
+          "start": [
+            98,
+            212
+          ],
+          "direction": [
+            93,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingR",
+          "label": "오른쪽 날개",
+          "d": "M 302 212 C 314 225 313 241 295 246",
+          "start": [
+            302,
+            212
+          ],
+          "direction": [
+            307,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legL",
+          "label": "왼쪽 다리",
+          "d": "M 162 315 L 162 339",
+          "start": [
+            162,
+            315
+          ],
+          "direction": [
+            162,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legR",
+          "label": "오른쪽 다리",
+          "d": "M 238 315 L 238 339",
+          "start": [
+            238,
+            315
+          ],
+          "direction": [
+            238,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "top",
+          "label": "위치 도움",
+          "d": "M197 65 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            200,
+            65
+          ],
+          "direction": [
+            200,
+            65
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "bottom",
+          "label": "위치 도움",
+          "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            200,
+            317
+          ],
+          "direction": [
+            200,
+            317
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "left",
+          "label": "위치 도움",
+          "d": "M73 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            76,
+            220
+          ],
+          "direction": [
+            76,
+            220
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "right",
+          "label": "위치 도움",
+          "d": "M321 220 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            324,
+            220
+          ],
+          "direction": [
+            324,
+            220
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeLevel",
+          "label": "눈 높이 도움",
+          "d": "M132 152 L268 152",
+          "start": [
+            132,
+            152
+          ],
+          "direction": [
+            154,
+            152
+          ],
+          "group": "guide"
+        }
+      ]
+    },
+    {
+      "id": "D19-copy-2-v1",
+      "name": "첫 병아리 · 더 둥근 친구",
+      "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해의 좌표를 유지하여 모작용 원본·시범·도움 표시를 구성함.",
+      "lines": [
+        {
+          "id": "bodyL",
+          "label": "몸 왼쪽",
+          "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+          "start": [
+            200,
+            74
+          ],
+          "direction": [
+            177,
+            77
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bodyR",
+          "label": "몸 오른쪽",
+          "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+          "start": [
+            200,
+            74
+          ],
+          "direction": [
+            223,
+            77
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+          "start": [
+            156,
+            152
+          ],
+          "direction": [
+            156,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+          "start": [
+            244,
+            152
+          ],
+          "direction": [
+            244,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "세모 부리",
+          "d": "M 190 164 L 210 164 L 200 180 Z",
+          "start": [
+            190,
+            164
+          ],
+          "direction": [
+            203,
+            164
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingL",
+          "label": "왼쪽 날개",
+          "d": "M 98 212 C 86 225 87 241 105 246",
+          "start": [
+            98,
+            212
+          ],
+          "direction": [
+            93,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingR",
+          "label": "오른쪽 날개",
+          "d": "M 302 212 C 314 225 313 241 295 246",
+          "start": [
+            302,
+            212
+          ],
+          "direction": [
+            307,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legL",
+          "label": "왼쪽 다리",
+          "d": "M 162 315 L 162 339",
+          "start": [
+            162,
+            315
+          ],
+          "direction": [
+            162,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legR",
+          "label": "오른쪽 다리",
+          "d": "M 238 315 L 238 339",
+          "start": [
+            238,
+            315
+          ],
+          "direction": [
+            238,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "top",
+          "label": "위치 도움",
+          "d": "M197 74 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            200,
+            74
+          ],
+          "direction": [
+            200,
+            74
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "bottom",
+          "label": "위치 도움",
+          "d": "M197 317 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            200,
+            317
+          ],
+          "direction": [
+            200,
+            317
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "left",
+          "label": "위치 도움",
+          "d": "M71 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            74,
+            228
+          ],
+          "direction": [
+            74,
+            228
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "right",
+          "label": "위치 도움",
+          "d": "M323 228 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0",
+          "start": [
+            326,
+            228
+          ],
+          "direction": [
+            326,
+            228
+          ],
+          "group": "guide",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeLevel",
+          "label": "눈 높이 도움",
+          "d": "M132 152 L268 152",
+          "start": [
+            132,
+            152
+          ],
+          "direction": [
+            154,
+            152
+          ],
+          "group": "guide"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "위·아래 두 점만 남았어요. 원본의 높이에 비해 몸이 얼마나 넓은지 먼저 봐요.",
+      "lines": [
+        "top",
+        "bottom"
+      ],
+      "action": "look"
+    },
+    {
+      "text": "양옆 끝을 직접 가볍게 찍어봐요. 시범의 두 점은 한 가지 예시예요.",
+      "lines": [
+        "left",
+        "right"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "위에서 왼쪽 끝을 지나 아래로, 다시 위에서 오른쪽 끝을 지나 아래로 둥글게 이어요.",
+      "lines": [
+        "bodyL",
+        "bodyR"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "큰 몸을 만든 뒤 위쪽에 눈 두 점과 작은 부리를 넣어요.",
+      "lines": [
+        "eyeL",
+        "eyeR",
+        "beak"
+      ],
+      "action": "draw"
+    },
+    {
+      "text": "내가 정한 양옆 위치를 원본과 비교해요. 너무 어렵다면 네 점 도움을 다시 켜도 돼요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "help": 1,
+  "practice": {
+    "mode": "copy",
+    "baseLines": [],
+    "anchors": [
+      "top",
+      "bottom"
+    ],
+    "easyLines": [],
+    "easyAnchors": [
+      "left",
+      "right"
+    ],
+    "largeLines": [
+      "bodyL",
+      "bodyR"
+    ],
+    "scale": 1,
+    "demoBaseLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

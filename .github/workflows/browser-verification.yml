@@ -15,7 +15,9 @@ concurrency:
 jobs:
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # The complete suite includes all authored drawing lessons in both engines.
+    # Keep every regression check while allowing the growing suite to finish.
+    timeout-minutes: 60
     env:
       CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
@@ -53,7 +55,7 @@ jobs:
       - name: Verify assistant home, advice and briefing in both browsers
         run: npx playwright test tests/e2e/free-advice.spec.ts tests/e2e/roadmap-completion.spec.ts tests/e2e/p2.spec.ts tests/e2e/assistant-budget-commands.spec.ts tests/e2e/chatgpt-connection.spec.ts --project=chromium --project=webkit-small --grep 'free advice|unified chat|empty records stay explicit|morning and evening briefing|AI Yeoni shows a seven-day|budget command reviews one original|ChatGPT advice is isolated by owner'
       - name: Repeat the previously failing WebKit flows
-        run: npx playwright test tests/e2e/p2.spec.ts tests/e2e/workout-times.spec.ts tests/e2e/budget-improvements.spec.ts --project=webkit-small --grep 'growth pattern loading failure|actual workout times review, save, revise, compare and delete|lost field response reuses one request' --repeat-each=3
+        run: npx playwright test tests/e2e/p2.spec.ts tests/e2e/workout-times.spec.ts tests/e2e/budget-improvements.spec.ts tests/e2e/drawing.spec.ts tests/e2e/roadmap-completion.spec.ts --project=webkit-small --grep 'growth pattern loading failure|actual workout times review, save, revise, compare and delete|lost field response reuses one request|drawing D14:|workout evidence links only saved dates' --repeat-each=3
       - name: Actual browser flows and HTTP body assertions
         run: npx playwright test
       - name: Remove disposable database and keys
@@ -64,7 +66,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: browser-verification-${{ github.event.pull_request.head.sha || github.sha }}
-          path: .e2e/evidence/*.json
+          path: |
+            .e2e/evidence/*.json
+            .e2e/evidence/drawing-stage3-*.png
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
