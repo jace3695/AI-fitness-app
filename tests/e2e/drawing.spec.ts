@@ -274,3 +274,95 @@ test('drawing D27: revise a copy of a saved drawing, restore the original refere
   const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').neq('id',original.id).single()).data!;
   expect(saved.document.strokes).toHaveLength(2);expect(saved.document.correctionSource.attemptId).toBe(original.id);
 });
+
+for (const authored of pack.lessons.slice(28,34)) {
+  test(`drawing ${authored.id}: memory hides answers, peek, both examples, saved phase and comparison`, async ({page,qa},testInfo) => {
+    await login(page,qa.account);await synced(page);const before=await qa.read();
+    await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+    await page.locator('#drawing-map summary').nth(3).click();
+    await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+    const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
+    const next=page.getByRole('button',{name:'다음 행동',exact:true});
+    for(const [variant,ex] of authored.examples.entries()) {
+      if(variant)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+      if(authored.id==='D33')await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toBeVisible();
+      const features=practice.getByRole('group',{name:'기억할 특징 두 개',exact:true}).getByRole('button');
+      await features.nth(0).click();await features.nth(1).click();
+      await next.click();await next.click();
+      await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      await expect(practice.locator('svg')).toHaveCount(0);
+      await expect(page.getByRole('button',{name:'원본 다시 보기',exact:true})).toHaveCount(0);
+      await practice.getByRole('button',{name:'잠깐 원본 확인',exact:true}).click();
+      await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toBeVisible();
+      await practice.getByRole('button',{name:'다시 가리고 이어 그리기',exact:true}).click();
+      await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      await practice.getByLabel('기억나는 특징 · 말해도 괜찮아요',{exact:true}).fill('큰 모양과 점 눈을 기억했어요.');
+      const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;
+      await page.mouse.move(b.x+b.width*.5,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.6,{steps:5});await page.mouse.up();
+      await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+      await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.document.example.id===ex.id && r.document.step===2 && r.document.memory?.recalled==='큰 모양과 점 눈을 기억했어요.');}).toBe(true);
+      const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;
+      const saved=rows.find(r=>r.document.example.id===ex.id)!;expect(saved.document.step).toBe(2);expect(saved.document.memory.peeking).toBe(false);expect(saved.document.memory.peeks).toBe(1);expect(saved.document.strokes).toHaveLength(1);
+      await page.reload();await page.getByRole('button',{name:`내 그림 ${variant+1}장`,exact:true}).click();
+      await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+      await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      await expect(practice).toBeVisible();
+      await expect(practice.getByLabel('기억나는 특징 · 말해도 괜찮아요',{exact:true})).toHaveValue('큰 모양과 점 눈을 기억했어요.');
+      await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
+      await expect(practice.getByTestId('memory-hint').locator('path')).toHaveCount(authored.memoryPractice!.hintLines.length);
+      if(authored.id==='D32') {
+        await practice.getByRole('button',{name:'원본 보며 모작으로 마치기',exact:true}).click();
+        await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toBeVisible();
+        await practice.getByRole('button',{name:'다시 기억 연습하기',exact:true}).click();
+        await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      }
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');
+      await expect(practice).toContainText('원본을 다른 종이로 덮고');
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+      if(!variant&&['D29','D30','D33'].includes(authored.id))await practice.screenshot({path:`.e2e/evidence/drawing-stage4-${authored.id}-recall-${testInfo.project.name}.png`});
+      await next.click();await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toBeVisible();
+      await practice.getByLabel('다시 보고 보완할 한 곳',{exact:true}).fill('한 부분의 위치를 다시 보고 보완했어요.');await next.click();
+      const downloaded=page.waitForEvent('download');await practice.getByRole('button',{name:'관찰용 원본 내려받기',exact:true}).click();
+      expect(readFileSync((await (await downloaded).path())!,'utf8')).toContain(ex.lines[0].d);
+      await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',saved.id).single();return q.data?.status;}).toBe('completed');
+      const final=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',saved.id).single()).data!;
+      expect(final.document.memory.compared).toBe('한 부분의 위치를 다시 보고 보완했어요.');expect(final.document.memory.selected).toHaveLength(2);expect(final.document.strokes).toHaveLength(1);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    expect(await qa.read()).toEqual(before);
+  });
+}
+
+test('drawing D33 D34: previous memory source remains untouched and reference snapshot survives deletion',async({page,qa})=>{
+  await login(page,qa.account);await synced(page);const before=await qa.read();await page.goto('/growth/drawing');
+  await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+  await page.locator('#drawing-map summary').nth(3).click();
+  await page.getByRole('button',{name:`D31 · ${pack.lessons[30].title}`,exact:true}).click();
+  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+  const original=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+  for(const n of [33,34]) {
+    await page.getByRole('button',{name:`D${n} · ${pack.lessons[n-1].title}`,exact:true}).click();
+    const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
+    await practice.getByLabel('이전 기억 그림',{exact:true}).selectOption(original.id);await practice.getByRole('button',{name:'이 캐릭터로 기억 연습',exact:true}).click();
+    if(n===33)await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+    else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
+    await expect(practice.getByRole('button',{name:'위로 긴 귀',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+    await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.length;}).toBe(n===33?2:3);
+    const source=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data;
+    expect(source).toEqual(original);
+  }
+  await qa.account.client.from('growth_drawing_attempts').delete().eq('id',original.id);
+  await page.reload();await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();
+  await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D33'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+  const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
+  await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+  await practice.getByRole('button',{name:'잠깐 원본 확인',exact:true}).click();
+  await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
+  expect(await qa.read()).toEqual(before);
+});

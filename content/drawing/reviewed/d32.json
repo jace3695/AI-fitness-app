@@ -1,0 +1,231 @@
+{
+  "id": "D32",
+  "examples": [
+    {
+      "id": "D32-memory-1-v1",
+      "name": "새로운 콩 친구",
+      "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "outer",
+          "label": "배 쪽 바깥 선",
+          "d": "M195 100 C279 77 326 122 318 196 C312 270 254 309 184 300",
+          "start": [
+            195,
+            100
+          ],
+          "direction": [
+            223,
+            94
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "inner",
+          "label": "허리 쪽 안으로 휘는 선",
+          "d": "M184 300 C110 292 84 244 110 210 C134 183 139 163 126 145 C113 125 148 100 195 100",
+          "start": [
+            184,
+            300
+          ],
+          "direction": [
+            156,
+            293
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M165 191 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            170,
+            191
+          ],
+          "direction": [
+            170,
+            191
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M225 191 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            230,
+            191
+          ],
+          "direction": [
+            230,
+            191
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M193 214 Q200 220 207 214",
+          "start": [
+            193,
+            214
+          ],
+          "direction": [
+            200,
+            220
+          ],
+          "group": "detail"
+        }
+      ]
+    },
+    {
+      "id": "D32-memory-2-v1",
+      "name": "통통한 콩 친구",
+      "source": "첨부 학습 문서의 목표에 맞춰 제작한 연이 단계 시범. 원본 템플릿 파일이 아니에요. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "outer",
+          "label": "배 쪽 바깥 선",
+          "d": "M195 100 C286 78 338 148 319 225 C304 285 245 314 180 302",
+          "start": [
+            195,
+            100
+          ],
+          "direction": [
+            223,
+            94
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "inner",
+          "label": "허리 쪽 안으로 휘는 선",
+          "d": "M180 302 C114 290 76 239 100 205 C124 180 138 163 127 144 C115 121 154 100 195 100",
+          "start": [
+            180,
+            302
+          ],
+          "direction": [
+            152,
+            295
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M165 191 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            170,
+            191
+          ],
+          "direction": [
+            170,
+            191
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M225 191 a5 5 0 1 0 10 0 a5 5 0 1 0 -10 0",
+          "start": [
+            230,
+            191
+          ],
+          "direction": [
+            230,
+            191
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "짧은 입",
+          "d": "M193 214 Q200 220 207 214",
+          "start": [
+            193,
+            214
+          ],
+          "direction": [
+            200,
+            220
+          ],
+          "group": "detail"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "콩 캐릭터의 휜 몸과 점 눈·짧은 입을 봐요. 기억할 특징 두 개를 골라요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "observe"
+    },
+    {
+      "text": "원본을 가렸어요. 떠오르는 특징부터 말하거나 적어요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "기억나는 데까지 그려요. 막힌 부분을 정한 뒤 ‘잠깐 원본 확인’을 눌러 보고 다시 가려 이어 그려요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "원본을 다시 열고 무엇을 다시 봤는지 적어요. 다시 확인한 것은 실패가 아니에요.",
+      "lines": [],
+      "action": "compare",
+      "memoryPhase": "compare"
+    },
+    {
+      "text": "다시 본 부분 하나만 보완해요. 어렵다면 원본을 옆에 두고 모작으로 마쳐도 돼요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "compare"
+    }
+  ],
+  "help": 0,
+  "memoryPractice": {
+    "features": [
+      {
+        "id": "body",
+        "label": "콩처럼 휜 몸",
+        "lines": [
+          "outer",
+          "inner"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "점 눈 두 개",
+        "lines": [
+          "eyeL",
+          "eyeR"
+        ]
+      },
+      {
+        "id": "mouth",
+        "label": "짧은 입",
+        "lines": [
+          "mouth"
+        ]
+      }
+    ],
+    "hint": "copy",
+    "hintLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

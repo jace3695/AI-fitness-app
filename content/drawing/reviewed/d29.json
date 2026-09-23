@@ -1,0 +1,344 @@
+{
+  "id": "D29",
+  "examples": [
+    {
+      "id": "D29-memory-1-v1",
+      "name": "첫 병아리 · 보내주신 그림 기준",
+      "source": "사용자가 제공한 병아리 스크린샷을 기준으로 비율·부위 위치·날개 방향을 맞춘 수업용 좌표 도해. 원본 이미지와 완전히 동일한 파일은 아님. 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "bodyL",
+          "label": "몸 왼쪽",
+          "d": "M 200 65 C 132 65 76 142 76 220 C 76 294 109 317 200 317",
+          "start": [
+            200,
+            65
+          ],
+          "direction": [
+            179,
+            67
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bodyR",
+          "label": "몸 오른쪽",
+          "d": "M 200 65 C 268 65 324 142 324 220 C 324 294 291 317 200 317",
+          "start": [
+            200,
+            65
+          ],
+          "direction": [
+            221,
+            67
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+          "start": [
+            156,
+            152
+          ],
+          "direction": [
+            156,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+          "start": [
+            244,
+            152
+          ],
+          "direction": [
+            244,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "세모 부리",
+          "d": "M 190 164 L 210 164 L 200 180 Z",
+          "start": [
+            190,
+            164
+          ],
+          "direction": [
+            203,
+            164
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingL",
+          "label": "왼쪽 날개",
+          "d": "M 98 212 C 86 225 87 241 105 246",
+          "start": [
+            98,
+            212
+          ],
+          "direction": [
+            93,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingR",
+          "label": "오른쪽 날개",
+          "d": "M 302 212 C 314 225 313 241 295 246",
+          "start": [
+            302,
+            212
+          ],
+          "direction": [
+            307,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legL",
+          "label": "왼쪽 다리",
+          "d": "M 162 315 L 162 339",
+          "start": [
+            162,
+            315
+          ],
+          "direction": [
+            162,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legR",
+          "label": "오른쪽 다리",
+          "d": "M 238 315 L 238 339",
+          "start": [
+            238,
+            315
+          ],
+          "direction": [
+            238,
+            332
+          ],
+          "group": "detail"
+        }
+      ]
+    },
+    {
+      "id": "D29-memory-2-v1",
+      "name": "첫 병아리 · 더 둥근 친구",
+      "source": "사용자 병아리의 특징을 유지한 자체 제작 대체 도해 · 둥근 몸의 시작과 방향을 익히는 같은 목표 기존 검수 도해를 기억·비교 연습에 재사용. 기억 단계에는 도해를 숨김.",
+      "lines": [
+        {
+          "id": "bodyL",
+          "label": "몸 왼쪽",
+          "d": "M 200 74 C 122 74 69 153 74 228 C 78 294 119 317 200 317",
+          "start": [
+            200,
+            74
+          ],
+          "direction": [
+            177,
+            77
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "bodyR",
+          "label": "몸 오른쪽",
+          "d": "M 200 74 C 278 74 331 153 326 228 C 322 294 281 317 200 317",
+          "start": [
+            200,
+            74
+          ],
+          "direction": [
+            223,
+            77
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "왼쪽 눈",
+          "d": "M 149.5 152 A 6.5 6.5 0 1 0 162.5 152 A 6.5 6.5 0 1 0 149.5 152",
+          "start": [
+            156,
+            152
+          ],
+          "direction": [
+            156,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "오른쪽 눈",
+          "d": "M 237.5 152 A 6.5 6.5 0 1 0 250.5 152 A 6.5 6.5 0 1 0 237.5 152",
+          "start": [
+            244,
+            152
+          ],
+          "direction": [
+            244,
+            152
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "세모 부리",
+          "d": "M 190 164 L 210 164 L 200 180 Z",
+          "start": [
+            190,
+            164
+          ],
+          "direction": [
+            203,
+            164
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingL",
+          "label": "왼쪽 날개",
+          "d": "M 98 212 C 86 225 87 241 105 246",
+          "start": [
+            98,
+            212
+          ],
+          "direction": [
+            93,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "wingR",
+          "label": "오른쪽 날개",
+          "d": "M 302 212 C 314 225 313 241 295 246",
+          "start": [
+            302,
+            212
+          ],
+          "direction": [
+            307,
+            219
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legL",
+          "label": "왼쪽 다리",
+          "d": "M 162 315 L 162 339",
+          "start": [
+            162,
+            315
+          ],
+          "direction": [
+            162,
+            332
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "legR",
+          "label": "오른쪽 다리",
+          "d": "M 238 315 L 238 339",
+          "start": [
+            238,
+            315
+          ],
+          "direction": [
+            238,
+            332
+          ],
+          "group": "detail"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "원본에서 큰 모양과 작은 특징을 살펴요. 기억할 특징 두 개를 눌러 골라요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "observe"
+    },
+    {
+      "text": "원본을 가렸어요. 기억나는 특징을 말하거나 아래에 적어요. 정확한 말이 아니어도 괜찮아요.",
+      "lines": [],
+      "action": "look",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "빈 연습장에 큰 모양부터 그리고 고른 특징을 넣어요. 막히면 다시 확인해도 돼요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "recall"
+    },
+    {
+      "text": "원본을 다시 열었어요. 내가 기억한 부분과 다시 본 부분을 구별해 한 곳만 비교해요.",
+      "lines": [],
+      "action": "compare",
+      "memoryPhase": "compare"
+    },
+    {
+      "text": "고치고 싶은 한 곳만 보완해요. 다르게 그린 부분을 모두 지우지 않아도 돼요.",
+      "lines": [],
+      "action": "draw",
+      "memoryPhase": "compare"
+    }
+  ],
+  "help": 0,
+  "memoryPractice": {
+    "features": [
+      {
+        "id": "body",
+        "label": "달걀 모양 몸",
+        "lines": [
+          "bodyL",
+          "bodyR"
+        ]
+      },
+      {
+        "id": "eyes",
+        "label": "점 눈 두 개",
+        "lines": [
+          "eyeL",
+          "eyeR"
+        ]
+      },
+      {
+        "id": "legs",
+        "label": "아래쪽 짧은 다리",
+        "lines": [
+          "legL",
+          "legR"
+        ]
+      }
+    ],
+    "hint": "words",
+    "hintLines": []
+  },
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}
