@@ -1,0 +1,436 @@
+{
+  "id": "D40",
+  "examples": [
+    {
+      "id": "D40-variation-1-v1",
+      "name": "둥근 곰 인형",
+      "source": "D21의 둥근 얼굴·작은 귀 관계에서 확장한 연이 자체 제작 곰 인형 시범. 원본과 한 요소만 바꾼 비교 시범을 별도로 구성.",
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M200 212 C124.19 212 124.19 342 200 342 C275.81 342 275.81 212 200 212",
+          "start": [
+            200,
+            212
+          ],
+          "direction": [
+            180,
+            212
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armL",
+          "label": "armL",
+          "d": "M149 244 C112 246 109 279 129 286 C143 290 157 265 149 244",
+          "start": [
+            149,
+            244
+          ],
+          "direction": [
+            130,
+            248
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armR",
+          "label": "armR",
+          "d": "M251 244 C288 246 291 279 271 286 C257 290 243 265 251 244",
+          "start": [
+            251,
+            244
+          ],
+          "direction": [
+            270,
+            248
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M166 325 C143 350 163 365 183 347",
+          "start": [
+            166,
+            325
+          ],
+          "direction": [
+            154,
+            340
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M234 325 C257 350 237 365 217 347",
+          "start": [
+            234,
+            325
+          ],
+          "direction": [
+            246,
+            340
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M142.4 127.975 C96 92 134 58 168 101.306",
+          "start": [
+            142.4,
+            127.975
+          ],
+          "direction": [
+            123,
+            106
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M257.6 127.975 C304 92 266 58 232 101.306",
+          "start": [
+            257.6,
+            127.975
+          ],
+          "direction": [
+            277,
+            106
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M200 93 C114.88 93 114.88 217 200 217 C285.12 217 285.12 93 200 93",
+          "start": [
+            200,
+            93
+          ],
+          "direction": [
+            180,
+            93
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M173 150 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0",
+          "start": [
+            177,
+            150
+          ],
+          "direction": [
+            177,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M219 150 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0",
+          "start": [
+            223,
+            150
+          ],
+          "direction": [
+            223,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M188 177 Q200 185 212 177",
+          "start": [
+            188,
+            177
+          ],
+          "direction": [
+            199,
+            181
+          ],
+          "group": "detail"
+        }
+      ],
+      "variations": [
+        {
+          "id": "arm",
+          "label": "팔 방향",
+          "changed": "오른쪽 팔 끝의 방향",
+          "kept": "팔이 붙는 점과 머리·몸·반대 팔",
+          "remove": [
+            "armR"
+          ],
+          "lines": [
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M251 244 C250 218 269 189 283 201 C303 216 274 245 251 244",
+              "start": [
+                251,
+                244
+              ],
+              "direction": [
+                255,
+                225
+              ],
+              "group": "shape"
+            }
+          ],
+          "instruction": "몸 오른쪽의 같은 점에서 위로 올려요. 위쪽 팔 끝을 둥글려 다시 붙는 점으로 돌아와요. 반대 팔은 그대로예요.",
+          "anchors": [
+            [
+              251,
+              244
+            ]
+          ],
+          "easy": "kept"
+        }
+      ]
+    },
+    {
+      "id": "D40-variation-2-v1",
+      "name": "넓은 얼굴 곰 인형",
+      "source": "D21의 둥근 얼굴·작은 귀 관계에서 확장한 연이 자체 제작 곰 인형 시범. 원본과 한 요소만 바꾼 비교 시범을 별도로 구성.",
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M200 212 C124.19 212 124.19 342 200 342 C275.81 342 275.81 212 200 212",
+          "start": [
+            200,
+            212
+          ],
+          "direction": [
+            180,
+            212
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armL",
+          "label": "armL",
+          "d": "M149 244 C112 246 109 279 129 286 C143 290 157 265 149 244",
+          "start": [
+            149,
+            244
+          ],
+          "direction": [
+            130,
+            248
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armR",
+          "label": "armR",
+          "d": "M251 244 C288 246 291 279 271 286 C257 290 243 265 251 244",
+          "start": [
+            251,
+            244
+          ],
+          "direction": [
+            270,
+            248
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M166 325 C143 350 163 365 183 347",
+          "start": [
+            166,
+            325
+          ],
+          "direction": [
+            154,
+            340
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M234 325 C257 350 237 365 217 347",
+          "start": [
+            234,
+            325
+          ],
+          "direction": [
+            246,
+            340
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M135.2 127.975 C88 92 126 58 164 101.306",
+          "start": [
+            135.2,
+            127.975
+          ],
+          "direction": [
+            115,
+            106
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M264.8 127.975 C312 92 274 58 236 101.306",
+          "start": [
+            264.8,
+            127.975
+          ],
+          "direction": [
+            285,
+            106
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M200 93 C104.24 93 104.24 217 200 217 C295.76 217 295.76 93 200 93",
+          "start": [
+            200,
+            93
+          ],
+          "direction": [
+            180,
+            93
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M173 150 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0",
+          "start": [
+            177,
+            150
+          ],
+          "direction": [
+            177,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M219 150 a4 4 0 1 0 8 0 a4 4 0 1 0 -8 0",
+          "start": [
+            223,
+            150
+          ],
+          "direction": [
+            223,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M188 177 Q200 185 212 177",
+          "start": [
+            188,
+            177
+          ],
+          "direction": [
+            199,
+            181
+          ],
+          "group": "detail"
+        }
+      ],
+      "variations": [
+        {
+          "id": "arm",
+          "label": "팔 방향",
+          "changed": "오른쪽 팔 끝의 방향",
+          "kept": "팔이 붙는 점과 머리·몸·반대 팔",
+          "remove": [
+            "armR"
+          ],
+          "lines": [
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M251 244 C250 218 269 189 283 201 C303 216 274 245 251 244",
+              "start": [
+                251,
+                244
+              ],
+              "direction": [
+                255,
+                225
+              ],
+              "group": "shape"
+            }
+          ],
+          "instruction": "몸 오른쪽의 같은 점에서 위로 올려요. 위쪽 팔 끝을 둥글려 다시 붙는 점으로 돌아와요. 반대 팔은 그대로예요.",
+          "anchors": [
+            [
+              251,
+              244
+            ]
+          ],
+          "easy": "kept"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "기본 그림과 바꾼 예제를 나란히 봐요. 오늘 바꿀 한 가지와 그대로 둘 특징을 확인해요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "그대로 둘 부분의 자리를 먼저 잡아요. 바꿀 부분은 빈자리로 남겨요. 큰 외곽을 바꾼다면 얼굴 위치는 참고만 해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "바꿀 부분이 시작하는 주황 점을 짚어요. 아래의 한 가지 변형 설명을 따라 방향을 정해요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "빈자리에 바꿀 부분을 넣어요. 보라색 시범은 이번에 바꾸는 선이에요. 나머지는 그대로 두어요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "기본 그림과 내 그림을 비교해요. 바꾼 것 하나와 유지한 것 하나를 직접 확인하고 저장해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "help": 0,
+  "variationPractice": true,
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

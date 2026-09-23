@@ -11,6 +11,10 @@ export const lineSchema = z.object({
 export const exampleSchema = z.object({
   id, name: text, source: text, lines: z.array(lineSchema).min(1).max(60),
   parts: z.array(z.object({ id, label: text, point, radius: z.number().min(10).max(80) })).max(12).optional(),
+  variations: z.array(z.object({ id, label: text, changed: text, kept: text, instruction: text,
+    remove: z.array(id).min(1).max(12), lines: z.array(lineSchema).min(1).max(12),
+    anchors: z.array(point).max(8), easy: z.enum(['kept', 'anchors', 'trace']),
+  })).min(1).max(5).optional(),
 });
 const memoryPracticeSchema = z.object({
   features: z.array(z.object({ id, label: text, lines: z.array(id).min(1).max(12) })).min(2).max(4),
@@ -29,6 +33,7 @@ export const lessonSchema = z.object({
     demoBaseLines: z.array(id).max(12), scale: z.number().min(.4).max(1),
   }).optional(),
   memoryPractice: memoryPracticeSchema.optional(),
+  variationPractice: z.literal(true).optional(),
   references: z.array(id).max(12),
   easyLines: z.array(id).max(12).optional(),
   readiness: z.object({ manuscript: z.boolean(), examples: z.boolean(), visualMatch: z.boolean(), browser: z.boolean() }),
@@ -53,6 +58,13 @@ export const packSchema = z.object({
     if (lesson.readiness.examples && (!lesson.examples.length || !lesson.steps.length)) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시각 자료 누락` });
     if (lesson.readiness.visualMatch && !lesson.readiness.examples) ctx.addIssue({ code: "custom", message: "검수 상태 오류" });
     for (const ex of lesson.examples) {
+      if (lesson.variationPractice && (lesson.stage !== 5 || !ex.variations?.length)) ctx.addIssue({ code: 'custom', message: '변형 예제 누락' });
+      if (ex.variations) {
+        if (!lesson.variationPractice || new Set(ex.variations.map(v => v.id)).size !== ex.variations.length) ctx.addIssue({ code: 'custom', message: '변형 선택 오류' });
+        for (const v of ex.variations) {
+          if (v.remove.some(key => !ex.lines.some(l => l.id === key)) || new Set(v.remove).size !== v.remove.length || new Set(v.lines.map(l => l.id)).size !== v.lines.length || v.lines.some(l => !v.remove.includes(l.id))) ctx.addIssue({ code: 'custom', message: '변형 선 연결 오류' });
+        }
+      }
       if (new Set(ex.lines.map(l => l.id)).size !== ex.lines.length) ctx.addIssue({ code: "custom", message: "선 ID 중복" });
       if (lesson.steps.some(s => s.lines.some(key => !ex.lines.some(l => l.id === key)))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시범 선 누락` });
       if (lesson.easyLines?.some(key => !ex.lines.some(l => l.id === key))) ctx.addIssue({ code: "custom", message: `${lesson.id}: 쉬운 과제 선 누락` });
@@ -86,6 +98,7 @@ export type DrawingDocument = {
   comparison?: { focus: "width" | "ears" | "eyes" | "space"; reason: string };
   memory?: { selected: string[]; peeking: boolean; peeks: number; copyMode: boolean; recalled: string; compared: string;
     source?: { attemptId: string; revision: number; lessonId: string } };
+  variation?: { choice: string; changedChecked: boolean; keptChecked: boolean; note: string };
   character: { name: string; role: string; personality: string; features: string; improvement: string };
 };
 export type Attempt = {
@@ -111,7 +124,9 @@ const documentSchema = z.object({
     source: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.string().regex(/^D(29|3[0-2])$/) }).optional(),
   }).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
+  variation: z.object({ choice: id, changedChecked: z.boolean(), keptChecked: z.boolean(), note: z.string().max(500) }).optional(),
 }).superRefine((doc, ctx) => {
+  if (doc.variation && (!doc.lesson.variationPractice || !doc.example.variations?.some(v => v.id === doc.variation!.choice))) ctx.addIssue({ code: 'custom', message: '변형 선택 연결 오류' });
   if (doc.step >= doc.lesson.steps.length || !doc.lesson.examples.some(e => e.id === doc.example.id)) ctx.addIssue({ code: "custom", message: "그림의 수업 연결이 올바르지 않아요." });
   if (doc.memory && (!doc.lesson.memoryPractice || doc.memory.selected.some(key => !doc.lesson.memoryPractice?.features.some(f => f.id === key)) || new Set(doc.memory.selected).size !== doc.memory.selected.length)) ctx.addIssue({ code: "custom", message: "기억 연습 연결 오류" });
   if (doc.memory?.source && (!['D33','D34'].includes(doc.lesson.id) || !doc.references.includes(doc.memory.source.attemptId))) ctx.addIssue({ code: "custom", message: "이전 기억 그림 연결 오류" });
