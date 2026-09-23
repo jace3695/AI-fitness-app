@@ -406,6 +406,7 @@ for (const authored of parsePack(pack).lessons.slice(34,42)) {
       await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('빈자리에 나머지를 유지하며');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await expect(practice).toContainText('새 레이어');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
       await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
       await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.document.example.id===ex.id&&r.status==='completed'&&r.document.variation?.keptChecked);}).toBe(true);
+      await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
       const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;expect(rows).toHaveLength(i+1);const saved=rows.find(r=>r.document.example.id===ex.id)!;
       expect(saved.document.example).toEqual(ex);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.variation.choice).toBe(choice.id);expect(saved.document.short).toBe(true);
       await page.reload();await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
