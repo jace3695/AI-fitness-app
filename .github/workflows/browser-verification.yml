@@ -15,7 +15,9 @@ concurrency:
 jobs:
   browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # The complete suite includes all authored drawing lessons in both engines.
+    # Keep every regression check while allowing the growing suite to finish.
+    timeout-minutes: 60
     env:
       CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
