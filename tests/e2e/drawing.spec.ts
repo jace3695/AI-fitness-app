@@ -47,6 +47,8 @@ for (const authored of pack.lessons.slice(1,8)) {
   test(`drawing ${authored.id}: both examples, every action, paper reference and saved continuation`, async ({page,qa}) => {
     await login(page,qa.account); await synced(page); const before=await qa.read();
     await page.setViewportSize({width:390,height:844}); await page.goto('/growth/drawing');
+    // Wait for account data and React readiness before toggling native details.
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
     await page.locator('#drawing-map summary').first().click();
     await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
     const task=page.getByRole('region',{name:'현재 과제'}), lesson=page.getByRole('region',{name:'한 동작씩 보기'});
@@ -114,6 +116,8 @@ for (const authored of pack.lessons.slice(8,16)) {
   test(`drawing ${authored.id}: construction overlay, easier guides, both variants and saved part evidence`, async ({page,qa}) => {
     await login(page,qa.account);await synced(page);const before=await qa.read();
     await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+    // Wait for account data and React readiness before toggling native details.
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
     await page.locator('#drawing-map summary').nth(1).click();
     await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
     const lesson=page.getByRole('region',{name:'한 동작씩 보기'});
@@ -193,6 +197,8 @@ for (const authored of pack.lessons.slice(16,28)) {
   test(`drawing ${authored.id}: copy scaffolds, both examples, print, save and continuation`, async ({page,qa},testInfo) => {
     await login(page,qa.account);await synced(page);const before=await qa.read();
     await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+    // Wait for account data and React readiness before toggling native details.
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
     await page.locator('#drawing-map summary').nth(2).click();
     await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
     const practice=page.getByRole('region',{name:'원본 보며 모작하기'});
@@ -242,6 +248,7 @@ for (const authored of pack.lessons.slice(16,28)) {
 
 test('drawing D27: revise a copy of a saved drawing, restore the original reference and preserve the original',async({page,qa})=>{
   await login(page,qa.account);await synced(page);await page.goto('/growth/drawing');
+  await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
   await page.locator('#drawing-map summary').nth(2).click();
   const l=pack.lessons[19];await page.getByRole('button',{name:`D20 · ${l.title}`,exact:true}).click();
   let canvas=page.getByRole('region',{name:'원본 보며 모작하기'}).getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();let b=(await canvas.boundingBox())!;
