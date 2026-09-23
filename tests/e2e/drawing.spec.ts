@@ -2,6 +2,7 @@ import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
+import { parsePack } from '../../lib/drawing/model';
 
 test('drawing: first dot, ink undo, lost save reply, reload, private CAS and preserved older records', async ({page,qa}) => {
   await login(page,qa.account); await synced(page); const before=await qa.read();
@@ -366,3 +367,52 @@ test('drawing D33 D34: previous memory source remains untouched and reference sn
   await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
   expect(await qa.read()).toEqual(before);
 });
+
+for (const authored of parsePack(pack).lessons.slice(34,42)) {
+  test(`drawing ${authored.id}: one change preserves baseline, choices, ink, comparison and reload`,async({page,qa},testInfo)=>{
+    if(authored.id==='D42')test.setTimeout(150_000);
+    await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});
+    await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+    await page.locator('#drawing-map summary').nth(4).click();await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+    const practice=page.getByRole('region',{name:'한 부분만 바꾸기'});const next=page.getByRole('button',{name:'다음 행동',exact:true});
+    for(const [i,ex] of authored.examples.entries()) {
+      if(i) {
+        if(authored.id==='D42')await page.getByLabel('익숙한 캐릭터 선택',{exact:true}).selectOption(ex.id);
+        else await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+      }
+      await expect(practice.getByLabel('기본과 변형 비교',{exact:true})).toContainText(ex.name);
+      await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+      for(const choice of ex.variations!) {
+        await practice.getByRole('button',{name:choice.label,exact:true}).click();
+        await expect(practice.getByRole('button',{name:choice.label,exact:true})).toHaveAttribute('aria-pressed','true');
+        const pair=practice.getByLabel('기본과 변형 비교',{exact:true});const original=pair.locator('svg').nth(0),changed=pair.locator('svg').nth(1);
+        const beforePaths=await original.locator('g > path').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('d')));
+        const afterPaths=await changed.locator('g > path').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('d')));
+        expect(beforePaths).toEqual(ex.lines.filter(l=>!['guide','gesture'].includes(l.group)).map(l=>l.d));
+        expect(afterPaths).toEqual([...ex.lines.filter(l=>!choice.remove.includes(l.id)),...choice.lines].map(l=>l.d));
+      }
+      const choice=ex.variations!.at(-1)!;
+      await practice.getByText('한 부분 바꾸는 시범 보기',{exact:true}).click();
+      for(let s=1;s<authored.steps.length;s++){await next.click();if(s===1)await expect(practice.getByTestId('variation-demo').locator('path')).toHaveCount(ex.lines.length-choice.remove.length);}
+      await practice.getByLabel('바꾼 부분 확인',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+      await practice.getByLabel('유지한 부분 확인',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();
+      const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const box=(await canvas.boundingBox())!;
+      await page.mouse.move(box.x+box.width*.5,box.y+box.height*.25);await page.mouse.down();await page.mouse.move(box.x+box.width*.35,box.y+box.height*.55,{steps:5});await page.mouse.up();
+      await practice.getByLabel('내가 바꾼 한 가지',{exact:true}).fill(`${ex.id}: ${choice.changed}`);
+      await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();await expect(practice.getByLabel('기본과 변형 비교',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();
+      const download=page.waitForEvent('download');await practice.getByRole('button',{name:'변형 예제 내려받기',exact:true}).click();const svg=readFileSync((await (await download).path())!,'utf8');expect(svg).toContain(choice.lines[0].d);
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();await expect(practice.getByTestId('variation-easy')).toBeVisible();
+      if(!i&&['D35','D40','D42'].includes(authored.id))await practice.screenshot({path:`.e2e/evidence/drawing-stage5-${authored.id}-${testInfo.project.name}.png`});
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('빈자리에 나머지를 유지하며');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await expect(practice).toContainText('새 레이어');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+      await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.document.example.id===ex.id&&r.status==='completed'&&r.document.variation?.keptChecked);}).toBe(true);
+      const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;expect(rows).toHaveLength(i+1);const saved=rows.find(r=>r.document.example.id===ex.id)!;
+      expect(saved.document.example).toEqual(ex);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.variation.choice).toBe(choice.id);expect(saved.document.short).toBe(true);
+      await page.reload();await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+      await expect(practice.getByLabel('내가 바꾼 한 가지',{exact:true})).toHaveValue(`${ex.id}: ${choice.changed}`);await expect(practice.getByLabel('바꾼 부분 확인',{exact:true})).toBeChecked();await expect(practice.getByLabel('유지한 부분 확인',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      if(ex.variations!.length>1){page.once('dialog',d=>d.accept());await practice.getByRole('button',{name:ex.variations![0].label,exact:true}).click();await expect(practice.getByLabel('바꾼 부분 확인',{exact:true})).not.toBeChecked();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',saved.id).single()).data).toEqual(saved);}
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    expect(await qa.read()).toEqual(before);
+  });
+}
