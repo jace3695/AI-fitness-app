@@ -12,6 +12,10 @@ test('all variation targets change only declared lines and preserve baseline and
     const a=attempt(Number(l.id.slice(1)));a.document=newDocument(l,e,pack.version);
     const before=structuredClone(a.document);a.document={...a.document,...chooseVariation(a.document,v.id)};
     const target=variationTarget(a.document);
+    for(const line of [...e.lines,...v.lines]) {
+      for(const n of [...line.start,...line.direction])assert.equal(n,Number(n.toFixed(3)));
+      if(line.fill!=='ink')assert.deepEqual(/^M\s*([\d.]+)[ ,]+([\d.]+)/.exec(line.d)?.slice(1).map(Number),line.start);
+    }
     assert.deepEqual(a.document.example,before.example);
     for(const line of e.lines.filter(x=>!v.remove.includes(x.id)))assert.deepEqual(target.lines.find(x=>x.id===line.id),line);
     for(const line of v.lines)assert.notEqual(line.d,e.lines.find(x=>x.id===line.id)?.d);

@@ -98,6 +98,11 @@ for n,fn,change in configs+[(42,None,None)]:
         e=fn(i) if fn else (bean(0) if i==0 else rabbit(0) if i==1 else bear(0))
         e['id']=f'D{n}-variation-{i+1}-v1';e['source']+=' 원본과 한 요소만 바꾼 비교 시범을 별도로 구성.'
         e['variations']=[change(e)] if change else ([mouth(e),eyes(e),body(e,True)] if i==0 else [mouth(e),eyes(e),ear(e)] if i==1 else [mouth(e),eyes(e),arm(e)])
+        # Canonical authored coordinates survive JSON/Postgres round-trips exactly.
+        for l in e['lines']+[l for v in e['variations'] for l in v['lines']]:
+            for key in ['start','direction']:l[key]=[round(x,3) for x in l[key]]
+            l['d']=re.sub(r'-?\d+(?:\.\d+)?',lambda m:f"{float(m[0]):.3f}".rstrip('0').rstrip('.'),l['d'])
+        for v in e['variations']:v['anchors']=[[round(x,3) for x in p] for p in v['anchors']]
         examples.append(e)
     steps=[dict(text=t,lines=[],action=a) for t,a in [
         ('기본 그림과 바꾼 예제를 나란히 봐요. 오늘 바꿀 한 가지와 그대로 둘 특징을 확인해요.','look'),
