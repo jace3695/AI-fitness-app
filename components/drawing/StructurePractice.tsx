@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import type { Attempt, DrawingDocument } from '@/lib/drawing/model';
-import { structureState, useAnalysis } from '@/lib/drawing/structure';
+import { structureState, copyAnalysis } from '@/lib/drawing/structure';
 import { exportExample } from '@/lib/drawing/export';
 import { Diagram } from './Diagram';
 import { DrawingCanvas } from './DrawingCanvas';
@@ -28,7 +28,7 @@ export default function StructurePractice({ attempt, records, original, easy, di
   const sourceOptions = records.filter(a=>a.user_id === attempt.user_id && a.document.lesson.id === 'D45' && a.document.tool === 'app' && a.document.strokes.length && a.revision > 0 && doc.lesson.examples.some(e=>e.id===a.document.example.id));
   return <div role="region" aria-label="스스로 도형화 연습" className="space-y-4">
     <p className="text-sm">먼저 내 눈으로 큰 덩어리를 찾아요. 색 선은 정답이 아니라 나누는 방법의 한 예예요. 원본의 세부보다 크기와 붙는 자리를 봐요.</p>
-    {doc.lesson.id === 'D46' && <label className="block text-sm">저장한 D45 분석 이어 쓰기<select aria-label="저장한 D45 분석" disabled={disabled} className="drawing-input mt-2 w-full" value={state.source?.attemptId ?? ''} onChange={e=>{const source=sourceOptions.find(a=>a.id===e.target.value);if(!source)return;if((state.analysis.length || doc.strokes.length)&&!window.confirm('분석 밑그림을 선택한 D45 그림으로 바꿀까요? 조립한 선과 저장된 원본은 남겨요.'))return;onChange(useAnalysis(doc,source));}}><option value="">선택 없이 제공 예제로 시작해도 돼요</option>{sourceOptions.map(a=><option key={a.id} value={a.id}>{a.document.example.name} · 저장 {a.revision}회</option>)}</select></label>}
+    {doc.lesson.id === 'D46' && <label className="block text-sm">저장한 D45 분석 이어 쓰기<select aria-label="저장한 D45 분석" disabled={disabled} className="drawing-input mt-2 w-full" value={state.source?.attemptId ?? ''} onChange={e=>{const source=sourceOptions.find(a=>a.id===e.target.value);if(!source)return;if((state.analysis.length || doc.strokes.length)&&!window.confirm('분석 밑그림을 선택한 D45 그림으로 바꿀까요? 조립한 선과 저장된 원본은 남겨요.'))return;onChange(copyAnalysis(doc,source));}}><option value="">선택 없이 제공 예제로 시작해도 돼요</option>{sourceOptions.map(a=><option key={a.id} value={a.id}>{a.document.example.name} · 저장 {a.revision}회</option>)}</select></label>}
     {dual && <div className="flex flex-wrap gap-2" aria-label="분석과 조립 연습장"><button className="drawing-button" disabled={disabled} aria-pressed={analysis} onClick={()=>patch({surface:'analysis'})}>원본 위에서 나누기</button><button className="drawing-button" disabled={disabled} aria-pressed={!analysis} onClick={()=>patch({surface:'assembly'})}>빈 공간에 다시 조립</button></div>}
     <p className="rounded-xl bg-violet-50 p-3 text-sm">{analysis ? '원본 위에 큰 도형을 직접 그려요. 겹친 선을 숨기면 원본과 비교할 수 있어요.' : '앞에서 분석한 그림을 옆에 두고, 빈 공간에 큰 덩어리부터 다시 놓아요.'}</p>
     {easy && st.choices.length > 0 && <fieldset disabled={disabled} className="rounded-xl border p-3"><legend>도형 후보 도움</legend><p className="text-sm">어느 쪽이 가까운지 골라 보고, 내 선으로 바꾸어도 돼요.</p><div className="mt-2 flex flex-wrap gap-2">{st.choices.map(c=><button className="drawing-button" key={c.id} aria-pressed={state.choice === c.id} onClick={()=>patch({choice:c.id,identified:false,compared:false})}>{c.label}</button>)}</div></fieldset>}
