@@ -1,0 +1,485 @@
+{
+  "id": "D49",
+  "examples": [
+    {
+      "id": "direction-1",
+      "name": "오른쪽을 보는 둥근 얼굴",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+          "start": [
+            104,
+            210
+          ],
+          "direction": [
+            104,
+            210
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "near-eye",
+          "label": "near-eye",
+          "d": "M202 196 A4 4 0 1 0 210 196 A4 4 0 1 0 202 196",
+          "start": [
+            202,
+            196
+          ],
+          "direction": [
+            202,
+            196
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "far-eye",
+          "label": "far-eye",
+          "d": "M260 196 A4 4 0 1 0 268 196 A4 4 0 1 0 260 196",
+          "start": [
+            260,
+            196
+          ],
+          "direction": [
+            260,
+            196
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+          "start": [
+            234,
+            222
+          ],
+          "direction": [
+            234,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M230 247 Q238 255 246 247",
+          "start": [
+            230,
+            247
+          ],
+          "direction": [
+            230,
+            247
+          ],
+          "group": "detail"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+            "start": [
+              104,
+              210
+            ],
+            "direction": [
+              104,
+              210
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "center",
+            "label": "center",
+            "d": "M200 102 Q276 210 200 318",
+            "start": [
+              200,
+              102
+            ],
+            "direction": [
+              200,
+              102
+            ],
+            "group": "guide"
+          },
+          {
+            "id": "nose",
+            "label": "nose",
+            "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+            "start": [
+              234,
+              222
+            ],
+            "direction": [
+              234,
+              222
+            ],
+            "group": "detail",
+            "fill": "ink"
+          }
+        ],
+        "easyLines": [
+          "head",
+          "center"
+        ],
+        "hidden": [],
+        "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+        "choices": [
+          {
+            "id": "front",
+            "label": "정면 안내선",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "front-center",
+                "label": "front-center",
+                "d": "M200 102 L200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              }
+            ]
+          },
+          {
+            "id": "turn",
+            "label": "돌아간 안내선",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q276 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "center"
+          ],
+          [
+            "head",
+            "center",
+            "nose"
+          ],
+          [
+            "head",
+            "center",
+            "nose"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "direction-2",
+      "name": "왼쪽을 보는 둥근 얼굴",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+          "start": [
+            104,
+            210
+          ],
+          "direction": [
+            104,
+            210
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "near-eye",
+          "label": "near-eye",
+          "d": "M190 196 A4 4 0 1 0 198 196 A4 4 0 1 0 190 196",
+          "start": [
+            190,
+            196
+          ],
+          "direction": [
+            190,
+            196
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "far-eye",
+          "label": "far-eye",
+          "d": "M132 196 A4 4 0 1 0 140 196 A4 4 0 1 0 132 196",
+          "start": [
+            132,
+            196
+          ],
+          "direction": [
+            132,
+            196
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+          "start": [
+            158,
+            222
+          ],
+          "direction": [
+            158,
+            222
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M154 247 Q162 255 170 247",
+          "start": [
+            154,
+            247
+          ],
+          "direction": [
+            154,
+            247
+          ],
+          "group": "detail"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+            "start": [
+              104,
+              210
+            ],
+            "direction": [
+              104,
+              210
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "center",
+            "label": "center",
+            "d": "M200 102 Q124 210 200 318",
+            "start": [
+              200,
+              102
+            ],
+            "direction": [
+              200,
+              102
+            ],
+            "group": "guide"
+          },
+          {
+            "id": "nose",
+            "label": "nose",
+            "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+            "start": [
+              158,
+              222
+            ],
+            "direction": [
+              158,
+              222
+            ],
+            "group": "detail",
+            "fill": "ink"
+          }
+        ],
+        "easyLines": [
+          "head",
+          "center"
+        ],
+        "hidden": [],
+        "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+        "choices": [
+          {
+            "id": "front",
+            "label": "정면 안내선",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "front-center",
+                "label": "front-center",
+                "d": "M200 102 L200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              }
+            ]
+          },
+          {
+            "id": "turn",
+            "label": "돌아간 안내선",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q124 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "center"
+          ],
+          [
+            "head",
+            "center",
+            "nose"
+          ],
+          [
+            "head",
+            "center",
+            "nose"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "direction",
+  "steps": [
+    {
+      "text": "얼굴이 향한 쪽을 관찰해요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "둥근 얼굴 덩어리를 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "방향을 따라 가운데 안내선을 휘어 그려요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "안내선 가까이에 코를 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "안내선과 코가 알려주는 방향을 확인해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

@@ -1,0 +1,576 @@
+{
+  "id": "D52",
+  "examples": [
+    {
+      "id": "new-animal-1",
+      "name": "세모 귀 고양이",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M117 119 L115 53 L155 91",
+          "start": [
+            117,
+            119
+          ],
+          "direction": [
+            117,
+            119
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M189 90 L237 60 L232 122",
+          "start": [
+            189,
+            90
+          ],
+          "direction": [
+            189,
+            90
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+          "start": [
+            108,
+            151
+          ],
+          "direction": [
+            108,
+            151
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+          "start": [
+            120,
+            261
+          ],
+          "direction": [
+            120,
+            261
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M151 150 A4 4 0 1 0 159 150 A4 4 0 1 0 151 150",
+          "start": [
+            151,
+            150
+          ],
+          "direction": [
+            151,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M186 150 A4 4 0 1 0 194 150 A4 4 0 1 0 186 150",
+          "start": [
+            186,
+            150
+          ],
+          "direction": [
+            186,
+            150
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "tail",
+          "label": "tail",
+          "d": "M284 272 Q347 212 320 174",
+          "start": [
+            284,
+            272
+          ],
+          "direction": [
+            284,
+            272
+          ],
+          "group": "shape"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+            "start": [
+              108,
+              151
+            ],
+            "direction": [
+              108,
+              151
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+            "start": [
+              120,
+              261
+            ],
+            "direction": [
+              120,
+              261
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earL",
+            "label": "earL",
+            "d": "M117 119 L115 53 L155 91",
+            "start": [
+              117,
+              119
+            ],
+            "direction": [
+              117,
+              119
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earR",
+            "label": "earR",
+            "d": "M189 90 L237 60 L232 122",
+            "start": [
+              189,
+              90
+            ],
+            "direction": [
+              189,
+              90
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "head",
+          "body"
+        ],
+        "hidden": [],
+        "explanation": "머리·몸·귀를 2~4개 덩어리로 나눠 다시 놓아요. 대표 특징은 세모 귀 하나만 더해도 돼요.",
+        "choices": [
+          {
+            "id": "oval",
+            "label": "타원 머리",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+                "start": [
+                  108,
+                  151
+                ],
+                "direction": [
+                  108,
+                  151
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+                "start": [
+                  120,
+                  261
+                ],
+                "direction": [
+                  120,
+                  261
+                ],
+                "group": "shape"
+              }
+            ]
+          },
+          {
+            "id": "box",
+            "label": "둥근 네모 머리",
+            "lines": [
+              {
+                "id": "candidate",
+                "label": "candidate",
+                "d": "M168 98 H232 Q270 98 270 136 V184 Q270 222 232 222 H168 Q130 222 130 184 V136 Q130 98 168 98",
+                "start": [
+                  168,
+                  98
+                ],
+                "direction": [
+                  168,
+                  98
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+                "start": [
+                  120,
+                  261
+                ],
+                "direction": [
+                  120,
+                  261
+                ],
+                "group": "shape"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "body"
+          ],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "new-animal-2",
+      "name": "늘어진 귀 강아지",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M102 177 A23 57 0 1 0 148 177 A23 57 0 1 0 102 177",
+          "start": [
+            102,
+            177
+          ],
+          "direction": [
+            102,
+            177
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M252 177 A23 57 0 1 0 298 177 A23 57 0 1 0 252 177",
+          "start": [
+            252,
+            177
+          ],
+          "direction": [
+            252,
+            177
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+          "start": [
+            130,
+            160
+          ],
+          "direction": [
+            130,
+            160
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+          "start": [
+            141,
+            273
+          ],
+          "direction": [
+            141,
+            273
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M171 159 A4 4 0 1 0 179 159 A4 4 0 1 0 171 159",
+          "start": [
+            171,
+            159
+          ],
+          "direction": [
+            171,
+            159
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M221 159 A4 4 0 1 0 229 159 A4 4 0 1 0 221 159",
+          "start": [
+            221,
+            159
+          ],
+          "direction": [
+            221,
+            159
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M196 183 A4 4 0 1 0 204 183 A4 4 0 1 0 196 183",
+          "start": [
+            196,
+            183
+          ],
+          "direction": [
+            196,
+            183
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+            "start": [
+              130,
+              160
+            ],
+            "direction": [
+              130,
+              160
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+            "start": [
+              141,
+              273
+            ],
+            "direction": [
+              141,
+              273
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earL",
+            "label": "earL",
+            "d": "M102 177 A23 57 0 1 0 148 177 A23 57 0 1 0 102 177",
+            "start": [
+              102,
+              177
+            ],
+            "direction": [
+              102,
+              177
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earR",
+            "label": "earR",
+            "d": "M252 177 A23 57 0 1 0 298 177 A23 57 0 1 0 252 177",
+            "start": [
+              252,
+              177
+            ],
+            "direction": [
+              252,
+              177
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "head",
+          "body"
+        ],
+        "hidden": [],
+        "explanation": "머리·몸·귀를 2~4개 덩어리로 나눠 다시 놓아요. 대표 특징은 늘어진 귀 하나만 더해도 돼요.",
+        "choices": [
+          {
+            "id": "oval",
+            "label": "타원 머리",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+                "start": [
+                  130,
+                  160
+                ],
+                "direction": [
+                  130,
+                  160
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+                "start": [
+                  141,
+                  273
+                ],
+                "direction": [
+                  141,
+                  273
+                ],
+                "group": "shape"
+              }
+            ]
+          },
+          {
+            "id": "box",
+            "label": "둥근 네모 머리",
+            "lines": [
+              {
+                "id": "candidate",
+                "label": "candidate",
+                "d": "M168 98 H232 Q270 98 270 136 V184 Q270 222 232 222 H168 Q130 222 130 184 V136 Q130 98 168 98",
+                "start": [
+                  168,
+                  98
+                ],
+                "direction": [
+                  168,
+                  98
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+                "start": [
+                  141,
+                  273
+                ],
+                "direction": [
+                  141,
+                  273
+                ],
+                "group": "shape"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "body"
+          ],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "body",
+            "earL",
+            "earR"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "assemble",
+  "steps": [
+    {
+      "text": "새 동물을 골라 큰 부분을 찾아요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "원본 위에 2~4개 덩어리를 나눠요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "빈 공간에 다시 조립을 눌러 옮겨요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "귀처럼 대표 특징 하나만 더해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "붙는 위치와 겹친 앞쪽을 설명해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

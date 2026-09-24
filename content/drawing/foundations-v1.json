@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "yeoni-character-practice",
-  "version": "1.5.0-stage5",
+  "version": "1.6.0-stage6",
   "title": "캐릭터와 함께 시작하는 그림 연습",
   "stages": [
     {
@@ -15796,15 +15796,333 @@
       "easier": "타원과 둥근 네모 두 가지 겹침 예제 중 더 가까운 것을 선택한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "pear-bird-1",
+          "name": "통통한 배 모양 새",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M200 80 C122 80 150 160 122 230 C80 330 320 330 278 230 C250 160 278 80 200 80",
+              "start": [
+                200,
+                80
+              ],
+              "direction": [
+                200,
+                80
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M177 156 A4 4 0 1 0 185 156 A4 4 0 1 0 177 156",
+              "start": [
+                177,
+                156
+              ],
+              "direction": [
+                177,
+                156
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M215 156 A4 4 0 1 0 223 156 A4 4 0 1 0 215 156",
+              "start": [
+                215,
+                156
+              ],
+              "direction": [
+                215,
+                156
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "beak",
+              "d": "M194 173 L206 173 L200 185 Z",
+              "start": [
+                194,
+                173
+              ],
+              "direction": [
+                194,
+                173
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "mass",
+                "label": "mass",
+                "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                "start": [
+                  105,
+                  205
+                ],
+                "direction": [
+                  105,
+                  205
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "mass"
+            ],
+            "hidden": [],
+            "explanation": "머리와 몸을 하나의 세로 타원으로 잡을 수 있어요. 아래가 더 넓다는 차이는 나중에 고쳐요.",
+            "choices": [
+              {
+                "id": "oval",
+                "label": "세로 타원",
+                "lines": [
+                  {
+                    "id": "mass",
+                    "label": "mass",
+                    "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                    "start": [
+                      105,
+                      205
+                    ],
+                    "direction": [
+                      105,
+                      205
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              },
+              {
+                "id": "round-box",
+                "label": "둥근 네모",
+                "lines": [
+                  {
+                    "id": "candidate",
+                    "label": "candidate",
+                    "d": "M175 88 H225 Q290 88 290 153 V243 Q290 308 225 308 H175 Q110 308 110 243 V153 Q110 88 175 88",
+                    "start": [
+                      175,
+                      88
+                    ],
+                    "direction": [
+                      175,
+                      88
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "pear-bird-2",
+          "name": "넓은 배 모양 새",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M200 80 C112 80 150 160 112 230 C80 330 320 330 288 230 C250 160 288 80 200 80",
+              "start": [
+                200,
+                80
+              ],
+              "direction": [
+                200,
+                80
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M177 156 A4 4 0 1 0 185 156 A4 4 0 1 0 177 156",
+              "start": [
+                177,
+                156
+              ],
+              "direction": [
+                177,
+                156
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M215 156 A4 4 0 1 0 223 156 A4 4 0 1 0 215 156",
+              "start": [
+                215,
+                156
+              ],
+              "direction": [
+                215,
+                156
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "beak",
+              "label": "beak",
+              "d": "M194 173 L206 173 L200 185 Z",
+              "start": [
+                194,
+                173
+              ],
+              "direction": [
+                194,
+                173
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "mass",
+                "label": "mass",
+                "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                "start": [
+                  105,
+                  205
+                ],
+                "direction": [
+                  105,
+                  205
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "mass"
+            ],
+            "hidden": [],
+            "explanation": "머리와 몸을 하나의 세로 타원으로 잡을 수 있어요. 아래가 더 넓다는 차이는 나중에 고쳐요.",
+            "choices": [
+              {
+                "id": "oval",
+                "label": "세로 타원",
+                "lines": [
+                  {
+                    "id": "mass",
+                    "label": "mass",
+                    "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                    "start": [
+                      105,
+                      205
+                    ],
+                    "direction": [
+                      105,
+                      205
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              },
+              {
+                "id": "round-box",
+                "label": "둥근 네모",
+                "lines": [
+                  {
+                    "id": "candidate",
+                    "label": "candidate",
+                    "d": "M175 88 H225 Q290 88 290 153 V243 Q290 308 225 308 H175 Q110 308 110 243 V153 Q110 88 175 88",
+                    "start": [
+                      175,
+                      88
+                    ],
+                    "direction": [
+                      175,
+                      88
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ],
+              [
+                "mass"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "원본에서 가장 큰 덩어리를 둘러봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "가까운 도형을 마음속으로 골라요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "원본 위에 그 도형을 직접 그려요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "원본과 도형의 다른 곳 한 군데를 봐요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "내가 고른 도형이 어느 부분인지 설명해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "analyze"
     },
     {
       "id": "D44",
@@ -15821,15 +16139,377 @@
       "easier": "귀 하나의 위치만 힌트로 제공한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "hamster-1",
+          "name": "둥근 햄스터 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M126.4 169 C78 103 142 81 166 136",
+              "start": [
+                126.4,
+                169
+              ],
+              "direction": [
+                126.4,
+                169
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M234 136 C258 81 322 103 273.6 169",
+              "start": [
+                234,
+                136
+              ],
+              "direction": [
+                234,
+                136
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M108 215 A92 85 0 1 0 292 215 A92 85 0 1 0 108 215",
+              "start": [
+                108,
+                215
+              ],
+              "direction": [
+                108,
+                215
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M165 210 A4 4 0 1 0 173 210 A4 4 0 1 0 165 210",
+              "start": [
+                165,
+                210
+              ],
+              "direction": [
+                165,
+                210
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M227 210 A4 4 0 1 0 235 210 A4 4 0 1 0 227 210",
+              "start": [
+                227,
+                210
+              ],
+              "direction": [
+                227,
+                210
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M196 237 A4 4 0 1 0 204 237 A4 4 0 1 0 196 237",
+              "start": [
+                196,
+                237
+              ],
+              "direction": [
+                196,
+                237
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M108 215 A92 85 0 1 0 292 215 A92 85 0 1 0 108 215",
+                "start": [
+                  108,
+                  215
+                ],
+                "direction": [
+                  108,
+                  215
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earL",
+                "label": "earL",
+                "d": "M97 133 A35 38 0 1 0 167 133 A35 38 0 1 0 97 133",
+                "start": [
+                  97,
+                  133
+                ],
+                "direction": [
+                  97,
+                  133
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earR",
+                "label": "earR",
+                "d": "M233 133 A35 38 0 1 0 303 133 A35 38 0 1 0 233 133",
+                "start": [
+                  233,
+                  133
+                ],
+                "direction": [
+                  233,
+                  133
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "earL"
+            ],
+            "hidden": [],
+            "explanation": "큰 얼굴 하나와 작은 귀 둘이에요. 귀는 얼굴의 위 양쪽에 붙어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "hamster-2",
+          "name": "넓은 햄스터 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M116.8 169 C66 103 142 81 166 136",
+              "start": [
+                116.8,
+                169
+              ],
+              "direction": [
+                116.8,
+                169
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M234 136 C258 81 334 103 283.2 169",
+              "start": [
+                234,
+                136
+              ],
+              "direction": [
+                234,
+                136
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M96 215 A104 85 0 1 0 304 215 A104 85 0 1 0 96 215",
+              "start": [
+                96,
+                215
+              ],
+              "direction": [
+                96,
+                215
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M165 210 A4 4 0 1 0 173 210 A4 4 0 1 0 165 210",
+              "start": [
+                165,
+                210
+              ],
+              "direction": [
+                165,
+                210
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M227 210 A4 4 0 1 0 235 210 A4 4 0 1 0 227 210",
+              "start": [
+                227,
+                210
+              ],
+              "direction": [
+                227,
+                210
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M196 237 A4 4 0 1 0 204 237 A4 4 0 1 0 196 237",
+              "start": [
+                196,
+                237
+              ],
+              "direction": [
+                196,
+                237
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M96 215 A104 85 0 1 0 304 215 A104 85 0 1 0 96 215",
+                "start": [
+                  96,
+                  215
+                ],
+                "direction": [
+                  96,
+                  215
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earL",
+                "label": "earL",
+                "d": "M97 133 A35 38 0 1 0 167 133 A35 38 0 1 0 97 133",
+                "start": [
+                  97,
+                  133
+                ],
+                "direction": [
+                  97,
+                  133
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earR",
+                "label": "earR",
+                "d": "M233 133 A35 38 0 1 0 303 133 A35 38 0 1 0 233 133",
+                "start": [
+                  233,
+                  133
+                ],
+                "direction": [
+                  233,
+                  133
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "earL"
+            ],
+            "hidden": [],
+            "explanation": "큰 얼굴 하나와 작은 귀 둘이에요. 귀는 얼굴의 위 양쪽에 붙어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "earL",
+                "earR"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "얼굴과 귀를 먼저 관찰해요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "큰 얼굴 덩어리를 그려요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "작은 귀 둘을 따로 표시해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "내 분석선을 숨겼다가 다시 켜 관계를 봐요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "큰 얼굴과 작은 귀가 붙는 곳을 비교해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "analyze"
     },
     {
       "id": "D45",
@@ -15845,15 +16525,533 @@
       "easier": "머리·몸만 표시하고 팔다리는 다음에 이어간다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "structure-bear-1",
+          "name": "긴 몸 곰 인형",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M152.8 92.4 C117.8 50 155.45 37 173.45 75.99",
+              "start": [
+                152.8,
+                92.4
+              ],
+              "direction": [
+                152.8,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M226.55 75.99 C244.55 37 282.2 50 247.2 92.4",
+              "start": [
+                226.55,
+                75.99
+              ],
+              "direction": [
+                226.55,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+              "start": [
+                141,
+                126
+              ],
+              "direction": [
+                141,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+              "start": [
+                142,
+                247
+              ],
+              "direction": [
+                142,
+                247
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+              "start": [
+                110,
+                224
+              ],
+              "direction": [
+                110,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+              "start": [
+                252,
+                224
+              ],
+              "direction": [
+                252,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+              "start": [
+                146,
+                321
+              ],
+              "direction": [
+                146,
+                321
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+              "start": [
+                210,
+                321
+              ],
+              "direction": [
+                210,
+                321
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+                "start": [
+                  141,
+                  126
+                ],
+                "direction": [
+                  141,
+                  126
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+                "start": [
+                  110,
+                  224
+                ],
+                "direction": [
+                  110,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+                "start": [
+                  252,
+                  224
+                ],
+                "direction": [
+                  252,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+                "start": [
+                  146,
+                  321
+                ],
+                "direction": [
+                  146,
+                  321
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+                "start": [
+                  210,
+                  321
+                ],
+                "direction": [
+                  210,
+                  321
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "structure-bear-2",
+          "name": "넓은 머리 곰 인형",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M147.2 92.4 C112.2 50 152.3 37 170.3 75.99",
+              "start": [
+                147.2,
+                92.4
+              ],
+              "direction": [
+                147.2,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M229.7 75.99 C247.7 37 287.8 50 252.8 92.4",
+              "start": [
+                229.7,
+                75.99
+              ],
+              "direction": [
+                229.7,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+              "start": [
+                134,
+                126
+              ],
+              "direction": [
+                134,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+              "start": [
+                142,
+                247
+              ],
+              "direction": [
+                142,
+                247
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+              "start": [
+                110,
+                224
+              ],
+              "direction": [
+                110,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+              "start": [
+                252,
+                224
+              ],
+              "direction": [
+                252,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+              "start": [
+                146,
+                321
+              ],
+              "direction": [
+                146,
+                321
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+              "start": [
+                210,
+                321
+              ],
+              "direction": [
+                210,
+                321
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+                "start": [
+                  134,
+                  126
+                ],
+                "direction": [
+                  134,
+                  126
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+                "start": [
+                  110,
+                  224
+                ],
+                "direction": [
+                  110,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+                "start": [
+                  252,
+                  224
+                ],
+                "direction": [
+                  252,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+                "start": [
+                  146,
+                  321
+                ],
+                "direction": [
+                  146,
+                  321
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+                "start": [
+                  210,
+                  321
+                ],
+                "direction": [
+                  210,
+                  321
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "세부 없는 곰의 큰 부분을 찾아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "머리와 몸 덩어리를 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "팔이 붙는 자리와 짧은 팔다리를 표시해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "눈과 코를 그리지 않고 위치만 봐요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "머리·몸·팔다리를 구별했는지 확인해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "analyze"
     },
     {
       "id": "D46",
@@ -15871,17 +17069,523 @@
       "easier": "옆 공간에 머리의 크기 틀만 제공한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "structure-bear-1",
+          "name": "긴 몸 곰 인형",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M152.8 92.4 C117.8 50 155.45 37 173.45 75.99",
+              "start": [
+                152.8,
+                92.4
+              ],
+              "direction": [
+                152.8,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M226.55 75.99 C244.55 37 282.2 50 247.2 92.4",
+              "start": [
+                226.55,
+                75.99
+              ],
+              "direction": [
+                226.55,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+              "start": [
+                141,
+                126
+              ],
+              "direction": [
+                141,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+              "start": [
+                142,
+                247
+              ],
+              "direction": [
+                142,
+                247
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+              "start": [
+                110,
+                224
+              ],
+              "direction": [
+                110,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+              "start": [
+                252,
+                224
+              ],
+              "direction": [
+                252,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+              "start": [
+                146,
+                321
+              ],
+              "direction": [
+                146,
+                321
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+              "start": [
+                210,
+                321
+              ],
+              "direction": [
+                210,
+                321
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+                "start": [
+                  141,
+                  126
+                ],
+                "direction": [
+                  141,
+                  126
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+                "start": [
+                  110,
+                  224
+                ],
+                "direction": [
+                  110,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+                "start": [
+                  252,
+                  224
+                ],
+                "direction": [
+                  252,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+                "start": [
+                  146,
+                  321
+                ],
+                "direction": [
+                  146,
+                  321
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+                "start": [
+                  210,
+                  321
+                ],
+                "direction": [
+                  210,
+                  321
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head"
+            ],
+            "hidden": [],
+            "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "structure-bear-2",
+          "name": "넓은 머리 곰 인형",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M147.2 92.4 C112.2 50 152.3 37 170.3 75.99",
+              "start": [
+                147.2,
+                92.4
+              ],
+              "direction": [
+                147.2,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M229.7 75.99 C247.7 37 287.8 50 252.8 92.4",
+              "start": [
+                229.7,
+                75.99
+              ],
+              "direction": [
+                229.7,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+              "start": [
+                134,
+                126
+              ],
+              "direction": [
+                134,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+              "start": [
+                142,
+                247
+              ],
+              "direction": [
+                142,
+                247
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+              "start": [
+                110,
+                224
+              ],
+              "direction": [
+                110,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+              "start": [
+                252,
+                224
+              ],
+              "direction": [
+                252,
+                224
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+              "start": [
+                146,
+                321
+              ],
+              "direction": [
+                146,
+                321
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+              "start": [
+                210,
+                321
+              ],
+              "direction": [
+                210,
+                321
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+                "start": [
+                  134,
+                  126
+                ],
+                "direction": [
+                  134,
+                  126
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+                "start": [
+                  110,
+                  224
+                ],
+                "direction": [
+                  110,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+                "start": [
+                  252,
+                  224
+                ],
+                "direction": [
+                  252,
+                  224
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+                "start": [
+                  146,
+                  321
+                ],
+                "direction": [
+                  146,
+                  321
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+                "start": [
+                  210,
+                  321
+                ],
+                "direction": [
+                  210,
+                  321
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head"
+            ],
+            "hidden": [],
+            "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "D45 분석을 고르거나 원본 위에 직접 나눠요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "큰 머리·몸 덩어리를 확인해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "빈 공간에 다시 조립을 눌러 머리부터 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "몸과 짧은 팔다리를 이어 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "내 분석과 조립 그림의 큰 위치를 비교해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [
         "D45"
       ],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "assemble"
     },
     {
       "id": "D47",
@@ -15898,15 +17602,453 @@
       "easier": "예제에서 공과 몸만 두 색으로 구분한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "ball-bear-1",
+          "name": "작은 공을 든 곰",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M152.8 92.4 C117.8 50 155.45 37 173.45 75.99",
+              "start": [
+                152.8,
+                92.4
+              ],
+              "direction": [
+                152.8,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M226.55 75.99 C244.55 37 282.2 50 247.2 92.4",
+              "start": [
+                226.55,
+                75.99
+              ],
+              "direction": [
+                226.55,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M142.104 242.819 A58 70 0 0 1 257.896 242.819",
+              "start": [
+                142.104,
+                242.819
+              ],
+              "direction": [
+                142.104,
+                242.819
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+              "start": [
+                141,
+                126
+              ],
+              "direction": [
+                141,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M164 315.478 C138 365 193 370 185 325.158",
+              "start": [
+                164,
+                315.478
+              ],
+              "direction": [
+                164,
+                315.478
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M215 325.158 C207 370 262 365 236 315.478",
+              "start": [
+                215,
+                325.158
+              ],
+              "direction": [
+                215,
+                325.158
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "ball",
+              "label": "ball",
+              "d": "M138 265 A62 62 0 1 0 262 265 A62 62 0 1 0 138 265",
+              "start": [
+                138,
+                265
+              ],
+              "direction": [
+                138,
+                265
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "handL",
+              "label": "handL",
+              "d": "M125 245 A13 17 0 1 0 151 245 A13 17 0 1 0 125 245",
+              "start": [
+                125,
+                245
+              ],
+              "direction": [
+                125,
+                245
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "handR",
+              "label": "handR",
+              "d": "M249 245 A13 17 0 1 0 275 245 A13 17 0 1 0 249 245",
+              "start": [
+                249,
+                245
+              ],
+              "direction": [
+                249,
+                245
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ball",
+                "label": "ball",
+                "d": "M138 265 A62 62 0 1 0 262 265 A62 62 0 1 0 138 265",
+                "start": [
+                  138,
+                  265
+                ],
+                "direction": [
+                  138,
+                  265
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "body",
+              "ball"
+            ],
+            "hidden": [
+              {
+                "id": "covered",
+                "label": "covered",
+                "d": "M257.896 242.819 A58 70 0 1 1 142.104 242.819",
+                "start": [
+                  257.896,
+                  242.819
+                ],
+                "direction": [
+                  257.896,
+                  242.819
+                ],
+                "group": "shape"
+              }
+            ],
+            "choices": [],
+            "explanation": "공이 몸의 아래쪽 외곽을 가려요. 밑그림에는 몸 전체가 있지만 완성선에는 공 뒤의 몸 선을 빼요. 작은 손은 공보다 앞이에요.",
+            "frames": [
+              [],
+              [
+                "body"
+              ],
+              [
+                "body",
+                "ball"
+              ],
+              [
+                "body",
+                "ball"
+              ],
+              [
+                "body",
+                "ball"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "ball-bear-2",
+          "name": "큰 공을 든 곰",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M147.2 92.4 C112.2 50 152.3 37 170.3 75.99",
+              "start": [
+                147.2,
+                92.4
+              ],
+              "direction": [
+                147.2,
+                92.4
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M229.7 75.99 C247.7 37 287.8 50 252.8 92.4",
+              "start": [
+                229.7,
+                75.99
+              ],
+              "direction": [
+                229.7,
+                75.99
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M144.196 227.92 A58 70 0 0 1 255.804 227.92",
+              "start": [
+                144.196,
+                227.92
+              ],
+              "direction": [
+                144.196,
+                227.92
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+              "start": [
+                134,
+                126
+              ],
+              "direction": [
+                134,
+                126
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M164 321.507 C138 365 193 370 185 330.299",
+              "start": [
+                164,
+                321.507
+              ],
+              "direction": [
+                164,
+                321.507
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M215 330.299 C207 370 262 365 236 321.507",
+              "start": [
+                215,
+                330.299
+              ],
+              "direction": [
+                215,
+                330.299
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "ball",
+              "label": "ball",
+              "d": "M133 265 A67 67 0 1 0 267 265 A67 67 0 1 0 133 265",
+              "start": [
+                133,
+                265
+              ],
+              "direction": [
+                133,
+                265
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "handL",
+              "label": "handL",
+              "d": "M120 245 A13 17 0 1 0 146 245 A13 17 0 1 0 120 245",
+              "start": [
+                120,
+                245
+              ],
+              "direction": [
+                120,
+                245
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "handR",
+              "label": "handR",
+              "d": "M254 245 A13 17 0 1 0 280 245 A13 17 0 1 0 254 245",
+              "start": [
+                254,
+                245
+              ],
+              "direction": [
+                254,
+                245
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+                "start": [
+                  142,
+                  247
+                ],
+                "direction": [
+                  142,
+                  247
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ball",
+                "label": "ball",
+                "d": "M133 265 A67 67 0 1 0 267 265 A67 67 0 1 0 133 265",
+                "start": [
+                  133,
+                  265
+                ],
+                "direction": [
+                  133,
+                  265
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "body",
+              "ball"
+            ],
+            "hidden": [
+              {
+                "id": "covered",
+                "label": "covered",
+                "d": "M255.804 227.92 A58 70 0 1 1 144.196 227.92",
+                "start": [
+                  255.804,
+                  227.92
+                ],
+                "direction": [
+                  255.804,
+                  227.92
+                ],
+                "group": "shape"
+              }
+            ],
+            "choices": [],
+            "explanation": "공이 몸의 아래쪽 외곽을 가려요. 밑그림에는 몸 전체가 있지만 완성선에는 공 뒤의 몸 선을 빼요. 작은 손은 공보다 앞이에요.",
+            "frames": [
+              [],
+              [
+                "body"
+              ],
+              [
+                "body",
+                "ball"
+              ],
+              [
+                "body",
+                "ball"
+              ],
+              [
+                "body",
+                "ball"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "공이 몸의 어느 부분을 가렸는지 봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "몸의 큰 덩어리를 표시해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "몸 앞에 공 덩어리를 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "가려진 선까지 밑그림과 완성을 번갈아 봐요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "공 뒤에서 생략한 몸 선을 짚어봐요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "occlusion"
     },
     {
       "id": "D48",
@@ -15923,15 +18065,409 @@
       "easier": "두 귀가 겹치는 부분만 확대해 따라간다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "turned-rabbit-1",
+          "name": "귀가 겹친 토끼",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "back",
+              "label": "back",
+              "d": "M206 109 C228 52 255 81 244 133 L229 184",
+              "start": [
+                206,
+                109
+              ],
+              "direction": [
+                206,
+                109
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "front",
+              "label": "front",
+              "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+              "start": [
+                168,
+                185
+              ],
+              "direction": [
+                168,
+                185
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+              "start": [
+                117,
+                255
+              ],
+              "direction": [
+                117,
+                255
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M191 250 A4 4 0 1 0 199 250 A4 4 0 1 0 191 250",
+              "start": [
+                191,
+                250
+              ],
+              "direction": [
+                191,
+                250
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M232 250 A4 4 0 1 0 240 250 A4 4 0 1 0 232 250",
+              "start": [
+                232,
+                250
+              ],
+              "direction": [
+                232,
+                250
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M215 272 A4 4 0 1 0 223 272 A4 4 0 1 0 215 272",
+              "start": [
+                215,
+                272
+              ],
+              "direction": [
+                215,
+                272
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+                "start": [
+                  117,
+                  255
+                ],
+                "direction": [
+                  117,
+                  255
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "front",
+                "label": "front",
+                "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+                "start": [
+                  168,
+                  185
+                ],
+                "direction": [
+                  168,
+                  185
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "back",
+                "label": "back",
+                "d": "M206 109 C228 52 255 81 244 133 L229 184",
+                "start": [
+                  206,
+                  109
+                ],
+                "direction": [
+                  206,
+                  109
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "front",
+              "back"
+            ],
+            "hidden": [
+              {
+                "id": "hidden",
+                "label": "hidden",
+                "d": "M229 184 Q202 190 190 168 L206 109",
+                "start": [
+                  229,
+                  184
+                ],
+                "direction": [
+                  229,
+                  184
+                ],
+                "group": "shape"
+              }
+            ],
+            "explanation": "화면 왼쪽 긴 귀가 앞이에요. 뒤 귀의 아래 왼쪽 선은 앞 귀와 머리에 가려지고, 윗부분은 남아요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "turned-rabbit-2",
+          "name": "뒤 귀가 벌어진 토끼",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "back",
+              "label": "back",
+              "d": "M206 109 C238 52 265 81 254 133 L229 184",
+              "start": [
+                206,
+                109
+              ],
+              "direction": [
+                206,
+                109
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "front",
+              "label": "front",
+              "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+              "start": [
+                168,
+                185
+              ],
+              "direction": [
+                168,
+                185
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+              "start": [
+                117,
+                255
+              ],
+              "direction": [
+                117,
+                255
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M191 250 A4 4 0 1 0 199 250 A4 4 0 1 0 191 250",
+              "start": [
+                191,
+                250
+              ],
+              "direction": [
+                191,
+                250
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M232 250 A4 4 0 1 0 240 250 A4 4 0 1 0 232 250",
+              "start": [
+                232,
+                250
+              ],
+              "direction": [
+                232,
+                250
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M215 272 A4 4 0 1 0 223 272 A4 4 0 1 0 215 272",
+              "start": [
+                215,
+                272
+              ],
+              "direction": [
+                215,
+                272
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+                "start": [
+                  117,
+                  255
+                ],
+                "direction": [
+                  117,
+                  255
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "front",
+                "label": "front",
+                "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+                "start": [
+                  168,
+                  185
+                ],
+                "direction": [
+                  168,
+                  185
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "back",
+                "label": "back",
+                "d": "M206 109 C238 52 265 81 254 133 L229 184",
+                "start": [
+                  206,
+                  109
+                ],
+                "direction": [
+                  206,
+                  109
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "front",
+              "back"
+            ],
+            "hidden": [
+              {
+                "id": "hidden",
+                "label": "hidden",
+                "d": "M229 184 Q202 190 190 168 L206 109",
+                "start": [
+                  229,
+                  184
+                ],
+                "direction": [
+                  229,
+                  184
+                ],
+                "group": "shape"
+              }
+            ],
+            "explanation": "화면 왼쪽 긴 귀가 앞이에요. 뒤 귀의 아래 왼쪽 선은 앞 귀와 머리에 가려지고, 윗부분은 남아요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ],
+              [
+                "head",
+                "front",
+                "back"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "두 귀가 겹치는 부분을 봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "큰 머리 덩어리를 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "앞 귀와 뒤 귀의 보이는 부분을 나눠요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "전체 밑그림과 완성을 번갈아 비교해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "뒤 귀가 가려진 곳을 짚어봐요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "occlusion"
     },
     {
       "id": "D49",
@@ -15948,15 +18484,489 @@
       "easier": "정면과 옆으로 휜 안내선 두 예제 중 하나를 골라 따라간다. 입체 원근 규칙 전체를 설명하지 않는다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "direction-1",
+          "name": "오른쪽을 보는 둥근 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+              "start": [
+                104,
+                210
+              ],
+              "direction": [
+                104,
+                210
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "near-eye",
+              "label": "near-eye",
+              "d": "M202 196 A4 4 0 1 0 210 196 A4 4 0 1 0 202 196",
+              "start": [
+                202,
+                196
+              ],
+              "direction": [
+                202,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "far-eye",
+              "label": "far-eye",
+              "d": "M260 196 A4 4 0 1 0 268 196 A4 4 0 1 0 260 196",
+              "start": [
+                260,
+                196
+              ],
+              "direction": [
+                260,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+              "start": [
+                234,
+                222
+              ],
+              "direction": [
+                234,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "mouth",
+              "d": "M230 247 Q238 255 246 247",
+              "start": [
+                230,
+                247
+              ],
+              "direction": [
+                230,
+                247
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q276 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              },
+              {
+                "id": "nose",
+                "label": "nose",
+                "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+                "start": [
+                  234,
+                  222
+                ],
+                "direction": [
+                  234,
+                  222
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "center"
+            ],
+            "hidden": [],
+            "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+            "choices": [
+              {
+                "id": "front",
+                "label": "정면 안내선",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                    "start": [
+                      104,
+                      210
+                    ],
+                    "direction": [
+                      104,
+                      210
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "front-center",
+                    "label": "front-center",
+                    "d": "M200 102 L200 318",
+                    "start": [
+                      200,
+                      102
+                    ],
+                    "direction": [
+                      200,
+                      102
+                    ],
+                    "group": "guide"
+                  }
+                ]
+              },
+              {
+                "id": "turn",
+                "label": "돌아간 안내선",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                    "start": [
+                      104,
+                      210
+                    ],
+                    "direction": [
+                      104,
+                      210
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "center",
+                    "label": "center",
+                    "d": "M200 102 Q276 210 200 318",
+                    "start": [
+                      200,
+                      102
+                    ],
+                    "direction": [
+                      200,
+                      102
+                    ],
+                    "group": "guide"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "center"
+              ],
+              [
+                "head",
+                "center",
+                "nose"
+              ],
+              [
+                "head",
+                "center",
+                "nose"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "direction-2",
+          "name": "왼쪽을 보는 둥근 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+              "start": [
+                104,
+                210
+              ],
+              "direction": [
+                104,
+                210
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "near-eye",
+              "label": "near-eye",
+              "d": "M190 196 A4 4 0 1 0 198 196 A4 4 0 1 0 190 196",
+              "start": [
+                190,
+                196
+              ],
+              "direction": [
+                190,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "far-eye",
+              "label": "far-eye",
+              "d": "M132 196 A4 4 0 1 0 140 196 A4 4 0 1 0 132 196",
+              "start": [
+                132,
+                196
+              ],
+              "direction": [
+                132,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+              "start": [
+                158,
+                222
+              ],
+              "direction": [
+                158,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "mouth",
+              "d": "M154 247 Q162 255 170 247",
+              "start": [
+                154,
+                247
+              ],
+              "direction": [
+                154,
+                247
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q124 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              },
+              {
+                "id": "nose",
+                "label": "nose",
+                "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+                "start": [
+                  158,
+                  222
+                ],
+                "direction": [
+                  158,
+                  222
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "center"
+            ],
+            "hidden": [],
+            "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+            "choices": [
+              {
+                "id": "front",
+                "label": "정면 안내선",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                    "start": [
+                      104,
+                      210
+                    ],
+                    "direction": [
+                      104,
+                      210
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "front-center",
+                    "label": "front-center",
+                    "d": "M200 102 L200 318",
+                    "start": [
+                      200,
+                      102
+                    ],
+                    "direction": [
+                      200,
+                      102
+                    ],
+                    "group": "guide"
+                  }
+                ]
+              },
+              {
+                "id": "turn",
+                "label": "돌아간 안내선",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                    "start": [
+                      104,
+                      210
+                    ],
+                    "direction": [
+                      104,
+                      210
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "center",
+                    "label": "center",
+                    "d": "M200 102 Q124 210 200 318",
+                    "start": [
+                      200,
+                      102
+                    ],
+                    "direction": [
+                      200,
+                      102
+                    ],
+                    "group": "guide"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head"
+              ],
+              [
+                "head",
+                "center"
+              ],
+              [
+                "head",
+                "center",
+                "nose"
+              ],
+              [
+                "head",
+                "center",
+                "nose"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "얼굴이 향한 쪽을 관찰해요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "둥근 얼굴 덩어리를 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "방향을 따라 가운데 안내선을 휘어 그려요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "안내선 가까이에 코를 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "안내선과 코가 알려주는 방향을 확인해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "direction"
     },
     {
       "id": "D50",
@@ -15973,17 +18983,427 @@
       "easier": "두 눈 위치를 연한 점으로 제시한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "eyes-1",
+          "name": "오른쪽을 보는 둥근 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+              "start": [
+                104,
+                210
+              ],
+              "direction": [
+                104,
+                210
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "near-eye",
+              "label": "near-eye",
+              "d": "M202 196 A4 4 0 1 0 210 196 A4 4 0 1 0 202 196",
+              "start": [
+                202,
+                196
+              ],
+              "direction": [
+                202,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "far-eye",
+              "label": "far-eye",
+              "d": "M260 196 A4 4 0 1 0 268 196 A4 4 0 1 0 260 196",
+              "start": [
+                260,
+                196
+              ],
+              "direction": [
+                260,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+              "start": [
+                234,
+                222
+              ],
+              "direction": [
+                234,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "mouth",
+              "d": "M230 247 Q238 255 246 247",
+              "start": [
+                230,
+                247
+              ],
+              "direction": [
+                230,
+                247
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q276 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              },
+              {
+                "id": "nose",
+                "label": "nose",
+                "d": "M234 222 A4 4 0 1 0 242 222 A4 4 0 1 0 234 222",
+                "start": [
+                  234,
+                  222
+                ],
+                "direction": [
+                  234,
+                  222
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "near-eye",
+                "label": "near-eye",
+                "d": "M202 196 A4 4 0 1 0 210 196 A4 4 0 1 0 202 196",
+                "start": [
+                  202,
+                  196
+                ],
+                "direction": [
+                  202,
+                  196
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "far-eye",
+                "label": "far-eye",
+                "d": "M260 196 A4 4 0 1 0 268 196 A4 4 0 1 0 260 196",
+                "start": [
+                  260,
+                  196
+                ],
+                "direction": [
+                  260,
+                  196
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "near-eye",
+              "far-eye"
+            ],
+            "hidden": [],
+            "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "center"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye",
+                "far-eye"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye",
+                "far-eye"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "eyes-2",
+          "name": "왼쪽을 보는 둥근 얼굴",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+              "start": [
+                104,
+                210
+              ],
+              "direction": [
+                104,
+                210
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "near-eye",
+              "label": "near-eye",
+              "d": "M190 196 A4 4 0 1 0 198 196 A4 4 0 1 0 190 196",
+              "start": [
+                190,
+                196
+              ],
+              "direction": [
+                190,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "far-eye",
+              "label": "far-eye",
+              "d": "M132 196 A4 4 0 1 0 140 196 A4 4 0 1 0 132 196",
+              "start": [
+                132,
+                196
+              ],
+              "direction": [
+                132,
+                196
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+              "start": [
+                158,
+                222
+              ],
+              "direction": [
+                158,
+                222
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "mouth",
+              "label": "mouth",
+              "d": "M154 247 Q162 255 170 247",
+              "start": [
+                154,
+                247
+              ],
+              "direction": [
+                154,
+                247
+              ],
+              "group": "detail"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M104 210 A96 108 0 1 0 296 210 A96 108 0 1 0 104 210",
+                "start": [
+                  104,
+                  210
+                ],
+                "direction": [
+                  104,
+                  210
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "center",
+                "label": "center",
+                "d": "M200 102 Q124 210 200 318",
+                "start": [
+                  200,
+                  102
+                ],
+                "direction": [
+                  200,
+                  102
+                ],
+                "group": "guide"
+              },
+              {
+                "id": "nose",
+                "label": "nose",
+                "d": "M158 222 A4 4 0 1 0 166 222 A4 4 0 1 0 158 222",
+                "start": [
+                  158,
+                  222
+                ],
+                "direction": [
+                  158,
+                  222
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "near-eye",
+                "label": "near-eye",
+                "d": "M190 196 A4 4 0 1 0 198 196 A4 4 0 1 0 190 196",
+                "start": [
+                  190,
+                  196
+                ],
+                "direction": [
+                  190,
+                  196
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "far-eye",
+                "label": "far-eye",
+                "d": "M132 196 A4 4 0 1 0 140 196 A4 4 0 1 0 132 196",
+                "start": [
+                  132,
+                  196
+                ],
+                "direction": [
+                  132,
+                  196
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "near-eye",
+              "far-eye"
+            ],
+            "hidden": [],
+            "explanation": "안내선이 휘어 나간 쪽을 얼굴이 바라봐요. 코는 안내선 가까이, 두 눈은 안내선 양옆에 두되 반대쪽 눈과 외곽 사이 공간이 좁아요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "center"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye",
+                "far-eye"
+              ],
+              [
+                "head",
+                "center",
+                "nose",
+                "near-eye",
+                "far-eye"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "얼굴과 가운데 안내선을 떠올려요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "둥근 얼굴과 휜 안내선을 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "가까운 눈의 위치부터 표시해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "반대쪽 눈과 외곽 사이 공간을 봐요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "두 눈과 안내선이 같은 방향인지 비교해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [
         "D49"
       ],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "direction"
     },
     {
       "id": "D51",
@@ -16001,15 +19421,605 @@
       "easier": "몸의 위치가 표시된 머리·몸 두 덩어리 과제로 줄인다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "robot-1",
+          "name": "둥근 네모 로봇",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M158 70 H242 Q260 70 260 88 V142 Q260 160 242 160 H158 Q140 160 140 142 V88 Q140 70 158 70",
+              "start": [
+                158.0,
+                70
+              ],
+              "direction": [
+                158.0,
+                70
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M164 178 H236 Q244 178 244 186 V270 Q244 278 236 278 H164 Q156 278 156 270 V186 Q156 178 164 178",
+              "start": [
+                164,
+                178
+              ],
+              "direction": [
+                164,
+                178
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M131 189 H140 Q148 189 148 197 V251 Q148 259 140 259 H131 Q123 259 123 251 V197 Q123 189 131 189",
+              "start": [
+                131,
+                189
+              ],
+              "direction": [
+                131,
+                189
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M260 189 H269 Q277 189 277 197 V251 Q277 259 269 259 H260 Q252 259 252 251 V197 Q252 189 260 189",
+              "start": [
+                260,
+                189
+              ],
+              "direction": [
+                260,
+                189
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M170 286 H185 Q191 286 191 292 V332 Q191 338 185 338 H170 Q164 338 164 332 V292 Q164 286 170 286",
+              "start": [
+                170,
+                286
+              ],
+              "direction": [
+                170,
+                286
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M215 286 H230 Q236 286 236 292 V332 Q236 338 230 338 H215 Q209 338 209 332 V292 Q209 286 215 286",
+              "start": [
+                215,
+                286
+              ],
+              "direction": [
+                215,
+                286
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M174 112 A4 4 0 1 0 182 112 A4 4 0 1 0 174 112",
+              "start": [
+                174,
+                112
+              ],
+              "direction": [
+                174,
+                112
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M218 112 A4 4 0 1 0 226 112 A4 4 0 1 0 218 112",
+              "start": [
+                218,
+                112
+              ],
+              "direction": [
+                218,
+                112
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M158 70 H242 Q260 70 260 88 V142 Q260 160 242 160 H158 Q140 160 140 142 V88 Q140 70 158 70",
+                "start": [
+                  158.0,
+                  70
+                ],
+                "direction": [
+                  158.0,
+                  70
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M164 178 H236 Q244 178 244 186 V270 Q244 278 236 278 H164 Q156 278 156 270 V186 Q156 178 164 178",
+                "start": [
+                  164,
+                  178
+                ],
+                "direction": [
+                  164,
+                  178
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M131 189 H140 Q148 189 148 197 V251 Q148 259 140 259 H131 Q123 259 123 251 V197 Q123 189 131 189",
+                "start": [
+                  131,
+                  189
+                ],
+                "direction": [
+                  131,
+                  189
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M260 189 H269 Q277 189 277 197 V251 Q277 259 269 259 H260 Q252 259 252 251 V197 Q252 189 260 189",
+                "start": [
+                  260,
+                  189
+                ],
+                "direction": [
+                  260,
+                  189
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M170 286 H185 Q191 286 191 292 V332 Q191 338 185 338 H170 Q164 338 164 332 V292 Q164 286 170 286",
+                "start": [
+                  170,
+                  286
+                ],
+                "direction": [
+                  170,
+                  286
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M215 286 H230 Q236 286 236 292 V332 Q236 338 230 338 H215 Q209 338 209 332 V292 Q209 286 215 286",
+                "start": [
+                  215,
+                  286
+                ],
+                "direction": [
+                  215,
+                  286
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyeL",
+                "label": "eyeL",
+                "d": "M174 112 A4 4 0 1 0 182 112 A4 4 0 1 0 174 112",
+                "start": [
+                  174,
+                  112
+                ],
+                "direction": [
+                  174,
+                  112
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "eyeR",
+                "label": "eyeR",
+                "d": "M218 112 A4 4 0 1 0 226 112 A4 4 0 1 0 218 112",
+                "start": [
+                  218,
+                  112
+                ],
+                "direction": [
+                  218,
+                  112
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "둥근 네모 머리가 몸보다 넓어요. 머리·몸을 먼저 놓고 빈 간격에 짧은 팔다리를 붙여요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR",
+                "eyeL",
+                "eyeR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR",
+                "eyeL",
+                "eyeR"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "robot-2",
+          "name": "넓은 머리 로봇",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M146 70 H254 Q272 70 272 88 V142 Q272 160 254 160 H146 Q128 160 128 142 V88 Q128 70 146 70",
+              "start": [
+                146.0,
+                70
+              ],
+              "direction": [
+                146.0,
+                70
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M164 178 H236 Q244 178 244 186 V270 Q244 278 236 278 H164 Q156 278 156 270 V186 Q156 178 164 178",
+              "start": [
+                164,
+                178
+              ],
+              "direction": [
+                164,
+                178
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armL",
+              "label": "armL",
+              "d": "M131 189 H140 Q148 189 148 197 V251 Q148 259 140 259 H131 Q123 259 123 251 V197 Q123 189 131 189",
+              "start": [
+                131,
+                189
+              ],
+              "direction": [
+                131,
+                189
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "armR",
+              "label": "armR",
+              "d": "M260 189 H269 Q277 189 277 197 V251 Q277 259 269 259 H260 Q252 259 252 251 V197 Q252 189 260 189",
+              "start": [
+                260,
+                189
+              ],
+              "direction": [
+                260,
+                189
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legL",
+              "label": "legL",
+              "d": "M170 286 H185 Q191 286 191 292 V332 Q191 338 185 338 H170 Q164 338 164 332 V292 Q164 286 170 286",
+              "start": [
+                170,
+                286
+              ],
+              "direction": [
+                170,
+                286
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "legR",
+              "label": "legR",
+              "d": "M215 286 H230 Q236 286 236 292 V332 Q236 338 230 338 H215 Q209 338 209 332 V292 Q209 286 215 286",
+              "start": [
+                215,
+                286
+              ],
+              "direction": [
+                215,
+                286
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M174 112 A4 4 0 1 0 182 112 A4 4 0 1 0 174 112",
+              "start": [
+                174,
+                112
+              ],
+              "direction": [
+                174,
+                112
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M218 112 A4 4 0 1 0 226 112 A4 4 0 1 0 218 112",
+              "start": [
+                218,
+                112
+              ],
+              "direction": [
+                218,
+                112
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M146 70 H254 Q272 70 272 88 V142 Q272 160 254 160 H146 Q128 160 128 142 V88 Q128 70 146 70",
+                "start": [
+                  146.0,
+                  70
+                ],
+                "direction": [
+                  146.0,
+                  70
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M164 178 H236 Q244 178 244 186 V270 Q244 278 236 278 H164 Q156 278 156 270 V186 Q156 178 164 178",
+                "start": [
+                  164,
+                  178
+                ],
+                "direction": [
+                  164,
+                  178
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armL",
+                "label": "armL",
+                "d": "M131 189 H140 Q148 189 148 197 V251 Q148 259 140 259 H131 Q123 259 123 251 V197 Q123 189 131 189",
+                "start": [
+                  131,
+                  189
+                ],
+                "direction": [
+                  131,
+                  189
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "armR",
+                "label": "armR",
+                "d": "M260 189 H269 Q277 189 277 197 V251 Q277 259 269 259 H260 Q252 259 252 251 V197 Q252 189 260 189",
+                "start": [
+                  260,
+                  189
+                ],
+                "direction": [
+                  260,
+                  189
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legL",
+                "label": "legL",
+                "d": "M170 286 H185 Q191 286 191 292 V332 Q191 338 185 338 H170 Q164 338 164 332 V292 Q164 286 170 286",
+                "start": [
+                  170,
+                  286
+                ],
+                "direction": [
+                  170,
+                  286
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "legR",
+                "label": "legR",
+                "d": "M215 286 H230 Q236 286 236 292 V332 Q236 338 230 338 H215 Q209 338 209 332 V292 Q209 286 215 286",
+                "start": [
+                  215,
+                  286
+                ],
+                "direction": [
+                  215,
+                  286
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyeL",
+                "label": "eyeL",
+                "d": "M174 112 A4 4 0 1 0 182 112 A4 4 0 1 0 174 112",
+                "start": [
+                  174,
+                  112
+                ],
+                "direction": [
+                  174,
+                  112
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "eyeR",
+                "label": "eyeR",
+                "d": "M218 112 A4 4 0 1 0 226 112 A4 4 0 1 0 218 112",
+                "start": [
+                  218,
+                  112
+                ],
+                "direction": [
+                  218,
+                  112
+                ],
+                "group": "detail",
+                "fill": "ink"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "둥근 네모 머리가 몸보다 넓어요. 머리·몸을 먼저 놓고 빈 간격에 짧은 팔다리를 붙여요.",
+            "choices": [],
+            "frames": [
+              [],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR",
+                "eyeL",
+                "eyeR"
+              ],
+              [
+                "head",
+                "body",
+                "armL",
+                "armR",
+                "legL",
+                "legR",
+                "eyeL",
+                "eyeR"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "새 로봇의 큰 네모들을 봐요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "넓은 머리와 작은 몸을 놓아요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "짧은 팔·다리를 붙여요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "두 눈만 더해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "머리와 몸의 크기 관계 하나를 비교해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "analyze"
     },
     {
       "id": "D52",
@@ -16026,15 +20036,580 @@
       "easier": "도형 후보를 2가지씩 제공하고 조립 위치는 일부 표시한다.",
       "help": 0,
       "minutes": 15,
-      "examples": [],
-      "steps": [],
+      "examples": [
+        {
+          "id": "new-animal-1",
+          "name": "세모 귀 고양이",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M117 119 L115 53 L155 91",
+              "start": [
+                117,
+                119
+              ],
+              "direction": [
+                117,
+                119
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M189 90 L237 60 L232 122",
+              "start": [
+                189,
+                90
+              ],
+              "direction": [
+                189,
+                90
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+              "start": [
+                108,
+                151
+              ],
+              "direction": [
+                108,
+                151
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+              "start": [
+                120,
+                261
+              ],
+              "direction": [
+                120,
+                261
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M151 150 A4 4 0 1 0 159 150 A4 4 0 1 0 151 150",
+              "start": [
+                151,
+                150
+              ],
+              "direction": [
+                151,
+                150
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M186 150 A4 4 0 1 0 194 150 A4 4 0 1 0 186 150",
+              "start": [
+                186,
+                150
+              ],
+              "direction": [
+                186,
+                150
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "tail",
+              "label": "tail",
+              "d": "M284 272 Q347 212 320 174",
+              "start": [
+                284,
+                272
+              ],
+              "direction": [
+                284,
+                272
+              ],
+              "group": "shape"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+                "start": [
+                  108,
+                  151
+                ],
+                "direction": [
+                  108,
+                  151
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+                "start": [
+                  120,
+                  261
+                ],
+                "direction": [
+                  120,
+                  261
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earL",
+                "label": "earL",
+                "d": "M117 119 L115 53 L155 91",
+                "start": [
+                  117,
+                  119
+                ],
+                "direction": [
+                  117,
+                  119
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earR",
+                "label": "earR",
+                "d": "M189 90 L237 60 L232 122",
+                "start": [
+                  189,
+                  90
+                ],
+                "direction": [
+                  189,
+                  90
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "머리·몸·귀를 2~4개 덩어리로 나눠 다시 놓아요. 대표 특징은 세모 귀 하나만 더해도 돼요.",
+            "choices": [
+              {
+                "id": "oval",
+                "label": "타원 머리",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M108 151 A66 63 0 1 0 240 151 A66 63 0 1 0 108 151",
+                    "start": [
+                      108,
+                      151
+                    ],
+                    "direction": [
+                      108,
+                      151
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "body",
+                    "label": "body",
+                    "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+                    "start": [
+                      120,
+                      261
+                    ],
+                    "direction": [
+                      120,
+                      261
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              },
+              {
+                "id": "box",
+                "label": "둥근 네모 머리",
+                "lines": [
+                  {
+                    "id": "candidate",
+                    "label": "candidate",
+                    "d": "M168 98 H232 Q270 98 270 136 V184 Q270 222 232 222 H168 Q130 222 130 184 V136 Q130 98 168 98",
+                    "start": [
+                      168,
+                      98
+                    ],
+                    "direction": [
+                      168,
+                      98
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "body",
+                    "label": "body",
+                    "d": "M120 261 A85 63 0 1 0 290 261 A85 63 0 1 0 120 261",
+                    "start": [
+                      120,
+                      261
+                    ],
+                    "direction": [
+                      120,
+                      261
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ]
+            ]
+          }
+        },
+        {
+          "id": "new-animal-2",
+          "name": "늘어진 귀 강아지",
+          "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+          "lines": [
+            {
+              "id": "earL",
+              "label": "earL",
+              "d": "M102 177 A23 57 0 1 0 148 177 A23 57 0 1 0 102 177",
+              "start": [
+                102,
+                177
+              ],
+              "direction": [
+                102,
+                177
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "earR",
+              "label": "earR",
+              "d": "M252 177 A23 57 0 1 0 298 177 A23 57 0 1 0 252 177",
+              "start": [
+                252,
+                177
+              ],
+              "direction": [
+                252,
+                177
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "head",
+              "label": "head",
+              "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+              "start": [
+                130,
+                160
+              ],
+              "direction": [
+                130,
+                160
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "body",
+              "label": "body",
+              "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+              "start": [
+                141,
+                273
+              ],
+              "direction": [
+                141,
+                273
+              ],
+              "group": "shape"
+            },
+            {
+              "id": "eyeL",
+              "label": "eyeL",
+              "d": "M171 159 A4 4 0 1 0 179 159 A4 4 0 1 0 171 159",
+              "start": [
+                171,
+                159
+              ],
+              "direction": [
+                171,
+                159
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "eyeR",
+              "label": "eyeR",
+              "d": "M221 159 A4 4 0 1 0 229 159 A4 4 0 1 0 221 159",
+              "start": [
+                221,
+                159
+              ],
+              "direction": [
+                221,
+                159
+              ],
+              "group": "detail",
+              "fill": "ink"
+            },
+            {
+              "id": "nose",
+              "label": "nose",
+              "d": "M196 183 A4 4 0 1 0 204 183 A4 4 0 1 0 196 183",
+              "start": [
+                196,
+                183
+              ],
+              "direction": [
+                196,
+                183
+              ],
+              "group": "detail",
+              "fill": "ink"
+            }
+          ],
+          "structure": {
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+                "start": [
+                  130,
+                  160
+                ],
+                "direction": [
+                  130,
+                  160
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+                "start": [
+                  141,
+                  273
+                ],
+                "direction": [
+                  141,
+                  273
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earL",
+                "label": "earL",
+                "d": "M102 177 A23 57 0 1 0 148 177 A23 57 0 1 0 102 177",
+                "start": [
+                  102,
+                  177
+                ],
+                "direction": [
+                  102,
+                  177
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "earR",
+                "label": "earR",
+                "d": "M252 177 A23 57 0 1 0 298 177 A23 57 0 1 0 252 177",
+                "start": [
+                  252,
+                  177
+                ],
+                "direction": [
+                  252,
+                  177
+                ],
+                "group": "shape"
+              }
+            ],
+            "easyLines": [
+              "head",
+              "body"
+            ],
+            "hidden": [],
+            "explanation": "머리·몸·귀를 2~4개 덩어리로 나눠 다시 놓아요. 대표 특징은 늘어진 귀 하나만 더해도 돼요.",
+            "choices": [
+              {
+                "id": "oval",
+                "label": "타원 머리",
+                "lines": [
+                  {
+                    "id": "head",
+                    "label": "head",
+                    "d": "M130 160 A70 63 0 1 0 270 160 A70 63 0 1 0 130 160",
+                    "start": [
+                      130,
+                      160
+                    ],
+                    "direction": [
+                      130,
+                      160
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "body",
+                    "label": "body",
+                    "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+                    "start": [
+                      141,
+                      273
+                    ],
+                    "direction": [
+                      141,
+                      273
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              },
+              {
+                "id": "box",
+                "label": "둥근 네모 머리",
+                "lines": [
+                  {
+                    "id": "candidate",
+                    "label": "candidate",
+                    "d": "M168 98 H232 Q270 98 270 136 V184 Q270 222 232 222 H168 Q130 222 130 184 V136 Q130 98 168 98",
+                    "start": [
+                      168,
+                      98
+                    ],
+                    "direction": [
+                      168,
+                      98
+                    ],
+                    "group": "shape"
+                  },
+                  {
+                    "id": "body",
+                    "label": "body",
+                    "d": "M141 273 A59 62 0 1 0 259 273 A59 62 0 1 0 141 273",
+                    "start": [
+                      141,
+                      273
+                    ],
+                    "direction": [
+                      141,
+                      273
+                    ],
+                    "group": "shape"
+                  }
+                ]
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "body"
+              ],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ],
+              [
+                "head",
+                "body",
+                "earL",
+                "earR"
+              ]
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "text": "새 동물을 골라 큰 부분을 찾아요.",
+          "lines": [],
+          "action": "look"
+        },
+        {
+          "text": "원본 위에 2~4개 덩어리를 나눠요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "빈 공간에 다시 조립을 눌러 옮겨요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "귀처럼 대표 특징 하나만 더해요.",
+          "lines": [],
+          "action": "draw"
+        },
+        {
+          "text": "붙는 위치와 겹친 앞쪽을 설명해요.",
+          "lines": [],
+          "action": "compare"
+        }
+      ],
       "references": [],
       "readiness": {
         "manuscript": true,
-        "examples": false,
-        "visualMatch": false,
+        "examples": true,
+        "visualMatch": true,
         "browser": false
-      }
+      },
+      "structurePractice": "assemble"
     },
     {
       "id": "D53",

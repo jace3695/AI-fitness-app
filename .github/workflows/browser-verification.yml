@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     # The complete suite includes all authored drawing lessons in both engines.
     # Keep every regression check while allowing the growing suite to finish.
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
@@ -46,8 +46,9 @@ jobs:
         run: npm run build
       - name: Verify drawing save and restore in Chromium and WebKit
         run: |
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(3[5-9]|4[0-2])'
-          npx playwright test tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small --grep-invert 'drawing D(3[5-9]|4[0-2])'
+          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D46: reuse'
+          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(4[3-9]|5[0-2])' --grep-invert 'drawing D46: reuse'
+          npx playwright test tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small --grep-invert 'drawing D(4[3-9]|5[0-2])'
       - name: Verify typing basics in Chromium and WebKit
         run: npx playwright test tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
       - name: Verify handwriting course in Chromium and WebKit
@@ -73,6 +74,7 @@ jobs:
             .e2e/evidence/drawing-stage3-*.png
             .e2e/evidence/drawing-stage4-*.png
             .e2e/evidence/drawing-stage5-*.png
+            .e2e/evidence/drawing-stage6-*.png
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7

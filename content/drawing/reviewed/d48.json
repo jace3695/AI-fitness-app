@@ -1,0 +1,405 @@
+{
+  "id": "D48",
+  "examples": [
+    {
+      "id": "turned-rabbit-1",
+      "name": "귀가 겹친 토끼",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "back",
+          "label": "back",
+          "d": "M206 109 C228 52 255 81 244 133 L229 184",
+          "start": [
+            206,
+            109
+          ],
+          "direction": [
+            206,
+            109
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "front",
+          "label": "front",
+          "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+          "start": [
+            168,
+            185
+          ],
+          "direction": [
+            168,
+            185
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+          "start": [
+            117,
+            255
+          ],
+          "direction": [
+            117,
+            255
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M191 250 A4 4 0 1 0 199 250 A4 4 0 1 0 191 250",
+          "start": [
+            191,
+            250
+          ],
+          "direction": [
+            191,
+            250
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M232 250 A4 4 0 1 0 240 250 A4 4 0 1 0 232 250",
+          "start": [
+            232,
+            250
+          ],
+          "direction": [
+            232,
+            250
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M215 272 A4 4 0 1 0 223 272 A4 4 0 1 0 215 272",
+          "start": [
+            215,
+            272
+          ],
+          "direction": [
+            215,
+            272
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+            "start": [
+              117,
+              255
+            ],
+            "direction": [
+              117,
+              255
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "front",
+            "label": "front",
+            "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+            "start": [
+              168,
+              185
+            ],
+            "direction": [
+              168,
+              185
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "back",
+            "label": "back",
+            "d": "M206 109 C228 52 255 81 244 133 L229 184",
+            "start": [
+              206,
+              109
+            ],
+            "direction": [
+              206,
+              109
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "front",
+          "back"
+        ],
+        "hidden": [
+          {
+            "id": "hidden",
+            "label": "hidden",
+            "d": "M229 184 Q202 190 190 168 L206 109",
+            "start": [
+              229,
+              184
+            ],
+            "direction": [
+              229,
+              184
+            ],
+            "group": "shape"
+          }
+        ],
+        "explanation": "화면 왼쪽 긴 귀가 앞이에요. 뒤 귀의 아래 왼쪽 선은 앞 귀와 머리에 가려지고, 윗부분은 남아요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "turned-rabbit-2",
+      "name": "뒤 귀가 벌어진 토끼",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "back",
+          "label": "back",
+          "d": "M206 109 C238 52 265 81 254 133 L229 184",
+          "start": [
+            206,
+            109
+          ],
+          "direction": [
+            206,
+            109
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "front",
+          "label": "front",
+          "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+          "start": [
+            168,
+            185
+          ],
+          "direction": [
+            168,
+            185
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+          "start": [
+            117,
+            255
+          ],
+          "direction": [
+            117,
+            255
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M191 250 A4 4 0 1 0 199 250 A4 4 0 1 0 191 250",
+          "start": [
+            191,
+            250
+          ],
+          "direction": [
+            191,
+            250
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M232 250 A4 4 0 1 0 240 250 A4 4 0 1 0 232 250",
+          "start": [
+            232,
+            250
+          ],
+          "direction": [
+            232,
+            250
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M215 272 A4 4 0 1 0 223 272 A4 4 0 1 0 215 272",
+          "start": [
+            215,
+            272
+          ],
+          "direction": [
+            215,
+            272
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M117 255 A83 76 0 1 0 283 255 A83 76 0 1 0 117 255",
+            "start": [
+              117,
+              255
+            ],
+            "direction": [
+              117,
+              255
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "front",
+            "label": "front",
+            "d": "M168 185 C145 80 161 40 185 55 C211 80 205 144 207 179",
+            "start": [
+              168,
+              185
+            ],
+            "direction": [
+              168,
+              185
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "back",
+            "label": "back",
+            "d": "M206 109 C238 52 265 81 254 133 L229 184",
+            "start": [
+              206,
+              109
+            ],
+            "direction": [
+              206,
+              109
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "front",
+          "back"
+        ],
+        "hidden": [
+          {
+            "id": "hidden",
+            "label": "hidden",
+            "d": "M229 184 Q202 190 190 168 L206 109",
+            "start": [
+              229,
+              184
+            ],
+            "direction": [
+              229,
+              184
+            ],
+            "group": "shape"
+          }
+        ],
+        "explanation": "화면 왼쪽 긴 귀가 앞이에요. 뒤 귀의 아래 왼쪽 선은 앞 귀와 머리에 가려지고, 윗부분은 남아요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ],
+          [
+            "head",
+            "front",
+            "back"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "occlusion",
+  "steps": [
+    {
+      "text": "두 귀가 겹치는 부분을 봐요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "큰 머리 덩어리를 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "앞 귀와 뒤 귀의 보이는 부분을 나눠요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "전체 밑그림과 완성을 번갈아 비교해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "뒤 귀가 가려진 곳을 짚어봐요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

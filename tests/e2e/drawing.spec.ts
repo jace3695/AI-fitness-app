@@ -417,3 +417,59 @@ for (const authored of parsePack(pack).lessons.slice(34,42)) {
     expect(await qa.read()).toEqual(before);
   });
 }
+
+for (const authored of parsePack(pack).lessons.slice(42,52)) {
+  test(`drawing ${authored.id}: analyze, assemble, hints, exact saved bodies and restored ink`,async({page,qa},testInfo)=>{
+    test.setTimeout(150_000);
+    await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});
+    await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(5).click();await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+    const practice=page.getByRole('region',{name:'스스로 도형화 연습'}),next=page.getByRole('button',{name:'다음 행동',exact:true});
+    const draw=async()=>{const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*.5,b.y+b.height*.25);await page.mouse.down();await page.mouse.move(b.x+b.width*.35,b.y+b.height*.55,{steps:5});await page.mouse.up();};
+    for(const [i,ex] of authored.examples.entries()){
+      if(i)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+      await expect(practice).toContainText(ex.name);await expect(practice.getByTestId('structure-easy')).toHaveCount(0);
+      await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+      await draw();await practice.getByRole('button',{name:'내 분석선 잠깐 숨기기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeDisabled();await practice.getByRole('button',{name:'내 분석선 다시 보기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      if(authored.structurePractice==='assemble'){
+        await practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeDisabled();await draw();
+        await practice.getByRole('button',{name:'원본 위에서 나누기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();await practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true}).click();
+      }
+      await practice.getByText('덩어리 나누는 시범 보기',{exact:true}).click();await expect(practice.getByTestId('structure-demo').locator('path')).toHaveCount(0);
+      for(let s=1;s<5;s++){await next.click();expect(await practice.getByTestId('structure-demo').locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('data-line')))).toEqual(ex.structure!.lines.filter(l=>ex.structure!.frames[s].includes(l.id)).map(l=>l.id));}
+      if(ex.structure!.hidden.length){await practice.getByRole('button',{name:'가려진 선까지 밑그림 보기',exact:true}).click();await expect(practice.getByTestId('structure-full').locator('[stroke-dasharray]')).toHaveCount(ex.structure!.hidden.length);await practice.getByRole('button',{name:'가려진 선 뺀 완성 보기',exact:true}).click();await expect(practice.getByTestId('structure-full')).toHaveCount(0);}
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();await expect(practice.getByTestId('structure-easy')).toBeVisible();
+      for(const c of ex.structure!.choices){await practice.getByRole('button',{name:c.label,exact:true}).click();await expect(practice.getByRole('button',{name:c.label,exact:true})).toHaveAttribute('aria-pressed','true');expect(await practice.getByTestId('structure-easy').locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('d')))).toEqual(c.lines.map(l=>l.d));}
+      await practice.getByLabel('고른 덩어리 확인',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();await practice.getByLabel('위치와 관계 확인',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();
+      await practice.getByLabel('덩어리 설명',{exact:true}).fill(`${ex.id}: 큰 덩어리와 붙는 위치`);
+      if(!i&&['D43','D46','D47','D48','D50','D52'].includes(authored.id))await practice.screenshot({path:`.e2e/evidence/drawing-stage6-${authored.id}-${testInfo.project.name}.png`});
+      const download=page.waitForEvent('download');await practice.getByRole('button',{name:'분석할 원본 내려받기',exact:true}).click();expect(readFileSync((await(await download).path())!,'utf8')).toContain(ex.lines[0].d);
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('종이를 두 칸');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await expect(practice).toContainText('분석 레이어');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+      await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+      const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;expect(rows).toHaveLength(i+1);const saved=rows.find(r=>r.document.example.id===ex.id)!;
+      expect(saved.document.example).toEqual(ex);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.structure.identified).toBe(true);expect(saved.document.structure.compared).toBe(true);expect(saved.document.structure.analysis).toHaveLength(authored.structurePractice==='assemble'?1:0);
+      await page.reload();await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+      await expect(practice.getByLabel('덩어리 설명',{exact:true})).toHaveValue(`${ex.id}: 큰 덩어리와 붙는 위치`);await expect(practice.getByLabel('고른 덩어리 확인',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      if(authored.structurePractice==='assemble'){await practice.getByRole('button',{name:'원본 위에서 나누기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();}
+      await draw();await expect(practice.getByLabel('고른 덩어리 확인',{exact:true})).not.toBeChecked();expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',saved.id).single()).data).toEqual(saved);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    expect(await qa.read()).toEqual(before);
+  });
+}
+
+test('drawing D46: reuse owned D45 analysis, preserve saved source and restore both surfaces',async({page,qa})=>{
+  await login(page,qa.account);await synced(page);const before=await qa.read();await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(5).click();await page.getByRole('button',{name:/^D45 ·/}).click();await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+  await expect(page.getByRole('region',{name:'스스로 도형화 연습'})).toContainText(parsePack(pack).lessons[44].examples[1].name);
+  const sourceCanvas=page.getByRole('region',{name:'스스로 도형화 연습'}).getByLabel('내 그림 연습장',{exact:true});await sourceCanvas.scrollIntoViewIfNeeded();const sourceBox=(await sourceCanvas.boundingBox())!;await page.mouse.click(sourceBox.x+sourceBox.width*.4,sourceBox.y+sourceBox.height*.3);await expect(page.getByRole('region',{name:'스스로 도형화 연습'}).getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+  const source=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;const original=structuredClone(source),document=source.document;
+  await page.getByRole('button',{name:/^D46 ·/}).click();await expect(page.getByRole('region',{name:'현재 과제'})).toContainText('큰 도형을 옆에 다시 조립하기');
+  const practice=page.getByRole('region',{name:'스스로 도형화 연습'});await practice.getByLabel('저장한 D45 분석',{exact:true}).selectOption(source.id);await expect(practice.getByLabel('저장한 D45 분석',{exact:true})).toHaveValue(source.id);await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+  await practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeDisabled();
+  await expect(practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true})).toHaveAttribute('aria-pressed','true');
+  const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.click(b.x+b.width*.4,b.y+b.height*.4);await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+  await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.id!==source.id&&r.document.lesson.id==='D46'&&r.document.strokes.length===1&&r.document.structure?.source?.attemptId===source.id);}).toBe(true);
+  const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=rows.find(r=>r.id!==source.id)!;expect(saved.document.structure.analysis).toEqual(document.strokes);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.structure.source.attemptId).toBe(source.id);expect(rows.find(r=>r.id===source.id)).toEqual(original);
+  await page.reload();await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D46'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('저장한 D45 분석',{exact:true})).toHaveValue(source.id);await expect(practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true})).toHaveAttribute('aria-pressed','true');await practice.getByRole('button',{name:'원본 위에서 나누기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();expect(await qa.read()).toEqual(before);
+});
