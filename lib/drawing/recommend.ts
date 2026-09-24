@@ -31,7 +31,7 @@ export function recommend(pack: Pack, history: Attempt[], requiredExamples = 2):
   if (doc.check === "assisted") return { ...base, exampleId: doc.example.id, help: Math.max(0, doc.usedHelp - 1) as Help, reason: "도움을 받아 해봤다고 체크했어요. 다음에는 도움 하나만 줄여봐요." };
   const confirmed = history.filter(a => a.status === "completed" && !a.document.short && a.document.check === "independent" && !a.document.difficulty && a.document.lesson.id === current.id && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document) && gestureEligible(a.document) && identityEligible(a.document));
   const distinct = new Set(confirmed.map(a => a.document.example.id));
-  if (distinct.size < Math.max(2, requiredExamples)) return { ...base, exampleId: current.examples.find(e => !distinct.has(e.id))?.id ?? base.exampleId, reason: "스스로 해봤다고 체크했어요. 다른 예제에서도 같은 목표를 확인해요." };
+  if (distinct.size < (current.identityPractice && current.identityPractice !== "draw" ? 1 : Math.max(2, requiredExamples))) return { ...base, exampleId: current.examples.find(e => !distinct.has(e.id))?.id ?? base.exampleId, reason: "스스로 해봤다고 체크했어요. 다른 예제에서도 같은 목표를 확인해요." };
   const next = available.find(l => pack.lessons.indexOf(l) > pack.lessons.indexOf(current));
   return next ? { lessonId: next.id, exampleId: next.examples[0].id, help: next.help as Help, short: false, reason: "서로 다른 예제에서 스스로 확인했어요. 다음 목표를 살펴봐요. 완료 횟수로 실력을 채점하지 않아요." }
     : { ...base, reason: "현재 준비된 수업을 다른 도움 수준으로 복습할 수 있어요." };
@@ -54,7 +54,7 @@ export function confirmedStage(pack: Pack, history: Attempt[], stage: number) {
   const capstone: Lesson | undefined = pack.lessons.filter(l => l.stage === stage).at(-1);
   if (!capstone) return false;
   const evidence = history.filter(a => a.document.lesson.id === capstone.id && a.status === "completed" && a.document.check === "independent" && !a.document.short && !a.document.difficulty && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document) && gestureEligible(a.document) && identityEligible(a.document));
-  return new Set(evidence.map(a => a.document.example.id)).size >= 2;
+  return new Set(evidence.map(a => a.document.example.id)).size >= (capstone.identityPractice === "poses" ? 1 : 2);
 }
 
 function memoryStateLabel(doc: import("./model.ts").DrawingDocument) { return doc.memory?.copyMode ? "원본 보며 모작" : `기억·비교 연습 · 잠깐 확인 ${doc.memory?.peeks ?? 0}회`; }

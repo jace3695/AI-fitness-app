@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
 import {newDocument,parsePack,parseAttempt,type Attempt} from './model.ts';
+import {recommend,confirmedStage} from './recommend.ts';
 import {identityState,identityLines,identityCandidates,identitySnapshot,identityEligible,identityReferences} from './identity.ts';
 const pack=parsePack(JSON.parse(readFileSync(new URL('../../content/drawing/foundations-v1.json',import.meta.url),'utf8')));
 const owner=crypto.randomUUID();
@@ -20,4 +21,8 @@ test('pose collection requires baseline, distinct lesson sources, final comparis
 });
 test('malformed choices, duplicate features and wrong source relations are rejected',()=>{
  const a=attempt(61);a.document.identity!.features=['ears','ears'];assert.throws(()=>parseAttempt(a));a.document.identity!.features=['ears','spacing'];a.document.identity!.choice='missing';assert.throws(()=>parseAttempt(a));a.document.identity!.choice='main';a.document.identity!.baseline=identitySnapshot(attempt(61,1));a.document.references=[a.document.identity!.baseline.attemptId];assert.throws(()=>parseAttempt(a));assert.equal(parseAttempt(attempt()).document.lesson.id,'D61');
+});
+
+test('one complete same-character collection advances D65 and confirms stage8 without forcing another mascot',()=>{
+ for(const n of [65,70]){const a=attempt(n),base=attempt(61),sources=(n===65?[62,63,64]:[66,67]).map(x=>attempt(x));a.document.check='independent';a.document.identity={...identityState(a.document),baseline:identitySnapshot(base),collection:sources.map(identitySnapshot),editing:sources[0].id,note:'같은 귀 모양을 유지'};a.document.references=identityReferences(a.document.identity);assert.equal(identityEligible(a.document),true);if(n===65)assert.equal(recommend(pack,[a])?.lessonId,'D66');else assert.equal(confirmedStage(pack,[a],8),true);}
 });
