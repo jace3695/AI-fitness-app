@@ -1,0 +1,501 @@
+{
+  "id": "D56",
+  "gesturePractice": true,
+  "examples": [
+    {
+      "id": "d56-sit-1",
+      "name": "앉기 · 첫 방향",
+      "source": "연이 자체 제작 단순 마네킹. 방향 연습용이며 인체 비례나 자연스러운 보행을 채점하지 않음.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M119 78 A26 26 0 1 0 171 78 A26 26 0 1 0 119 78",
+          "start": [
+            119,
+            78
+          ],
+          "direction": [
+            119,
+            78
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "torso",
+          "label": "torso",
+          "d": "M133.15 116.257 L148.15 228.257 A17 17 0 0 0 181.85 223.743 L166.85 111.743 A17 17 0 0 0 133.15 116.257",
+          "start": [
+            133.15,
+            116.257
+          ],
+          "direction": [
+            133.15,
+            116.257
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm0-0",
+          "label": "arm0-0",
+          "d": "M145.715 142.442 L186.715 182.442 A9 9 0 0 0 199.285 169.558 L158.285 129.558 A9 9 0 0 0 145.715 142.442",
+          "start": [
+            145.715,
+            142.442
+          ],
+          "direction": [
+            145.715,
+            142.442
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm0-1",
+          "label": "arm0-1",
+          "d": "M193 185 L244 185 A9 9 0 0 0 244 167 L193 167 A9 9 0 0 0 193 185",
+          "start": [
+            193.0,
+            185.0
+          ],
+          "direction": [
+            193.0,
+            185.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "leg0-0",
+          "label": "leg0-0",
+          "d": "M165 237 L263 237 A11 11 0 0 0 263 215 L165 215 A11 11 0 0 0 165 237",
+          "start": [
+            165.0,
+            237.0
+          ],
+          "direction": [
+            165.0,
+            237.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "leg0-1",
+          "label": "leg0-1",
+          "d": "M252 226 L252 327 A11 11 0 0 0 274 327 L274 226 A11 11 0 0 0 252 226",
+          "start": [
+            252.0,
+            226.0
+          ],
+          "direction": [
+            252.0,
+            226.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot0",
+          "label": "foot0",
+          "d": "M263 333 L279 333 A6 6 0 0 0 279 321 L263 321 A6 6 0 0 0 263 333",
+          "start": [
+            263.0,
+            333.0
+          ],
+          "direction": [
+            263.0,
+            333.0
+          ],
+          "group": "shape"
+        }
+      ],
+      "gesture": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M119 78 A26 26 0 1 0 171 78 A26 26 0 1 0 119 78",
+            "start": [
+              119,
+              78
+            ],
+            "direction": [
+              119,
+              78
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "center",
+            "label": "center",
+            "d": "M145 104 L150 114 L165 226",
+            "start": [
+              145,
+              104
+            ],
+            "direction": [
+              145,
+              104
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "arm0",
+            "label": "arm0",
+            "d": "M152 136 L193 176 L244 176",
+            "start": [
+              152,
+              136
+            ],
+            "direction": [
+              152,
+              136
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "foot0",
+            "label": "foot0",
+            "d": "M263 327 L279 327",
+            "start": [
+              263,
+              327
+            ],
+            "direction": [
+              263,
+              327
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "thigh",
+            "label": "thigh",
+            "d": "M165 226 L263 226",
+            "start": [
+              165,
+              226
+            ],
+            "direction": [
+              165,
+              226
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "shin",
+            "label": "shin",
+            "d": "M263 226 L263 327",
+            "start": [
+              263,
+              226
+            ],
+            "direction": [
+              263,
+              226
+            ],
+            "group": "gesture"
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head",
+            "center"
+          ],
+          [
+            "head",
+            "center",
+            "thigh"
+          ],
+          [
+            "head",
+            "center",
+            "arm0",
+            "foot0",
+            "thigh",
+            "shin"
+          ],
+          [
+            "head",
+            "center",
+            "arm0",
+            "foot0",
+            "thigh",
+            "shin"
+          ]
+        ],
+        "baseLines": [],
+        "easyLines": [
+          "head",
+          "center",
+          "thigh",
+          "shin"
+        ],
+        "anchors": [],
+        "focus": "앞으로 나온 허벅지와 아래로 꺾인 다리",
+        "choices": []
+      }
+    },
+    {
+      "id": "d56-sit-2",
+      "name": "앉기 · 반대 방향",
+      "source": "연이 자체 제작 단순 마네킹. 방향 연습용이며 인체 비례나 자연스러운 보행을 채점하지 않음.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M229 78 A26 26 0 1 0 281 78 A26 26 0 1 0 229 78",
+          "start": [
+            229,
+            78
+          ],
+          "direction": [
+            229,
+            78
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "torso",
+          "label": "torso",
+          "d": "M233.15 111.743 L218.15 223.743 A17 17 0 0 0 251.85 228.257 L266.85 116.257 A17 17 0 0 0 233.15 111.743",
+          "start": [
+            233.15,
+            111.743
+          ],
+          "direction": [
+            233.15,
+            111.743
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm0-0",
+          "label": "arm0-0",
+          "d": "M241.715 129.558 L200.715 169.558 A9 9 0 0 0 213.285 182.442 L254.285 142.442 A9 9 0 0 0 241.715 129.558",
+          "start": [
+            241.715,
+            129.558
+          ],
+          "direction": [
+            241.715,
+            129.558
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm0-1",
+          "label": "arm0-1",
+          "d": "M207 167 L156 167 A9 9 0 0 0 156 185 L207 185 A9 9 0 0 0 207 167",
+          "start": [
+            207.0,
+            167.0
+          ],
+          "direction": [
+            207.0,
+            167.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "leg0-0",
+          "label": "leg0-0",
+          "d": "M235 215 L137 215 A11 11 0 0 0 137 237 L235 237 A11 11 0 0 0 235 215",
+          "start": [
+            235.0,
+            215.0
+          ],
+          "direction": [
+            235.0,
+            215.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "leg0-1",
+          "label": "leg0-1",
+          "d": "M126 226 L126 327 A11 11 0 0 0 148 327 L148 226 A11 11 0 0 0 126 226",
+          "start": [
+            126.0,
+            226.0
+          ],
+          "direction": [
+            126.0,
+            226.0
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot0",
+          "label": "foot0",
+          "d": "M137 321 L121 321 A6 6 0 0 0 121 333 L137 333 A6 6 0 0 0 137 321",
+          "start": [
+            137.0,
+            321.0
+          ],
+          "direction": [
+            137.0,
+            321.0
+          ],
+          "group": "shape"
+        }
+      ],
+      "gesture": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M229 78 A26 26 0 1 0 281 78 A26 26 0 1 0 229 78",
+            "start": [
+              229,
+              78
+            ],
+            "direction": [
+              229,
+              78
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "center",
+            "label": "center",
+            "d": "M255 104 L250 114 L235 226",
+            "start": [
+              255,
+              104
+            ],
+            "direction": [
+              255,
+              104
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "arm0",
+            "label": "arm0",
+            "d": "M248 136 L207 176 L156 176",
+            "start": [
+              248,
+              136
+            ],
+            "direction": [
+              248,
+              136
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "foot0",
+            "label": "foot0",
+            "d": "M137 327 L121 327",
+            "start": [
+              137,
+              327
+            ],
+            "direction": [
+              137,
+              327
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "thigh",
+            "label": "thigh",
+            "d": "M235 226 L137 226",
+            "start": [
+              235,
+              226
+            ],
+            "direction": [
+              235,
+              226
+            ],
+            "group": "gesture"
+          },
+          {
+            "id": "shin",
+            "label": "shin",
+            "d": "M137 226 L137 327",
+            "start": [
+              137,
+              226
+            ],
+            "direction": [
+              137,
+              226
+            ],
+            "group": "gesture"
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "head",
+            "center"
+          ],
+          [
+            "head",
+            "center",
+            "thigh"
+          ],
+          [
+            "head",
+            "center",
+            "arm0",
+            "foot0",
+            "thigh",
+            "shin"
+          ],
+          [
+            "head",
+            "center",
+            "arm0",
+            "foot0",
+            "thigh",
+            "shin"
+          ]
+        ],
+        "baseLines": [],
+        "easyLines": [
+          "head",
+          "center",
+          "thigh",
+          "shin"
+        ],
+        "anchors": [],
+        "focus": "앞으로 나온 허벅지와 아래로 꺾인 다리",
+        "choices": []
+      }
+    }
+  ],
+  "steps": [
+    {
+      "text": "앉은 몸과 꺾인 다리를 봐요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "머리와 몸 방향을 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "앞으로 나온 허벅지 방향을 이어요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "무릎에서 아래 다리와 발까지 이어요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "서 있을 때와 다른 다리의 꺾임을 봐요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

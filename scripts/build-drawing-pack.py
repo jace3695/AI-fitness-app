@@ -21,6 +21,6 @@ for path in sorted((ROOT/'content/drawing/reviewed').glob('d*.json')):
  lesson.update(reviewed)
 projects=[dict(id=m[1],title=m[2],sessions=list(m.group(3,4,5,6)),check=m[7]) for m in re.finditer(r'^\| (C0[1-4])\. (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \| (.*?) \|$',source,re.M)]
 assert len(lessons)==80 and len(stages)==9 and len(projects)==4
-pack=dict(schemaVersion=1,id='yeoni-character-practice',version='1.6.0-stage6',title='캐릭터와 함께 시작하는 그림 연습',stages=stages,lessons=lessons,projects=projects)
+pack=dict(schemaVersion=1,id='yeoni-character-practice',version='1.7.0-stage7',title='캐릭터와 함께 시작하는 그림 연습',stages=stages,lessons=lessons,projects=projects)
 (ROOT/'content/drawing/foundations-v1.json').write_text(json.dumps(pack,ensure_ascii=False,indent=2)+'\n')
 print(f"80 manuscripts, 4 project manuscripts. {sum(l['readiness']['visualMatch'] for l in lessons)} visually reviewed lessons; {sum(len(l['examples']) for l in lessons)} examples. Browser evidence: release PR / CI.")

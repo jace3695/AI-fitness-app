@@ -473,3 +473,37 @@ test('drawing D46: reuse owned D45 analysis, preserve saved source and restore b
   const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=rows.find(r=>r.id!==source.id)!;expect(saved.document.structure.analysis).toEqual(document.strokes);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.structure.source.attemptId).toBe(source.id);expect(rows.find(r=>r.id===source.id)).toEqual(original);
   await page.reload();await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D46'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('저장한 D45 분석',{exact:true})).toHaveValue(source.id);await expect(practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true})).toHaveAttribute('aria-pressed','true');await practice.getByRole('button',{name:'원본 위에서 나누기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();expect(await qa.read()).toEqual(before);
 });
+
+for (const authored of parsePack(pack).lessons.slice(52,60)) {
+  test(`drawing ${authored.id}: gesture directions, separate ink, every pose and restored checks`,async({page,qa},testInfo)=>{
+    test.setTimeout(authored.id==='D60'?240_000:150_000);
+    await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});
+    await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(6).click();await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+    const practice=page.getByRole('region',{name:'쉬운 크로키 연습'}),next=page.getByRole('button',{name:'다음 행동',exact:true});
+    const draw=async(x:number)=>{const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*x,b.y+b.height*.25);await page.mouse.down();await page.mouse.move(b.x+b.width*(x+.1),b.y+b.height*.55,{steps:5});await page.mouse.up();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();};
+    for(const [i,ex] of authored.examples.entries()){
+      if(i){if(authored.id==='D60')await page.getByLabel('연습할 자세 선택',{exact:true}).selectOption(ex.id);else await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();}
+      await expect(practice).toContainText(ex.name);await expect(practice).toContainText('제한 시간 없이');await expect(practice.getByTestId('gesture-easy')).toHaveCount(0);
+      await expect(practice.getByRole('button',{name:'빈 공간에 자세 그리기',exact:true})).toHaveAttribute('aria-pressed','true');await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+      await draw(.35);await practice.getByRole('button',{name:'원본 위에서 방향 찾기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeDisabled();await draw(.55);
+      await practice.getByRole('button',{name:'빈 공간에 자세 그리기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      await practice.getByText('큰 방향 시범 보기',{exact:true}).click();
+      for(let s=0;s<5;s++){if(s)await next.click();expect(await practice.getByTestId('gesture-demo').locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('data-line')))).toEqual(ex.gesture!.lines.filter(l=>ex.gesture!.frames[s].includes(l.id)).map(l=>l.id));}
+      await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();await expect(practice.getByTestId('gesture-easy')).toBeVisible();
+      for(const c of ex.gesture!.choices){await practice.getByRole('button',{name:c.label,exact:true}).click();await expect(practice.getByRole('button',{name:c.label,exact:true})).toHaveAttribute('aria-pressed','true');expect(await practice.getByTestId('gesture-easy').locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('d')))).toEqual(c.lines.map(l=>l.d));}
+      await practice.getByLabel('큰 방향 확인',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();await practice.getByLabel('원본 자세 비교',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await practice.getByLabel('자세 방향 메모',{exact:true}).fill(`${ex.id}: 머리와 팔 다리의 큰 방향`);
+      if(!i&&['D53','D54','D56','D58','D59','D60'].includes(authored.id))await practice.screenshot({path:`.e2e/evidence/drawing-stage7-${authored.id}-${testInfo.project.name}.png`});
+      const download=page.waitForEvent('download');await practice.getByRole('button',{name:'자세 원본 내려받기',exact:true}).click();expect(readFileSync((await(await download).path())!,'utf8')).toContain(ex.lines[0].d);
+      await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('종이 왼쪽');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await expect(practice).toContainText('별도 레이어');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+      await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.some(r=>r.document.example.id===ex.id&&r.status==='completed'&&r.document.gesture?.compared);}).toBe(true);
+      const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;expect(rows).toHaveLength(i+1);const saved=rows.find(r=>r.document.example.id===ex.id)!;
+      expect(saved.document.example).toEqual(ex);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.gesture.trace).toHaveLength(1);expect(saved.document.gesture.trace).not.toEqual(saved.document.strokes);expect(saved.document.gesture.directionChecked).toBe(true);expect(saved.document.gesture.choice).toBe(ex.gesture!.choices.at(-1)?.id??'');
+      await page.reload();await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+      await expect(practice.getByLabel('자세 방향 메모',{exact:true})).toHaveValue(`${ex.id}: 머리와 팔 다리의 큰 방향`);await expect(practice.getByLabel('큰 방향 확인',{exact:true})).toBeChecked();await expect(practice.getByLabel('원본 자세 비교',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+      await practice.getByRole('button',{name:'원본 위에서 방향 찾기',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();await draw(.45);await expect(practice.getByLabel('큰 방향 확인',{exact:true})).not.toBeChecked();expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',saved.id).single()).data).toEqual(saved);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+    expect(await qa.read()).toEqual(before);
+  });
+}
