@@ -1,0 +1,329 @@
+{
+  "id": "D43",
+  "examples": [
+    {
+      "id": "pear-bird-1",
+      "name": "통통한 배 모양 새",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M200 80 C122 80 150 160 122 230 C80 330 320 330 278 230 C250 160 278 80 200 80",
+          "start": [
+            200,
+            80
+          ],
+          "direction": [
+            200,
+            80
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M177 156 A4 4 0 1 0 185 156 A4 4 0 1 0 177 156",
+          "start": [
+            177,
+            156
+          ],
+          "direction": [
+            177,
+            156
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M215 156 A4 4 0 1 0 223 156 A4 4 0 1 0 215 156",
+          "start": [
+            215,
+            156
+          ],
+          "direction": [
+            215,
+            156
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "beak",
+          "d": "M194 173 L206 173 L200 185 Z",
+          "start": [
+            194,
+            173
+          ],
+          "direction": [
+            194,
+            173
+          ],
+          "group": "detail"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "mass",
+            "label": "mass",
+            "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+            "start": [
+              105,
+              205
+            ],
+            "direction": [
+              105,
+              205
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "mass"
+        ],
+        "hidden": [],
+        "explanation": "머리와 몸을 하나의 세로 타원으로 잡을 수 있어요. 아래가 더 넓다는 차이는 나중에 고쳐요.",
+        "choices": [
+          {
+            "id": "oval",
+            "label": "세로 타원",
+            "lines": [
+              {
+                "id": "mass",
+                "label": "mass",
+                "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                "start": [
+                  105,
+                  205
+                ],
+                "direction": [
+                  105,
+                  205
+                ],
+                "group": "shape"
+              }
+            ]
+          },
+          {
+            "id": "round-box",
+            "label": "둥근 네모",
+            "lines": [
+              {
+                "id": "candidate",
+                "label": "candidate",
+                "d": "M175 88 H225 Q290 88 290 153 V243 Q290 308 225 308 H175 Q110 308 110 243 V153 Q110 88 175 88",
+                "start": [
+                  175,
+                  88
+                ],
+                "direction": [
+                  175,
+                  88
+                ],
+                "group": "shape"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "pear-bird-2",
+      "name": "넓은 배 모양 새",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M200 80 C112 80 150 160 112 230 C80 330 320 330 288 230 C250 160 288 80 200 80",
+          "start": [
+            200,
+            80
+          ],
+          "direction": [
+            200,
+            80
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M177 156 A4 4 0 1 0 185 156 A4 4 0 1 0 177 156",
+          "start": [
+            177,
+            156
+          ],
+          "direction": [
+            177,
+            156
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M215 156 A4 4 0 1 0 223 156 A4 4 0 1 0 215 156",
+          "start": [
+            215,
+            156
+          ],
+          "direction": [
+            215,
+            156
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "beak",
+          "label": "beak",
+          "d": "M194 173 L206 173 L200 185 Z",
+          "start": [
+            194,
+            173
+          ],
+          "direction": [
+            194,
+            173
+          ],
+          "group": "detail"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "mass",
+            "label": "mass",
+            "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+            "start": [
+              105,
+              205
+            ],
+            "direction": [
+              105,
+              205
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "mass"
+        ],
+        "hidden": [],
+        "explanation": "머리와 몸을 하나의 세로 타원으로 잡을 수 있어요. 아래가 더 넓다는 차이는 나중에 고쳐요.",
+        "choices": [
+          {
+            "id": "oval",
+            "label": "세로 타원",
+            "lines": [
+              {
+                "id": "mass",
+                "label": "mass",
+                "d": "M105 205 A95 115 0 1 0 295 205 A95 115 0 1 0 105 205",
+                "start": [
+                  105,
+                  205
+                ],
+                "direction": [
+                  105,
+                  205
+                ],
+                "group": "shape"
+              }
+            ]
+          },
+          {
+            "id": "round-box",
+            "label": "둥근 네모",
+            "lines": [
+              {
+                "id": "candidate",
+                "label": "candidate",
+                "d": "M175 88 H225 Q290 88 290 153 V243 Q290 308 225 308 H175 Q110 308 110 243 V153 Q110 88 175 88",
+                "start": [
+                  175,
+                  88
+                ],
+                "direction": [
+                  175,
+                  88
+                ],
+                "group": "shape"
+              }
+            ]
+          }
+        ],
+        "frames": [
+          [],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ],
+          [
+            "mass"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "analyze",
+  "steps": [
+    {
+      "text": "원본에서 가장 큰 덩어리를 둘러봐요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "가까운 도형을 마음속으로 골라요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "원본 위에 그 도형을 직접 그려요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "원본과 도형의 다른 곳 한 군데를 봐요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "내가 고른 도형이 어느 부분인지 설명해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

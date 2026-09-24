@@ -1,0 +1,373 @@
+{
+  "id": "D44",
+  "examples": [
+    {
+      "id": "hamster-1",
+      "name": "둥근 햄스터 얼굴",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M126.4 169 C78 103 142 81 166 136",
+          "start": [
+            126.4,
+            169
+          ],
+          "direction": [
+            126.4,
+            169
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M234 136 C258 81 322 103 273.6 169",
+          "start": [
+            234,
+            136
+          ],
+          "direction": [
+            234,
+            136
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M108 215 A92 85 0 1 0 292 215 A92 85 0 1 0 108 215",
+          "start": [
+            108,
+            215
+          ],
+          "direction": [
+            108,
+            215
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M165 210 A4 4 0 1 0 173 210 A4 4 0 1 0 165 210",
+          "start": [
+            165,
+            210
+          ],
+          "direction": [
+            165,
+            210
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M227 210 A4 4 0 1 0 235 210 A4 4 0 1 0 227 210",
+          "start": [
+            227,
+            210
+          ],
+          "direction": [
+            227,
+            210
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M196 237 A4 4 0 1 0 204 237 A4 4 0 1 0 196 237",
+          "start": [
+            196,
+            237
+          ],
+          "direction": [
+            196,
+            237
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M108 215 A92 85 0 1 0 292 215 A92 85 0 1 0 108 215",
+            "start": [
+              108,
+              215
+            ],
+            "direction": [
+              108,
+              215
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earL",
+            "label": "earL",
+            "d": "M97 133 A35 38 0 1 0 167 133 A35 38 0 1 0 97 133",
+            "start": [
+              97,
+              133
+            ],
+            "direction": [
+              97,
+              133
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earR",
+            "label": "earR",
+            "d": "M233 133 A35 38 0 1 0 303 133 A35 38 0 1 0 233 133",
+            "start": [
+              233,
+              133
+            ],
+            "direction": [
+              233,
+              133
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "earL"
+        ],
+        "hidden": [],
+        "explanation": "큰 얼굴 하나와 작은 귀 둘이에요. 귀는 얼굴의 위 양쪽에 붙어요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "hamster-2",
+      "name": "넓은 햄스터 얼굴",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M116.8 169 C66 103 142 81 166 136",
+          "start": [
+            116.8,
+            169
+          ],
+          "direction": [
+            116.8,
+            169
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M234 136 C258 81 334 103 283.2 169",
+          "start": [
+            234,
+            136
+          ],
+          "direction": [
+            234,
+            136
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M96 215 A104 85 0 1 0 304 215 A104 85 0 1 0 96 215",
+          "start": [
+            96,
+            215
+          ],
+          "direction": [
+            96,
+            215
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyeL",
+          "label": "eyeL",
+          "d": "M165 210 A4 4 0 1 0 173 210 A4 4 0 1 0 165 210",
+          "start": [
+            165,
+            210
+          ],
+          "direction": [
+            165,
+            210
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eyeR",
+          "label": "eyeR",
+          "d": "M227 210 A4 4 0 1 0 235 210 A4 4 0 1 0 227 210",
+          "start": [
+            227,
+            210
+          ],
+          "direction": [
+            227,
+            210
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "nose",
+          "label": "nose",
+          "d": "M196 237 A4 4 0 1 0 204 237 A4 4 0 1 0 196 237",
+          "start": [
+            196,
+            237
+          ],
+          "direction": [
+            196,
+            237
+          ],
+          "group": "detail",
+          "fill": "ink"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M96 215 A104 85 0 1 0 304 215 A104 85 0 1 0 96 215",
+            "start": [
+              96,
+              215
+            ],
+            "direction": [
+              96,
+              215
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earL",
+            "label": "earL",
+            "d": "M97 133 A35 38 0 1 0 167 133 A35 38 0 1 0 97 133",
+            "start": [
+              97,
+              133
+            ],
+            "direction": [
+              97,
+              133
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "earR",
+            "label": "earR",
+            "d": "M233 133 A35 38 0 1 0 303 133 A35 38 0 1 0 233 133",
+            "start": [
+              233,
+              133
+            ],
+            "direction": [
+              233,
+              133
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "earL"
+        ],
+        "hidden": [],
+        "explanation": "큰 얼굴 하나와 작은 귀 둘이에요. 귀는 얼굴의 위 양쪽에 붙어요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ],
+          [
+            "head",
+            "earL",
+            "earR"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "analyze",
+  "steps": [
+    {
+      "text": "얼굴과 귀를 먼저 관찰해요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "큰 얼굴 덩어리를 그려요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "작은 귀 둘을 따로 표시해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "내 분석선을 숨겼다가 다시 켜 관계를 봐요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "큰 얼굴과 작은 귀가 붙는 곳을 비교해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

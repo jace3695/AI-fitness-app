@@ -1,0 +1,517 @@
+{
+  "id": "D46",
+  "examples": [
+    {
+      "id": "structure-bear-1",
+      "name": "긴 몸 곰 인형",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M152.8 92.4 C117.8 50 155.45 37 173.45 75.99",
+          "start": [
+            152.8,
+            92.4
+          ],
+          "direction": [
+            152.8,
+            92.4
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M226.55 75.99 C244.55 37 282.2 50 247.2 92.4",
+          "start": [
+            226.55,
+            75.99
+          ],
+          "direction": [
+            226.55,
+            75.99
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+          "start": [
+            141,
+            126
+          ],
+          "direction": [
+            141,
+            126
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+          "start": [
+            142,
+            247
+          ],
+          "direction": [
+            142,
+            247
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armL",
+          "label": "armL",
+          "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+          "start": [
+            110,
+            224
+          ],
+          "direction": [
+            110,
+            224
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armR",
+          "label": "armR",
+          "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+          "start": [
+            252,
+            224
+          ],
+          "direction": [
+            252,
+            224
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+          "start": [
+            146,
+            321
+          ],
+          "direction": [
+            146,
+            321
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+          "start": [
+            210,
+            321
+          ],
+          "direction": [
+            210,
+            321
+          ],
+          "group": "shape"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+            "start": [
+              141,
+              126
+            ],
+            "direction": [
+              141,
+              126
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+            "start": [
+              142,
+              247
+            ],
+            "direction": [
+              142,
+              247
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "armL",
+            "label": "armL",
+            "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+            "start": [
+              110,
+              224
+            ],
+            "direction": [
+              110,
+              224
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "armR",
+            "label": "armR",
+            "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+            "start": [
+              252,
+              224
+            ],
+            "direction": [
+              252,
+              224
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "legL",
+            "label": "legL",
+            "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+            "start": [
+              146,
+              321
+            ],
+            "direction": [
+              146,
+              321
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "legR",
+            "label": "legR",
+            "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+            "start": [
+              210,
+              321
+            ],
+            "direction": [
+              210,
+              321
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "head"
+        ],
+        "hidden": [],
+        "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head",
+            "body"
+          ],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "body",
+            "armL",
+            "armR",
+            "legL",
+            "legR"
+          ],
+          [
+            "head",
+            "body",
+            "armL",
+            "armR",
+            "legL",
+            "legR"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "structure-bear-2",
+      "name": "넓은 머리 곰 인형",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M147.2 92.4 C112.2 50 152.3 37 170.3 75.99",
+          "start": [
+            147.2,
+            92.4
+          ],
+          "direction": [
+            147.2,
+            92.4
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M229.7 75.99 C247.7 37 287.8 50 252.8 92.4",
+          "start": [
+            229.7,
+            75.99
+          ],
+          "direction": [
+            229.7,
+            75.99
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+          "start": [
+            134,
+            126
+          ],
+          "direction": [
+            134,
+            126
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+          "start": [
+            142,
+            247
+          ],
+          "direction": [
+            142,
+            247
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armL",
+          "label": "armL",
+          "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+          "start": [
+            110,
+            224
+          ],
+          "direction": [
+            110,
+            224
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "armR",
+          "label": "armR",
+          "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+          "start": [
+            252,
+            224
+          ],
+          "direction": [
+            252,
+            224
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+          "start": [
+            146,
+            321
+          ],
+          "direction": [
+            146,
+            321
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+          "start": [
+            210,
+            321
+          ],
+          "direction": [
+            210,
+            321
+          ],
+          "group": "shape"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+            "start": [
+              134,
+              126
+            ],
+            "direction": [
+              134,
+              126
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+            "start": [
+              142,
+              247
+            ],
+            "direction": [
+              142,
+              247
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "armL",
+            "label": "armL",
+            "d": "M110 224 A19 38 0 1 0 148 224 A19 38 0 1 0 110 224",
+            "start": [
+              110,
+              224
+            ],
+            "direction": [
+              110,
+              224
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "armR",
+            "label": "armR",
+            "d": "M252 224 A19 38 0 1 0 290 224 A19 38 0 1 0 252 224",
+            "start": [
+              252,
+              224
+            ],
+            "direction": [
+              252,
+              224
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "legL",
+            "label": "legL",
+            "d": "M146 321 A22 28 0 1 0 190 321 A22 28 0 1 0 146 321",
+            "start": [
+              146,
+              321
+            ],
+            "direction": [
+              146,
+              321
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "legR",
+            "label": "legR",
+            "d": "M210 321 A22 28 0 1 0 254 321 A22 28 0 1 0 210 321",
+            "start": [
+              210,
+              321
+            ],
+            "direction": [
+              210,
+              321
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "head"
+        ],
+        "hidden": [],
+        "explanation": "얼굴 세부 없이 머리·몸과 팔·다리의 붙는 위치를 봐요. 머리보다 몸이 조금 길어요.",
+        "choices": [],
+        "frames": [
+          [],
+          [
+            "head",
+            "body"
+          ],
+          [
+            "head"
+          ],
+          [
+            "head",
+            "body",
+            "armL",
+            "armR",
+            "legL",
+            "legR"
+          ],
+          [
+            "head",
+            "body",
+            "armL",
+            "armR",
+            "legL",
+            "legR"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "assemble",
+  "steps": [
+    {
+      "text": "D45 분석을 고르거나 원본 위에 직접 나눠요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "큰 머리·몸 덩어리를 확인해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "빈 공간에 다시 조립을 눌러 머리부터 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "몸과 짧은 팔다리를 이어 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "내 분석과 조립 그림의 큰 위치를 비교해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}

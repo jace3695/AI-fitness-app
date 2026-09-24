@@ -1,0 +1,449 @@
+{
+  "id": "D47",
+  "examples": [
+    {
+      "id": "ball-bear-1",
+      "name": "작은 공을 든 곰",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M152.8 92.4 C117.8 50 155.45 37 173.45 75.99",
+          "start": [
+            152.8,
+            92.4
+          ],
+          "direction": [
+            152.8,
+            92.4
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M226.55 75.99 C244.55 37 282.2 50 247.2 92.4",
+          "start": [
+            226.55,
+            75.99
+          ],
+          "direction": [
+            226.55,
+            75.99
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M142.104 242.819 A58 70 0 0 1 257.896 242.819",
+          "start": [
+            142.104,
+            242.819
+          ],
+          "direction": [
+            142.104,
+            242.819
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M141 126 A59 56 0 1 0 259 126 A59 56 0 1 0 141 126",
+          "start": [
+            141,
+            126
+          ],
+          "direction": [
+            141,
+            126
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M164 315.478 C138 365 193 370 185 325.158",
+          "start": [
+            164,
+            315.478
+          ],
+          "direction": [
+            164,
+            315.478
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M215 325.158 C207 370 262 365 236 315.478",
+          "start": [
+            215,
+            325.158
+          ],
+          "direction": [
+            215,
+            325.158
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "ball",
+          "label": "ball",
+          "d": "M138 265 A62 62 0 1 0 262 265 A62 62 0 1 0 138 265",
+          "start": [
+            138,
+            265
+          ],
+          "direction": [
+            138,
+            265
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "handL",
+          "label": "handL",
+          "d": "M125 245 A13 17 0 1 0 151 245 A13 17 0 1 0 125 245",
+          "start": [
+            125,
+            245
+          ],
+          "direction": [
+            125,
+            245
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "handR",
+          "label": "handR",
+          "d": "M249 245 A13 17 0 1 0 275 245 A13 17 0 1 0 249 245",
+          "start": [
+            249,
+            245
+          ],
+          "direction": [
+            249,
+            245
+          ],
+          "group": "shape"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+            "start": [
+              142,
+              247
+            ],
+            "direction": [
+              142,
+              247
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "ball",
+            "label": "ball",
+            "d": "M138 265 A62 62 0 1 0 262 265 A62 62 0 1 0 138 265",
+            "start": [
+              138,
+              265
+            ],
+            "direction": [
+              138,
+              265
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "body",
+          "ball"
+        ],
+        "hidden": [
+          {
+            "id": "covered",
+            "label": "covered",
+            "d": "M257.896 242.819 A58 70 0 1 1 142.104 242.819",
+            "start": [
+              257.896,
+              242.819
+            ],
+            "direction": [
+              257.896,
+              242.819
+            ],
+            "group": "shape"
+          }
+        ],
+        "choices": [],
+        "explanation": "공이 몸의 아래쪽 외곽을 가려요. 밑그림에는 몸 전체가 있지만 완성선에는 공 뒤의 몸 선을 빼요. 작은 손은 공보다 앞이에요.",
+        "frames": [
+          [],
+          [
+            "body"
+          ],
+          [
+            "body",
+            "ball"
+          ],
+          [
+            "body",
+            "ball"
+          ],
+          [
+            "body",
+            "ball"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ball-bear-2",
+      "name": "큰 공을 든 곰",
+      "source": "연이 자체 제작 도형화 예제. 사유 교재 이미지 사용 없음.",
+      "lines": [
+        {
+          "id": "earL",
+          "label": "earL",
+          "d": "M147.2 92.4 C112.2 50 152.3 37 170.3 75.99",
+          "start": [
+            147.2,
+            92.4
+          ],
+          "direction": [
+            147.2,
+            92.4
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "earR",
+          "label": "earR",
+          "d": "M229.7 75.99 C247.7 37 287.8 50 252.8 92.4",
+          "start": [
+            229.7,
+            75.99
+          ],
+          "direction": [
+            229.7,
+            75.99
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M144.196 227.92 A58 70 0 0 1 255.804 227.92",
+          "start": [
+            144.196,
+            227.92
+          ],
+          "direction": [
+            144.196,
+            227.92
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M134 126 A66 56 0 1 0 266 126 A66 56 0 1 0 134 126",
+          "start": [
+            134,
+            126
+          ],
+          "direction": [
+            134,
+            126
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legL",
+          "label": "legL",
+          "d": "M164 321.507 C138 365 193 370 185 330.299",
+          "start": [
+            164,
+            321.507
+          ],
+          "direction": [
+            164,
+            321.507
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "legR",
+          "label": "legR",
+          "d": "M215 330.299 C207 370 262 365 236 321.507",
+          "start": [
+            215,
+            330.299
+          ],
+          "direction": [
+            215,
+            330.299
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "ball",
+          "label": "ball",
+          "d": "M133 265 A67 67 0 1 0 267 265 A67 67 0 1 0 133 265",
+          "start": [
+            133,
+            265
+          ],
+          "direction": [
+            133,
+            265
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "handL",
+          "label": "handL",
+          "d": "M120 245 A13 17 0 1 0 146 245 A13 17 0 1 0 120 245",
+          "start": [
+            120,
+            245
+          ],
+          "direction": [
+            120,
+            245
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "handR",
+          "label": "handR",
+          "d": "M254 245 A13 17 0 1 0 280 245 A13 17 0 1 0 254 245",
+          "start": [
+            254,
+            245
+          ],
+          "direction": [
+            254,
+            245
+          ],
+          "group": "shape"
+        }
+      ],
+      "structure": {
+        "lines": [
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M142 247 A58 70 0 1 0 258 247 A58 70 0 1 0 142 247",
+            "start": [
+              142,
+              247
+            ],
+            "direction": [
+              142,
+              247
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "ball",
+            "label": "ball",
+            "d": "M133 265 A67 67 0 1 0 267 265 A67 67 0 1 0 133 265",
+            "start": [
+              133,
+              265
+            ],
+            "direction": [
+              133,
+              265
+            ],
+            "group": "shape"
+          }
+        ],
+        "easyLines": [
+          "body",
+          "ball"
+        ],
+        "hidden": [
+          {
+            "id": "covered",
+            "label": "covered",
+            "d": "M255.804 227.92 A58 70 0 1 1 144.196 227.92",
+            "start": [
+              255.804,
+              227.92
+            ],
+            "direction": [
+              255.804,
+              227.92
+            ],
+            "group": "shape"
+          }
+        ],
+        "choices": [],
+        "explanation": "공이 몸의 아래쪽 외곽을 가려요. 밑그림에는 몸 전체가 있지만 완성선에는 공 뒤의 몸 선을 빼요. 작은 손은 공보다 앞이에요.",
+        "frames": [
+          [],
+          [
+            "body"
+          ],
+          [
+            "body",
+            "ball"
+          ],
+          [
+            "body",
+            "ball"
+          ],
+          [
+            "body",
+            "ball"
+          ]
+        ]
+      }
+    }
+  ],
+  "structurePractice": "occlusion",
+  "steps": [
+    {
+      "text": "공이 몸의 어느 부분을 가렸는지 봐요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "몸의 큰 덩어리를 표시해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "몸 앞에 공 덩어리를 놓아요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "가려진 선까지 밑그림과 완성을 번갈아 봐요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "공 뒤에서 생략한 몸 선을 짚어봐요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}
