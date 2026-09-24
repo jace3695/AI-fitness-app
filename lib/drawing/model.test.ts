@@ -12,7 +12,7 @@ function attempt(extra: Partial<Attempt['document']> = {}, variant = 0): Attempt
 test('authoritative 80 lessons retain 9-stage allocation and C01–C04, unpublished manuscripts are not playable', () => {
   assert.deepEqual(pack.stages.map(s => pack.lessons.filter(l => l.stage === s.id).length), [8,8,12,6,8,10,8,10,10]);
   assert.deepEqual(pack.projects.map(p => p.id), ['C01','C02','C03','C04']);
-  assert.equal(pack.lessons.filter(playable).length, 52);
+  assert.equal(pack.lessons.filter(playable).length, 60);
   for (const l of pack.lessons) { assert.ok(l.goal && l.check && l.easier); assert.ok(l.instructions.length); }
 });
 test('D01 has one start-only frame then six cumulative actions with no invented head or neck', () => {
@@ -30,7 +30,7 @@ test('malformed remote packs cannot replace the good pack', () => {
     (p: typeof raw) => p.lessons[1].references.push('missing'),
     (p: typeof raw) => p.lessons[0].examples[0].lines[0].d = '<script>alert(1)</script>',
     (p: typeof raw) => p.lessons[0].steps[0].lines.push('unknown-line'),
-    (p: typeof raw) => p.lessons[52].readiness.visualMatch = true,
+    (p: typeof raw) => p.lessons[60].readiness.visualMatch = true,
   ]) { const value = structuredClone(raw); mutate(value); assert.throws(() => parsePack(value)); }
 });
 test('completion count alone, short practice and assisted confirmation never certify a stage', () => {

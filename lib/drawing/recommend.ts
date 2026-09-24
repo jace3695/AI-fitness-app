@@ -1,3 +1,4 @@
+import { gestureEligible } from "./gesture.ts";
 import type { Attempt, Help, Lesson, Pack } from "./model.ts";
 import { structureEligible } from "./structure.ts";
 import { variationEligible } from "./variation.ts";
@@ -20,12 +21,13 @@ export function recommend(pack: Pack, history: Attempt[], requiredExamples = 2):
     return { ...base, lessonId: review?.id ?? current.id, exampleId: review?.examples[0].id ?? doc.example.id, help: Math.min(3, doc.usedHelp + 1) as Help, short: true,
       reason: review ? "걷기가 어려웠다고 했어요. 앞뒤 다리의 방향부터 다시 봐요." : "어려웠다고 알려줬어요. 같은 목표에서 그릴 부분을 줄여봐요." };
   }
+  if (!gestureEligible(doc)) return { ...base, exampleId: doc.example.id, reason: "마지막 비교에서 중요한 방향과 원본을 확인해요." };
   if (!structureEligible(doc)) return { ...base, exampleId: doc.example.id, reason: "마지막 비교에서 고른 덩어리와 위치·앞뒤 관계를 확인해요." };
   if (!variationEligible(doc)) return { ...base, exampleId: doc.example.id, reason: "바꾼 것 하나와 유지한 것 하나를 마지막 비교 행동에서 확인해요." };
   if (!recallEligible(doc)) return { ...base, exampleId: doc.example.id, reason: "기억할 특징 두 개와 다시 본 한 곳을 확인해요. 이전 그림 떠올리기는 저장한 그림을 골라 연습해요." };
   if (doc.short || doc.check === "unconfirmed") return { ...base, exampleId: current.examples.find(e => e.id !== doc.example.id)?.id ?? base.exampleId, reason: "짧은 시도와 전체 목표 확인은 달라요. 같은 목표의 다른 그림을 제안해요." };
   if (doc.check === "assisted") return { ...base, exampleId: doc.example.id, help: Math.max(0, doc.usedHelp - 1) as Help, reason: "도움을 받아 해봤다고 체크했어요. 다음에는 도움 하나만 줄여봐요." };
-  const confirmed = history.filter(a => a.status === "completed" && !a.document.short && a.document.check === "independent" && !a.document.difficulty && a.document.lesson.id === current.id && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document));
+  const confirmed = history.filter(a => a.status === "completed" && !a.document.short && a.document.check === "independent" && !a.document.difficulty && a.document.lesson.id === current.id && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document) && gestureEligible(a.document));
   const distinct = new Set(confirmed.map(a => a.document.example.id));
   if (distinct.size < Math.max(2, requiredExamples)) return { ...base, exampleId: current.examples.find(e => !distinct.has(e.id))?.id ?? base.exampleId, reason: "스스로 해봤다고 체크했어요. 다른 예제에서도 같은 목표를 확인해요." };
   const next = available.find(l => pack.lessons.indexOf(l) > pack.lessons.indexOf(current));
@@ -49,7 +51,7 @@ export function feedback(attempt: Attempt, pack: Pack, history: Attempt[]) {
 export function confirmedStage(pack: Pack, history: Attempt[], stage: number) {
   const capstone: Lesson | undefined = pack.lessons.filter(l => l.stage === stage).at(-1);
   if (!capstone) return false;
-  const evidence = history.filter(a => a.document.lesson.id === capstone.id && a.status === "completed" && a.document.check === "independent" && !a.document.short && !a.document.difficulty && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document));
+  const evidence = history.filter(a => a.document.lesson.id === capstone.id && a.status === "completed" && a.document.check === "independent" && !a.document.short && !a.document.difficulty && recallEligible(a.document) && variationEligible(a.document) && structureEligible(a.document) && gestureEligible(a.document));
   return new Set(evidence.map(a => a.document.example.id)).size >= 2;
 }
 
