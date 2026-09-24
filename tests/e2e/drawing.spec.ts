@@ -2,7 +2,7 @@ import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
-import { parsePack, newDocument } from '../../lib/drawing/model';
+import { parsePack } from '../../lib/drawing/model';
 
 test('drawing: first dot, ink undo, lost save reply, reload, private CAS and preserved older records', async ({page,qa}) => {
   await login(page,qa.account); await synced(page); const before=await qa.read();
@@ -458,12 +458,11 @@ for (const authored of parsePack(pack).lessons.slice(42,52)) {
 }
 
 test('drawing D46: reuse owned D45 analysis, preserve saved source and restore both surfaces',async({page,qa})=>{
-  const before=await qa.read();const parsed=parsePack(pack),l=parsed.lessons[44],document=newDocument(l,l.examples[1],parsed.version);
-  document.strokes=[{points:[[120,100,.5],[150,140,.6]],color:'#34314b',width:2,erase:false}];
-  const source={id:crypto.randomUUID(),user_id:qa.account.id,revision:1,status:'completed',document};
-  expect((await qa.account.client.from('growth_drawing_attempts').insert(source)).error).toBeNull();
-  const original=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',source.id).single()).data;
-  await login(page,qa.account);await synced(page);await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(5).click();await page.getByRole('button',{name:/^D46 ·/}).click();
+  await login(page,qa.account);await synced(page);const before=await qa.read();await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(5).click();await page.getByRole('button',{name:/^D45 ·/}).click();await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();
+  const sourceCanvas=page.getByRole('region',{name:'스스로 도형화 연습'}).getByLabel('내 그림 연습장',{exact:true});await sourceCanvas.scrollIntoViewIfNeeded();const sourceBox=(await sourceCanvas.boundingBox())!;await page.mouse.click(sourceBox.x+sourceBox.width*.4,sourceBox.y+sourceBox.height*.3);
+  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+  const source=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;const original=structuredClone(source),document=source.document;
+  await page.getByRole('button',{name:/^D46 ·/}).click();
   const practice=page.getByRole('region',{name:'스스로 도형화 연습'});await practice.getByLabel('저장한 D45 분석',{exact:true}).selectOption(source.id);await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
   await practice.getByRole('button',{name:'빈 공간에 다시 조립',exact:true}).click();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeDisabled();
   const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.click(b.x+b.width*.4,b.y+b.height*.4);
