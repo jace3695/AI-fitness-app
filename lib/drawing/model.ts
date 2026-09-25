@@ -12,7 +12,17 @@ const strokeSchema = z.object({
   points: z.array(z.tuple([z.number().min(0).max(400), z.number().min(0).max(400), z.number().min(0).max(1)])).min(1).max(6000),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/), width: z.number().min(.1).max(30), erase: z.boolean(),
 });
+const originalDesignSchema = z.object({ motif: z.enum(['sprout','bird']), body: z.enum(['round','tall']), mark: z.enum(['single','split']), palette: z.number().int().min(0).max(2) });
+const characterSchema = z.object({name:z.string().max(300),role:z.string().max(300),personality:z.string().max(300),features:z.string().max(300),improvement:z.string().max(300)});
+const originalFrameSchema = z.object({label:text,expression:z.enum(['neutral','happy','surprised']),pose:z.enum(['stand','wave','sit','walk']),strokes:z.array(strokeSchema).max(1000)});
+const originalSourceSchema = z.object({attemptId:z.string().uuid(),revision:z.number().int().min(1),lessonId:z.string().regex(/^D7[1-9]$/),projectId:z.string().uuid(),design:originalDesignSchema,character:characterSchema,frames:z.array(originalFrameSchema).min(1).max(3)});
+const originalStateSchema = z.object({projectId:z.string().uuid(),design:originalDesignSchema,sources:z.array(originalSourceSchema).max(3),panels:z.object({round:z.array(strokeSchema).max(1000),tall:z.array(strokeSchema).max(1000),wave:z.array(strokeSchema).max(1000),second:z.array(strokeSchema).max(1000)}),active:z.enum(['round','tall','wave','second']),expression:z.enum(['happy','surprised']),pose:z.enum(['sit','walk']),reason:z.string().max(500),note:z.string().max(500),compared:z.boolean(),copied:z.boolean(),features:z.array(z.enum(['shape','mark','eyes'])).max(2)});
+export type OriginalDesign=z.infer<typeof originalDesignSchema>;
+export type OriginalFrame=z.infer<typeof originalFrameSchema>;
+export type OriginalSource=z.infer<typeof originalSourceSchema>;
+export type OriginalState=z.infer<typeof originalStateSchema>;
 export const exampleSchema = z.object({
+  original: z.object({motif:z.enum(['sprout','bird'])}).optional(),
   id, name: text, source: text, lines: z.array(lineSchema).min(1).max(60),
   parts: z.array(z.object({ id, label: text, point, radius: z.number().min(10).max(80) })).max(12).optional(),
   identity: z.object({
@@ -56,6 +66,7 @@ export const lessonSchema = z.object({
     demoBaseLines: z.array(id).max(12), scale: z.number().min(.4).max(1),
   }).optional(),
   memoryPractice: memoryPracticeSchema.optional(),
+  originalPractice: z.literal(true).optional(),
   identityPractice: z.enum(["draw", "expressions", "poses"]).optional(),
   gesturePractice: z.literal(true).optional(),
   structurePractice: z.enum(["analyze", "assemble", "occlusion", "direction"]).optional(),
@@ -84,6 +95,7 @@ export const packSchema = z.object({
     if (lesson.readiness.examples && (!lesson.examples.length || !lesson.steps.length)) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시각 자료 누락` });
     if (lesson.readiness.visualMatch && !lesson.readiness.examples) ctx.addIssue({ code: "custom", message: "검수 상태 오류" });
     for (const ex of lesson.examples) {
+      if (lesson.originalPractice && (lesson.stage !== 9 || !ex.original)) ctx.addIssue({code:"custom",message:"창작 예제 누락"});
       if (lesson.identityPractice && (lesson.stage !== 8 || !ex.identity)) ctx.addIssue({code:'custom',message:'캐릭터 비교 예제 누락'});
       if (ex.identity) {
         const c=ex.identity;
@@ -144,6 +156,7 @@ export type DrawingDocument = {
   comparison?: { focus: "width" | "ears" | "eyes" | "space"; reason: string };
   memory?: { selected: string[]; peeking: boolean; peeks: number; copyMode: boolean; recalled: string; compared: string;
     source?: { attemptId: string; revision: number; lessonId: string } };
+  original?: OriginalState;
   identity?: IdentityState;
   gesture?: { trace: Stroke[]; surface: "trace" | "free"; choice: string; directionChecked: boolean; compared: boolean; note: string };
   structure?: { analysis: Stroke[]; surface: "analysis" | "assembly"; choice: string; identified: boolean; compared: boolean; note: string;
@@ -171,6 +184,7 @@ const documentSchema = z.object({
     source: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.string().regex(/^D(29|3[0-2])$/) }).optional(),
   }).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
+  original: originalStateSchema.optional(),
   identity: identityStateSchema.optional(),
   gesture: z.object({ trace: z.array(strokeSchema).max(1000), surface: z.enum(['trace','free']), choice: z.string().max(80), directionChecked: z.boolean(), compared: z.boolean(), note: z.string().max(500) }).optional(),
   structure: z.object({ analysis: z.array(strokeSchema).max(1000), surface: z.enum(['analysis','assembly']), choice: z.string().max(80), identified: z.boolean(), compared: z.boolean(), note: z.string().max(500),
@@ -178,6 +192,11 @@ const documentSchema = z.object({
   }).optional(),
   variation: z.object({ choice: id, changedChecked: z.boolean(), keptChecked: z.boolean(), note: z.string().max(500) }).optional(),
 }).superRefine((doc, ctx) => {
+  if(doc.original) {
+    const o=doc.original;
+    const allowed:Record<string,string[]>={D71:[],D72:['D71'],D73:['D72'],D74:['D73'],D75:['D74'],D76:['D74'],D77:['D74'],D78:['D74','D77'],D79:['D74'],D80:['D74','D78','D79']};
+    if(!doc.lesson.originalPractice || !doc.example.original || o.design.motif!==doc.example.original.motif || o.sources.some(x=>!allowed[doc.lesson.id]?.includes(x.lessonId)||x.projectId!==o.projectId||x.design.motif!==o.design.motif||!doc.references.includes(x.attemptId)) || new Set(o.sources.map(x=>x.lessonId)).size!==o.sources.length || new Set(o.features).size!==o.features.length) ctx.addIssue({code:'custom',message:'내 캐릭터 원본 연결 오류'});
+  }
   if (doc.identity) {
     const c=doc.identity,meta=doc.example.identity;
     if (!doc.lesson.identityPractice || !meta || c.features.some(id=>!meta.features.some(f=>f.id===id)) || new Set(c.features).size!==c.features.length || !meta.options.some(o=>o.id===c.choice)) ctx.addIssue({code:'custom',message:'캐릭터 특징 연결 오류'});
