@@ -21,6 +21,20 @@ export function failureLabel(raw: string): string {
   return 'other';
 }
 
+export function pageErrorLabel(error: Error): string {
+  const message = error.message ?? '';
+  if (/abort|cancel/i.test(message) || error.name === 'AbortError') return 'request-aborted';
+  if (/load failed|failed to fetch|fetch failed|network.*lost|networkerror/i.test(message)) return 'fetch-load-failed';
+  if (/hydration|hydrating|Minified React error #4(?:18|23|25)/i.test(message)) return 'react-hydration';
+  if (/chunkload|loading chunk|dynamically imported module/i.test(message)) return 'script-chunk-load';
+  if (/indexeddb|transaction.*inactive|database.*closed/i.test(message)) return 'indexeddb';
+  if (/quota/i.test(message) || error.name === 'QuotaExceededError') return 'storage-quota';
+  if (error.name === 'ReferenceError') return 'script-reference';
+  if (error.name === 'TypeError') return 'script-type';
+  if (error.name === 'SyntaxError') return 'script-syntax';
+  return 'other-page-error';
+}
+
 export function observeNavigation(context: BrowserContext) {
   const started = Date.now();
   const events: { ms: number; event: string; route?: string; status?: number; failure?: string }[] = [];
@@ -38,7 +52,7 @@ export function observeNavigation(context: BrowserContext) {
     if (seen.has(page)) return;
     seen.add(page);
     const crash = () => { crashed = true; add('page-crash'); };
-    const error = () => { pageErrors++; add('page-error'); };
+    const error = (error: Error) => { pageErrors++; add('page-error', { route: routeLabel(page.url()), failure: pageErrorLabel(error) }); };
     page.on('crash', crash); page.on('pageerror', error);
     cleanups.push(() => { page.off('crash', crash); page.off('pageerror', error); });
   };

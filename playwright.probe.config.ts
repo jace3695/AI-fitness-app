@@ -4,8 +4,8 @@ import baseline from './playwright.config';
 export default defineConfig({
   ...baseline,
   testMatch: '**/navigation-probe.spec.ts',
+  grep: /navigation probe [1-3]:/,
   projects: [
-    { name: 'probe-chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'probe-webkit', use: { ...devices['iPhone 13'] } },
   ],
   webServer: {

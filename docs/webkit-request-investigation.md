@@ -48,3 +48,21 @@ sample, not the full long-running regression or physical iPhone/Apple Pencil.
 - https://github.com/microsoft/playwright/issues/34450 — older Linux report with
   similar symptom and native libsoup/GLib/heap messages; not proof of the cause
   in our different Playwright/WebKit version.
+
+## First probe result and narrowed follow-up
+
+Run `36125731757`, candidate `287d5322cb5b646b6cb5c555652f89f031040a8f`:
+30/30 cases passed. All 270 document requests have matching continuation,
+server receipt, server completion (200), and browser response records.
+No native internal/GLib/libsoup/heap error classification appeared. Both
+browser process exits occurred at the end of their completed test groups.
+All 30 fixture cleanup assertions passed; no external origins were contacted.
+Downloaded ZIP SHA256 verified against GitHub:
+`6d2f7cf6e0e2b5456fc0faaddb1ae59e86e897ba7397a0cfb93a8ebfcb8d9790`.
+
+However, WebKit emitted 65 page JavaScript errors (Chromium: 0), whose message
+was deliberately not retained by the original observer. The passing navigation
+assertions do not establish that these errors are harmless or connected to the
+earlier internal navigation failure. The next bounded experiment selects only
+three WebKit cases and adds fixed page-error classifications. It does not
+silence errors or change product behavior, and is not release certification.
