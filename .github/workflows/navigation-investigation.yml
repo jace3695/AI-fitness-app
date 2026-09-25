@@ -7,11 +7,16 @@ permissions:
 jobs:
   investigate:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        soup: [bundled, fixed]
     timeout-minutes: 25
     env:
       CI: 'true'
       NEXT_TELEMETRY_DISABLED: '1'
       QA_HEAD_SHA: ${{ github.sha }}
+      QA_SOUP_VARIANT: ${{ matrix.soup }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -26,11 +31,28 @@ jobs:
           node --experimental-strip-types --test tests/navigation-diagnostics.test.ts tests/request-probe.test.ts
           npx tsc --noEmit
       - run: npx playwright install --with-deps chromium webkit
+      - name: Checkout official libsoup 3.6.6 source
+        if: matrix.soup == 'fixed'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: GNOME/libsoup
+          ref: 25eac153004f777581ca2d95e31a02ca96844332
+          path: .e2e/libsoup-source
+          persist-credentials: false
+      - name: Build fixed library for isolated browser comparison
+        if: matrix.soup == 'fixed'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build build-essential pkg-config libglib2.0-dev libnghttp2-dev libsqlite3-dev libpsl-dev libbrotli-dev glib-networking
+          meson setup .e2e/libsoup-build .e2e/libsoup-source --prefix="$RUNNER_TEMP/webkit-soup" --libdir=lib --wrap-mode=nofallback -Dgssapi=disabled -Dvapi=disabled -Dntlm=disabled -Dsysprof=disabled -Dautobahn=disabled -Dpkcs11_tests=disabled -Dintrospection=disabled -Ddocs=disabled -Dtests=false
+          meson compile -C .e2e/libsoup-build
+          meson install -C .e2e/libsoup-build
+          echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
       - name: Start disposable Auth and database
         run: node scripts/e2e-stack.mjs start
       - name: Build unchanged production app
         run: npm run build
-      - name: Compare request delivery in both engines without retries
+      - name: Compare bundled and fixed library without retries
         run: node scripts/qa-request-probe.mjs
       - name: Remove disposable database and keys
         if: always()
@@ -39,7 +61,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: navigation-investigation-${{ github.sha }}
+          name: navigation-investigation-${{ matrix.soup }}-${{ github.sha }}
           path: |
             .e2e/evidence/*.json
             .e2e/evidence/server-navigation.jsonl

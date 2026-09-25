@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { createServer, get } from 'node:http';
 import { installHttpObserver } from '../scripts/qa-http-observer.mjs';
 import { nativeLabel } from '../scripts/qa-native-labels.mjs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { observeNetworkLibraries } from '../scripts/qa-browser-environment.mjs';
 
 test('passive HTTP observer sees real receipt and completion without leaking query, cookies or bodies', async () => {
   const rows: Record<string, unknown>[] = [];
@@ -30,4 +34,23 @@ test('native output is classified into fixed labels and raw secrets are discarde
   assert.equal(nativeLabel('pw:browser [err] WebKit encountered an internal error private-token'), 'webkit-internal');
   assert.equal(nativeLabel('pw:browser https://example.test/private-token'), 'other-native');
   assert.equal(nativeLabel('authorization: private-token'), null);
+});
+
+test('network library evidence verifies mapped bytes without exporting process paths or environment', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qa-libs-'));
+  try {
+    mkdirSync(join(root, '101'));
+    const library = join(root, 'libsoup-3.0.so.0');
+    writeFileSync(library, 'binary\0libsoup/3.6.6\0private-secret');
+    writeFileSync(join(root, '101/comm'), 'WPENetworkProce\n');
+    writeFileSync(join(root, '101/maps'), `000-fff r-xp 0 0 0 ${library}\n`);
+    writeFileSync(join(root, '101/environ'), 'PRIVATE_SECRET=do-not-read');
+    const observer = observeNetworkLibraries(root); observer.sample(); observer.sample();
+    const evidence = observer.snapshot();
+    assert.equal(evidence.length, 1);
+    assert.deepEqual(evidence[0].versions, ['libsoup/3.6.6']);
+    assert.match(evidence[0].sha256, /^[a-f0-9]{64}$/);
+    assert.equal(JSON.stringify(evidence).includes(root), false);
+    assert.equal(JSON.stringify(evidence).includes('private-secret'), false);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
