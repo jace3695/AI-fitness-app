@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { RouteDrain } from './route-drain';
+import { failureLabel, observeNavigation } from './navigation-diagnostics';
 
 export { expect };
 export type State = Record<string, unknown>;
@@ -170,10 +171,23 @@ export const test = base.extend<{ qa: Qa }>({
       return data.state;
     };
     let cleaned = false;
+    const finishNavigation = observeNavigation(context);
     try {
       const account = await createAccount();
       await runTest({ account, traffic, createAccount, read, readLanguage });
     } finally {
+      const navigation = finishNavigation();
+      let navigationEvidence: string | undefined;
+      if (testInfo.status !== testInfo.expectedStatus) {
+        const evidence = {
+          commit: process.env.QA_HEAD_SHA, title: testInfo.title, project: testInfo.project.name,
+          repeatEachIndex: testInfo.repeatEachIndex, status: testInfo.status,
+          failures: testInfo.errors.map(error => failureLabel(error.message ?? '')),
+          navigation,
+        };
+        navigationEvidence = JSON.stringify(evidence, null, 2);
+        console.log('QA_NAVIGATION_FAILURE ' + JSON.stringify(evidence));
+      }
       traffic.releaseAll();
       // Drain while the routing list is still installed. Removing it first can
       // auto-continue a second response before its callback calls fulfill.
@@ -215,6 +229,8 @@ export const test = base.extend<{ qa: Qa }>({
       }
       cleaned = true;
       mkdirSync('.e2e/evidence', { recursive: true });
+      // Diagnostic file IO must not prevent synthetic account cleanup.
+      if (navigationEvidence) writeFileSync(`.e2e/evidence/navigation-${testInfo.testId.replace(/[^a-zA-Z0-9_-]/g, '')}-${testInfo.repeatEachIndex}-${Date.now()}.json`, navigationEvidence);
       writeFileSync(`.e2e/evidence/${testInfo.project.name}-${testInfo.testId.replace(/[^a-zA-Z0-9_-]/g, '')}.json`, JSON.stringify({
         title: testInfo.title, syntheticAccountsRemoved: accounts.length, cleaned, originalKeys: Object.keys(original).length,
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
