@@ -21,6 +21,30 @@ export function failureLabel(raw: string): string {
   return 'other';
 }
 
+export function pageErrorLabel(error: Error): string {
+  const message = error.message ?? '';
+  if (/access control checks|Fetch API cannot load/i.test(error.name + ' ' + message)) return 'webkit-fetch-access-check';
+  if (!message.trim()) return 'empty-page-error';
+  if (/^(?:Unhandled Promise Rejection:\s*)?(?:undefined|null|\[object Object\])$/.test(message.trim())) return 'non-error-rejection';
+  if (/abort|cancel/i.test(message) || error.name === 'AbortError') return 'request-aborted';
+  if (/load failed|failed to fetch|fetch failed|network.*lost|networkerror/i.test(message)) return 'fetch-load-failed';
+  if (/hydration|hydrating|Minified React error #4(?:18|23|25)/i.test(message)) return 'react-hydration';
+  if (/chunkload|loading chunk|dynamically imported module/i.test(message)) return 'script-chunk-load';
+  if (/indexeddb|transaction.*inactive|database.*closed/i.test(message)) return 'indexeddb';
+  if (/quota/i.test(message) || error.name === 'QuotaExceededError') return 'storage-quota';
+  if (error.name === 'ReferenceError') return 'script-reference';
+  if (error.name === 'TypeError') return 'script-type';
+  if (error.name === 'SyntaxError') return 'script-syntax';
+  return 'other-page-error';
+}
+
+export function pageErrorDetails(error: Error) {
+  const names = ['Error', 'TypeError', 'ReferenceError', 'SyntaxError', 'AbortError', 'Unhandled Promise Rejection'];
+  const frames = [...(error.stack ?? '').matchAll(/http:\/\/127\.0\.0\.1:3000\/_next\/static\/chunks\/([a-zA-Z0-9_-]+\.js):(\d+):(\d+)/g)]
+    .slice(0, 3).map(match => ({ chunk: match[1], line: Number(match[2]), column: Number(match[3]) }));
+  return { kind: names.includes(error.name) ? error.name : 'other', messageLength: Math.min((error.message ?? '').length, 10000), frames };
+}
+
 export function observeNavigation(context: BrowserContext) {
   const started = Date.now();
   const events: { ms: number; event: string; route?: string; status?: number; failure?: string }[] = [];
@@ -28,6 +52,7 @@ export function observeNavigation(context: BrowserContext) {
   let crashed = false;
   let disconnected = false;
   let pageErrors = 0;
+  const resourceFailures: Record<string, number> = {};
   const add = (event: string, details = {}) => {
     if (events.length === 80) { events.shift(); dropped++; }
     events.push({ ms: Date.now() - started, event, ...details });
@@ -38,7 +63,7 @@ export function observeNavigation(context: BrowserContext) {
     if (seen.has(page)) return;
     seen.add(page);
     const crash = () => { crashed = true; add('page-crash'); };
-    const error = () => { pageErrors++; add('page-error'); };
+    const error = (error: Error) => { pageErrors++; add('page-error', { route: routeLabel(page.url()), failure: pageErrorLabel(error), details: pageErrorDetails(error) }); };
     page.on('crash', crash); page.on('pageerror', error);
     cleanups.push(() => { page.off('crash', crash); page.off('pageerror', error); });
   };
@@ -51,6 +76,13 @@ export function observeNavigation(context: BrowserContext) {
   };
   const failed = (request: Request) => {
     if (documentRequest(request)) add('document-failed', { route: routeLabel(request.url()), failure: failureLabel(request.failure()?.errorText ?? '') });
+    else {
+      const url = new URL(request.url());
+      const kind = url.origin === 'http://127.0.0.1:54321' ? (url.pathname.startsWith('/auth/') ? 'auth-request' : 'data-request')
+        : url.origin === 'http://127.0.0.1:3000' ? (url.pathname.startsWith('/_next/') ? 'next-resource' : 'app-resource') : 'other-resource';
+      const label = kind + ':' + failureLabel(request.failure()?.errorText ?? '');
+      resourceFailures[label] = (resourceFailures[label] ?? 0) + 1;
+    }
   };
   const browser = context.browser();
   const disconnect = () => { disconnected = true; add('browser-disconnected'); };
@@ -62,6 +94,6 @@ export function observeNavigation(context: BrowserContext) {
     context.off('page', watchPage); context.off('request', request);
     context.off('response', response); context.off('requestfailed', failed);
     browser?.off('disconnected', disconnect); cleanups.forEach(cleanup => cleanup());
-    return { crashed, disconnected, pageErrors, dropped, events };
+    return { startedAt: started, crashed, disconnected, pageErrors, dropped, resourceFailures, events };
   };
 }

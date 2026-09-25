@@ -22,6 +22,8 @@ import HubBottomNav from "./HubBottomNav";
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authCheckError, setAuthCheckError] = useState(false);
+  const [authCheckAttempt, setAuthCheckAttempt] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
@@ -47,36 +49,60 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const authClient = supabase;
     let active = true;
     let authVersion = 0;
+    let confirmedUserId: string | null = null;
+    let controller = new AbortController();
+    let confirmationTimer: ReturnType<typeof setTimeout> | undefined;
+    const failed = (version: number, signal: AbortSignal) => {
+      if (!active || version !== authVersion || signal.aborted) return;
+      setAuthCheckError(true);
+      setLoading(false);
+    };
     const initializeAuth = async () => {
       const version = authVersion;
-      const code = new URLSearchParams(window.location.search).get("code");
-      if (code) {
-        const { error } = await authClient.auth.exchangeCodeForSession(code);
-        if (error) {
-          setMessage("재설정 링크가 만료되었거나 이미 사용되었습니다. 새 이메일을 요청해 주세요.");
-        } else {
-          setRecoveryMode(true);
-          window.history.replaceState({}, "", "/?recovery=1");
+      const signal = controller.signal;
+      try {
+        const code = new URLSearchParams(window.location.search).get("code");
+        if (code) {
+          const { error } = await authClient.auth.exchangeCodeForSession(code);
+          if (error) {
+            setMessage("재설정 링크가 만료되었거나 이미 사용되었습니다. 새 이메일을 요청해 주세요.");
+          } else {
+            setRecoveryMode(true);
+            window.history.replaceState({}, "", "/?recovery=1");
+          }
         }
-      }
 
-      const { data } = await authClient.auth.getUser();
-      if (!active || version !== authVersion) return;
-      if (data.user) prepareLocalCloudState(data.user.id);
-      setUser(data.user);
-      if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
-        setRecoveryMode(true);
-      }
-      const configured = data.user ? await hasDevicePin(data.user.id) : false;
-      if (!active || version !== authVersion) return;
-      setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
-      setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
-      setLoading(false);
+        const { data } = await authClient.auth.getUser();
+        if (!active || version !== authVersion) return;
+        if (data.user) prepareLocalCloudState(data.user.id);
+        setUser(data.user);
+        if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
+          setRecoveryMode(true);
+        }
+        const configured = data.user ? await hasDevicePin(data.user.id, signal) : false;
+        if (!active || version !== authVersion) return;
+        setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
+        setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
+        confirmedUserId = data.user?.id ?? null;
+        setLoading(false);
+      } catch { failed(version, signal); }
     };
     void initializeAuth();
     const { data } = authClient.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      // Focus/token refresh for an already checked owner must not unmount an
+      // editor or discard its unsaved work.
+      if (session?.user.id === confirmedUserId && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+        setUser(session.user);
+        return;
+      }
       const version = ++authVersion;
+      controller.abort();
+      controller = new AbortController();
+      const signal = controller.signal;
+      clearTimeout(confirmationTimer);
+      setAuthCheckError(false);
+      setLoading(true);
       if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) {
         setRecoveryMode(true);
       }
@@ -89,18 +115,24 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       if (session?.user) prepareLocalCloudState(session.user.id);
       setUser(session?.user ?? null);
       if (session?.user) {
-        void hasDevicePin(session.user.id).then((configured) => {
-          if (!active || version !== authVersion) return;
-          setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
-        });
+        // Leave the synchronous auth notification before calling getSession.
+        confirmationTimer = setTimeout(() => {
+          void hasDevicePin(session.user.id, signal).then((configured) => {
+            if (!active || version !== authVersion || signal.aborted) return;
+            setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
+            confirmedUserId = session.user.id;
+            setLoading(false);
+          }).catch(() => failed(version, signal));
+        }, 0);
       } else {
+        confirmedUserId = null;
         setPinRequired(false);
+        setLoading(false);
       }
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
-      setLoading(false);
     });
-    return () => { active = false; data.subscription.unsubscribe(); };
-  }, []);
+    return () => { active = false; controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe(); };
+  }, [authCheckAttempt]);
 
   const authenticate = async (event: FormEvent) => {
     event.preventDefault();
@@ -211,6 +243,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   };
 
   if (loading) return <div className="grid min-h-dvh place-items-center bg-yeoni-bg"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
+  if (authCheckError) return <main className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><section className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 확인을 완료하지 못했어요</h1><p role="alert" className="mt-3 text-sm text-gray-600">연결 상태를 확인한 후 다시 시도해 주세요.</p><button type="button" className="mt-5 min-h-11 rounded-xl bg-[#534AB7] px-5 font-bold text-white" onClick={() => { setLoading(true); setAuthCheckError(false); setAuthCheckAttempt(value => value + 1); }}>다시 확인</button></section></main>;
   if (!isSupabaseConfigured)
     return <div className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
   if (user && recoveryMode) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">

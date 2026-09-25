@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { RouteDrain } from './route-drain';
-import { failureLabel, observeNavigation } from './navigation-diagnostics';
+import { failureLabel, observeNavigation, routeLabel } from './navigation-diagnostics';
 
 export { expect };
 export type State = Record<string, unknown>;
@@ -57,6 +57,7 @@ function deferred() {
 
 export class Traffic {
   entries: Entry[] = [];
+  documentRoutes: { at: number; route: string; phase: string }[] = [];
   blockedOrigins = new Set<string>();
   failReads = false;
   private next?: Hold;
@@ -82,7 +83,16 @@ export class Traffic {
       }
       const table = url.pathname.slice('/rest/v1/'.length) as SyncTable;
       if (url.origin !== 'http://127.0.0.1:54321' || !['user_app_state', 'language_user_state'].includes(table)) {
-        await route.continue(); return;
+        const document = request.isNavigationRequest() && request.resourceType() === 'document';
+        const note = (phase: string) => {
+          if (!document) return;
+          if (this.documentRoutes.length >= 100) this.documentRoutes.shift();
+          this.documentRoutes.push({ at: Date.now(), route: routeLabel(request.url()), phase });
+        };
+        note('continue-start');
+        try { await route.continue(); note('continue-resolved'); }
+        catch (error) { note('continue-rejected'); throw error; }
+        return;
       }
       const method = request.method(); const started = Date.now();
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
@@ -183,7 +193,7 @@ export const test = base.extend<{ qa: Qa }>({
           commit: process.env.QA_HEAD_SHA, title: testInfo.title, project: testInfo.project.name,
           repeatEachIndex: testInfo.repeatEachIndex, status: testInfo.status,
           failures: testInfo.errors.map(error => failureLabel(error.message ?? '')),
-          navigation,
+          navigation, documentRoutes: traffic.documentRoutes,
         };
         navigationEvidence = JSON.stringify(evidence, null, 2);
         console.log('QA_NAVIGATION_FAILURE ' + JSON.stringify(evidence));
@@ -234,6 +244,7 @@ export const test = base.extend<{ qa: Qa }>({
       writeFileSync(`.e2e/evidence/${testInfo.project.name}-${testInfo.testId.replace(/[^a-zA-Z0-9_-]/g, '')}.json`, JSON.stringify({
         title: testInfo.title, syntheticAccountsRemoved: accounts.length, cleaned, originalKeys: Object.keys(original).length,
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
+        navigation, documentRoutes: traffic.documentRoutes,
       }, null, 2));
       console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
         storageFilesRemoved,

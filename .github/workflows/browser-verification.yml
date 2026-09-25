@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 105
     env:
       CI: 'true'
+      QA_SOUP_VARIANT: fixed
       NEXT_TELEMETRY_DISABLED: '1'
       QA_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -40,33 +41,50 @@ jobs:
           npx tsc --noEmit
       - name: Install real browsers
         run: npx playwright install --with-deps chromium webkit
+      - name: Checkout official libsoup 3.6.6 source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: GNOME/libsoup
+          ref: 25eac153004f777581ca2d95e31a02ca96844332
+          path: .e2e/libsoup-source
+          persist-credentials: false
+      - name: Build fixed library for isolated browser comparison
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build build-essential pkg-config libglib2.0-dev libnghttp2-dev libsqlite3-dev libpsl-dev libbrotli-dev glib-networking
+          meson setup .e2e/libsoup-build .e2e/libsoup-source --prefix="$RUNNER_TEMP/webkit-soup" --libdir=lib --wrap-mode=nofallback -Dgssapi=disabled -Dvapi=disabled -Dntlm=disabled -Dsysprof=disabled -Dautobahn=disabled -Dpkcs11_tests=disabled -Dintrospection=disabled -Ddocs=disabled -Dtests=false
+          meson compile -C .e2e/libsoup-build
+          meson install -C .e2e/libsoup-build
+          echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
       - name: Start disposable database and auth
         run: node scripts/e2e-stack.mjs start
       - name: Build the isolated production app
         run: npm run build
+      - name: Verify PIN status delays, failures and logout races
+        run: node scripts/qa-playwright.mjs tests/e2e/pin-status.spec.ts --project=chromium --project=webkit-small
       - name: Diagnose D06 and D33 navigation without retries
-        run: npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(06|33):' --repeat-each=3
+        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(06|33):' --repeat-each=3
       - name: Verify drawing save and restore in Chromium and WebKit
         run: |
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing C0[1-4]'
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(7[1-9]|80)'
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(6[1-9]|70)'
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(5[3-9]|60)'
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D46: reuse'
-          npx playwright test tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(4[3-9]|5[0-2])' --grep-invert 'drawing D46: reuse'
-          npx playwright test tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small --grep-invert 'drawing (D(4[3-9]|5[0-9]|6[0-9]|7[0-9]|80)|C0[1-4])'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing C0[1-4]'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(7[1-9]|80)'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(6[1-9]|70)'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(5[3-9]|60)'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D46: reuse'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(4[3-9]|5[0-2])' --grep-invert 'drawing D46: reuse'
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small --grep-invert 'drawing (D(4[3-9]|5[0-9]|6[0-9]|7[0-9]|80)|C0[1-4])'
       - name: Verify typing basics in Chromium and WebKit
-        run: npx playwright test tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
+        run: node scripts/qa-playwright.mjs tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
       - name: Verify handwriting course in Chromium and WebKit
-        run: npx playwright test tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
+        run: node scripts/qa-playwright.mjs tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
       - name: Verify spoken numeric ranges in Chromium and WebKit
-        run: npx playwright test tests/e2e/workout-voice.spec.ts --project=chromium --project=webkit-small --grep 'pull-up posture range stays visible|late silent unlock rejection'
+        run: node scripts/qa-playwright.mjs tests/e2e/workout-voice.spec.ts --project=chromium --project=webkit-small --grep 'pull-up posture range stays visible|late silent unlock rejection'
       - name: Verify assistant home, advice and briefing in both browsers
-        run: npx playwright test tests/e2e/free-advice.spec.ts tests/e2e/roadmap-completion.spec.ts tests/e2e/p2.spec.ts tests/e2e/assistant-budget-commands.spec.ts tests/e2e/chatgpt-connection.spec.ts --project=chromium --project=webkit-small --grep 'free advice|unified chat|empty records stay explicit|morning and evening briefing|AI Yeoni shows a seven-day|budget command reviews one original|ChatGPT advice is isolated by owner'
+        run: node scripts/qa-playwright.mjs tests/e2e/free-advice.spec.ts tests/e2e/roadmap-completion.spec.ts tests/e2e/p2.spec.ts tests/e2e/assistant-budget-commands.spec.ts tests/e2e/chatgpt-connection.spec.ts --project=chromium --project=webkit-small --grep 'free advice|unified chat|empty records stay explicit|morning and evening briefing|AI Yeoni shows a seven-day|budget command reviews one original|ChatGPT advice is isolated by owner'
       - name: Repeat the previously failing WebKit flows
-        run: npx playwright test tests/e2e/p2.spec.ts tests/e2e/workout-times.spec.ts tests/e2e/budget-improvements.spec.ts tests/e2e/drawing.spec.ts tests/e2e/roadmap-completion.spec.ts --project=webkit-small --grep 'growth pattern loading failure|actual workout times review, save, revise, compare and delete|lost field response reuses one request|drawing D14:|workout evidence links only saved dates' --repeat-each=3
+        run: node scripts/qa-playwright.mjs tests/e2e/p2.spec.ts tests/e2e/workout-times.spec.ts tests/e2e/budget-improvements.spec.ts tests/e2e/drawing.spec.ts tests/e2e/roadmap-completion.spec.ts --project=webkit-small --grep 'growth pattern loading failure|actual workout times review, save, revise, compare and delete|lost field response reuses one request|drawing D14:|workout evidence links only saved dates' --repeat-each=3
       - name: Actual browser flows and HTTP body assertions
-        run: npx playwright test
+        run: node scripts/qa-playwright.mjs
       - name: Remove disposable database and keys
         if: always()
         run: node scripts/e2e-stack.mjs stop
@@ -77,6 +95,8 @@ jobs:
           name: browser-verification-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             .e2e/evidence/*.json
+            .e2e/evidence/server-navigation.jsonl
+            .e2e/evidence/pin-status-*.png
             .e2e/evidence/drawing-stage3-*.png
             .e2e/evidence/drawing-stage4-*.png
             .e2e/evidence/drawing-stage5-*.png
