@@ -12,7 +12,7 @@ export type Recommendation = { lessonId: string; exampleId: string; help: Help; 
 export function recommend(pack: Pack, history: Attempt[], requiredExamples = 2): Recommendation | null {
   const available = pack.lessons.filter(playable);
   if (!available.length) return null;
-  const latest = [...history].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  const latest = history.filter(a => !a.document.lesson.projectPractice).sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
   const current = available.find(l => l.id === latest?.document.lesson.id) ?? available[0];
   const doc = latest?.document;
   const base = { lessonId: current.id, exampleId: current.examples[0].id, help: current.help as Help, short: false };
@@ -41,6 +41,7 @@ export function recommend(pack: Pack, history: Attempt[], requiredExamples = 2):
 
 export function feedback(attempt: Attempt, pack: Pack, history: Attempt[]) {
   const d = attempt.document;
+  if (d.lesson.projectPractice) return [{title:"이번 프로젝트",body:d.lesson.title},{title:"저장한 회차",body:`${d.project?.saved.filter(Boolean).length ?? 0} / 4회차. 기한 없이 다시 이어 해요.`},{title:"비교한 내용",body:d.project?.notes[3] || "마지막 회차에서 직접 비교해요."},{title:"다음 연습",body:"상황·소재·특징 중 하나만 바꾸어 새 프로젝트로 반복해요. 그림 분석은 받지 않았어요."}];
   const next = recommend(pack, [attempt, ...history.filter(a => a.id !== attempt.id)]);
   return [
     { title: "오늘 배운 내용", body: d.lesson.goal },

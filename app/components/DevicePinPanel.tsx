@@ -28,15 +28,22 @@ export default function DevicePinPanel() {
   const [saving, setSaving] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [statusReady, setStatusReady] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getUser().then(async ({ data }) => {
+    let active = true;
+    const controller = new AbortController();
+    void supabase.auth.getUser().then(async ({ data }) => {
+      const configured = data.user ? await hasDevicePin(data.user.id, controller.signal) : false;
+      if (!active) return;
       setUser(data.user);
-      setEnabled(Boolean(data.user && await hasDevicePin(data.user.id)));
+      setEnabled(configured);
       setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
-    });
-    void isPlatformBiometricAvailable().then(setBiometricAvailable);
+      setStatusReady(true);
+    }).catch(() => { if (active) setMessage('PIN 상태를 확인하지 못했습니다. 페이지를 새로고침해 주세요.'); });
+    void isPlatformBiometricAvailable().then(value => { if (active) setBiometricAvailable(value); }).catch(() => {});
+    return () => { active = false; controller.abort(); };
   }, []);
 
   const savePin = async (event: FormEvent) => {
@@ -104,6 +111,7 @@ export default function DevicePinPanel() {
     setMessage("이 기기의 생체인증 잠금 해제를 해제했습니다.");
   };
 
+  if (!statusReady) return message ? <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{message}</p> : null;
   if (!user) return null;
   return <section className="mb-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
     <p className="text-[12px] font-bold text-[#534AB7]">로그인 보안</p>

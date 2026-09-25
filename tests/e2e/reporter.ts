@@ -20,6 +20,9 @@ export default class SafeReporter implements Reporter {
     mkdirSync('.e2e/evidence', { recursive: true });
     const report = { commit: process.env.QA_HEAD_SHA, status: result.status, results: this.results };
     writeFileSync('.e2e/evidence/results.json', JSON.stringify(report, null, 2));
+    // Each targeted invocation used to overwrite the preceding summary. Keep
+    // every invocation as well as the final results.json for exact accounting.
+    writeFileSync(`.e2e/evidence/results-${Date.now()}-${process.pid}.json`, JSON.stringify(report, null, 2));
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       `## Disposable browser verification\n\nCommit: \`${process.env.QA_HEAD_SHA}\`\n\nResult: **${result.status}**\n\n` +
       this.results.map(row => `- ${row.status}: ${row.title} (${row.durationMs} ms)`).join('\n') +
