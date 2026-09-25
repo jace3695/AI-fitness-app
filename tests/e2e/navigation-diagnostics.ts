@@ -23,6 +23,7 @@ export function failureLabel(raw: string): string {
 
 export function pageErrorLabel(error: Error): string {
   const message = error.message ?? '';
+  if (/access control checks|Fetch API cannot load/i.test(error.name + ' ' + message)) return 'webkit-fetch-access-check';
   if (!message.trim()) return 'empty-page-error';
   if (/^(?:Unhandled Promise Rejection:\s*)?(?:undefined|null|\[object Object\])$/.test(message.trim())) return 'non-error-rejection';
   if (/abort|cancel/i.test(message) || error.name === 'AbortError') return 'request-aborted';
@@ -51,6 +52,7 @@ export function observeNavigation(context: BrowserContext) {
   let crashed = false;
   let disconnected = false;
   let pageErrors = 0;
+  const resourceFailures: Record<string, number> = {};
   const add = (event: string, details = {}) => {
     if (events.length === 80) { events.shift(); dropped++; }
     events.push({ ms: Date.now() - started, event, ...details });
@@ -78,7 +80,8 @@ export function observeNavigation(context: BrowserContext) {
       const url = new URL(request.url());
       const kind = url.origin === 'http://127.0.0.1:54321' ? (url.pathname.startsWith('/auth/') ? 'auth-request' : 'data-request')
         : url.origin === 'http://127.0.0.1:3000' ? (url.pathname.startsWith('/_next/') ? 'next-resource' : 'app-resource') : 'other-resource';
-      add('resource-failed', { route: kind, failure: failureLabel(request.failure()?.errorText ?? '') });
+      const label = kind + ':' + failureLabel(request.failure()?.errorText ?? '');
+      resourceFailures[label] = (resourceFailures[label] ?? 0) + 1;
     }
   };
   const browser = context.browser();
@@ -91,6 +94,6 @@ export function observeNavigation(context: BrowserContext) {
     context.off('page', watchPage); context.off('request', request);
     context.off('response', response); context.off('requestfailed', failed);
     browser?.off('disconnected', disconnect); cleanups.forEach(cleanup => cleanup());
-    return { startedAt: started, crashed, disconnected, pageErrors, dropped, events };
+    return { startedAt: started, crashed, disconnected, pageErrors, dropped, resourceFailures, events };
   };
 }

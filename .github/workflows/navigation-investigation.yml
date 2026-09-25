@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        soup: [bundled, fixed]
+        soup: [fixed]
     timeout-minutes: 25
     env:
       CI: 'true'
@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - name: Check diagnostic code
         run: |
-          node --experimental-strip-types --test tests/navigation-diagnostics.test.ts tests/request-probe.test.ts
+          node --experimental-strip-types --test app/lib/pinStatus.test.ts tests/navigation-diagnostics.test.ts tests/request-probe.test.ts
           npx tsc --noEmit
       - run: npx playwright install --with-deps chromium webkit
       - name: Checkout official libsoup 3.6.6 source

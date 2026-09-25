@@ -7,8 +7,9 @@ const browserEnv = Object.fromEntries(Object.entries(process.env).filter((entry)
 
 export default defineConfig({
   ...baseline,
-  testMatch: '**/navigation-probe.spec.ts',
+  testMatch: ['**/navigation-probe.spec.ts', '**/pin-status.spec.ts'],
   projects: [
+    { name: 'probe-chromium', testMatch: '**/pin-status.spec.ts', use: { ...devices['Desktop Chrome'] } },
     { name: 'probe-webkit', use: { ...devices['iPhone 13'], ...(fixed ? { launchOptions: { env: { ...browserEnv, LD_PRELOAD: process.env.QA_SOUP_LIBRARY! } } } : {}) } },
   ],
   webServer: {

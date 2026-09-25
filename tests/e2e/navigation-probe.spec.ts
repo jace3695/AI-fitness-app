@@ -4,6 +4,8 @@ import { test, expect, login, synced } from './fixture';
 // origin allowlist, route.continue implementation and cleanup as release CI.
 for (let sample = 1; sample <= 15; sample++) {
   test(`navigation probe ${sample}: fresh login and repeated document requests`, async ({ page, qa }) => {
+    let unhandledRejections = 0;
+    page.on('pageerror', error => { if (error.name === 'Unhandled Promise Rejection') unhandledRejections++; });
     await login(page, qa.account); await synced(page);
     const before = await qa.read();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -15,5 +17,6 @@ for (let sample = 1; sample <= 15; sample++) {
       expect(settings?.status()).toBe(200); await synced(page);
     }
     expect(await qa.read()).toEqual(before);
+    expect(unhandledRejections, 'Page navigation must not leave rejected PIN status promises unhandled').toBe(0);
   });
 }

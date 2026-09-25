@@ -1,4 +1,5 @@
 import { authenticatedFetch } from "@/lib/supabase";
+import { readPinStatus } from "./pinStatus";
 
 const PIN_SESSION_PREFIX = "jace-hub-pin-unlocked-v1:";
 
@@ -12,9 +13,9 @@ async function callPinApi(payload: Record<string, string>) {
   return { response, data };
 }
 export function isValidPin(pin: string) { return /^\d{6}$/.test(pin); }
-export async function hasDevicePin(_userId: string) {
-  const { response, data } = await callPinApi({ action: "status" });
-  return response.ok && Boolean(data.configured);
+export async function hasDevicePin(_userId: string, signal?: AbortSignal) {
+  const response = await authenticatedFetch('/api/pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }), signal });
+  return readPinStatus(response);
 }
 export function isPinSessionUnlocked(userId: string) { return sessionStorage.getItem(sessionKey(userId)) === "1"; }
 export function lockPinSession(userId: string) { sessionStorage.removeItem(sessionKey(userId)); }
