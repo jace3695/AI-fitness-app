@@ -594,3 +594,41 @@ for(const motif of ['sprout','bird'])test(`drawing D80: ${motif} own D71 to D80 
  }
  await page.reload();await page.getByRole('button',{name:'내 그림 10장',exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D80'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(area.getByLabel('캐릭터 이름',{exact:true})).toHaveValue('새봄');await expect(area.getByRole('article',{name:'내 캐릭터 소개 카드'}).getByLabel('저장한 그림 미리보기')).toHaveCount(7);expect(await qa.read()).toEqual(before);
 });
+
+for (const project of pack.projects) {
+  test(`drawing ${project.id}: four saved sessions, reload, own source preservation and project card`, async ({page,qa},testInfo) => {
+    test.setTimeout(150_000);
+    await login(page,qa.account);await synced(page);const unrelated=await qa.read();
+    await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+    await page.getByRole('button',{name:'이어서 연습하기',exact:true}).click();
+    async function ink(){const canvas=page.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*.3,b.y+b.height*.3);await page.mouse.down();await page.mouse.move(b.x+b.width*.65,b.y+b.height*.65,{steps:5});await page.mouse.up();}
+    await ink();await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+    const originals=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;expect(originals).toHaveLength(1);const source=originals[0];
+    const entry=page.locator('details').filter({has:page.locator('summary').filter({hasText:`${project.id} · ${project.title}`})});
+    await entry.locator('summary').click();await page.getByRole('button',{name:`${project.id} 시작·이어하기`,exact:true}).click();
+    const practice=page.getByRole('group',{name:'지속 프로젝트 연습'});
+    await expect(page.getByRole('button',{name:'시도 마치고 저장',exact:true})).toBeDisabled();
+    await practice.getByLabel('기준으로 삼을 내 그림').selectOption(source.id);
+    for(let i=0;i<4;i++) {
+      if(i)await practice.getByRole('button',{name:`${i+1}회차`,exact:true}).click();
+      await practice.getByLabel('이번 회차 메모',{exact:true}).fill(`${project.id} 회차 ${i+1}: 같은 특징을 유지하고 한 부분을 바꿨어요.`);
+      if(i===1||i===2)await ink();
+      if(i===3){if(project.id==='C04')await practice.getByLabel('묶음 이름').fill('작은 친구');await practice.getByRole('checkbox',{name:/직접 비교했어요/}).check();}
+      await practice.getByRole('button',{name:'이번 회차 저장',exact:true}).click();
+      await expect(practice.getByRole('status')).toContainText('이번 회차를 저장했어요');
+      const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!;
+      expect(rows.find(r=>r.id===source.id)).toEqual(source);
+      const current=rows.find(r=>r.document.lesson.id===project.id)!;expect(current.document.project.saved).toEqual([0,1,2,3].map(n=>n<=i));
+      if(i===1){await page.reload();const entry=page.locator('details').filter({has:page.locator('summary').filter({hasText:`${project.id} · ${project.title}`})});await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await entry.locator('summary').click();await page.getByRole('button',{name:`${project.id} 시작·이어하기`,exact:true}).click();await expect(practice.getByLabel('이번 회차 메모')).toHaveValue(current.document.project.notes[1]);await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();}
+    }
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await practice.screenshot({path:`.e2e/evidence/drawing-project-${project.id}-${testInfo.project.name}.png`});
+    const downloaded=page.waitForEvent('download');await practice.getByRole('button',{name:'프로젝트 카드 PNG',exact:true}).click();const file=await downloaded;const bytes=readFileSync((await file.path())!);expect(bytes.subarray(1,4).toString()).toBe('PNG');expect(bytes.readUInt32BE(16)).toBe(1200);
+    await page.getByRole('button',{name:'스스로 해봤어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();await expect(page.getByRole('region',{name:'연이의 연습 정리'})).toContainText('4 / 4회차');
+    const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('document->lesson->>id',project.id).single()).data!;expect(saved.status).toBe('completed');
+    await page.reload();await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();await page.getByLabel('단계 필터').selectOption('10');await page.getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('이번 회차 메모')).toHaveValue(saved.document.project.notes[3]);
+    await practice.getByRole('button',{name:'2회차 · 저장됨',exact:true}).click();await practice.getByLabel('이번 회차 메모').fill('앞 회차를 수정하면 뒤 회차를 다시 확인');await expect(practice.getByRole('button',{name:'3회차',exact:true})).toBeDisabled();await expect(page.getByRole('button',{name:'시도 마치고 저장',exact:true})).toBeDisabled();
+    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+    expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',source.id).single()).data).toEqual(source);expect(await qa.read()).toEqual(unrelated);
+  });
+}

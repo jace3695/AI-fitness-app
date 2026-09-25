@@ -12,6 +12,13 @@ const strokeSchema = z.object({
   points: z.array(z.tuple([z.number().min(0).max(400), z.number().min(0).max(400), z.number().min(0).max(1)])).min(1).max(6000),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/), width: z.number().min(.1).max(30), erase: z.boolean(),
 });
+const projectStateSchema = z.object({
+  source: z.object({attemptId:z.string().uuid(),revision:z.number().int().min(1),lessonId:z.string().regex(/^D[0-9]{2}$/),label:text,strokes:z.array(strokeSchema).min(1).max(1000)}).optional(),
+  boards:z.tuple([z.array(strokeSchema).max(1000),z.array(strokeSchema).max(1000)]),
+  active:z.number().int().min(0).max(1), notes:z.tuple([z.string().max(500),z.string().max(500),z.string().max(500),z.string().max(500)]),
+  saved:z.tuple([z.boolean(),z.boolean(),z.boolean(),z.boolean()]), compared:z.boolean(), name:z.string().max(100),
+});
+export type ProjectState=z.infer<typeof projectStateSchema>;
 const originalDesignSchema = z.object({ motif: z.enum(['sprout','bird']), body: z.enum(['round','tall']), mark: z.enum(['single','split']), palette: z.number().int().min(0).max(2) });
 const characterSchema = z.object({name:z.string().max(300),role:z.string().max(300),personality:z.string().max(300),features:z.string().max(300),improvement:z.string().max(300)});
 const originalFrameSchema = z.object({label:text,expression:z.enum(['neutral','happy','surprised']),pose:z.enum(['stand','wave','sit','walk']),strokes:z.array(strokeSchema).max(1000)});
@@ -66,6 +73,7 @@ export const lessonSchema = z.object({
     demoBaseLines: z.array(id).max(12), scale: z.number().min(.4).max(1),
   }).optional(),
   memoryPractice: memoryPracticeSchema.optional(),
+  projectPractice: z.enum(["C01","C02","C03","C04"]).optional(),
   originalPractice: z.literal(true).optional(),
   identityPractice: z.enum(["draw", "expressions", "poses"]).optional(),
   gesturePractice: z.literal(true).optional(),
@@ -156,6 +164,7 @@ export type DrawingDocument = {
   comparison?: { focus: "width" | "ears" | "eyes" | "space"; reason: string };
   memory?: { selected: string[]; peeking: boolean; peeks: number; copyMode: boolean; recalled: string; compared: string;
     source?: { attemptId: string; revision: number; lessonId: string } };
+  project?: ProjectState;
   original?: OriginalState;
   identity?: IdentityState;
   gesture?: { trace: Stroke[]; surface: "trace" | "free"; choice: string; directionChecked: boolean; compared: boolean; note: string };
@@ -184,6 +193,7 @@ const documentSchema = z.object({
     source: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.string().regex(/^D(29|3[0-2])$/) }).optional(),
   }).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
+  project: projectStateSchema.optional(),
   original: originalStateSchema.optional(),
   identity: identityStateSchema.optional(),
   gesture: z.object({ trace: z.array(strokeSchema).max(1000), surface: z.enum(['trace','free']), choice: z.string().max(80), directionChecked: z.boolean(), compared: z.boolean(), note: z.string().max(500) }).optional(),
@@ -192,6 +202,10 @@ const documentSchema = z.object({
   }).optional(),
   variation: z.object({ choice: id, changedChecked: z.boolean(), keptChecked: z.boolean(), note: z.string().max(500) }).optional(),
 }).superRefine((doc, ctx) => {
+  if (doc.project) {
+    const p=doc.project;
+    if(doc.lesson.projectPractice!==doc.lesson.id || !doc.lesson.projectPractice || doc.lesson.steps.length!==4 || (p.source&&!doc.references.includes(p.source.attemptId)) || p.saved.some((done,i)=>done&&p.saved.slice(0,i).some(x=>!x))) ctx.addIssue({code:'custom',message:'지속 프로젝트 회차 연결 오류'});
+  }
   if(doc.original) {
     const o=doc.original;
     const allowed:Record<string,string[]>={D71:[],D72:['D71'],D73:['D72'],D74:['D73'],D75:['D74'],D76:['D74'],D77:['D74'],D78:['D74','D77'],D79:['D74'],D80:['D74','D78','D79']};
