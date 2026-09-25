@@ -15,6 +15,12 @@ const strokeSchema = z.object({
 export const exampleSchema = z.object({
   id, name: text, source: text, lines: z.array(lineSchema).min(1).max(60),
   parts: z.array(z.object({ id, label: text, point, radius: z.number().min(10).max(80) })).max(12).optional(),
+  identity: z.object({
+    comparison: z.array(lineSchema).max(30).optional(), easyReference: z.array(lineSchema).max(30).optional(), anchors:z.array(point).max(4).optional(),
+    family: z.enum(['cat', 'rabbit']), baseline: z.array(lineSchema).min(1).max(30),
+    features: z.array(z.object({id, label: text, lines: z.array(id).min(1).max(6)})).length(3),
+    options: z.array(z.object({id, label: text, lines: z.array(lineSchema).min(1).max(30), frames: z.array(z.array(id).max(30)).length(5)})).min(1).max(2),
+  }).optional(),
   gesture: z.object({
     lines: z.array(lineSchema).min(1).max(30), frames: z.array(z.array(id).max(30)).length(5),
     baseLines: z.array(id).max(20), easyLines: z.array(id).max(20), anchors: z.array(point).max(8),
@@ -50,6 +56,7 @@ export const lessonSchema = z.object({
     demoBaseLines: z.array(id).max(12), scale: z.number().min(.4).max(1),
   }).optional(),
   memoryPractice: memoryPracticeSchema.optional(),
+  identityPractice: z.enum(["draw", "expressions", "poses"]).optional(),
   gesturePractice: z.literal(true).optional(),
   structurePractice: z.enum(["analyze", "assemble", "occlusion", "direction"]).optional(),
   variationPractice: z.literal(true).optional(),
@@ -77,6 +84,12 @@ export const packSchema = z.object({
     if (lesson.readiness.examples && (!lesson.examples.length || !lesson.steps.length)) ctx.addIssue({ code: "custom", message: `${lesson.id}: 시각 자료 누락` });
     if (lesson.readiness.visualMatch && !lesson.readiness.examples) ctx.addIssue({ code: "custom", message: "검수 상태 오류" });
     for (const ex of lesson.examples) {
+      if (lesson.identityPractice && (lesson.stage !== 8 || !ex.identity)) ctx.addIssue({code:'custom',message:'캐릭터 비교 예제 누락'});
+      if (ex.identity) {
+        const c=ex.identity;
+        if (!lesson.identityPractice || new Set(c.options.map(o=>o.id)).size!==c.options.length || c.features.some(f=>f.lines.some(id=>!c.baseline.some(l=>l.id===id)))) ctx.addIssue({code:'custom',message:'기준 특징 연결 오류'});
+        for (const o of c.options) if (new Set(o.lines.map(l=>l.id)).size!==o.lines.length || o.frames.flat().some(id=>!o.lines.some(l=>l.id===id))) ctx.addIssue({code:'custom',message:'자세 시범 연결 오류'});
+      }
       if (lesson.gesturePractice && (lesson.stage !== 7 || !ex.gesture)) ctx.addIssue({code:'custom',message:'크로키 예제 누락'});
       if (ex.gesture) {
         const g=ex.gesture;
@@ -117,6 +130,10 @@ export type DrawingLine = z.infer<typeof lineSchema>;
 export type Help = 0 | 1 | 2 | 3;
 export type Check = "unconfirmed" | "assisted" | "independent" | "difficult";
 export type Stroke = { points: [number, number, number][]; color: string; width: number; erase: boolean };
+const identitySourceSchema=z.object({attemptId:z.string().uuid(),revision:z.number().int().min(1),lessonId:z.string().regex(/^D(6[1-9]|70)$/),family:z.enum(['cat','rabbit']),label:text,lines:z.array(lineSchema).min(1).max(30),strokes:z.array(strokeSchema).min(1).max(1000)});
+const identityStateSchema=z.object({features:z.array(id).max(2),choice:id,compared:z.boolean(),note:z.string().max(500),baseline:identitySourceSchema.optional(),collection:z.array(identitySourceSchema).max(3),editing:z.string().uuid().optional()});
+export type IdentityState=z.infer<typeof identityStateSchema>;
+export type IdentitySource=z.infer<typeof identitySourceSchema>;
 export type DrawingDocument = {
   schemaVersion: 1; lesson: Lesson; example: Example; packVersion: string;
   strokes: Stroke[]; photo: string | null; tool: "app" | "paper" | "external";
@@ -127,6 +144,7 @@ export type DrawingDocument = {
   comparison?: { focus: "width" | "ears" | "eyes" | "space"; reason: string };
   memory?: { selected: string[]; peeking: boolean; peeks: number; copyMode: boolean; recalled: string; compared: string;
     source?: { attemptId: string; revision: number; lessonId: string } };
+  identity?: IdentityState;
   gesture?: { trace: Stroke[]; surface: "trace" | "free"; choice: string; directionChecked: boolean; compared: boolean; note: string };
   structure?: { analysis: Stroke[]; surface: "analysis" | "assembly"; choice: string; identified: boolean; compared: boolean; note: string;
     source?: { attemptId: string; revision: number; lessonId: "D45"; exampleId: string } };
@@ -153,12 +171,21 @@ const documentSchema = z.object({
     source: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.string().regex(/^D(29|3[0-2])$/) }).optional(),
   }).optional(),
   character: z.object({ name: z.string().max(300), role: z.string().max(300), personality: z.string().max(300), features: z.string().max(300), improvement: z.string().max(300) }),
+  identity: identityStateSchema.optional(),
   gesture: z.object({ trace: z.array(strokeSchema).max(1000), surface: z.enum(['trace','free']), choice: z.string().max(80), directionChecked: z.boolean(), compared: z.boolean(), note: z.string().max(500) }).optional(),
   structure: z.object({ analysis: z.array(strokeSchema).max(1000), surface: z.enum(['analysis','assembly']), choice: z.string().max(80), identified: z.boolean(), compared: z.boolean(), note: z.string().max(500),
     source: z.object({ attemptId: z.string().uuid(), revision: z.number().int().min(1), lessonId: z.literal('D45'), exampleId: id }).optional(),
   }).optional(),
   variation: z.object({ choice: id, changedChecked: z.boolean(), keptChecked: z.boolean(), note: z.string().max(500) }).optional(),
 }).superRefine((doc, ctx) => {
+  if (doc.identity) {
+    const c=doc.identity,meta=doc.example.identity;
+    if (!doc.lesson.identityPractice || !meta || c.features.some(id=>!meta.features.some(f=>f.id===id)) || new Set(c.features).size!==c.features.length || !meta.options.some(o=>o.id===c.choice)) ctx.addIssue({code:'custom',message:'캐릭터 특징 연결 오류'});
+    const sources=[...(c.baseline?[c.baseline]:[]),...c.collection];
+    if (sources.some(x=>x.family!==meta?.family || !doc.references.includes(x.attemptId)) || (c.baseline && c.baseline.lessonId!=='D61') || new Set(c.collection.map(x=>x.attemptId)).size!==c.collection.length || (c.editing&&!c.collection.some(x=>x.attemptId===c.editing))) ctx.addIssue({code:'custom',message:'캐릭터 원본 연결 오류'});
+    const allowed=doc.lesson.id==='D65'?['D62','D63','D64']:doc.lesson.id==='D70'?['D66','D67','D68','D69']:[];
+    if(c.collection.some(x=>!allowed.includes(x.lessonId)))ctx.addIssue({code:'custom',message:'모음 수업 연결 오류'});
+  }
   if (doc.gesture && (!doc.lesson.gesturePractice || !doc.example.gesture || (doc.gesture.choice && !doc.example.gesture.choices.some(c=>c.id===doc.gesture!.choice)))) ctx.addIssue({code:'custom',message:'크로키 선택 연결 오류'});
   if (doc.structure) {
     if (!doc.lesson.structurePractice || !doc.example.structure || (doc.structure.choice && !doc.example.structure.choices.some(c => c.id === doc.structure!.choice))) ctx.addIssue({ code: 'custom', message: '도형화 선택 오류' });

@@ -507,3 +507,45 @@ for (const authored of parsePack(pack).lessons.slice(52,60)) {
     expect(await qa.read()).toEqual(before);
   });
 }
+
+for (const authored of parsePack(pack).lessons.slice(60,70)) {
+ test(`drawing ${authored.id}: character features, variants, ink and restored comparison`,async({page,qa},testInfo)=>{
+  test.setTimeout(180_000);await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(7).click();await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+  const practice=page.getByRole('region',{name:'같은 캐릭터 연습'});
+  for(const [i,ex] of authored.examples.entries()) {
+   if(i)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();await expect(practice).toContainText(ex.name);
+   await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+   for(const f of ex.identity!.features.slice(0,2))await practice.getByLabel(f.label,{exact:true}).check();await expect(practice.getByLabel(ex.identity!.features[2].label,{exact:true})).toBeDisabled();
+   if(ex.identity!.options.length>1)for(const o of ex.identity!.options){await practice.getByRole('button',{name:o.label,exact:true}).click();await expect(practice.getByRole('button',{name:o.label,exact:true})).toHaveAttribute('aria-pressed','true');expect(await practice.getByTestId('identity-target').first().locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('d')))).toEqual(o.lines.map(l=>l.d));}
+   await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();await expect(practice.getByTestId('identity-target')).toHaveCount(0);await expect(practice.getByTestId('identity-baseline')).toHaveCount(0);await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();
+   if(authored.identityPractice==='draw')await practice.getByText('특징을 유지하며 그리는 시범',{exact:true}).click();
+   for(let s=0;s<5;s++){if(s)await page.getByRole('button',{name:'다음 행동',exact:true}).click();if(authored.identityPractice==='draw'){const o=ex.identity!.options.at(-1)!;expect(await practice.getByTestId('identity-demo').locator('path').evaluateAll(ns=>ns.map(n=>n.getAttribute('data-line')))).toEqual(o.lines.filter(l=>o.frames[s].includes(l.id)).map(l=>l.id));}}
+   await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();await expect(practice.getByTestId('identity-easy')).toBeVisible();
+   const canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*.4,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.6,b.y+b.height*.6,{steps:5});await page.mouse.up();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+   await practice.getByLabel('캐릭터 비교 메모',{exact:true}).fill(`${ex.id}: 귀 모양과 눈 간격`);await practice.getByLabel('캐릭터 특징 비교 완료',{exact:true}).check();
+   const download=page.waitForEvent('download');await practice.getByRole('button',{name:'선택한 캐릭터 예제 내려받기',exact:true}).click();expect(readFileSync((await(await download).path())!,'utf8')).toContain(ex.identity!.options.at(-1)!.lines[0].d);
+   await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(practice).toContainText('종이');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await expect(practice).toContainText('다른 앱');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+   if(!i)await practice.screenshot({path:`.e2e/evidence/drawing-stage8-${authored.id}-${testInfo.project.name}.png`});
+   await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();await expect.poll(async()=>{const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return rows?.some(r=>r.document.example.id===ex.id&&r.status==='completed'&&r.document.identity?.compared);}).toBe(true);
+   const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=rows.find(r=>r.document.example.id===ex.id)!;expect(rows).toHaveLength(i+1);expect(saved.document.strokes).toHaveLength(1);expect(saved.document.example).toEqual(ex);expect(saved.document.identity.features).toEqual(['ears','spacing']);
+   await page.reload();await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('캐릭터 비교 메모',{exact:true})).toHaveValue(`${ex.id}: 귀 모양과 눈 간격`);await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  }
+  expect(await qa.read()).toEqual(before);
+ });
+}
+
+for(const capstone of ['D65','D70'])test(`drawing ${capstone}: own collection copy preserves originals and restores snapshots`,async({page,qa})=>{
+ test.setTimeout(240_000);await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});
+ const practice=page.getByRole('region',{name:'같은 캐릭터 연습'});
+ const start=async(id:string)=>{await page.goto('/growth/drawing');await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(7).click();const lesson=pack.lessons.find(l=>l.id===id)!;await page.getByRole('button',{name:`${id} · ${lesson.title}`,exact:true}).click();await expect(practice).toBeVisible();};
+ const draw=async()=>{const c=practice.getByLabel('내 그림 연습장',{exact:true});await c.scrollIntoViewIfNeeded();const b=(await c.boundingBox())!;await page.mouse.move(b.x+b.width*.3,b.y+b.height*.3);await page.mouse.down();await page.mouse.move(b.x+b.width*.5,b.y+b.height*.6,{steps:4});await page.mouse.up();await expect(practice.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();};
+ const ids=capstone==='D65'?['D61','D62','D63','D64']:['D61','D66','D67'];
+ for(const id of ids){await start(id);await practice.getByLabel('귀의 모양과 붙는 자리',{exact:true}).check();await practice.getByLabel('눈 사이 간격',{exact:true}).check();await draw();await page.getByRole('button',{name:'잠깐 쉬기 · 저장',exact:true}).click();await expect.poll(async()=>{const r=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return r?.some(a=>a.document.lesson.id===id&&a.document.strokes.length===1);}).toBe(true);}
+ const originals=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,base=originals.find(a=>a.document.lesson.id==='D61')!,sources=originals.filter(a=>a.id!==base.id);
+ await start(capstone);await practice.getByLabel('저장한 D61 기준 그림',{exact:true}).selectOption(base.id);await expect(practice.getByLabel('귀의 모양과 붙는 자리',{exact:true})).toBeChecked();
+ for(const source of sources)await practice.getByLabel(`모음 ${source.document.lesson.id} ${source.id}`,{exact:true}).check();
+ await practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true}).first().click();await draw();for(let i=0;i<4;i++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();await practice.getByLabel('캐릭터 비교 메모',{exact:true}).fill('귀와 눈 간격을 유지하고 한 곳을 보완했어요.');await practice.getByLabel('캐릭터 특징 비교 완료',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await page.getByRole('button',{name:'스스로 해봤어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+ await expect.poll(async()=>{const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return rows?.some(a=>a.document.lesson.id===capstone&&a.status==='completed');}).toBe(true);
+ const after=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=after.find(a=>a.document.lesson.id===capstone)!;for(const source of originals)expect(after.find(a=>a.id===source.id)).toEqual(source);expect(saved.document.strokes).toHaveLength(2);expect(saved.document.identity.collection).toHaveLength(sources.length);expect(saved.document.identity.baseline.attemptId).toBe(base.id);
+ await page.reload();await page.getByRole('button',{name:`내 그림 ${after.length}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:capstone}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true})).toHaveCount(sources.length);expect(await qa.read()).toEqual(before);
+});

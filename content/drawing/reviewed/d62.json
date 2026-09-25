@@ -1,0 +1,1429 @@
+{
+  "id": "D62",
+  "identityPractice": "draw",
+  "examples": [
+    {
+      "id": "d62-cat",
+      "name": "세모귀 고양이 · 반가움",
+      "source": "연이 자체 제작 캐릭터 구성 도해. 귀·눈 간격·덩어리 관계를 비교하는 연습.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+          "start": [
+            136,
+            132
+          ],
+          "direction": [
+            136,
+            132
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "ears",
+          "label": "ears",
+          "d": "M149 99 L143 48 L183 80 M217 80 L257 48 L251 99",
+          "start": [
+            149,
+            99
+          ],
+          "direction": [
+            149,
+            99
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+          "start": [
+            171,
+            184
+          ],
+          "direction": [
+            171,
+            184
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-left",
+          "label": "arm-left",
+          "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+          "start": [
+            158,
+            207
+          ],
+          "direction": [
+            158,
+            207
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-right",
+          "label": "arm-right",
+          "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+          "start": [
+            242,
+            207
+          ],
+          "direction": [
+            242,
+            207
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot-left",
+          "label": "foot-left",
+          "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+          "start": [
+            158,
+            288
+          ],
+          "direction": [
+            158,
+            288
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot-right",
+          "label": "foot-right",
+          "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+          "start": [
+            206,
+            288
+          ],
+          "direction": [
+            206,
+            288
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyes-left",
+          "label": "eyes-left",
+          "d": "M171 136 Q179 123 187 136",
+          "start": [
+            171,
+            136
+          ],
+          "direction": [
+            171,
+            136
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "eyes-right",
+          "label": "eyes-right",
+          "d": "M213 136 Q221 123 229 136",
+          "start": [
+            213,
+            136
+          ],
+          "direction": [
+            213,
+            136
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M190 157 Q200 164 210 157",
+          "start": [
+            190,
+            157
+          ],
+          "direction": [
+            190,
+            157
+          ],
+          "group": "detail"
+        }
+      ],
+      "identity": {
+        "family": "cat",
+        "baseline": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+            "start": [
+              136,
+              132
+            ],
+            "direction": [
+              136,
+              132
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "ears",
+            "label": "ears",
+            "d": "M149 99 L143 48 L183 80 M217 80 L257 48 L251 99",
+            "start": [
+              149,
+              99
+            ],
+            "direction": [
+              149,
+              99
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+            "start": [
+              171,
+              184
+            ],
+            "direction": [
+              171,
+              184
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "arm-left",
+            "label": "arm-left",
+            "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+            "start": [
+              158,
+              207
+            ],
+            "direction": [
+              158,
+              207
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "arm-right",
+            "label": "arm-right",
+            "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+            "start": [
+              242,
+              207
+            ],
+            "direction": [
+              242,
+              207
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "foot-left",
+            "label": "foot-left",
+            "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+            "start": [
+              158,
+              288
+            ],
+            "direction": [
+              158,
+              288
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "foot-right",
+            "label": "foot-right",
+            "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+            "start": [
+              206,
+              288
+            ],
+            "direction": [
+              206,
+              288
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "eyes-left",
+            "label": "eyes-left",
+            "d": "M175 133 A4 5 0 1 0 183 133 A4 5 0 1 0 175 133",
+            "start": [
+              175,
+              133
+            ],
+            "direction": [
+              175,
+              133
+            ],
+            "group": "detail",
+            "fill": "ink"
+          },
+          {
+            "id": "eyes-right",
+            "label": "eyes-right",
+            "d": "M217 133 A4 5 0 1 0 225 133 A4 5 0 1 0 217 133",
+            "start": [
+              217,
+              133
+            ],
+            "direction": [
+              217,
+              133
+            ],
+            "group": "detail",
+            "fill": "ink"
+          },
+          {
+            "id": "mouth",
+            "label": "mouth",
+            "d": "M190 157 Q200 164 210 157",
+            "start": [
+              190,
+              157
+            ],
+            "direction": [
+              190,
+              157
+            ],
+            "group": "detail"
+          }
+        ],
+        "features": [
+          {
+            "id": "ears",
+            "label": "귀의 모양과 붙는 자리",
+            "lines": [
+              "ears"
+            ]
+          },
+          {
+            "id": "spacing",
+            "label": "눈 사이 간격",
+            "lines": [
+              "eyes-left",
+              "eyes-right"
+            ]
+          },
+          {
+            "id": "ratio",
+            "label": "머리가 몸보다 넓은 비율",
+            "lines": [
+              "head",
+              "body"
+            ]
+          }
+        ],
+        "options": [
+          {
+            "id": "eyes",
+            "label": "눈만 바꾸기",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+                "start": [
+                  136,
+                  132
+                ],
+                "direction": [
+                  136,
+                  132
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ears",
+                "label": "ears",
+                "d": "M149 99 L143 48 L183 80 M217 80 L257 48 L251 99",
+                "start": [
+                  149,
+                  99
+                ],
+                "direction": [
+                  149,
+                  99
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+                "start": [
+                  171,
+                  184
+                ],
+                "direction": [
+                  171,
+                  184
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-left",
+                "label": "arm-left",
+                "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+                "start": [
+                  158,
+                  207
+                ],
+                "direction": [
+                  158,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-right",
+                "label": "arm-right",
+                "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+                "start": [
+                  242,
+                  207
+                ],
+                "direction": [
+                  242,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-left",
+                "label": "foot-left",
+                "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+                "start": [
+                  158,
+                  288
+                ],
+                "direction": [
+                  158,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-right",
+                "label": "foot-right",
+                "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+                "start": [
+                  206,
+                  288
+                ],
+                "direction": [
+                  206,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyes-left",
+                "label": "eyes-left",
+                "d": "M171 136 Q179 123 187 136",
+                "start": [
+                  171,
+                  136
+                ],
+                "direction": [
+                  171,
+                  136
+                ],
+                "group": "detail"
+              },
+              {
+                "id": "eyes-right",
+                "label": "eyes-right",
+                "d": "M213 136 Q221 123 229 136",
+                "start": [
+                  213,
+                  136
+                ],
+                "direction": [
+                  213,
+                  136
+                ],
+                "group": "detail"
+              },
+              {
+                "id": "mouth",
+                "label": "mouth",
+                "d": "M190 157 Q200 164 210 157",
+                "start": [
+                  190,
+                  157
+                ],
+                "direction": [
+                  190,
+                  157
+                ],
+                "group": "detail"
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "ears"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ]
+            ]
+          },
+          {
+            "id": "mouth",
+            "label": "입만 바꾸기",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+                "start": [
+                  136,
+                  132
+                ],
+                "direction": [
+                  136,
+                  132
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ears",
+                "label": "ears",
+                "d": "M149 99 L143 48 L183 80 M217 80 L257 48 L251 99",
+                "start": [
+                  149,
+                  99
+                ],
+                "direction": [
+                  149,
+                  99
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+                "start": [
+                  171,
+                  184
+                ],
+                "direction": [
+                  171,
+                  184
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-left",
+                "label": "arm-left",
+                "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+                "start": [
+                  158,
+                  207
+                ],
+                "direction": [
+                  158,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-right",
+                "label": "arm-right",
+                "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+                "start": [
+                  242,
+                  207
+                ],
+                "direction": [
+                  242,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-left",
+                "label": "foot-left",
+                "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+                "start": [
+                  158,
+                  288
+                ],
+                "direction": [
+                  158,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-right",
+                "label": "foot-right",
+                "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+                "start": [
+                  206,
+                  288
+                ],
+                "direction": [
+                  206,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyes-left",
+                "label": "eyes-left",
+                "d": "M175 133 A4 5 0 1 0 183 133 A4 5 0 1 0 175 133",
+                "start": [
+                  175,
+                  133
+                ],
+                "direction": [
+                  175,
+                  133
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "eyes-right",
+                "label": "eyes-right",
+                "d": "M217 133 A4 5 0 1 0 225 133 A4 5 0 1 0 217 133",
+                "start": [
+                  217,
+                  133
+                ],
+                "direction": [
+                  217,
+                  133
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "mouth",
+                "label": "mouth",
+                "d": "M186 153 Q200 178 214 153",
+                "start": [
+                  186,
+                  153
+                ],
+                "direction": [
+                  186,
+                  153
+                ],
+                "group": "detail"
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "ears"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "d62-rabbit",
+      "name": "긴귀 토끼 · 반가움",
+      "source": "연이 자체 제작 캐릭터 구성 도해. 귀·눈 간격·덩어리 관계를 비교하는 연습.",
+      "lines": [
+        {
+          "id": "head",
+          "label": "head",
+          "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+          "start": [
+            136,
+            132
+          ],
+          "direction": [
+            136,
+            132
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "ears",
+          "label": "ears",
+          "d": "M150 100 Q126 8 150 14 Q171 20 170 85 M230 85 Q229 20 250 14 Q274 8 250 100",
+          "start": [
+            150,
+            100
+          ],
+          "direction": [
+            150,
+            100
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+          "start": [
+            171,
+            184
+          ],
+          "direction": [
+            171,
+            184
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-left",
+          "label": "arm-left",
+          "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+          "start": [
+            158,
+            207
+          ],
+          "direction": [
+            158,
+            207
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-right",
+          "label": "arm-right",
+          "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+          "start": [
+            242,
+            207
+          ],
+          "direction": [
+            242,
+            207
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot-left",
+          "label": "foot-left",
+          "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+          "start": [
+            158,
+            288
+          ],
+          "direction": [
+            158,
+            288
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "foot-right",
+          "label": "foot-right",
+          "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+          "start": [
+            206,
+            288
+          ],
+          "direction": [
+            206,
+            288
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eyes-left",
+          "label": "eyes-left",
+          "d": "M171 136 Q179 123 187 136",
+          "start": [
+            171,
+            136
+          ],
+          "direction": [
+            171,
+            136
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "eyes-right",
+          "label": "eyes-right",
+          "d": "M213 136 Q221 123 229 136",
+          "start": [
+            213,
+            136
+          ],
+          "direction": [
+            213,
+            136
+          ],
+          "group": "detail"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M190 157 Q200 164 210 157",
+          "start": [
+            190,
+            157
+          ],
+          "direction": [
+            190,
+            157
+          ],
+          "group": "detail"
+        }
+      ],
+      "identity": {
+        "family": "rabbit",
+        "baseline": [
+          {
+            "id": "head",
+            "label": "head",
+            "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+            "start": [
+              136,
+              132
+            ],
+            "direction": [
+              136,
+              132
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "ears",
+            "label": "ears",
+            "d": "M150 100 Q126 8 150 14 Q171 20 170 85 M230 85 Q229 20 250 14 Q274 8 250 100",
+            "start": [
+              150,
+              100
+            ],
+            "direction": [
+              150,
+              100
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "body",
+            "label": "body",
+            "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+            "start": [
+              171,
+              184
+            ],
+            "direction": [
+              171,
+              184
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "arm-left",
+            "label": "arm-left",
+            "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+            "start": [
+              158,
+              207
+            ],
+            "direction": [
+              158,
+              207
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "arm-right",
+            "label": "arm-right",
+            "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+            "start": [
+              242,
+              207
+            ],
+            "direction": [
+              242,
+              207
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "foot-left",
+            "label": "foot-left",
+            "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+            "start": [
+              158,
+              288
+            ],
+            "direction": [
+              158,
+              288
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "foot-right",
+            "label": "foot-right",
+            "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+            "start": [
+              206,
+              288
+            ],
+            "direction": [
+              206,
+              288
+            ],
+            "group": "shape"
+          },
+          {
+            "id": "eyes-left",
+            "label": "eyes-left",
+            "d": "M175 133 A4 5 0 1 0 183 133 A4 5 0 1 0 175 133",
+            "start": [
+              175,
+              133
+            ],
+            "direction": [
+              175,
+              133
+            ],
+            "group": "detail",
+            "fill": "ink"
+          },
+          {
+            "id": "eyes-right",
+            "label": "eyes-right",
+            "d": "M217 133 A4 5 0 1 0 225 133 A4 5 0 1 0 217 133",
+            "start": [
+              217,
+              133
+            ],
+            "direction": [
+              217,
+              133
+            ],
+            "group": "detail",
+            "fill": "ink"
+          },
+          {
+            "id": "mouth",
+            "label": "mouth",
+            "d": "M190 157 Q200 164 210 157",
+            "start": [
+              190,
+              157
+            ],
+            "direction": [
+              190,
+              157
+            ],
+            "group": "detail"
+          }
+        ],
+        "features": [
+          {
+            "id": "ears",
+            "label": "귀의 모양과 붙는 자리",
+            "lines": [
+              "ears"
+            ]
+          },
+          {
+            "id": "spacing",
+            "label": "눈 사이 간격",
+            "lines": [
+              "eyes-left",
+              "eyes-right"
+            ]
+          },
+          {
+            "id": "ratio",
+            "label": "머리가 몸보다 넓은 비율",
+            "lines": [
+              "head",
+              "body"
+            ]
+          }
+        ],
+        "options": [
+          {
+            "id": "eyes",
+            "label": "눈만 바꾸기",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+                "start": [
+                  136,
+                  132
+                ],
+                "direction": [
+                  136,
+                  132
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ears",
+                "label": "ears",
+                "d": "M150 100 Q126 8 150 14 Q171 20 170 85 M230 85 Q229 20 250 14 Q274 8 250 100",
+                "start": [
+                  150,
+                  100
+                ],
+                "direction": [
+                  150,
+                  100
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+                "start": [
+                  171,
+                  184
+                ],
+                "direction": [
+                  171,
+                  184
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-left",
+                "label": "arm-left",
+                "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+                "start": [
+                  158,
+                  207
+                ],
+                "direction": [
+                  158,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-right",
+                "label": "arm-right",
+                "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+                "start": [
+                  242,
+                  207
+                ],
+                "direction": [
+                  242,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-left",
+                "label": "foot-left",
+                "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+                "start": [
+                  158,
+                  288
+                ],
+                "direction": [
+                  158,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-right",
+                "label": "foot-right",
+                "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+                "start": [
+                  206,
+                  288
+                ],
+                "direction": [
+                  206,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyes-left",
+                "label": "eyes-left",
+                "d": "M171 136 Q179 123 187 136",
+                "start": [
+                  171,
+                  136
+                ],
+                "direction": [
+                  171,
+                  136
+                ],
+                "group": "detail"
+              },
+              {
+                "id": "eyes-right",
+                "label": "eyes-right",
+                "d": "M213 136 Q221 123 229 136",
+                "start": [
+                  213,
+                  136
+                ],
+                "direction": [
+                  213,
+                  136
+                ],
+                "group": "detail"
+              },
+              {
+                "id": "mouth",
+                "label": "mouth",
+                "d": "M190 157 Q200 164 210 157",
+                "start": [
+                  190,
+                  157
+                ],
+                "direction": [
+                  190,
+                  157
+                ],
+                "group": "detail"
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "ears"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ]
+            ]
+          },
+          {
+            "id": "mouth",
+            "label": "입만 바꾸기",
+            "lines": [
+              {
+                "id": "head",
+                "label": "head",
+                "d": "M136 132 A64 54 0 1 0 264 132 A64 54 0 1 0 136 132",
+                "start": [
+                  136,
+                  132
+                ],
+                "direction": [
+                  136,
+                  132
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "ears",
+                "label": "ears",
+                "d": "M150 100 Q126 8 150 14 Q171 20 170 85 M230 85 Q229 20 250 14 Q274 8 250 100",
+                "start": [
+                  150,
+                  100
+                ],
+                "direction": [
+                  150,
+                  100
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "body",
+                "label": "body",
+                "d": "M171 184 Q151 204 151 247 Q151 280 200 283 Q249 280 249 247 Q249 204 229 184",
+                "start": [
+                  171,
+                  184
+                ],
+                "direction": [
+                  171,
+                  184
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-left",
+                "label": "arm-left",
+                "d": "M158 207 Q132 231 135 247 Q140 258 152 243",
+                "start": [
+                  158,
+                  207
+                ],
+                "direction": [
+                  158,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "arm-right",
+                "label": "arm-right",
+                "d": "M242 207 Q268 231 265 247 Q260 258 248 243",
+                "start": [
+                  242,
+                  207
+                ],
+                "direction": [
+                  242,
+                  207
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-left",
+                "label": "foot-left",
+                "d": "M158 288 A18 10 0 1 0 194 288 A18 10 0 1 0 158 288",
+                "start": [
+                  158,
+                  288
+                ],
+                "direction": [
+                  158,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "foot-right",
+                "label": "foot-right",
+                "d": "M206 288 A18 10 0 1 0 242 288 A18 10 0 1 0 206 288",
+                "start": [
+                  206,
+                  288
+                ],
+                "direction": [
+                  206,
+                  288
+                ],
+                "group": "shape"
+              },
+              {
+                "id": "eyes-left",
+                "label": "eyes-left",
+                "d": "M175 133 A4 5 0 1 0 183 133 A4 5 0 1 0 175 133",
+                "start": [
+                  175,
+                  133
+                ],
+                "direction": [
+                  175,
+                  133
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "eyes-right",
+                "label": "eyes-right",
+                "d": "M217 133 A4 5 0 1 0 225 133 A4 5 0 1 0 217 133",
+                "start": [
+                  217,
+                  133
+                ],
+                "direction": [
+                  217,
+                  133
+                ],
+                "group": "detail",
+                "fill": "ink"
+              },
+              {
+                "id": "mouth",
+                "label": "mouth",
+                "d": "M186 153 Q200 178 214 153",
+                "start": [
+                  186,
+                  153
+                ],
+                "direction": [
+                  186,
+                  153
+                ],
+                "group": "detail"
+              }
+            ],
+            "frames": [
+              [],
+              [
+                "head",
+                "ears"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ],
+              [
+                "head",
+                "ears",
+                "body",
+                "arm-left",
+                "arm-right",
+                "foot-left",
+                "foot-right",
+                "eyes-left",
+                "eyes-right",
+                "mouth"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "steps": [
+    {
+      "text": "기준 그림과 반가운 얼굴을 비교해요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "머리와 귀의 크기를 유지해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "몸과 팔다리는 기준 그대로 옮겨요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "웃는 눈 또는 웃는 입 하나만 바꿔요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "바꾼 표정과 유지한 특징 두 개를 확인해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}
