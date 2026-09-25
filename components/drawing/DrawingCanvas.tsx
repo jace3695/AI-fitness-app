@@ -22,7 +22,7 @@ export function paintStrokes(canvas: HTMLCanvasElement, strokes: Stroke[], white
   if (white) { ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = "source-over"; }
 }
 
-export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, preview = false }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; reference?: ReactNode; disabled?: boolean; preview?: boolean }) {
+export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, preview = false, palette }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; reference?: ReactNode; disabled?: boolean; preview?: boolean; palette?: string[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const active = useRef<{ id: number; stroke: Stroke } | null>(null);
   const [redo, setRedo] = useState<Stroke[]>([]);
@@ -30,6 +30,7 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
   const [penOnly, setPenOnly] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [color, setColor] = useState("#34314b");
+  const [wide, setWide] = useState(false);
   const [limit, setLimit] = useState(false);
   useEffect(() => { if (ref.current) paintStrokes(ref.current, strokes); }, [strokes]);
   const point = (event: PointerEvent<HTMLCanvasElement>): [number, number, number] => {
@@ -40,7 +41,7 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
     if (disabled || preview || active.current || (penOnly && event.pointerType !== "pen")) return;
     if (strokes.length >= 1000 || strokes.reduce((n, s) => n + s.points.length, 0) >= 60_000) { setLimit(true); return; }
     event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId);
-    active.current = { id: event.pointerId, stroke: { points: [point(event)], color, width: eraser ? 15 : 2.6, erase: eraser } };
+    active.current = { id: event.pointerId, stroke: { points: [point(event)], color, width: eraser ? 15 : wide ? 12 : 2.6, erase: eraser } };
     paintStrokes(event.currentTarget, [...strokes, active.current.stroke]);
   };
   const move = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -58,6 +59,7 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
       <button type="button" disabled={disabled || !redo.length} onClick={() => { onChange?.([...strokes, redo[redo.length - 1]]); setRedo(redo.slice(0, -1)); }} className="drawing-button">다시 실행</button>
       <button type="button" aria-pressed={eraser} onClick={() => setEraser(!eraser)} className="drawing-button">{eraser ? "지우개 사용 중" : "연필 사용 중"}</button>
       <button type="button" aria-pressed={zoom} onClick={() => setZoom(!zoom)} className="drawing-button">{zoom ? "원래 크기" : "확대"}</button>
+      {palette && <>{palette.map((c,i)=><button key={c} type="button" className="drawing-button" aria-pressed={color===c} disabled={disabled} onClick={()=>setColor(c)}>{i===0?'주색 연필':'보조색 연필'}</button>)}<button type="button" className="drawing-button" aria-pressed={wide} disabled={disabled} onClick={()=>setWide(!wide)}>넓게 칠하기</button></>}
       <label className="drawing-button flex items-center gap-2">선 색<input aria-label="선 색" type="color" value={color} onChange={e => setColor(e.target.value)} className="h-6 w-8" /></label>
       <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={penOnly} onChange={e => setPenOnly(e.target.checked)} />Pencil만 사용</label>
     </div>}

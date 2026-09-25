@@ -1,0 +1,287 @@
+{
+  "id": "D72",
+  "originalPractice": true,
+  "examples": [
+    {
+      "id": "d72-sprout",
+      "name": "새싹 친구 · 내 캐릭터 출발 예제",
+      "source": "연이 자체 제작 창작 방법 도해. 역할·비율·대표 특징을 선택하고 내 연습장에 직접 그리는 출발점.",
+      "original": {
+        "motif": "sprout"
+      },
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M118 214 C118 127 282 127 282 214 C282 296 118 296 118 214 Z",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "mark",
+          "label": "mark",
+          "d": "M200 148.75 Q171 91 222 68 Q250 106 200 148.75 Z",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-left",
+          "label": "arm-left",
+          "d": "M121 219 Q97 240 120 250",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-right",
+          "label": "arm-right",
+          "d": "M279 219 Q303 240 280 250",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "feet",
+          "label": "feet",
+          "d": "M176 272 L170 311 L150 311 M224 272 L230 311 L250 311",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eye-left",
+          "label": "eye-left",
+          "d": "M169 201 A4 5 0 1 0 177 201 A4 5 0 1 0 169 201",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eye-right",
+          "label": "eye-right",
+          "d": "M223 201 A4 5 0 1 0 231 201 A4 5 0 1 0 223 201",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M192 225 Q200 233 208 225",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail"
+        }
+      ]
+    },
+    {
+      "id": "d72-bird",
+      "name": "작은 새 친구 · 내 캐릭터 출발 예제",
+      "source": "연이 자체 제작 창작 방법 도해. 역할·비율·대표 특징을 선택하고 내 연습장에 직접 그리는 출발점.",
+      "original": {
+        "motif": "bird"
+      },
+      "lines": [
+        {
+          "id": "body",
+          "label": "body",
+          "d": "M118 214 C118 127 282 127 282 214 C282 296 118 296 118 214 Z",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "mark",
+          "label": "mark",
+          "d": "M183 152.75 Q155 85 185 79 Q219 82 200 150.75",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-left",
+          "label": "arm-left",
+          "d": "M121 219 Q97 240 120 250",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "arm-right",
+          "label": "arm-right",
+          "d": "M279 219 Q303 240 280 250",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "feet",
+          "label": "feet",
+          "d": "M176 272 L170 311 L150 311 M224 272 L230 311 L250 311",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "shape"
+        },
+        {
+          "id": "eye-left",
+          "label": "eye-left",
+          "d": "M169 201 A4 5 0 1 0 177 201 A4 5 0 1 0 169 201",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "eye-right",
+          "label": "eye-right",
+          "d": "M223 201 A4 5 0 1 0 231 201 A4 5 0 1 0 223 201",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail",
+          "fill": "ink"
+        },
+        {
+          "id": "mouth",
+          "label": "mouth",
+          "d": "M190 221 L210 221 L200 232 Z",
+          "start": [
+            200,
+            100
+          ],
+          "direction": [
+            200,
+            120
+          ],
+          "group": "detail"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "text": "저장한 D71을 골라 같은 친구를 이어 만들어요.",
+      "lines": [],
+      "action": "look"
+    },
+    {
+      "text": "둥근 후보 연습장에 큰 몸과 눈을 그려요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "길쭉한 후보 연습장에 다른 인상의 몸을 그려요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "이어 만들 몸 하나와 고른 이유를 정해요.",
+      "lines": [],
+      "action": "draw"
+    },
+    {
+      "text": "두 후보를 비교하고 모두 저장해요.",
+      "lines": [],
+      "action": "compare"
+    }
+  ],
+  "readiness": {
+    "manuscript": true,
+    "examples": true,
+    "visualMatch": true,
+    "browser": false
+  }
+}
