@@ -62,6 +62,6 @@ export function observeNavigation(context: BrowserContext) {
     context.off('page', watchPage); context.off('request', request);
     context.off('response', response); context.off('requestfailed', failed);
     browser?.off('disconnected', disconnect); cleanups.forEach(cleanup => cleanup());
-    return { crashed, disconnected, pageErrors, dropped, events };
+    return { startedAt: started, crashed, disconnected, pageErrors, dropped, events };
   };
 }

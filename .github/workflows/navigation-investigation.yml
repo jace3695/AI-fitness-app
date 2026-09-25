@@ -1,0 +1,48 @@
+name: Isolated navigation investigation
+on:
+  push:
+    branches: [agent/webkit-request-diagnosis]
+permissions:
+  contents: read
+jobs:
+  investigate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      QA_HEAD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - name: Check diagnostic code
+        run: |
+          node --experimental-strip-types --test tests/navigation-diagnostics.test.ts tests/request-probe.test.ts
+          npx tsc --noEmit
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Start disposable Auth and database
+        run: node scripts/e2e-stack.mjs start
+      - name: Build unchanged production app
+        run: npm run build
+      - name: Compare request delivery in both engines without retries
+        run: node scripts/qa-request-probe.mjs
+      - name: Remove disposable database and keys
+        if: always()
+        run: node scripts/e2e-stack.mjs stop
+      - name: Publish sanitized diagnosis only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: navigation-investigation-${{ github.sha }}
+          path: |
+            .e2e/evidence/*.json
+            .e2e/evidence/server-navigation.jsonl
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
