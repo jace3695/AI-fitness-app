@@ -14,8 +14,7 @@ concurrency:
 jobs:
   browser:
     runs-on: ubuntu-24.04
-    # The complete suite includes all authored drawing lessons in both engines.
-    # Keep every regression check while allowing the growing suite to finish.
+    # Bounded UI review; the full pull request workflow remains required.
     timeout-minutes: 30
     env:
       CI: 'true'
@@ -62,7 +61,8 @@ jobs:
       - name: Verify beginner drawing flow in both browsers
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Existing drawing tools and project preservation
-        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing: first dot|drawing D06:|drawing C0[1-4]'
+        run: |
+          node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing: first dot|drawing D06:|drawing C0[1-4]'
       - name: Remove disposable database and keys
         if: always()
         run: node scripts/e2e-stack.mjs stop
