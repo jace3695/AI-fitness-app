@@ -26,6 +26,8 @@ for(const width of [320,390]) test(`drawing simple: first start, partial save, r
   await page.getByRole('region',{name:'그림 연습 시작'}).screenshot({path:`.e2e/evidence/drawing-simple-start-${width}-${info.project.name}.png`});
   await page.getByRole('button',{name:'처음 그림 그리기',exact:true}).click();
   const work=page.getByRole('region',{name:'한 동작씩 보기'});
+  await expect(page.getByRole('navigation',{name:'AI 연이 공통 메뉴'})).toBeHidden();
+  await expect(page.getByRole('button',{name:'홈 화면 추가',exact:true})).toBeHidden();
   await expect(work).toContainText('1 / 6');await draw(page);
   await page.getByRole('button',{name:'다음 행동',exact:true}).click();await expect(work).toContainText('2 / 6');
   // Optional UI mode switches preserve the actual drawing.
@@ -38,14 +40,20 @@ for(const width of [320,390]) test(`drawing simple: first start, partial save, r
   expect(first.document.strokes).toHaveLength(1);expect(first.document.step).toBe(1);expect(first.status).toBe('draft');
   await page.reload();await page.getByRole('button',{name:'하던 그림 이어 그리기',exact:true}).click();
   await expect(work).toContainText('2 / 6');await expect(page.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();
+  const surface=page.getByLabel('내 그림 연습장',{exact:true});
+  await surface.scrollIntoViewIfNeeded();
+  // Verify an actual visible drawing point receives input, not a floating menu.
+  expect(await surface.evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.right-15,Math.min(r.bottom-15,innerHeight-20))===el;})).toBe(true);
   await work.screenshot({path:`.e2e/evidence/drawing-simple-work-${width}-${info.project.name}.png`});
   for(let i=2;i<6;i++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();
   await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();
-  await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+  await page.getByRole('button',{name:'오늘 연습 마치고 저장',exact:true}).click();
   await expect(page.getByRole('region',{name:'연이의 연습 정리'})).toBeVisible();
   const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
   expect(saved.id).toBe(first.id);expect(saved.status).toBe('completed');expect(saved.document.strokes).toEqual(first.document.strokes);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await qa.read()).toEqual(original);
+  await page.getByRole('button',{name:'처음 화면',exact:true}).click();
+  await expect(page.getByRole('navigation',{name:'AI 연이 공통 메뉴'})).toBeVisible();
 });
 
 test('drawing simple: no saved project source gives an actionable route to first lesson',async({page,qa})=>{
@@ -82,7 +90,7 @@ for(const id of ['C01','C04'])test(`drawing simple ${id}: four guided steps, sav
   await practice.screenshot({path:`.e2e/evidence/drawing-simple-${id}-${info.project.name}.png`});
   const download=page.waitForEvent('download');await practice.getByRole('button',{name:'그림 카드 내려받기 (PNG)',exact:true}).click();
   const bytes=readFileSync((await(await download).path())!);expect(bytes.subarray(1,4).toString()).toBe('PNG');
-  await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
+  await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'오늘 연습 마치고 저장',exact:true}).click();
   await expect(page.getByRole('region',{name:'연이의 연습 정리'})).toBeVisible();
   const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('document->lesson->>id',id).single()).data!;
   expect(saved.status).toBe('completed');expect(saved.document.project.saved).toEqual([true,true,true,true]);

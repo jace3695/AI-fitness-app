@@ -21,3 +21,10 @@
 .drawing-work-heading { scroll-margin-top:24px; }
 @media(max-width:540px) { .drawing-start-card { flex-direction:column; align-items:stretch; gap:12px; padding:16px; } .drawing-start-picture { width:100px; align-self:center; } .drawing-start-button { width:100%; } }
 @media(prefers-reduced-motion:reduce) { .drawing-page { scroll-behavior:auto; } }
+
+/* Keep the practice surface clear; the page header and first-screen button
+   remain available. Connectivity/update notices must stay visible. */
+body:has(.drawing-page[data-drawing-focus="true"]) .hub-bottom-nav,
+body:has(.drawing-page[data-drawing-focus="true"]) button[aria-label="맨 위로 이동"],
+body:has(.drawing-page[data-drawing-focus="true"]) .yeoni-pwa-notice:not(.yeoni-pwa-banner) { display:none; }
+.drawing-canvas-tools > .drawing-options { flex-basis:100%; margin:4px 0 0; padding-top:4px; }

@@ -55,9 +55,9 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
     onChange?.([...strokes, active.current.stroke]); active.current = null; setRedo([]);
   };
   return <div>
-    {!preview && <div className="mb-3 flex flex-wrap gap-2">
+    {!preview && <div className="drawing-canvas-tools mb-3 flex flex-wrap items-start gap-2">
       <button type="button" disabled={disabled || !strokes.length} onClick={() => { setRedo([...redo, strokes[strokes.length - 1]]); onChange?.(strokes.slice(0, -1)); }} className="drawing-button">되돌리기</button>
-      <button type="button" disabled={disabled} aria-pressed={eraser} onClick={() => setEraser(!eraser)} className="drawing-button">{eraser ? "지우개 사용 중" : "연필 사용 중"}</button>
+      <button type="button" disabled={disabled} aria-pressed={eraser} onClick={() => setEraser(!eraser)} className="drawing-button">{simple ? eraser ? "연필로 그리기" : "지우개로 지우기" : eraser ? "지우개 사용 중" : "연필 사용 중"}</button>
       <button type="button" disabled={disabled} aria-pressed={zoom} onClick={() => setZoom(!zoom)} className="drawing-button">{zoom ? "원래 크기" : "확대"}</button>
       {palette && <>{palette.map((c,i)=><button key={c} type="button" className="drawing-button" aria-pressed={color===c} disabled={disabled} onClick={()=>setColor(c)}>{i===0?'주색 연필':'보조색 연필'}</button>)}<button type="button" className="drawing-button" aria-pressed={wide} disabled={disabled} onClick={()=>setWide(!wide)}>넓게 칠하기</button></>}
       <PracticeOptions simple={simple} title="색 · 다시 실행 · 펜 설정"><div className="flex flex-wrap gap-2">
