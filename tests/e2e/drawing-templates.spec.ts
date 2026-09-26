@@ -1,3 +1,4 @@
+import { showDrawingTools } from './drawing-tools';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
@@ -29,7 +30,7 @@ const moduleSource = ['lib/drawing/template-zip.ts', 'lib/drawing/template-store
 
 test('drawing templates: browser decoder, 150 private uploads, interrupted retry, reload and access isolation', async ({ page, qa }) => {
   test.setTimeout(240_000);
-  await login(page, qa.account); await synced(page); await page.goto('/growth/drawing');
+  await login(page, qa.account); await synced(page); await page.goto('/growth/drawing'); await showDrawingTools(page);
   const section = page.getByRole('region', { name: '만능 템플릿 원본 자료' });
   await expect(section.getByLabel('템플릿 등록 상태')).toContainText('0 / 150');
   await section.getByText('처음 한 번 원본 ZIP 등록', { exact: true }).click();
@@ -69,7 +70,7 @@ test('drawing templates: browser decoder, 150 private uploads, interrupted retry
   expect(await run('retry')).toEqual({ reads: 150, progress: 150, duplicateWrites: 6, stopped: false });
   const prefix = templatePath(qa.account.id, assets[0]).split('/').slice(0, -1).join('/');
   expect((await qa.account.client.storage.from('growth-resources').list(prefix, { limit: 200 })).data).toHaveLength(150);
-  await page.reload(); await install();
+  await page.reload(); await showDrawingTools(page); await install();
   expect(await run('read')).toEqual({ reads: 150, progress: 150, duplicateWrites: 0, stopped: false });
   const other = await qa.createAccount(), path = templatePath(qa.account.id, assets[0]);
   expect((await other.client.storage.from('growth-resources').download(path)).error).not.toBeNull();

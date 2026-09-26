@@ -6,3 +6,25 @@
 .drawing-page .drawing-input { display:block; min-height:44px; max-width:100%; margin-top:6px; padding:10px; border:1px solid #d7d1e5; border-radius:10px; background:white; }
 .drawing-page :focus-visible { outline:3px solid #b56918; outline-offset:3px; }
 @media(max-width:420px) { .drawing-page .drawing-card { padding:16px; } }
+.drawing-menu { display:flex; flex-wrap:wrap; gap:8px; margin-top:20px; }
+.drawing-three-steps { display:grid; gap:12px; margin:24px 0; padding:0; list-style:none; }
+.drawing-three-steps li { display:flex; align-items:center; gap:12px; font-size:16px; }
+.drawing-three-steps b { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:#eee7ff; color:#6145ae; }
+.drawing-start-card { display:flex; align-items:center; gap:24px; padding:20px; background:#f7f3ff; border-radius:20px; }
+.drawing-start-picture { width:140px; flex-shrink:0; }
+.drawing-page .drawing-start-button { font-size:18px; padding:14px 24px; min-height:54px; }
+.drawing-options { margin:16px 0; border-top:1px solid #eeebf5; padding-top:12px; }
+.drawing-options > summary { cursor:pointer; min-height:44px; padding:8px 0; color:#615975; font-size:14px; }
+.drawing-tip { margin:16px 0; border-radius:14px; background:#f5f0ff; padding:14px; font-size:15px; line-height:1.7; }
+.drawing-step-actions { display:flex; flex-wrap:wrap; gap:10px; margin:20px 0; }
+.drawing-step-actions .drawing-primary { flex:1; }
+.drawing-work-heading { scroll-margin-top:24px; }
+@media(max-width:540px) { .drawing-start-card { flex-direction:column; align-items:stretch; gap:12px; padding:16px; } .drawing-start-picture { width:100px; align-self:center; } .drawing-start-button { width:100%; } }
+@media(prefers-reduced-motion:reduce) { .drawing-page { scroll-behavior:auto; } }
+
+/* Keep the practice surface clear; the page header and first-screen button
+   remain available. Connectivity/update notices must stay visible. */
+body:has(.drawing-page[data-drawing-focus="true"]) .hub-bottom-nav,
+body:has(.drawing-page[data-drawing-focus="true"]) button[aria-label="맨 위로 이동"],
+body:has(.drawing-page[data-drawing-focus="true"]) .yeoni-pwa-notice:not(.yeoni-pwa-banner) { display:none; }
+.drawing-canvas-tools > .drawing-options { flex-basis:100%; margin:4px 0 0; padding-top:4px; }

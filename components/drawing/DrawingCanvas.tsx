@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { Stroke } from "@/lib/drawing/model";
 import type { ReactNode } from "react";
+import PracticeOptions from "./PracticeOptions";
 
 export function paintStrokes(canvas: HTMLCanvasElement, strokes: Stroke[], white = false) {
   const ctx = canvas.getContext("2d"); if (!ctx) return;
@@ -22,7 +23,7 @@ export function paintStrokes(canvas: HTMLCanvasElement, strokes: Stroke[], white
   if (white) { ctx.globalCompositeOperation = "destination-over"; ctx.fillStyle = "white"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = "source-over"; }
 }
 
-export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, preview = false, palette }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; reference?: ReactNode; disabled?: boolean; preview?: boolean; palette?: string[] }) {
+export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, preview = false, palette, simple = false }: { strokes: Stroke[]; onChange?: (value: Stroke[]) => void; guide?: ReactNode; reference?: ReactNode; disabled?: boolean; preview?: boolean; palette?: string[]; simple?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const active = useRef<{ id: number; stroke: Stroke } | null>(null);
   const [redo, setRedo] = useState<Stroke[]>([]);
@@ -54,14 +55,15 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
     onChange?.([...strokes, active.current.stroke]); active.current = null; setRedo([]);
   };
   return <div>
-    {!preview && <div className="mb-3 flex flex-wrap gap-2">
+    {!preview && <div className="drawing-canvas-tools mb-3 flex flex-wrap items-start gap-2">
       <button type="button" disabled={disabled || !strokes.length} onClick={() => { setRedo([...redo, strokes[strokes.length - 1]]); onChange?.(strokes.slice(0, -1)); }} className="drawing-button">되돌리기</button>
-      <button type="button" disabled={disabled || !redo.length} onClick={() => { onChange?.([...strokes, redo[redo.length - 1]]); setRedo(redo.slice(0, -1)); }} className="drawing-button">다시 실행</button>
-      <button type="button" aria-pressed={eraser} onClick={() => setEraser(!eraser)} className="drawing-button">{eraser ? "지우개 사용 중" : "연필 사용 중"}</button>
-      <button type="button" aria-pressed={zoom} onClick={() => setZoom(!zoom)} className="drawing-button">{zoom ? "원래 크기" : "확대"}</button>
+      <button type="button" disabled={disabled} aria-pressed={eraser} onClick={() => setEraser(!eraser)} className="drawing-button">{simple ? eraser ? "연필로 그리기" : "지우개로 지우기" : eraser ? "지우개 사용 중" : "연필 사용 중"}</button>
+      <button type="button" disabled={disabled} aria-pressed={zoom} onClick={() => setZoom(!zoom)} className="drawing-button">{zoom ? "원래 크기" : "확대"}</button>
       {palette && <>{palette.map((c,i)=><button key={c} type="button" className="drawing-button" aria-pressed={color===c} disabled={disabled} onClick={()=>setColor(c)}>{i===0?'주색 연필':'보조색 연필'}</button>)}<button type="button" className="drawing-button" aria-pressed={wide} disabled={disabled} onClick={()=>setWide(!wide)}>넓게 칠하기</button></>}
+      <PracticeOptions simple={simple} title="색 · 다시 실행 · 펜 설정"><div className="flex flex-wrap gap-2">
+      <button type="button" disabled={disabled || !redo.length} onClick={() => { onChange?.([...strokes, redo[redo.length - 1]]); setRedo(redo.slice(0, -1)); }} className="drawing-button">다시 실행</button>
       <label className="drawing-button flex items-center gap-2">선 색<input aria-label="선 색" type="color" value={color} onChange={e => setColor(e.target.value)} className="h-6 w-8" /></label>
-      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={penOnly} onChange={e => setPenOnly(e.target.checked)} />Pencil만 사용</label>
+      <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={penOnly} onChange={e => setPenOnly(e.target.checked)} />Pencil만 사용</label></div></PracticeOptions>
     </div>}
     <div className={reference ? "grid grid-cols-1 items-start gap-4 md:grid-cols-2" : ""}>
     {reference && <div className="min-w-0">{reference}</div>}
@@ -73,6 +75,6 @@ export function DrawingCanvas({ strokes, onChange, guide, reference, disabled, p
     </div>
     </div>
     {limit && <p role="alert">이 그림의 선이 많아졌어요. 먼저 저장하거나 내보낸 뒤 새 시도로 이어가 주세요.</p>}
-    {!preview && <p className="mt-2 text-xs text-slate-500">화면 왼쪽·오른쪽을 기준으로 설명해요. Pencil만 사용을 켜면 손가락은 그림을 남기지 않아요. 확대했을 때는 연습장 바깥을 잡고 화면을 움직여요.</p>}
+    {!preview && <p className="mt-2 text-xs text-slate-500">손가락·마우스로 그려요. 잘못 그리면 ‘되돌리기’를 누르세요. 화면을 내릴 때는 그림 바깥을 쓸어 주세요.</p>}
   </div>;
 }

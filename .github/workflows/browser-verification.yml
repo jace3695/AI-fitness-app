@@ -60,6 +60,8 @@ jobs:
         run: node scripts/e2e-stack.mjs start
       - name: Build the isolated production app
         run: npm run build
+      - name: Verify beginner drawing flow in both browsers
+        run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races
         run: node scripts/qa-playwright.mjs tests/e2e/pin-status.spec.ts --project=chromium --project=webkit-small
       - name: Diagnose D06 and D33 navigation without retries
@@ -96,6 +98,7 @@ jobs:
           path: |
             .e2e/evidence/*.json
             .e2e/evidence/server-navigation.jsonl
+            .e2e/evidence/drawing-simple-*.png
             .e2e/evidence/pin-status-*.png
             .e2e/evidence/drawing-stage3-*.png
             .e2e/evidence/drawing-stage4-*.png
