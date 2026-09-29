@@ -96,7 +96,9 @@ export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
   const visibility = () => reconcile();
   const focus = () => { queueMicrotask(reconcile); };
   const updateSize = () => {
-    backingSize = Math.max(1, Math.round(frame.getBoundingClientRect().width * Math.min(window.devicePixelRatio || 1, 2)));
+    const nextSize = Math.max(1, Math.round(frame.getBoundingClientRect().width * Math.min(window.devicePixelRatio || 1, 2)));
+    if (nextSize === backingSize) return;
+    backingSize = nextSize;
     draw(active);
   };
   const resize = new ResizeObserver(updateSize);
@@ -118,7 +120,9 @@ export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
   image.onload = () => {
     if (disposed) return;
     if (image.naturalWidth !== 1254 || image.naturalHeight !== 1254) { fail(); return; }
-    ready = true; draw(false);
+    // Seed dimensions before the first paint; a late initial ResizeObserver
+    // notification must not repaint an unchanged, paused canvas (WebKit).
+    updateSize(); ready = true; draw(false);
     if (!failed) { options.onStatus('ready'); reconcile(); }
   };
   image.onerror = fail;

@@ -2,6 +2,16 @@ name: Yeoni animation PoC review
 on:
   push:
     branches: [agent/yeoni-cat-animation-poc]
+    paths:
+      - 'components/yeoni/**'
+      - 'components/useYeoniPreferences.ts'
+      - 'utils/yeoniPreferences.ts'
+      - 'lib/yeoni/**'
+      - 'public/yeoni/**'
+      - 'scripts/yeoni-poc/**'
+      - 'scripts/browser-qa/package*.json'
+      - 'package*.json'
+      - '.github/workflows/yeoni-animation-review.yml'
 permissions:
   contents: read
 concurrency:
