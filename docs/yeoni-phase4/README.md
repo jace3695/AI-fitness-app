@@ -38,11 +38,13 @@
 | 장애 주입 | 이미지 404, Canvas 불가, 설정 저장 실패 확인 |
 | 오프라인 파일 | 직접 열기·깜빡임·정지 성공, 런타임 예외 0개 |
 | 외부 요청 | 독립 화면에서 운영 API·개인 데이터 요청 없음 |
-| WebKit | CI 확인 중. 아래 기록이 갱신되기 전에는 통과로 해석하지 않음 |
+| CI Chromium·WebKit | 각각 16개, 총 32개 시나리오 통과 |
 
 로컬 상세 결과는 [chromium-local.json](evidence/chromium-local.json)에 있다.
-CI 코드 기준 커밋: `25cabe4ffb614d9edef815ad2290a1aed7cfbf7d`.
-[독립 PoC CI](https://github.com/jace3695/AI-fitness-app/actions/runs/36566213869).
+CI 결과: [Chromium 153](evidence/chromium-ci.json), [WebKit 26.6](evidence/webkit-ci.json), [WebKit 390px 화면](evidence/webkit-390.png). CI 아카이브의 SHA-256을 대조하고 두 결과 파일의 16개 통과 항목을 확인했으며, WebKit 작은 화면도 시각 검수했다.
+CI 코드 기준 커밋: `0f4123b63e02c30603a2c045f236040c20e8a0d2`.
+[통과한 독립 PoC CI](https://github.com/jace3695/AI-fitness-app/actions/runs/36566864950).
+단위 테스트·린트·타입 검사·전체 앱 빌드도 이 CI에서 통과했다. 첫 실행의 WebKit 실패는 아래 수정 이력으로 남겼다.
 
 브라우저의 문서 숨김 검사는 합성 visibility 이벤트를 사용했다. 실제 iPhone 화면 잠금·앱 전환·발열·배터리·Bluetooth 출력 지연은 확인하지 않았다. 20회 반복 검사는 활성 RAF 중복 검증이며 모든 종류의 메모리 누수가 없음을 증명하는 검사는 아니다. 기존 앱 전체 인증/기록 E2E와 이번 독립 화면의 검증은 별개이다.
 
@@ -59,7 +61,7 @@ CI 코드 기준 커밋: `25cabe4ffb614d9edef815ad2290a1aed7cfbf7d`.
 
 PHASE 5는 **고양이 한국어 립싱크 PoC**다. 먼저 실제 발화문·음성과 입모양 타임라인을 맞추는 방법을 검증한다. 현재 Google Zephyr 응답에 음소 타이밍이 없으므로, 임의 입 벌리기나 글자별 균등 배분을 정확한 립싱크로 처리하지 않는다. 새로운 유료 서비스 도입이나 운영 반영은 별도 승인 없이 진행하지 않는다.
 
-PHASE 1~3 완료. PHASE 4는 기본 구현과 Chromium 검증 완료, WebKit 결과 확인 중이다. PHASE 5~16은 미완료다.
+PHASE 1~4 완료. 전체 16개 단계 중 4단계 완료이며, 단계별 작업량이 달라 공수 25% 완료를 뜻하지 않는다. PHASE 5~16은 미완료다. PR의 기존 전체 앱 인증/기록 회귀 CI는 이 독립 PoC 검증과 별도이며, 해당 결과와 실제 iPhone 검증을 대신한 것으로 보고하지 않는다. 운영 병합·배포는 하지 않았다.
 
 ## 재현 및 보존
 
