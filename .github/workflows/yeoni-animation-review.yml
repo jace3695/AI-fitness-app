@@ -1,0 +1,47 @@
+name: Yeoni animation PoC review
+on:
+  push:
+    branches: [agent/yeoni-cat-animation-poc]
+permissions:
+  contents: read
+concurrency:
+  group: yeoni-animation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  visual-poc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix scripts/browser-qa ci
+      - name: Code checks and application build
+        run: |
+          npm test
+          npm run lint
+          npx tsc --noEmit
+          npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Chromium visual-only lab
+        run: node scripts/yeoni-poc/check.mjs
+      - name: WebKit visual-only lab
+        env:
+          YEONI_BROWSER: webkit
+        run: node scripts/yeoni-poc/check.mjs
+      - name: Preserve synthetic visual evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-animation-${{ github.sha }}
+          path: .e2e/yeoni-poc/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
