@@ -1,4 +1,6 @@
 import { canAnimate, catPose } from './cat-motion';
+import { drawCatMouth } from './cat-mouth';
+import type { Viseme } from './lip-sync';
 
 export type CatRenderer = { setEnabled(value: boolean): void; dispose(): void };
 export type CatRendererStatus = 'loading' | 'ready' | 'error';
@@ -6,6 +8,7 @@ export type CatRendererStatus = 'loading' | 'ready' | 'error';
 /** Owns one canvas, one image, and at most one animation-frame callback. No audio/network APIs. */
 export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
   enabled: boolean; assetUrl: string; onStatus(status: CatRendererStatus): void;
+  mouth?: () => Viseme;
 }): CatRenderer {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -59,6 +62,10 @@ export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
       else {
         const height = pose.blink === 'half' ? 25 : 54;
         part([790, 355, 325, 135], [90, 159 - height / 2, 151, height]);
+      }
+      if (options.mouth) {
+        const viseme = animated ? options.mouth() : 'rest';
+        drawCatMouth(ctx!, viseme); canvas.dataset.viseme = viseme;
       }
       ctx!.restore();
       // Read-only diagnostics for the isolated browser lab; no React state per frame.

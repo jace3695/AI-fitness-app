@@ -9,6 +9,7 @@ on:
       - 'lib/yeoni/**'
       - 'public/yeoni/**'
       - 'scripts/yeoni-poc/**'
+      - 'scripts/yeoni-speech-poc/**'
       - 'scripts/browser-qa/package*.json'
       - 'package*.json'
       - '.github/workflows/yeoni-animation-review.yml'
@@ -46,12 +47,20 @@ jobs:
         env:
           YEONI_BROWSER: webkit
         run: node scripts/yeoni-poc/check.mjs
+      - name: Chromium silent speech-clock lab
+        run: node scripts/yeoni-speech-poc/check.mjs
+      - name: WebKit silent speech-clock lab
+        env:
+          YEONI_BROWSER: webkit
+        run: node scripts/yeoni-speech-poc/check.mjs
       - name: Preserve synthetic visual evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: yeoni-animation-${{ github.sha }}
-          path: .e2e/yeoni-poc/
+          path: |
+            .e2e/yeoni-poc/
+            .e2e/yeoni-speech-poc/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
