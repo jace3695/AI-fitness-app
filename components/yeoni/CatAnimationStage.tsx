@@ -4,35 +4,35 @@ import { useEffect, useRef, useState } from 'react';
 import { mountCatRenderer, type CatRenderer, type CatRendererStatus } from '@/lib/yeoni/cat-renderer';
 import { useYeoniPreferences } from '@/components/useYeoniPreferences';
 import styles from './cat-animation.module.css';
-import type { Viseme } from '@/lib/yeoni/lip-sync';
+import { EMPTY_PLAYBACK, type SpeechSnapshot } from '@/lib/yeoni/character-controller';
 
 /** Isolated PHASE 4 candidate. Not mounted in any production page yet. */
-export default function CatAnimationStage({ assetUrl = '/yeoni/cat/poc-atlas-v1.png', paused = false, mouth }: {
-  assetUrl?: string; paused?: boolean; mouth?: () => Viseme;
+export default function CatAnimationStage({ assetUrl = '/yeoni/cat/poc-atlas-v1.png', paused = false, speech }: {
+  assetUrl?: string; paused?: boolean; speech?: () => SpeechSnapshot;
 }) {
   const preferences = useYeoniPreferences();
-  return preferences.visible ? <Stage assetUrl={assetUrl} enabled={!paused && preferences.motion === 'home'} mouth={mouth} /> : null;
+  return preferences.visible ? <Stage assetUrl={assetUrl} enabled={!paused && preferences.motion === 'home'} speech={speech} /> : null;
 }
 
-function Stage({ assetUrl, enabled, mouth }: { assetUrl: string; enabled: boolean; mouth?: () => Viseme }) {
+function Stage({ assetUrl, enabled, speech }: { assetUrl: string; enabled: boolean; speech?: () => SpeechSnapshot }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<CatRenderer | null>(null);
   const [status, setStatus] = useState<CatRendererStatus>('loading');
   const latestEnabled = useRef(enabled);
   latestEnabled.current = enabled;
-  const latestMouth = useRef(mouth);
-  latestMouth.current = mouth;
-  const hasMouth = !!mouth;
+  const latestSpeech = useRef(speech);
+  latestSpeech.current = speech;
+  const hasSpeech = !!speech;
   useEffect(() => {
     if (!canvas.current) return;
     let mounted = true;
     try {
       renderer.current = mountCatRenderer(canvas.current, { assetUrl, enabled: latestEnabled.current,
-        mouth: hasMouth ? () => latestMouth.current?.() ?? 'rest' : undefined,
+        speech: hasSpeech ? () => latestSpeech.current?.() ?? { manifest: null, playback: EMPTY_PLAYBACK } : undefined,
         onStatus: next => { if (mounted) setStatus(next); } });
     } catch { setStatus('error'); }
     return () => { mounted = false; renderer.current?.dispose(); renderer.current = null; };
-  }, [assetUrl, hasMouth]);
+  }, [assetUrl, hasSpeech]);
   useEffect(() => { renderer.current?.setEnabled(enabled); }, [enabled]);
   return <div className={styles.stage} data-cat-status={status}>
     <canvas ref={canvas} className={styles.canvas} aria-hidden="true" style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }} />

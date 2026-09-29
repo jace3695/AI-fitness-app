@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import CatAnimationStage from '../../components/yeoni/CatAnimationStage';
 import { updateYeoniPreferences, useYeoniPreferences } from '../../components/useYeoniPreferences';
 import { LipSyncPlayer, type SpeechState } from '../../lib/yeoni/lip-sync-player';
-import type { Viseme } from '../../lib/yeoni/lip-sync';
+import { EMPTY_PLAYBACK, type SpeechSnapshot } from '../../lib/yeoni/character-controller';
 import { clockFixture } from './fixture';
+import MouthPalette from './MouthPalette';
+import { realFixture } from './real-fixture';
 import '../yeoni-poc/lab.css';
 import './speech.css';
 
@@ -33,7 +35,7 @@ function Lab() {
     player.current = instance;
     return () => { ++pending.generation; instance.dispose(); player.current = null; };
   }, []);
-  const mouth = (): Viseme => player.current?.sample() ?? 'rest';
+  const speech = (): SpeechSnapshot => ({ manifest: player.current?.manifest ?? null, playback: player.current?.snapshot() ?? EMPTY_PLAYBACK });
   function motion() {
     try { updateYeoniPreferences({ visible: true, motion: 'home' }); }
     catch { setMessage('움직임 설정을 저장하지 못했어요. 이번 화면에만 적용해요.'); }
@@ -46,6 +48,12 @@ function Lab() {
       if (token !== request.current.generation) return;
       motion(); await player.current?.load(sample.bytes, sample.manifest);
     } catch { if (token === request.current.generation) setMessage('이 브라우저에서 기술 샘플을 준비하지 못했어요. 다른 브라우저에서 파일을 열어 주세요.'); }
+  }
+  async function realVoice() {
+    ++request.current.generation;
+    player.current?.reset();
+    const sample = realFixture();
+    motion(); await player.current?.load(sample.bytes, sample.manifest, 'audio/mpeg');
   }
   async function files() {
     const token = ++request.current.generation;
@@ -63,12 +71,13 @@ function Lab() {
   return <main>
     <p className="eyebrow">AI 연이 · PHASE 5 개발 미리보기</p>
     <h1>발음마다 달라지는 입 모양</h1>
-    <p className="intro">아, 오, 이, 그리고 입술 닫힘을 구분해요.<br />실제 한국어 음성과의 일치 검증은 대기 중이에요.</p>
+    <p className="intro">닫힘·아·이·우·에·오를 각각 구분해요.<br />저장된 연이 음성으로 입 움직임을 확인해 보세요.</p>
     <section className={dark ? 'portrait dark' : 'portrait'} aria-label="고양이 연이">
-      {mounted ? <CatAnimationStage assetUrl="/yeoni/cat/poc-speech-atlas-v1.png" mouth={mouth} /> : <p className="empty">연이가 잠시 쉬고 있어요.</p>}
+      {mounted ? <CatAnimationStage assetUrl="/yeoni/cat/poc-speech-atlas-v1.png" speech={speech} /> : <p className="empty">연이가 잠시 쉬고 있어요.</p>}
     </section>
-    <p className="sample-badge">{alignment === 'reviewed-phonemes' ? '불러온 음성 · 정렬 정확도는 별도 검토 필요' : '무음 기술 샘플 · 한국어 음성 시연이 아닙니다'}</p>
+    <p className="sample-badge">{alignment === 'automatic-phonemes' ? '실제 Zephyr 음성 · 자동 정렬 초안 · 자연스러움 검토 중' : alignment === 'reviewed-phonemes' ? '불러온 음성 · 정렬 정확도는 별도 검토 필요' : '무음 기술 샘플 · 한국어 음성 시연이 아닙니다'}</p>
     <div className="controls">
+      <button onClick={realVoice}>저장된 연이 음성 불러오기</button>
       <button onClick={fixture}>무음 동작 샘플 불러오기</button>
       <button disabled={!canPlay} onClick={() => { motion(); void player.current?.play(); }}>재생</button>
       <button disabled={!canPlay} onClick={() => player.current?.pause()}>일시정지</button>
@@ -77,7 +86,7 @@ function Lab() {
     <audio ref={audio} controls preload="metadata" aria-label="립싱크 음성" />
     <p className="notice" role="status" data-speech-state={state}>{message || labels[state]} · {time.toFixed(1)}초</p>
     {text && <p className="spoken">{text}</p>}
-    <p className="caption">오디오의 실제 재생 위치를 따라가요. 무음 샘플은 재생·정지·탐색 동작을 확인하기 위한 것으로, 발음 타이밍을 검증하지 않아요.</p>
+    <p className="caption">오디오의 실제 재생 위치를 따라가요. 저장된 음성은 새로 생성하지 않아요. 자동으로 찾은 발음 시각은 아직 청취 검토가 필요해요. 무음 샘플은 재생 동작만 확인해요.</p>
     <div className="controls">
       <button onClick={() => { player.current?.pause(); try { updateYeoniPreferences({ motion: prefs.motion === 'home' ? 'off' : 'home' }); } catch { setMessage('움직임 설정을 저장하지 못했어요. 이번 화면에만 적용해요.'); } }}>입 움직임 {prefs.motion === 'home' ? '끄기' : '켜기'}</button>
       <button onClick={() => { player.current?.pause(); setMounted(!mounted); }}>{mounted ? '화면 나가기' : '돌아오기'}</button>
@@ -90,6 +99,7 @@ function Lab() {
       <button onClick={files}>선택한 파일 확인</button>
       <p>검토된 음소 시각과 음성·발화문 SHA-256이 필요해요. 파일 불일치나 지원하지 않는 음소를 추측해서 재생하지 않아요.</p>
     </details>
+    <MouthPalette />
   </main>;
 }
 createRoot(document.getElementById('root')!).render(<StrictMode><Lab /></StrictMode>);

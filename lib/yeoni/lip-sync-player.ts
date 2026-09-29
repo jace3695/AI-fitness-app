@@ -1,4 +1,5 @@
-import { verifyLipSyncPair, visemeAt, type LipSyncManifest, type Viseme } from './lip-sync';
+import { verifyLipSyncPair, type LipSyncManifest } from './lip-sync';
+import type { PlaybackSnapshot } from './character-controller';
 
 export type SpeechState = 'empty' | 'loading' | 'ready' | 'playing' | 'paused' | 'ended' | 'error';
 /** One existing media element is the sole clock. No TTS, fetch, RAF or timers per cue. */
@@ -84,10 +85,15 @@ export class LipSyncPlayer {
   }
   pause() { this.audio.pause(); if (this.usable() && !this.audio.ended) this.setState('paused'); }
   stop() { this.pause(); if (this.usable()) { this.audio.currentTime = 0; this.setState('ready'); } }
-  sample = (): Viseme => {
-    if (!this.usable() || this.state !== 'playing' || this.stalled || this.audio.paused || this.audio.ended
-      || this.audio.seeking || this.audio.readyState < 2 || document.hidden) return 'rest';
-    return visemeAt(this.manifest!, this.audio.currentTime * 1000);
+  snapshot = (): PlaybackSnapshot => {
+    let state: PlaybackSnapshot['state'] = this.state;
+    if (this.usable() && state === 'playing') {
+      if (this.audio.ended) state = 'ended';
+      else if (this.audio.paused || document.hidden) state = 'paused';
+      else if (this.audio.seeking) state = 'seeking';
+      else if (this.stalled || this.audio.readyState < 2) state = 'waiting';
+    } else if (!this.usable() && state === 'playing') state = 'empty';
+    return { clipId: this.manifest?.audioSha256 ?? null, currentTimeMs: this.audio.currentTime * 1000, state };
   };
   dispose() {
     if (this.disposed) return;

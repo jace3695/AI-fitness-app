@@ -1,5 +1,5 @@
 import { chromium, webkit } from 'playwright';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { server } from './server.mjs';
@@ -13,6 +13,7 @@ const browser = await ({ chromium, webkit })[kind].launch({ headless: true,
 }).catch(async error => { await new Promise(resolve => server.close(resolve)); throw error; });
 const context = await browser.newContext({ viewport: { width: 390, height: 950 }, reducedMotion: 'no-preference' });
 const requests = [], errors = [], results = [];
+let realSpeechClock = null;
 await context.route('**/*', route => {
   const url = route.request().url(); requests.push(url);
   if (/^(http:\/\/127\.0\.0\.1:8875\/|blob:|data:)/.test(url)) return route.continue();
@@ -52,19 +53,23 @@ try {
     await state('empty'); assert.equal(await media(a => a.paused), true); await viseme('rest');
     assert.ok(await page.getByText('무음 기술 샘플 · 한국어 음성 시연이 아닙니다').isVisible());
   });
+  await test('six static mouth drawings are distinct without breath or blink movement', async () => {
+    const mouths = await page.locator('[data-mouth-shape]').evaluateAll(elements => elements.map(e => ({ shape: e.dataset.mouthShape, pixels: e.toDataURL() })));
+    assert.deepEqual(mouths.map(m => m.shape), ['closed', 'a', 'i', 'u', 'e', 'o']);
+    assert.equal(new Set(mouths.map(m => m.pixels)).size, 6);
+    await page.locator('.mouth-palette').screenshot({ path: `${out}/six-mouths.png` });
+    await page.evaluate(() => window.scrollTo(0, 0));
+  });
   await test('load creates valid 8-second real media, remains paused', async () => {
     await fixture(); assert.equal(await media(a => a.duration), 8); assert.equal(await media(a => a.paused), true); await viseme('rest');
   });
-  await test('actual media clock selects five shapes and silence after arbitrary seeks', async () => {
+  await test('actual media clock selects six vowel/lip shapes, neutral and silence after arbitrary seeks', async () => {
     await button('재생').click(); await state('playing');
-    const pixels = new Set();
-    for (const [time, shape] of [[.55, 'open'], [1.5, 'round'], [2.7, 'wide'], [3.7, 'closed'], [4.7, 'small'], [5.2, 'rest']]) {
+    for (const [time, shape] of [[.55, 'a'], [1.5, 'o'], [2.7, 'i'], [3.7, 'closed'], [4.7, 'small'], [5.2, 'rest'], [5.7, 'u'], [6.7, 'e']]) {
       await seek(time); await viseme(shape);
-      pixels.add(await page.locator('canvas').evaluate(e => e.toDataURL()));
       await page.locator('.portrait').screenshot({ path: `${out}/${shape}.png` });
     }
-    assert.equal(pixels.size, 6);
-    await seek(.55); await viseme('open');
+    await seek(.55); await viseme('a');
   });
   await test('pause closes mouth, freezes media; resume keeps position', async () => {
     await button('일시정지').click(); await state('paused'); await viseme('rest');
@@ -76,13 +81,13 @@ try {
   await test('2x playback follows media time rather than wall-clock cue timers', async () => {
     await media(a => { a.playbackRate = 2; }); await seek(1.4);
     assert.equal(await media(a => a.playbackRate), 2);
-    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.currentTime > 1.5 && a.currentTime < 2.1 && document.querySelector('canvas').dataset.viseme === 'round'; });
-    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.currentTime > 2.65 && a.currentTime < 3.3 && document.querySelector('canvas').dataset.viseme === 'wide'; });
+    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.currentTime > 1.5 && a.currentTime < 2.1 && document.querySelector('canvas').dataset.viseme === 'o'; });
+    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.currentTime > 2.65 && a.currentTime < 3.3 && document.querySelector('canvas').dataset.viseme === 'i'; });
     await media(a => { a.playbackRate = 1; });
   });
   await test('waiting event closes mouth and playing event resumes (synthetic stall)', async () => {
     await seek(.5); await media(a => a.dispatchEvent(new Event('waiting'))); await viseme('rest');
-    await media(a => a.dispatchEvent(new Event('playing'))); await viseme('open');
+    await media(a => a.dispatchEvent(new Event('playing'))); await viseme('a');
   });
   await test('hidden event pauses audio, return does not autoplay (synthetic visibility)', async () => {
     await page.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
@@ -99,7 +104,7 @@ try {
     assert.equal(await media(a => a.getAttribute('src')), null);
   });
   await test('actual audio+JSON import, SHA mismatch rejection and recovery', async () => {
-    await loadPair(); await state('ready'); await button('재생').click(); await viseme('open');
+    await loadPair(); await state('ready'); await button('재생').click(); await viseme('a');
     await loadPair({ badHash: true }); await state('error'); await viseme('rest');
     assert.equal(await media(a => a.getAttribute('src')), null);
     assert.ok(await page.getByText('음성·발화문과 타임라인이 일치하지 않아요.', { exact: false }).isVisible());
@@ -134,7 +139,7 @@ try {
   });
   await test('stage exit pauses sound; return does not replay', async () => {
     await button('재생').click(); await state('playing'); await button('화면 나가기').click();
-    assert.equal(await media(a => a.paused), true); assert.equal(await page.locator('canvas').count(), 0);
+    assert.equal(await media(a => a.paused), true); assert.equal(await page.locator('.portrait canvas').count(), 0);
     await button('돌아오기').click(); await page.locator('[data-cat-status="ready"]').waitFor(); await viseme('rest');
   });
   await test('reduced motion and manual motion-off keep closed mouth', async () => {
@@ -151,11 +156,66 @@ try {
     }
     await button('배경 바꾸기').click(); await page.screenshot({ path: `${out}/dark.png`, fullPage: true });
   });
+  await test('saved Zephyr MP3 loads without provider calls, stays paused and declares automatic alignment', async () => {
+    await page.setViewportSize({ width: 390, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await button('저장된 연이 음성 불러오기').click(); await state('ready');
+    assert.ok(Math.abs(await media(a => a.duration) - 5.376) < .1);
+    assert.equal(await media(a => a.paused), true);
+    await viseme('rest');
+    assert.ok(await page.getByText('실제 Zephyr 음성 · 자동 정렬 초안 · 자연스러움 검토 중').isVisible());
+    assert.ok(await page.getByText('안녕하세요. 오늘 일정을 알려드릴게요. 오늘은 조금 쉬는 게 좋겠어요.', { exact: true }).isVisible());
+  });
+  await test('real MP3 natural playback follows 60 acoustic cues and closes at sentence pauses/end', async () => {
+    await page.evaluate(() => {
+      window.__speechSamples = []; window.__speechRecord = true;
+      const collect = () => {
+        const a = document.querySelector('audio'), c = document.querySelector('.portrait canvas');
+        if (!a.paused && !a.seeking && a.readyState >= 2) window.__speechSamples.push({
+          media: a.currentTime * 1000, rendered: Number(c.dataset.speechTimeMs), shape: c.dataset.viseme,
+        });
+        if (window.__speechRecord) requestAnimationFrame(collect);
+      };
+      requestAnimationFrame(collect);
+    });
+    await button('재생').click(); await state('playing');
+    await state('ended'); await viseme('rest');
+    const samples = await page.evaluate(() => { window.__speechRecord = false; return window.__speechSamples; });
+    const timeline = JSON.parse(readFileSync('docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json', 'utf8'));
+    const projection = { 'ɐ': 'a', 'ʌ': 'a', i: 'i', j: 'i', e: 'e', o: 'o', m: 'closed', 'sʷ': 'u' };
+    let mismatches = 0;
+    for (const sample of samples) {
+      const cue = timeline.cues.find(c => c.startMs <= sample.rendered && sample.rendered < c.endMs);
+      const expected = cue ? (projection[cue.phone] ?? 'small') : 'rest';
+      if (sample.shape !== expected) mismatches++;
+    }
+    const lag = samples.filter(s => s.media > 100 && s.media < 5200).map(s => Math.abs(s.media - s.rendered)).sort((a, b) => a - b);
+    assert.ok(samples.length > 30); assert.equal(mismatches, 0);
+    assert.ok(lag[Math.floor(lag.length * .95)] <= 100);
+    assert.ok(samples.some(s => s.media > 2800 && s.media < 3250 && s.shape === 'rest'));
+    for (const shape of ['a', 'e', 'i', 'o', 'closed']) assert.ok(samples.some(s => s.shape === shape), shape);
+    // The rounded /sʷ/ lasts only 30ms; at a <=30fps cap it may be skipped.
+    realSpeechClock = { sampleCount: samples.length, mismatches, p95ClockAgeMs: lag[Math.floor(lag.length * .95)],
+      maxClockAgeMs: lag.at(-1), observedShapes: [...new Set(samples.map(s => s.shape))],
+      scope: 'Media-to-render clock age, NOT phonetic alignment accuracy or speaker/Bluetooth latency.' };
+    await page.screenshot({ path: `${out}/real-voice-ended.png`, fullPage: true });
+  });
+  await test('real MP3 seek, pause and resume reuse the same saved source', async () => {
+    await button('처음으로').click(); await button('재생').click();
+    await seek(.72); await viseme('o');
+    await button('일시정지').click(); await viseme('rest');
+    const position = await media(a => a.currentTime); await page.waitForTimeout(100);
+    assert.equal(await media(a => a.currentTime), position);
+    await button('재생').click(); await state('playing');
+    await seek(2.4); await viseme('e');
+    await seek(2.9); await viseme('rest');
+    await button('처음으로').click(); await state('ready'); await viseme('rest');
+  });
   await test('no runtime exceptions or external requests', async () => {
     assert.deepEqual(errors, []); assert.ok(requests.every(u => /^(http:\/\/127\.0\.0\.1:8875\/|blob:|data:)/.test(u)));
   });
 } finally {
   writeFileSync(`${out}/results.json`, JSON.stringify({ browser: kind, version: browser.version(), results, errors,
-    requestCount: requests.length, scope: 'Silent synthetic media-clock checks only. No Korean speech, phonetic accuracy or physical iPhone validation.' }, null, 2));
+    requestCount: requests.length, realSpeechClock, scope: 'Synthetic lifecycle + saved Zephyr MP3 media-clock checks. Automatic phoneme alignment remains listening-review pending; no physical iPhone validation.' }, null, 2));
   await browser.close(); await new Promise(resolve => server.close(resolve));
 }

@@ -1,22 +1,22 @@
 # 연이 공통 Character Controller·한국어 립싱크 설계 기준
 
 반영일: 2026-09-29 (한국시간). 사용자의 추가 지시를 후속 구현 기준으로 고정한다.
-**이 문서는 설계와 완료 조건이다. 아래 미구현 항목의 구현·검증 완료를 의미하지 않는다.**
+**설계 기준과 현재 구현 상태를 함께 기록한다. PHASE 5는 청취 검토가 남아 진행 중이다.**
 CSS + Canvas 2D PoC를 유지하고 고양이형부터 검증한다. 인간형 A안도 같은 제어 계약을 따른다.
 
 ## 현재 구현과 보완할 부분
 
-| 항목 | 현재 코드 | 다음 구현에서 충족할 조건 |
+| 항목 | 현재 구현 | 남은 조건 |
 | --- | --- | --- |
-| 음소 기반 선택 | `lib/yeoni/lip-sync.ts`가 정렬된 음소 구간을 viseme으로 변환 | 한국어 발음 변환·실제 음성 정렬 단계의 입출력 계약을 연결 |
-| 입 모양 | `round`는 우/오, `wide`는 이/에를 공유 | 닫힘/아/이/우/에/오를 각각 구분 |
-| 오디오 시계 | `LipSyncPlayer`가 HTMLAudioElement의 현재 시각 사용 | 미디어 요소 처리는 재생 어댑터, 입 모양·행동 판정은 공통 Controller로 분리 |
-| 렌더러 | `cat-renderer.ts`가 Canvas 그리기와 일부 동작 판정을 함께 수행 | 공통 상태·타이밍 판정과 Canvas 자산·좌표 처리를 분리 |
-| 실제 음성 | 승인된 39자 Zephyr MP3 저장, 정상 디코딩 확인 | 음소 정렬·입 모양 동기화·청취 검수 필요 |
-| 인간형·대체 엔진 | 아직 공통 Controller에 연결되지 않음 | 같은 입력과 제어 로직에 외형별 렌더러만 연결 |
+| 공통 Controller | `character-controller.ts`: 미디어 시각·정책→불변 의미 프레임, DOM/React/Canvas 의존 없음 | 감정·제스처의 실제 동작은 PHASE 6 |
+| 입 모양 | 닫힘/아/이/우/에/오 여섯 도형, `small` 보조 모양 | 실제 발화 자연스러움 청취 |
+| 재생 어댑터 | `LipSyncPlayer.snapshot()`은 일반 상태·시각만 제공 | 물리 기기 출력 지연은 PHASE 14/15 |
+| 렌더링 | `character-stage.ts` 공통 루프·정책, `cat-renderer.ts` Canvas 자산·좌표 | 인간형·Rive/Live2D 어댑터 구현 |
+| 한국어 정렬 | 기존 MP3에 MFA 3.4.2 / Korean v3 모델 적용, 60개 음소 시각·출처 보관 | 자동 후보의 청취 경계 검토, 일반 G2P 서비스 |
+| 검증 | 같은 Controller 프레임을 독립 기록 렌더러 두 개에 전달; 실제 고양이는 브라우저 검사 | 기록 렌더러를 인간형 실구현으로 간주하지 않음 |
 
-기존 `rest`와 `closed`는 같은 닫힌 입을 그리며, 나머지는 small/open/round/wide다.
-따라서 현재 다섯 시각적 형태를 사용자 지정 여섯 입 모양 세트의 완성으로 보지 않는다.
+`rest`와 `closed`만 같은 닫힌 입을 사용한다. 우/오 및 이/에는 도형 크기가 구분되며
+정지 비교 화면의 픽셀 차이를 검사한다. 음성은 추가 생성하지 않았다.
 
 ## 공통 처리 흐름과 책임
 
@@ -42,16 +42,16 @@ Controller가 TTS를 직접 구현하는 형태로 합치지 않는다. TTS·AI 
 
 ### 최소 계약
 
-다음 이름은 구현할 계약의 설계명이며, 아직 존재하는 TypeScript API로 간주하지 않는다.
+현재 `character-controller.ts`가 아래 계약의 최소 구현을 제공한다. `SpeechClip` 역할은 기존 `LipSyncManifest`가 담당한다.
 
 - `SpeechClip`: 확정 발화문, 음성 식별자/해시, 발화문 해시, 언어, 길이, 검증 상태와 음소 구간.
 - `PlaybackSnapshot`: 같은 오디오의 `currentTimeMs`, playing/paused/ended/waiting/seeking/error 상태.
   진행 중단·숨김 등 브라우저 이벤트는 어댑터가 일반 상태로 전달한다.
 - `CharacterFrame`: 공통 viseme ID와 표정/제스처/시선 등의 의미 값. 프레임에 DOM 노드,
   Canvas context, HTMLAudioElement, 엔진 객체를 넣지 않는다. 미구현 행동은 중립 값이다.
-- `CharacterController.sample(playback, visibilityPolicy)`: 실제 재생 시각에 해당하는 프레임을 계산한다.
+- `CharacterController.sample(playback, idleTimeMs, visibilityPolicy)`: 실제 재생 시각에 해당하는 프레임을 계산한다.
   시간 탐색·배속 변경 뒤에도 현재 시각으로 다시 계산하며 자체 발화 타이머를 만들지 않는다.
-- `Renderer.render(frame)`와 `dispose()`: 외형 표현과 자원 정리를 담당한다.
+- `CharacterRenderer.render(frame, viewport)`와 `dispose()`: 외형 표현과 자원 정리를 담당한다.
   호스트가 외형과 렌더러를 선택하고 교체 시 자원을 해제한다. 교체 과정에서 TTS를 재요청하지 않는다.
 
 프레임 구동 루프는 하나만 둔다. 현재 Canvas의 최대 30fps 제한과 프레임마다 React 상태를
@@ -61,8 +61,7 @@ Controller가 TTS를 직접 구현하는 형태로 합치지 않는다. TTS·AI 
 
 ## 최소 입 모양과 한국어 매핑
 
-아래 ID는 다음 구현에서 사용할 의미 단위다. 현행 v1의 `open/round/wide`와 이름만 바꿔
-동일한 도형을 재사용한 것을 완성으로 처리하지 않는다.
+아래 ID는 현재 구현한 의미 단위다. `cat-mouth.ts`에서 각각 다른 도형을 그린다.
 
 | 목표 viseme | 표시 모양 | 대표 발음 | 구분 기준 |
 | --- | --- | --- | --- |
@@ -117,5 +116,5 @@ Controller가 TTS를 직접 구현하는 형태로 합치지 않는다. TTS·AI 
 | PHASE 10 | 양 외형의 공통 제어 통합·중복 제거·계약 회귀 검사 완성 |
 | PHASE 11 이후 | 외형 전환 시 발화 연속성 및 이후 일본어·실제 AI·기기·성능 검증 |
 
-이번 반영은 지침·설계·완료 기준 갱신이다. 실행 코드, 정렬 파일, 자산, 운영 배포를 바꾼 작업으로
-보고하지 않는다. 전체 진도는 **4/16단계 완료, PHASE 5 진행 중**이다.
+공통 Controller·여섯 도형·자동 정렬 후보까지 구현했다. 정렬 파일의 `automatic-phonemes`는
+청취 검토 전임을 뜻한다. 실제 경계 정확도·자연스러움 및 운영 적용은 완료로 보고하지 않는다. 전체 진도는 **4/16단계 완료, PHASE 5 진행 중**이다.

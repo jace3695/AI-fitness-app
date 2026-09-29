@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const result = await build({ entryPoints: [resolve(root, 'scripts/yeoni-speech-poc/browser.tsx')], bundle: true,
+const result = await build({ loader: { '.mp3': 'base64' }, entryPoints: [resolve(root, 'scripts/yeoni-speech-poc/browser.tsx')], bundle: true,
   write: false, minify: true, outfile: 'app.js', jsx: 'automatic', external: ['/yeoni-cat-sprite-v1.webp'],
   tsconfig: resolve(root, 'tsconfig.json'), define: { 'process.env.NODE_ENV': '"production"' } });
 const atlas = 'data:image/png;base64,' + readFileSync(resolve(root, 'public/yeoni/cat/poc-speech-atlas-v1.png')).toString('base64');

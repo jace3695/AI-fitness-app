@@ -1,0 +1,34 @@
+{
+  "tool": "Montreal Forced Aligner",
+  "version": "3.4.2",
+  "acousticModel": "Korean MFA acoustic model v3.0.0",
+  "acousticSha256": "46f7a73ab46828c679562b160e0577beecfb4a9a827efe5ab392aee947451a4d",
+  "dictionaryModel": "Korean MFA dictionary v3.0.0",
+  "dictionarySha256": "75683f4dc2a7dd95295a068206d248a30bd2f4f2231fd4449210c91d1e78150b",
+  "license": "CC BY 4.0",
+  "authors": "Michael McAuliffe and Morgan Sonderegger (2024)",
+  "originalAudioSha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+  "alignmentInput": "FFmpeg decode to mono PCM16 / 16000Hz; no trim, stretch, resynthesis or clock offset",
+  "inputWavSha256": "c128d070277f1e09d2741751e9e3b955ed985c1fb68be5322d669673263c1db6",
+  "rawOutput": "mfa-phrase.raw.json",
+  "rawOutputSha256": "f9a386dfccfb54c0e98028bdf3362e9c5eda980b91a6aa9409bead5ea3d3b644",
+  "lexicon": "zephyr-ko-39.dict",
+  "lexiconSha256": "cb55588c3aa57856d03d1e91fefd2f4e39c66c7a9e780c276d52a304570cf6d7",
+  "method": "Constrained acoustic alignment with explicit phrase lexicon; --no_tokenization --single_speaker --num_jobs 1 --no_use_mp --output_format json --clean",
+  "reviewStatus": "automatic candidate; no listening-based boundary review or phonetic accuracy certification",
+  "lexiconNotes": [
+    "Default tokenized run: zero OOV, but morpheme boundaries did not express 오늘은 liaison, 일정을 / 드릴게요 tensification or 좋겠어요 aspiration and liaison.",
+    "Phrase lexicon is a provisional standard-pronunciation hypothesis for these nine words only, not a general Korean G2P service.",
+    "All times are acoustic model output; no equal-character timing, amplitude-only mouth or manually invented cue durations."
+  ],
+  "remaining": [
+    "Listening review of all boundaries, especially 쉬는 and 좋겠어요",
+    "Independent 우 vowel / ㅂ / ㅍ closures, longer responses and numbers are not covered by this recording",
+    "Physical iPhone / Bluetooth and naturalness review"
+  ],
+  "sources": [
+    "https://mfa-models.readthedocs.io/en/latest/acoustic/Korean/Korean%20MFA%20acoustic%20model%20v3_0_0.html",
+    "https://mfa-models.readthedocs.io/en/latest/dictionary/Korean/Korean%20MFA%20dictionary%20v3_0_0.html",
+    "https://mfa-models.readthedocs.io/en/latest/mfa_phone_set.html#korean"
+  ]
+}

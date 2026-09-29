@@ -1,11 +1,13 @@
 /** Alignment input, not a Korean text-to-phoneme or timing estimator. */
-export const VISEMES = ['rest', 'closed', 'small', 'open', 'round', 'wide'] as const;
+import { KOREAN_MFA_VISEMES } from './korean-mfa-phones.ts';
+export const VISEMES = ['rest', 'closed', 'small', 'a', 'i', 'u', 'e', 'o'] as const;
 export type Viseme = typeof VISEMES[number];
 const phones: Record<string, Viseme> = {
+  ...KOREAN_MFA_VISEMES,
   sil: 'rest', 'ㅁ': 'closed', 'ㅂ': 'closed', 'ㅃ': 'closed', 'ㅍ': 'closed',
-  'ㅏ': 'open', 'ㅑ': 'open', 'ㅓ': 'open', 'ㅕ': 'open',
-  'ㅗ': 'round', 'ㅛ': 'round', 'ㅜ': 'round', 'ㅠ': 'round',
-  'ㅣ': 'wide', 'ㅔ': 'wide', 'ㅐ': 'wide', 'ㅖ': 'wide', 'ㅒ': 'wide',
+  'ㅏ': 'a', 'ㅑ': 'a', 'ㅓ': 'a', 'ㅕ': 'a',
+  'ㅗ': 'o', 'ㅛ': 'o', 'ㅜ': 'u', 'ㅠ': 'u',
+  'ㅣ': 'i', 'ㅔ': 'e', 'ㅐ': 'e', 'ㅖ': 'e', 'ㅒ': 'e',
   'ㅡ': 'small', 'ㄱ': 'small', 'ㄲ': 'small', 'ㅋ': 'small', 'ㄴ': 'small',
   'ㄷ': 'small', 'ㄸ': 'small', 'ㅌ': 'small', 'ㄹ': 'small', 'ㅅ': 'small',
   'ㅆ': 'small', 'ㅇ': 'small', 'ㅈ': 'small', 'ㅉ': 'small', 'ㅊ': 'small', 'ㅎ': 'small',
@@ -14,7 +16,7 @@ export type PhoneCue = Readonly<{ startMs: number; endMs: number; phone: string 
 export type LipSyncManifest = Readonly<{
   version: 1; language: 'ko-KR'; voice: string; spokenText: string;
   audioSha256: string; textSha256: string; durationMs: number;
-  alignment: 'reviewed-phonemes' | 'synthetic-clock-test';
+  alignment: 'reviewed-phonemes' | 'automatic-phonemes' | 'synthetic-clock-test';
   cues: readonly PhoneCue[];
 }>;
 const shaPattern = /^[a-f0-9]{64}$/;
@@ -27,14 +29,14 @@ export function phoneViseme(phone: string): Viseme {
 /** Reject bad alignment rather than inventing equal-length or volume-driven cues. */
 export function parseLipSyncManifest(input: unknown): LipSyncManifest {
   if (!record(input) || input.version !== 1 || input.language !== 'ko-KR'
-    || !['reviewed-phonemes', 'synthetic-clock-test'].includes(String(input.alignment))
+    || !['reviewed-phonemes', 'automatic-phonemes', 'synthetic-clock-test'].includes(String(input.alignment))
     || typeof input.voice !== 'string' || !input.voice || input.voice.length > 100
     || typeof input.spokenText !== 'string' || !input.spokenText.trim() || Array.from(input.spokenText).length > 1200
     || typeof input.audioSha256 !== 'string' || !shaPattern.test(input.audioSha256)
     || typeof input.textSha256 !== 'string' || !shaPattern.test(input.textSha256)
     || typeof input.durationMs !== 'number' || !Number.isFinite(input.durationMs) || input.durationMs <= 0 || input.durationMs > 120_000
     || !Array.isArray(input.cues) || !input.cues.length || input.cues.length > 24_000) throw new Error('음성 타임라인 형식을 확인해 주세요.');
-  if (input.alignment === 'reviewed-phonemes' && input.voice !== 'ko-KR-Chirp3-HD-Zephyr') throw new Error('연이의 Zephyr 음성 타임라인이 필요해요.');
+  if (input.alignment !== 'synthetic-clock-test' && input.voice !== 'ko-KR-Chirp3-HD-Zephyr') throw new Error('연이의 Zephyr 음성 타임라인이 필요해요.');
   let end = 0;
   const cues = input.cues.map(cue => {
     if (!record(cue) || typeof cue.startMs !== 'number' || typeof cue.endMs !== 'number'

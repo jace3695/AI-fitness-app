@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
 const output = resolve(root, 'scripts/browser-qa/.generated/yeoni-speech-poc');
 mkdirSync(output, { recursive: true });
-await build({ entryPoints: [resolve(here, 'browser.tsx')], bundle: true, outfile: resolve(output, 'app.js'),
+await build({ loader: { '.mp3': 'base64' }, entryPoints: [resolve(here, 'browser.tsx')], bundle: true, outfile: resolve(output, 'app.js'),
   jsx: 'automatic', external: ['/yeoni-cat-sprite-v1.webp'], tsconfig: resolve(root, 'tsconfig.json'), define: { 'process.env.NODE_ENV': '"development"' } });
 const routes = new Map([
   ['/app.js', [resolve(output, 'app.js'), 'text/javascript']],

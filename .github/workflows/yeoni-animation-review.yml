@@ -10,6 +10,8 @@ on:
       - 'public/yeoni/**'
       - 'scripts/yeoni-poc/**'
       - 'scripts/yeoni-speech-poc/**'
+      - 'docs/yeoni-phase5/fixtures/**'
+      - 'docs/yeoni-phase5/alignment/**'
       - 'scripts/browser-qa/package*.json'
       - 'package*.json'
       - '.github/workflows/yeoni-animation-review.yml'
@@ -47,13 +49,13 @@ jobs:
         env:
           YEONI_BROWSER: webkit
         run: node scripts/yeoni-poc/check.mjs
-      - name: Chromium silent speech-clock lab
+      - name: Chromium saved speech and clock lab
         run: node scripts/yeoni-speech-poc/check.mjs
-      - name: WebKit silent speech-clock lab
+      - name: WebKit saved speech and clock lab
         env:
           YEONI_BROWSER: webkit
         run: node scripts/yeoni-speech-poc/check.mjs
-      - name: Preserve synthetic visual evidence
+      - name: Preserve character and speech evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

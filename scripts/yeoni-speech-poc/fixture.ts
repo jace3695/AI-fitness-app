@@ -19,7 +19,7 @@ export async function clockFixture() {
       { startMs: 3600, endMs: 4200, phone: 'ㅁ' },
       { startMs: 4600, endMs: 5100, phone: 'ㄱ' },
       { startMs: 5500, endMs: 6350, phone: 'ㅜ' },
-      { startMs: 6500, endMs: 7550, phone: 'ㅏ' },
+      { startMs: 6500, endMs: 7550, phone: 'ㅔ' },
     ] };
   return { bytes, manifest };
 }

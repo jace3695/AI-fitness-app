@@ -18,9 +18,10 @@
   "sampleRateHz": 24000,
   "channels": 1,
   "decodeVerification": "FFmpeg full decode succeeded",
-  "alignmentStatus": "not_started",
+  "alignmentStatus": "automatic_candidate_created",
   "listeningReview": "not_completed",
   "deploymentId": "dpl_HTB3CPvXvSNtQwTXkxAPD1RFGryH",
   "sourceCommit": "6c0070f9e739a3254e1929ee03c68122de974aef",
-  "remainingAppCharacters": 99216
+  "remainingAppCharacters": 99216,
+  "timelineFile": "zephyr-ko-39.timeline.json"
 }

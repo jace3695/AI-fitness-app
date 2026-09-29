@@ -8,17 +8,26 @@ const base = () => ({ version: 1, language: 'ko-KR', voice: 'ko-KR-Chirp3-HD-Zep
     { startMs: 600, endMs: 900, phone: 'ㅗ' }] });
 test('Korean visible phoneme groups and unknown phone rejection', () => {
   for (const p of ['ㅁ', 'ㅂ', 'ㅃ', 'ㅍ']) assert.equal(phoneViseme(p), 'closed');
-  for (const p of ['ㅏ', 'ㅑ']) assert.equal(phoneViseme(p), 'open');
-  for (const p of ['ㅗ', 'ㅜ', 'ㅛ', 'ㅠ']) assert.equal(phoneViseme(p), 'round');
-  for (const p of ['ㅣ', 'ㅔ', 'ㅐ']) assert.equal(phoneViseme(p), 'wide');
+  for (const p of ['ㅏ', 'ㅑ']) assert.equal(phoneViseme(p), 'a');
+  for (const p of ['ㅗ', 'ㅛ']) assert.equal(phoneViseme(p), 'o');
+  for (const p of ['ㅜ', 'ㅠ']) assert.equal(phoneViseme(p), 'u');
+  assert.equal(phoneViseme('ㅣ'), 'i');
+  for (const p of ['ㅔ', 'ㅐ']) assert.equal(phoneViseme(p), 'e');
   assert.equal(phoneViseme('sil'), 'rest');
   for (const p of ['안', 'ㅘ', 'spn', 'constructor', '__proto__']) assert.throws(() => phoneViseme(p));
+});
+test('Korean MFA IPA projection preserves vowel distinctions, length and rounding', () => {
+  for (const [phone, shape] of [['ɐ', 'a'], ['iː', 'i'], ['u', 'u'], ['sʷ', 'u'], ['eː', 'e'], ['o', 'o'], ['m', 'closed'], ['kʰ', 'small']]) {
+    assert.equal(phoneViseme(phone), shape);
+  }
+  assert.throws(() => phoneViseme('spn'));
+  assert.throws(() => phoneViseme('unreviewed-IPA'));
 });
 test('silence, exact boundaries, backward seek, end and invalid media times', () => {
   const m = parseLipSyncManifest(base());
   for (const t of [-1, NaN, Infinity, 0, 99.99, 300, 449.99, 900, 4000]) assert.equal(visemeAt(m, t), 'rest');
-  assert.equal(visemeAt(m, 100), 'open'); assert.equal(visemeAt(m, 450), 'closed');
-  assert.equal(visemeAt(m, 600), 'round'); assert.equal(visemeAt(m, 120), 'open');
+  assert.equal(visemeAt(m, 100), 'a'); assert.equal(visemeAt(m, 450), 'closed');
+  assert.equal(visemeAt(m, 600), 'o'); assert.equal(visemeAt(m, 120), 'a');
 });
 test('reject overlap, reversed/negative/nonfinite/overlong timing; never repair silently', () => {
   for (const cue of [{ startMs: -1, endMs: 20, phone: 'ㅏ' }, { startMs: 20, endMs: 20, phone: 'ㅏ' },
@@ -35,7 +44,7 @@ test('reject malformed contracts, wrong voice/language and excessive inputs', ()
 });
 test('validated timeline is copied and frozen against later caller mutation', () => {
   const input = base(), m = parseLipSyncManifest(input);
-  input.cues[0].phone = 'ㅗ'; assert.equal(visemeAt(m, 110), 'open');
+  input.cues[0].phone = 'ㅗ'; assert.equal(visemeAt(m, 110), 'a');
   assert.ok(Object.isFrozen(m) && Object.isFrozen(m.cues) && Object.isFrozen(m.cues[0]));
 });
 test('audio and exact spoken text both bound to SHA-256; wrong pairs rejected', async () => {
