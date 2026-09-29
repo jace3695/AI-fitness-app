@@ -6,6 +6,10 @@ import { verifyLipSyncPair, phoneViseme } from '../../lib/yeoni/lip-sync.ts';
 const root = resolve(import.meta.dirname, '../../docs/yeoni-phase5');
 const raw = JSON.parse(readFileSync(resolve(root, 'alignment/mfa-phrase.raw.json'), 'utf8'));
 const metadata = JSON.parse(readFileSync(resolve(root, 'fixtures/zephyr-ko-39.metadata.json'), 'utf8'));
+const transcript = readFileSync(resolve(root, 'alignment/zephyr-ko-39.lab'), 'utf8');
+if (transcript.replace(/\s/g, '') !== metadata.text.replace(/\s/g, '')) {
+  throw new Error('Alignment tokenization must preserve the exact spoken characters.');
+}
 const audio = Uint8Array.from(readFileSync(resolve(root, 'fixtures/zephyr-ko-39.mp3'))).buffer;
 const cues = raw.tiers.phones.entries.map(([start, end, phone]: [number, number, string]) => ({
   startMs: Math.round(start * 1000), endMs: Math.round(end * 1000), phone,

@@ -16,8 +16,9 @@ mfa model download acoustic korean_mfa --version v3.0.0
 mfa model download dictionary korean_mfa --version v3.0.0
 mkdir -p /tmp/yeoni-corpus/zephyr
 ffmpeg -i docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3 -ar 16000 -ac 1 -c:a pcm_s16le /tmp/yeoni-corpus/zephyr/zephyr-ko-39.wav
-# Copy EXACT metadata.text, UTF-8, into matching zephyr-ko-39.lab.
+# For baseline, copy EXACT metadata.text into matching zephyr-ko-39.lab.
 mfa align /tmp/yeoni-corpus korean_mfa korean_mfa /tmp/yeoni-aligned --single_speaker --num_jobs 1 --no_use_mp --output_format json --clean
+cp docs/yeoni-phase5/alignment/zephyr-ko-39.lab /tmp/yeoni-corpus/zephyr/zephyr-ko-39.lab
 mfa align /tmp/yeoni-corpus docs/yeoni-phase5/alignment/zephyr-ko-39.dict korean_mfa /tmp/yeoni-aligned-phrase --single_speaker --num_jobs 1 --no_use_mp --no_tokenization --output_format json --clean
 # Review raw output before replacing mfa-phrase.raw.json, then:
 node scripts/yeoni-speech-poc/convert-alignment.ts
@@ -35,22 +36,36 @@ The default model uses Korean tokenization (python-mecab-ko). It reported no OOV
 but the resulting phone sequence did not express several cross-morpheme changes:
 오늘은 (liaison), 일정을 / 알려드릴게요 (tensification), 좋겠어요 (aspiration/liaison).
 `zephyr-ko-39.dict` records a provisional standard-pronunciation hypothesis at the
-nine-word level, then the same acoustic model measures their boundaries again.
+phrase-token level, then the same acoustic model measures their boundaries again.
 This small, explicit test lexicon is not a general G2P engine or proof of exactly
 how the TTS spoke. No audio boundary is manually invented to make it look aligned.
 
+## Waveform audit and connected-token correction
+
+The separated-word candidate (`mfa-separated.raw.json`, `zephyr-ko-39-separated.dict`)
+assigned 3980–4120ms to silence. Waveform/RMS inspection found substantial energy:
+-21.9dBFS versus -50.3dBFS for the 2.9–3.3s sentence pause. See
+[waveform and spectrogram](../evidence/alignment-waveform.png).
+
+Combine only 조금 쉬는 → 조금쉬는 in the **analysis transcript** (`zephyr-ko-39.lab`)
+and dictionary, then rerun acoustic alignment. No original MP3 or actual TTS text
+changes. Conversion checks that removing whitespace gives identical characters.
+The new output measures /m/ 3940–4020ms, /sʷ/ 4020–4090ms, /i/ 4090–4190ms,
+removing the optional silence and making closure/rounding visible at normal speed.
+No phoneme time was manually stretched, shifted or allocated from character count.
+The figure uses 16kHz PCM, 256-sample FFT, 224-sample overlap, and the model intervals.
+
 ## Remaining review
 
-- ‘쉬는’ differs materially between the two model runs; inspect/listen around 3.9–4.3s.
-- Inspect/listen to the corrected consonants and the final ‘좋겠어요’ around 4.4–5.2s.
-- The chosen run has a 140ms gap after 조금. Confirm whether it is actually silent;
-  automatic gaps must not be certified from the alignment output alone.
-- `/sʷ/` lip rounding is only 30ms (4120–4150ms), potentially skipped at 30fps.
-  The 40ms /m/ closure can also be missed between frames. Do not lengthen either arbitrarily. `/j/` transitions may be similarly short.
-- This phrase contains no independent /u/ vowel or /p, pʰ/ closure. The six-shape
-  static grid and silent controls do not prove those real speech cases.
-- Browser clock-age checks assess controller/render timing, not phonetic boundary
-  error or physical speaker/Bluetooth delay. Naturalness remains human review.
+- Connected-token alignment is still an automatic candidate, not listening-reviewed
+  ground truth. Check all boundaries, especially 쉬는 and 좋겠어요.
+- Waveform continuity rejects the old silence candidate; it does not certify the
+  new individual phone boundaries. Frication/vowel transitions still need review.
+- Very short /j/ transitions may still be skipped at a <=30fps render cap.
+- This phrase has no independent /u/ vowel or /p, pʰ/ closure. Visible /sʷ/ rounding
+  is not proof of an independent /u/ vowel. Numbers/longer speech are untested.
+- Browser clock-age checks are not phonetic boundary error or physical speaker/
+  Bluetooth delay. Naturalness remains human review.
 
 ## Attribution
 

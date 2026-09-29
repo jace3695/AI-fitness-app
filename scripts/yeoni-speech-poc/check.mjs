@@ -195,9 +195,9 @@ try {
     assert.ok(samples.length > 30); assert.equal(mismatches, 0);
     assert.ok(lag[Math.floor(lag.length * .95)] <= 100);
     assert.ok(samples.some(s => s.media > 2800 && s.media < 3250 && s.shape === 'rest'));
-    for (const shape of ['a', 'e', 'i', 'o']) assert.ok(samples.some(s => s.shape === shape), shape);
-    // /m/ 40ms and /sʷ/ 30ms can fall between draws. Record this limitation;
-    // verify those real cues separately at slower media speed below.
+    for (const shape of ['a', 'e', 'i', 'o', 'closed', 'u']) assert.ok(samples.some(s => s.shape === shape), shape);
+    // Connected-token acoustic alignment gives /m/ 80ms and /sʷ/ 70ms.
+    // Also exercise these cues at slower media speed below.
     realSpeechClock = { sampleCount: samples.length, mismatches, p95ClockAgeMs: lag[Math.floor(lag.length * .95)],
       maxClockAgeMs: lag.at(-1), observedShapes: [...new Set(samples.map(s => s.shape))],
       unobservedShortShapes: ['closed', 'u'].filter(shape => !samples.some(s => s.shape === shape)),
@@ -215,7 +215,7 @@ try {
     await seek(2.9); await viseme('rest');
     await media(a => { a.playbackRate = .25; });
     await seek(3.945); await viseme('closed');
-    await seek(4.125); await viseme('u');
+    await seek(4.045); await viseme('u');
     await media(a => { a.playbackRate = 1; });
     await button('처음으로').click(); await state('ready'); await viseme('rest');
   });
