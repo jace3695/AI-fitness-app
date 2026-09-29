@@ -1,9 +1,15 @@
 # PHASE 5 speech-clock lab — partial phase, not a Korean speech demonstration
 
-The production TTS is still `ko-KR-Chirp3-HD-Zephyr`. No provider request,
-authentication, database, app route, new runtime package, or production import was
-added. The initial fixture is **silent PCM with artificial phone intervals**.
+The production TTS is still `ko-KR-Chirp3-HD-Zephyr`. This standalone lab makes no
+provider requests and has no authentication, database, or production-page dependency.
+The separately authorized preview route used to obtain the reusable audio is
+documented in the PHASE 5 report. The initial lab fixture is **silent PCM with artificial phone intervals**.
 Passing this lab establishes playback mechanics, NOT phonetic alignment accuracy.
+
+The next implementation must follow [the shared Controller and Korean viseme
+design](../../docs/yeoni-character-architecture.md): separate closed/a/i/u/e/o
+shapes and renderer-independent control shared by cat and human forms. The current
+round/wide grouping and partial player/renderer separation do not yet satisfy it.
 
 ```sh
 npm ci
@@ -82,15 +88,18 @@ minor edge flecks from the prior asset remain.
 
 ## Required next evidence
 
-Obtain an authorized reusable Zephyr MP3/WAV and its exact spoken text (without
-private records); align its real phonemes, audit timing against the audio, test
+Use the authorized [39-character Zephyr recording](../../docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3)
+and its [exact-text metadata](../../docs/yeoni-phase5/fixtures/zephyr-ko-39.metadata.json);
+align its real phonemes, audit timing against the audio, test
 the same immutable pair here, and then ask the user to judge the audible result.
 Suggested utterances: 안녕하세요. / 오늘 일정을 알려드릴게요. /
 오늘은 조금 쉬는 게 좋겠어요. Also cover 아·오·우·이·에 and ㅁ·ㅂ·ㅍ closures,
 liaison/final consonants, pauses, short/long responses and normalized numbers.
-The current workspace contains no such reusable Zephyr recording. The Google
-sample documentation was readable through search, but its audio could not be
-retrieved in this environment; no voice substitute was used.
+The real recording was generated once through the existing authenticated preview
+flow under the user's approval and free-character guard. It has no aligned phoneme
+timeline yet. Reuse these bytes; do not generate more speech to rebuild this test.
+The standalone lab's default fixture remains synthetic silence until real alignment
+is reviewed. Any uncovered phoneme cases must be listed as remaining verification.
 
 Candidate for the offline alignment experiment: Montreal Forced Aligner Korean
 MFA model, which uses an acoustic model + pronunciation dictionary. Availability
