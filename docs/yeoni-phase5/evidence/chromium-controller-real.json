@@ -90,10 +90,10 @@
   "errors": [],
   "requestCount": 11,
   "realSpeechClock": {
-    "sampleCount": 325,
+    "sampleCount": 328,
     "mismatches": 0,
-    "p95ClockAgeMs": 33.45800000000054,
-    "maxClockAgeMs": 35.413000000000466,
+    "p95ClockAgeMs": 33.57099999999946,
+    "maxClockAgeMs": 34.990999999999985,
     "observedShapes": [
       "rest",
       "a",
@@ -101,8 +101,10 @@
       "e",
       "o",
       "i",
-      "closed",
       "u"
+    ],
+    "unobservedShortShapes": [
+      "closed"
     ],
     "scope": "Media-to-render clock age, NOT phonetic alignment accuracy or speaker/Bluetooth latency."
   },

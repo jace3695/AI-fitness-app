@@ -97,6 +97,8 @@ try {
   });
   await test('stop and natural end reset mouth', async () => {
     await button('처음으로').click(); await state('ready'); assert.equal(await media(a => a.currentTime), 0);
+    // A late native pause must not overwrite the explicit rewind-ready intent.
+    await media(a => a.dispatchEvent(new Event('pause'))); await state('ready');
     await button('재생').click(); await seek(7.8); await state('ended'); await viseme('rest');
   });
   await test('reload drops audio and does not retain private file/text', async () => {
@@ -193,10 +195,12 @@ try {
     assert.ok(samples.length > 30); assert.equal(mismatches, 0);
     assert.ok(lag[Math.floor(lag.length * .95)] <= 100);
     assert.ok(samples.some(s => s.media > 2800 && s.media < 3250 && s.shape === 'rest'));
-    for (const shape of ['a', 'e', 'i', 'o', 'closed']) assert.ok(samples.some(s => s.shape === shape), shape);
-    // The rounded /sʷ/ lasts only 30ms; at a <=30fps cap it may be skipped.
+    for (const shape of ['a', 'e', 'i', 'o']) assert.ok(samples.some(s => s.shape === shape), shape);
+    // /m/ 40ms and /sʷ/ 30ms can fall between draws. Record this limitation;
+    // verify those real cues separately at slower media speed below.
     realSpeechClock = { sampleCount: samples.length, mismatches, p95ClockAgeMs: lag[Math.floor(lag.length * .95)],
       maxClockAgeMs: lag.at(-1), observedShapes: [...new Set(samples.map(s => s.shape))],
+      unobservedShortShapes: ['closed', 'u'].filter(shape => !samples.some(s => s.shape === shape)),
       scope: 'Media-to-render clock age, NOT phonetic alignment accuracy or speaker/Bluetooth latency.' };
     await page.screenshot({ path: `${out}/real-voice-ended.png`, fullPage: true });
   });
@@ -209,6 +213,10 @@ try {
     await button('재생').click(); await state('playing');
     await seek(2.4); await viseme('e');
     await seek(2.9); await viseme('rest');
+    await media(a => { a.playbackRate = .25; });
+    await seek(3.945); await viseme('closed');
+    await seek(4.125); await viseme('u');
+    await media(a => { a.playbackRate = 1; });
     await button('처음으로').click(); await state('ready'); await viseme('rest');
   });
   await test('no runtime exceptions or external requests', async () => {

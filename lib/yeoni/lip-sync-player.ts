@@ -28,7 +28,11 @@ export class LipSyncPlayer {
       if (!this.usable() || audio.paused) { audio.pause(); return; }
       this.stalled = false; this.setState('playing');
     });
-    on('pause', () => { if (this.usable() && !audio.ended) this.setState('paused'); });
+    on('pause', () => {
+      // pause() queues a native event. stop() may already have rewound and set
+      // ready before that event arrives (notably WebKit's MP3 path).
+      if (this.usable() && !audio.ended && this.state !== 'ready') this.setState('paused');
+    });
     on('ended', () => { if (this.usable()) this.setState('ended'); });
     on('waiting', () => { this.stalled = true; this.onChange(); });
     on('seeking', () => { this.stalled = true; this.onChange(); });

@@ -46,7 +46,7 @@ how the TTS spoke. No audio boundary is manually invented to make it look aligne
 - The chosen run has a 140ms gap after 조금. Confirm whether it is actually silent;
   automatic gaps must not be certified from the alignment output alone.
 - `/sʷ/` lip rounding is only 30ms (4120–4150ms), potentially skipped at 30fps.
-  Do not lengthen it arbitrarily. `/j/` transitions may be similarly short.
+  The 40ms /m/ closure can also be missed between frames. Do not lengthen either arbitrarily. `/j/` transitions may be similarly short.
 - This phrase contains no independent /u/ vowel or /p, pʰ/ closure. The six-shape
   static grid and silent controls do not prove those real speech cases.
 - Browser clock-age checks assess controller/render timing, not phonetic boundary
