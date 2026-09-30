@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "status": "phase7-static-asset-review",
+  "form": "human-a",
+  "image": "/yeoni/human/poc-atlas-v1.png",
+  "sourceSize": [
+    1024,
+    1536
+  ],
+  "designSize": [
+    760,
+    1150
+  ],
+  "sha256": "30641713490c46aadc16b34c9f895d56e4a77e60b7dcad27d5418722927d3eba",
+  "referenceSha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+  "parts": {
+    "torso": {
+      "sourceRect": [
+        532,
+        118,
+        492,
+        555
+      ],
+      "sourceRectNormalized": [
+        0.51953125,
+        0.07682291666666667,
+        0.48046875,
+        0.361328125
+      ],
+      "parent": "root"
+    },
+    "head": {
+      "sourceRect": [
+        0,
+        45,
+        528,
+        585
+      ],
+      "sourceRectNormalized": [
+        0,
+        0.029296875,
+        0.515625,
+        0.380859375
+      ],
+      "parent": "torso"
+    },
+    "eyesOpen": {
+      "sourceRect": [
+        28,
+        746,
+        300,
+        122
+      ],
+      "sourceRectNormalized": [
+        0.02734375,
+        0.4856770833333333,
+        0.29296875,
+        0.07942708333333333
+      ],
+      "parent": "head"
+    },
+    "eyesHalf": {
+      "sourceRect": [
+        366,
+        746,
+        300,
+        122
+      ],
+      "sourceRectNormalized": [
+        0.357421875,
+        0.4856770833333333,
+        0.29296875,
+        0.07942708333333333
+      ],
+      "parent": "head"
+    },
+    "eyesClosed": {
+      "sourceRect": [
+        707,
+        746,
+        302,
+        122
+      ],
+      "sourceRectNormalized": [
+        0.6904296875,
+        0.4856770833333333,
+        0.294921875,
+        0.07942708333333333
+      ],
+      "parent": "head"
+    },
+    "closed": {
+      "sourceRect": [
+        75,
+        936,
+        212,
+        104
+      ],
+      "sourceRectNormalized": [
+        0.0732421875,
+        0.609375,
+        0.20703125,
+        0.06770833333333333
+      ],
+      "parent": "head"
+    },
+    "a": {
+      "sourceRect": [
+        438,
+        923,
+        151,
+        137
+      ],
+      "sourceRectNormalized": [
+        0.427734375,
+        0.6009114583333334,
+        0.1474609375,
+        0.08919270833333333
+      ],
+      "parent": "head"
+    },
+    "i": {
+      "sourceRect": [
+        757,
+        937,
+        199,
+        98
+      ],
+      "sourceRectNormalized": [
+        0.7392578125,
+        0.6100260416666666,
+        0.1943359375,
+        0.06380208333333333
+      ],
+      "parent": "head"
+    },
+    "u": {
+      "sourceRect": [
+        109,
+        1120,
+        141,
+        111
+      ],
+      "sourceRectNormalized": [
+        0.1064453125,
+        0.7291666666666666,
+        0.1376953125,
+        0.072265625
+      ],
+      "parent": "head"
+    },
+    "e": {
+      "sourceRect": [
+        415,
+        1099,
+        196,
+        143
+      ],
+      "sourceRectNormalized": [
+        0.4052734375,
+        0.7154947916666666,
+        0.19140625,
+        0.09309895833333333
+      ],
+      "parent": "head"
+    },
+    "o": {
+      "sourceRect": [
+        777,
+        1087,
+        157,
+        167
+      ],
+      "sourceRectNormalized": [
+        0.7587890625,
+        0.7076822916666666,
+        0.1533203125,
+        0.10872395833333333
+      ],
+      "parent": "head"
+    },
+    "small": {
+      "sourceRect": [
+        68,
+        1332,
+        195,
+        104
+      ],
+      "sourceRectNormalized": [
+        0.06640625,
+        0.8671875,
+        0.1904296875,
+        0.06770833333333333
+      ],
+      "parent": "head"
+    },
+    "handLeft": {
+      "sourceRect": [
+        306,
+        1260,
+        355,
+        248
+      ],
+      "sourceRectNormalized": [
+        0.298828125,
+        0.8203125,
+        0.3466796875,
+        0.16145833333333334
+      ],
+      "parent": "torso"
+    },
+    "handRight": {
+      "sourceRect": [
+        687,
+        1260,
+        326,
+        248
+      ],
+      "sourceRectNormalized": [
+        0.6708984375,
+        0.8203125,
+        0.318359375,
+        0.16145833333333334
+      ],
+      "parent": "torso"
+    }
+  },
+  "assembly": {
+    "torso": [
+      44,
+      440,
+      726,
+      819
+    ],
+    "head": [
+      115,
+      0,
+      528,
+      585
+    ],
+    "eyes": [
+      267,
+      285,
+      255,
+      104
+    ],
+    "mouthCenter": [
+      395,
+      467
+    ],
+    "mouthScale": 0.52
+  },
+  "pivotsNormalized": {
+    "torso": [
+      0.5,
+      0.75
+    ],
+    "head": [
+      0.52,
+      0.47
+    ],
+    "handLeft": [
+      0.25,
+      0.68
+    ],
+    "handRight": [
+      0.75,
+      0.68
+    ]
+  },
+  "layerOrder": [
+    "torso",
+    "head",
+    "eyes",
+    "mouth"
+  ],
+  "controllerBinding": {
+    "blink": {
+      "open": "eyesOpen",
+      "half": "eyesHalf",
+      "closed": "eyesClosed"
+    },
+    "viseme": {
+      "rest": "closed",
+      "closed": "closed",
+      "a": "a",
+      "i": "i",
+      "u": "u",
+      "e": "e",
+      "o": "o",
+      "small": "small"
+    }
+  },
+  "limitations": [
+    "Static assembly only; pivots are initial measured placement, movement limits unvalidated.",
+    "Hands are optional studies, not attached or rigged.",
+    "Hair is included in head; brows included in eye pairs.",
+    "Turnaround and expression sheet are references, not layer-ready rig assets.",
+    "Speech, AI emotion, human animation and production integration not implemented in PHASE 7."
+  ]
+}

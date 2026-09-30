@@ -11,6 +11,8 @@ on:
       - 'scripts/yeoni-poc/**'
       - 'scripts/yeoni-speech-poc/**'
       - 'scripts/yeoni-emotion-poc/**'
+      - 'scripts/yeoni-human-assets/**'
+      - 'docs/yeoni-phase7/**'
       - 'docs/yeoni-phase5/fixtures/**'
       - 'docs/yeoni-phase5/alignment/**'
       - 'scripts/browser-qa/package*.json'
@@ -62,6 +64,11 @@ jobs:
         env:
           YEONI_BROWSER: webkit
         run: node scripts/yeoni-emotion-poc/check.mjs
+      - name: Export and verify human A static assets
+        run: |
+          node scripts/yeoni-human-assets/export.mjs
+          node scripts/yeoni-human-assets/check.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check.mjs
       - name: Preserve character and speech evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -71,6 +78,7 @@ jobs:
             .e2e/yeoni-poc/
             .e2e/yeoni-speech-poc/
             .e2e/yeoni-emotion-poc/
+            .e2e/yeoni-human-assets/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
