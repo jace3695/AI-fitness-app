@@ -85,5 +85,9 @@ JavaScript 비활성화 Chromium/WebKit 각각 6개, **총 12개 통과**. 여�
 - 눈의 실제 폭을 줄이고 위치를 맞췄다. 입은 각 crop의 중앙 대신 입 중심 랜드마크로 배치해 모양 전환 시 위치 차이를 줄였다.
 - Canvas 검수본과 스크립트 없는 대화 검수본이 같은 v2 명세를 사용한다. 그림의 조화는 사용자의 최종 외형 검토가 남는다.
 - [수정 전/후 정지 합성](evidence/revision-v2/before-after.png)은 왼쪽 v1, 오른쪽 v2이며 Node Canvas 출력이다. 브라우저 증거와 구분한다.
-- v2 브라우저 검증은 아래 별도 기록으로 추가한다. 과거 v1 통과 결과를 재사용하지 않는다.
+- v2 코드 `95d01539b19e90cadd9a648e57e5415e6d565ebe`의 [호환 검증](https://github.com/jace3695/AI-fitness-app/actions/runs/36707585278/job/109861405775): Chromium/WebKit 각각 6개, 총 **12개 통과**. JavaScript 비활성화·sandbox iframe·320/390px·선택/새로고침·입 모양 차이를 확인했다. 오류/외부 요청 0.
+- ZIP SHA-256을 대조하고 [기본 화면](evidence/revision-v2/compatibility/chromium/initial.png)·[모바일](evidence/revision-v2/compatibility/webkit/mobile-390.png)·어두운 배경·sandbox 캡처를 직접 확인했다. [v2 결과](evidence/revision-v2/verification.json). 과거 v1 통과 결과와 별도로 기록한다.
 - 인간형 움직임·음성 동기화는 아직 구현하지 않았다. PHASE 8 착수 전에 이 외형 수정 검토를 마친다.
+
+
+v2 Canvas 검수본도 Chromium/WebKit 각각 6개, **12개 통과**했다. 따라서 이번 인간형 화면은 호환본 포함 24개 검사 통과이며, 기존 고양이 회귀를 포함한 CI 전체는 126개 브라우저 검사 통과다. 코드 검사/빌드도 통과했다. [여섯 입 확대](evidence/revision-v2/canvas/chromium/mouth-comparison.png)와 [Canvas 모바일](evidence/revision-v2/canvas/webkit/mobile-390.png)을 직접 시각 확인했다. 이 후속 기록 커밋은 문서·증거만 추가하며 검증한 자산/명세/렌더러는 변경하지 않는다. **PHASE 7 사용자 외형 검토는 계속 진행 중**이다.

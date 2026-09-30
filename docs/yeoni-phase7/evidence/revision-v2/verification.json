@@ -1,0 +1,36 @@
+{
+  "codeCommit": "95d01539b19e90cadd9a648e57e5415e6d565ebe",
+  "run": "https://github.com/jace3695/AI-fitness-app/actions/runs/36707585278",
+  "compatibilityJob": 109861405775,
+  "artifactId": 11091989105,
+  "artifactZipSha256": "4d505440b708cca83174c3323c87a1396772693162cf6996cb6c21e6085150a6",
+  "compatibilityChecksPassed": 12,
+  "runtimeErrors": 0,
+  "externalRequests": 0,
+  "screenshotsInspected": [
+    "compatibility/chromium/initial.png",
+    "compatibility/chromium/sandbox.png",
+    "compatibility/webkit/mobile-390.png",
+    "compatibility/webkit/dark-closed.png",
+    "canvas/chromium/mouth-comparison.png",
+    "canvas/webkit/mobile-390.png"
+  ],
+  "canvasBrowserChecks": 12,
+  "visualAcceptance": "User review pending. Functional tests do not establish aesthetic approval.",
+  "phase7": "visual-revision-in-progress",
+  "completedPhases": [
+    1,
+    2,
+    3,
+    4,
+    6
+  ],
+  "phase5": "user-listening-deferred",
+  "newTtsRequests": 0,
+  "canvasJob": 109861405563,
+  "fullArtifactId": 11092474007,
+  "fullArtifactZipSha256": "dfb872c0d7243cf2ab220196fd5d769fe5e780cae76f9f1bd7edb1cfe08f0a9a",
+  "characterBrowserChecksPassed": 114,
+  "totalBrowserChecksPassed": 126,
+  "codeChecksAndBuild": "CI step passed"
+}
