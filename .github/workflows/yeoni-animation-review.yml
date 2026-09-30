@@ -38,8 +38,8 @@ jobs:
           cache: npm
       - run: npm ci && npm --prefix scripts/browser-qa ci
       - run: npx playwright install --with-deps chromium webkit
-      - name: Confirm encoder
-        run: ffmpeg -version
+      - name: Install review video encoder
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Verify original artwork through motion
         run: |
           node scripts/yeoni-cat-review/pack-motion.mjs
