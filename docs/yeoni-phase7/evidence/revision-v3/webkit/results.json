@@ -1,0 +1,198 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "reference and revised baseline display without JavaScript",
+      "passed": true
+    },
+    {
+      "name": "seven mouths differ while the original comparison stays fixed",
+      "passed": true
+    },
+    {
+      "name": "independent blink states keep the selected mouth",
+      "passed": true
+    },
+    {
+      "name": "all 21 CSS-rendered eye and mouth combinations are captured for direct original comparison",
+      "passed": true
+    },
+    {
+      "name": "same-position original overlay and full portrait work",
+      "passed": true
+    },
+    {
+      "name": "320 390 736px layouts and reload restore the original baseline",
+      "passed": true
+    },
+    {
+      "name": "sandbox without scripts still changes the intended face",
+      "passed": true
+    },
+    {
+      "name": "all 21 full-resolution states preserve pixels outside edited regions",
+      "passed": true
+    },
+    {
+      "name": "original image provenance and no errors or external requests",
+      "passed": true
+    }
+  ],
+  "identity": {
+    "rows": [
+      {
+        "eye": "open",
+        "mouth": "closed",
+        "changed": 0,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "a",
+        "changed": 20168,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "i",
+        "changed": 19914,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "u",
+        "changed": 20159,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "e",
+        "changed": 19644,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "o",
+        "changed": 20259,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "small",
+        "changed": 20234,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "changed": 19460,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "changed": 39628,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "changed": 39374,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "changed": 39619,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "changed": 39104,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "changed": 39719,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "changed": 39694,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "changed": 19831,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "changed": 39999,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "changed": 39745,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "changed": 39990,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "changed": 39475,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "changed": 40090,
+        "outside": 0,
+        "edge": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "changed": 40065,
+        "outside": 0,
+        "edge": 0
+      }
+    ],
+    "width": 1024,
+    "height": 1536
+  },
+  "errors": [],
+  "external": [],
+  "scope": "Original-preserving static face review; aesthetic judgement separately recorded, no speech/motion validation."
+}
