@@ -24,6 +24,33 @@ concurrency:
   group: yeoni-animation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  reference-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Compare every expression against the original
+        run: |
+          node scripts/yeoni-human-assets/export-reference.mjs
+          node scripts/yeoni-human-assets/check-reference.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check-reference.mjs
+      - name: Preserve original comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-reference-v3-${{ github.sha }}
+          path: .e2e/yeoni-reference-v3/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
   preview-compatibility:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

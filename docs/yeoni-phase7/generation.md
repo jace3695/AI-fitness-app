@@ -57,3 +57,92 @@ Row 3 at y≈780: mouth saying oo (Korean u), mouth saying eh (Korean e), mouth 
 Mouth widths about 165 pixels except rounded u/o about 110 pixels. Every mouth must belong to the SAME woman: delicate slender warm muted rose lips like input 1, fine corners, minimal specular highlights, no saturated lipstick, no inflated thick lip edges, no wet gloss. Ah opens vertically with modest natural cavity; ee spreads horizontally and is shallow; e opens more than ee; u is small pursed; o is round and more open than u.
 Match the reference soft painterly 2.5D texture and diffuse warm illumination exactly. Keep a SMALL naturally shaded skin transition around each eye/lip, feathering immediately into true transparency, without a large colored halo, without opaque rectangle patches. Keep all parts strictly separated, no overlapping features, no stray other body parts. Rest smile should have the slight natural angle of the original, not a symmetrical plastic smile. Actual transparent alpha background.
 ```
+
+
+## 원본 보존 수정 v3
+
+내장 image_gen을 사용했다. 기존 atlas를 참고하지 않고 선택한 원본 A안만 입력했다. 최종 제품 자산은 생성된 전체 초상 중 지정한 눈/입 영역을 무손실 WebP로 패키징한 것이다. 원본 바탕은 재생성하지 않았다. 런타임의 crop 배치·마스크 외에 이미지에 코드로 재색칠/변형을 하지 않았다. a와 o는 발음 모양을 재검토하여 재생성했으며 첫 o 시안은 채택하지 않았다. 작은 첫 ah는 small 보조 모양으로 사용했다.
+
+자산 위치: `public/yeoni/human/reference-v3/`; 배치/원본·소스 해시는 `manifest.json`에 기록한다.
+
+### small
+
+원본 생성 파일: `exec-63517626-30d4-41ff-80ff-d3486d3fa3e9.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit target: the supplied canonical illustration of Yeoni. It is essential this remains EXACTLY the same woman, same face, same head tilt, same eye geometry, same portrait framing and body proportions.
+Change ONLY her mouth to a restrained, natural mid-speech Korean 'ah'. Her mouth is gently open, a modest vertical opening, not a loud laugh, not a surprised gasp. Retain her original slender muted rose lip texture, slightly asymmetric smile corners, slight upward mouth angle to the viewer's right, and original diffused lighting. The opening is small enough that the outer chin/jaw position need not move. Minimal natural upper teeth, subtle dark mouth interior. No thick lipstick outline, inflated lips, gloss enhancement, extra makeup or artificial perfect symmetry.
+Keep EVERYTHING else identical: eyes, lashes, brows, nose, cheeks, skin tones, silhouette, hair, clothing, necklace, background and lighting. No beautification, repainting or redesign. This is one frame of an identity-locked animation, not a reinterpretation.
+Output a single 1024x1536 portrait in exactly the original framing. No panels or text.
+```
+
+### a
+
+원본 생성 파일: `exec-0b80a149-86ea-47ad-8235-3a27c354764e.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change ONLY her mouth to gently pronounce Korean 'ah' /a/. This must be a visibly vertically OPEN speech vowel, not a tiny slit, not an eh smile. The dark mouth opening is approximately 80 pixels wide and 40 pixels tall on the 1024x1536 portrait. The whole lips stay close to original width, thin soft muted rose, slight angle rising toward viewer's right. Subtle upper teeth and tongue, no heavy lip rim or shine. No large surprised gasp. Leave nose, philtrum, jaw outline and chin position untouched.
+```
+
+### i
+
+원본 생성 파일: `exec-cae8a2f7-d11b-4b7c-9288-37e2e4937c5e.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change only her mouth to quietly pronounce Korean 'ee' /i/: lips slightly spread, a narrow horizontal opening, a fine natural strip of upper teeth. Original mouth width and upturned angle, slender understated lip volume; only a shallow opening, no big grin. Everything outside the immediate lip region remains unchanged.
+```
+
+### e
+
+원본 생성 파일: `exec-fe712d66-0364-4c26-b8e2-10e9b8ef9bc1.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change only her mouth to quietly pronounce Korean 'eh' /e/: a modest horizontal opening clearly taller than a thin ee opening but restrained, natural upper teeth and dim mouth interior. Keep original mouth width and gentle tilted angle, thin soft rose lips. Everything outside the immediate lip region remains unchanged.
+```
+
+### u
+
+원본 생성 파일: `exec-aac8c09c-0ee7-4d06-878f-d83785673be0.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change ONLY her mouth to quietly pronounce Korean 'oo' /u/: a SMALL, gently rounded opening with a subtle natural forward purse. The whole mouth should be narrower than the original relaxed smile but never inflated or thick. Keep the natural mouth angle and restrained thin matte rose lip edges. This is speaking oo, NOT a kiss/duck face. Everything outside the immediate lip region remains unchanged.
+```
+
+### o
+
+원본 생성 파일: `exec-b0ae42a8-620c-4dba-9d3e-89b260328473.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change ONLY her mouth to quietly pronounce Korean 'oh' /o/. Make a compact ROUND VERTICAL OVAL mouth cavity, approximately 34 pixels wide by 40 pixels tall in this 1024x1536 portrait. This is more open than oo/u, with a vertical aspect ratio, not a horizontal slit or smile. Entire lips are approximately 75 pixels wide and 68 pixels high, slender restrained muted rose lip edges matching the original pigment. Soft small upper tooth glimpse optional, shaded natural interior. No duck face, thick lipstick or inflated lips. Keep original nose, philtrum, cheeks, jawline and chin untouched; no surprise expression.
+```
+
+### eyesHalf
+
+원본 생성 파일: `exec-cd073e9e-1c30-4d03-a162-e27ec9298a1f.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change ONLY the eyelids to a relaxed HALF blink, halfway down over the existing violet irises. Both eyes half closed together. Keep original eyebrows, eyelash length, eye corners, eye tilt, and mouth exactly unchanged. Show half the iris vertically. Do not shift gaze, change expression elsewhere, add eyelid makeup, thicken lash lines or change the shape/size of the eyes.
+```
+
+### eyesClosed
+
+원본 생성 파일: `exec-d06b69e3-20cb-41da-8f7a-bebcf15515b3.png`
+
+```text
+Use case: identity-preserve, precise facial expression edit.
+Edit ONLY the requested expression in the supplied original portrait. Keep this EXACT woman and identity: original face silhouette, head tilt, eye line sloping slightly up to the viewer's right, asymmetry, skin shading, delicate restrained makeup and thin muted rose lips. Same hair, nose, cheeks, eyebrows, neck, shoulders, cardigan, pendant and lilac backdrop. No redesign, beautification, inflated lips, shiny lip gloss, symmetry correction or doll-like features. Preserve original exact 1024x1536 framing and scale.
+This is a gentle conversational expression, not an exaggerated phoneme chart or a broad grin. Single portrait, no grid, no text. Change ONLY the eyelids to a soft natural CLOSED blink. Keep both original eyebrows exactly in place, original eye corners and the tilted eye line; the lids close down over the existing eyeballs. Do not lower/raise eyebrows, smile more, change the lips, turn the head or repaint the skin. Retain original fine warm brown lashes, without adding false eyelashes or thick eyeliner. The original mouth stays fully unchanged.
+```

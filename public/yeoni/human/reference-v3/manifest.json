@@ -1,0 +1,217 @@
+{
+  "version": 3,
+  "status": "reference-preserving-static-review",
+  "form": "human-a",
+  "size": [
+    1024,
+    1536
+  ],
+  "base": {
+    "image": "base.png",
+    "preview": "base-preview.webp",
+    "previewSize": [
+      640,
+      960
+    ],
+    "sha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+    "previewSha256": "dc12107b49083765c38c5938e9b42b1f7ebf1c6ed103ef007859dece6550cd07"
+  },
+  "faceViewport": [
+    300,
+    275,
+    420,
+    400
+  ],
+  "parts": {
+    "i": [
+      {
+        "image": "i-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "5b753bac9f11e1b942b8ac0b13a3d9c37b2a369e4378fffd1427ff77b1e307e7"
+      }
+    ],
+    "e": [
+      {
+        "image": "e-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "9b27d7f908bf0e5a619c526e5e61374835d48c73d4be501f030f64ed21b186b4"
+      }
+    ],
+    "u": [
+      {
+        "image": "u-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "9ecfafa193be6edd5f814724f1d2940d1f85fa461c7c9e21fb02e932fdbdf6a8"
+      }
+    ],
+    "o": [
+      {
+        "image": "o-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "5fdb47ce638e1b011d36af3e3b10cc2c40a13862c4cbb1c80dfff81fb80aee4b"
+      }
+    ],
+    "eyesClosed": [
+      {
+        "image": "eyesClosed-0.webp",
+        "rect": [
+          354,
+          355,
+          125,
+          89
+        ],
+        "feather": 9,
+        "sha256": "2476be3c218b512adc3a7dedbb3308abd6d158f931f5dc70767fc116fcaab449"
+      },
+      {
+        "image": "eyesClosed-1.webp",
+        "rect": [
+          548,
+          340,
+          124,
+          87
+        ],
+        "feather": 9,
+        "sha256": "12cfe7fbdb052e235f4d9e88f9009991a85c4dc58b499ee3efbfa1a99aa82455"
+      }
+    ],
+    "small": [
+      {
+        "image": "small-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "d0d9cc593d78137dbbc9aff2a0b6ef4896ab868d46ec0ba7499a7685b24ecd66"
+      }
+    ],
+    "a": [
+      {
+        "image": "a-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "fd11265e7d2675e30465252d89c6a44aacc58b825e95402a7e36331d91b3863e"
+      }
+    ],
+    "eyesHalf": [
+      {
+        "image": "eyesHalf-0.webp",
+        "rect": [
+          354,
+          355,
+          125,
+          89
+        ],
+        "feather": 9,
+        "sha256": "ffd3dd666602e2587c5ec2415fdef8a641bd042ad575875d40fd7beefc24c400"
+      },
+      {
+        "image": "eyesHalf-1.webp",
+        "rect": [
+          548,
+          340,
+          124,
+          87
+        ],
+        "feather": 9,
+        "sha256": "85338316f2a2425d6ee7ed38fd4d49b1c7b1a26ab716e059c247e90435af2d92"
+      }
+    ]
+  },
+  "controllerBinding": {
+    "blink": {
+      "open": "base",
+      "half": "eyesHalf",
+      "closed": "eyesClosed"
+    },
+    "viseme": {
+      "rest": "base",
+      "closed": "base",
+      "a": "a",
+      "i": "i",
+      "u": "u",
+      "e": "e",
+      "o": "o",
+      "small": "small"
+    }
+  },
+  "limitations": [
+    "Static review only. No speech or human motion.",
+    "Full original portrait and backdrop preserved. Head/body rig must be remade against original before Phase 8.",
+    "Patch-local expression edits; jaw outline is fixed for these restrained speech poses."
+  ],
+  "sources": [
+    {
+      "id": "i",
+      "file": "exec-cae8a2f7-d11b-4b7c-9288-37e2e4937c5e.png",
+      "sha256": "94b75466b23316d4465a8cc3880ede187f0fa8efaa3c068d926870bcd85fbbd3"
+    },
+    {
+      "id": "e",
+      "file": "exec-fe712d66-0364-4c26-b8e2-10e9b8ef9bc1.png",
+      "sha256": "9a95a396e1a7ba4adec7111efd4e49f1be62f7d19178b3f4aaceb4a8a25ce766"
+    },
+    {
+      "id": "u",
+      "file": "exec-aac8c09c-0ee7-4d06-878f-d83785673be0.png",
+      "sha256": "23b4a32b539c16db6e3e42885483bd2995f7fa0e588d382868839b243693941b"
+    },
+    {
+      "id": "o",
+      "file": "exec-b0ae42a8-620c-4dba-9d3e-89b260328473.png",
+      "sha256": "0ee90e8e36fc99262e57b60bd5f9b4e867e50f266964e06597d90052a4f68966"
+    },
+    {
+      "id": "eyesClosed",
+      "file": "exec-d06b69e3-20cb-41da-8f7a-bebcf15515b3.png",
+      "sha256": "ff7594793711ba3288deab1d115c96cf0d9bfa47990d3e8260e73838cb600df4"
+    },
+    {
+      "id": "small",
+      "file": "exec-63517626-30d4-41ff-80ff-d3486d3fa3e9.png",
+      "sha256": "8819375ffd2d7f8406d5514d6b8068dc6ed82e2a86178240dc2267b7f0ae668e"
+    },
+    {
+      "id": "a",
+      "file": "exec-0b80a149-86ea-47ad-8235-3a27c354764e.png",
+      "sha256": "33d7c3d78778de92ac21a9e32fa890ab97cdd2d6e7941d74bb20d840b372be00"
+    },
+    {
+      "id": "eyesHalf",
+      "file": "exec-cd073e9e-1c30-4d03-a162-e27ec9298a1f.png",
+      "sha256": "2b8517bff557225985d35b068f7c064bf4e15f5e064049ae3d197d1d55e9bb83"
+    }
+  ]
+}
