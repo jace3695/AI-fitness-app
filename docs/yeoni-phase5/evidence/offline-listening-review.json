@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "d15382b13c83208d62dbe61547b51e120f037436",
+  "browser": "153.0.8010.0",
+  "mode": "file:// bundled production HTML",
+  "firstRangeEnd": 4.41,
+  "secondRangeEnded": true,
+  "nativeSeekOutsideRange": "passed",
+  "errors": [],
+  "externalRequests": [],
+  "listeningApproval": "pending"
+}
