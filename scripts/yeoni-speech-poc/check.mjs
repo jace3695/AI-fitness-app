@@ -244,6 +244,9 @@ try {
   });
   await test('review cancellation survives rewind, background pause and replacing audio', async () => {
     await button('조금 쉬는 듣기').click(); await state('playing');
+    await seek(5); assert.ok(await media(a => a.currentTime) >= 5);
+    await state('ended'); await viseme('rest');
+    await button('조금 쉬는 듣기').click(); await state('playing');
     await button('처음으로').click(); await state('ready');
     await page.waitForTimeout(1100); assert.equal(await media(a => a.currentTime), 0);
     await button('조금 쉬는 듣기').click(); await state('playing');

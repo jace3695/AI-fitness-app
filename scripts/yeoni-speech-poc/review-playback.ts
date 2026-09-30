@@ -11,7 +11,13 @@ export class ReviewPlayback {
       player.audio.addEventListener(name, fn); this.listeners.push([name, fn]);
     };
     for (const name of ['playing', 'timeupdate', 'seeked', 'ratechange']) on(name, this.check);
-    for (const name of ['pause', 'waiting', 'seeking']) on(name, this.clearTimer);
+    for (const name of ['pause', 'waiting']) on(name, this.clearTimer);
+    on('seeking', () => {
+      this.clearTimer();
+      const range = this.range, time = player.audio.currentTime;
+      // Native scrubbing outside the chosen segment exits range mode; never rewind the user.
+      if (range && (time < range.start || time >= range.end)) this.cancel();
+    });
     for (const name of ['emptied', 'error', 'ended']) on(name, this.cancel);
   }
   private clearTimer = () => { clearTimeout(this.timer); this.timer = undefined; };

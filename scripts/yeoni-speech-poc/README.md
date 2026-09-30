@@ -35,6 +35,7 @@ The timer pauses at the end; it is not sample-accurate audio cutting (event-loop
 buffer latency may allow a small overshoot). No automatic looping/resume. Pause,
 source replacement, rewind, hidden page and unmount cancel scheduled work.
 The ordinary play button cancels the bounded range and resumes the rest of the clip.
+Native seeking outside the range also cancels it, without jumping back to its endpoint.
 
 The selected segment has an expandable table of **automatic candidate** phonemes and
 mouth shapes. It does not certify heard pronunciation or update the manifest to
