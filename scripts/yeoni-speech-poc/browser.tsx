@@ -90,7 +90,7 @@ function Lab() {
     <h1>발음마다 달라지는 입 모양</h1>
     <p className="intro">닫힘·아·이·우·에·오를 각각 구분해요.<br />저장된 연이 음성으로 입 움직임을 확인해 보세요.</p>
     <section className={dark ? 'portrait dark' : 'portrait'} aria-label="고양이 연이">
-      {mounted ? <CatAnimationStage assetUrl="/yeoni/cat/poc-speech-atlas-v1.png" speech={speech} /> : <p className="empty">연이가 잠시 쉬고 있어요.</p>}
+      {mounted ? <CatAnimationStage assetUrl="/yeoni/cat/preserved-motion-v3.png" speech={speech} /> : <p className="empty">연이가 잠시 쉬고 있어요.</p>}
     </section>
     <p className="sample-badge">{alignment === 'automatic-phonemes' ? '실제 Zephyr 음성 · 자동 정렬 초안 · 자연스러움 검토 중' : alignment === 'reviewed-phonemes' ? '불러온 음성 · 정렬 정확도는 별도 검토 필요' : '무음 기술 샘플 · 한국어 음성 시연이 아닙니다'}</p>
     <div className="controls">

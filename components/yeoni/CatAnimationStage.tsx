@@ -5,11 +5,12 @@ import { mountCatRenderer, type CatRenderer, type CatRendererStatus } from '@/li
 import { useYeoniPreferences } from '@/components/useYeoniPreferences';
 import styles from './cat-animation.module.css';
 import { EMPTY_PLAYBACK, type CharacterEmotion, type CharacterGesture, type SpeechSnapshot } from '@/lib/yeoni/character-controller';
+import { CAT_MOTION_ASSET } from '@/lib/yeoni/cat-art';
 
 type ExpressionProps = { expressive?: boolean; emotion?: CharacterEmotion; gesture?: Readonly<{ id: number; kind: CharacterGesture }> | null };
 
 /** Isolated PHASE 4 candidate. Not mounted in any production page yet. */
-export default function CatAnimationStage({ assetUrl = '/yeoni/cat/poc-atlas-v1.png', paused = false, speech, expressive = false, emotion = 'neutral', gesture }: {
+export default function CatAnimationStage({ assetUrl = CAT_MOTION_ASSET, paused = false, speech, expressive = false, emotion = 'neutral', gesture }: {
   assetUrl?: string; paused?: boolean; speech?: () => SpeechSnapshot;
 } & ExpressionProps) {
   const preferences = useYeoniPreferences();

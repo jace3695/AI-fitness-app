@@ -25,6 +25,38 @@ concurrency:
   group: yeoni-animation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  cat-motion-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Confirm encoder
+        run: ffmpeg -version
+      - name: Verify original artwork through motion
+        run: |
+          node scripts/yeoni-cat-review/pack-motion.mjs
+          git diff --exit-code -- public/yeoni/cat/preserved-motion-v3.png public/yeoni/cat/preserved-motion-v3.json
+          node scripts/yeoni-cat-review/check-motion.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-cat-review/check-motion.mjs
+      - name: Preserve original motion evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-cat-motion-v3-${{ github.sha }}
+          path: |
+            .e2e/yeoni-cat-motion-v3/
+            !.e2e/yeoni-cat-motion-v3/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
   cat-reference-comparison:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

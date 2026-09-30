@@ -13,7 +13,7 @@ await build({ entryPoints: [resolve(here, 'browser.tsx')], bundle: true, outfile
 const routes = new Map([
   ['/app.js', [resolve(output, 'app.js'), 'text/javascript']],
   ['/app.css', [resolve(output, 'app.css'), 'text/css']],
-  ['/yeoni/cat/poc-atlas-v1.png', [resolve(root, 'public/yeoni/cat/poc-atlas-v1.png'), 'image/png']],
+  ['/yeoni/cat/preserved-motion-v3.png', [resolve(root, 'public/yeoni/cat/preserved-motion-v3.png'), 'image/png']],
   ['/yeoni-cat-sprite-v1.webp', [resolve(root, 'public/yeoni-cat-sprite-v1.webp'), 'image/webp']],
 ]);
 const html = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><link rel="stylesheet" href="/app.css"><title>연이 고양이 움직임 미리보기</title></head><body><div id="root"></div><script src="/app.js"></script></body></html>';

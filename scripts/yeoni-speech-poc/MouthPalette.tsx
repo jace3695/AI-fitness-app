@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { drawCatMouth } from '../../lib/yeoni/cat-mouth';
+import { CAT_MOTION_ASSET, createCatArtwork } from '../../lib/yeoni/cat-art';
 import type { Viseme } from '../../lib/yeoni/lip-sync';
 
 const shapes: ReadonlyArray<readonly [Viseme, string]> = [
@@ -8,10 +8,16 @@ const shapes: ReadonlyArray<readonly [Viseme, string]> = [
 function Mouth({ shape, label }: { shape: Viseme; label: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const ctx = canvas.current?.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, 104, 72); ctx.save(); ctx.translate(52 - 169, 30 - 187);
-    drawCatMouth(ctx, shape); ctx.restore();
+    const ctx = canvas.current?.getContext('2d'); if (!ctx) return;
+    let disposed = false, art: ReturnType<typeof createCatArtwork> | null = null;
+    const image = new Image();
+    image.onload = () => {
+      if (disposed) return;
+      art = createCatArtwork(image);
+      ctx.drawImage(art.frame('open', shape), 153, 187, 51, 36, 1, 0, 102, 72);
+    };
+    image.src = CAT_MOTION_ASSET;
+    return () => { disposed = true; image.onload = null; image.removeAttribute('src'); art?.dispose(); };
   }, [shape]);
   return <figure><canvas ref={canvas} width={104} height={72} data-mouth-shape={shape} aria-label={`${label} 입 모양`} /><figcaption>{label}</figcaption></figure>;
 }

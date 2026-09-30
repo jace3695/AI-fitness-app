@@ -36,7 +36,7 @@ function Lab() {
     <h1>표정과 몸짓으로 전하는 마음</h1>
     <p className="intro">소리 없이 표정부터 살펴보세요.<br />동작은 한 번씩 재생하고 기본 자세로 돌아와요.</p>
     <section className={`emotion-portrait${dark ? ' dark' : ''}`} aria-label="고양이 연이">
-      {mounted ? <CatAnimationStage expressive assetUrl="/yeoni/cat/poc-speech-atlas-v1.png" paused={!motion} emotion={emotion} gesture={gesture}
+      {mounted ? <CatAnimationStage expressive assetUrl="/yeoni/cat/preserved-motion-v3.png" paused={!motion} emotion={emotion} gesture={gesture}
         speech={() => ({ manifest: player.current?.manifest ?? null, playback: player.current?.snapshot() ?? EMPTY_PLAYBACK })} /> : <p className="empty">연이가 잠시 쉬고 있어요.</p>}
     </section>
     <p className="emotion-label" aria-live="polite">지금 표정: {labels[emotion]}</p>

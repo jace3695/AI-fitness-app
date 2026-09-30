@@ -1,81 +1,74 @@
-import { drawCatMouth } from './cat-mouth';
+import { catFace, createCatArtwork } from './cat-art';
+import { catWarp, warpCatPoint, CAT_TRIANGLES } from './cat-warp';
+import type { Point } from './cat-warp';
 import type { CharacterController, CharacterRenderer, SpeechSnapshot } from './character-controller';
 import { mountCharacterStage, type CharacterStage, type CharacterStageStatus } from './character-stage';
 
 export type CatRenderer = CharacterStage;
 export type CatRendererStatus = CharacterStageStatus;
 
-/** Canvas-only adapter. Receives semantic frames; never reads audio or selects phones. */
+/** Small texture triangles overlap only rasterization edges, preventing white cracks. */
+function triangle(ctx: CanvasRenderingContext2D, source: HTMLCanvasElement, s: Point[], d: Point[], scale: number) {
+  const [p, q, r] = s, [u, v, w] = d;
+  const det = (q.x - p.x) * (r.y - p.y) - (r.x - p.x) * (q.y - p.y);
+  const a = ((v.x - u.x) * (r.y - p.y) - (w.x - u.x) * (q.y - p.y)) / det;
+  const b = ((v.y - u.y) * (r.y - p.y) - (w.y - u.y) * (q.y - p.y)) / det;
+  const c = ((q.x - p.x) * (w.x - u.x) - (r.x - p.x) * (v.x - u.x)) / det;
+  const e = ((q.x - p.x) * (w.y - u.y) - (r.x - p.x) * (v.y - u.y)) / det;
+  ctx.save(); ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const center = { x: (u.x + v.x + w.x) / 3, y: (u.y + v.y + w.y) / 3 };
+  ctx.beginPath();
+  d.forEach((point, i) => {
+    const dx = point.x - center.x, dy = point.y - center.y, length = Math.hypot(dx, dy);
+    const x = point.x + dx / length * 2, y = point.y + dy / length * 2;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.closePath(); ctx.clip();
+  ctx.transform(a, b, c, e, u.x - a * p.x - c * p.y, u.y - b * p.x - e * p.y);
+  const x = Math.max(0, Math.min(p.x, q.x, r.x) - 3), y = Math.max(0, Math.min(p.y, q.y, r.y) - 3);
+  const width = Math.min(360, Math.max(p.x, q.x, r.x) + 3) - x, height = Math.min(360, Math.max(p.y, q.y, r.y) + 3) - y;
+  ctx.drawImage(source, x, y, width, height, x, y, width, height); ctx.restore();
+}
+
+/** Original artwork is one continuous surface; eyes and mouth follow its rigid face. */
 export function createCatCanvasRenderer(canvas: HTMLCanvasElement, options: {
   assetUrl: string; speechMouth: boolean; expressive?: boolean; ready(): void; fail(): void;
 }): CharacterRenderer {
-  const ctx = canvas.getContext('2d');
-  const image = new Image();
-  let disposed = false;
+  const ctx = canvas.getContext('2d'), image = new Image();
+  let disposed = false, art: ReturnType<typeof createCatArtwork> | null = null;
   const fail = () => { if (!disposed) options.fail(); };
-  const part = (s: number[], d: number[]) => ctx!.drawImage(image, s[0], s[1], s[2], s[3], d[0], d[1], d[2], d[3]);
   canvas.addEventListener('contextlost', fail);
   image.onload = () => {
     if (disposed) return;
-    if (!ctx || image.naturalWidth !== 1254 || image.naturalHeight !== 1254) { fail(); return; }
-    options.ready();
+    if (!ctx || image.naturalWidth !== 768 || image.naturalHeight !== 384) { fail(); return; }
+    try { art = createCatArtwork(image); options.ready(); } catch { fail(); }
   };
-  image.onerror = fail;
-  image.src = options.assetUrl;
+  image.onerror = fail; image.src = options.assetUrl;
   return {
-    render(pose, { size }) {
-      if (!ctx || disposed) return;
+    render(frame, { size }) {
+      if (!ctx || !art || disposed) return;
       if (canvas.width !== size || canvas.height !== size) { canvas.width = size; canvas.height = size; }
-      ctx.setTransform(size / 400, 0, 0, size / 400, 0, 0);
-      ctx.clearRect(0, 0, 400, 400);
-      ctx.save();
-      if (options.expressive) ctx.translate(0, -pose.bodyLift * 12);
-      ctx.translate(170, 340); ctx.scale(1 + pose.breath * .4, 1 + pose.breath); ctx.translate(-170, -340);
-      ctx.save(); ctx.translate(262, 291); ctx.rotate(pose.sway * .055 + (options.expressive ? pose.expression.energy * -.08 : 0)); ctx.translate(-262, -291);
-      part([800, 820, 425, 400], [240, 178, 128, 121]);
-      ctx.restore();
-      if (options.expressive) {
-        part([0, 520, 660, 285], [35, 226, 264, 114]);
-        ctx.save(); ctx.translate(169, 230); ctx.rotate(pose.headTilt * .14);
-        ctx.translate(0, pose.headNod * 7); ctx.scale(1, 1 - Math.max(0, pose.headNod) * .035); ctx.translate(-169, -230);
-        part([0, 0, 660, 545], [35, 18, 264, 218]);
-      } else part([0, 0, 660, 805], [35, 18, 264, 322]);
-      if (pose.blink === 'closed') part([135, 1000, 395, 90], [89, 148, 153, 35]);
-      else if (options.expressive) {
-        const expression = pose.expression;
-        // Keep eyes opaque. Crossfading the iris and an arc produces a ghosted double eye.
-        if (expression.eyeSmile >= .8) part([135, 1000, 395, 90], [89, 148, 153, 35]);
-        else {
-          const height = Math.max(7, 54 * expression.eyeOpen * (1 - expression.eyeSmile * .4) * (pose.blink === 'half' ? .45 : 1));
-          for (const [sourceX, center, direction] of [[790, 122.5, 1], [975, 208.5, -1]]) {
-            ctx.save(); ctx.translate(center + expression.gazeX * 5, 159 + expression.gazeY * 5);
-            ctx.rotate(expression.eyeTilt * .18 * direction);
-            part([sourceX, 355, 140, 135], [-32.5, -height / 2, 65, height]); ctx.restore();
-          }
-        }
-      }
-      else {
-        const height = pose.blink === 'half' ? 25 : 54;
-        part([790, 355, 325, 135], [90, 159 - height / 2, 151, height]);
-      }
-      if (options.speechMouth || options.expressive) drawCatMouth(ctx, pose.viseme, options.expressive ? pose.expression.mouthCurve : 0);
-      if (options.expressive) ctx.restore();
-      ctx.restore();
+      const expressive = options.expressive ?? false;
+      const face = catFace(frame, expressive, options.speechMouth), texture = art.frame(face.eye, face.mouth);
+      const warp = catWarp(frame, expressive), scale = size / 360;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      // Preserve the approved opaque backdrop. This is not a transparent cutout.
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 360, 360);
+      if (Object.values(warp).every(value => value === 0)) ctx.drawImage(texture, 0, 0);
+      else for (const points of CAT_TRIANGLES) triangle(ctx, texture, points, points.map(p => warpCatPoint(p, warp)), scale);
+      canvas.dataset.artVersion = 'preserved-v3'; canvas.dataset.eyeArtwork = face.eye; canvas.dataset.mouthArtwork = face.mouth;
     },
     dispose() {
       disposed = true; image.onload = null; image.onerror = null; image.removeAttribute('src');
-      canvas.removeEventListener('contextlost', fail);
-      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.removeEventListener('contextlost', fail); art?.dispose(); art = null;
+      if (ctx) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height); }
     },
   };
 }
 
-/** Composition only: swapping this adapter leaves the common controller/clock intact. */
 export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
   enabled: boolean; assetUrl: string; onStatus(status: CatRendererStatus): void;
-  controller?: CharacterController;
-  expressive?: boolean;
-  speech?: () => SpeechSnapshot;
+  controller?: CharacterController; expressive?: boolean; speech?: () => SpeechSnapshot;
 }): CatRenderer {
   return mountCharacterStage(canvas, { ...options,
     createRenderer: (ready, fail) => createCatCanvasRenderer(canvas, {
