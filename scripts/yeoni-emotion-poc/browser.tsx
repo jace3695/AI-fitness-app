@@ -61,7 +61,7 @@ function Lab() {
         <button disabled={!canPlay} onClick={() => player.current?.pause()}>음성 멈추기</button>
         <button onClick={() => setMuted(!muted)}>{muted ? '소리 켜기' : '소리 끄기'}</button>
       </div>
-      <audio ref={audio} muted={muted} controls preload="metadata" aria-label="저장된 연이 음성" />
+      <audio ref={audio} muted={muted} onVolumeChange={event => setMuted(event.currentTarget.muted)} controls preload="metadata" aria-label="저장된 연이 음성" />
       <p data-speech-state={state} role="status">{message || (state === 'empty' ? '음성을 불러오면 준비돼요.' : `음성 상태: ${state}`)} · {muted ? '음소거' : '소리 켜짐'}</p>
     </details>
     <div className="controls secondary"><button onClick={() => setDark(!dark)}>배경 바꾸기</button></div>

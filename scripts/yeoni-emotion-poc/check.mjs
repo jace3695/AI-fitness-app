@@ -99,6 +99,8 @@ try {
     await button('꾸벅 인사').click(); await pose('gesture', 'greet'); await pose('viseme', 'e');
     assert.equal(await media(a => a.currentSrc), source);
     await button('음성 멈추기').click(); await state('paused'); await pose('viseme', 'rest');
+    await media(a => { a.muted = false; }); await button('소리 끄기').waitFor();
+    await media(a => { a.muted = true; }); await button('소리 켜기').waitFor();
     await button('소리 켜기').click(); assert.equal(await media(a => a.muted), false);
     await button('소리 끄기').click(); assert.equal(await media(a => a.muted), true);
     await media(a => { a.playbackRate = 1; a.currentTime = 5.1; });
