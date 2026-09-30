@@ -4,6 +4,8 @@
 
 ## 결과물
 
+**ChatGPT 안에서 기존 파일의 그림/버튼이 작동하지 않으면 [스크립트 없는 호환 미리보기](Yeoni_Human_A_Compatible_Preview.html)를 사용한다.** 대화에는 같은 내용의 전용 시각화로 표시한다.
+
 - [독립 검수 미리보기](Yeoni_Human_A_Asset_Preview.html): 다운로드 후 열기. 눈 3종, 입 7종(필수 여섯 모양 + small), 흰색/연보라/어두운 배경 선택. 음성·로그인·서버 요청 없음.
 - [모델 시트](human-a-model-sheet.png): 전신 정면·사선·측면·뒷면, 6가지 표정 참고. 원본에 없던 하의/신발은 크림색 바지/연보라 플랫슈즈로 제안했다. 사용자 추가 확정으로 간주하지 않는다.
 - [대기·설명 자세와 12감정 참고 시트](human-a-poses-expressions.png): 기본·미소·기쁨·뿌듯함·응원·걱정·놀람·생각·진지함·아쉬움·졸림·위로. 단일 참고 이미지이며 12종 애니메이션 구현을 뜻하지 않는다.
@@ -60,3 +62,15 @@ YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check.mjs
 ## 다음 단계
 
 PHASE 8: 같은 Controller를 사용하는 인간형 기본 애니메이션 PoC. 깜빡임·숨쉬기·고개 움직임과 정지/숨김/동작 줄이기를 검증한다. PHASE 9에서 기존 음성에 연결한다.
+
+## 9월 30일 미리보기 호환 수정
+
+사용자는 파일은 열리지만 그림/버튼이 작동하지 않는다고 보고했고, 사용 환경을 ChatGPT 내부 미리보기로 확인했다.
+기존 파일은 Canvas/JavaScript가 초기화되어야 캐릭터와 버튼이 동작하는 구조였다. JavaScript를 끈 Chromium/WebKit에서 기존 파일의 초기화 누락을 재현했다. 사용자 ChatGPT 내부 실행 정책을 직접 진단한 결과는 아니므로 플랫폼의 원인을 확정하지 않는다.
+
+호환본은 native radio와 CSS 파츠 합성을 사용하며 script/canvas/API 요청이 없다. 초기 그림은 스크립트 실행 전제가 없고, 같은 atlas를 WebP로 압축하여 약 300KB에 내장했다. 기존 Canvas 개발 검수본은 유지한다. 대화 표시용 fragment와 다운로드용 독립 문서는 같은 소스에서 생성한다.
+
+검증 코드 `be2d87d0c02bafe09c3e0401fdacf8d0007b646b`, [CI compatibility job](https://github.com/jace3695/AI-fitness-app/actions/runs/36704348851/job/109850943037).
+JavaScript 비활성화 Chromium/WebKit 각각 6개, **총 12개 통과**. 여섯 입 모양 픽셀 차이, 눈 선택/배경/새로고침, 320/390px, scripts 허용이 없는 sandbox iframe을 포함한다.
+[결과 요약](evidence/compatibility/verification.json), [Chromium](evidence/compatibility/chromium/results.json), [WebKit](evidence/compatibility/webkit/results.json).
+스크린샷과 ZIP 해시를 대조했다. 실제 사용자 ChatGPT 화면에서의 최종 동작은 사용자 확인 전이다. 단계 진도는 6/16 완료, PHASE 5 청취 보류로 유지한다.
