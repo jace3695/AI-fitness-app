@@ -36,3 +36,24 @@
 차이는 눈썹·눈꺼풀·입·고개로 표현하되 과장 변형을 피한다. 새로운 인물/장신구/날개/고양이 귀를 넣지 않는다.
 완성 이미지: `human-a-poses-expressions.png` (생성 원본 `exec-84df1e56-1df6-4e3b-9b6e-ff16eac12173.png`).
 이는 표정·자세 목표 참고 자료이며, 분리 파츠 또는 실제 Controller의 12감정 동작 검증을 의미하지 않는다.
+
+
+## 눈·입 조화 수정 v2
+
+방식: 내장 image_gen, 투명 배경. 입력은 원본 A안(정체성/화풍)과 v1 atlas(합성 대상 구조)다.
+출력: `public/yeoni/human/face-parts-v2.png`, 원본 생성 `exec-700b6d07-a2bf-47b2-8caf-2165c46dd68f.png`.
+요청 격자와 다른 1254×1254 결과이므로 실제 sourceRect와 입 중심 랜드마크를 측정했다. WebP는 품질 88, alpha 100으로 인코딩했다. 그림 자체를 코드로 재색칠/변형하지 않았으며 CSS/Canvas 렌더러가 원본 스프라이트를 배치한다.
+
+최종 프롬프트:
+
+```text
+Use case: identity-preserve / compositing.
+Asset type: transparent replacement eye and mouth sprite sheet for the illustrated woman Yeoni.
+Input 1 is the CANONICAL identity and painting style. Input 2 is the faulty old atlas, supplied ONLY to show the head the new facial features must fit. Do not copy its doll-like eyes or oversized glossy lips.
+Produce one 1024 x 1024 transparent PNG sprite sheet, no head/body, no labels, no grid. Three columns of equal width, three rows, with generous fully transparent gaps.
+Row 1 at y≈170: three PAIRS of eyes WITH eyebrows (open, half blink, fully closed). Each pair about 285 pixels wide. Copy the reference woman's almond-shaped violet eyes, delicate warm brown fine lashes and softly textured fine brows. Match her subtle rising eye line, reference spacing, gentle asymmetry and upper eyelid folds. Do NOT make huge circular doll irises or heavy eyeliner.
+Row 2 at y≈480: mouth closed relaxed reference smile; mouth saying ah; mouth saying ee.
+Row 3 at y≈780: mouth saying oo (Korean u), mouth saying eh (Korean e), mouth saying oh (Korean o).
+Mouth widths about 165 pixels except rounded u/o about 110 pixels. Every mouth must belong to the SAME woman: delicate slender warm muted rose lips like input 1, fine corners, minimal specular highlights, no saturated lipstick, no inflated thick lip edges, no wet gloss. Ah opens vertically with modest natural cavity; ee spreads horizontally and is shallow; e opens more than ee; u is small pursed; o is round and more open than u.
+Match the reference soft painterly 2.5D texture and diffuse warm illumination exactly. Keep a SMALL naturally shaded skin transition around each eye/lip, feathering immediately into true transparency, without a large colored halo, without opaque rectangle patches. Keep all parts strictly separated, no overlapping features, no stray other body parts. Rest smile should have the slight natural angle of the original, not a symmetrical plastic smile. Actual transparent alpha background.
+```

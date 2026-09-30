@@ -3,22 +3,20 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const root=new URL('../../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root));
-const spec=JSON.parse(read('public/yeoni/human/poc-atlas-v1.json'));
-const atlas='data:image/webp;base64,'+read('public/yeoni/human/poc-atlas-v1.webp').toString('base64');
-const part=(id,dest,kind='')=>{
-  const [x,y,w,h]=spec.parts[id].sourceRect;
-  const [dx,dy,dw,dh]=dest;
+const spec=JSON.parse(read('public/yeoni/human/poc-atlas-v2.json'));
+const uris=Object.fromEntries(Object.entries(spec.images).map(([id,value])=>[id,'data:image/webp;base64,'+read('public'+value.webp).toString('base64')]));
+const part=(id,kind='')=>{
+  const p=spec.parts[id];
+  const [x,y,w,h]=p.sourceRect,[dx,dy,dw,dh]=p.destinationRect;
+  const [iw,ih]=spec.images[p.image].sourceSize;
   const styles={left:dx/760*100,top:dy/1150*100,width:dw/760*100,height:dh/1150*100};
-  const style=Object.entries(styles).map(([k,v])=>`${k}:${v}%`).join(';')+`;background-size:${1024/w*100}% ${1536/h*100}%;background-position:${x/(1024-w)*100}% ${y/(1536-h)*100}%`;
+  const style=Object.entries(styles).map(([k,v])=>`${k}:${v}%`).join(';')+`;background-image:var(--yeoni-${p.image});background-size:${iw/w*100}% ${ih/h*100}%;background-position:${x/(iw-w)*100}% ${y/(ih-h)*100}%`;
   return `<div aria-hidden="true" class="yeoni-part ${id} ${kind}" style="${style}"></div>`;
 };
-const parts=[part('torso',spec.assembly.torso),part('head',spec.assembly.head)];
-for(const id of ['eyesOpen','eyesHalf','eyesClosed'])parts.push(part(id,spec.assembly.eyes,'yeoni-eye'));
-for(const id of ['closed','a','i','u','e','o']){
-  const r=spec.parts[id].sourceRect,s=spec.assembly.mouthScale,[x,y]=spec.assembly.mouthCenter;
-  parts.push(part(id,[x-r[2]*s/2,y-r[3]*s/2,r[2]*s,r[3]*s],'yeoni-mouth'));
-}
-const fragment=read('scripts/yeoni-human-assets/compatible-fragment.html').toString().replace('@@ATLAS@@',atlas).replace('@@PARTS@@',parts.join('\n'));
+const parts=[part('torso'),part('head')];
+for(const id of ['eyesOpen','eyesHalf','eyesClosed'])parts.push(part(id,'yeoni-eye'));
+for(const id of ['closed','a','i','u','e','o'])parts.push(part(id,'yeoni-mouth'));
+const fragment=read('scripts/yeoni-human-assets/compatible-fragment.html').toString().replace('@@BASE@@',uris.base).replace('@@FACE@@',uris.face).replace('@@PARTS@@',parts.join('\n'));
 assert.ok(Buffer.byteLength(fragment)<1_000_000);
 assert.ok(!/<script|<canvas|@@|\\"|\\n/.test(fragment));
 writeFileSync(new URL('docs/yeoni-phase7/Yeoni_Human_A_Compatible_Fragment.html',root),fragment);

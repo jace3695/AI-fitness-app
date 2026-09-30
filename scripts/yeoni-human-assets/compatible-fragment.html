@@ -1,13 +1,13 @@
 <div id="yeoni-human-compatible">
   <style>
-    #yeoni-human-compatible { color:var(--foreground); --yeoni-atlas: url("@@ATLAS@@"); }
+    #yeoni-human-compatible { color:var(--foreground); --yeoni-base: url("@@BASE@@"); --yeoni-face: url("@@FACE@@"); }
     #yeoni-human-compatible .yeoni-layout { display:grid; grid-template-columns:minmax(0,340px) minmax(0,1fr); gap:24px; align-items:center; }
     #yeoni-human-compatible .yeoni-controls { min-width:0; }
     #yeoni-human-compatible fieldset { border:0; padding:0; margin:0 0 20px; min-width:0; }
     #yeoni-human-compatible legend { font-weight:500; margin-bottom:8px; }
     #yeoni-human-compatible .yeoni-options { display:flex; flex-wrap:wrap; gap:8px 16px; }
     #yeoni-human-compatible .yeoni-stage { position:relative; aspect-ratio:760/1150; width:100%; overflow:hidden; background:var(--card); }
-    #yeoni-human-compatible .yeoni-part { position:absolute; background-image:var(--yeoni-atlas); background-repeat:no-repeat; }
+    #yeoni-human-compatible .yeoni-part { position:absolute; background-repeat:no-repeat; }
     #yeoni-human-compatible .yeoni-eye, #yeoni-human-compatible .yeoni-mouth { display:none; }
     #yeoni-human-compatible .eyesOpen, #yeoni-human-compatible .closed { display:block; }
     #yeoni-human-compatible:has(input[name="yeoni-eyes"]:checked) .yeoni-eye { display:none; }
