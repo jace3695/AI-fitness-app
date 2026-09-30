@@ -27,3 +27,12 @@
 최종 원본: `exec-6cadca3a-46ea-449d-890d-0fc0e2951f0c.png`, 프로젝트의 `public/yeoni/human/poc-atlas-v1.png`로 복사.
 
 요청한 격자·간격을 정확히 준수한 결과는 아니므로 실제 파츠 좌표를 측정하여 JSON에 명시했다.
+
+## 4. 대기·설명 자세와 공통 12감정 — identity-preserve
+
+같은 원본 A안의 얼굴/머리/의상/목걸이를 유지한 가로형 참고 시트.
+왼쪽은 상반신 대기와 한 손바닥을 편 설명 자세, 오른쪽은 4×3 표정 배열.
+순서: neutral, smile, happy, proud, encourage, concerned, surprised, thinking, serious, disappointed, sleepy, comfort.
+차이는 눈썹·눈꺼풀·입·고개로 표현하되 과장 변형을 피한다. 새로운 인물/장신구/날개/고양이 귀를 넣지 않는다.
+완성 이미지: `human-a-poses-expressions.png` (생성 원본 `exec-84df1e56-1df6-4e3b-9b6e-ff16eac12173.png`).
+이는 표정·자세 목표 참고 자료이며, 분리 파츠 또는 실제 Controller의 12감정 동작 검증을 의미하지 않는다.

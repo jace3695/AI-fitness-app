@@ -1,0 +1,31 @@
+{
+  "sourceCommit": "7407f08e71170d2bba03923c2d0da72c333ef341",
+  "ciRun": 36685972331,
+  "artifactId": 11082724950,
+  "artifactSha256": "e272a1fba80ce904faaf0d34785546d3cae41463f7c570925b0899267066fcb4",
+  "unitPassed": 690,
+  "newBrowserScenariosPassed": 12,
+  "existingBrowserScenariosPassed": 102,
+  "browserScenariosPassed": 114,
+  "previewSha256": "531cbd31e61a32f925f93b7799af99eb245b4019fb6e52c72804bd3a07d12f06",
+  "atlasSha256": "30641713490c46aadc16b34c9f895d56e4a77e60b7dcad27d5418722927d3eba",
+  "sourceReferenceSha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+  "alpha": {
+    "format": "RGBA",
+    "width": 1024,
+    "height": 1536,
+    "zeroAlphaPixels": 858785,
+    "maxAlpha": 254
+  },
+  "visualReview": [
+    "WebKit 390px full page",
+    "WebKit dark background closed eyes with o mouth",
+    "Chromium six mouth compositions",
+    "Node Canvas light/dark composite (not browser evidence)"
+  ],
+  "phase5Listening": "deferred by user",
+  "humanAnimation": "not implemented: phase8",
+  "humanSpeech": "not implemented: phase9",
+  "newTtsRequests": 0,
+  "productionApplied": false
+}
