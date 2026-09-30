@@ -1,6 +1,6 @@
-import { canAnimate, CharacterController, EMPTY_PLAYBACK, type CharacterRenderer, type SpeechSnapshot } from './character-controller';
+import { canAnimate, CharacterController, EMPTY_PLAYBACK, type CharacterEmotion, type CharacterGesture, type CharacterRenderer, type SpeechSnapshot } from './character-controller';
 
-export type CharacterStage = { setEnabled(value: boolean): void; dispose(): void };
+export type CharacterStage = { setEnabled(value: boolean): void; setEmotion(value: CharacterEmotion): void; requestGesture(value: CharacterGesture): void; cancelGesture(): void; dispose(): void };
 export type CharacterStageStatus = 'loading' | 'ready' | 'error';
 
 /** DOM lifecycle host. One render loop, no phoneme mapping or engine drawing calls. */
@@ -46,6 +46,12 @@ export function mountCharacterStage(surface: HTMLElement, options: {
       surface.dataset.speechTimeMs = String(speech?.playback.currentTimeMs ?? 0);
       surface.dataset.draws = String(++draws);
       surface.dataset.blink = pose.blink;
+      surface.dataset.emotion = pose.emotion;
+      surface.dataset.gesture = pose.gesture;
+      surface.dataset.gestureProgress = String(pose.gestureProgress);
+      surface.dataset.headTilt = String(pose.headTilt);
+      surface.dataset.headNod = String(pose.headNod);
+      surface.dataset.bodyLift = String(pose.bodyLift);
     } catch { fail(); }
   }
   function policy() {
@@ -68,6 +74,7 @@ export function mountCharacterStage(surface: HTMLElement, options: {
     if (!next) {
       const wasActive = active;
       stop();
+      controller.cancelGesture();
       if (wasActive) draw(false);
     } else if (!active) {
       active = true; lastDraw = -Infinity;
@@ -106,9 +113,13 @@ export function mountCharacterStage(surface: HTMLElement, options: {
   }); }, fail);
   return {
     setEnabled(value) { enabled = value; reconcile(); },
+    setEmotion(value) { controller.setEmotion(value); if (!active) draw(false); },
+    requestGesture(value) { if (!disposed && canAnimate(policy())) controller.requestGesture(value); },
+    cancelGesture() { controller.cancelGesture(); if (!active) draw(false); },
     dispose() {
       if (disposed) return;
       disposed = true; stop();
+      controller.cancelGesture();
       renderer.dispose();
       resize.disconnect(); intersection.disconnect(); modal.disconnect();
       document.removeEventListener('visibilitychange', visibility);

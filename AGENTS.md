@@ -23,3 +23,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 공통 Character Controller와 렌더러를 분리한다. AI 응답·TTS·감정·립싱크 로직에 Canvas/Rive/Live2D 종속 코드를 넣지 않고, 인간형도 같은 Controller 계약을 사용한다.
 - 공통 계약과 최소 Controller 분리는 PHASE 5부터 진행한다. PHASE 10은 통합 완성 단계이지 분리를 처음 시작하는 단계가 아니다.
 - 저장한 39자 Zephyr MP3를 재사용한다. 음소 타임라인 정렬·실음성 동기화·자연스러움 검증이 끝나기 전에는 PHASE 5를 완료로 보고하지 않는다.
+- 2026-09-30 사용자 지시: 이전·현재 음성의 실제 청취는 귀가 후로 보류하고 PHASE 6 개발은 계속한다. 청취 완료로 기록하거나 운영 적용 승인으로 해석하지 않는다.

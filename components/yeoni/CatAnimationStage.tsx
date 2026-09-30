@@ -4,17 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { mountCatRenderer, type CatRenderer, type CatRendererStatus } from '@/lib/yeoni/cat-renderer';
 import { useYeoniPreferences } from '@/components/useYeoniPreferences';
 import styles from './cat-animation.module.css';
-import { EMPTY_PLAYBACK, type SpeechSnapshot } from '@/lib/yeoni/character-controller';
+import { EMPTY_PLAYBACK, type CharacterEmotion, type CharacterGesture, type SpeechSnapshot } from '@/lib/yeoni/character-controller';
+
+type ExpressionProps = { expressive?: boolean; emotion?: CharacterEmotion; gesture?: Readonly<{ id: number; kind: CharacterGesture }> | null };
 
 /** Isolated PHASE 4 candidate. Not mounted in any production page yet. */
-export default function CatAnimationStage({ assetUrl = '/yeoni/cat/poc-atlas-v1.png', paused = false, speech }: {
+export default function CatAnimationStage({ assetUrl = '/yeoni/cat/poc-atlas-v1.png', paused = false, speech, expressive = false, emotion = 'neutral', gesture }: {
   assetUrl?: string; paused?: boolean; speech?: () => SpeechSnapshot;
-}) {
+} & ExpressionProps) {
   const preferences = useYeoniPreferences();
-  return preferences.visible ? <Stage assetUrl={assetUrl} enabled={!paused && preferences.motion === 'home'} speech={speech} /> : null;
+  return preferences.visible ? <Stage assetUrl={assetUrl} enabled={!paused && preferences.motion === 'home'} speech={speech} expressive={expressive} emotion={emotion} gesture={gesture} /> : null;
 }
 
-function Stage({ assetUrl, enabled, speech }: { assetUrl: string; enabled: boolean; speech?: () => SpeechSnapshot }) {
+function Stage({ assetUrl, enabled, speech, expressive, emotion, gesture }: { assetUrl: string; enabled: boolean; speech?: () => SpeechSnapshot } & ExpressionProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<CatRenderer | null>(null);
   const [status, setStatus] = useState<CatRendererStatus>('loading');
@@ -27,13 +29,15 @@ function Stage({ assetUrl, enabled, speech }: { assetUrl: string; enabled: boole
     if (!canvas.current) return;
     let mounted = true;
     try {
-      renderer.current = mountCatRenderer(canvas.current, { assetUrl, enabled: latestEnabled.current,
+      renderer.current = mountCatRenderer(canvas.current, { assetUrl, enabled: latestEnabled.current, expressive,
         speech: hasSpeech ? () => latestSpeech.current?.() ?? { manifest: null, playback: EMPTY_PLAYBACK } : undefined,
         onStatus: next => { if (mounted) setStatus(next); } });
     } catch { setStatus('error'); }
     return () => { mounted = false; renderer.current?.dispose(); renderer.current = null; };
-  }, [assetUrl, hasSpeech]);
+  }, [assetUrl, hasSpeech, expressive]);
   useEffect(() => { renderer.current?.setEnabled(enabled); }, [enabled]);
+  useEffect(() => { renderer.current?.setEmotion(emotion ?? 'neutral'); }, [emotion, assetUrl, expressive, hasSpeech]);
+  useEffect(() => { if (gesture) renderer.current?.requestGesture(gesture.kind); else renderer.current?.cancelGesture(); }, [gesture]);
   return <div className={styles.stage} data-cat-status={status}>
     <canvas ref={canvas} className={styles.canvas} aria-hidden="true" style={{ visibility: status === 'ready' ? 'visible' : 'hidden' }} />
     {status !== 'ready' && <span className={styles.fallback} aria-hidden="true"><span /></span>}

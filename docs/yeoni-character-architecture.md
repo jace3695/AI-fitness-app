@@ -1,17 +1,18 @@
 # 연이 공통 Character Controller·한국어 립싱크 설계 기준
 
-반영일: 2026-09-29 (한국시간). 사용자의 추가 지시를 후속 구현 기준으로 고정한다.
+반영일: 2026-09-30 (한국시간). 사용자의 추가 지시를 후속 구현 기준으로 고정한다.
 **설계 기준과 현재 구현 상태를 함께 기록한다. PHASE 5는 청취 검토가 남아 진행 중이다.**
+사용자가 9월 30일 청취 확인을 귀가 후로 보류하고 다음 단계 진행을 요청하여 PHASE 6 개발을 병행한다.
 CSS + Canvas 2D PoC를 유지하고 고양이형부터 검증한다. 인간형 A안도 같은 제어 계약을 따른다.
 
 ## 현재 구현과 보완할 부분
 
 | 항목 | 현재 구현 | 남은 조건 |
 | --- | --- | --- |
-| 공통 Controller | `character-controller.ts`: 미디어 시각·정책→불변 의미 프레임, DOM/React/Canvas 의존 없음 | 감정·제스처의 실제 동작은 PHASE 6 |
+| 공통 Controller | 미디어 시각·정책·12감정·4몸짓→불변 의미 프레임, DOM/React/Canvas 의존 없음 | 실제 AI 응답 연결은 PHASE 13 |
 | 입 모양 | 닫힘/아/이/우/에/오 여섯 도형, `small` 보조 모양 | 실제 발화 자연스러움 청취 |
 | 재생 어댑터 | `LipSyncPlayer.snapshot()`은 일반 상태·시각만 제공 | 물리 기기 출력 지연은 PHASE 14/15 |
-| 렌더링 | `character-stage.ts` 공통 루프·정책, `cat-renderer.ts` Canvas 자산·좌표 | 인간형·Rive/Live2D 어댑터 구현 |
+| 렌더링 | 공통 루프·정책, Canvas 눈·고개·몸·꼬리 표현 | 귀·앞발 분리 자산, 인간형·Rive/Live2D 어댑터 |
 | 한국어 정렬 | 기존 MP3에 MFA 3.4.2 / Korean v3 모델 적용, 60개 음소 시각·출처 보관 | 자동 후보의 청취 경계 검토, 일반 G2P 서비스 |
 | 검증 | 같은 Controller 프레임을 독립 기록 렌더러 두 개에 전달; 실제 고양이는 브라우저 검사 | 기록 렌더러를 인간형 실구현으로 간주하지 않음 |
 
@@ -48,7 +49,9 @@ Controller가 TTS를 직접 구현하는 형태로 합치지 않는다. TTS·AI 
 - `PlaybackSnapshot`: 같은 오디오의 `currentTimeMs`, playing/paused/ended/waiting/seeking/error 상태.
   진행 중단·숨김 등 브라우저 이벤트는 어댑터가 일반 상태로 전달한다.
 - `CharacterFrame`: 공통 viseme ID와 표정/제스처/시선 등의 의미 값. 프레임에 DOM 노드,
-  Canvas context, HTMLAudioElement, 엔진 객체를 넣지 않는다. 미구현 행동은 중립 값이다.
+  Canvas context, HTMLAudioElement, 엔진 객체를 넣지 않는다. `expression`의 눈·시선·표정 값과
+  `headTilt/headNod/bodyLift`, 일회성 `gesture/gestureProgress`는 정규화된 의미 값이다.
+  이미지 좌표·픽셀 이동량·회전 각도는 렌더러에서만 적용한다.
 - `CharacterController.sample(playback, idleTimeMs, visibilityPolicy)`: 실제 재생 시각에 해당하는 프레임을 계산한다.
   시간 탐색·배속 변경 뒤에도 현재 시각으로 다시 계산하며 자체 발화 타이머를 만들지 않는다.
 - `CharacterRenderer.render(frame, viewport)`와 `dispose()`: 외형 표현과 자원 정리를 담당한다.
@@ -107,6 +110,12 @@ Controller가 TTS를 직접 구현하는 형태로 합치지 않는다. TTS·AI 
    기존 PHASE 14/15 검증 항목으로 유지하고 데스크톱 WebKit 결과와 구분한다.
 
 ## 단계별 적용 순서
+
+PHASE 6의 `setEmotion`은 240ms 전환을 공통 시계로 계산한다. `requestGesture`는 최신 요청 하나로
+교체하며 대기열·음소별 타이머를 만들지 않는다. 동작 줄이기·숨김·화면 밖·입력·모달·비활성·해제 시
+몸짓을 취소하고 복귀 후 다시 실행하지 않는다. 립싱크 선택은 감정·몸짓보다 우선하며 같은 MP3를 유지한다.
+무음의 닫힌 입에는 미소/아쉬움 곡선을 적용하지만 발화 중 음소 도형은 바꾸지 않는다.
+표정은 현재 미리보기에서 사용자가 고르는 입력이며 AI 감정 추론을 구현한 것으로 보고하지 않는다.
 
 | 단계 | 이 지시로 고정할 내용 |
 | --- | --- |
