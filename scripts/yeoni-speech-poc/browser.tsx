@@ -7,6 +7,8 @@ import { EMPTY_PLAYBACK, type SpeechSnapshot } from '../../lib/yeoni/character-c
 import { clockFixture } from './fixture';
 import MouthPalette from './MouthPalette';
 import { realFixture } from './real-fixture';
+import ListeningReview, { isReviewFixture } from './ListeningReview';
+import { ReviewPlayback } from './review-playback';
 import '../yeoni-poc/lab.css';
 import './speech.css';
 
@@ -15,6 +17,7 @@ const labels: Record<SpeechState, string> = { empty: '샘플을 선택해 주세
 function Lab() {
   const audio = useRef<HTMLAudioElement>(null);
   const player = useRef<LipSyncPlayer | null>(null);
+  const review = useRef<ReviewPlayback | null>(null);
   const audioFile = useRef<HTMLInputElement>(null), timingFile = useRef<HTMLInputElement>(null);
   const request = useRef({ generation: 0 });
   const [state, setState] = useState<SpeechState>('empty');
@@ -22,6 +25,8 @@ function Lab() {
   const [text, setText] = useState('');
   const [alignment, setAlignment] = useState('');
   const [time, setTime] = useState(0);
+  const [reviewReady, setReviewReady] = useState(false);
+  const [rate, setRate] = useState(1);
   const [mounted, setMounted] = useState(true);
   const [dark, setDark] = useState(false);
   const prefs = useYeoniPreferences();
@@ -31,16 +36,26 @@ function Lab() {
       setState(instance.state); setMessage(instance.message);
       setText(instance.manifest?.spokenText ?? '');
       setAlignment(instance.manifest?.alignment ?? ''); setTime(instance.audio.currentTime);
+      setReviewReady(isReviewFixture(instance.manifest));
     });
     player.current = instance;
-    return () => { ++pending.generation; instance.dispose(); player.current = null; };
+    const transport = new ReviewPlayback(instance); review.current = transport;
+    const rateChanged = () => setRate(instance.audio.playbackRate);
+    instance.audio.addEventListener('ratechange', rateChanged);
+    return () => {
+      ++pending.generation; transport.dispose(); review.current = null;
+      instance.audio.removeEventListener('ratechange', rateChanged); instance.dispose(); player.current = null;
+    };
   }, []);
   const speech = (): SpeechSnapshot => ({ manifest: player.current?.manifest ?? null, playback: player.current?.snapshot() ?? EMPTY_PLAYBACK });
+  function clearReview() { review.current?.cancel(); if (audio.current) audio.current.playbackRate = 1; }
+  function showCat() { document.querySelector('.portrait')?.scrollIntoView({ block: 'start', behavior: 'instant' }); }
   function motion() {
     try { updateYeoniPreferences({ visible: true, motion: 'home' }); }
     catch { setMessage('움직임 설정을 저장하지 못했어요. 이번 화면에만 적용해요.'); }
   }
   async function fixture() {
+    clearReview();
     const token = ++request.current.generation;
     player.current?.reset();
     try {
@@ -50,12 +65,14 @@ function Lab() {
     } catch { if (token === request.current.generation) setMessage('이 브라우저에서 기술 샘플을 준비하지 못했어요. 다른 브라우저에서 파일을 열어 주세요.'); }
   }
   async function realVoice() {
+    clearReview();
     ++request.current.generation;
     player.current?.reset();
     const sample = realFixture();
     motion(); await player.current?.load(sample.bytes, sample.manifest, 'audio/mpeg');
   }
   async function files() {
+    clearReview();
     const token = ++request.current.generation;
     player.current?.reset();
     const sound = audioFile.current?.files?.[0], timeline = timingFile.current?.files?.[0];
@@ -79,13 +96,16 @@ function Lab() {
     <div className="controls">
       <button onClick={realVoice}>저장된 연이 음성 불러오기</button>
       <button onClick={fixture}>무음 동작 샘플 불러오기</button>
-      <button disabled={!canPlay} onClick={() => { motion(); void player.current?.play(); }}>재생</button>
+      <button disabled={!canPlay} onClick={() => { review.current?.cancel(); motion(); void player.current?.play(); }}>재생</button>
       <button disabled={!canPlay} onClick={() => player.current?.pause()}>일시정지</button>
-      <button disabled={!canPlay} onClick={() => player.current?.stop()}>처음으로</button>
+      <button disabled={!canPlay} onClick={() => { review.current?.cancel(); player.current?.stop(); }}>처음으로</button>
     </div>
     <audio ref={audio} controls preload="metadata" aria-label="립싱크 음성" />
     <p className="notice" role="status" data-speech-state={state}>{message || labels[state]} · {time.toFixed(1)}초</p>
     {text && <p className="spoken">{text}</p>}
+    <ListeningReview enabled={canPlay && reviewReady && mounted} rate={rate}
+      onRate={value => { if (audio.current) audio.current.playbackRate = value; showCat(); }}
+      onPlay={(start, end) => { motion(); showCat(); review.current?.start(start, end); }} />
     <p className="caption">오디오의 실제 재생 위치를 따라가요. 저장된 음성은 새로 생성하지 않아요. 자동으로 찾은 발음 시각은 아직 청취 검토가 필요해요. 무음 샘플은 재생 동작만 확인해요.</p>
     <div className="controls">
       <button onClick={() => { player.current?.pause(); try { updateYeoniPreferences({ motion: prefs.motion === 'home' ? 'off' : 'home' }); } catch { setMessage('움직임 설정을 저장하지 못했어요. 이번 화면에만 적용해요.'); } }}>입 움직임 {prefs.motion === 'home' ? '끄기' : '켜기'}</button>

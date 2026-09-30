@@ -21,6 +21,27 @@ The exported HTML embeds React, images, original MP3 and manifest, works offline
 and starts paused. External requests are prohibited by CSP. Chosen files are not
 retained after reload. No production page imports the lab.
 
+## Listening review controls (2026-09-30)
+
+The saved fixture unlocks two contextual segments: 3.370–4.410s (오늘은 조금 쉬는 게)
+and 4.310–5.376s (게 좋겠어요). These are navigation ranges around existing model
+cues, not new phonetic boundaries. Exact audio/text hashes and the current cue
+sequence must match; custom timelines and the silent sample cannot use these shortcuts.
+Normal/0.5x buttons set the same media element's rate. Native playback remains available.
+
+`ReviewPlayback` is lab-only transport: one cancellable endpoint timer re-reads media
+time on wake, seek and rate changes. It never chooses a viseme or adds a render loop.
+The timer pauses at the end; it is not sample-accurate audio cutting (event-loop/output
+buffer latency may allow a small overshoot). No automatic looping/resume. Pause,
+source replacement, rewind, hidden page and unmount cancel scheduled work.
+The ordinary play button cancels the bounded range and resumes the rest of the clip.
+
+The selected segment has an expandable table of **automatic candidate** phonemes and
+mouth shapes. It does not certify heard pronunciation or update the manifest to
+`reviewed-phonemes`. Use half speed to locate a concern, normal speed to judge naturalness.
+User feedback is requested as segment + early/late mouth or awkward shape; nothing is
+submitted or stored by the review panel.
+
 ## Layer boundaries
 
 - `LipSyncPlayer.snapshot()`: plain media state, source hash and current time;

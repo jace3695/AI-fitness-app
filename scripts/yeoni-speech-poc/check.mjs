@@ -41,7 +41,7 @@ async function loadPair({ badHash = false, duration = 8000, invalidAudio = false
   const m = { version: 1, language: 'ko-KR', voice: 'test-silence', spokenText, durationMs: duration,
     audioSha256: badHash ? 'a'.repeat(64) : hash(audio), textSha256: hash(spokenText), alignment: 'synthetic-clock-test',
     cues: [{ startMs: 400, endMs: 1400, phone: 'ㅏ' }] };
-  await page.locator('details').evaluate(e => { e.open = true; });
+  await page.locator('details.checks').evaluate(e => { e.open = true; });
   await page.getByLabel('음성 파일 (최대 8MB)').setInputFiles({ name: 'clock.wav', mimeType: 'audio/wav', buffer: audio });
   await page.getByLabel('발음 타임라인 JSON (최대 1MB)').setInputFiles({ name: 'timing.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(m)) });
   await button('선택한 파일 확인').click();
@@ -150,7 +150,7 @@ try {
     await button('입 움직임 끄기').click(); await viseme('rest'); assert.equal(await media(a => a.paused), true);
   });
   await test('mobile widths and dark-background visual evidence', async () => {
-    await page.locator('details').evaluate(e => { e.open = false; });
+    await page.locator('details.checks').evaluate(e => { e.open = false; });
     for (const width of [320, 390, 430, 1280]) {
       await page.setViewportSize({ width, height: 1000 });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -218,6 +218,56 @@ try {
     await seek(4.045); await viseme('u');
     await media(a => { a.playbackRate = 1; });
     await button('처음으로').click(); await state('ready'); await viseme('rest');
+  });
+  await test('saved-voice review seeks, plays at half speed and stops at context endpoint', async () => {
+    const src = await media(a => a.currentSrc);
+    await button('0.5배속').click(); assert.equal(await media(a => a.playbackRate), .5);
+    await button('조금 쉬는 듣기').click(); await state('playing');
+    assert.ok(await media(a => a.currentTime) >= 3.37); await viseme('u');
+    await state('paused'); await viseme('rest');
+    assert.ok(Math.abs(await media(a => a.currentTime) - 4.41) < .025);
+    await page.waitForTimeout(200); assert.equal(await media(a => a.paused), true);
+    assert.equal(await media(a => a.currentSrc), src);
+    await page.locator('.listening-review').screenshot({ path: `${out}/listening-review.png` });
+  });
+  await test('review can switch context and speed while playing, then naturally finish', async () => {
+    await button('조금 쉬는 듣기').click(); await state('playing');
+    await button('좋겠어요 듣기').click();
+    assert.ok(await media(a => a.currentTime) >= 4.31);
+    await button('정상 속도').click(); assert.equal(await media(a => a.playbackRate), 1);
+    await page.waitForFunction(() => { const a = document.querySelector('audio'); return a.paused && a.currentTime >= 5.2; });
+    await viseme('rest');
+    await page.locator('.review-timing summary').click();
+    assert.ok(await page.getByRole('caption').getByText('좋겠어요 · 기존 음성 기준').isVisible());
+    assert.equal(await page.locator('.review-timing tbody tr').count(), 10);
+    await page.locator('.review-timing summary').click();
+  });
+  await test('review cancellation survives rewind, background pause and replacing audio', async () => {
+    await button('조금 쉬는 듣기').click(); await state('playing');
+    await button('처음으로').click(); await state('ready');
+    await page.waitForTimeout(1100); assert.equal(await media(a => a.currentTime), 0);
+    await button('조금 쉬는 듣기').click(); await state('playing');
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
+    await state('paused'); const stopped = await media(a => a.currentTime);
+    await page.evaluate(() => { delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); });
+    await page.waitForTimeout(1100); assert.equal(await media(a => a.currentTime), stopped);
+    await fixture(); assert.equal(await button('조금 쉬는 듣기').isDisabled(), true);
+    assert.equal(await media(a => a.playbackRate), 1);
+    await button('재생').click(); await page.waitForTimeout(1300); await state('playing');
+    assert.ok(await media(a => a.currentTime) < 3); await button('일시정지').click();
+  });
+  await test('review table fits mobile and reload does not claim listening approval', async () => {
+    await button('저장된 연이 음성 불러오기').click(); await state('ready');
+    await page.locator('.review-timing summary').click();
+    for (const width of [320, 390, 430, 1280]) {
+      await page.setViewportSize({ width, height: 950 });
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    }
+    await page.setViewportSize({ width: 390, height: 950 });
+    await page.screenshot({ path: `${out}/listening-review-full.png`, fullPage: true });
+    await page.reload(); await state('empty');
+    assert.equal(await button('조금 쉬는 듣기').isDisabled(), true);
+    assert.ok(await page.getByText('청취 확인 대기', { exact: false }).isVisible());
   });
   await test('no runtime exceptions or external requests', async () => {
     assert.deepEqual(errors, []); assert.ok(requests.every(u => /^(http:\/\/127\.0\.0\.1:8875\/|blob:|data:)/.test(u)));
