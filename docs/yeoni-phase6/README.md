@@ -33,8 +33,17 @@
 - 12가지 표정 정지 비교, 네 동작의 종료·중간 교체, 동작 줄이기, 배경 전환,
   MP3를 재생하면서 표정 변경, 화면 제거/복귀 10회, 모바일·어두운 배경 포함.
 - 실제 청취와 물리 iPhone/잠금/Bluetooth는 미검증. 합성 visibility 이벤트와 데스크톱 WebKit은 실기기 검증이 아니다.
-- 최종 CI와 오프라인 파일 검증 결과는 후속 증거 기록에 남긴다.
+- [최종 CI](https://github.com/jace3695/AI-fitness-app/actions/runs/36672747780): 실행 코드
+  `2b145f8fff45b1b161fccbeaca7b84640c55844a`에서 단위 690개·린트·타입·빌드,
+  Chromium/WebKit 각각 16+25+10개, **브라우저 총 102개 통과**.
+- [검증 요약·해시](evidence/verification.json), [Chromium 감정 검사](evidence/chromium-yeoni-emotion-poc-ci.json),
+  [WebKit 감정 검사](evidence/webkit-yeoni-emotion-poc-ci.json), [WebKit 표정 모음](evidence/webkit-expressions.png).
+  CI ZIP 해시 대조 후 각 묶음의 검사 수·성공·예외 0을 확인했다.
+- [최종 오프라인 HTML 검사](evidence/offline.json): 초기 음소거/정지, 표정과 인사, 기존 MP3 종료,
+  네이티브 음소거 표시 동기화 통과. 외부 요청과 런타임 예외 0.
+- 위 실행 코드 이후 후속 커밋은 문서·검증 JSON·스크린샷만 추가한다.
 
-현재 완료 확정은 **1~4단계**, **5단계 사용자 청취 보류**, **6단계 구현·검증 진행 중**이다.
-이번 PoC 검증 후 다음 개발 항목은 **PHASE 7 인간형 A안 캐릭터 자산 제작**이다.
+현재 **5/16단계 완료(1~4·6단계)**, **5단계 사용자 청취 보류**다.
+6단계 완료는 위 12표정·4몸짓 PoC의 구현·브라우저 검증 범위이며 모든 귀·앞발 동작이나 운영 적용 완료를 의미하지 않는다.
+다음 개발 항목은 **PHASE 7 인간형 A안 캐릭터 자산 제작**이다. 인간형도 같은 Controller 프레임을 사용한다.
 그림 실사용 보류 및 별도 분석 SQL 방 후속 완료 미확인 상태는 그대로 유지한다.
