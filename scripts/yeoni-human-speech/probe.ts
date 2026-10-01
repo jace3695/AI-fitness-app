@@ -1,5 +1,6 @@
 import { warpHumanPixels } from '../../lib/yeoni/human-renderer';
 import { humanTransform } from '../../lib/yeoni/human-warp';
+import { renderHumanRig } from '../yeoni-human-rig/render.mjs';
 type Sample = { media: number; rendered: number; width: number; height: number; shape: string; eye: string; angle: number; drop: number; png: string };
 const samples: Sample[] = [];
 let raf = 0, last = -1000;
@@ -21,18 +22,17 @@ export function finish() { cancelAnimationFrame(raf); samples.push(snapshot()); 
 
 /** Compare actual played frames to independently assembled approved patches.
  * The geometry is the validated PHASE 8 warp, not a second speech selector. */
-export async function compare(input: { samples: Sample[]; spec: { size: number[] }; assets: Record<string, string>; renderSource: string }) {
+export async function compare(input: { samples: Sample[]; spec: { size: number[] }; assets: Record<string, string> }) {
   const images: Record<string, HTMLImageElement> = {};
   for (const [name, url] of Object.entries(input.assets)) { const img = new Image(); img.src = url; await img.decode(); images[name] = img; }
   const make = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-  const render = new Function('return ' + input.renderSource)();
   const cache = new Map<string, Uint8ClampedArray>();
   const rows = [];
   for (const s of input.samples) {
     const key = s.eye + ':' + s.shape + ':' + s.width;
     if (!cache.has(key)) {
       const full = make(1024, 1536), reduced = make(s.width, s.height), c = reduced.getContext('2d', { willReadFrequently: true })!;
-      render(full.getContext('2d'), images, input.spec, s.eye, s.shape, make);
+      renderHumanRig(full.getContext('2d'), images, input.spec, s.eye, s.shape, make);
       c.imageSmoothingQuality = 'high'; c.drawImage(full, 0, 0, s.width, s.height); cache.set(key, c.getImageData(0, 0, s.width, s.height).data);
     }
     const expected = new Uint8ClampedArray(s.width * s.height * 4), pose = { angle: s.angle, drop: s.drop, breath: -s.drop / 240 };

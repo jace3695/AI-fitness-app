@@ -4,8 +4,6 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
-import {build} from '../browser-qa/node_modules/esbuild/lib/main.js';
-import {renderHumanRig} from '../yeoni-human-rig/render.mjs';
 import {server} from './server.mjs';
 const root=new URL('../../',import.meta.url),kind=process.env.YEONI_BROWSER||'chromium',out=new URL(`.e2e/yeoni-human-speech/${kind}/`,root);
 mkdirSync(out,{recursive:true});
@@ -14,7 +12,6 @@ const uri=url=>'data:image/'+(url.pathname.endsWith('.png')?'png':'webp')+';base
 for(const p of [spec.source,...Object.values(spec.layers),...Object.values(spec.faceParts).flat()]){
  assert.equal(createHash('sha256').update(readFileSync(new URL(p.image,dir))).digest('hex'),p.sha256);assets[p.image]=uri(new URL(p.image,dir));
 }
-const bundle=await build({entryPoints:[new URL('probe.ts',import.meta.url).pathname],bundle:true,write:false,format:'iife',globalName:'speechReview',tsconfig:new URL('tsconfig.json',root).pathname});
 const browser=await({chromium,webkit})[kind].launch({headless:true}),context=await browser.newContext({viewport:{width:800,height:1150},reducedMotion:'no-preference'});
 const errors=[],external=[],results=[];let comparison=[],sampleCount=0,video;
 context.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));
@@ -25,7 +22,7 @@ const test=async(name,run)=>{await run();results.push({name,passed:true});consol
 let samples=[];
 try{
  await page.goto('http://127.0.0.1:8879/');await page.locator('[data-human-status="ready"]').waitFor();
- await page.addScriptTag({content:bundle.outputFiles[0].text});
+ await page.addScriptTag({url:'http://127.0.0.1:8879/probe.js'});
  await button('저장된 연이 음성 불러오기').click();await state('ready');
  await test('record actual normal-speed MP3 playback and return to the original closed mouth',async()=>{
   await page.evaluate(()=>speechReview.record());await button('재생').click();await state('playing');await state('ended');
@@ -35,7 +32,7 @@ try{
   await page.screenshot({path:new URL('real-voice-ended.png',out).pathname,fullPage:true});
  });
  await test('actual speech pixels match approved face patches and neck remains opaque',async()=>{
-  comparison=await page.evaluate(input=>speechReview.compare(input),{samples,spec,assets,renderSource:renderHumanRig.toString()});
+  comparison=await page.evaluate(input=>speechReview.compare(input),{samples,spec,assets});
   for(const row of comparison){assert.equal(row.opaqueChanged,0,JSON.stringify(row));assert.ok(row.alphaMax<=1,JSON.stringify(row));assert.equal(row.neckMin,255,JSON.stringify(row));}
   assert.ok(new Set(comparison.map(r=>r.shape)).size>=6);
  });
