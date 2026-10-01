@@ -1,8 +1,8 @@
 import { catFace, createCatArtwork } from './cat-art';
 import { catWarp, warpCatPoint, CAT_TRIANGLES } from './cat-warp';
 import type { Point } from './cat-warp';
-import type { CharacterController, CharacterRenderer, SpeechSnapshot } from './character-controller';
-import { mountCharacterStage, type CharacterStage, type CharacterStageStatus } from './character-stage';
+import type { CharacterRenderer } from './character-controller';
+import { mountCharacterStage, type CharacterStage, type CharacterStageOptions, type CharacterStageStatus } from './character-stage';
 
 export type CatRenderer = CharacterStage;
 export type CatRendererStatus = CharacterStageStatus;
@@ -66,9 +66,8 @@ export function createCatCanvasRenderer(canvas: HTMLCanvasElement, options: {
   };
 }
 
-export function mountCatRenderer(canvas: HTMLCanvasElement, options: {
-  enabled: boolean; assetUrl: string; onStatus(status: CatRendererStatus): void;
-  controller?: CharacterController; expressive?: boolean; speech?: () => SpeechSnapshot;
+export function mountCatRenderer(canvas: HTMLCanvasElement, options: CharacterStageOptions & {
+  assetUrl: string; expressive?: boolean;
 }): CatRenderer {
   return mountCharacterStage(canvas, { ...options,
     createRenderer: (ready, fail) => createCatCanvasRenderer(canvas, {

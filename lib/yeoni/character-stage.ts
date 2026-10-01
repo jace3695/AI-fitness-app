@@ -2,13 +2,15 @@ import { canAnimate, CharacterController, EMPTY_PLAYBACK, type CharacterEmotion,
 
 export type CharacterStage = { setEnabled(value: boolean): void; setEmotion(value: CharacterEmotion): void; requestGesture(value: CharacterGesture): void; cancelGesture(): void; dispose(): void };
 export type CharacterStageStatus = 'loading' | 'ready' | 'error';
-
-/** DOM lifecycle host. One render loop, no phoneme mapping or engine drawing calls. */
-export function mountCharacterStage(surface: HTMLElement, options: {
+export type CharacterStageOptions = {
   enabled: boolean; onStatus(status: CharacterStageStatus): void;
-  createRenderer(ready: () => void, fail: () => void): CharacterRenderer;
   controller?: CharacterController;
   speech?: () => SpeechSnapshot;
+};
+
+/** DOM lifecycle host. One render loop, no phoneme mapping or engine drawing calls. */
+export function mountCharacterStage(surface: HTMLElement, options: CharacterStageOptions & {
+  createRenderer(ready: () => void, fail: () => void): CharacterRenderer;
 }): CharacterStage {
   const controller = options.controller ?? new CharacterController();
   let enabled = options.enabled;
@@ -23,6 +25,7 @@ export function mountCharacterStage(surface: HTMLElement, options: {
   let lastDraw = -Infinity;
   let draws = 0;
   let backingSize = 400;
+  let renderer: CharacterRenderer | null = null;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   const frame = surface.parentElement!;
 
@@ -41,7 +44,7 @@ export function mountCharacterStage(surface: HTMLElement, options: {
       const speech = options.speech?.();
       controller.setSpeech(speech?.manifest ?? null);
       const pose = controller.sample(speech?.playback ?? EMPTY_PLAYBACK, elapsed, { ...policy(), enabled: animated });
-      renderer.render(pose, { size: backingSize });
+      renderer?.render(pose, { size: backingSize });
       surface.dataset.viseme = pose.viseme;
       surface.dataset.speechTimeMs = String(speech?.playback.currentTimeMs ?? 0);
       surface.dataset.draws = String(++draws);
@@ -106,21 +109,23 @@ export function mountCharacterStage(surface: HTMLElement, options: {
   window.addEventListener('resize', updateSize);
   reduced.addEventListener('change', visibility);
   options.onStatus('loading');
-  const renderer = options.createRenderer(() => { queueMicrotask(() => {
-    if (disposed) return;
-    updateSize(); ready = true; draw(false);
-    if (!failed) { options.onStatus('ready'); reconcile(); }
-  }); }, fail);
+  try {
+    renderer = options.createRenderer(() => { queueMicrotask(() => {
+      if (disposed || failed) return;
+      updateSize(); ready = true; draw(false);
+      if (!failed) { options.onStatus('ready'); reconcile(); }
+    }); }, fail);
+  } catch { fail(); }
   return {
     setEnabled(value) { enabled = value; reconcile(); },
-    setEmotion(value) { controller.setEmotion(value); if (!active) draw(false); },
+    setEmotion(value) { if (disposed) return; controller.setEmotion(value); if (!active) draw(false); },
     requestGesture(value) { if (!disposed && canAnimate(policy())) controller.requestGesture(value); },
-    cancelGesture() { controller.cancelGesture(); if (!active) draw(false); },
+    cancelGesture() { if (disposed) return; controller.cancelGesture(); if (!active) draw(false); },
     dispose() {
       if (disposed) return;
       disposed = true; stop();
       controller.cancelGesture();
-      renderer.dispose();
+      renderer?.dispose();
       resize.disconnect(); intersection.disconnect(); modal.disconnect();
       document.removeEventListener('visibilitychange', visibility);
       document.removeEventListener('focusin', focus);
