@@ -47,7 +47,7 @@ export function createHumanCanvasRenderer(canvas: HTMLCanvasElement, options: {
       if (!ctx || !tc || !art || disposed) return;
       // Bounded CPU surface; high-DPR hosts cannot silently quadruple the per-frame work.
       const width = Math.max(2, Math.min(512, Math.round(size / 2) * 2)), height = width * 1.5;
-      if (canvas.width !== width || canvas.height !== height) {
+      if (!output || canvas.width !== width || canvas.height !== height) {
         canvas.width = texture.width = width; canvas.height = texture.height = height;
         output = ctx.createImageData(width, height); cache.clear();
       }

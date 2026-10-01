@@ -107,6 +107,8 @@ try {
     assert.ok(await page.getByText('연이의 기본 모습을 표시하고 있어요.').isVisible());
     await page.screenshot({ path: `${out}/fallback.png` });
     await button('이미지 복구').click(); await page.evaluate(() => window.scrollTo(0, 0)); await page.locator('[data-human-status="ready"]').waitFor(); await running(true);
+    const restoredDraws = await draws(); await page.waitForTimeout(500);
+    assert.ok(await draws() > restoredDraws); assert.equal(await page.locator('[data-human-status="ready"]').count(), 1); await running(true);
   });
   await test('320/390/430/1280px layouts and dark background', async () => {
     await button('움직임 멈추기').click();
@@ -135,6 +137,12 @@ try {
     assert.deepEqual(errors, []); assert.ok(requests.every(url => url.startsWith('http://127.0.0.1:8878/') || url.startsWith('data:')));
   });
 } catch (e) {
+  await page.screenshot({ path: `${out}/failed-flow.png`, fullPage: true });
+  writeFileSync(`${out}/failed-state.json`, JSON.stringify(await page.evaluate(() => ({
+    stage: document.querySelector('[data-human-status]')?.getAttribute('data-human-status'),
+    canvas: { ...document.querySelector('canvas')?.dataset }, hidden: document.hidden,
+    active: document.activeElement?.outerHTML, scroll: window.scrollY,
+  })), null, 2));
   results.push({ passed: false, error: String(e) }); console.error(e); process.exitCode = 1;
 } finally {
   writeFileSync(`${out}/flow-results.json`, JSON.stringify({ browser: kind, version: browser.version(), results, errors,
