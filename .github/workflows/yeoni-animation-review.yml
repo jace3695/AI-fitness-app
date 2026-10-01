@@ -13,6 +13,7 @@ on:
       - 'scripts/yeoni-emotion-poc/**'
       - 'scripts/yeoni-human-assets/**'
       - 'scripts/yeoni-human-rig/**'
+      - 'scripts/yeoni-human-motion/**'
       - 'scripts/yeoni-cat-review/**'
       - 'docs/yeoni-phase7/**'
       - 'docs/yeoni-phase5/fixtures/**'
@@ -26,6 +27,39 @@ concurrency:
   group: yeoni-animation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  human-basic-motion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify human source-preserving motion and lifecycle
+        run: |
+          node scripts/yeoni-human-motion/export.mjs
+          git diff --exit-code -- docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html
+          node scripts/yeoni-human-motion/check-flow.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-motion/check-flow.mjs
+          node scripts/yeoni-human-motion/check-visual.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-motion/check-visual.mjs
+      - name: Preserve actual human motion evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-human-motion-v1-${{ github.sha }}
+          path: |
+            .e2e/yeoni-human-motion/
+            !.e2e/yeoni-human-motion/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
   human-rig-preparation:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

@@ -1,0 +1,10 @@
+import {build} from '../browser-qa/node_modules/esbuild/lib/main.js';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+const root=new URL('../../',import.meta.url),dir=new URL('public/yeoni/human/rig-v4/',root);
+const spec=JSON.parse(readFileSync(new URL('manifest.json',dir))),assets={};
+for(const name of ['head.png','body.png','assembled-preview.webp',...Object.values(spec.faceParts).flat().map(p=>p.image)])assets[name]=`data:image/${name.endsWith('.png')?'png':'webp'};base64,`+readFileSync(new URL(name,dir)).toString('base64');
+const result=await build({entryPoints:[new URL('browser.tsx',import.meta.url).pathname],bundle:true,write:false,minify:true,outfile:'app.js',jsx:'automatic',external:['/yeoni-cat-sprite-v1.webp'],tsconfig:new URL('tsconfig.json',root).pathname,define:{'process.env.NODE_ENV':'"production"'}});
+const js=result.outputFiles.find(f=>f.path.endsWith('.js')).text.replaceAll('</script','<\\/script'),css=result.outputFiles.find(f=>f.path.endsWith('.css')).text;
+const out=new URL('docs/yeoni-phase8/',root);mkdirSync(out,{recursive:true});
+writeFileSync(new URL('Yeoni_Human_Motion_Preview.html',out),`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none';script-src 'unsafe-inline';style-src 'unsafe-inline';img-src data:;connect-src 'none'"><title>연이 인간형 기본 움직임</title><style>${css}</style></head><body><div id="root"></div><script>window.HUMAN_OFFLINE_ASSETS=${JSON.stringify(assets)};${js}</script></body></html>`);
+console.log('docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html');
