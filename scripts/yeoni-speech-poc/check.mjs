@@ -303,6 +303,15 @@ try {
   await test('no runtime exceptions or external requests', async () => {
     assert.deepEqual(errors, []); assert.ok(requests.every(u => allowed(u)));
   });
+  if (human) await test('twelve WAV-to-MP3 replacements after pause retain ready state without autoplay', async () => {
+    for (let i = 0; i < 12; i++) {
+      await fixture(); await button('재생').click(); await state('playing');
+      await page.waitForTimeout(80); await button('일시정지').click(); await state('paused');
+      await button('저장된 연이 음성 불러오기').click(); await state('ready');
+      assert.equal(await media(a => a.paused), true); await viseme('rest');
+      assert.ok(Math.abs(await media(a => a.duration) - 5.376) < .1);
+    }
+  });
 } finally {
   writeFileSync(`${out}/results.json`, JSON.stringify({ character: human ? 'human' : 'cat', browser: kind, version: browser.version(), results, errors,
     requestCount: requests.length, realSpeechClock, scope: 'Synthetic lifecycle + saved Zephyr MP3 media-clock checks. Automatic phoneme alignment remains listening-review pending; no physical iPhone validation.' }, null, 2));
