@@ -38,7 +38,19 @@ node scripts/yeoni-human-rig/check.mjs
 YEONI_BROWSER=webkit node scripts/yeoni-human-rig/check.mjs
 ```
 
-검사 범위: 저장된 파츠 재조립, 불투명 원본 RGB와 목 경계 일치, 21개 눈×입 상태의 승인 합성 일치, 얼굴 편집 범위 밖 보존, 스크립트 비활성화 상태의 모든 선택, 확대/겹침/배경/모바일/샌드박스. 브라우저 결과 이후 실제 화면을 직접 원본과 비교한다. 최종 결과는 별도 증거 기록에 추가한다.
+검사 범위: 저장된 파츠 재조립, 불투명 원본 RGB와 목 경계 일치, 21개 눈×입 상태의 승인 합성 일치, 얼굴 편집 범위 밖 보존, 스크립트 비활성화 상태의 모든 선택, 확대/겹침/배경/모바일/샌드박스.
+
+## 완료된 검증
+
+실행 코드 `e3a55019ae501b15bb8b67137e57085b5cdac13c`, [전용 CI](https://github.com/jace3695/AI-fitness-app/actions/runs/36796485345/job/110160996809). Chromium 153.0.8010.12 / WebKit 26.6 각각 7개, **총 14개 검사 통과**. 원본 불투명 RGB 차이 0픽셀, 보호 목 경계 차이 0픽셀, 각 브라우저 21개 눈×입 상태의 승인 표정 불투명 영역 차이 0픽셀 및 패치 영역 밖 차이 0픽셀이다. 런타임 오류·외부 요청 0. 자산/HTML 재생성 후 Git 차이가 없었다.
+
+자동 검증 후 두 브라우저의 21조합을 원본과 나란히 직접 검수했다. 전체·얼굴 확대·50% 겹침·어두운 배경도 확인했다. 검토한 정지 화면에서 얼굴 비율 변화, 눈/입 이탈·잔상·이중 윤곽·사각 피부 경계, 목 연결 틈을 발견하지 못했다. 초기 밝은 머리카락 테두리는 외곽 반투명 색 보완 후 어두운 배경 캡처에서 눈에 띄지 않았다. 원본의 잔머리와 의상 형태를 유지하며 외곽의 알파/색 변경은 위에 명시했다. 모바일 390px 및 스크립트 차단 iframe 실제 캡처도 확인했다. 물리 기기나 사용자 ChatGPT 화면을 직접 검사한 것으로 확대하지 않는다.
+
+[전체 CI](https://github.com/jace3695/AI-fitness-app/actions/runs/36796485345)의 6개 작업이 모두 성공했다. 단위 693개·린트·타입·앱 빌드와 기존 캐릭터 회귀 검사도 통과했다. 고양이 자산/동작 코드를 수정하거나 별도 재제작하지 않았다.
+
+증거 ZIP SHA-256 `c372bb26688d19e70953b13177bb75ebfd3ecfea9d4ce63553f2bba467592d60`을 대조했다. [검증 JSON](evidence/verification.json), [Chromium 결과](evidence/chromium/results.json), [WebKit 결과](evidence/webkit/results.json), [전체 비교](evidence/webkit/full.png), [어두운 배경](evidence/webkit/dark.png), [뜬 눈](evidence/webkit/faces-open.png)·[반감음](evidence/webkit/faces-eyesHalf.png)·[감음](evidence/webkit/faces-eyesClosed.png)별 7입 비교를 보존했다.
+
+이번 후속 증거/문서 커밋은 검증된 코드·자산·미리보기를 바꾸지 않는다. 정지 준비 범위가 끝났으며 다음은 공통 Controller 기본 동작과 목의 연속 변형 검증이다. 전체 기능 완료 수는 5/16을 유지한다.
 
 ## 생성 출처
 
