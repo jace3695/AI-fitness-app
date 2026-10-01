@@ -1,0 +1,41 @@
+{
+  "runId": 36801242030,
+  "runtimeCommit": "f5d6ec70b0211488551c63c21ffc0a8084776c3b",
+  "jobs": [
+    {
+      "id": 110175903017,
+      "name": "cat-reference-comparison",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903082,
+      "name": "human-basic-motion",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903103,
+      "name": "cat-motion-comparison",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903172,
+      "name": "reference-comparison",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903184,
+      "name": "visual-poc",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903207,
+      "name": "human-rig-preparation",
+      "conclusion": "success"
+    },
+    {
+      "id": 110175903215,
+      "name": "preview-compatibility",
+      "conclusion": "success"
+    }
+  ]
+}
