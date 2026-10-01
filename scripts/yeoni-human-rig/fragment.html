@@ -1,0 +1,41 @@
+<div id="yeoni-human-rig-v4">
+  <style>
+    #yeoni-human-rig-v4 { color:var(--foreground); @@IMAGE_VARS@@ }
+    #yeoni-human-rig-v4 .rig-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    #yeoni-human-rig-v4 figure { margin:0; min-width:0; }
+    #yeoni-human-rig-v4 figcaption { font-weight:500; margin-bottom:8px; }
+    #yeoni-human-rig-v4 .rig-stage { position:relative; width:100%; aspect-ratio:2/3; overflow:hidden; }
+    #yeoni-human-rig-v4 .rig-stage.revised { background:var(--background); }
+    #yeoni-human-rig-v4 .rig-portrait { position:absolute; inset:0; }
+    #yeoni-human-rig-v4 .rig-base,#yeoni-human-rig-v4 .rig-overlay { position:absolute; inset:0; background-size:100% 100%; }
+    #yeoni-human-rig-v4 .original .rig-base,#yeoni-human-rig-v4 .rig-overlay { background-image:var(--rig-original); }
+    #yeoni-human-rig-v4 .revised .rig-base { background-image:var(--rig-assembled); }
+    #yeoni-human-rig-v4 .rig-patch { position:absolute; background-size:100% 100%; display:none; }
+    #yeoni-human-rig-v4 .rig-overlay { display:none; opacity:.5; }
+    #yeoni-human-rig-v4:has(#rig-overlay:checked) .rig-overlay { display:block; }
+    #yeoni-human-rig-v4:has(#rig-dark:checked) .revised { background:var(--foreground); }
+    #yeoni-human-rig-v4:has(#rig-face:checked) .rig-stage { aspect-ratio:420/400; }
+    #yeoni-human-rig-v4:has(#rig-face:checked) .rig-portrait { width:243.80952381%; height:384%; left:-71.42857143%; top:-68.75%; }
+    #yeoni-human-rig-v4 fieldset { border:0; padding:0; margin:16px 0 0; min-width:0; }
+    #yeoni-human-rig-v4 legend { font-weight:500; margin-bottom:6px; }
+    #yeoni-human-rig-v4 .rig-options,#yeoni-human-rig-v4 .rig-view { display:flex; flex-wrap:wrap; gap:8px 16px; }
+    #yeoni-human-rig-v4 .rig-view { margin-bottom:12px; }
+    @@SELECTION_CSS@@
+    @media(max-width:540px) { #yeoni-human-rig-v4 .rig-grid { grid-template-columns:minmax(0,1fr); } }
+  </style>
+  <div class="rig-view">
+    <label class="form-check"><input id="rig-face" type="checkbox" class="form-check-input"><span class="form-check-label">얼굴 확대</span></label>
+    <label class="form-check"><input id="rig-overlay" type="checkbox" class="form-check-input"><span class="form-check-label">원본 50% 겹치기</span></label>
+    <label class="form-check"><input id="rig-dark" type="checkbox" class="form-check-input"><span class="form-check-label">배경 명도 바꾸기</span></label>
+  </div>
+  <div class="rig-grid">
+    <figure><figcaption>승인 원본 A안</figcaption><div class="rig-stage original" role="img" aria-label="승인된 인간형 A안 원본"><div class="rig-portrait"><div class="rig-base"></div></div></div></figure>
+    <figure><figcaption>원본 보존 · 배경 분리</figcaption><div class="rig-stage revised" role="img" aria-label="원본 얼굴과 의상을 보존하고 배경을 분리한 정지 자산"><div class="rig-portrait"><div class="rig-base"></div>@@PATCHES@@<div class="rig-overlay"></div></div></div></figure>
+  </div>
+  <fieldset><legend>눈</legend><div class="rig-options">
+    <label class="form-check"><input id="rig-eye-open" name="rig-eye" type="radio" class="form-check-input" checked><span class="form-check-label">뜸</span></label>
+    <label class="form-check"><input id="rig-eye-eyesHalf" name="rig-eye" type="radio" class="form-check-input"><span class="form-check-label">반쯤 감음</span></label>
+    <label class="form-check"><input id="rig-eye-eyesClosed" name="rig-eye" type="radio" class="form-check-input"><span class="form-check-label">감음</span></label>
+  </div></fieldset>
+  <fieldset><legend>입</legend><div class="rig-options">@@MOUTH_OPTIONS@@</div></fieldset>
+</div>

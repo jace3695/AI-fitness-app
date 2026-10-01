@@ -1,0 +1,246 @@
+{
+  "version": 4,
+  "status": "original-rgb-preserving-static-rig-preparation",
+  "size": [
+    1024,
+    1536
+  ],
+  "source": {
+    "image": "../reference-v3/base.png",
+    "sha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984"
+  },
+  "matte": {
+    "image": "matte-source.png",
+    "sha256": "f3d3d2d764353a0b4f4fe85bf09833a3258919510bb2c6b6ec2d6aaa72814d2d",
+    "edgeImage": "edge-colors.png",
+    "edgeSha256": "af37dc529cffc294f1996e3457dffb2076d26319cac6be99b030077073c4c354",
+    "normalization": {
+      "transparentAtOrBelow": 4,
+      "opaqueAtOrAbove": 250
+    },
+    "rgbPolicy": "Opaque RGB from approved original; generated RGB used only at semitransparent silhouette edges to remove the old backdrop fringe",
+    "counts": {
+      "opaque": 1072095,
+      "transparent": 450895,
+      "partial": 49874
+    }
+  },
+  "layers": {
+    "head": {
+      "image": "head.png",
+      "sha256": "f40dcb8329efc5af6b86780082008f9f37756ed4163735b017a2045b1576d47d",
+      "rect": [
+        0,
+        0,
+        1024,
+        740
+      ],
+      "parent": "body"
+    },
+    "body": {
+      "image": "body.png",
+      "sha256": "ea6de9ae964a90e73622be81340d3b2463cf992de69db0862c82d8d6c4dd19b9",
+      "rect": [
+        0,
+        740,
+        1024,
+        796
+      ],
+      "parent": null
+    }
+  },
+  "faceParts": {
+    "i": [
+      {
+        "image": "../reference-v3/i-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "5b753bac9f11e1b942b8ac0b13a3d9c37b2a369e4378fffd1427ff77b1e307e7",
+        "parent": "head"
+      }
+    ],
+    "e": [
+      {
+        "image": "../reference-v3/e-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "9b27d7f908bf0e5a619c526e5e61374835d48c73d4be501f030f64ed21b186b4",
+        "parent": "head"
+      }
+    ],
+    "u": [
+      {
+        "image": "../reference-v3/u-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "9ecfafa193be6edd5f814724f1d2940d1f85fa461c7c9e21fb02e932fdbdf6a8",
+        "parent": "head"
+      }
+    ],
+    "o": [
+      {
+        "image": "../reference-v3/o-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "5fdb47ce638e1b011d36af3e3b10cc2c40a13862c4cbb1c80dfff81fb80aee4b",
+        "parent": "head"
+      }
+    ],
+    "eyesClosed": [
+      {
+        "image": "../reference-v3/eyesClosed-0.webp",
+        "rect": [
+          354,
+          355,
+          125,
+          89
+        ],
+        "feather": 9,
+        "sha256": "2476be3c218b512adc3a7dedbb3308abd6d158f931f5dc70767fc116fcaab449",
+        "parent": "head"
+      },
+      {
+        "image": "../reference-v3/eyesClosed-1.webp",
+        "rect": [
+          548,
+          340,
+          124,
+          87
+        ],
+        "feather": 9,
+        "sha256": "12cfe7fbdb052e235f4d9e88f9009991a85c4dc58b499ee3efbfa1a99aa82455",
+        "parent": "head"
+      }
+    ],
+    "small": [
+      {
+        "image": "../reference-v3/small-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "d0d9cc593d78137dbbc9aff2a0b6ef4896ab868d46ec0ba7499a7685b24ecd66",
+        "parent": "head"
+      }
+    ],
+    "a": [
+      {
+        "image": "../reference-v3/a-0.webp",
+        "rect": [
+          425,
+          512,
+          200,
+          112
+        ],
+        "feather": 12,
+        "sha256": "fd11265e7d2675e30465252d89c6a44aacc58b825e95402a7e36331d91b3863e",
+        "parent": "head"
+      }
+    ],
+    "eyesHalf": [
+      {
+        "image": "../reference-v3/eyesHalf-0.webp",
+        "rect": [
+          354,
+          355,
+          125,
+          89
+        ],
+        "feather": 9,
+        "sha256": "ffd3dd666602e2587c5ec2415fdef8a641bd042ad575875d40fd7beefc24c400",
+        "parent": "head"
+      },
+      {
+        "image": "../reference-v3/eyesHalf-1.webp",
+        "rect": [
+          548,
+          340,
+          124,
+          87
+        ],
+        "feather": 9,
+        "sha256": "85338316f2a2425d6ee7ed38fd4d49b1c7b1a26ab716e059c247e90435af2d92",
+        "parent": "head"
+      }
+    ]
+  },
+  "faceViewport": [
+    300,
+    275,
+    420,
+    400
+  ],
+  "pivots": {
+    "head": [
+      524,
+      696
+    ],
+    "body": [
+      512,
+      1280
+    ],
+    "neckSeamY": 740,
+    "neckBlendBand": [
+      632,
+      816
+    ]
+  },
+  "controllerBinding": {
+    "eyes": {
+      "open": "original",
+      "half": "eyesHalf",
+      "closed": "eyesClosed"
+    },
+    "mouth": {
+      "rest": "original",
+      "closed": "original",
+      "a": "a",
+      "i": "i",
+      "u": "u",
+      "e": "e",
+      "o": "o",
+      "small": "small"
+    }
+  },
+  "preview": {
+    "image": "assembled-preview.webp",
+    "originalImage": "original-preview.webp",
+    "size": [
+      448,
+      672
+    ],
+    "sha256": "efc275fa8db7075dd272c98009767dfba5554a374f2c58be1d896da35b1ec776",
+    "originalSha256": "9080efeb9c9d8d8cf957f6b649fbeab8fe9c96c33d1299da69d0caddfefc8062"
+  },
+  "motionConstraints": {
+    "status": "not-motion-validated",
+    "joint": "continuous shared neck deformation required",
+    "independentRigidHeadRotation": false,
+    "hiddenNeckInpainting": false,
+    "largeTurn": false
+  },
+  "scope": "Static head/body packing. Exact original opaque foreground RGB; changed alpha/background and semitransparent edge RGB. Not a completed independent-part rig, human animation, or speech validation."
+}
