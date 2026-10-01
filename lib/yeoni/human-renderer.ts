@@ -53,6 +53,7 @@ export function createHumanCanvasRenderer(canvas: HTMLCanvasElement, options: {
       }
       const face = humanFace(frame), pose = humanPose(frame), key = face.eye + ':' + face.mouth;
       if (!cache.has(key)) {
+        tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
         tc.clearRect(0, 0, width, height); tc.drawImage(art.frame(face.eye, face.mouth), 0, 0, width, height);
         if (cache.size >= 3) cache.delete(cache.keys().next().value!);
         cache.set(key, tc.getImageData(0, 0, width, height));

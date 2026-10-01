@@ -7,7 +7,8 @@ const policy = { enabled: true, ready: true, visible: true, inView: true, editin
 export async function init(assets: Record<string, string>, original: string) {
   const canvas = document.querySelector<HTMLCanvasElement>('#revised')!, originalCanvas = document.querySelector<HTMLCanvasElement>('#original')!;
   const image = new Image(); image.src = original; await image.decode();
-  originalCanvas.getContext('2d')!.drawImage(image, 0, 0, 360, 540);
+  const originalContext = originalCanvas.getContext('2d')!;
+  originalContext.imageSmoothingQuality = 'high'; originalContext.drawImage(image, 0, 0, 360, 540);
   await new Promise<void>((ready, reject) => { renderer = createHumanCanvasRenderer(canvas, { assetUrls: assets, ready, fail: () => reject(new Error('Human asset failed')) }); });
 }
 export function show(input: { time?: number; eye?: CharacterFrame['blink']; mouth?: Viseme; still?: boolean; size?: number }) {
