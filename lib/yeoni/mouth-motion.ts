@@ -1,4 +1,5 @@
 import { phoneViseme, type LipSyncManifest, type Viseme } from './lip-sync.ts';
+import { JAPANESE_GLIDES, JAPANESE_VOWELS } from './japanese-phones.ts';
 
 /** Visual coarticulation only. The source phonemes, boundaries and audio stay intact. */
 export type MouthPose = Readonly<{ from: Viseme; to: Viseme; mix: number }>;
@@ -13,6 +14,8 @@ export const REST_MOUTH = stills.rest;
 
 function anchorsFor(manifest: LipSyncManifest): readonly Anchor[] {
   const cached = cache.get(manifest); if (cached) return cached;
+  const vowelPhones = manifest.language === 'ja-JP' ? JAPANESE_VOWELS : vowels;
+  const glidePhones = manifest.language === 'ja-JP' ? JAPANESE_GLIDES : glides;
   const anchors: Anchor[] = [];
   const add = (time: number, shape: Viseme) => {
     // Same-time silence/closure at a boundary takes precedence over open shapes.
@@ -24,11 +27,11 @@ function anchorsFor(manifest: LipSyncManifest): readonly Anchor[] {
   add(0, 'rest');
   for (const cue of manifest.cues) {
     if (cue.startMs > end) { add(end, 'rest'); add(cue.startMs, 'rest'); }
-    const shape = phoneViseme(cue.phone), duration = cue.endMs - cue.startMs;
+    const shape = phoneViseme(cue.phone, manifest.language), duration = cue.endMs - cue.startMs;
     if (shape === 'rest' || shape === 'closed') {
       // Full measured closure and silence survive coarticulation, even when short.
       add(cue.startMs, shape); add(cue.endMs, shape);
-    } else if (vowels.has(cue.phone) || shape !== 'small' && !(glides.has(cue.phone) && duration < 30)) {
+    } else if (vowelPhones.has(cue.phone) || shape !== 'small' && !(glidePhones.has(cue.phone) && duration < 30)) {
       const edge = Math.min(60, duration / 2);
       add(cue.startMs + edge, shape); add(cue.endMs - edge, shape);
     } else if (shape === 'small' && duration >= 180) {

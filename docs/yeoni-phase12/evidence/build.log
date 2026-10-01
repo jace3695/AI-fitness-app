@@ -1,0 +1,120 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-yeoni@0.1.0 build
+> next build
+
+▲ Next.js 16.3.2 (Turbopack)
+✓ Running next.config.mjs took 14ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.9s
+  Running TypeScript ...
+  Finished TypeScript in 17.7s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/55) ...
+  Generating static pages using 8 workers (13/55)
+  Generating static pages using 8 workers (27/55)
+  Generating static pages using 8 workers (41/55)
+✓ Generating static pages using 8 workers (55/55) in 656ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /.well-known/oauth-authorization-server
+├ ƒ /.well-known/oauth-protected-resource
+├ ƒ /.well-known/oauth-protected-resource/mcp
+├ ○ /about
+├ ƒ /api/ai/free-advice
+├ ƒ /api/ai/usage
+├ ƒ /api/analyze
+├ ƒ /api/assistant/budget-commands
+├ ƒ /api/assistant/chat
+├ ƒ /api/assistant/commands
+├ ƒ /api/assistant/diet-commands
+├ ƒ /api/assistant/growth-commands
+├ ƒ /api/assistant/language-commands
+├ ƒ /api/assistant/workout-commands
+├ ƒ /api/chatgpt/advice
+├ ƒ /api/chatgpt/connection
+├ ƒ /api/chatgpt/oauth/authorize
+├ ƒ /api/chatgpt/oauth/revoke
+├ ƒ /api/chatgpt/oauth/token
+├ ƒ /api/claude
+├ ƒ /api/diet/photo-analysis
+├ ƒ /api/fitness/coach
+├ ƒ /api/fitness/coach/history
+├ ƒ /api/google-calendar/callback
+├ ƒ /api/google-calendar/connect
+├ ƒ /api/google-calendar/disconnect
+├ ƒ /api/google-calendar/events
+├ ƒ /api/google-calendar/status
+├ ƒ /api/growth/coach
+├ ƒ /api/income
+├ ƒ /api/language/conversation
+├ ƒ /api/language/handwriting-feedback
+├ ƒ /api/language/tts
+├ ƒ /api/pin
+├ ƒ /api/savings
+├ ƒ /api/sync-qa-capture
+├ ƒ /api/transactions
+├ ƒ /api/tts
+├ ƒ /api/tts/probe
+├ ○ /assistant
+├ ○ /assistant/advice
+├ ○ /assistant/connect
+├ ○ /assistant/history
+├ ƒ /assistant/lip-sync-check
+├ ○ /assistant/memories
+├ ○ /assistant/quick
+├ ○ /assistant/settings
+├ ƒ /assistant/voice-check
+├ ○ /budget
+├ ○ /calendar
+├ ○ /calendar/settings
+├ ƒ /design-review
+├ ○ /diet
+├ ○ /diet/settings
+├ ○ /fitness
+├ ○ /fitness/settings
+├ ○ /forgot-password
+├ ○ /growth
+├ ○ /growth/drawing
+├ ○ /growth/handwriting
+├ ○ /growth/handwriting/free
+├ ○ /growth/resources
+├ ○ /growth/review
+├ ○ /growth/settings
+├ ○ /growth/typing
+├ ○ /growth/typing/basics
+├ ○ /language
+├ ○ /language/calendar
+├ ○ /language/conversation
+├ ○ /language/grammar
+├ ○ /language/kana
+├ ○ /language/kana-writing
+├ ○ /language/learn
+├ ○ /language/progress
+├ ○ /language/review
+├ ○ /language/sentences
+├ ○ /language/settings
+├ ○ /language/speaking
+├ ○ /language/start
+├ ○ /language/words
+├ ○ /language/writing
+├ ○ /login
+├ ƒ /mcp
+├ ○ /offline
+├ ○ /privacy
+├ ○ /reset-password
+├ ○ /settings
+└ ○ /terms
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
