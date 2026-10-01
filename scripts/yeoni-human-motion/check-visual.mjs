@@ -26,6 +26,9 @@ try{
   identity=await page.evaluate(async({spec,assets,renderSource,eyes,mouths})=>{
    const images={};for(const[name,url]of Object.entries(assets)){const image=new Image();image.src=url;await image.decode();images[name]=image;}
    const make=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c},full=make(1024,1536),small=make(360,540),render=new Function('return '+renderSource)(),rows=[];
+   // Match the renderer's explicit CPU readback surface. WebKit uses a different
+   // downsampling path for its default GPU canvas; compare like-for-like sampling.
+   small.getContext('2d',{willReadFrequently:true});
    for(const eye of eyes)for(const mouth of mouths){render(full.getContext('2d'),images,spec,{open:'open',half:'eyesHalf',closed:'eyesClosed'}[eye],mouth,make);small.getContext('2d').clearRect(0,0,360,540);small.getContext('2d').drawImage(full,0,0,360,540);humanReview.show({eye,mouth,still:true});const a=small.getContext('2d').getImageData(0,0,360,540).data,b=document.querySelector('#revised').getContext('2d').getImageData(0,0,360,540).data;let opaqueChanged=0,alphaChanged=0;for(let i=0;i<a.length;i+=4){if(a[i+3]===255&&(a[i]!==b[i]||a[i+1]!==b[i+1]||a[i+2]!==b[i+2]))opaqueChanged++;if(a[i+3]!==b[i+3])alphaChanged++;}rows.push({eye,mouth,opaqueChanged,alphaChanged});}return rows;
   },{spec,assets,renderSource:renderHumanRig.toString(),eyes,mouths});
   for(const row of identity){assert.equal(row.opaqueChanged,0,JSON.stringify(row));assert.equal(row.alphaChanged,0,JSON.stringify(row));}await show({still:true});await shot('baseline');
