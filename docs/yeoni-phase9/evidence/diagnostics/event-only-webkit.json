@@ -1,0 +1,80 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "filter": null,
+  "results": [
+    {
+      "name": "provisional zero waits for durationchange without autoplay",
+      "passed": true
+    },
+    {
+      "name": "unknown infinite and negative lengths remain pending until valid metadata",
+      "passed": true
+    },
+    {
+      "name": "zero followed by a positive length outside tolerance is rejected",
+      "passed": true
+    },
+    {
+      "name": "positive codec difference inside 100ms tolerance remains accepted",
+      "passed": true
+    },
+    {
+      "name": "real MP3 import accepts matching timeline and rejects mismatched timeline and corrupt audio",
+      "passed": true
+    },
+    {
+      "name": "timeout measurement",
+      "passed": true,
+      "elapsedMs": 15243
+    },
+    {
+      "name": "15-second load timeout survives provisional zero and late metadata cannot revive failed audio",
+      "passed": true
+    },
+    {
+      "name": "replacing an unresolved source discards it and recovers without autoplay",
+      "passed": true
+    },
+    {
+      "name": "twelve native WAV-to-MP3 replacements retain ready state after pause",
+      "passed": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-speech-state=\"ready\"]')\u001b[22m\n",
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "duration": 8,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/53bd5d78-a068-470f-a17d-980d47f53b34",
+          "currentSrc": "blob:http://127.0.0.1:8879/53bd5d78-a068-470f-a17d-980d47f53b34"
+        },
+        {
+          "type": "loadedmetadata",
+          "duration": 8,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/53bd5d78-a068-470f-a17d-980d47f53b34",
+          "currentSrc": "blob:http://127.0.0.1:8879/53bd5d78-a068-470f-a17d-980d47f53b34"
+        },
+        {
+          "type": "durationchange",
+          "duration": 0,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/fcdade5f-8ff8-4a46-90b5-53924a5be70a",
+          "currentSrc": "blob:http://127.0.0.1:8879/fcdade5f-8ff8-4a46-90b5-53924a5be70a"
+        },
+        {
+          "type": "loadedmetadata",
+          "duration": 0,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/fcdade5f-8ff8-4a46-90b5-53924a5be70a",
+          "currentSrc": "blob:http://127.0.0.1:8879/fcdade5f-8ff8-4a46-90b5-53924a5be70a"
+        }
+      ]
+    }
+  ],
+  "replacements": [],
+  "clockEvidence": null,
+  "errors": [],
+  "externalRequests": [],
+  "scope": "Focused loading regression on shared human source and phase5/6/9 offline bundles. Metadata fault injection is synthetic; replacement and saved MP3 playback use native media. Existing artwork/video comparisons were reused, not rerun. No listening approval or physical iPhone verification."
+}

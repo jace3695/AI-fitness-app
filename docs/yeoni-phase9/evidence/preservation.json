@@ -1,0 +1,725 @@
+{
+  "baselineCommit": "8e09415c38bfbe9f7540c14c305f29ce90c2a89e",
+  "checkpointFiles": [
+    {
+      "path": "docs/yeoni-phase5/Yeoni_Lip_Sync_Dev_Preview.html",
+      "checkpointSha256": "39b02240626d7982e78c7bd4bc80094b72dcb0f9ed26ea7e89426ea09774ea38",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-phase6/Yeoni_Emotion_Gesture_Preview.html",
+      "checkpointSha256": "e8c353cb49666a721c4248b73017b03e6cddecc1c6a3b71dcb5af4731eea7add",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-phase9/README.md",
+      "checkpointSha256": "4599108759f05f8688c4c6ad7a335d764dfefd7133a9f1a663c5fc614a10aee9",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html",
+      "checkpointSha256": "4d354004324910e68e180beac4aa68deb84e290e3379ba45e4690a0ea44b5005",
+      "matched": true
+    },
+    {
+      "path": "lib/yeoni/lip-sync-player.ts",
+      "checkpointSha256": "d58c0d80245bcff3519a059e935a25b8d7a831c596f5d4b6adf15e80628ce6e7",
+      "matched": true
+    },
+    {
+      "path": "scripts/yeoni-speech-poc/check.mjs",
+      "checkpointSha256": "96e1cb1753f8d3a474a0ce59ec962b32c141f9b75b649313b8e059993ad02bc8",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/cat-motion-v3.mp4",
+      "checkpointSha256": "da5a5a2b779113b70a2fa2e9e3faf9722875ffacb448c0424b9d2d049ec38d98",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/verification.json",
+      "checkpointSha256": "7849dda8ee6679bf569477ba3cdcf51cb5a5ecd31a02cd62aebf2c4bbfe9caf5",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-cat-review/MOTION.md",
+      "checkpointSha256": "19211e398be231fd023badd8277a17127e589b4f0715ff0a7ae8dda4a1344eb2",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/human-motion-v1.mp4",
+      "checkpointSha256": "2eb09f5814f16af5531a54d59d8de29374e300fd5394a43da773a941f4b1776f",
+      "matched": true
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/verification.json",
+      "checkpointSha256": "5171d359c1f98704512fc4d3bd1b3554000bd3fec9f9f93e08a2942445cd1a33",
+      "matched": true
+    }
+  ],
+  "unchangedProtectedFiles": [
+    {
+      "path": "docs/yeoni-cat-review/MOTION.md",
+      "sha256": "19211e398be231fd023badd8277a17127e589b4f0715ff0a7ae8dda4a1344eb2",
+      "bytes": 7345
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/chromium/compare-eyesClosed.png",
+      "sha256": "58fd9eb7ca25966b0349af7c1f46b4e9590bee5e86ec03a2753b7454715ef05b",
+      "bytes": 281750
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/chromium/compare-eyesHalf.png",
+      "sha256": "1a98ee79e945f43e3da18394929d6e3b967ce00dbcfdda1407219b916887f635",
+      "bytes": 274461
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/chromium/compare-open.png",
+      "sha256": "24f5e6fff1f841bce5f527d7ed78db5156a9f75ab1cf190f9e05462867f7e0d4",
+      "bytes": 268305
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/chromium/results.json",
+      "sha256": "374339873cc4b0100c76f01ccb64d02157834a1f4ba570621e0f00c19f11393e",
+      "bytes": 4093
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/cat-motion-v3.mp4",
+      "sha256": "da5a5a2b779113b70a2fa2e9e3faf9722875ffacb448c0424b9d2d049ec38d98",
+      "bytes": 66853
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/baseline.png",
+      "sha256": "0210100970a80ccccb5a8a21ad1acf9291bdc81f846390d140f9e961fd9b01d8",
+      "bytes": 72159
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/gesture-cheer.png",
+      "sha256": "0eecd24429854b5732e68eb2f2104998306ae8744d8f5c7b6c9d4805a45fd14b",
+      "bytes": 435649
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/gesture-greet.png",
+      "sha256": "54b0e0d7b9ea2dcf4e7081e11c1242ad6d90de62d7f85980572c3523dc251f6c",
+      "bytes": 396926
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/gesture-nod.png",
+      "sha256": "aa60111e56a76dc952276eb46aea9521bcc2b183c0fbc67045bbb373e8fb2ce2",
+      "bytes": 392550
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/gesture-tilt.png",
+      "sha256": "d32398ec5a168ad89a62349a044f98fa0e8ffd9fd49b729e5305116bdcb1d6fd",
+      "bytes": 415245
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/moving-closed.png",
+      "sha256": "a07551d80e98db4eb580a33ccee6a8f13c6bb25018a7ef08f856048af9bad01f",
+      "bytes": 225162
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/moving-half.png",
+      "sha256": "bbd6fbf467a591f0a5180693b51b629f0c919b5778142d0a01e9da07cff2269c",
+      "bytes": 223139
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/moving-open.png",
+      "sha256": "de172a297d50438df022fe6c2b7e4396cec97981f6a8c5093efcb8109c6aded2",
+      "bytes": 227381
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/rest-overlay.png",
+      "sha256": "6b417e85c66224d5d793f41853418d6c414109cee7a0a687ddeacab0c7394348",
+      "bytes": 71711
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/chromium/results.json",
+      "sha256": "3650df33344883ebe0eb8e0f0f3479983e255c5a87d9aa531d4548ac0a640f9d",
+      "bytes": 2954
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-emotion-poc/chromium/expressions.png",
+      "sha256": "4e1ef7dd678c7157f54f479e40f6b0ade3b8cf48ad1da6940a3c49392c7dcd9f",
+      "bytes": 304564
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-emotion-poc/chromium/results.json",
+      "sha256": "1f402590ee2ff0a834db220c8080a9ee796a2e84cb74440a8ddd71adccf331b1",
+      "bytes": 1501
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-emotion-poc/webkit/390.png",
+      "sha256": "44867857ec46e84b7f377c4e38c800867c691e4ab1eb9d934e9abbdb9369660e",
+      "bytes": 152445
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-emotion-poc/webkit/expressions.png",
+      "sha256": "ec778ce6a27f27b075c56344a92b9ff1ce78ab7a95d6bb1e6c34672b3afe996b",
+      "bytes": 350072
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-emotion-poc/webkit/results.json",
+      "sha256": "62e9315c0dd046ef602ac5335ccb2619ad89078b96aa73de8e8bbae6a30cdadb",
+      "bytes": 1490
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-human-assets/chromium/results.json",
+      "sha256": "9ccdb029950f71157bcf78612f3de057f2fd4774c4d901d68ad949cffe6743f1",
+      "bytes": 812
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-human-assets/webkit/results.json",
+      "sha256": "459a9e0ec0a726e28401dbadcf3a2d70924797d17b045eb36a08edde106470dc",
+      "bytes": 801
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-poc/chromium/results.json",
+      "sha256": "f90713aa3ce605fe44a204ea82358402aaae3d6bc64b2c4e8e0893d847e7f032",
+      "bytes": 1851
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-poc/webkit/390.png",
+      "sha256": "9dfbeacaf24e47035163f3c7e3889639339d543acda87341fa55be637f163868",
+      "bytes": 116331
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-poc/webkit/results.json",
+      "sha256": "653309e9ee3e8614df2d7290c8efa95e69af8b6ba5590cee3b85f3262ce89d7c",
+      "bytes": 1840
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-speech-poc/chromium/results.json",
+      "sha256": "a69419d8ae9dc69d7160d6572f623760d292678dbfcc00229d086ec1facc643b",
+      "bytes": 3568
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-speech-poc/chromium/six-mouths.png",
+      "sha256": "87b5aaec116b86f8c2037041a370d3e5c4c23f5f90cfa2d02eec17e36f4fc721",
+      "bytes": 43185
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-speech-poc/webkit/real-voice-ended.png",
+      "sha256": "f643aa8d8ba389711e00b65b48b7f16b3d28082a32220b115057bbd5fa69a4bc",
+      "bytes": 250064
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-speech-poc/webkit/results.json",
+      "sha256": "d97e8f8c770a80b43d9c9ad785f353e3db5a34757f320d77f17542ec05c8fec8",
+      "bytes": 3555
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/regression/yeoni-speech-poc/webkit/six-mouths.png",
+      "sha256": "591bb44dfb25f603a20f4188196a51576e51d3fa26274c4ed800781acf75e638",
+      "bytes": 51550
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/verification.json",
+      "sha256": "7849dda8ee6679bf569477ba3cdcf51cb5a5ecd31a02cd62aebf2c4bbfe9caf5",
+      "bytes": 6948
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/baseline.png",
+      "sha256": "6c90dd2ec71b4ee11e231f72b59249f06794053699de7bf06c220e6272c9039b",
+      "bytes": 78884
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/gesture-cheer.png",
+      "sha256": "98d9725378b086295c7fe8a4489b23a1eda3d1d3d4f4bf963de2fc642d237dc5",
+      "bytes": 497187
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/gesture-greet.png",
+      "sha256": "42addc0cefc2d93d6fcf87d5558e45e2ff9f567c00e808d6a0d55fd6fec9920f",
+      "bytes": 486369
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/gesture-nod.png",
+      "sha256": "336c066aebc4a0e057a4225e6801ae870734d6a5d1382c8f892344861a6d0d10",
+      "bytes": 477509
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/gesture-tilt.png",
+      "sha256": "4c3a3949bd780f15d44ee4721631b3305ac9f8323782c3a5d818037bd3409c4c",
+      "bytes": 493811
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/moving-closed.png",
+      "sha256": "6554fa8b348b9cea000a3195675dc97e09163bfaf7263a795f7504ced29a1a3e",
+      "bytes": 264052
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/moving-half.png",
+      "sha256": "0616be382d48ad670b9711a0b5b77ec41973b2807df7f16c5fb0a324f2f8181b",
+      "bytes": 261878
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/moving-open.png",
+      "sha256": "8aafc4c2688d7431b6f40e3065b4d7eb1bec512898b730ccd984c86ecf5f1e90",
+      "bytes": 266619
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/rest-overlay.png",
+      "sha256": "6b417e85c66224d5d793f41853418d6c414109cee7a0a687ddeacab0c7394348",
+      "bytes": 71711
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/motion-v3/webkit/results.json",
+      "sha256": "0ac052a5dcf6566cb4a8742c4ede32303cfa29f9376411f17d67370eff6b820c",
+      "bytes": 2769
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/verification.json",
+      "sha256": "c2146e7a54da6e59e8e94c5b7dd30cf65841bd2925a09e77209b9f95f21ebbbd",
+      "bytes": 3199
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/baseline.png",
+      "sha256": "5311a2f850a5db97d7f44454c0a2bbd51bec824a0d348ab7c02ebd62a710fcdd",
+      "bytes": 116935
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/compare-eyesClosed.png",
+      "sha256": "89fb597249ccea1fee844abce45fd1904ea9ef68af3d894ae629751c2fbd3146",
+      "bytes": 167893
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/compare-eyesHalf.png",
+      "sha256": "33d61a58705d04db3fc7f2d8bdd575efca6a1c099df199323d9e96a28b6d5970",
+      "bytes": 161724
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/compare-open.png",
+      "sha256": "e75521128408025d17fea39ddcf13ace4e41cc9b2735d55380f10d79be0d7edb",
+      "bytes": 158637
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/full-portrait.png",
+      "sha256": "98aa82f510bdd08cb1f16fdff42073b695ec19889598e39337eeff1253bec2b8",
+      "bytes": 169724
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/mobile-390.png",
+      "sha256": "48b2afd86b69ca80c9a978cea587c4f261e0a6763a94db21c90287e1ba973d61",
+      "bytes": 206666
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/overlay.png",
+      "sha256": "3b377c601364874f8114efc19d7267d0e2fe891b5db6a6e139f83c04d96d6c5d",
+      "bytes": 149492
+    },
+    {
+      "path": "docs/yeoni-cat-review/evidence/webkit/results.json",
+      "sha256": "b6fd07f4a50d9385d45806dba0251221810b3d1ce1fc1821235f06a930e74cbb",
+      "bytes": 4082
+    },
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.metadata.json",
+      "sha256": "7e41ee535652fc04ed6bfcd3d3c06e848048426f7e5d581473ae927c08ebdf76",
+      "bytes": 1088
+    },
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+      "bytes": 21504
+    },
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json",
+      "sha256": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049",
+      "bytes": 5022
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/390.png",
+      "sha256": "1c540eebb3fe3317acc017edf0861c316941981f3f296b6fcfd7802931c2e75c",
+      "bytes": 274717
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/baseline.png",
+      "sha256": "029cdcc4f3c4d7426d9fff95bf8a7794744154e03ad2e8f448b18923b66bfd09",
+      "bytes": 472258
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/dark-motion.png",
+      "sha256": "82ad6eb4d51ca8f27de5fffb7ebc9f9c41dda60d61dce60ac5e819a136fbd7b4",
+      "bytes": 464013
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/fallback.png",
+      "sha256": "1fd31133360cca5e64f2ad717f57c9500d2231119f4a42a2cd7b6a01a830e2aa",
+      "bytes": 283549
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/flow-results.json",
+      "sha256": "9ddc430b5ac14a2818912b5b0f4727d42666bfe0756c5bc02c919645c08f1624",
+      "bytes": 1853
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/motion-cycle.png",
+      "sha256": "d7d81dfff59cf4432d27c13a4a63ac989c6ae6a0f3fa71e7be18a9a512443823",
+      "bytes": 1504738
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-closed.png",
+      "sha256": "01f2e5470679ea249635f2a1842e876de5d7253d6b577228b98e9abf3cd24514",
+      "bytes": 431004
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-half.png",
+      "sha256": "9014950d07ad049c6ad4fcb88973246a9b27c466414ffe3a97a3abbb5502914e",
+      "bytes": 433384
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-open.png",
+      "sha256": "6ca65d3e045aa80e6407dcfb102cfc5d9bc66160f20d256a48992f39a78c4b11",
+      "bytes": 435806
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/offline.png",
+      "sha256": "7ae3dcd90cc9ef3b359354d3af62fdf33ddb5b6ce65987fdcdf3f7ec07d79bd7",
+      "bytes": 301794
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/rest-overlay.png",
+      "sha256": "18bcdcd796182699c4314bb8bc5b8a2920eb33ef1073b0009190986b9abae450",
+      "bytes": 330814
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/visual-results.json",
+      "sha256": "7f6a65a2c114a9dc3ed1f1844b835c84e2156aac4f0c83377748f3db68e29f7d",
+      "bytes": 4306
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/ci-jobs.json",
+      "sha256": "ca474fdb69133a331fc9c580f04527482b5b997d7a83f75077015e642b81befa",
+      "bytes": 850
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/human-motion-v1.mp4",
+      "sha256": "2eb09f5814f16af5531a54d59d8de29374e300fd5394a43da773a941f4b1776f",
+      "bytes": 182747
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/verification.json",
+      "sha256": "5171d359c1f98704512fc4d3bd1b3554000bd3fec9f9f93e08a2942445cd1a33",
+      "bytes": 10469
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/video-decoded-review.png",
+      "sha256": "92d177e913a2c8cab5873854b85f09afb357366756c21ab33108bf2c56be442a",
+      "bytes": 985765
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/390.png",
+      "sha256": "f7c02eb2fff65aa767624b5bf55aecb20679dc28af7cc89a14523c20112972c0",
+      "bytes": 319185
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/baseline.png",
+      "sha256": "deaec592d164a8c4dd305b5994ddb81fddd031e98e52419a0dd3c28762f44c20",
+      "bytes": 540694
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/dark-motion.png",
+      "sha256": "31ad5af45c1ebe9ed9df61064ee661ebc087a01d7f821b77191e0269ea2e6fd0",
+      "bytes": 604953
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/fallback.png",
+      "sha256": "d2d7ad5d5d9ec5f63d7bd1f6bffecec0d01cd6766ef82e305df2f5c97667664f",
+      "bytes": 277937
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/flow-results.json",
+      "sha256": "a5c3c20e5166fdbcb992e98322e46d6179f0d37284143c095a07b801da4cc601",
+      "bytes": 1842
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/motion-cycle.png",
+      "sha256": "13d274bbb6e61e8257bb45a037eacf3be0001213ef23d0cecebfbff28e4a6aa9",
+      "bytes": 1928329
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-closed.png",
+      "sha256": "1c76604c20312a67dd3443c1d673a47a4ae4b5c3ff32feafaba7060bb3a8b4c4",
+      "bytes": 537359
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-half.png",
+      "sha256": "c93c6d51b9791e81262ca91966a38fce0f03ab3dc6934dec98ab97b986e9855b",
+      "bytes": 540016
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-open.png",
+      "sha256": "15a50e29f9d7eb3e36e0f521fd205b9cff5915710b45ff3beedf949916f7de39",
+      "bytes": 543078
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/offline.png",
+      "sha256": "97a50752ecf19f9b55b1e261e645e2a0055b467ea124ff1f6b264a409e60f7f6",
+      "bytes": 341110
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/rest-overlay.png",
+      "sha256": "d322294f2c615bf8baeca81f86ad6ee5e1c14452785647fd6609fc0eb59a2230",
+      "bytes": 517333
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/visual-results.json",
+      "sha256": "d96d6bf81194b22b4ff5c0fcf503969bd513cf5078a106014b20891848e7aca9",
+      "bytes": 4108
+    },
+    {
+      "path": "lib/yeoni/character-controller.ts",
+      "sha256": "13abbdea19ba70a767356af074b344522e8bf9af62e63608033dfc15fcf4dc50",
+      "bytes": 5139
+    },
+    {
+      "path": "public/yeoni-cat-sprite-v1.webp",
+      "sha256": "0188841269a6835acc9e4f3af36003a1a3381ff748187f95ed3cf8cf385e7559",
+      "bytes": 138256
+    },
+    {
+      "path": "public/yeoni/cat/poc-atlas-v1.png",
+      "sha256": "781bb95077ce288231bdd06eab406e8b2b29547f643b62a29005d907e6193ad3",
+      "bytes": 577296
+    },
+    {
+      "path": "public/yeoni/cat/poc-speech-atlas-v1.png",
+      "sha256": "bb4b7718c553f38d715e1945169515fc59767f6173c86ad8a174df59a220dc7f",
+      "bytes": 585882
+    },
+    {
+      "path": "public/yeoni/cat/preserved-motion-v3.json",
+      "sha256": "5afa95bc745088f06e6be1767ce169cec3c2f9bed6510569bcd2107cf4b07bb3",
+      "bytes": 2694
+    },
+    {
+      "path": "public/yeoni/cat/preserved-motion-v3.png",
+      "sha256": "ba57c54e12acd02cc41f68e26184657f3f7702c38c1abc333f7c83401602e938",
+      "bytes": 109775
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/a.webp",
+      "sha256": "56f1a88a6b331af3e3493102ea35620a269fe727a2b4ba59b1c02afc6c5dba9f",
+      "bytes": 2166
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/base.png",
+      "sha256": "f502a0447e4eeba04d83b951c80f6dc38520978265f74d9522e1054fcf855430",
+      "bytes": 72210
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/base.webp",
+      "sha256": "c6d96e546dfe4bb053fe75051f99d4fd5c95841d9ecde784d6eac91b4b3fc0d3",
+      "bytes": 44338
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/e.webp",
+      "sha256": "fc953c79ae3346257b586e60c6b892ffe4d34b889e0444d866a98d5884129604",
+      "bytes": 2188
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/eyesClosed-0.webp",
+      "sha256": "14dbbf4f29caad3affb37571d7776711868bf73120f595d05ae760bd394d946e",
+      "bytes": 1916
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/eyesClosed-1.webp",
+      "sha256": "55d8308454b1476263335771f4aa009a6aefb8e8dd44a312461e2081df331533",
+      "bytes": 1898
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/eyesHalf-0.webp",
+      "sha256": "848e061d0ff2440c5eca11dc2d45901696ed5c46c36d054a034e2610064c2e08",
+      "bytes": 1684
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/eyesHalf-1.webp",
+      "sha256": "82dcac2d5b0e5ec35af1242b4af4a5da8fcb46fbf94005e6b5302ed18a8761be",
+      "bytes": 1640
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/i.webp",
+      "sha256": "c056f3bda6bcc771068f1c6316d6c9f7ca8ff7879d404d601dfafcf09b9c83dc",
+      "bytes": 2080
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/manifest.json",
+      "sha256": "a170e9826d467f207f4eb541fb5c2e6da04a102dc59a7b1f24f3c71ee49a2295",
+      "bytes": 10019
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/o.webp",
+      "sha256": "62ea243aa03de0a6793e666d3645232fddb20d1e2615f23652c5185b76a09129",
+      "bytes": 2168
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/small.webp",
+      "sha256": "4384c18741a3ac8505663ed566754bb9fb6ba14470f2bf99f80f34f47dd6a4d9",
+      "bytes": 2156
+    },
+    {
+      "path": "public/yeoni/cat/reference-v2/u.webp",
+      "sha256": "fa285ee19e7ec4f7f0b520cd4df586b950e2054b84a06bcf5fb9928bb6043fa6",
+      "bytes": 1686
+    },
+    {
+      "path": "public/yeoni/human/face-parts-v2.png",
+      "sha256": "c7e9e580de12e60eec3c941694e4be6b8d71ad344e344a657ca02a499147776c",
+      "bytes": 1379131
+    },
+    {
+      "path": "public/yeoni/human/face-parts-v2.webp",
+      "sha256": "8cb88fe0be8a769dea26d56bfcaa82a3d78dd1471f8cd60ae9e96b2a3f4e599d",
+      "bytes": 448842
+    },
+    {
+      "path": "public/yeoni/human/poc-atlas-v1.json",
+      "sha256": "ffe1780d8f9373e582cc7744b825ab9d9523c4c5dd42b7b9a5c3b760938e3ac6",
+      "bytes": 5342
+    },
+    {
+      "path": "public/yeoni/human/poc-atlas-v1.png",
+      "sha256": "30641713490c46aadc16b34c9f895d56e4a77e60b7dcad27d5418722927d3eba",
+      "bytes": 2069110
+    },
+    {
+      "path": "public/yeoni/human/poc-atlas-v1.webp",
+      "sha256": "4d17cb166edeaaa8ce2ad2e8397b7a82d091703f7e6ac51ae17938dddbce2a8b",
+      "bytes": 217988
+    },
+    {
+      "path": "public/yeoni/human/poc-atlas-v2.json",
+      "sha256": "545ffc27a67ebce2252c19db71d0d0e2d99fba8650ea0ea4a59d455767883b07",
+      "bytes": 6818
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/a-0.webp",
+      "sha256": "fd11265e7d2675e30465252d89c6a44aacc58b825e95402a7e36331d91b3863e",
+      "bytes": 17436
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/base-preview.webp",
+      "sha256": "dc12107b49083765c38c5938e9b42b1f7ebf1c6ed103ef007859dece6550cd07",
+      "bytes": 567366
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/base.png",
+      "sha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+      "bytes": 2208012
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/e-0.webp",
+      "sha256": "9b27d7f908bf0e5a619c526e5e61374835d48c73d4be501f030f64ed21b186b4",
+      "bytes": 17604
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/eyesClosed-0.webp",
+      "sha256": "2476be3c218b512adc3a7dedbb3308abd6d158f931f5dc70767fc116fcaab449",
+      "bytes": 10632
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/eyesClosed-1.webp",
+      "sha256": "12cfe7fbdb052e235f4d9e88f9009991a85c4dc58b499ee3efbfa1a99aa82455",
+      "bytes": 10196
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/eyesHalf-0.webp",
+      "sha256": "ffd3dd666602e2587c5ec2415fdef8a641bd042ad575875d40fd7beefc24c400",
+      "bytes": 11112
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/eyesHalf-1.webp",
+      "sha256": "85338316f2a2425d6ee7ed38fd4d49b1c7b1a26ab716e059c247e90435af2d92",
+      "bytes": 10672
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/i-0.webp",
+      "sha256": "5b753bac9f11e1b942b8ac0b13a3d9c37b2a369e4378fffd1427ff77b1e307e7",
+      "bytes": 17440
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/manifest.json",
+      "sha256": "510696d40dd0e7f125e81c2ffd5efc277a5fcf1726da399390f3cc2d91cf0169",
+      "bytes": 5137
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/o-0.webp",
+      "sha256": "5fdb47ce638e1b011d36af3e3b10cc2c40a13862c4cbb1c80dfff81fb80aee4b",
+      "bytes": 17362
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/small-0.webp",
+      "sha256": "d0d9cc593d78137dbbc9aff2a0b6ef4896ab868d46ec0ba7499a7685b24ecd66",
+      "bytes": 17782
+    },
+    {
+      "path": "public/yeoni/human/reference-v3/u-0.webp",
+      "sha256": "9ecfafa193be6edd5f814724f1d2940d1f85fa461c7c9e21fb02e932fdbdf6a8",
+      "bytes": 16978
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/assembled-preview.webp",
+      "sha256": "efc275fa8db7075dd272c98009767dfba5554a374f2c58be1d896da35b1ec776",
+      "bytes": 255208
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/body.png",
+      "sha256": "ea6de9ae964a90e73622be81340d3b2463cf992de69db0862c82d8d6c4dd19b9",
+      "bytes": 1567321
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/edge-colors.png",
+      "sha256": "af37dc529cffc294f1996e3457dffb2076d26319cac6be99b030077073c4c354",
+      "bytes": 209354
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/head.png",
+      "sha256": "f40dcb8329efc5af6b86780082008f9f37756ed4163735b017a2045b1576d47d",
+      "bytes": 1334937
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/manifest.json",
+      "sha256": "2c6375b5597ab14ed6c91453c8912b88649dec328f013847415fa22e7fb7a290",
+      "bytes": 5675
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/matte-source.png",
+      "sha256": "f3d3d2d764353a0b4f4fe85bf09833a3258919510bb2c6b6ec2d6aaa72814d2d",
+      "bytes": 87481
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/original-preview.webp",
+      "sha256": "9080efeb9c9d8d8cf957f6b649fbeab8fe9c96c33d1299da69d0caddfefc8062",
+      "bytes": 282856
+    }
+  ],
+  "offlineBundles": [
+    {
+      "path": "docs/yeoni-phase5/Yeoni_Lip_Sync_Dev_Preview.html",
+      "sha256": "df8fed6cfec52c72577b1b5b4d9cdaa00dfe127a6eeaf60355038f1eed3691d0",
+      "embeddedImages": 3,
+      "imagePayloadsIdentical": true,
+      "savedMp3PayloadIdentical": true,
+      "cssIdentical": true
+    },
+    {
+      "path": "docs/yeoni-phase6/Yeoni_Emotion_Gesture_Preview.html",
+      "sha256": "dfbf591a68c8342c690a875516d54d18c91856d2e2612696dc53a4dea4da12b3",
+      "embeddedImages": 3,
+      "imagePayloadsIdentical": true,
+      "savedMp3PayloadIdentical": true,
+      "cssIdentical": true
+    },
+    {
+      "path": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html",
+      "sha256": "43cb2e39759569c8eec9fbed7ac4d19d1ac90d2b484ffa8dd2988f87abe98e45",
+      "embeddedImages": 14,
+      "imagePayloadsIdentical": true,
+      "savedMp3PayloadIdentical": true,
+      "cssIdentical": true
+    }
+  ],
+  "mediaRegenerated": false,
+  "originalVisualChecksRerun": false
+}

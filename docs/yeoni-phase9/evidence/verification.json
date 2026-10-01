@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 1,
+  "verifiedAtUtc": "2026-10-01T11:36:13.757949+00:00",
+  "status": "technical_verification_passed_listening_and_physical_device_review_pending",
+  "repository": "https://github.com/jace3695/AI-fitness-app",
+  "branch": "agent/yeoni-cat-animation-poc",
+  "baselineCommit": "8e09415c38bfbe9f7540c14c305f29ce90c2a89e",
+  "pullRequest": 207,
+  "recovery": {
+    "checkpointFilesMatched": 11,
+    "originalUncommittedPatchRecovered": false,
+    "reimplementationFromRecordedRequirements": true,
+    "existing61ChecksRerun": false,
+    "mediaRegenerated": false
+  },
+  "fix": {
+    "provisionalDuration": "Nonfinite or <=0 remains loading",
+    "metadataEvents": [
+      "loadedmetadata",
+      "durationchange"
+    ],
+    "loadingOnlyRecheckMs": 100,
+    "loadTimeoutMs": 15000,
+    "positiveMismatchToleranceMs": 100,
+    "rejectWhenDifferenceExceedsTolerance": true,
+    "clearsRetryOnSourceClear": true,
+    "doesNotResetActivePlaybackOnMetadata": true
+  },
+  "environment": {
+    "path": "docs/yeoni-phase9/evidence/environment.json",
+    "sha256": "093537e2544d857f9ee31cdb4f6d0ce8a3306b9d1c930a71272d00d6139df1be",
+    "bytes": 13692
+  },
+  "focusedBrowserVerification": [
+    {
+      "path": "docs/yeoni-phase9/evidence/loading/chromium.json",
+      "sha256": "54396430aa59cdc1782a68b76ff1ea41f0d7331feb294de2fd1857f2ff21252d",
+      "bytes": 44824,
+      "browser": "chromium",
+      "version": "153.0.8010.12",
+      "passed": 14,
+      "failed": 0,
+      "nativeReplacements": 12,
+      "nativeZeroDurationEvents": 0,
+      "timeoutObservedMs": 15618,
+      "nativeSpeechSamples": 326,
+      "visemeMismatches": 0,
+      "observedMediaToRenderMs": {
+        "p95": 33.427000000000135,
+        "max": 35.524999999999636,
+        "physicalOutputLatency": false
+      },
+      "runtimeErrors": 0,
+      "externalRequests": 0
+    },
+    {
+      "path": "docs/yeoni-phase9/evidence/loading/webkit.json",
+      "sha256": "01962191310245c21ffc3b3a5ed4cd0b1569e72725d54b99a97f6dce6bd6a7ab",
+      "bytes": 45848,
+      "browser": "webkit",
+      "version": "26.6",
+      "passed": 14,
+      "failed": 0,
+      "nativeReplacements": 12,
+      "nativeZeroDurationEvents": 1,
+      "timeoutObservedMs": 15708,
+      "nativeSpeechSamples": 326,
+      "visemeMismatches": 0,
+      "observedMediaToRenderMs": {
+        "p95": 32.37850100000014,
+        "max": 33.2554540000001,
+        "physicalOutputLatency": false
+      },
+      "runtimeErrors": 0,
+      "externalRequests": 0
+    }
+  ],
+  "codeChecks": [
+    {
+      "path": "docs/yeoni-phase9/evidence/code-checks/tests.log",
+      "sha256": "a9347173d6fef6b9e7efda8dbfda7c03f9b6c63f3dc47bec2f392a63d0ecff85",
+      "bytes": 124493,
+      "command": "npm test",
+      "exitCode": 0,
+      "passed": 696,
+      "failed": 0,
+      "skipped": 0,
+      "rawOutputSha256": "a9347173d6fef6b9e7efda8dbfda7c03f9b6c63f3dc47bec2f392a63d0ecff85",
+      "outputNormalization": "Trailing line whitespace and extra final blank lines removed; execution output text unchanged."
+    },
+    {
+      "path": "docs/yeoni-phase9/evidence/code-checks/lint.log",
+      "sha256": "89bf86503c819e6a732dac3673ec88faf2e122f8dee17b100cba20932e3ddc47",
+      "bytes": 133,
+      "command": "npm run lint",
+      "exitCode": 0,
+      "rawOutputSha256": "e2b90348fcef4d9f12f77e42902cbfde8921b147c070eb4550c1c9302766d241",
+      "outputNormalization": "Trailing line whitespace and extra final blank lines removed; execution output text unchanged."
+    },
+    {
+      "path": "docs/yeoni-phase9/evidence/code-checks/types.log",
+      "sha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "bytes": 99,
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "rawOutputSha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "outputNormalization": "Trailing line whitespace and extra final blank lines removed; execution output text unchanged."
+    },
+    {
+      "path": "docs/yeoni-phase9/evidence/code-checks/build.log",
+      "sha256": "a70a8d13a7ce822c20928a6b7b9c3ea41c70dcf4894c6e978bae15228ca35630",
+      "bytes": 3182,
+      "command": "npm run build",
+      "exitCode": 0,
+      "rawOutputSha256": "a44b59040dd26bce334cac8aabac2d06af1c1ba49ca8bb7124d41e093ebe3f63",
+      "outputNormalization": "Trailing line whitespace and extra final blank lines removed; execution output text unchanged."
+    }
+  ],
+  "fileAcceptance": {
+    "nativeSavedMp3": "accepted in both browsers; no autoplay; native playback ended",
+    "mismatchedTimeline": {
+      "sameMp3Bytes": true,
+      "timelineDifferenceMs": 250,
+      "result": "rejected in both browsers"
+    },
+    "corruptAudioWithMatchingHash": "decoder error in both browsers",
+    "syntheticBoundaryOffsetsMs": {
+      "accepted": 99,
+      "rejected": 101
+    }
+  },
+  "previousVerification": [
+    {
+      "commit": "da8ca9a",
+      "archiveSha256": "755f9de0f07d7beae136f7b85c34e0d1dbca45ad8eb28759feee765abaebda26",
+      "runUrl": "https://github.com/jace3695/AI-fitness-app/actions/runs/36825177971",
+      "reusedWithoutRerun": true,
+      "results": [
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/da8ca9a/chromium/results.json",
+          "sha256": "6d16d25d54c110705bdbcb61c2f5302c1b9e0bdc32abb6057126f695c605dc96",
+          "bytes": 3591,
+          "passed": 25,
+          "failed": 0
+        },
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/da8ca9a/chromium/visual-results.json",
+          "sha256": "147b40f57093db242a1cf1012d6bcf7e3cce9dd0147d50fa5fbcb714aa3120d1",
+          "bytes": 14264,
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/da8ca9a/webkit/results.json",
+          "sha256": "9c4de2238c72ad9b0b29208134cb731808dddc8803dc1fba6fec7aa10a229540",
+          "bytes": 3580,
+          "passed": 25,
+          "failed": 0
+        },
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/da8ca9a/webkit/visual-results.json",
+          "sha256": "23640661bbea8f57f5f9fd8153bf8953fbda340eddfb8900f2b5e55cc5666039",
+          "bytes": 12932,
+          "passed": 5,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "commit": "8e09415",
+      "archiveSha256": "433e5fc1d4f8eaf0d9124816c6dec10fb1a5bc37c4177e0a8c860d273cfba737",
+      "runUrl": "https://github.com/jace3695/AI-fitness-app/actions/runs/36825662298",
+      "reusedWithoutRerun": true,
+      "results": [
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/8e09415/chromium/results.json",
+          "sha256": "66de784edceebc1aaa7b0a5de534ed891873223f5ae1e41fc5cd668df4c103f2",
+          "bytes": 3721,
+          "passed": 26,
+          "failed": 0
+        },
+        {
+          "path": "docs/yeoni-phase9/evidence/previous/8e09415/webkit/results.json",
+          "sha256": "61e7592e8196b06a12c78baea3b1917264814e2cc331b6c6078d9d79c136f634",
+          "bytes": 19087,
+          "passed": 17,
+          "failed": 1
+        }
+      ]
+    }
+  ],
+  "preservedEvidence": {
+    "path": "docs/yeoni-phase9/evidence/preservation.json",
+    "sha256": "ac4696a6af3fa2a076cb3ace58478a3ca22a15a51e7fc02315fe6eddeb6a5402",
+    "bytes": 27302
+  },
+  "previousVisualEvidence": {
+    "sourceCommit": "da8ca9a",
+    "reused": true,
+    "chromiumFrames": 71,
+    "webkitFrames": 65,
+    "opaqueRgbChanged": 0,
+    "alphaMaxDifference": 0,
+    "neckMinAlpha": 255,
+    "directVisualReview": "Earlier Work reported no eye/mouth detachment or neck gaps. Not repeated in this continuation."
+  },
+  "resolvedDuringContinuation": [
+    {
+      "issue": "Event-only fix could stay loading after native zero duration because no further metadata event arrived",
+      "evidence": {
+        "path": "docs/yeoni-phase9/evidence/diagnostics/event-only-webkit.json",
+        "sha256": "9d69a19070267e213de0a302bcf14b047461ecaf3e92afd127c48d4c244726e6",
+        "bytes": 2915
+      },
+      "resolution": "Bounded loading-only duration recheck; final native WebKit replacement run passed 12/12 including a zero-duration event"
+    },
+    {
+      "issue": "Initial Chromium harness assumed the phase6 status was visible and motion already enabled",
+      "resolution": "Wait for attached status and explicitly enable phase6 motion; final full Chromium/WebKit runs passed"
+    }
+  ],
+  "verifiedFiles": [
+    {
+      "path": "lib/yeoni/lip-sync-player.ts",
+      "sha256": "4fd1b91aa8e6e9711c8c608f7fe3d95d1115d64e3776a2a78dca20b98873a8bd"
+    },
+    {
+      "path": "scripts/yeoni-speech-poc/check-loading.mjs",
+      "sha256": "44848f044a8c19b3f6c04b9633179884028809837c6cddcd87b89abe8e916fe6"
+    },
+    {
+      "path": "docs/yeoni-phase5/Yeoni_Lip_Sync_Dev_Preview.html",
+      "sha256": "df8fed6cfec52c72577b1b5b4d9cdaa00dfe127a6eeaf60355038f1eed3691d0"
+    },
+    {
+      "path": "docs/yeoni-phase6/Yeoni_Emotion_Gesture_Preview.html",
+      "sha256": "dfbf591a68c8342c690a875516d54d18c91856d2e2612696dc53a4dea4da12b3"
+    },
+    {
+      "path": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html",
+      "sha256": "43cb2e39759569c8eec9fbed7ac4d19d1ac90d2b484ffa8dd2988f87abe98e45"
+    },
+    {
+      "path": "docs/yeoni-phase9/README.md",
+      "sha256": "b4cd385924e9d10c80064724e7aef0eb815314c5ec5c004e11d7188470818b4d"
+    }
+  ],
+  "outOfScopePending": [
+    "User listening approval, phoneme boundaries and naturalness (PHASE 5 remains pending)",
+    "Physical iPhone Safari, output/Bluetooth latency, lock/background behavior, heat/battery",
+    "Skin-switch speech continuity and production integration/merge/deployment",
+    "Previously reported unrelated app drawing D80 issue is not resolved by these checks"
+  ],
+  "deliveryPolicy": {
+    "commitOnlyAfterAllRequiredChecks": true,
+    "pushBranch": "agent/yeoni-cat-animation-poc",
+    "draftPrMaintained": true,
+    "ciSkipMarker": "[skip ci]",
+    "ciSkipReason": "User explicitly requested preservation and no repeat of completed original comparisons/media generation. Existing push workflow regenerates those videos. Local final gates and focused browser results are preserved here; no new CI success claimed."
+  }
+}

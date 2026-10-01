@@ -12,18 +12,28 @@ export class LipSyncPlayer {
   private url = '';
   private stalled = false;
   private timeout: ReturnType<typeof setTimeout> | undefined;
+  private metadataRetry: ReturnType<typeof setTimeout> | undefined;
   private listeners: [string, EventListener][] = [];
 
   constructor(readonly audio: HTMLAudioElement, private onChange: () => void) {
     const on = (name: string, fn: () => void) => { audio.addEventListener(name, fn); this.listeners.push([name, fn]); };
-    on('loadedmetadata', () => {
-      if (!this.manifest || !this.currentSource()) return;
-      clearTimeout(this.timeout);
-      if (!Number.isFinite(audio.duration) || Math.abs(audio.duration * 1000 - this.manifest.durationMs) > 100) {
+    const validateMetadata = () => {
+      clearTimeout(this.metadataRetry);
+      if (this.state !== 'loading' || !this.manifest || !this.currentSource()) return;
+      // WebKit may initially report zero/unknown MP3 duration. Keep the load
+      // timeout active. Some replacements update duration without another event,
+      // so recheck while loading as well as on native metadata events.
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) {
+        this.metadataRetry = setTimeout(validateMetadata, 100); return;
+      }
+      if (Math.abs(audio.duration * 1000 - this.manifest.durationMs) > 100) {
         this.fail('음성 길이와 타임라인이 맞지 않아요.'); return;
       }
+      clearTimeout(this.timeout);
       this.setState('ready');
-    });
+    };
+    on('loadedmetadata', validateMetadata);
+    on('durationchange', validateMetadata);
     on('playing', () => {
       if (!this.usable() || audio.paused) { audio.pause(); return; }
       this.stalled = false; this.setState('playing');
@@ -49,6 +59,7 @@ export class LipSyncPlayer {
   private setState(state: SpeechState) { if (!this.disposed) { this.state = state; this.onChange(); } }
   private clear() {
     clearTimeout(this.timeout);
+    clearTimeout(this.metadataRetry);
     this.manifest = null; this.audio.pause(); this.audio.removeAttribute('src'); this.audio.load();
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = ''; this.stalled = false;

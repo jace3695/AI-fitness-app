@@ -1,0 +1,570 @@
+{
+  "character": "human",
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "initial no autoplay and explicit non-speech label",
+      "passed": true
+    },
+    {
+      "name": "six static mouth drawings are distinct without breath or blink movement",
+      "passed": true
+    },
+    {
+      "name": "load creates valid 8-second real media, remains paused",
+      "passed": true
+    },
+    {
+      "name": "actual media clock selects six vowel/lip shapes, neutral and silence after arbitrary seeks",
+      "passed": true
+    },
+    {
+      "name": "pause closes mouth, freezes media; resume keeps position",
+      "passed": true
+    },
+    {
+      "name": "2x playback follows media time rather than wall-clock cue timers",
+      "passed": true
+    },
+    {
+      "name": "waiting event closes mouth and playing event resumes (synthetic stall)",
+      "passed": true
+    },
+    {
+      "name": "hidden event pauses audio, return does not autoplay (synthetic visibility)",
+      "passed": true
+    },
+    {
+      "name": "stop and natural end reset mouth",
+      "passed": true
+    },
+    {
+      "name": "reload drops audio and does not retain private file/text",
+      "passed": true
+    },
+    {
+      "name": "actual audio+JSON import, SHA mismatch rejection and recovery",
+      "passed": true
+    },
+    {
+      "name": "decoded duration mismatch and corrupt audio fail closed",
+      "passed": true
+    },
+    {
+      "name": "late hash completion cannot revive a superseded file selection",
+      "passed": true
+    },
+    {
+      "name": "play rejection leaves mouth closed and actionable message",
+      "passed": true
+    },
+    {
+      "name": "stage exit pauses sound; return does not replay",
+      "passed": true
+    },
+    {
+      "name": "reduced motion and manual motion-off keep closed mouth",
+      "passed": true
+    },
+    {
+      "name": "mobile widths and dark-background visual evidence",
+      "passed": true
+    },
+    {
+      "name": "saved Zephyr MP3 loads without provider calls, stays paused and declares automatic alignment",
+      "passed": false,
+      "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('[data-speech-state=\"ready\"]') to be visible\n",
+      "diagnostic": {
+        "status": "음성 길이와 타임라인이 맞지 않아요. · 0.0초",
+        "src": null,
+        "currentSrc": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+        "time": 0,
+        "duration": null,
+        "readyState": 0,
+        "paused": true,
+        "networkState": 0,
+        "events": [
+          {
+            "event": "emptied",
+            "at": 120,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 473,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 476,
+            "state": "empty",
+            "src": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "currentSrc": "",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 483,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "durationchange",
+            "at": 518,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "loadedmetadata",
+            "at": 519,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "playing",
+            "at": 618,
+            "state": "ready",
+            "src": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0.001905034,
+            "duration": 8,
+            "paused": false,
+            "readyState": 4
+          },
+          {
+            "event": "emptied",
+            "at": 1158,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1164,
+            "state": "loading",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1245,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1249,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "currentSrc": "blob:http://127.0.0.1:8879/074ee44b-ad1b-4765-b34b-8cdcc607e408",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 1251,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "currentSrc": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "durationchange",
+            "at": 1266,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "currentSrc": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "loadedmetadata",
+            "at": 1266,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "currentSrc": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "emptied",
+            "at": 1380,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1382,
+            "state": "empty",
+            "src": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "currentSrc": "blob:http://127.0.0.1:8879/30600b46-1c37-4bd7-8594-05b2550f98ba",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 1386,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "durationchange",
+            "at": 1419,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "loadedmetadata",
+            "at": 1419,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "emptied",
+            "at": 1423,
+            "state": "loading",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1558,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1559,
+            "state": "empty",
+            "src": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "currentSrc": "blob:http://127.0.0.1:8879/42936d11-3484-4c1f-8055-4dbcd2f9189f",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 1563,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "error",
+            "at": 1613,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0,
+            "error": 4
+          },
+          {
+            "event": "emptied",
+            "at": 1614,
+            "state": "loading",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1735,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1738,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1831,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 1833,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 2023,
+            "state": "empty",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "emptied",
+            "at": 2024,
+            "state": "empty",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/b3f9cc81-9d3f-4a5b-b797-23094b4dcc70",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 2029,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "durationchange",
+            "at": 2044,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "loadedmetadata",
+            "at": 2044,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "playing",
+            "at": 2168,
+            "state": "paused",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0.001707986,
+            "duration": 8,
+            "paused": false,
+            "readyState": 4
+          },
+          {
+            "event": "pause",
+            "at": 2236,
+            "state": "paused",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0.066667078,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "playing",
+            "at": 2361,
+            "state": "paused",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0.068536165,
+            "duration": 8,
+            "paused": false,
+            "readyState": 4
+          },
+          {
+            "event": "pause",
+            "at": 2494,
+            "state": "paused",
+            "src": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0.198887702,
+            "duration": 8,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "emptied",
+            "at": 3737,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "currentSrc": "blob:http://127.0.0.1:8879/4e01b683-fc83-487a-9844-600709e3e599",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "loadstart",
+            "at": 3739,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "currentSrc": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          },
+          {
+            "event": "durationchange",
+            "at": 3773,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "currentSrc": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "time": 0,
+            "duration": 0,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "loadedmetadata",
+            "at": 3773,
+            "state": "loading",
+            "src": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "currentSrc": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "time": 0,
+            "duration": 0,
+            "paused": true,
+            "readyState": 4
+          },
+          {
+            "event": "emptied",
+            "at": 3793,
+            "state": "loading",
+            "src": null,
+            "currentSrc": "blob:http://127.0.0.1:8879/8a5d63f3-e6cc-43f6-a1b7-66984c0e1064",
+            "time": 0,
+            "duration": null,
+            "paused": true,
+            "readyState": 0
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "requestCount": 66,
+  "realSpeechClock": null,
+  "scope": "Synthetic lifecycle + saved Zephyr MP3 media-clock checks. Automatic phoneme alignment remains listening-review pending; no physical iPhone validation."
+}
