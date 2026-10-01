@@ -1,6 +1,6 @@
 import { canAnimate, CharacterController, EMPTY_PLAYBACK, type CharacterEmotion, type CharacterGesture, type CharacterRenderer, type SpeechSnapshot } from './character-controller';
 
-export type CharacterStage = { setEnabled(value: boolean): void; setEmotion(value: CharacterEmotion): void; requestGesture(value: CharacterGesture): void; cancelGesture(): void; dispose(): void };
+export type CharacterStage = { setEnabled(value: boolean): void; setEmotion(value: CharacterEmotion): void; requestGesture(value: CharacterGesture): void; cancelGesture(): void; redraw(): void; dispose(): void };
 export type CharacterStageStatus = 'loading' | 'ready' | 'error';
 export type CharacterStageOptions = {
   enabled: boolean; onStatus(status: CharacterStageStatus): void;
@@ -118,6 +118,8 @@ export function mountCharacterStage(surface: HTMLElement, options: CharacterStag
     }); }, fail);
   } catch { fail(); }
   return {
+    // Repaint a prepared appearance using the existing clocks and current speech input.
+    redraw() { if (!disposed) draw(active); },
     setEnabled(value) { enabled = value; reconcile(); },
     setEmotion(value) { if (disposed) return; controller.setEmotion(value); if (!active) draw(false); },
     requestGesture(value) { if (!disposed && canAnimate(policy())) controller.requestGesture(value); },

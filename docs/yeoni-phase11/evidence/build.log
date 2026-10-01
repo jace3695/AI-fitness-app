@@ -1,0 +1,34 @@
+├ ○ /growth/drawing
+├ ○ /growth/handwriting
+├ ○ /growth/handwriting/free
+├ ○ /growth/resources
+├ ○ /growth/review
+├ ○ /growth/settings
+├ ○ /growth/typing
+├ ○ /growth/typing/basics
+├ ○ /language
+├ ○ /language/calendar
+├ ○ /language/conversation
+├ ○ /language/grammar
+├ ○ /language/kana
+├ ○ /language/kana-writing
+├ ○ /language/learn
+├ ○ /language/progress
+├ ○ /language/review
+├ ○ /language/sentences
+├ ○ /language/settings
+├ ○ /language/speaking
+├ ○ /language/start
+├ ○ /language/words
+├ ○ /language/writing
+├ ○ /login
+├ ƒ /mcp
+├ ○ /offline
+├ ○ /privacy
+├ ○ /reset-password
+├ ○ /settings
+└ ○ /terms
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

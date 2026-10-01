@@ -11,8 +11,8 @@ import './speech.css';
 
 const labels: Record<SpeechState, string> = { empty: '샘플을 선택해 주세요', loading: '파일 확인 중', ready: '재생 준비 완료',
   playing: '재생 중', paused: '일시정지', ended: '재생 완료', error: '파일 확인 필요' };
-export default function SpeechLab({ Stage, palette, original, phase = 5, characterName = '고양이' }: {
-  Stage: ComponentType<{ speech: () => SpeechSnapshot }>; palette: ReactNode; original?: ReactNode; phase?: number; characterName?: string;
+export default function SpeechLab({ Stage, palette, original, phase = 5, characterName = '고양이', heading = '발음마다 달라지는 입 모양' }: {
+  Stage: ComponentType<{ speech: () => SpeechSnapshot }>; palette: ReactNode; original?: ReactNode; phase?: number; characterName?: string; heading?: string;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
   const player = useRef<LipSyncPlayer | null>(null);
@@ -86,7 +86,7 @@ export default function SpeechLab({ Stage, palette, original, phase = 5, charact
   const canPlay = !['empty', 'loading', 'error'].includes(state);
   return <main className={original ? 'human-speech-lab' : undefined}>
     <p className="eyebrow">AI 연이 · PHASE {phase} 개발 미리보기</p>
-    <h1>발음마다 달라지는 입 모양</h1>
+    <h1>{heading}</h1>
     <p className="intro">닫힘·아·이·우·에·오를 각각 구분해요.<br />저장된 연이 음성으로 입 움직임을 확인해 보세요.</p>
     <div className={original ? 'human-comparison' : undefined}>
     {original}
@@ -123,4 +123,3 @@ export default function SpeechLab({ Stage, palette, original, phase = 5, charact
     {palette}
   </main>;
 }
-
