@@ -14,6 +14,7 @@ on:
       - 'scripts/yeoni-human-assets/**'
       - 'scripts/yeoni-human-rig/**'
       - 'scripts/yeoni-human-motion/**'
+      - 'scripts/yeoni-human-speech/**'
       - 'scripts/yeoni-cat-review/**'
       - 'docs/yeoni-phase7/**'
       - 'docs/yeoni-phase5/fixtures/**'
@@ -27,6 +28,39 @@ concurrency:
   group: yeoni-animation-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  human-speech:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify shared transport with human artwork and real saved MP3
+        run: |
+          node scripts/yeoni-human-speech/export.mjs
+          git diff --exit-code -- docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html
+          YEONI_CHARACTER=human node scripts/yeoni-speech-poc/check.mjs
+          YEONI_CHARACTER=human YEONI_BROWSER=webkit node scripts/yeoni-speech-poc/check.mjs
+          node scripts/yeoni-human-speech/check-visual.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-speech/check-visual.mjs
+      - name: Preserve human speech evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-human-speech-v1-${{ github.sha }}
+          path: |
+            .e2e/yeoni-human-speech/
+            !.e2e/yeoni-human-speech/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
   human-basic-motion:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

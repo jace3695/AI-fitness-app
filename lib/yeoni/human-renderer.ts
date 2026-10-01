@@ -1,4 +1,4 @@
-import type { CharacterRenderer } from './character-controller';
+import type { CharacterRenderer, SpeechSnapshot } from './character-controller';
 import { mountCharacterStage, type CharacterStageStatus } from './character-stage';
 import { createHumanArtwork, humanFace, HUMAN_ASSET_ROOT, HUMAN_IMAGE_NAMES } from './human-art';
 import { humanPose, humanTransform, type HumanPose } from './human-warp';
@@ -74,8 +74,9 @@ export function createHumanCanvasRenderer(canvas: HTMLCanvasElement, options: {
 
 export function mountHumanRenderer(canvas: HTMLCanvasElement, options: {
   enabled: boolean; assetRoot?: string; assetUrls?: Record<string, string>; onStatus(status: CharacterStageStatus): void;
+  speech?: () => SpeechSnapshot;
 }) {
-  return mountCharacterStage(canvas, { enabled: options.enabled, onStatus: options.onStatus,
+  return mountCharacterStage(canvas, { enabled: options.enabled, onStatus: options.onStatus, speech: options.speech,
     createRenderer: (ready, fail) => createHumanCanvasRenderer(canvas, { ...options, ready, fail }),
   });
 }

@@ -2,10 +2,14 @@ import { chromium, webkit } from 'playwright';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { server } from './server.mjs';
+const human = process.env.YEONI_CHARACTER === 'human';
+const { server } = await import(human ? '../yeoni-human-speech/server.mjs' : './server.mjs');
+const origin = human ? 'http://127.0.0.1:8879/' : 'http://127.0.0.1:8875/';
+const stageSelector = human ? '[data-human-status="ready"]' : '[data-cat-status="ready"]';
+const allowed = url => url.startsWith(origin) || /^(blob:|data:)/.test(url);
 
 const kind = process.env.YEONI_BROWSER || 'chromium';
-const out = `.e2e/yeoni-speech-poc/${kind}`;
+const out = `.e2e/${human ? 'yeoni-human-speech' : 'yeoni-speech-poc'}/${kind}`;
 mkdirSync(out, { recursive: true });
 const browser = await ({ chromium, webkit })[kind].launch({ headless: true,
   ...(kind === 'chromium' && process.env.YEONI_CHROMIUM ? { executablePath: process.env.YEONI_CHROMIUM,
@@ -16,7 +20,7 @@ const requests = [], errors = [], results = [];
 let realSpeechClock = null;
 await context.route('**/*', route => {
   const url = route.request().url(); requests.push(url);
-  if (/^(http:\/\/127\.0\.0\.1:8875\/|blob:|data:)/.test(url)) return route.continue();
+  if (allowed(url)) return route.continue();
   return route.abort();
 });
 const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
@@ -48,7 +52,7 @@ async function loadPair({ badHash = false, duration = 8000, invalidAudio = false
   await page.evaluate(() => window.scrollTo(0, 0));
 }
 try {
-  await page.goto('http://127.0.0.1:8875/'); await page.locator('[data-cat-status="ready"]').waitFor();
+  await page.goto(origin); await page.locator(stageSelector).waitFor();
   await test('initial no autoplay and explicit non-speech label', async () => {
     await state('empty'); assert.equal(await media(a => a.paused), true); await viseme('rest');
     assert.ok(await page.getByText('무음 기술 샘플 · 한국어 음성 시연이 아닙니다').isVisible());
@@ -102,7 +106,7 @@ try {
     await button('재생').click(); await seek(7.8); await state('ended'); await viseme('rest');
   });
   await test('reload drops audio and does not retain private file/text', async () => {
-    await page.reload(); await page.locator('[data-cat-status="ready"]').waitFor(); await state('empty');
+    await page.reload(); await page.locator(stageSelector).waitFor(); await state('empty');
     assert.equal(await media(a => a.getAttribute('src')), null);
   });
   await test('actual audio+JSON import, SHA mismatch rejection and recovery', async () => {
@@ -142,7 +146,7 @@ try {
   await test('stage exit pauses sound; return does not replay', async () => {
     await button('재생').click(); await state('playing'); await button('화면 나가기').click();
     assert.equal(await media(a => a.paused), true); assert.equal(await page.locator('.portrait canvas').count(), 0);
-    await button('돌아오기').click(); await page.locator('[data-cat-status="ready"]').waitFor(); await viseme('rest');
+    await button('돌아오기').click(); await page.locator(stageSelector).waitFor(); await viseme('rest');
   });
   await test('reduced motion and manual motion-off keep closed mouth', async () => {
     await button('재생').click(); await page.emulateMedia({ reducedMotion: 'reduce' }); await viseme('rest');
@@ -273,10 +277,10 @@ try {
     assert.ok(await page.getByText('청취 확인 대기', { exact: false }).isVisible());
   });
   await test('no runtime exceptions or external requests', async () => {
-    assert.deepEqual(errors, []); assert.ok(requests.every(u => /^(http:\/\/127\.0\.0\.1:8875\/|blob:|data:)/.test(u)));
+    assert.deepEqual(errors, []); assert.ok(requests.every(u => allowed(u)));
   });
 } finally {
-  writeFileSync(`${out}/results.json`, JSON.stringify({ browser: kind, version: browser.version(), results, errors,
+  writeFileSync(`${out}/results.json`, JSON.stringify({ character: human ? 'human' : 'cat', browser: kind, version: browser.version(), results, errors,
     requestCount: requests.length, realSpeechClock, scope: 'Synthetic lifecycle + saved Zephyr MP3 media-clock checks. Automatic phoneme alignment remains listening-review pending; no physical iPhone validation.' }, null, 2));
   await browser.close(); await new Promise(resolve => server.close(resolve));
 }
