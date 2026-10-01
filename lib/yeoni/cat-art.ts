@@ -1,6 +1,8 @@
 import spec from '../../public/yeoni/cat/preserved-motion-v3.json';
 import type { CharacterFrame } from './character-controller';
 import type { Viseme } from './lip-sync';
+import type { MouthPose } from './mouth-motion';
+import { createMouthMorph, CAT_MOUTH_RECT, CAT_MOUTH_GEOMETRY } from './mouth-morph';
 
 export const CAT_MOTION_ASSET = '/yeoni/cat/preserved-motion-v3.png';
 export function catFace(frame: CharacterFrame, expressive: boolean, speechMouth: boolean) {
@@ -35,8 +37,7 @@ export function createCatArtwork(image: CanvasImageSource) {
       return { image: layer, x, y };
     }));
   }
-  return {
-    frame(eye: string, mouth: string) {
+  const draw = (eye: string, mouth: string) => {
       const key = eye + ':' + mouth;
       if (previous !== key) {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 360, 360);
@@ -44,8 +45,17 @@ export function createCatArtwork(image: CanvasImageSource) {
         for (const id of [eye, mouth]) for (const p of patches.get(id) ?? []) ctx.drawImage(p.image, p.x + 24, p.y + 24);
         previous = key;
       }
+  };
+  const [mx, my, mw, mh] = CAT_MOUTH_RECT;
+  const morph = createMouthMorph(mw, mh, CAT_MOUTH_GEOMETRY, shape => { draw('open', shape); return ctx.getImageData(mx, my, mw, mh); }, true);
+  return {
+    frame(eye: string, mouth: string, pose?: MouthPose) {
+      if (!pose) { draw(eye, mouth); return canvas; }
+      if (pose.from === pose.to || pose.mix === 0) { draw(eye, pose.from); return canvas; }
+      if (pose.mix === 1) { draw(eye, pose.to); return canvas; }
+      const image = morph.frame(pose); draw(eye, mouth); ctx.putImageData(image, mx, my); previous = '';
       return canvas;
     },
-    dispose() { for (const list of patches.values()) for (const p of list) p.image.width = p.image.height = 0; patches.clear(); canvas.width = canvas.height = 0; },
+    dispose() { morph.dispose(); for (const list of patches.values()) for (const p of list) p.image.width = p.image.height = 0; patches.clear(); canvas.width = canvas.height = 0; },
   };
 }

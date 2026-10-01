@@ -1,4 +1,5 @@
 import { visemeAt, type LipSyncManifest, type Viseme } from './lip-sync.ts';
+import { mouthAt, REST_MOUTH, type MouthPose } from './mouth-motion.ts';
 import { blendExpression, CHARACTER_EMOTIONS, CHARACTER_GESTURES, EXPRESSIONS, GESTURE_DURATION, type CharacterEmotion, type CharacterExpression, type CharacterGesture } from './character-expression.ts';
 export type { CharacterEmotion, CharacterGesture } from './character-expression.ts';
 
@@ -14,6 +15,8 @@ export type CharacterPolicy = Readonly<{
 }>;
 export type CharacterFrame = Readonly<{
   viseme: Viseme; blink: 'open' | 'half' | 'closed';
+  /** Optional for older renderer clients; viseme remains the unmodified phoneme projection. */
+  mouth?: MouthPose;
   breath: number; sway: number; emotion: CharacterEmotion;
   gesture: CharacterGesture | 'idle'; gestureProgress: number;
   expression: CharacterExpression; headTilt: number; headNod: number; bodyLift: number;
@@ -22,7 +25,7 @@ export type CharacterRenderer = {
   render(frame: CharacterFrame, viewport: Readonly<{ size: number }>): void;
   dispose(): void;
 };
-export type SpeechSnapshot = Readonly<{ manifest: LipSyncManifest | null; playback: PlaybackSnapshot }>;
+export type SpeechSnapshot = Readonly<{ manifest: LipSyncManifest | null; playback: PlaybackSnapshot; mouthMotion?: 'smooth' | 'direct' }>;
 export const EMPTY_PLAYBACK: PlaybackSnapshot = Object.freeze({ clipId: null, currentTimeMs: 0, state: 'empty' });
 
 export function canAnimate(input: CharacterPolicy) {
@@ -55,7 +58,7 @@ export class CharacterController {
   cancelGesture() { this.gesture = null; this.gestureAt = null; }
   reset() { this.cancelGesture(); this.setEmotion('neutral'); }
 
-  sample(playback: PlaybackSnapshot, idleTimeMs: number, policy: CharacterPolicy): CharacterFrame {
+  sample(playback: PlaybackSnapshot, idleTimeMs: number, policy: CharacterPolicy, mouthMotion: 'smooth' | 'direct' = 'smooth'): CharacterFrame {
     const animated = canAnimate(policy);
     const t = Math.max(0, Number.isFinite(idleTimeMs) ? idleTimeMs : 0);
     if (t < this.lastTime) { this.cancelGesture(); this.expressionPending = true; }
@@ -74,10 +77,13 @@ export class CharacterController {
     const phase = t % 5200;
     const blink = !animated || phase < 4100 || phase >= 4440 ? 'open'
       : phase < 4180 || phase >= 4360 ? 'half' : 'closed';
+    const manifest = this.manifest;
+    const speaking = animated && playback.state === 'playing' && manifest
+      && playback.clipId === manifest.audioSha256;
     return Object.freeze({
-      viseme: animated && playback.state === 'playing' && this.manifest
-        && playback.clipId === this.manifest.audioSha256
-        ? visemeAt(this.manifest, playback.currentTimeMs) : 'rest',
+      viseme: speaking
+        ? visemeAt(manifest, playback.currentTimeMs) : 'rest',
+      mouth: mouthMotion === 'direct' ? undefined : speaking ? mouthAt(manifest, playback.currentTimeMs) : REST_MOUTH,
       blink, breath: animated ? Math.sin(t / 7000 * Math.PI * 2) * .008 : 0,
       sway: animated ? Math.sin(t / 6200 * Math.PI * 2) * (1 + this.expression.energy * .35) : 0,
       emotion: this.emotion, gesture, gestureProgress: p, expression: this.expression,

@@ -2,6 +2,7 @@ import type { CharacterRenderer } from './character-controller';
 import { mountCharacterStage, type CharacterStageOptions } from './character-stage';
 import { createHumanArtwork, humanFace, HUMAN_ASSET_ROOT, HUMAN_IMAGE_NAMES } from './human-art';
 import { humanPose, humanTransform, type HumanPose } from './human-warp';
+import { mouthKey } from './mouth-motion';
 
 /** One inverse sample per destination pixel avoids overlapping alpha and mesh cracks. */
 export function warpHumanPixels(source: Uint8ClampedArray, target: Uint8ClampedArray, width: number, height: number, pose: HumanPose) {
@@ -51,17 +52,18 @@ export function createHumanCanvasRenderer(canvas: HTMLCanvasElement, options: {
         canvas.width = texture.width = width; canvas.height = texture.height = height;
         output = ctx.createImageData(width, height); cache.clear();
       }
-      const face = humanFace(frame), pose = humanPose(frame), key = face.eye + ':' + face.mouth;
+      const face = humanFace(frame), pose = humanPose(frame), key = face.eye + ':' + (frame.mouth ? mouthKey(frame.mouth) : face.mouth);
       if (!cache.has(key)) {
         tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = 'high';
-        tc.clearRect(0, 0, width, height); tc.drawImage(art.frame(face.eye, face.mouth), 0, 0, width, height);
+        tc.clearRect(0, 0, width, height); tc.drawImage(art.frame(face.eye, face.mouth, frame.mouth), 0, 0, width, height);
         if (cache.size >= 3) cache.delete(cache.keys().next().value!);
         cache.set(key, tc.getImageData(0, 0, width, height));
       }
       const source = cache.get(key)!;
       if (pose.angle === 0 && pose.drop === 0 && pose.breath === 0) ctx.putImageData(source, 0, 0);
       else { warpHumanPixels(source.data, output!.data, width, height, pose); ctx.putImageData(output!, 0, 0); }
-      canvas.dataset.artVersion = 'human-rig-v4'; canvas.dataset.eyeArtwork = face.eye; canvas.dataset.mouthArtwork = face.mouth;
+      canvas.dataset.artVersion = 'human-rig-v4'; canvas.dataset.eyeArtwork = face.eye;
+      canvas.dataset.mouthArtwork = frame.mouth ? mouthKey(frame.mouth) : face.mouth;
       canvas.dataset.angle = String(pose.angle); canvas.dataset.drop = String(pose.drop);
     },
     dispose() {

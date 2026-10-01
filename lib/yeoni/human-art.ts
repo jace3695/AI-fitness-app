@@ -1,5 +1,7 @@
 import spec from '../../public/yeoni/human/rig-v4/manifest.json';
 import type { CharacterFrame } from './character-controller';
+import type { MouthPose } from './mouth-motion';
+import { createMouthMorph, HUMAN_MOUTH_RECT, HUMAN_MOUTH_GEOMETRY } from './mouth-morph';
 
 export const HUMAN_ASSET_ROOT = '/yeoni/human/rig-v4/';
 export const HUMAN_STATIC_PREVIEW = HUMAN_ASSET_ROOT + 'assembled-preview.webp';
@@ -28,8 +30,7 @@ export function createHumanArtwork(images: ReadonlyMap<string, HTMLImageElement>
     return { image: layer, x, y };
   }));
   let previous = '';
-  return {
-    frame(eye: string, mouth: string) {
+  const draw = (eye: string, mouth: string) => {
       const key = eye + ':' + mouth;
       if (previous !== key) {
         ctx.clearRect(0, 0, 1024, 1536);
@@ -37,8 +38,17 @@ export function createHumanArtwork(images: ReadonlyMap<string, HTMLImageElement>
         for (const id of [eye, mouth]) for (const p of patches.get(id) ?? []) ctx.drawImage(p.image, p.x, p.y);
         previous = key;
       }
+  };
+  const [mx, my, mw, mh] = HUMAN_MOUTH_RECT;
+  const morph = createMouthMorph(mw, mh, HUMAN_MOUTH_GEOMETRY, shape => { draw('open', shape); return ctx.getImageData(mx, my, mw, mh); });
+  return {
+    frame(eye: string, mouth: string, pose?: MouthPose) {
+      if (!pose) { draw(eye, mouth); return canvas; }
+      if (pose.from === pose.to || pose.mix === 0) { draw(eye, pose.from); return canvas; }
+      if (pose.mix === 1) { draw(eye, pose.to); return canvas; }
+      const image = morph.frame(pose); draw(eye, mouth); ctx.putImageData(image, mx, my); previous = '';
       return canvas;
     },
-    dispose() { for (const list of patches.values()) for (const p of list) p.image.width = p.image.height = 0; patches.clear(); canvas.width = canvas.height = 0; },
+    dispose() { morph.dispose(); for (const list of patches.values()) for (const p of list) p.image.width = p.image.height = 0; patches.clear(); canvas.width = canvas.height = 0; },
   };
 }

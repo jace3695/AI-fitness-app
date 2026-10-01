@@ -1,0 +1,253 @@
+{
+  "date": "2026-10-01",
+  "scope": "Lip motion smoothing review following user recording; PHASE 11 remains pending",
+  "baseCommit": "cee57128dbc37298b2aa5657b2b5b57c91fe0c53",
+  "branch": "agent/yeoni-cat-animation-poc",
+  "status": "technical-checks-passed-user-naturalness-review-pending",
+  "implementation": {
+    "audioClock": "HTMLAudioElement.currentTime",
+    "audioAndPhonemeTimesUnchanged": true,
+    "phonemeProjection": "CharacterFrame.viseme",
+    "visualPose": "CharacterFrame.mouth {from,to,mix}",
+    "speechTimersAdded": 0,
+    "mouthMorph": "Local renderer landmarks and triangle interpolation; exact static endpoints; cat nose pin and cavity handling"
+  },
+  "browserChecks": 26,
+  "browsers": [
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "newChecks": 10,
+      "contractChecks": 3,
+      "allPassed": true,
+      "nativeSamples": 242,
+      "poseMismatches": 0,
+      "endpointComparisons": 48,
+      "endpointMismatches": 0,
+      "pixels": [
+        {
+          "skin": "cat",
+          "outsideChanged": 0,
+          "endpointMismatches": 0,
+          "fullyOpaque": true,
+          "restoredExact": true,
+          "rawChanges": {
+            "mean": 3.2518121580355155,
+            "p95": 17.424291938997822,
+            "maximum": 20.458424110384893
+          },
+          "smoothChanges": {
+            "mean": 3.2081286620928564,
+            "p95": 13.30519244734931,
+            "maximum": 16.35185185185185
+          },
+          "drawCostMs": {
+            "mean": 0.3617283951629091,
+            "p95": 1,
+            "maximum": 4.200000002980232
+          }
+        },
+        {
+          "skin": "human",
+          "outsideChanged": 0,
+          "endpointMismatches": 0,
+          "fullyOpaque": true,
+          "restoredExact": true,
+          "rawChanges": {
+            "mean": 2.6226327270038445,
+            "p95": 14.564255952380952,
+            "maximum": 14.930892857142856
+          },
+          "smoothChanges": {
+            "mean": 2.52943544809228,
+            "p95": 8.370967261904761,
+            "maximum": 12.467708333333333
+          },
+          "drawCostMs": {
+            "mean": 1.87839506175599,
+            "p95": 3.8000000044703484,
+            "maximum": 6.799999997019768
+          }
+        }
+      ],
+      "timings": [
+        {
+          "skin": "cat",
+          "samples": 121,
+          "frameIntervalP95Ms": 50.261999999999944,
+          "maximumObservedClockAgeMs": 30.76400000000001
+        },
+        {
+          "skin": "human",
+          "samples": 121,
+          "frameIntervalP95Ms": 50.85400000000027,
+          "maximumObservedClockAgeMs": 23.534000000000006
+        }
+      ],
+      "runtimeErrors": [],
+      "externalRequests": []
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "newChecks": 10,
+      "contractChecks": 3,
+      "allPassed": true,
+      "nativeSamples": 254,
+      "poseMismatches": 0,
+      "endpointComparisons": 48,
+      "endpointMismatches": 0,
+      "pixels": [
+        {
+          "skin": "cat",
+          "outsideChanged": 0,
+          "endpointMismatches": 0,
+          "fullyOpaque": true,
+          "restoredExact": true,
+          "rawChanges": {
+            "mean": 3.2518550093145135,
+            "p95": 17.424291938997822,
+            "maximum": 20.458424110384893
+          },
+          "smoothChanges": {
+            "mean": 3.2080023635863366,
+            "p95": 13.311728395061728,
+            "maximum": 16.351488743645607
+          },
+          "drawCostMs": {
+            "mean": 0.7098765432098766,
+            "p95": 2,
+            "maximum": 4
+          }
+        },
+        {
+          "skin": "human",
+          "outsideChanged": 0,
+          "endpointMismatches": 0,
+          "fullyOpaque": true,
+          "restoredExact": true,
+          "rawChanges": {
+            "mean": 2.6220424800354936,
+            "p95": 14.563869047619047,
+            "maximum": 14.931681547619048
+          },
+          "smoothChanges": {
+            "mean": 2.5287126589766333,
+            "p95": 8.368556547619047,
+            "maximum": 12.468854166666667
+          },
+          "drawCostMs": {
+            "mean": 8.055555555555555,
+            "p95": 17,
+            "maximum": 30
+          }
+        }
+      ],
+      "timings": [
+        {
+          "skin": "cat",
+          "samples": 127,
+          "frameIntervalP95Ms": 48.96693600000026,
+          "maximumObservedClockAgeMs": 0
+        },
+        {
+          "skin": "human",
+          "samples": 127,
+          "frameIntervalP95Ms": 48.96693600000026,
+          "maximumObservedClockAgeMs": 0
+        }
+      ],
+      "runtimeErrors": [],
+      "externalRequests": []
+    }
+  ],
+  "codeTests": {
+    "total": 703,
+    "passed": 703,
+    "failed": 0,
+    "newTests": 7
+  },
+  "codeGates": [
+    {
+      "name": "unit",
+      "exitCode": 0,
+      "seconds": 21.42,
+      "log": "unit.log"
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "seconds": 27.7,
+      "log": "lint.log"
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "seconds": 20.7,
+      "log": "build.log"
+    },
+    {
+      "name": "types",
+      "exitCode": 0,
+      "seconds": 16.74,
+      "log": "types.log"
+    }
+  ],
+  "preservation": {
+    "files": 277,
+    "changed": 0,
+    "manifest": "preserved-assets.json",
+    "historical61ChecksRerun": false,
+    "existingMediaRegenerated": false
+  },
+  "preview": {
+    "file": "docs/yeoni-lipsync-smoothing/Yeoni_Smooth_Mouth_Preview.html",
+    "sha256": "48014ef76d434d6deb53e00d3103b23f2851c4de69eed70ac457bb9b6687556a",
+    "delivery": "Download HTML then open in Chrome/Edge; in-chat text viewer does not execute HTML"
+  },
+  "visualReview": {
+    "reviewed": [
+      "cat/human eight transition strips in both browsers",
+      "390px/1280px layouts",
+      "original-rest restoration",
+      "unchanged face/neck/body outside mouth patch"
+    ],
+    "iterationNotes": [
+      "Rejected initial rectangle morph with duplicate lip contours",
+      "Replaced with inner/outer lip mesh alignment",
+      "Corrected cat cavity white-stretching/tongue folding and pinned nose"
+    ],
+    "status": "review-candidate-ready",
+    "notEquivalentTo": [
+      "user listening acceptance",
+      "phoneme alignment certification",
+      "physical iPhone testing"
+    ]
+  },
+  "remaining": [
+    "User normal-speed A/B naturalness review",
+    "Automatic phoneme-boundary listening review",
+    "Physical iPhone/Bluetooth/thermal verification",
+    "PHASE 11 speech continuity across skin replacement"
+  ],
+  "technicalProgress": {
+    "completed": 9,
+    "total": 16
+  },
+  "productionMergedOrDeployed": false,
+  "sourceSha256": {
+    "lib/yeoni/cat-art.ts": "59905d708f13284b431ae1b23b5fe3b13fb9f03b4cd0050221cf212937b7beff",
+    "lib/yeoni/cat-renderer.ts": "484ecf4258c654cbc9721d611c1c8014295dc0a538e363ea58c4d97d32b7d5ad",
+    "lib/yeoni/character-controller.ts": "f2f4bdc71c9a6748f488b8af9679451bf633b84e8548b4bac98f80c99e102e4a",
+    "lib/yeoni/character-stage.ts": "28a87ebadff422c4070cc93952f99b67231086210420dd6f7552c012aac07353",
+    "lib/yeoni/human-art.ts": "5a91a5d0eccdc11140060cc64c15a6dbc9a9455406829b78d6a673fdf4f68bdb",
+    "lib/yeoni/human-renderer.ts": "50dfc44f5231d61a8faaf78666442acd42793325d116cefb06274ed8c022cd15",
+    "lib/yeoni/mouth-motion.ts": "0ea33869c967c942f832260d485f059ba3689f1b002c64ad8331dbc4bf10836f",
+    "lib/yeoni/mouth-morph.ts": "7cfcc14bf1d90650ab34afee8fea5ff0c673fa27431712137aaa4ad9cdd35f9d",
+    "lib/yeoni/mouth-motion.test.ts": "fb90566d7b35d9f72f52900d86a8727fe801d9323431d2034db133f7ecf23820",
+    "scripts/yeoni-mouth-motion/browser.tsx": "5f49751dcd920e5a4f1e9fae6a3e78d13057702ea1d24ae6edb7db0501751a0b",
+    "scripts/yeoni-mouth-motion/check.mjs": "202018032021e3229eb7fe0f97899acc88a71e1764662b10f06ab1f02b2d2a6f",
+    "scripts/yeoni-mouth-motion/export.mjs": "6d3855931fbc2c78c1f10f505d556ccd094daee79c604680d98409023c07496a",
+    "scripts/yeoni-mouth-motion/probe.ts": "c028ee246f71fa73baeae31e288a82718cb4d67a836dfba64f34cafec26010d7"
+  }
+}

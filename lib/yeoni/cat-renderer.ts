@@ -2,6 +2,7 @@ import { catFace, createCatArtwork } from './cat-art';
 import { catWarp, warpCatPoint, CAT_TRIANGLES } from './cat-warp';
 import type { Point } from './cat-warp';
 import type { CharacterRenderer } from './character-controller';
+import { mouthKey } from './mouth-motion';
 import { mountCharacterStage, type CharacterStage, type CharacterStageOptions, type CharacterStageStatus } from './character-stage';
 
 export type CatRenderer = CharacterStage;
@@ -49,14 +50,15 @@ export function createCatCanvasRenderer(canvas: HTMLCanvasElement, options: {
       if (!ctx || !art || disposed) return;
       if (canvas.width !== size || canvas.height !== size) { canvas.width = size; canvas.height = size; }
       const expressive = options.expressive ?? false;
-      const face = catFace(frame, expressive, options.speechMouth), texture = art.frame(face.eye, face.mouth);
+      const face = catFace(frame, expressive, options.speechMouth), texture = art.frame(face.eye, face.mouth, options.speechMouth ? frame.mouth : undefined);
       const warp = catWarp(frame, expressive), scale = size / 360;
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       // Preserve the approved opaque backdrop. This is not a transparent cutout.
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 360, 360);
       if (Object.values(warp).every(value => value === 0)) ctx.drawImage(texture, 0, 0);
       else for (const points of CAT_TRIANGLES) triangle(ctx, texture, points, points.map(p => warpCatPoint(p, warp)), scale);
-      canvas.dataset.artVersion = 'preserved-v3'; canvas.dataset.eyeArtwork = face.eye; canvas.dataset.mouthArtwork = face.mouth;
+      canvas.dataset.artVersion = 'preserved-v3'; canvas.dataset.eyeArtwork = face.eye;
+      canvas.dataset.mouthArtwork = options.speechMouth && frame.mouth ? mouthKey(frame.mouth) : face.mouth;
     },
     dispose() {
       disposed = true; image.onload = null; image.onerror = null; image.removeAttribute('src');

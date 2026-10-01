@@ -43,9 +43,10 @@ export function mountCharacterStage(surface: HTMLElement, options: CharacterStag
     try {
       const speech = options.speech?.();
       controller.setSpeech(speech?.manifest ?? null);
-      const pose = controller.sample(speech?.playback ?? EMPTY_PLAYBACK, elapsed, { ...policy(), enabled: animated });
+      const pose = controller.sample(speech?.playback ?? EMPTY_PLAYBACK, elapsed, { ...policy(), enabled: animated }, speech?.mouthMotion);
       renderer?.render(pose, { size: backingSize });
       surface.dataset.viseme = pose.viseme;
+      surface.dataset.mouthPose = JSON.stringify(pose.mouth ?? { from: pose.viseme, to: pose.viseme, mix: 0 });
       surface.dataset.speechTimeMs = String(speech?.playback.currentTimeMs ?? 0);
       surface.dataset.draws = String(++draws);
       surface.dataset.blink = pose.blink;
