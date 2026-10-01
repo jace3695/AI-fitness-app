@@ -16,6 +16,18 @@ const browser = await ({ chromium, webkit })[kind].launch({ headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } : {}),
 }).catch(async error => { await new Promise(resolve => server.close(resolve)); throw error; });
 const context = await browser.newContext({ viewport: { width: 390, height: 950 }, reducedMotion: 'no-preference' });
+await context.addInitScript(() => {
+  window.__mediaEvents = [];
+  for (const name of ['loadstart', 'loadedmetadata', 'durationchange', 'emptied', 'error', 'playing', 'pause', 'waiting', 'seeked', 'ended']) {
+    document.addEventListener(name, event => {
+      const a = event.target;
+      if (!(a instanceof HTMLAudioElement)) return;
+      window.__mediaEvents.push({ event: name, at: performance.now(), state: document.querySelector('[data-speech-state]')?.getAttribute('data-speech-state'),
+        src: a.getAttribute('src'), currentSrc: a.currentSrc, time: a.currentTime, duration: a.duration, paused: a.paused, readyState: a.readyState, error: a.error?.code });
+      if (window.__mediaEvents.length > 100) window.__mediaEvents.shift();
+    }, true);
+  }
+});
 const requests = [], errors = [], results = [];
 let realSpeechClock = null;
 await context.route('**/*', route => {
@@ -28,7 +40,19 @@ const button = name => page.getByRole('button', { name, exact: true });
 const state = value => page.locator(`[data-speech-state="${value}"]`).waitFor();
 const viseme = value => page.waitForFunction(v => document.querySelector('canvas')?.dataset.viseme === v, value);
 const media = fn => page.locator('audio').evaluate(fn);
-async function test(name, run) { await run(); results.push({ name, passed: true }); console.log('PASS ' + name); }
+async function test(name, run) {
+  try { await run(); results.push({ name, passed: true }); console.log('PASS ' + name); }
+  catch (error) {
+    const diagnostic = await page.evaluate(() => {
+      const a = document.querySelector('audio');
+      return { status: document.querySelector('[data-speech-state]')?.textContent, src: a?.getAttribute('src'), currentSrc: a?.currentSrc,
+        time: a?.currentTime, duration: a?.duration, readyState: a?.readyState, paused: a?.paused, networkState: a?.networkState, error: a?.error?.code, events: window.__mediaEvents };
+    });
+    results.push({ name, passed: false, error: String(error), diagnostic });
+    await page.screenshot({ path: `${out}/failure.png`, fullPage: true });
+    console.error('FAIL DIAGNOSTIC ' + JSON.stringify(diagnostic)); throw error;
+  }
+}
 async function fixture() { await button('무음 동작 샘플 불러오기').click(); await state('ready'); }
 async function seek(time) {
   await page.locator('audio').evaluate((audio, t) => new Promise(resolve => { audio.addEventListener('seeked', resolve, { once: true }); audio.currentTime = t; }), time);

@@ -47,8 +47,17 @@ jobs:
           node scripts/yeoni-human-speech/export.mjs
           git diff --exit-code -- docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html
           YEONI_CHARACTER=human node scripts/yeoni-speech-poc/check.mjs
+      - name: WebKit human speech transport
+        if: ${{ !cancelled() }}
+        run: |
           YEONI_CHARACTER=human YEONI_BROWSER=webkit node scripts/yeoni-speech-poc/check.mjs
+      - name: Chromium human speech original comparison and video
+        if: ${{ !cancelled() }}
+        run: |
           node scripts/yeoni-human-speech/check-visual.mjs
+      - name: WebKit human speech original comparison
+        if: ${{ !cancelled() }}
+        run: |
           YEONI_BROWSER=webkit node scripts/yeoni-human-speech/check-visual.mjs
       - name: Preserve human speech evidence
         if: always()
