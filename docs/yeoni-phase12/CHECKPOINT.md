@@ -7,6 +7,6 @@
 - 사용자 영역의 WebKit/47개 의존성·CJK 글꼴로 실행. 시스템 패키지 설치 없음.
 - 기존 원본·미디어·증거 351개 파일 불변. 기존 61개 검사는 재실행하지 않음.
 - 실제 일본어 TTS/정렬/청취 미실행. 전체 기술 PoC **10/16**, PHASE 12 진행 중.
-- 다음: JAPANESE-SPEECH-PLAN.md의 정확한 일본어 문장·Zephyr·1회 생성 범위 확인 후 실음성 검증. 기존 1회 생성 승인을 재사용하지 않는다.
+- 2026-10-02 09:00:41 KST: 일본어 문장·Zephyr·1회 생성 명시 승인 완료. 공급자 요청 0회. tts-approval.json과 approved-tts-request.json 참조. 다음은 생성 경로 접근 해결이며 생성 승인을 다시 요청하지 않는다.
 - 이번 커밋은 `git log -1 -- docs/yeoni-phase12/CHECKPOINT.md`로 확인. 승인 전 운영 병합/배포 없음.
 - 재개 시 evidence/verification.json과 git status부터 확인. 이미 통과한 검사나 미디어 제작을 처음부터 반복하지 않는다.

@@ -1,0 +1,17 @@
+{
+  "approvedAt": "2026-10-02T09:00:41+09:00",
+  "approvedMaximumProviderAttempts": 1,
+  "providerAttemptsMade": 0,
+  "status": "approved-not-sent-access-path-blocked",
+  "spokenText": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
+  "textSha256": "05821c6b3784935327ee2c5f0e7eec61d8542988f99ce688d5a1891edd4a9c5f",
+  "voice": "ja-JP-Chirp3-HD-Zephyr",
+  "automaticRetries": false,
+  "blockers": [
+    "Existing /api/tts pins Korean Zephyr",
+    "Existing /api/language/tts does not pin Japanese Zephyr",
+    "No TTS credential or Vercel CLI session in current workspace",
+    "Connected Vercel tools list projects but do not expose authenticated TTS POST or environment execution"
+  ],
+  "next": "Obtain permission for browser fallback to inspect existing Preview generation/auth path; preserve application budget and deduplication gates. No secret-value extraction."
+}
