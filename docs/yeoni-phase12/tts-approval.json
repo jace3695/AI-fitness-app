@@ -2,7 +2,7 @@
   "approvedAt": "2026-10-02T09:00:41+09:00",
   "approvedMaximumProviderAttempts": 1,
   "providerAttemptsMade": 0,
-  "status": "approved-not-sent-access-path-blocked",
+  "status": "approved-not-sent-preview-login-fetch-error",
   "spokenText": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
   "textSha256": "05821c6b3784935327ee2c5f0e7eec61d8542988f99ce688d5a1891edd4a9c5f",
   "voice": "ja-JP-Chirp3-HD-Zephyr",
@@ -13,5 +13,14 @@
     "No TTS credential or Vercel CLI session in current workspace",
     "Connected Vercel tools list projects but do not expose authenticated TTS POST or environment execution"
   ],
-  "next": "Obtain permission for browser fallback to inspect existing Preview generation/auth path; preserve application budget and deduplication gates. No secret-value extraction."
+  "next": "Resolve cloud Preview login communication error before authenticated generation-path inspection. Do not repeat TTS approval or infer invalid credentials. No automatic login/provider retry.",
+  "browserFallbackApprovedAt": "2026-10-02T09:11:40+09:00",
+  "browserInspection": {
+    "previewPageReached": true,
+    "appLoginRequired": true,
+    "secureLoginSubmitted": true,
+    "visibleError": "Failed to fetch",
+    "loginSuccessVerified": false,
+    "providerAttemptsMade": 0
+  }
 }
