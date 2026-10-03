@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src data: blob:; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>연이 음색 비교</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,'Noto Sans CJK KR',sans-serif;color:#29233b;background:#f7f5fa}*{box-sizing:border-box}body{margin:0}main{max-width:980px;margin:auto;padding:38px 22px 60px}h1{font-size:clamp(28px,5vw,40px);letter-spacing:-.06em;margin:8px 0 14px}h2{font-size:21px;margin:0 0 14px}h3{font-size:17px;margin:0 0 8px}p{line-height:1.7;margin:10px 0}.eyebrow{font-size:12px;letter-spacing:.14em;color:#796789;font-weight:700}.intro{max-width:680px}.notice{border-left:4px solid #9a7bd1;padding:14px 18px;background:#eee8f8;border-radius:4px 16px 16px 4px;margin:24px 0}.muted,.fine{color:#655d75}.fine{font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card,section{background:#fff;border:1px solid #e4dfeb;border-radius:20px;padding:22px;min-width:0}section{margin-top:22px}.card p{font-size:14px}.quote{min-height:80px;font-size:17px!important;color:#3d3452;word-break:keep-all}.badge{display:inline-block;background:#eee8f8;color:#644789;border-radius:99px;padding:4px 9px;font-size:11px;margin-bottom:12px}.badge.pending{background:#f3f0f5;color:#756b80}button,.file-label,a.download{font:inherit;border-radius:11px;padding:11px 15px;background:#695094;color:#fff;border:1px solid #695094;cursor:pointer;min-height:44px;text-decoration:none;display:inline-block;text-align:center}button.secondary,.file-label{background:#fff;color:#594076;border-color:#d5c9e5}button:disabled{opacity:.4;cursor:not-allowed}button:hover:enabled,.file-label:hover{filter:brightness(.94)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #b58ee7;outline-offset:3px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.file-label{font-size:14px}input[type=file]{display:block;font-size:13px;width:100%;margin:8px 0;color:#655d75}input::file-selector-button{font:inherit;padding:8px;border:1px solid #d5c9e5;border-radius:8px;background:#fff;color:#594076}.pairs{display:grid;gap:12px}.pair{padding:14px 0;border-top:1px solid #ede8f2}.pair:first-child{border:0}.player{position:sticky;bottom:12px;background:#2e243e;color:#fff;padding:15px 18px;border-radius:17px;box-shadow:0 6px 30px #24123025;z-index:2;margin-top:22px}.player p{margin:0 0 7px;font-size:14px}audio{width:100%;height:42px;display:block}.review{display:grid;grid-template-columns:1fr 1fr;gap:14px}label.field{display:block;font-size:14px}select,textarea{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid #d5c9e5;border-radius:10px;background:#fff;color:#29233b;font:inherit}textarea{min-height:90px;resize:vertical}.wide{grid-column:1/-1}details{margin-top:20px}summary{cursor:pointer;padding:8px 0;color:#594076}code{font-size:12px;overflow-wrap:anywhere}a{color:#644789}.status{min-height:24px;overflow-wrap:anywhere}.setup-list{padding-left:21px;line-height:1.8}footer{font-size:12px;color:#796f87;line-height:1.8;margin-top:20px}@media(max-width:640px){main{padding:24px 15px 40px}.grid,.review{grid-template-columns:1fr}.card,section{padding:19px}.quote{min-height:0}.wide{grid-column:auto}.player{bottom:8px}.actions button{flex:1}.intro{font-size:15px}}
+</style>
+</head>
+<body><main>
+<div class="eyebrow">YEONI · VOICE COMPARISON</div>
+<h1>언어가 바뀌어도, 같은 연이</h1>
+<p class="intro">익숙한 한국어 목소리를 기준으로 비교해요. 먼저 기존 한국어와 후보 한국어를 듣고, 다음으로 후보의 한국어와 일본어가 같은 사람처럼 들리는지 확인해 주세요.</p>
+<div class="notice"><strong>기존 음성 2개 + 첨부한 후보 음성 2개 · 바로 비교 가능</strong><br><span class="fine">후보 생성 조건: Gemini 3.8 Flash TTS · Zephyr. 파일을 따로 불러올 필요 없이 아래 버튼을 누르세요. 현재 앱의 음성은 그대로입니다.</span></div>
+<div class="grid" id="clips"></div>
+<section aria-labelledby="steps-title"><h2 id="steps-title">이 순서로 들어보세요</h2>
+<p class="fine">같은 이어폰과 기기 음량, 1배속으로 들어 주세요. 파일의 피치·속도·음색은 가공하지 않았습니다. 녹음 자체의 크기 차이는 음색 차이와 구분해 주세요.</p>
+<div class="pairs">
+<div class="pair"><h3>1. 익숙한 연이 목소리인가요?</h3><p class="fine">같은 한국어 문장으로 목소리 높이, 두께, 숨소리와 말투를 비교해요.</p><div class="actions"><button data-play="original-ko">기준 한국어 듣기</button><button class="secondary" data-play="candidate-ko" disabled>후보 한국어 듣기</button></div></div>
+<div class="pair"><h3>2. 언어만 바뀐 같은 사람인가요?</h3><p class="fine">후보 두 개를 번갈아 들어요. 일본어 발음의 자연스러움은 별도로 평가해요.</p><div class="actions"><button data-play="candidate-ko" disabled>후보 한국어 비교</button><button class="secondary" data-play="candidate-ja" disabled>후보 일본어 비교</button></div></div>
+<div class="pair"><h3>참고: 기존 두 언어</h3><p class="fine">기존의 두 언어가 어떻게 다르게 들리는지도 확인할 수 있어요.</p><div class="actions"><button data-play="original-ko">기존 한국어 듣기</button><button class="secondary" data-play="original-ja">기존 일본어 듣기</button></div></div>
+</div></section>
+<div class="player"><p id="now" aria-live="polite">들을 음성을 선택해 주세요.</p><audio id="player" controls preload="metadata" aria-label="선택한 음성 재생"></audio></div>
+<section aria-labelledby="review-title"><h2 id="review-title">들어본 느낌</h2><div class="review">
+<label class="field">기존 한국어 ↔ 후보 한국어<select id="familiar" data-review><option value="">아직 비교하지 않음</option><option>같은 연이처럼 들림</option><option>비슷하지만 차이가 있음</option><option>다른 목소리로 들림</option><option>판단하기 어려움</option></select></label>
+<label class="field">후보 한국어 ↔ 후보 일본어<select id="identity" data-review><option value="">아직 비교하지 않음</option><option>같은 사람처럼 들림</option><option>비슷하지만 차이가 있음</option><option>다른 사람처럼 들림</option><option>판단하기 어려움</option></select></label>
+<label class="field">후보 일본어 발음<select id="pronunciation" data-review><option value="">아직 확인하지 않음</option><option>자연스러움</option><option>어색한 부분이 있음</option><option>판단하기 어려움</option></select></label>
+<label class="field wide">차이가 느껴진 부분<textarea id="notes" data-review placeholder="예: 일본어는 더 높고 가늘게 들림 / 한국어 후보는 숨소리가 다름"></textarea></label>
+</div><div class="actions"><button id="save-review">평가 기록 내려받기</button></div><p class="fine status" id="save-state" aria-live="polite"></p></section>
+<details id="comparison-info"><summary>비교 음성 정보</summary>
+<p class="fine">기존 음성은 Google Cloud Chirp3-HD Zephyr이며, 후보는 Google AI Studio에서 생성한 뒤 제공해 주신 한국어·일본어 WAV입니다. 생성 조건은 Gemini 3.8 Flash TTS / Zephyr / 단일 화자 / 스타일·표현 지시 없음입니다. 파일 자체만으로 모델 설정을 독립적으로 확인한 것은 아닙니다.</p>
+<p class="fine">기존 MP3와 첨부 WAV를 변환 없이 넣었습니다. 추가 생성은 하지 않습니다. 같은 Zephyr라는 이름만으로 음색이 같다고 판단하지 않으며, 두 언어가 비슷해도 익숙한 기존 연이 음색인지 먼저 확인해 주세요.</p>
+<button id="request-plan" class="secondary">비교 정보 내려받기</button>
+</details>
+<footer>네 음성이 모두 들어 있어 다시 열어도 바로 재생할 수 있습니다. 선택 기능으로 교체한 파일은 다시 열면 첨부 원본으로 돌아갑니다. 평가 기록은 브라우저 저장이 허용될 때 복원됩니다. 이 짧은 두 문장만으로 모든 문장의 음색 일관성을 확정하지 않습니다.</footer>
+</main><script>
+'use strict';
+/*__COMPARISON_DATA__*/
+const {plan}=comparison;
+const clips=new Map(comparison.clips.map(c=>[c.id,{...c}]));
+const player=document.getElementById('player'),now=document.getElementById('now');
+const pendingLoads=new Map();
+const reviewKey='yeoni-voice-comparison-review-v1';
+let selected=null,playSequence=0;
+const el=(tag,text,className)=>{const node=document.createElement(tag);if(text)node.textContent=text;if(className)node.className=className;return node;};
+function stop(){playSequence++;player.pause();player.removeAttribute('src');player.load();selected=null;}
+function updateButtons(id){document.querySelectorAll('[data-play="'+id+'"]').forEach(b=>b.disabled=!clips.has(id));}
+function renderCard(original,isCandidate){
+ const id=isCandidate?original.id.replace('original','candidate'):original.id;
+ const embedded=clips.get(id);
+ const card=el('article',null,'card');card.dataset.clip=id;
+ card.append(el('span',isCandidate?(embedded?'첨부 원본 그대로':'파일 없음'):'원본 그대로','badge'+(isCandidate&&!embedded?' pending':'')),el('h2',original.title.replace('기존',isCandidate?'후보':'기존')));
+ card.append(el('p',isCandidate?'Gemini 3.8 Flash TTS · Zephyr':original.voice,'fine'));
+ const quote=el('p',original.text,'quote');quote.lang=original.language;card.append(quote);
+ const actions=el('div',null,'actions'),play=el('button',isCandidate?'후보 듣기':'원본 듣기');play.dataset.play=id;play.disabled=!embedded;actions.append(play);
+ const copy=el('button','문장 복사','secondary');copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(original.text);status.textContent='문장을 복사했습니다.';}catch{const range=document.createRange();range.selectNodeContents(quote);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);status.textContent='문장을 선택했습니다. 복사해 주세요.';}});actions.append(copy);card.append(actions);
+ const status=el('p',isCandidate?(embedded?'첨부 WAV · '+embedded.durationSeconds.toFixed(3)+'초 · 가공 없음':'후보 파일을 불러와 주세요.'):'원본 '+original.durationSeconds.toFixed(3)+'초 · 새 생성 없음','fine status');status.id='status-'+id;status.setAttribute('aria-live','polite');
+ if(isCandidate){
+  const replacement=el('details');replacement.append(el('summary','다른 파일로 교체하기 (선택)'));
+  const label=el('label','받은 후보 음성 불러오기','fine');label.htmlFor='file-'+id;
+  const input=el('input');input.type='file';input.accept='.mp3,.wav,audio/mpeg,audio/wav,audio/x-wav';input.id=label.htmlFor;
+  input.addEventListener('change',async()=>{
+   const file=input.files?.[0];if(!file)return;
+   const marker=Symbol();pendingLoads.set(id,marker);
+   if(file.size>20*1024*1024||!file.size){status.textContent='20MB 이하의 WAV 또는 MP3를 선택해 주세요.';input.value='';return;}
+   const url=URL.createObjectURL(file),probe=new Audio();probe.preload='metadata';
+   try{
+    const duration=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error()),7000);probe.onloadedmetadata=()=>{clearTimeout(timer);Number.isFinite(probe.duration)&&probe.duration>0?resolve(probe.duration):reject(new Error());};probe.onerror=()=>{clearTimeout(timer);reject(new Error());};probe.src=url;});
+    if(pendingLoads.get(id)!==marker){URL.revokeObjectURL(url);return;}
+    if(selected===id){stop();now.textContent='후보 파일을 바꿨습니다. 다시 재생해 주세요.';}
+    const old=clips.get(id);if(old?.src.startsWith('blob:'))URL.revokeObjectURL(old.src);
+    clips.set(id,{id,title:original.title.replace('기존','후보'),src:url,text:original.text,filename:file.name,bytes:file.size,durationSeconds:duration,provenance:'user-imported-unverified'});
+    card.querySelector('.badge').textContent='불러옴 · 출처 미확인';
+    status.textContent=file.name+' · '+duration.toFixed(3)+'초 / 지정한 모델·문장의 파일인지 확인해 주세요.';
+    updateButtons(id);
+   }catch{URL.revokeObjectURL(url);if(pendingLoads.get(id)===marker){status.textContent='재생할 수 없는 파일입니다. WAV 또는 MP3를 확인해 주세요.';input.value='';}}
+   finally{probe.removeAttribute('src');probe.load();}
+  });replacement.append(label,input);card.append(replacement);
+ }
+ card.append(status);document.getElementById('clips').append(card);
+}
+for(const c of plan.baselines){renderCard(c,false);renderCard(c,true);}
+for(const id of clips.keys())updateButtons(id);
+document.addEventListener('click',async e=>{
+ const button=e.target.closest('button[data-play]');if(!button)return;
+ const clip=clips.get(button.dataset.play);if(!clip)return;
+ stop();selected=clip.id;const token=playSequence;player.src=clip.src;player.playbackRate=1;player.load();now.textContent=clip.title+' · 재생 준비 중';
+ try{await player.play();if(token===playSequence)now.textContent=clip.title+' · 재생 중';}
+ catch{if(token===playSequence)now.textContent='재생 버튼을 다시 눌러 주세요.';}
+});
+player.addEventListener('ended',()=>{if(selected)now.textContent=clips.get(selected).title+' · 재생 끝';});
+player.addEventListener('play',()=>{if(selected)now.textContent=clips.get(selected).title+' · 재생 중';});
+player.addEventListener('pause',()=>{if(selected&&!player.ended)now.textContent=clips.get(selected).title+' · 일시정지';});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)player.pause();});
+const reviewInputs=[...document.querySelectorAll('[data-review]')],saveState=document.getElementById('save-state');
+try{const saved=JSON.parse(localStorage.getItem(reviewKey)||'{}');for(const field of reviewInputs)if(typeof saved[field.id]==='string')field.value=saved[field.id];saveState.textContent='평가 기록은 이 브라우저에 자동 저장됩니다.';}catch{saveState.textContent='이 브라우저에서는 자동 저장을 사용할 수 없습니다. 평가 기록을 내려받아 주세요.';}
+const readReview=()=>Object.fromEntries(reviewInputs.map(field=>[field.id,field.value]));
+for(const field of reviewInputs)field.addEventListener('input',()=>{try{localStorage.setItem(reviewKey,JSON.stringify(readReview()));saveState.textContent='평가 기록을 이 브라우저에 저장했습니다.';}catch{saveState.textContent='자동 저장을 사용할 수 없습니다. 평가 기록을 내려받아 주세요.';}});
+function download(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=el('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+document.getElementById('save-review').addEventListener('click',()=>download({recordedAt:new Date().toISOString(),review:readReview(),clips:[...clips.values()].map(({src,...metadata})=>metadata),candidateModel:plan.candidate.model,automaticVerdict:false},'Yeoni_Voice_Review.json'));
+document.getElementById('request-plan').addEventListener('click',()=>download(plan,'Yeoni_Voice_Request_Plan.json'));
+</script></body></html>

@@ -1,0 +1,156 @@
+{
+  "synthetic": true,
+  "response": {
+    "advice": {
+      "summary": "합성 검증용 예시입니다. 오늘은 천천히 진행해요.",
+      "nextSteps": [
+        "예시의 기록 하나를 살펴보세요."
+      ],
+      "basis": "가상 기록에 근거했어요.",
+      "limitations": "실제 사용자의 상태는 확인하지 않았어요."
+    },
+    "performance": {
+      "version": 1,
+      "responseId": "48339630-bdd9-4b26-84b4-bc48f6ba84ac",
+      "spokenText": "합성 검증용 예시입니다. 오늘은 천천히 진행해요.\n예시의 기록 하나를 살펴보세요.\n가상 기록에 근거했어요.\n실제 사용자의 상태는 확인하지 않았어요.",
+      "language": "ko-KR",
+      "voice": "ko-KR-Chirp3-HD-Zephyr",
+      "emotion": "encouraging",
+      "gesture": "nod",
+      "intentSource": "rules-v1"
+    },
+    "context": {
+      "recordSource": "example",
+      "scope": "assistant",
+      "startDate": "2026-09-06",
+      "endDate": "2026-10-03",
+      "recordCount": 4,
+      "metrics": [
+        {
+          "id": "workout.days",
+          "label": "최근 28일 운동 수행",
+          "value": 1,
+          "unit": "일"
+        },
+        {
+          "id": "workout.recent7",
+          "label": "최근 7일 운동 수행",
+          "value": 1,
+          "unit": "일"
+        },
+        {
+          "id": "workout.previous7",
+          "label": "직전 7일 운동 수행",
+          "value": 0,
+          "unit": "일"
+        },
+        {
+          "id": "workout.stopped",
+          "label": "운동 중단 기록",
+          "value": 0,
+          "unit": "일"
+        },
+        {
+          "id": "workout.discomfort",
+          "label": "운동 불편·통증 신호",
+          "value": 0,
+          "unit": "일"
+        },
+        {
+          "id": "workout.unknownBack",
+          "label": "허리 상태 미응답",
+          "value": 0,
+          "unit": "일"
+        },
+        {
+          "id": "diet.days",
+          "label": "식단을 기록한 날",
+          "value": 0,
+          "unit": "일"
+        },
+        {
+          "id": "water.days",
+          "label": "물 섭취 기록일",
+          "value": 1,
+          "unit": "일"
+        },
+        {
+          "id": "water.average",
+          "label": "기록한 날의 평균 물 섭취",
+          "value": 600,
+          "unit": "mL"
+        },
+        {
+          "id": "language.days",
+          "label": "최근 28일 학습 활동 기록일",
+          "value": 1,
+          "unit": "일"
+        },
+        {
+          "id": "language.review",
+          "label": "현재 복습 목록 항목",
+          "value": 0,
+          "unit": "개"
+        },
+        {
+          "id": "budget.expenseCount",
+          "label": "최근 28일 지출 기록",
+          "value": 1,
+          "unit": "건"
+        },
+        {
+          "id": "budget.expense",
+          "label": "최근 28일 지출 합계",
+          "value": 12300,
+          "unit": "원"
+        },
+        {
+          "id": "budget.expenseRecent7",
+          "label": "최근 7일 지출",
+          "value": 12300,
+          "unit": "원"
+        },
+        {
+          "id": "budget.expensePrevious7",
+          "label": "직전 7일 지출",
+          "value": 0,
+          "unit": "원"
+        },
+        {
+          "id": "budget.incomeCount",
+          "label": "최근 28일 수입 기록",
+          "value": 0,
+          "unit": "건"
+        },
+        {
+          "id": "budget.income",
+          "label": "최근 28일 수입 합계",
+          "value": 0,
+          "unit": "원"
+        },
+        {
+          "id": "budget.savingsCount",
+          "label": "최근 28일 저축 기록",
+          "value": 0,
+          "unit": "건"
+        },
+        {
+          "id": "budget.savings",
+          "label": "최근 28일 저축 합계",
+          "value": 0,
+          "unit": "원"
+        }
+      ],
+      "notes": [
+        "실제 사용자의 기록이 아닌 가상의 예시예요. 앱에 저장하거나 결제하지 않아요.",
+        "예시로 조언을 받아도 무료 AI 이용 한도는 사용해요.",
+        "복습 목록은 현재 저장된 항목 수로, 중복 가능성이 있어 서로 다른 문제 수나 전체 실력을 뜻하지 않아요.",
+        "학습일은 일일 루틴과 새 과정의 활동 날짜를 합쳐 같은 날은 한 번만 셌어요. 과정 전체의 완료나 숙달을 뜻하지 않아요.",
+        "월 전체가 아닌 최근 28일 합계예요. 기록이 없는 수입·지출·저축을 0원으로 실제 확정하지 않아요."
+      ]
+    },
+    "source": "free-gemini",
+    "model": "gemini-3.5-flash-lite",
+    "generatedAt": "2026-10-02T15:09:44.675Z"
+  }
+}

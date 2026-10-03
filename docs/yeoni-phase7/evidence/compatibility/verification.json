@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "be2d87d0c02bafe09c3e0401fdacf8d0007b646b",
+  "ciRun": 36704348851,
+  "job": 109850943037,
+  "artifactId": 11090799212,
+  "artifactSha256": "20ad53bfe9bba67fe8e5590b4563a38a93dbd876a3412879edddac265940a5b3",
+  "checksPassed": 12,
+  "javaScriptEnabled": false,
+  "sandbox": "no allow-scripts",
+  "previewBytes": 299676,
+  "fragmentSha256": "3b02b3521d9869451961cd1edacd44a1641a36a150e17668e58cbfbae26430a0",
+  "userChatGPTSurface": "not directly inspected; pending user confirmation",
+  "productionApplied": false
+}

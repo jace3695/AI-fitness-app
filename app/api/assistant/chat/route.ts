@@ -1,4 +1,5 @@
 import { detectAdviceScope } from '@/lib/assistant-advice-intent';
+import { buildReplyPlan } from '@/lib/yeoni/reply-plan';
 import type { FreeAdviceScope } from '@/lib/free-advice-context';
 import {isWorkoutFeedbackIntent,parseWorkoutFeedbackCommand} from '@/lib/assistant-workout-feedback-command';
 import { isGrowthCompletionIntent, parseGrowthCompletion, type GrowthCommandProposal } from '@/lib/assistant-growth-command';
@@ -428,7 +429,8 @@ export async function POST(request: NextRequest) {
     const replies: AssistantReply[] = [];
     const commands = detectAdviceScope(message) ? [message] : splitCompoundCommands(message);
     if (commands.length > 3 || commands.length > 1 && /(추가|등록|기록|수정|변경|완료|끝|마쳤|했어|했어요|삭제)/.test(message)) {
-      return NextResponse.json({ reply: '기록을 바꾸는 명령은 한 번에 하나씩 말씀해 주세요. 변경 내용을 확인한 뒤 다음 명령을 진행할 수 있어요.', changed: false });
+      const reply = '기록을 바꾸는 명령은 한 번에 하나씩 말씀해 주세요. 변경 내용을 확인한 뒤 다음 명령을 진행할 수 있어요.';
+      return NextResponse.json({ reply, changed: false, performance: buildReplyPlan(reply, crypto.randomUUID(), true) });
     }
     for (const command of commands) {
       const compoundHistory = replies.flatMap((reply, index) => [
@@ -446,6 +448,7 @@ export async function POST(request: NextRequest) {
     if (historySaveError) console.error("Assistant history save failed", { message: historySaveError.message });
     return NextResponse.json({
       reply,
+      performance: buildReplyPlan(reply, crypto.randomUUID(), replies.some(item => !!item.proposal || !!item.adviceRequest)),
       action: lastAction,
       changed: replies.some((reply) => reply.changed),
       adviceRequest: replies.find((reply) => reply.adviceRequest)?.adviceRequest,

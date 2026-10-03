@@ -1,0 +1,19 @@
+{
+  "requestId": "0d862ef8-b60d-41f4-b094-2936853cb905",
+  "audioFile": "media/yeoni-zephyr-ja-approved.mp3",
+  "audioSha256": "317b079799b53af65958d994e3019182c2052f65ad2fed3f357f294079b1647e",
+  "textSha256": "05821c6b3784935327ee2c5f0e7eec61d8542988f99ce688d5a1891edd4a9c5f",
+  "durationSeconds": 4.056,
+  "bytes": 16224,
+  "codec": "mp3",
+  "sampleRate": 24000,
+  "channels": 1,
+  "decodeErrors": false,
+  "databaseReservationCount": 1,
+  "reservedCharacters": 25,
+  "reservedAt": "2026-10-02T07:31:10.420435Z",
+  "source": "User downloaded the fixed-payload Preview output and uploaded it",
+  "forcedAlignment": "pending-tools-unavailable",
+  "listeningReview": "pending",
+  "additionalGenerationAllowed": false
+}

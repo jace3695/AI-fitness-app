@@ -1,0 +1,76 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "initial static pose and no animation loop",
+      "passed": true
+    },
+    {
+      "name": "start, actual canvas pixels change, 30fps render cap",
+      "passed": true
+    },
+    {
+      "name": "blink reaches closed and returns open",
+      "passed": true
+    },
+    {
+      "name": "manual stop is stationary and survives reload",
+      "passed": true
+    },
+    {
+      "name": "editing pauses; blur resumes",
+      "passed": true
+    },
+    {
+      "name": "native modal pauses and closing resumes",
+      "passed": true
+    },
+    {
+      "name": "offscreen stops without polling and returns",
+      "passed": true
+    },
+    {
+      "name": "reduced-motion overrides saved animation preference",
+      "passed": true
+    },
+    {
+      "name": "visibilitychange handler (synthetic hidden event) stops and resumes",
+      "passed": true
+    },
+    {
+      "name": "hide setting survives reload and keeps explanation",
+      "passed": true
+    },
+    {
+      "name": "20 mount/unmount cycles leave one loop, none while unmounted",
+      "passed": true
+    },
+    {
+      "name": "image failure falls back and recovers with no animation loop leak",
+      "passed": true
+    },
+    {
+      "name": "320/390/430/1280px layouts and dark background",
+      "passed": true
+    },
+    {
+      "name": "denied preference storage still stops the current animation",
+      "passed": true
+    },
+    {
+      "name": "canvas unavailable still displays approved human and explanation",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "requestOrigins": [
+    "http://127.0.0.1:8878"
+  ],
+  "physicalIphone": "not tested",
+  "background": "synthetic visibility event only"
+}

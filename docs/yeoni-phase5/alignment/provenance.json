@@ -1,0 +1,38 @@
+{
+  "tool": "Montreal Forced Aligner",
+  "version": "3.4.2",
+  "acousticModel": "Korean MFA acoustic model v3.0.0",
+  "acousticSha256": "46f7a73ab46828c679562b160e0577beecfb4a9a827efe5ab392aee947451a4d",
+  "dictionaryModel": "Korean MFA dictionary v3.0.0",
+  "dictionarySha256": "75683f4dc2a7dd95295a068206d248a30bd2f4f2231fd4449210c91d1e78150b",
+  "license": "CC BY 4.0",
+  "authors": "Michael McAuliffe and Morgan Sonderegger (2024)",
+  "originalAudioSha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+  "alignmentInput": "FFmpeg decode to mono PCM16 / 16000Hz; no trim, stretch, resynthesis or clock offset",
+  "inputWavSha256": "c128d070277f1e09d2741751e9e3b955ed985c1fb68be5322d669673263c1db6",
+  "rawOutput": "mfa-phrase.raw.json",
+  "rawOutputSha256": "2a9ee30a4e692038492a80cd7818d758b8e19ebfc60e793a7ce11e7ec83631ef",
+  "lexicon": "zephyr-ko-39.dict",
+  "lexiconSha256": "d006d051725c264c58ec8e0b24d59317303946da47fae9682a883000b84d08a9",
+  "method": "Constrained acoustic alignment with explicit phrase lexicon; --no_tokenization --single_speaker --num_jobs 1 --no_use_mp --output_format json --clean",
+  "reviewStatus": "automatic candidate; no listening-based boundary review or phonetic accuracy certification",
+  "lexiconNotes": [
+    "Default tokenized run: zero OOV, but morpheme boundaries did not express 오늘은 liaison, 일정을 / 드릴게요 tensification or 좋겠어요 aspiration and liaison.",
+    "Phrase lexicon is a provisional standard-pronunciation hypothesis for this fixed text only, not a general Korean G2P service.",
+    "All times are acoustic model output; no equal-character timing, amplitude-only mouth or manually invented cue durations.",
+    "Separated-word candidate assigned 3980–4120ms to silence despite RMS -21.9dBFS (sentence-pause reference -50.3dBFS). Connected-token run removes that optional silence: m 3940–4020ms, sʷ 4020–4090ms, i 4090–4190ms. Times remain acoustic output, not manual edits."
+  ],
+  "remaining": [
+    "Listening review of all boundaries, especially 쉬는 and 좋겠어요; waveform continuity review does not certify individual phones",
+    "Independent 우 vowel / ㅂ / ㅍ closures, longer responses and numbers are not covered by this recording",
+    "Physical iPhone / Bluetooth and naturalness review"
+  ],
+  "sources": [
+    "https://mfa-models.readthedocs.io/en/latest/acoustic/Korean/Korean%20MFA%20acoustic%20model%20v3_0_0.html",
+    "https://mfa-models.readthedocs.io/en/latest/dictionary/Korean/Korean%20MFA%20dictionary%20v3_0_0.html",
+    "https://mfa-models.readthedocs.io/en/latest/mfa_phone_set.html#korean"
+  ],
+  "alignmentTranscript": "zephyr-ko-39.lab",
+  "alignmentTranscriptSha256": "e899fa7d2d27bab4978465a4b634a9437d0c770b53ab15d93469cb136f98c3f6",
+  "tokenization": "Combine only 조금 쉬는 → 조금쉬는 as one alignment token; exact TTS text/MP3 remain unchanged. No audio timing offset."
+}

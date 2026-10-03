@@ -1,0 +1,26 @@
+[
+  {
+    "name": "unit",
+    "exitCode": 0,
+    "seconds": 26.53,
+    "log": "unit.log"
+  },
+  {
+    "name": "lint",
+    "exitCode": 0,
+    "seconds": 34.06,
+    "log": "lint.log"
+  },
+  {
+    "name": "build",
+    "exitCode": 0,
+    "seconds": 10.71,
+    "log": "build.log"
+  },
+  {
+    "name": "types",
+    "exitCode": 0,
+    "seconds": 3.26,
+    "log": "types.log"
+  }
+]

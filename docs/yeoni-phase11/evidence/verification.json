@@ -1,0 +1,179 @@
+{
+  "date": "2026-10-01",
+  "phase": 11,
+  "status": "technical-checks-passed",
+  "baseCommit": "9cf1391ce62b5399b05e1693673cb67827c05ba4",
+  "branch": "agent/yeoni-cat-animation-poc",
+  "priorReview": {
+    "lipSmoothingUserConfirmed": true,
+    "recordedAt": "2026-10-01T22:17:38+09:00",
+    "scope": "Approval of prior mouth-motion preview and authorization to proceed to PHASE 11; not blanket certification of phoneme boundaries or physical devices"
+  },
+  "implementation": {
+    "audioElements": 1,
+    "controllers": 1,
+    "hostRenderLoops": 1,
+    "activeHostObservers": 3,
+    "audioClock": "HTMLAudioElement.currentTime",
+    "idleClockPreservedOnSwitch": true,
+    "assetSlotsMaximum": 2,
+    "preparedRendererOwnsLoop": false,
+    "newTtsRequests": 0,
+    "loadingAndFailureKeepCurrentAppearance": true,
+    "latestRequestWins": true
+  },
+  "environment": {
+    "os": "Ubuntu 24.04",
+    "node": "v24.19.0",
+    "webkit": "Playwright WPE 2359 with existing workspace-local shared libraries",
+    "systemPackageInstallation": false,
+    "preview": "offline file:// HTML; external requests blocked"
+  },
+  "browserChecks": 32,
+  "browsers": [
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "newChecks": 13,
+      "contractChecks": 3,
+      "allPassed": true,
+      "playingSwitches": 12,
+      "nativeSamples": 121,
+      "poseMismatches": 0,
+      "pixelParityFrames": 16,
+      "changedPixelChannels": 0,
+      "controllerContinuity": {
+        "before": {
+          "time": 100.10000000000036,
+          "progress": 0.07700000000000028,
+          "emotion": "happy"
+        },
+        "after": {
+          "time": 133.39999999999964,
+          "progress": 0.10261538461538433,
+          "emotion": "happy",
+          "gesture": "greet"
+        },
+        "samples": 5,
+        "backwardsClockSteps": 0
+      },
+      "lifecycleSubcases": 7,
+      "normalFilesAccepted": true,
+      "durationMismatchRejected": true,
+      "recoveredAfterMismatch": true,
+      "runtimeErrors": [],
+      "externalRequests": []
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "newChecks": 13,
+      "contractChecks": 3,
+      "allPassed": true,
+      "playingSwitches": 12,
+      "nativeSamples": 111,
+      "poseMismatches": 0,
+      "pixelParityFrames": 16,
+      "changedPixelChannels": 0,
+      "controllerContinuity": {
+        "before": {
+          "time": 80,
+          "progress": 0.06153846153846154,
+          "emotion": "happy"
+        },
+        "after": {
+          "time": 140,
+          "progress": 0.1076923076923077,
+          "emotion": "happy",
+          "gesture": "greet"
+        },
+        "samples": 6,
+        "backwardsClockSteps": 0
+      },
+      "lifecycleSubcases": 7,
+      "normalFilesAccepted": true,
+      "durationMismatchRejected": true,
+      "recoveredAfterMismatch": true,
+      "runtimeErrors": [],
+      "externalRequests": []
+    }
+  ],
+  "codeTests": {
+    "total": 703,
+    "passed": 703,
+    "failed": 0
+  },
+  "codeGates": [
+    {
+      "name": "unit",
+      "exitCode": 0,
+      "seconds": 26.53,
+      "log": "unit.log"
+    },
+    {
+      "name": "lint",
+      "exitCode": 0,
+      "seconds": 34.06,
+      "log": "lint.log"
+    },
+    {
+      "name": "build",
+      "exitCode": 0,
+      "seconds": 10.71,
+      "log": "build.log"
+    },
+    {
+      "name": "types",
+      "exitCode": 0,
+      "seconds": 3.26,
+      "log": "types.log"
+    }
+  ],
+  "preservation": {
+    "files": 329,
+    "changed": 0,
+    "manifest": "preserved-assets.json",
+    "historical61ChecksRerun": false,
+    "existingMediaRegenerated": false,
+    "originalAudioAlignmentAndArtworkChanged": false
+  },
+  "preview": {
+    "file": "docs/yeoni-phase11/Yeoni_Appearance_Switch_Preview.html",
+    "sha256": "6688aa4a3ec8754ba3543558dcbf69ea5b8a7c96a88db8da4c222a7763874975",
+    "bytes": 5186953,
+    "delivery": "Download HTML and open in Edge/Chrome; ChatGPT code viewer does not execute HTML"
+  },
+  "visualReview": {
+    "reviewed": [
+      "Cat and human mobile previews in Chromium",
+      "Cat mobile and human desktop previews in WebKit",
+      "16 same-frame adapter parity samples per engine; existing original-A evidence preserved"
+    ],
+    "changedCharacterArt": false,
+    "newPreviewUserReviewPending": true
+  },
+  "remaining": [
+    "User review of PHASE 11 appearance-switch preview",
+    "Unreviewed automatic phoneme boundaries and phonemes absent from the existing clip",
+    "Physical iPhone/Bluetooth/thermal verification",
+    "Later language, real AI response and production integration phases"
+  ],
+  "technicalProgress": {
+    "completed": 10,
+    "total": 16,
+    "phases": "1-4, 6-11"
+  },
+  "productionMergedOrDeployed": false,
+  "sourceSha256": {
+    "components/yeoni/SwitchableCharacterStage.tsx": "6aa97d705603a3b28dbe06b9e04b157f1a61735e25b1fc2ad8718ae76e5b82fa",
+    "components/yeoni/appearance-stage.module.css": "c42e67c4e68f2e642c31578d9ae391a1faec4d8fc1595b5acb8755c16140addc",
+    "lib/yeoni/appearance-renderer.ts": "e898b9db67be598dcc4591a57777ad3e23e27d07a4880e2583e1df895c535a26",
+    "lib/yeoni/appearance-stage.ts": "40041f993bf9d2ea7ae8f9a73ac63366df78cc6eed978ad324ba82b49d7ad707",
+    "lib/yeoni/character-stage.ts": "dc2e39a4e41927ca7d9a7d9c984306ea9bce680ef00199a175abce7a2b775abe",
+    "scripts/yeoni-appearance/browser.tsx": "e41344b4fc99926cb218873cb0f7a5b4229fa74ebb44152e4f10b924fb60ce5a",
+    "scripts/yeoni-appearance/check.mjs": "c4b51e2082523aa665796afe9b6f9557e0ce76d277efe6eddbc6a702efd3d1c4",
+    "scripts/yeoni-appearance/export.mjs": "d6364ad935df080e573160f16839ec0fb04736f581144485e2f6e327c9672a4a",
+    "scripts/yeoni-appearance/probe.ts": "1945ec184c813b753191b47496bc2a83f27fd30aaab6fd082a9cf93276ea7621",
+    "scripts/yeoni-speech-poc/SpeechLab.tsx": "947cfa3a12d7a3ffb57cf3af1eda547521eea63a5a4cd820e59349d90692b828"
+  }
+}

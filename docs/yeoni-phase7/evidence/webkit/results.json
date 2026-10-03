@@ -1,0 +1,33 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "offline images load; static default; no audio or animation",
+      "passed": true
+    },
+    {
+      "name": "six distinct mouth compositions and pressed state",
+      "passed": true
+    },
+    {
+      "name": "three eye states preserve selected mouth",
+      "passed": true
+    },
+    {
+      "name": "white lavender dark background and reset",
+      "passed": true
+    },
+    {
+      "name": "320 390 430 1280px layouts; six-mouth comparison visible",
+      "passed": true
+    },
+    {
+      "name": "reload returns default; no runtime errors or network requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "Static asset-review HTML only; no human animation or speech validation."
+}

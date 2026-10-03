@@ -1,0 +1,193 @@
+{
+  "version": 2,
+  "size": [
+    313,
+    313
+  ],
+  "scope": "Original-preserving static appearance review. Original white backdrop retained; not a separated animation rig.",
+  "source": {
+    "image": "/yeoni-cat-sprite-v1.webp",
+    "sha256": "0188841269a6835acc9e4f3af36003a1a3381ff748187f95ed3cf8cf385e7559",
+    "crop": [
+      0,
+      0,
+      313,
+      313
+    ]
+  },
+  "base": {
+    "image": "base.png",
+    "preview": "base.webp",
+    "sha256": "f502a0447e4eeba04d83b951c80f6dc38520978265f74d9522e1054fcf855430"
+  },
+  "parts": {
+    "a": [
+      {
+        "image": "a.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "56f1a88a6b331af3e3493102ea35620a269fe727a2b4ba59b1c02afc6c5dba9f",
+        "sourceImage": "exec-99714613-85f1-4b20-9d62-b0cd21499676.png",
+        "sourceSha256": "af8b3f927ae113b043fb8e18f9e4c9aa60e10697d02eb5a99b781e905730c914",
+        "prompt": "Use case: precise-object-edit. Input image is the EXACT EDIT TARGET and identity reference, official Yeoni kitten. Preserve its composition, original white backdrop, round head, vertical purple oval eyes, purple ears and tail, cheeks, whiskers, tiny nose, body proportions, paws and mint four-point star precisely. CHANGE ONLY THE TINY MOUTH directly under the nose to a small vertically open AH mouth, a softly rounded kitten U cavity, dark purple inner mouth with subtle pink tongue at bottom, the cat's original gentle upcurved upper lip and nose connection. Width approximately 26 source pixels and height 23 source pixels (relative to the 313px source). Keep its center exactly at source x154/313 and upper start at source y165/313, with natural soft 2.5D purple edging matching the original mouth, not a flat sticker. Do not enlarge or reposition the cat. Return one complete square image with the same pose/composition, no grid, no labels. Preserve every detail outside the mouth."
+      }
+    ],
+    "i": [
+      {
+        "image": "i.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "c056f3bda6bcc771068f1c6316d6c9f7ca8ff7879d404d601dfafcf09b9c83dc",
+        "sourceImage": "exec-408868bf-b375-49b6-ad66-64db3afd222b.png",
+        "sourceSha256": "41f85d9868dc303ba9bfb956ee4adfa49aaa1337a6e45ac978187e0f834a1b81",
+        "prompt": "Use case: precise-object-edit. The input is the exact official Yeoni kitten EDIT TARGET. Edit ONLY the mouth under its tiny purple nose. It must be visibly OPEN in a horizontally stretched EE / Korean '이' shape: a small dark purple horizontal opening about 30px wide and 7px tall relative to this 313px source, with soft rounded corners, a gently double-curved cat upper lip and a clearly separate lower lip. There must be visible dark inner mouth between upper and lower lips; DO NOT return the original closed W mouth. No human teeth. Keep the opening tiny and friendly with the original thin purple edging and soft 2.5D shading. Preserve source center x154, opening top y168, leave nose above y165 completely unchanged. Every other pixel of the character including eyes, head, ears, paws, tail, star, background, framing is unchanged. Return one full square cat image, no text no grids."
+      }
+    ],
+    "u": [
+      {
+        "image": "u.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "fa285ee19e7ec4f7f0b520cd4df586b950e2054b84a06bcf5fb9928bb6043fa6",
+        "sourceImage": "exec-92d6977e-776c-40bc-a658-a8aa70c778b9.png",
+        "sourceSha256": "fa7d9ff126a7c0493592817e0fdfdae7f6d37bc1503350f5974670ff30cdf4fc",
+        "prompt": "Use case: precise-object-edit. Input image is the EXACT EDIT TARGET and identity reference, official Yeoni kitten. Preserve its composition, original white backdrop, round head, vertical purple oval eyes, purple ears and tail, cheeks, whiskers, tiny nose, body proportions, paws and mint four-point star precisely. CHANGE ONLY THE TINY MOUTH directly under the nose to a tiny pursed OO mouth, small softly oval opening, dark purple interior, no human protruding lips. Width approximately 9 source pixels, height 11 source pixels. Keep its center exactly at source x154/313 and upper start at source y165/313, with natural soft 2.5D purple edging matching the original mouth, not a flat sticker. Do not enlarge or reposition the cat. Return one complete square image with the same pose/composition, no grid, no labels. Preserve every detail outside the mouth."
+      }
+    ],
+    "e": [
+      {
+        "image": "e.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "fc953c79ae3346257b586e60c6b892ffe4d34b889e0444d866a98d5884129604",
+        "sourceImage": "exec-96824a51-17c5-494c-8e22-2bf6e995d9d7.png",
+        "sourceSha256": "0f1f8867cecae4f60098954431cf977cbe2816804e75a2af22a4e8dd2d32b3fb",
+        "prompt": "Use case: precise-object-edit. Input image is the EXACT EDIT TARGET and identity reference, official Yeoni kitten. Preserve its composition, original white backdrop, round head, vertical purple oval eyes, purple ears and tail, cheeks, whiskers, tiny nose, body proportions, paws and mint four-point star precisely. CHANGE ONLY THE TINY MOUTH directly under the nose to a small horizontally wide EH mouth, softly rounded corners, kitten upper lip, dark purple cavity, subtle pink tongue at bottom. Width approximately 30 source pixels, height 15 source pixels, distinct from the thin EE slit. Keep its center exactly at source x154/313 and upper start at source y165/313, with natural soft 2.5D purple edging matching the original mouth, not a flat sticker. Do not enlarge or reposition the cat. Return one complete square image with the same pose/composition, no grid, no labels. Preserve every detail outside the mouth."
+      }
+    ],
+    "o": [
+      {
+        "image": "o.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "62ea243aa03de0a6793e666d3645232fddb20d1e2615f23652c5185b76a09129",
+        "sourceImage": "exec-03cb45f6-1e38-4548-a3cf-7793c38d8c94.png",
+        "sourceSha256": "496c5d01a635a7f9e95f84b51e5b3bded9df81a45fbab434cad23919626d4cc7",
+        "prompt": "Use case: precise-object-edit. Input image is the EXACT EDIT TARGET and identity reference, official Yeoni kitten. Preserve its composition, original white backdrop, round head, vertical purple oval eyes, purple ears and tail, cheeks, whiskers, tiny nose, body proportions, paws and mint four-point star precisely. CHANGE ONLY THE TINY MOUTH directly under the nose to a small round open OH mouth, dark purple cavity with subtle pink tongue at bottom. Width approximately 18 source pixels, height 20 source pixels. Clearly rounder and larger than the pursed OO mouth. Keep its center exactly at source x154/313 and upper start at source y165/313, with natural soft 2.5D purple edging matching the original mouth, not a flat sticker. Do not enlarge or reposition the cat. Return one complete square image with the same pose/composition, no grid, no labels. Preserve every detail outside the mouth."
+      }
+    ],
+    "small": [
+      {
+        "image": "small.webp",
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4,
+        "sha256": "4384c18741a3ac8505663ed566754bb9fb6ba14470f2bf99f80f34f47dd6a4d9",
+        "sourceImage": "exec-1f7213df-ebc0-4221-877a-b51bdc5a93d6.png",
+        "sourceSha256": "091bad974581af220958d318dd5ad5736c7b52b8b03aeefc7e36b68dda323356",
+        "prompt": "Use case: precise-object-edit. Input image is the EXACT EDIT TARGET and identity reference, official Yeoni kitten. Preserve its composition, original white backdrop, round head, vertical purple oval eyes, purple ears and tail, cheeks, whiskers, tiny nose, body proportions, paws and mint four-point star precisely. CHANGE ONLY THE TINY MOUTH directly under the nose to a barely open relaxed talking mouth, cat upper lip, small dark purple cavity with a hint of pink at bottom. Width approximately 18 source pixels, height 8 source pixels. Keep its center exactly at source x154/313 and upper start at source y165/313, with natural soft 2.5D purple edging matching the original mouth, not a flat sticker. Do not enlarge or reposition the cat. Return one complete square image with the same pose/composition, no grid, no labels. Preserve every detail outside the mouth."
+      }
+    ],
+    "eyesHalf": [
+      {
+        "image": "eyesHalf-0.webp",
+        "rect": [
+          85,
+          126,
+          50,
+          48
+        ],
+        "feather": 5,
+        "sha256": "848e061d0ff2440c5eca11dc2d45901696ed5c46c36d054a034e2610064c2e08",
+        "sourceRect": [
+          399,
+          126,
+          50,
+          48
+        ]
+      },
+      {
+        "image": "eyesHalf-1.webp",
+        "rect": [
+          175,
+          126,
+          50,
+          48
+        ],
+        "feather": 5,
+        "sha256": "82dcac2d5b0e5ec35af1242b4af4a5da8fcb46fbf94005e6b5302ed18a8761be",
+        "sourceRect": [
+          489,
+          126,
+          50,
+          48
+        ]
+      }
+    ],
+    "eyesClosed": [
+      {
+        "image": "eyesClosed-0.webp",
+        "rect": [
+          85,
+          126,
+          50,
+          48
+        ],
+        "feather": 5,
+        "sha256": "14dbbf4f29caad3affb37571d7776711868bf73120f595d05ae760bd394d946e",
+        "sourceRect": [
+          712,
+          126,
+          50,
+          48
+        ]
+      },
+      {
+        "image": "eyesClosed-1.webp",
+        "rect": [
+          175,
+          126,
+          50,
+          48
+        ],
+        "feather": 5,
+        "sha256": "55d8308454b1476263335771f4aa009a6aefb8e8dd44a312461e2081df331533",
+        "sourceRect": [
+          802,
+          126,
+          50,
+          48
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "approvedAt": "2026-10-02T09:00:41+09:00",
+  "approvedMaximumProviderAttempts": 1,
+  "providerAttemptsMade": 1,
+  "status": "audio-received-automatic-alignment-chromium-verified",
+  "spokenText": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
+  "textSha256": "05821c6b3784935327ee2c5f0e7eec61d8542988f99ce688d5a1891edd4a9c5f",
+  "voice": "ja-JP-Chirp3-HD-Zephyr",
+  "automaticRetries": false,
+  "blockers": [
+    "Existing /api/tts pins Korean Zephyr",
+    "Existing /api/language/tts does not pin Japanese Zephyr",
+    "No TTS credential or Vercel CLI session in current workspace",
+    "Connected Vercel tools list projects but do not expose authenticated TTS POST or environment execution"
+  ],
+  "next": "Review measured automatic phoneme boundaries and naturalness; complete WebKit/iPhone validation. Reuse original MP3; no additional generation.",
+  "browserFallbackApprovedAt": "2026-10-02T09:11:40+09:00",
+  "browserInspection": {
+    "previewPageReached": true,
+    "appLoginRequired": true,
+    "secureLoginSubmitted": true,
+    "visibleError": "Failed to fetch",
+    "loginSuccessVerified": false,
+    "providerAttemptsMade": 0
+  },
+  "fixedRequestId": "0d862ef8-b60d-41f4-b094-2936853cb905",
+  "userPcLoginVerifiedByScreenshot": true,
+  "audioEvidence": "evidence/received-audio.json"
+}

@@ -1,0 +1,36 @@
+<div id="yeoni-reference-v3">
+  <style>
+    #yeoni-reference-v3 { color:var(--foreground); @@IMAGE_VARS@@ }
+    #yeoni-reference-v3 .reference-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    #yeoni-reference-v3 figure { margin:0; min-width:0; }
+    #yeoni-reference-v3 figcaption { font-weight:500; margin-bottom:8px; }
+    #yeoni-reference-v3 .reference-stage { position:relative; width:100%; aspect-ratio:420/400; overflow:hidden; }
+    #yeoni-reference-v3 .reference-portrait { position:absolute; width:243.80952381%; height:384%; left:-71.42857143%; top:-68.75%; }
+    #yeoni-reference-v3 .reference-base, #yeoni-reference-v3 .reference-overlay { position:absolute; inset:0; background-image:var(--reference-base); background-size:100% 100%; }
+    #yeoni-reference-v3 .reference-patch { position:absolute; background-size:100% 100%; display:none; }
+    #yeoni-reference-v3 .reference-overlay { display:none; opacity:.5; }
+    #yeoni-reference-v3:has(#reference-overlay:checked) .reference-overlay { display:block; }
+    #yeoni-reference-v3:has(#reference-full:checked) .reference-stage { aspect-ratio:2/3; }
+    #yeoni-reference-v3:has(#reference-full:checked) .reference-portrait { inset:0; width:100%; height:100%; }
+    #yeoni-reference-v3 fieldset { border:0; padding:0; margin:16px 0 0; min-width:0; }
+    #yeoni-reference-v3 legend { font-weight:500; margin-bottom:6px; }
+    #yeoni-reference-v3 .reference-options { display:flex; flex-wrap:wrap; gap:8px 16px; }
+    #yeoni-reference-v3 .reference-view { display:flex; flex-wrap:wrap; gap:8px 16px; margin-bottom:12px; }
+    @@SELECTION_CSS@@
+    @media(max-width:540px) { #yeoni-reference-v3 .reference-grid { grid-template-columns:minmax(0,1fr); } }
+  </style>
+  <div class="reference-view">
+    <label class="form-check"><input id="reference-full" type="checkbox" class="form-check-input"><span class="form-check-label">전체 모습</span></label>
+    <label class="form-check"><input id="reference-overlay" type="checkbox" class="form-check-input"><span class="form-check-label">수정본에 원본 겹치기</span></label>
+  </div>
+  <div class="reference-grid">
+    <figure><figcaption>원본 A안</figcaption><div class="reference-stage original" role="img" aria-label="선택한 원본 A안"><div class="reference-portrait"><div class="reference-base"></div></div></div></figure>
+    <figure><figcaption>원본 보존 수정본</figcaption><div class="reference-stage revised" role="img" aria-label="원본 얼굴과 자세를 보존하고 눈과 입만 바꾼 수정본"><div class="reference-portrait"><div class="reference-base"></div>@@PATCHES@@<div class="reference-overlay"></div></div></div></figure>
+  </div>
+  <fieldset><legend>수정본 눈</legend><div class="reference-options">
+    <label class="form-check"><input id="reference-eye-open" name="reference-eye" type="radio" class="form-check-input" checked><span class="form-check-label">뜸</span></label>
+    <label class="form-check"><input id="reference-eye-eyesHalf" name="reference-eye" type="radio" class="form-check-input"><span class="form-check-label">반쯤 감음</span></label>
+    <label class="form-check"><input id="reference-eye-eyesClosed" name="reference-eye" type="radio" class="form-check-input"><span class="form-check-label">감음</span></label>
+  </div></fieldset>
+  <fieldset><legend>수정본 입</legend><div class="reference-options">@@MOUTH_OPTIONS@@</div></fieldset>
+</div>

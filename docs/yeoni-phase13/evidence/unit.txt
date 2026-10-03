@@ -1,0 +1,17 @@
+✔ approved pair keeps exact text and distinct chosen voices; mixed/unknown language is text only (1.447985ms)
+✔ confirmation has restrained intent and all advice content, including limitations, survives (0.21154ms)
+✔ reject stale/malformed plans, unsupported voices and altered spoken text (0.520012ms)
+✔ Preview gate excludes production, missing configuration and other branches (0.165787ms)
+✔ exact file loads without autoplay; gesture starts once and pause/resume does not replay it (6.049456ms)
+✔ different text never borrows old audio and stops the old response (1.218651ms)
+✔ latest response wins even when cancelled transport ignores AbortSignal (0.464245ms)
+✔ late audio bytes cannot attach to a new response or disposed session (0.526244ms)
+✔ bad audio hash and failed transport remain silent; valid explicit retry recovers (1.231957ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86.040508

@@ -1,0 +1,77 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "initial no autoplay and explicit non-speech label",
+      "passed": true
+    },
+    {
+      "name": "load creates valid 8-second real media, remains paused",
+      "passed": true
+    },
+    {
+      "name": "actual media clock selects five shapes and silence after arbitrary seeks",
+      "passed": true
+    },
+    {
+      "name": "pause closes mouth, freezes media; resume keeps position",
+      "passed": true
+    },
+    {
+      "name": "2x playback follows media time rather than wall-clock cue timers",
+      "passed": true
+    },
+    {
+      "name": "waiting event closes mouth and playing event resumes (synthetic stall)",
+      "passed": true
+    },
+    {
+      "name": "hidden event pauses audio, return does not autoplay (synthetic visibility)",
+      "passed": true
+    },
+    {
+      "name": "stop and natural end reset mouth",
+      "passed": true
+    },
+    {
+      "name": "reload drops audio and does not retain private file/text",
+      "passed": true
+    },
+    {
+      "name": "actual audio+JSON import, SHA mismatch rejection and recovery",
+      "passed": true
+    },
+    {
+      "name": "decoded duration mismatch and corrupt audio fail closed",
+      "passed": true
+    },
+    {
+      "name": "late hash completion cannot revive a superseded file selection",
+      "passed": true
+    },
+    {
+      "name": "play rejection leaves mouth closed and actionable message",
+      "passed": true
+    },
+    {
+      "name": "stage exit pauses sound; return does not replay",
+      "passed": true
+    },
+    {
+      "name": "reduced motion and manual motion-off keep closed mouth",
+      "passed": true
+    },
+    {
+      "name": "mobile widths and dark-background visual evidence",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "requestCount": 11,
+  "scope": "Silent synthetic media-clock checks only. No Korean speech, phonetic accuracy or physical iPhone validation."
+}

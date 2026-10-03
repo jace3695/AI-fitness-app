@@ -1,0 +1,223 @@
+{
+  "version": 2,
+  "language": "ja-JP",
+  "phoneSet": "openjtalk-v1",
+  "voice": "gemini-3.8-flash-tts/Zephyr",
+  "spokenText": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
+  "audioSha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+  "textSha256": "05821c6b3784935327ee2c5f0e7eec61d8542988f99ce688d5a1891edd4a9c5f",
+  "durationMs": 5080,
+  "alignment": "automatic-phonemes",
+  "cues": [
+    {
+      "startMs": 0,
+      "endMs": 252.5,
+      "phone": "sil"
+    },
+    {
+      "startMs": 252.5,
+      "endMs": 352.5,
+      "phone": "k"
+    },
+    {
+      "startMs": 352.5,
+      "endMs": 432.5,
+      "phone": "o"
+    },
+    {
+      "startMs": 432.5,
+      "endMs": 492.5,
+      "phone": "N"
+    },
+    {
+      "startMs": 492.5,
+      "endMs": 552.5,
+      "phone": "n"
+    },
+    {
+      "startMs": 552.5,
+      "endMs": 612.5,
+      "phone": "i"
+    },
+    {
+      "startMs": 612.5,
+      "endMs": 712.5,
+      "phone": "ch"
+    },
+    {
+      "startMs": 712.5,
+      "endMs": 752.5,
+      "phone": "i"
+    },
+    {
+      "startMs": 752.5,
+      "endMs": 812.5,
+      "phone": "w"
+    },
+    {
+      "startMs": 812.5,
+      "endMs": 942.5,
+      "phone": "a"
+    },
+    {
+      "startMs": 942.5,
+      "endMs": 1522.5,
+      "phone": "pau"
+    },
+    {
+      "startMs": 1522.5,
+      "endMs": 1642.5,
+      "phone": "ky"
+    },
+    {
+      "startMs": 1642.5,
+      "endMs": 1792.5,
+      "phone": "o"
+    },
+    {
+      "startMs": 1792.5,
+      "endMs": 1872.5,
+      "phone": "w"
+    },
+    {
+      "startMs": 1872.5,
+      "endMs": 2022.5,
+      "phone": "a"
+    },
+    {
+      "startMs": 2022.5,
+      "endMs": 2402.5,
+      "phone": "pau"
+    },
+    {
+      "startMs": 2402.5,
+      "endMs": 2522.5,
+      "phone": "y"
+    },
+    {
+      "startMs": 2522.5,
+      "endMs": 2562.5,
+      "phone": "u"
+    },
+    {
+      "startMs": 2562.5,
+      "endMs": 2732.5,
+      "phone": "cl"
+    },
+    {
+      "startMs": 2732.5,
+      "endMs": 2782.5,
+      "phone": "k"
+    },
+    {
+      "startMs": 2782.5,
+      "endMs": 2812.5,
+      "phone": "u"
+    },
+    {
+      "startMs": 2812.5,
+      "endMs": 2862.5,
+      "phone": "r"
+    },
+    {
+      "startMs": 2862.5,
+      "endMs": 2902.5,
+      "phone": "i"
+    },
+    {
+      "startMs": 2902.5,
+      "endMs": 3032.5,
+      "phone": "i"
+    },
+    {
+      "startMs": 3032.5,
+      "endMs": 3452.5,
+      "phone": "cl"
+    },
+    {
+      "startMs": 3452.5,
+      "endMs": 3652.5,
+      "phone": "p"
+    },
+    {
+      "startMs": 3652.5,
+      "endMs": 3722.5,
+      "phone": "o"
+    },
+    {
+      "startMs": 3722.5,
+      "endMs": 3772.5,
+      "phone": "z"
+    },
+    {
+      "startMs": 3772.5,
+      "endMs": 3832.5,
+      "phone": "u"
+    },
+    {
+      "startMs": 3832.5,
+      "endMs": 3912.5,
+      "phone": "ts"
+    },
+    {
+      "startMs": 3912.5,
+      "endMs": 3942.5,
+      "phone": "u"
+    },
+    {
+      "startMs": 3942.5,
+      "endMs": 4052.5,
+      "phone": "s"
+    },
+    {
+      "startMs": 4052.5,
+      "endMs": 4082.4999999999995,
+      "phone": "u"
+    },
+    {
+      "startMs": 4082.4999999999995,
+      "endMs": 4212.5,
+      "phone": "s"
+    },
+    {
+      "startMs": 4212.5,
+      "endMs": 4242.5,
+      "phone": "u"
+    },
+    {
+      "startMs": 4242.5,
+      "endMs": 4312.5,
+      "phone": "m"
+    },
+    {
+      "startMs": 4312.5,
+      "endMs": 4362.5,
+      "phone": "i"
+    },
+    {
+      "startMs": 4362.5,
+      "endMs": 4422.5,
+      "phone": "m"
+    },
+    {
+      "startMs": 4422.5,
+      "endMs": 4462.5,
+      "phone": "a"
+    },
+    {
+      "startMs": 4462.5,
+      "endMs": 4592.5,
+      "phone": "sh"
+    },
+    {
+      "startMs": 4592.5,
+      "endMs": 4722.5,
+      "phone": "o"
+    },
+    {
+      "startMs": 4722.5,
+      "endMs": 5062.5,
+      "phone": "sil"
+    }
+  ]
+}

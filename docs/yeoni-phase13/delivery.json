@@ -1,0 +1,24 @@
+{
+  "operation": "create_library_file",
+  "status": "succeeded",
+  "path": "/Jace AI Hub | 개인 AI 비서 플랫폼/Yeoni_Reply_Character_Preview.html",
+  "file_id": "file_000000002efc82099f55d8d7d195b03c",
+  "library_file_id": "libfile_7aae387f59c48191a49fe406300c58fa",
+  "file_name": "Yeoni_Reply_Character_Preview.html",
+  "current_version_number": 0,
+  "restored_from_version_number": null,
+  "xattrs": [
+    {
+      "name": "user.library-file-version",
+      "value": "0"
+    }
+  ],
+  "directory_id": "6a89ba4a58908191b02d5c68d1c9c12a",
+  "mime_type": "text/html",
+  "library_artifact_type": "other",
+  "file_size_bytes": 5510444,
+  "external_connectors_accessed": false,
+  "local_path": "/workspace/scratch/cfae9046ae4e/deliverables/Yeoni_Reply_Character_Preview.html",
+  "review_status": "awaiting-user-review",
+  "phase13": "implementation-and-isolated-verification-complete-live-validation-pending"
+}

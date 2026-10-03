@@ -1,0 +1,34 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "javaScriptEnabled": false,
+  "results": [
+    {
+      "name": "legacy Canvas preview has no initialization when JavaScript is disabled",
+      "passed": true
+    },
+    {
+      "name": "compatible portrait loads without JavaScript or Canvas",
+      "passed": true
+    },
+    {
+      "name": "six radio mouth choices produce six distinct displayed portraits with JS disabled",
+      "passed": true
+    },
+    {
+      "name": "eye changes preserve mouth and backgrounds change with native controls",
+      "passed": true
+    },
+    {
+      "name": "320 and 390px layout and reload remain useful with JS disabled",
+      "passed": true
+    },
+    {
+      "name": "sandboxed iframe permits static rendering and native mouth selection without scripts",
+      "passed": true
+    }
+  ],
+  "external": [],
+  "errors": [],
+  "scope": "JS-disabled browsers and sandboxed iframe; actual user ChatGPT preview still needs user confirmation."
+}

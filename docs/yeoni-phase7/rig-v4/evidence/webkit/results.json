@@ -1,0 +1,171 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "head/body reassembly preserves opaque original RGB and has an intact neck seam",
+      "passed": true
+    },
+    {
+      "name": "all 21 face states match approved opaque artwork and preserve pixels outside face patches",
+      "passed": true
+    },
+    {
+      "name": "script-free preview renders the original and transparent asset at the same scale",
+      "passed": true
+    },
+    {
+      "name": "every eye and mouth selector works without JavaScript and produces visual contact sheets",
+      "passed": true
+    },
+    {
+      "name": "full view face zoom overlay and dark backdrop remain inspectable",
+      "passed": true
+    },
+    {
+      "name": "320/390px layouts and a script-blocked iframe retain usable selectors",
+      "passed": true
+    },
+    {
+      "name": "fresh loading resets controls with no runtime errors or external requests",
+      "passed": true
+    }
+  ],
+  "pixelResults": {
+    "opaque": 1072095,
+    "opaqueChanged": 0,
+    "transparent": 450895,
+    "seamChanged": 0,
+    "rows": [
+      {
+        "eye": "open",
+        "mouth": "closed",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "a",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "i",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "u",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "e",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "o",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "open",
+        "mouth": "small",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      },
+      {
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "opaqueDifference": 0,
+        "outsidePatchDifference": 0
+      }
+    ]
+  },
+  "errors": [],
+  "external": [],
+  "scope": "Static prepared assets and script-free viewer only. Background/alpha and semitransparent outer edge RGB deliberately changed. Human motion, independent rigid head rotation, and speech are not validated."
+}

@@ -1,0 +1,1983 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "startedAt": "2026-10-01T11:30:12.777Z",
+  "finishedAt": "2026-10-01T11:30:57.258Z",
+  "timeoutElapsedMs": 15708,
+  "filter": null,
+  "results": [
+    {
+      "name": "provisional zero waits for durationchange without autoplay",
+      "passed": true
+    },
+    {
+      "name": "unknown infinite and negative lengths remain pending until valid metadata",
+      "passed": true
+    },
+    {
+      "name": "a positive duration discovered without another metadata event becomes ready",
+      "passed": true
+    },
+    {
+      "name": "zero followed by a positive length outside tolerance is rejected",
+      "passed": true
+    },
+    {
+      "name": "positive codec difference inside 100ms tolerance remains accepted",
+      "passed": true
+    },
+    {
+      "name": "real MP3 import accepts matching timeline and rejects mismatched timeline and corrupt audio",
+      "passed": true
+    },
+    {
+      "name": "15-second load timeout survives provisional zero and late metadata cannot revive failed audio",
+      "passed": true
+    },
+    {
+      "name": "replacing an unresolved source discards it and recovers without autoplay",
+      "passed": true
+    },
+    {
+      "name": "twelve native WAV-to-MP3 replacements retain ready state after pause",
+      "passed": true
+    },
+    {
+      "name": "native saved MP3 plays to end with shared media-clock visemes after replacement",
+      "passed": true
+    },
+    {
+      "name": "phase 5 offline bundle waits for valid duration then plays without external requests",
+      "passed": true
+    },
+    {
+      "name": "phase 6 offline bundle waits for valid duration then plays without external requests",
+      "passed": true
+    },
+    {
+      "name": "phase 9 offline bundle waits for valid duration then plays without external requests",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests in focused flow",
+      "passed": true
+    }
+  ],
+  "replacements": [
+    {
+      "iteration": 1,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 895,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/5a9abc71-0a02-4192-8685-fc65d1ee9748",
+          "currentSrc": "blob:http://127.0.0.1:8879/5a9abc71-0a02-4192-8685-fc65d1ee9748"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 895,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/5a9abc71-0a02-4192-8685-fc65d1ee9748",
+          "currentSrc": "blob:http://127.0.0.1:8879/5a9abc71-0a02-4192-8685-fc65d1ee9748"
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 1326,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/1a0f8a45-2c4f-4613-af99-10e376c7fed7",
+          "currentSrc": "blob:http://127.0.0.1:8879/1a0f8a45-2c4f-4613-af99-10e376c7fed7"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 1326,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/1a0f8a45-2c4f-4613-af99-10e376c7fed7",
+          "currentSrc": "blob:http://127.0.0.1:8879/1a0f8a45-2c4f-4613-af99-10e376c7fed7"
+        }
+      ]
+    },
+    {
+      "iteration": 3,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 1727,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/1059c641-e6cc-4441-8cbe-96ba8e10708a",
+          "currentSrc": "blob:http://127.0.0.1:8879/1059c641-e6cc-4441-8cbe-96ba8e10708a"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 1727,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/1059c641-e6cc-4441-8cbe-96ba8e10708a",
+          "currentSrc": "blob:http://127.0.0.1:8879/1059c641-e6cc-4441-8cbe-96ba8e10708a"
+        }
+      ]
+    },
+    {
+      "iteration": 4,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 2177,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/0386ab46-9792-4b6c-90f0-7aa60fbdc79c",
+          "currentSrc": "blob:http://127.0.0.1:8879/0386ab46-9792-4b6c-90f0-7aa60fbdc79c"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 2178,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/0386ab46-9792-4b6c-90f0-7aa60fbdc79c",
+          "currentSrc": "blob:http://127.0.0.1:8879/0386ab46-9792-4b6c-90f0-7aa60fbdc79c"
+        }
+      ]
+    },
+    {
+      "iteration": 5,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 2611,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/8812fe80-ad96-445f-b2cd-c66e224b20f0",
+          "currentSrc": "blob:http://127.0.0.1:8879/8812fe80-ad96-445f-b2cd-c66e224b20f0"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 2611,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/8812fe80-ad96-445f-b2cd-c66e224b20f0",
+          "currentSrc": "blob:http://127.0.0.1:8879/8812fe80-ad96-445f-b2cd-c66e224b20f0"
+        }
+      ]
+    },
+    {
+      "iteration": 6,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 2989,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/9d5e5e9a-b4ef-4816-9e84-54ef16fe92e6",
+          "currentSrc": "blob:http://127.0.0.1:8879/9d5e5e9a-b4ef-4816-9e84-54ef16fe92e6"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 2990,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/9d5e5e9a-b4ef-4816-9e84-54ef16fe92e6",
+          "currentSrc": "blob:http://127.0.0.1:8879/9d5e5e9a-b4ef-4816-9e84-54ef16fe92e6"
+        }
+      ]
+    },
+    {
+      "iteration": 7,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 3367,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/c913d8ac-ec57-483d-8ce6-9b898649aff9",
+          "currentSrc": "blob:http://127.0.0.1:8879/c913d8ac-ec57-483d-8ce6-9b898649aff9"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 3367,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/c913d8ac-ec57-483d-8ce6-9b898649aff9",
+          "currentSrc": "blob:http://127.0.0.1:8879/c913d8ac-ec57-483d-8ce6-9b898649aff9"
+        }
+      ]
+    },
+    {
+      "iteration": 8,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 3843,
+          "duration": 0,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/688d0f35-50f5-41f4-9920-97df077912fe",
+          "currentSrc": "blob:http://127.0.0.1:8879/688d0f35-50f5-41f4-9920-97df077912fe"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 3844,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/688d0f35-50f5-41f4-9920-97df077912fe",
+          "currentSrc": "blob:http://127.0.0.1:8879/688d0f35-50f5-41f4-9920-97df077912fe"
+        }
+      ]
+    },
+    {
+      "iteration": 9,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 4388,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/35664b9a-6922-4f15-93e6-9ed04068bf21",
+          "currentSrc": "blob:http://127.0.0.1:8879/35664b9a-6922-4f15-93e6-9ed04068bf21"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 4388,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/35664b9a-6922-4f15-93e6-9ed04068bf21",
+          "currentSrc": "blob:http://127.0.0.1:8879/35664b9a-6922-4f15-93e6-9ed04068bf21"
+        }
+      ]
+    },
+    {
+      "iteration": 10,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 4925,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/f7010621-b7af-46bf-8c5e-6fee308cda36",
+          "currentSrc": "blob:http://127.0.0.1:8879/f7010621-b7af-46bf-8c5e-6fee308cda36"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 4925,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/f7010621-b7af-46bf-8c5e-6fee308cda36",
+          "currentSrc": "blob:http://127.0.0.1:8879/f7010621-b7af-46bf-8c5e-6fee308cda36"
+        }
+      ]
+    },
+    {
+      "iteration": 11,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 5393,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/b868fc6c-83cf-456f-8901-77411fc815ca",
+          "currentSrc": "blob:http://127.0.0.1:8879/b868fc6c-83cf-456f-8901-77411fc815ca"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 5394,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/b868fc6c-83cf-456f-8901-77411fc815ca",
+          "currentSrc": "blob:http://127.0.0.1:8879/b868fc6c-83cf-456f-8901-77411fc815ca"
+        }
+      ]
+    },
+    {
+      "iteration": 12,
+      "durationMs": 5376,
+      "paused": true,
+      "metadataEvents": [
+        {
+          "type": "durationchange",
+          "atMs": 5909,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/cb0b734d-4a53-486c-a675-97a887589db6",
+          "currentSrc": "blob:http://127.0.0.1:8879/cb0b734d-4a53-486c-a675-97a887589db6"
+        },
+        {
+          "type": "loadedmetadata",
+          "atMs": 5909,
+          "duration": 5.376,
+          "state": "loading",
+          "src": "blob:http://127.0.0.1:8879/cb0b734d-4a53-486c-a675-97a887589db6",
+          "currentSrc": "blob:http://127.0.0.1:8879/cb0b734d-4a53-486c-a675-97a887589db6"
+        }
+      ]
+    }
+  ],
+  "clockEvidence": {
+    "sampleCount": 326,
+    "mismatches": 0,
+    "samples": [
+      {
+        "media": 14.46064,
+        "rendered": 14.46064,
+        "shape": "rest"
+      },
+      {
+        "media": 36.759412999999995,
+        "rendered": 14.46064,
+        "shape": "rest"
+      },
+      {
+        "media": 46.417345,
+        "rendered": 14.46064,
+        "shape": "rest"
+      },
+      {
+        "media": 63.767316,
+        "rendered": 63.767316,
+        "shape": "rest"
+      },
+      {
+        "media": 78.634073,
+        "rendered": 63.767316,
+        "shape": "rest"
+      },
+      {
+        "media": 94.815752,
+        "rendered": 63.767316,
+        "shape": "rest"
+      },
+      {
+        "media": 110.90081,
+        "rendered": 110.90081,
+        "shape": "a"
+      },
+      {
+        "media": 131.885282,
+        "rendered": 110.90081,
+        "shape": "a"
+      },
+      {
+        "media": 149.116218,
+        "rendered": 149.116218,
+        "shape": "a"
+      },
+      {
+        "media": 162.62864199999999,
+        "rendered": 149.116218,
+        "shape": "a"
+      },
+      {
+        "media": 178.907929,
+        "rendered": 149.116218,
+        "shape": "a"
+      },
+      {
+        "media": 194.962913,
+        "rendered": 194.962913,
+        "shape": "small"
+      },
+      {
+        "media": 220.03604900000002,
+        "rendered": 194.962913,
+        "shape": "small"
+      },
+      {
+        "media": 231.346413,
+        "rendered": 231.346413,
+        "shape": "small"
+      },
+      {
+        "media": 247.466138,
+        "rendered": 231.346413,
+        "shape": "small"
+      },
+      {
+        "media": 264.08488600000004,
+        "rendered": 231.346413,
+        "shape": "small"
+      },
+      {
+        "media": 279.681654,
+        "rendered": 279.681654,
+        "shape": "a"
+      },
+      {
+        "media": 296.392021,
+        "rendered": 279.681654,
+        "shape": "a"
+      },
+      {
+        "media": 312.534711,
+        "rendered": 279.681654,
+        "shape": "a"
+      },
+      {
+        "media": 328.627226,
+        "rendered": 328.627226,
+        "shape": "small"
+      },
+      {
+        "media": 344.81873,
+        "rendered": 328.627226,
+        "shape": "small"
+      },
+      {
+        "media": 360.909462,
+        "rendered": 328.627226,
+        "shape": "small"
+      },
+      {
+        "media": 377.17275500000005,
+        "rendered": 377.17275500000005,
+        "shape": "a"
+      },
+      {
+        "media": 393.128333,
+        "rendered": 377.17275500000005,
+        "shape": "a"
+      },
+      {
+        "media": 409.332486,
+        "rendered": 377.17275500000005,
+        "shape": "a"
+      },
+      {
+        "media": 425.436904,
+        "rendered": 425.436904,
+        "shape": "small"
+      },
+      {
+        "media": 441.496715,
+        "rendered": 425.436904,
+        "shape": "small"
+      },
+      {
+        "media": 457.719336,
+        "rendered": 425.436904,
+        "shape": "small"
+      },
+      {
+        "media": 473.841215,
+        "rendered": 473.841215,
+        "shape": "small"
+      },
+      {
+        "media": 489.90596800000003,
+        "rendered": 473.841215,
+        "shape": "small"
+      },
+      {
+        "media": 506.644527,
+        "rendered": 473.841215,
+        "shape": "small"
+      },
+      {
+        "media": 524.779687,
+        "rendered": 524.779687,
+        "shape": "e"
+      },
+      {
+        "media": 552.113652,
+        "rendered": 524.779687,
+        "shape": "e"
+      },
+      {
+        "media": 554.441642,
+        "rendered": 524.779687,
+        "shape": "e"
+      },
+      {
+        "media": 570.654678,
+        "rendered": 570.654678,
+        "shape": "e"
+      },
+      {
+        "media": 586.755531,
+        "rendered": 570.654678,
+        "shape": "e"
+      },
+      {
+        "media": 606.532586,
+        "rendered": 606.532586,
+        "shape": "e"
+      },
+      {
+        "media": 627.480708,
+        "rendered": 606.532586,
+        "shape": "e"
+      },
+      {
+        "media": 640.929717,
+        "rendered": 640.929717,
+        "shape": "i"
+      },
+      {
+        "media": 670.719475,
+        "rendered": 640.929717,
+        "shape": "i"
+      },
+      {
+        "media": 686.7434460000001,
+        "rendered": 686.7434460000001,
+        "shape": "o"
+      },
+      {
+        "media": 711.88082,
+        "rendered": 686.7434460000001,
+        "shape": "o"
+      },
+      {
+        "media": 722.651339,
+        "rendered": 722.651339,
+        "shape": "o"
+      },
+      {
+        "media": 740.612943,
+        "rendered": 722.651339,
+        "shape": "o"
+      },
+      {
+        "media": 755.473991,
+        "rendered": 722.651339,
+        "shape": "o"
+      },
+      {
+        "media": 770.949295,
+        "rendered": 770.949295,
+        "shape": "o"
+      },
+      {
+        "media": 787.0353,
+        "rendered": 770.949295,
+        "shape": "o"
+      },
+      {
+        "media": 805.483286,
+        "rendered": 805.483286,
+        "shape": "o"
+      },
+      {
+        "media": 822.43049,
+        "rendered": 805.483286,
+        "shape": "o"
+      },
+      {
+        "media": 835.6185750000001,
+        "rendered": 805.483286,
+        "shape": "o"
+      },
+      {
+        "media": 851.6779300000001,
+        "rendered": 851.6779300000001,
+        "shape": "o"
+      },
+      {
+        "media": 867.7037640000001,
+        "rendered": 851.6779300000001,
+        "shape": "o"
+      },
+      {
+        "media": 884.003421,
+        "rendered": 851.6779300000001,
+        "shape": "o"
+      },
+      {
+        "media": 900.0870130000001,
+        "rendered": 900.0870130000001,
+        "shape": "o"
+      },
+      {
+        "media": 917.956718,
+        "rendered": 900.0870130000001,
+        "shape": "o"
+      },
+      {
+        "media": 932.474118,
+        "rendered": 900.0870130000001,
+        "shape": "o"
+      },
+      {
+        "media": 948.5595519999999,
+        "rendered": 948.5595519999999,
+        "shape": "o"
+      },
+      {
+        "media": 964.620138,
+        "rendered": 948.5595519999999,
+        "shape": "o"
+      },
+      {
+        "media": 980.859104,
+        "rendered": 948.5595519999999,
+        "shape": "o"
+      },
+      {
+        "media": 996.937738,
+        "rendered": 996.937738,
+        "shape": "rest"
+      },
+      {
+        "media": 1021.6976769999999,
+        "rendered": 996.937738,
+        "shape": "rest"
+      },
+      {
+        "media": 1030.44707,
+        "rendered": 1030.44707,
+        "shape": "rest"
+      },
+      {
+        "media": 1046.5545769999999,
+        "rendered": 1030.44707,
+        "shape": "rest"
+      },
+      {
+        "media": 1066.305112,
+        "rendered": 1066.305112,
+        "shape": "rest"
+      },
+      {
+        "media": 1079.659208,
+        "rendered": 1066.305112,
+        "shape": "rest"
+      },
+      {
+        "media": 1095.170843,
+        "rendered": 1066.305112,
+        "shape": "rest"
+      },
+      {
+        "media": 1114.555722,
+        "rendered": 1114.555722,
+        "shape": "rest"
+      },
+      {
+        "media": 1127.5527789999999,
+        "rendered": 1114.555722,
+        "shape": "rest"
+      },
+      {
+        "media": 1143.80557,
+        "rendered": 1114.555722,
+        "shape": "rest"
+      },
+      {
+        "media": 1159.7369019999999,
+        "rendered": 1159.7369019999999,
+        "shape": "o"
+      },
+      {
+        "media": 1175.708715,
+        "rendered": 1159.7369019999999,
+        "shape": "o"
+      },
+      {
+        "media": 1191.886889,
+        "rendered": 1159.7369019999999,
+        "shape": "o"
+      },
+      {
+        "media": 1208.9907289999999,
+        "rendered": 1208.9907289999999,
+        "shape": "o"
+      },
+      {
+        "media": 1224.021983,
+        "rendered": 1208.9907289999999,
+        "shape": "o"
+      },
+      {
+        "media": 1240.340489,
+        "rendered": 1208.9907289999999,
+        "shape": "o"
+      },
+      {
+        "media": 1256.4206259999999,
+        "rendered": 1256.4206259999999,
+        "shape": "small"
+      },
+      {
+        "media": 1291.4325179999998,
+        "rendered": 1291.4325179999998,
+        "shape": "small"
+      },
+      {
+        "media": 1310.178213,
+        "rendered": 1291.4325179999998,
+        "shape": "small"
+      },
+      {
+        "media": 1323.6025849999999,
+        "rendered": 1291.4325179999998,
+        "shape": "small"
+      },
+      {
+        "media": 1338.875434,
+        "rendered": 1338.875434,
+        "shape": "small"
+      },
+      {
+        "media": 1356.749695,
+        "rendered": 1338.875434,
+        "shape": "small"
+      },
+      {
+        "media": 1371.2194829999999,
+        "rendered": 1338.875434,
+        "shape": "small"
+      },
+      {
+        "media": 1387.287811,
+        "rendered": 1387.287811,
+        "shape": "small"
+      },
+      {
+        "media": 1403.421198,
+        "rendered": 1387.287811,
+        "shape": "small"
+      },
+      {
+        "media": 1420.1794670000002,
+        "rendered": 1387.287811,
+        "shape": "small"
+      },
+      {
+        "media": 1435.5983059999999,
+        "rendered": 1435.5983059999999,
+        "shape": "i"
+      },
+      {
+        "media": 1459.3988630000001,
+        "rendered": 1435.5983059999999,
+        "shape": "i"
+      },
+      {
+        "media": 1470.513092,
+        "rendered": 1470.513092,
+        "shape": "small"
+      },
+      {
+        "media": 1486.59432,
+        "rendered": 1470.513092,
+        "shape": "small"
+      },
+      {
+        "media": 1502.746294,
+        "rendered": 1470.513092,
+        "shape": "small"
+      },
+      {
+        "media": 1518.8800609999998,
+        "rendered": 1518.8800609999998,
+        "shape": "small"
+      },
+      {
+        "media": 1535.477478,
+        "rendered": 1518.8800609999998,
+        "shape": "small"
+      },
+      {
+        "media": 1551.848943,
+        "rendered": 1518.8800609999998,
+        "shape": "small"
+      },
+      {
+        "media": 1567.176294,
+        "rendered": 1567.176294,
+        "shape": "small"
+      },
+      {
+        "media": 1585.996642,
+        "rendered": 1567.176294,
+        "shape": "small"
+      },
+      {
+        "media": 1599.581747,
+        "rendered": 1567.176294,
+        "shape": "small"
+      },
+      {
+        "media": 1615.71994,
+        "rendered": 1615.71994,
+        "shape": "small"
+      },
+      {
+        "media": 1631.6987940000001,
+        "rendered": 1615.71994,
+        "shape": "small"
+      },
+      {
+        "media": 1647.849436,
+        "rendered": 1615.71994,
+        "shape": "small"
+      },
+      {
+        "media": 1664.132568,
+        "rendered": 1664.132568,
+        "shape": "a"
+      },
+      {
+        "media": 1692.224426,
+        "rendered": 1664.132568,
+        "shape": "a"
+      },
+      {
+        "media": 1699.58183,
+        "rendered": 1699.58183,
+        "shape": "small"
+      },
+      {
+        "media": 1715.927406,
+        "rendered": 1699.58183,
+        "shape": "small"
+      },
+      {
+        "media": 1731.802644,
+        "rendered": 1699.58183,
+        "shape": "small"
+      },
+      {
+        "media": 1747.952515,
+        "rendered": 1747.952515,
+        "shape": "small"
+      },
+      {
+        "media": 1766.135221,
+        "rendered": 1747.952515,
+        "shape": "small"
+      },
+      {
+        "media": 1780.249473,
+        "rendered": 1747.952515,
+        "shape": "small"
+      },
+      {
+        "media": 1796.930896,
+        "rendered": 1796.930896,
+        "shape": "small"
+      },
+      {
+        "media": 1812.909359,
+        "rendered": 1796.930896,
+        "shape": "small"
+      },
+      {
+        "media": 1830.301003,
+        "rendered": 1830.301003,
+        "shape": "a"
+      },
+      {
+        "media": 1844.688637,
+        "rendered": 1830.301003,
+        "shape": "a"
+      },
+      {
+        "media": 1861.33662,
+        "rendered": 1830.301003,
+        "shape": "a"
+      },
+      {
+        "media": 1876.9778740000002,
+        "rendered": 1876.9778740000002,
+        "shape": "a"
+      },
+      {
+        "media": 1893.0527530000002,
+        "rendered": 1876.9778740000002,
+        "shape": "a"
+      },
+      {
+        "media": 1909.375394,
+        "rendered": 1876.9778740000002,
+        "shape": "a"
+      },
+      {
+        "media": 1925.472396,
+        "rendered": 1925.472396,
+        "shape": "small"
+      },
+      {
+        "media": 1941.853506,
+        "rendered": 1925.472396,
+        "shape": "small"
+      },
+      {
+        "media": 1957.769545,
+        "rendered": 1925.472396,
+        "shape": "small"
+      },
+      {
+        "media": 1973.878174,
+        "rendered": 1973.878174,
+        "shape": "small"
+      },
+      {
+        "media": 1989.887964,
+        "rendered": 1973.878174,
+        "shape": "small"
+      },
+      {
+        "media": 2006.0891829999998,
+        "rendered": 1973.878174,
+        "shape": "small"
+      },
+      {
+        "media": 2026.43474,
+        "rendered": 2026.43474,
+        "shape": "a"
+      },
+      {
+        "media": 2043.9721739999998,
+        "rendered": 2026.43474,
+        "shape": "a"
+      },
+      {
+        "media": 2054.495191,
+        "rendered": 2026.43474,
+        "shape": "a"
+      },
+      {
+        "media": 2071.032937,
+        "rendered": 2071.032937,
+        "shape": "small"
+      },
+      {
+        "media": 2086.8689050000003,
+        "rendered": 2071.032937,
+        "shape": "small"
+      },
+      {
+        "media": 2102.9542490000003,
+        "rendered": 2071.032937,
+        "shape": "small"
+      },
+      {
+        "media": 2119.043089,
+        "rendered": 2119.043089,
+        "shape": "small"
+      },
+      {
+        "media": 2135.162915,
+        "rendered": 2119.043089,
+        "shape": "small"
+      },
+      {
+        "media": 2151.311884,
+        "rendered": 2119.043089,
+        "shape": "small"
+      },
+      {
+        "media": 2167.404569,
+        "rendered": 2167.404569,
+        "shape": "small"
+      },
+      {
+        "media": 2183.492147,
+        "rendered": 2167.404569,
+        "shape": "small"
+      },
+      {
+        "media": 2199.681958,
+        "rendered": 2167.404569,
+        "shape": "small"
+      },
+      {
+        "media": 2217.39682,
+        "rendered": 2217.39682,
+        "shape": "i"
+      },
+      {
+        "media": 2237.753995,
+        "rendered": 2217.39682,
+        "shape": "i"
+      },
+      {
+        "media": 2248.111112,
+        "rendered": 2217.39682,
+        "shape": "i"
+      },
+      {
+        "media": 2264.178398,
+        "rendered": 2264.178398,
+        "shape": "small"
+      },
+      {
+        "media": 2280.42161,
+        "rendered": 2264.178398,
+        "shape": "small"
+      },
+      {
+        "media": 2297.089223,
+        "rendered": 2264.178398,
+        "shape": "small"
+      },
+      {
+        "media": 2312.8155150000002,
+        "rendered": 2312.8155150000002,
+        "shape": "small"
+      },
+      {
+        "media": 2328.75581,
+        "rendered": 2312.8155150000002,
+        "shape": "small"
+      },
+      {
+        "media": 2344.9274450000003,
+        "rendered": 2312.8155150000002,
+        "shape": "small"
+      },
+      {
+        "media": 2361.065718,
+        "rendered": 2361.065718,
+        "shape": "small"
+      },
+      {
+        "media": 2377.072615,
+        "rendered": 2361.065718,
+        "shape": "small"
+      },
+      {
+        "media": 2393.274234,
+        "rendered": 2361.065718,
+        "shape": "small"
+      },
+      {
+        "media": 2413.046788,
+        "rendered": 2413.046788,
+        "shape": "e"
+      },
+      {
+        "media": 2433.927392,
+        "rendered": 2413.046788,
+        "shape": "e"
+      },
+      {
+        "media": 2441.514021,
+        "rendered": 2413.046788,
+        "shape": "e"
+      },
+      {
+        "media": 2457.669782,
+        "rendered": 2457.669782,
+        "shape": "e"
+      },
+      {
+        "media": 2477.5570789999997,
+        "rendered": 2457.669782,
+        "shape": "e"
+      },
+      {
+        "media": 2494.432093,
+        "rendered": 2494.432093,
+        "shape": "e"
+      },
+      {
+        "media": 2507.557945,
+        "rendered": 2494.432093,
+        "shape": "e"
+      },
+      {
+        "media": 2522.235546,
+        "rendered": 2494.432093,
+        "shape": "e"
+      },
+      {
+        "media": 2538.381422,
+        "rendered": 2538.381422,
+        "shape": "o"
+      },
+      {
+        "media": 2567.877046,
+        "rendered": 2538.381422,
+        "shape": "o"
+      },
+      {
+        "media": 2574.029333,
+        "rendered": 2574.029333,
+        "shape": "o"
+      },
+      {
+        "media": 2591.2327020000002,
+        "rendered": 2574.029333,
+        "shape": "o"
+      },
+      {
+        "media": 2602.860165,
+        "rendered": 2574.029333,
+        "shape": "o"
+      },
+      {
+        "media": 2619.0056099999997,
+        "rendered": 2619.0056099999997,
+        "shape": "o"
+      },
+      {
+        "media": 2635.063262,
+        "rendered": 2619.0056099999997,
+        "shape": "o"
+      },
+      {
+        "media": 2654.482443,
+        "rendered": 2654.482443,
+        "shape": "o"
+      },
+      {
+        "media": 2667.251727,
+        "rendered": 2654.482443,
+        "shape": "o"
+      },
+      {
+        "media": 2683.424493,
+        "rendered": 2654.482443,
+        "shape": "o"
+      },
+      {
+        "media": 2699.529376,
+        "rendered": 2699.529376,
+        "shape": "o"
+      },
+      {
+        "media": 2715.577354,
+        "rendered": 2699.529376,
+        "shape": "o"
+      },
+      {
+        "media": 2731.746714,
+        "rendered": 2699.529376,
+        "shape": "o"
+      },
+      {
+        "media": 2748.0193609999997,
+        "rendered": 2748.0193609999997,
+        "shape": "rest"
+      },
+      {
+        "media": 2771.249148,
+        "rendered": 2748.0193609999997,
+        "shape": "rest"
+      },
+      {
+        "media": 2783.497101,
+        "rendered": 2783.497101,
+        "shape": "rest"
+      },
+      {
+        "media": 2798.779004,
+        "rendered": 2783.497101,
+        "shape": "rest"
+      },
+      {
+        "media": 2815.37016,
+        "rendered": 2783.497101,
+        "shape": "rest"
+      },
+      {
+        "media": 2830.933888,
+        "rendered": 2830.933888,
+        "shape": "rest"
+      },
+      {
+        "media": 2847.036888,
+        "rendered": 2830.933888,
+        "shape": "rest"
+      },
+      {
+        "media": 2863.284417,
+        "rendered": 2830.933888,
+        "shape": "rest"
+      },
+      {
+        "media": 2882.4007319999996,
+        "rendered": 2882.4007319999996,
+        "shape": "rest"
+      },
+      {
+        "media": 2895.4107480000002,
+        "rendered": 2882.4007319999996,
+        "shape": "rest"
+      },
+      {
+        "media": 2911.497324,
+        "rendered": 2882.4007319999996,
+        "shape": "rest"
+      },
+      {
+        "media": 2927.831553,
+        "rendered": 2927.831553,
+        "shape": "rest"
+      },
+      {
+        "media": 2943.653681,
+        "rendered": 2927.831553,
+        "shape": "rest"
+      },
+      {
+        "media": 2959.8207780000002,
+        "rendered": 2927.831553,
+        "shape": "rest"
+      },
+      {
+        "media": 2976.108467,
+        "rendered": 2976.108467,
+        "shape": "rest"
+      },
+      {
+        "media": 2991.922202,
+        "rendered": 2976.108467,
+        "shape": "rest"
+      },
+      {
+        "media": 3008.1497750000003,
+        "rendered": 2976.108467,
+        "shape": "rest"
+      },
+      {
+        "media": 3024.4959320000003,
+        "rendered": 3024.4959320000003,
+        "shape": "rest"
+      },
+      {
+        "media": 3042.363169,
+        "rendered": 3024.4959320000003,
+        "shape": "rest"
+      },
+      {
+        "media": 3056.586595,
+        "rendered": 3024.4959320000003,
+        "shape": "rest"
+      },
+      {
+        "media": 3073.288419,
+        "rendered": 3073.288419,
+        "shape": "rest"
+      },
+      {
+        "media": 3097.4837860000002,
+        "rendered": 3073.288419,
+        "shape": "rest"
+      },
+      {
+        "media": 3104.9266079999998,
+        "rendered": 3073.288419,
+        "shape": "rest"
+      },
+      {
+        "media": 3120.992944,
+        "rendered": 3120.992944,
+        "shape": "rest"
+      },
+      {
+        "media": 3137.077076,
+        "rendered": 3120.992944,
+        "shape": "rest"
+      },
+      {
+        "media": 3153.537536,
+        "rendered": 3120.992944,
+        "shape": "rest"
+      },
+      {
+        "media": 3169.393404,
+        "rendered": 3169.393404,
+        "shape": "rest"
+      },
+      {
+        "media": 3188.538917,
+        "rendered": 3169.393404,
+        "shape": "rest"
+      },
+      {
+        "media": 3201.602034,
+        "rendered": 3169.393404,
+        "shape": "rest"
+      },
+      {
+        "media": 3217.721059,
+        "rendered": 3217.721059,
+        "shape": "rest"
+      },
+      {
+        "media": 3233.737629,
+        "rendered": 3217.721059,
+        "shape": "rest"
+      },
+      {
+        "media": 3249.9850979999997,
+        "rendered": 3217.721059,
+        "shape": "rest"
+      },
+      {
+        "media": 3266.069109,
+        "rendered": 3266.069109,
+        "shape": "rest"
+      },
+      {
+        "media": 3282.1549449999998,
+        "rendered": 3266.069109,
+        "shape": "rest"
+      },
+      {
+        "media": 3298.826993,
+        "rendered": 3266.069109,
+        "shape": "rest"
+      },
+      {
+        "media": 3314.8424419999997,
+        "rendered": 3314.8424419999997,
+        "shape": "rest"
+      },
+      {
+        "media": 3330.407026,
+        "rendered": 3314.8424419999997,
+        "shape": "rest"
+      },
+      {
+        "media": 3346.608415,
+        "rendered": 3314.8424419999997,
+        "shape": "rest"
+      },
+      {
+        "media": 3362.659047,
+        "rendered": 3362.659047,
+        "shape": "rest"
+      },
+      {
+        "media": 3378.796174,
+        "rendered": 3362.659047,
+        "shape": "rest"
+      },
+      {
+        "media": 3395.008835,
+        "rendered": 3362.659047,
+        "shape": "rest"
+      },
+      {
+        "media": 3411.318317,
+        "rendered": 3411.318317,
+        "shape": "o"
+      },
+      {
+        "media": 3427.088365,
+        "rendered": 3411.318317,
+        "shape": "o"
+      },
+      {
+        "media": 3443.2931999999996,
+        "rendered": 3411.318317,
+        "shape": "o"
+      },
+      {
+        "media": 3459.380927,
+        "rendered": 3459.380927,
+        "shape": "o"
+      },
+      {
+        "media": 3475.422475,
+        "rendered": 3459.380927,
+        "shape": "o"
+      },
+      {
+        "media": 3494.547673,
+        "rendered": 3494.547673,
+        "shape": "small"
+      },
+      {
+        "media": 3520.741819,
+        "rendered": 3494.547673,
+        "shape": "small"
+      },
+      {
+        "media": 3526.4697960000003,
+        "rendered": 3494.547673,
+        "shape": "small"
+      },
+      {
+        "media": 3543.580356,
+        "rendered": 3543.580356,
+        "shape": "small"
+      },
+      {
+        "media": 3560.977468,
+        "rendered": 3543.580356,
+        "shape": "small"
+      },
+      {
+        "media": 3576.686975,
+        "rendered": 3543.580356,
+        "shape": "small"
+      },
+      {
+        "media": 3592.8217839999998,
+        "rendered": 3592.8217839999998,
+        "shape": "small"
+      },
+      {
+        "media": 3610.3740000000003,
+        "rendered": 3592.8217839999998,
+        "shape": "small"
+      },
+      {
+        "media": 3625.05071,
+        "rendered": 3592.8217839999998,
+        "shape": "small"
+      },
+      {
+        "media": 3641.295875,
+        "rendered": 3641.295875,
+        "shape": "small"
+      },
+      {
+        "media": 3665.595945,
+        "rendered": 3641.295875,
+        "shape": "small"
+      },
+      {
+        "media": 3674.551329,
+        "rendered": 3641.295875,
+        "shape": "small"
+      },
+      {
+        "media": 3693.996479,
+        "rendered": 3693.996479,
+        "shape": "small"
+      },
+      {
+        "media": 3706.7218359999997,
+        "rendered": 3693.996479,
+        "shape": "small"
+      },
+      {
+        "media": 3723.706316,
+        "rendered": 3693.996479,
+        "shape": "small"
+      },
+      {
+        "media": 3739.474597,
+        "rendered": 3739.474597,
+        "shape": "small"
+      },
+      {
+        "media": 3764.143419,
+        "rendered": 3739.474597,
+        "shape": "small"
+      },
+      {
+        "media": 3771.248011,
+        "rendered": 3739.474597,
+        "shape": "small"
+      },
+      {
+        "media": 3790.37405,
+        "rendered": 3790.37405,
+        "shape": "o"
+      },
+      {
+        "media": 3819.632798,
+        "rendered": 3790.37405,
+        "shape": "o"
+      },
+      {
+        "media": 3822.868727,
+        "rendered": 3790.37405,
+        "shape": "o"
+      },
+      {
+        "media": 3839.064988,
+        "rendered": 3839.064988,
+        "shape": "o"
+      },
+      {
+        "media": 3854.6485860000003,
+        "rendered": 3839.064988,
+        "shape": "o"
+      },
+      {
+        "media": 3870.996295,
+        "rendered": 3839.064988,
+        "shape": "o"
+      },
+      {
+        "media": 3887.021078,
+        "rendered": 3887.021078,
+        "shape": "small"
+      },
+      {
+        "media": 3903.102186,
+        "rendered": 3887.021078,
+        "shape": "small"
+      },
+      {
+        "media": 3919.277315,
+        "rendered": 3887.021078,
+        "shape": "small"
+      },
+      {
+        "media": 3935.4014679999996,
+        "rendered": 3935.4014679999996,
+        "shape": "small"
+      },
+      {
+        "media": 3951.436315,
+        "rendered": 3935.4014679999996,
+        "shape": "small"
+      },
+      {
+        "media": 3967.567569,
+        "rendered": 3935.4014679999996,
+        "shape": "small"
+      },
+      {
+        "media": 3983.6879559999998,
+        "rendered": 3983.6879559999998,
+        "shape": "closed"
+      },
+      {
+        "media": 4011.5322100000003,
+        "rendered": 3983.6879559999998,
+        "shape": "closed"
+      },
+      {
+        "media": 4018.499105,
+        "rendered": 4018.499105,
+        "shape": "closed"
+      },
+      {
+        "media": 4034.550373,
+        "rendered": 4018.499105,
+        "shape": "closed"
+      },
+      {
+        "media": 4050.7724329999996,
+        "rendered": 4018.499105,
+        "shape": "closed"
+      },
+      {
+        "media": 4073.9534360000002,
+        "rendered": 4073.9534360000002,
+        "shape": "u"
+      },
+      {
+        "media": 4105.257352,
+        "rendered": 4073.9534360000002,
+        "shape": "u"
+      },
+      {
+        "media": 4119.597245,
+        "rendered": 4119.597245,
+        "shape": "i"
+      },
+      {
+        "media": 4146.476614,
+        "rendered": 4119.597245,
+        "shape": "i"
+      },
+      {
+        "media": 4154.483047000001,
+        "rendered": 4154.483047000001,
+        "shape": "i"
+      },
+      {
+        "media": 4170.593138,
+        "rendered": 4154.483047000001,
+        "shape": "i"
+      },
+      {
+        "media": 4186.791733,
+        "rendered": 4154.483047000001,
+        "shape": "i"
+      },
+      {
+        "media": 4202.868294,
+        "rendered": 4202.868294,
+        "shape": "small"
+      },
+      {
+        "media": 4235.01135,
+        "rendered": 4202.868294,
+        "shape": "small"
+      },
+      {
+        "media": 4238.415794,
+        "rendered": 4238.415794,
+        "shape": "small"
+      },
+      {
+        "media": 4254.538464,
+        "rendered": 4238.415794,
+        "shape": "small"
+      },
+      {
+        "media": 4270.794295,
+        "rendered": 4238.415794,
+        "shape": "small"
+      },
+      {
+        "media": 4286.900721,
+        "rendered": 4286.900721,
+        "shape": "small"
+      },
+      {
+        "media": 4303.239597,
+        "rendered": 4286.900721,
+        "shape": "small"
+      },
+      {
+        "media": 4320.058177,
+        "rendered": 4320.058177,
+        "shape": "small"
+      },
+      {
+        "media": 4339.095462,
+        "rendered": 4320.058177,
+        "shape": "small"
+      },
+      {
+        "media": 4351.602180000001,
+        "rendered": 4320.058177,
+        "shape": "small"
+      },
+      {
+        "media": 4367.728696,
+        "rendered": 4367.728696,
+        "shape": "e"
+      },
+      {
+        "media": 4389.964223,
+        "rendered": 4367.728696,
+        "shape": "e"
+      },
+      {
+        "media": 4402.602129,
+        "rendered": 4402.602129,
+        "shape": "e"
+      },
+      {
+        "media": 4418.587893,
+        "rendered": 4402.602129,
+        "shape": "e"
+      },
+      {
+        "media": 4434.762151,
+        "rendered": 4402.602129,
+        "shape": "e"
+      },
+      {
+        "media": 4450.873353999999,
+        "rendered": 4450.873353999999,
+        "shape": "small"
+      },
+      {
+        "media": 4470.356782,
+        "rendered": 4450.873353999999,
+        "shape": "small"
+      },
+      {
+        "media": 4483.367681,
+        "rendered": 4450.873353999999,
+        "shape": "small"
+      },
+      {
+        "media": 4499.243879,
+        "rendered": 4499.243879,
+        "shape": "o"
+      },
+      {
+        "media": 4521.818098,
+        "rendered": 4499.243879,
+        "shape": "o"
+      },
+      {
+        "media": 4534.606820999999,
+        "rendered": 4534.606820999999,
+        "shape": "small"
+      },
+      {
+        "media": 4550.568829000001,
+        "rendered": 4534.606820999999,
+        "shape": "small"
+      },
+      {
+        "media": 4569.339110999999,
+        "rendered": 4569.339110999999,
+        "shape": "small"
+      },
+      {
+        "media": 4588.971684,
+        "rendered": 4569.339110999999,
+        "shape": "small"
+      },
+      {
+        "media": 4600.884096,
+        "rendered": 4569.339110999999,
+        "shape": "small"
+      },
+      {
+        "media": 4616.986115,
+        "rendered": 4616.986115,
+        "shape": "small"
+      },
+      {
+        "media": 4633.018359000001,
+        "rendered": 4616.986115,
+        "shape": "small"
+      },
+      {
+        "media": 4649.270514000001,
+        "rendered": 4616.986115,
+        "shape": "small"
+      },
+      {
+        "media": 4665.295787999999,
+        "rendered": 4665.295787999999,
+        "shape": "e"
+      },
+      {
+        "media": 4681.334621999999,
+        "rendered": 4665.295787999999,
+        "shape": "e"
+      },
+      {
+        "media": 4697.516672,
+        "rendered": 4665.295787999999,
+        "shape": "e"
+      },
+      {
+        "media": 4713.602126,
+        "rendered": 4713.602126,
+        "shape": "small"
+      },
+      {
+        "media": 4729.631656,
+        "rendered": 4713.602126,
+        "shape": "small"
+      },
+      {
+        "media": 4745.8524640000005,
+        "rendered": 4713.602126,
+        "shape": "small"
+      },
+      {
+        "media": 4761.984138,
+        "rendered": 4761.984138,
+        "shape": "small"
+      },
+      {
+        "media": 4778.006327,
+        "rendered": 4761.984138,
+        "shape": "small"
+      },
+      {
+        "media": 4794.161246,
+        "rendered": 4761.984138,
+        "shape": "small"
+      },
+      {
+        "media": 4812.064741,
+        "rendered": 4812.064741,
+        "shape": "small"
+      },
+      {
+        "media": 4826.669242,
+        "rendered": 4812.064741,
+        "shape": "small"
+      },
+      {
+        "media": 4842.39187,
+        "rendered": 4812.064741,
+        "shape": "small"
+      },
+      {
+        "media": 4858.518426,
+        "rendered": 4858.518426,
+        "shape": "a"
+      },
+      {
+        "media": 4885.7502269999995,
+        "rendered": 4858.518426,
+        "shape": "a"
+      },
+      {
+        "media": 4894.50675,
+        "rendered": 4894.50675,
+        "shape": "a"
+      },
+      {
+        "media": 4910.636812,
+        "rendered": 4894.50675,
+        "shape": "a"
+      },
+      {
+        "media": 4926.848316,
+        "rendered": 4894.50675,
+        "shape": "a"
+      },
+      {
+        "media": 4942.927711,
+        "rendered": 4942.927711,
+        "shape": "a"
+      },
+      {
+        "media": 4959.006055,
+        "rendered": 4942.927711,
+        "shape": "a"
+      },
+      {
+        "media": 4977.225667,
+        "rendered": 4977.225667,
+        "shape": "o"
+      },
+      {
+        "media": 4991.598849,
+        "rendered": 4977.225667,
+        "shape": "o"
+      },
+      {
+        "media": 5007.484211999999,
+        "rendered": 4977.225667,
+        "shape": "o"
+      },
+      {
+        "media": 5023.587743,
+        "rendered": 5023.587743,
+        "shape": "o"
+      },
+      {
+        "media": 5039.536902,
+        "rendered": 5023.587743,
+        "shape": "o"
+      },
+      {
+        "media": 5055.678902000001,
+        "rendered": 5023.587743,
+        "shape": "o"
+      },
+      {
+        "media": 5073.886445,
+        "rendered": 5073.886445,
+        "shape": "o"
+      },
+      {
+        "media": 5089.56076,
+        "rendered": 5073.886445,
+        "shape": "o"
+      },
+      {
+        "media": 5109.754218,
+        "rendered": 5109.754218,
+        "shape": "o"
+      },
+      {
+        "media": 5122.052102,
+        "rendered": 5109.754218,
+        "shape": "o"
+      },
+      {
+        "media": 5137.959437,
+        "rendered": 5109.754218,
+        "shape": "o"
+      },
+      {
+        "media": 5154.018572,
+        "rendered": 5154.018572,
+        "shape": "o"
+      },
+      {
+        "media": 5170.137787,
+        "rendered": 5154.018572,
+        "shape": "o"
+      },
+      {
+        "media": 5190.401952,
+        "rendered": 5190.401952,
+        "shape": "o"
+      },
+      {
+        "media": 5203.108962,
+        "rendered": 5190.401952,
+        "shape": "o"
+      },
+      {
+        "media": 5218.564937,
+        "rendered": 5190.401952,
+        "shape": "o"
+      },
+      {
+        "media": 5238.325262,
+        "rendered": 5238.325262,
+        "shape": "rest"
+      },
+      {
+        "media": 5260.630425,
+        "rendered": 5238.325262,
+        "shape": "rest"
+      },
+      {
+        "media": 5270.554959,
+        "rendered": 5238.325262,
+        "shape": "rest"
+      },
+      {
+        "media": 5286.649417,
+        "rendered": 5286.649417,
+        "shape": "rest"
+      },
+      {
+        "media": 5302.6649560000005,
+        "rendered": 5286.649417,
+        "shape": "rest"
+      },
+      {
+        "media": 5318.867577,
+        "rendered": 5286.649417,
+        "shape": "rest"
+      },
+      {
+        "media": 5335.3869349999995,
+        "rendered": 5335.3869349999995,
+        "shape": "rest"
+      },
+      {
+        "media": 5350.97535,
+        "rendered": 5335.3869349999995,
+        "shape": "rest"
+      },
+      {
+        "media": 5367.08468,
+        "rendered": 5335.3869349999995,
+        "shape": "rest"
+      }
+    ]
+  },
+  "errors": [],
+  "externalRequests": [],
+  "scope": "Focused loading regression on shared human source and phase5/6/9 offline bundles. Metadata fault injection is synthetic; replacement and saved MP3 playback use native media. Existing artwork/video comparisons were reused, not rerun. No listening approval or physical iPhone verification."
+}
