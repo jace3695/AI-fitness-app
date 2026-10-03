@@ -1,0 +1,40 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "candidate loads exact WAV and Japanese text without autoplay",
+      "passed": true
+    },
+    {
+      "name": "both appearances play candidate to completion using its new timeline and smoothing",
+      "passed": true
+    },
+    {
+      "name": "appearance switches mid-speech keep the same media element, source and advancing clock",
+      "passed": true
+    },
+    {
+      "name": "changing between original Korean and candidate Japanese resets safely without changing Korean bytes",
+      "passed": true
+    },
+    {
+      "name": "pause, seek, rate, reset and page exit leave no stale moving mouth",
+      "passed": true
+    },
+    {
+      "name": "old Japanese timeline is rejected for candidate bytes, then embedded candidate recovers",
+      "passed": true
+    },
+    {
+      "name": "reload and mobile/desktop layouts preserve offline operation and explicit play",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "providerCalls": 0,
+  "alignmentAccuracyHumanApproved": false,
+  "physicalIPhoneVerified": false,
+  "maxClockDifferenceMs": 49.792999999999665
+}

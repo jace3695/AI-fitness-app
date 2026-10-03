@@ -1,0 +1,27 @@
+{
+  "receivedAt": "2026-10-02T23:30:46+09:00",
+  "verbatim": "확인 완료 문제 없습니다.",
+  "artifact": "Yeoni_Korean_Japanese_Character_Preview.html",
+  "implementationCommit": "87bf456",
+  "scope": "User acceptance of the presented Korean/Japanese character preview, including candidate Japanese lip-sync and pauses in this sample.",
+  "result": "approved-no-issues-reported",
+  "audioSha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+  "doesNotAssert": [
+    "every phoneme boundary audited",
+    "all Japanese sentences validated",
+    "tested device or browser identity",
+    "production deployment approval",
+    "new synthesis authorization"
+  ],
+  "phase12": "sample-poc-completed",
+  "technicalPocCompleted": 11,
+  "technicalPocTotal": 16,
+  "pendingPhases": [
+    5,
+    13,
+    14,
+    15,
+    16
+  ],
+  "nextPhase": 13
+}

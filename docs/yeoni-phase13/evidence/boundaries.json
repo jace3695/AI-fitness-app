@@ -1,0 +1,23 @@
+{
+  "results": [
+    {
+      "name": "actual API handler: auth, consent and fingerprint gates before one synthetic provider call; full answer plan",
+      "passed": true
+    },
+    {
+      "name": "actual FreeAdvicePanel to CharacterCheck: consent, server plan, full reply and silent unmatched audio",
+      "passed": true
+    },
+    {
+      "name": "quota error clears old response, no automatic retry, reload remains empty",
+      "passed": true
+    }
+  ],
+  "browser": "153.0.8010.12",
+  "authentication": "isolated stub",
+  "provider": "synthetic response",
+  "realProviderCalls": 0,
+  "personalRecordReads": 0,
+  "errors": [],
+  "external": []
+}

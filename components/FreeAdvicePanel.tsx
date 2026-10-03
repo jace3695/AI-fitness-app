@@ -4,14 +4,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import { authenticatedFetch, createClient } from "@/lib/supabase";
 import { FREE_ADVICE_LABELS, type FreeAdviceContext, type FreeAdviceScope } from "@/lib/free-advice-context";
 import type { FreeAdvice } from "@/lib/free-advice";
+import type { ReplyPlan } from '@/lib/yeoni/reply-plan';
 import ZephyrReadButton from './ZephyrReadButton';
 
 type Preview = { context: FreeAdviceContext; fingerprint: string; configured: boolean };
-type ApiBody = Partial<Preview> & { advice?: FreeAdvice; error?: string; code?: string };
+type ApiBody = Partial<Preview> & { advice?: FreeAdvice; performance?: ReplyPlan; error?: string; code?: string };
 
 export default function FreeAdvicePanel({ scope, initialQuestion = "", onComplete, onBusyChange }: {
   scope: FreeAdviceScope; initialQuestion?: string;
-  onComplete?: (advice: FreeAdvice, source: FreeAdviceContext["recordSource"]) => Promise<void>;
+  onComplete?: (advice: FreeAdvice, source: FreeAdviceContext["recordSource"], performance?: ReplyPlan) => Promise<void>;
   onBusyChange?: (busy: boolean) => void;
 }) {
   const id = useId();
@@ -62,7 +63,7 @@ export default function FreeAdvicePanel({ scope, initialQuestion = "", onComplet
         setPreview({ context: body.context, fingerprint: body.fingerprint, configured: body.configured });
       } else {
         if (!body.advice) throw new Error("조언을 확인하지 못했어요.");
-        if (onComplete) await onComplete(body.advice, preview!.context.recordSource);
+        if (onComplete) await onComplete(body.advice, preview!.context.recordSource, body.performance);
         else setAdvice(body.advice);
       }
     } catch (error) {

@@ -1,0 +1,31 @@
+{
+  "browser": "153.0.8010.12",
+  "results": [
+    {
+      "name": "Korean response selects original bytes, comforting intent, no autoplay; starts one nod on play",
+      "passed": true
+    },
+    {
+      "name": "Japanese replaces old speech and plays selected candidate with encouraging intent across both appearances",
+      "passed": true
+    },
+    {
+      "name": "new text clears speaking audio and never substitutes a saved clip",
+      "passed": true
+    },
+    {
+      "name": "rapid responses keep latest Japanese bytes; page exit and reload never resume",
+      "passed": true
+    },
+    {
+      "name": "explicit motion preference, reduced motion, mobile/desktop layouts and offline operation",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "fixtureResponses": true,
+  "liveAiVerified": false,
+  "providerCalls": 0,
+  "physicalDeviceVerified": false
+}

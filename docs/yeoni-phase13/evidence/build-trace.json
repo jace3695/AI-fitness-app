@@ -1,0 +1,7 @@
+{
+  "page": "/assistant/character-check",
+  "audioFiles": [
+    "../../../../../docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+    "../../../../../docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav"
+  ]
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLipSyncManifest, phoneViseme, sha256, verifyLipSyncPair, visemeAt } from './lip-sync.ts';
+import { GEMINI_ZEPHYR_VOICE, parseLipSyncManifest, phoneViseme, sha256, verifyLipSyncPair, visemeAt } from './lip-sync.ts';
 import { mouthAt } from './mouth-motion.ts';
 import { CharacterController, type CharacterPolicy } from './character-controller.ts';
 import { japaneseTimelineFromLabels } from './japanese-alignment.ts';
@@ -41,6 +41,16 @@ test('Japanese timeline freezes copied cues and preserves exact text and timing'
   assert.equal(m.spokenText, input.spokenText); assert.equal(m.cues[0].phone, 'a');
   assert.ok(Object.isFrozen(m) && Object.isFrozen(m.cues) && m.cues.every(Object.isFrozen));
   assert.equal(m.version, 2); assert.equal(m.language, 'ja-JP'); assert.equal(m.alignment, 'automatic-phonemes');
+});
+test('Gemini Japanese candidate keeps its own voice identity without broadening Korean or other voices', async () => {
+  const bytes = new Uint8Array([7, 8, 9]).buffer;
+  const candidate = await japaneseTimelineFromLabels(bytes, 'こんにちは。', '0 .2 sil\n.2 .7 a', 'seconds', 1000, GEMINI_ZEPHYR_VOICE);
+  assert.equal(candidate.voice, GEMINI_ZEPHYR_VOICE);
+  assert.equal(candidate.language, 'ja-JP');
+  await verifyLipSyncPair(bytes, candidate);
+  await assert.rejects(verifyLipSyncPair(new Uint8Array([7, 8, 0]).buffer, candidate));
+  await assert.rejects(japaneseTimelineFromLabels(bytes, 'こんにちは。', '0 .2 sil\n.2 .7 a', 'seconds', 1000, 'gemini-3.8-flash-tts/Fola'));
+  assert.throws(() => parseLipSyncManifest({ ...base(), version: 1, language: 'ko-KR', phoneSet: undefined, voice: GEMINI_ZEPHYR_VOICE }));
 });
 test('Japanese media boundaries, end, silence and random seeks select the declared phone', () => {
   const m = parseLipSyncManifest(base());

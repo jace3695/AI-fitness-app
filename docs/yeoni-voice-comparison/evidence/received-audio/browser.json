@@ -1,0 +1,49 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "all four exact audio files are embedded and enabled, no autoplay",
+      "passed": true
+    },
+    {
+      "name": "comparison switches through one player; both attached WAVs play to completion at 1x",
+      "passed": true
+    },
+    {
+      "name": "optional replacement preserves import provenance using UI-only fixtures",
+      "passed": true
+    },
+    {
+      "name": "invalid upload reports an error and retains last valid candidate",
+      "passed": true
+    },
+    {
+      "name": "review saves and downloads; reload restores attached audio and saved review",
+      "passed": true
+    },
+    {
+      "name": "mobile/desktop layout fits and all playback remains offline",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "candidateFiles": [
+    {
+      "id": "candidate-ko",
+      "sha256": "de1e7d1d6d3d51cb76bebcdec435ca490f4646f6ece5fc0da664e80286f96200",
+      "durationSeconds": 5.72
+    },
+    {
+      "id": "candidate-ja",
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "durationSeconds": 5.08
+    }
+  ],
+  "optionalReplacementFixtures": "Original MP3s used only to check the optional file replacement flow; actual attached WAVs tested separately.",
+  "providerCalls": 0,
+  "perceptualListeningVerified": false,
+  "webkitVerified": false,
+  "physicalIPhoneVerified": false
+}

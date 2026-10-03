@@ -17,6 +17,8 @@ export type PhoneCue = Readonly<{ startMs: number; endMs: number; phone: string 
 type LanguageContract = { version: 1; language: 'ko-KR' }
   | { version: 2; language: 'ja-JP'; phoneSet: 'openjtalk-v1' };
 export type SpeechLanguage = LanguageContract['language'];
+// Distinguish the uploaded Gemini candidate from the existing Cloud TTS recordings.
+export const GEMINI_ZEPHYR_VOICE = 'gemini-3.8-flash-tts/Zephyr';
 export type LipSyncManifest = Readonly<LanguageContract & {
   voice: string; spokenText: string;
   audioSha256: string; textSha256: string; durationMs: number;
@@ -46,7 +48,9 @@ export function parseLipSyncManifest(input: unknown): LipSyncManifest {
     || typeof input.textSha256 !== 'string' || !shaPattern.test(input.textSha256)
     || typeof input.durationMs !== 'number' || !Number.isFinite(input.durationMs) || input.durationMs <= 0 || input.durationMs > 120_000
     || !Array.isArray(input.cues) || !input.cues.length || input.cues.length > 24_000) throw new Error('음성 타임라인 형식을 확인해 주세요.');
-  if (input.alignment !== 'synthetic-clock-test' && input.voice !== `${contract.language}-Chirp3-HD-Zephyr`) throw new Error('해당 언어의 연이 Zephyr 음성 타임라인이 필요해요.');
+  const supportedVoice = input.voice === `${contract.language}-Chirp3-HD-Zephyr`
+    || contract.language === 'ja-JP' && input.voice === GEMINI_ZEPHYR_VOICE;
+  if (input.alignment !== 'synthetic-clock-test' && !supportedVoice) throw new Error('해당 언어의 연이 Zephyr 음성 타임라인이 필요해요.');
   let end = 0;
   const cues = input.cues.map(cue => {
     if (!record(cue) || typeof cue.startMs !== 'number' || typeof cue.endMs !== 'number'
