@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-10-03T13:51:50.318Z",
+  "deployment": "dpl_9WYVr56L9gDuoPGcKo7LixaVk117",
+  "sourceCommit": "5aa4da58070b649a73c1ea9d8e8161da3c26171b",
+  "supabase": {
+    "project": "piqqukiiacncfbztktga",
+    "name": "Jace App Hub",
+    "status": "ACTIVE_HEALTHY"
+  },
+  "logWindow": {
+    "start": "2026-10-03T13:35:00Z",
+    "end": "2026-10-03T13:46:30Z"
+  },
+  "observedEdgeRequests": [
+    {
+      "path": "/rest/v1/push_subscriptions",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/rest/v1/rpc/get_workout_push_secrets",
+      "method": "POST",
+      "status": 200,
+      "count": 12
+    }
+  ],
+  "authRequestsInWindow": 0,
+  "vercelErrorLogs": {
+    "since": "30m",
+    "found": 0,
+    "meaning": "Browser signs in directly to Supabase, so absence of Vercel errors is not proof of successful authentication."
+  },
+  "deployedPage": {
+    "status": 200,
+    "path": "/assistant/character-check",
+    "restrictiveCspHeaderFound": false
+  },
+  "deployedConfig": {
+    "chunk": "/_next/static/immutable/chunks/25elwxuu5mte4.js",
+    "expectedProjectUrlMatch": true,
+    "expectedPublicKeyMatch": true,
+    "keyValueOmitted": true
+  },
+  "codeFindings": [
+    "AuthGate uses Supabase auth.signInWithPassword directly.",
+    "The SDK converts fetch rejections to AuthRetryableFetchError with status 0.",
+    "The service worker does not intercept cross-origin or POST requests.",
+    "The page has no connect-src restriction in application next.config.mjs."
+  ],
+  "conclusion": "Evidence narrows failure to client/request transport before a recorded Supabase authentication request. Exact DNS, CORS, network policy, or transient cause is unconfirmed; absence of logs is not conclusive proof.",
+  "noChanges": {
+    "applicationCode": true,
+    "authSettings": true,
+    "keys": true,
+    "rls": true,
+    "newTtsRequests": 0,
+    "newAiRequests": 0,
+    "newDeployments": 0
+  },
+  "docsReviewed": [
+    "https://supabase.com/changelog",
+    "https://supabase.com/docs/reference/javascript/auth-signinwithpassword"
+  ]
+}

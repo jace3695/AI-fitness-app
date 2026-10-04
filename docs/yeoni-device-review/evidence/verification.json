@@ -1,0 +1,47 @@
+{
+  "recordedAt": "2026-10-04T06:52:10.902792+00:00",
+  "scope": "Preview-only stored-sample device mode; physical phases 14/15 pending",
+  "route": "/assistant/character-check?mode=device",
+  "checks": {
+    "build": "passed after quarantining corrupt Turbopack cache",
+    "types": "passed",
+    "targetedEslint": "passed",
+    "diffWhitespace": "passed",
+    "audioBuildTrace": [
+      "../../../../../docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "../../../../../docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav"
+    ],
+    "authLayoutAndSharedPlayerUnchanged": true
+  },
+  "sourcePreservation": [
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+      "unchangedFrom": "1be324f"
+    },
+    {
+      "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav",
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "unchangedFrom": "1be324f"
+    },
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json",
+      "sha256": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049",
+      "unchangedFrom": "1be324f"
+    },
+    {
+      "path": "docs/yeoni-phase12/gemini-candidate/alignment/timeline.json",
+      "sha256": "320f8024f98664a8edb44c2be7deae9d78814f7340a342bc2a225625c1dc65b4",
+      "unchangedFrom": "1be324f"
+    }
+  ],
+  "browser": {
+    "status": "blocked before page launch",
+    "reason": "Existing Chromium ELF truncated (49MB file; section headers expected near 197MB). Standard Playwright installer returned 195-byte Site Unavailable HTML instead of ZIP. No new UI flow passed.",
+    "preparedScript": "scripts/yeoni-reply/check-device.mjs",
+    "alternativeBrowserOrAuthBypassUsed": false
+  },
+  "newTtsCalls": 0,
+  "physicalIPhoneTested": false,
+  "productionDeployed": false
+}

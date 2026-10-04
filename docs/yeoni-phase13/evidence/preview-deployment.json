@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-10-03T13:42:29.779Z",
+  "sourceCommit": "c80eee67f91b25ad8d17b89bead7747387e385ee",
+  "publishedCommit": "5aa4da58070b649a73c1ea9d8e8161da3c26171b",
+  "branch": "agent/yeoni-cat-animation-poc",
+  "tree": "91664e0219783e725fd05a4fb2c08042765f14c1",
+  "sourceAndPublishedTreesEqual": true,
+  "deployment": {
+    "id": "dpl_9WYVr56L9gDuoPGcKo7LixaVk117",
+    "name": "ai-fitness-app",
+    "url": "ai-fitness-mdrpnyoql-jace3695s-projects.vercel.app",
+    "type": "LAMBDAS",
+    "state": "READY",
+    "createdAt": 1791017669737,
+    "creator": {
+      "uid": "YPie6NIOC6d0oL2eXGOhUWvh",
+      "username": "jace3695"
+    },
+    "project": {
+      "id": "prj_UDkVoWjM3D1EMRJk9hcBaFvq2sj3",
+      "name": "ai-fitness-app",
+      "framework": "nextjs"
+    },
+    "meta": {
+      "githubCommitRef": "agent/yeoni-cat-animation-poc",
+      "githubCommitSha": "5aa4da58070b649a73c1ea9d8e8161da3c26171b",
+      "githubCommitMessage": "c80eee6 승인 변경 반영: 연이 답변·음성·표정 연결 Preview",
+      "githubRepo": "AI-fitness-app",
+      "githubOrg": "jace3695"
+    },
+    "alias": [
+      "ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app"
+    ],
+    "target": null,
+    "regions": [
+      "iad1"
+    ],
+    "buildingAt": 1791017671916,
+    "ready": 1791017742138,
+    "readyState": "READY",
+    "source": "git",
+    "aliasError": null
+  },
+  "browser": {
+    "url": "https://ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app/assistant/character-check",
+    "title": "연이 답변과 캐릭터 연결",
+    "observed": "App email/password sign-in screen",
+    "liveAiResponseVerified": false,
+    "authAttempt": {
+      "secureRequestStatus": "submitted",
+      "visibleResult": "Failed to fetch",
+      "successVerified": false,
+      "automaticRetries": 0,
+      "recovery": "Navigated existing tab to retained canonical verification URL; login screen remained. Further diagnostics unavailable due to native credential protection.",
+      "diagnosticLimit": "No browser console or network logs obtained; underlying network cause is unconfirmed."
+    }
+  },
+  "resume": {
+    "previousAuthRequest": "interrupted; completion unknown",
+    "currentAuth": "failed-to-fetch; manual browser handoff needed",
+    "completedTestsRepeated": false,
+    "newTtsRequests": 0,
+    "productionDeployments": 0
+  },
+  "limitations": [
+    "Current shell git ls-remote failed to connect to browser-proxy; deployment metadata confirms published source commit.",
+    "Authentication and live AI response are not verified; previous local mocked verification is distinct.",
+    "Secure sign-in showed Failed to fetch. No incorrect-password, account mismatch, provider outage, or bot-block conclusion is supported."
+  ],
+  "lastUpdatedAt": "2026-10-03T13:45:34.788054+00:00"
+}
