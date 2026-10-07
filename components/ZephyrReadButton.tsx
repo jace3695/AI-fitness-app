@@ -3,9 +3,9 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { prepareZephyrSpeech, ZephyrAudioCache } from '@/lib/zephyr-playback';
+import { claimSpeechFocus, SPEECH_FOCUS_EVENT, SPEECH_STOP_EVENT } from '@/lib/yeoni/speech-focus';
 
 const cache = new ZephyrAudioCache();
-const playEvent = 'yeoni-zephyr-play';
 
 export default function ZephyrReadButton({ text }: { text: string }) {
   const [owner, setOwner] = useState<string | null>(null);
@@ -30,6 +30,7 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
   const audio = useRef<HTMLAudioElement>(null);
   const alive = useRef(true);
   const busy = useRef(false);
+  const attempt = useRef(0);
   const [generating, setGenerating] = useState(false);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -39,15 +40,24 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
   useEffect(() => {
     alive.current = true;
     const element = audio.current;
-    const stopOther = (event: Event) => { if ((event as CustomEvent<string>).detail !== id) element?.pause(); };
-    window.addEventListener(playEvent, stopOther);
-    return () => { alive.current = false; element?.pause(); element?.removeAttribute('src'); element?.load(); window.removeEventListener(playEvent, stopOther); };
+    const stop = () => { attempt.current += 1; element?.pause(); };
+    const stopOther = (event: Event) => { if ((event as CustomEvent<string>).detail !== id) stop(); };
+    const hidden = () => { if (document.hidden) stop(); };
+    window.addEventListener(SPEECH_FOCUS_EVENT, stopOther);
+    window.addEventListener(SPEECH_STOP_EVENT, stop);
+    window.addEventListener('pagehide', stop);
+    document.addEventListener('visibilitychange', hidden);
+    return () => { alive.current = false; stop(); element?.removeAttribute('src'); element?.load();
+      window.removeEventListener(SPEECH_FOCUS_EVENT, stopOther); window.removeEventListener(SPEECH_STOP_EVENT, stop);
+      window.removeEventListener('pagehide', stop); document.removeEventListener('visibilitychange', hidden); };
   }, [id]);
 
   async function read() {
     if (busy.current || !audio.current) return;
     if (!audio.current.paused) { audio.current.pause(); return; }
     busy.current = true; setNotice('');
+    const currentAttempt = ++attempt.current;
+    claimSpeechFocus(id);
     try {
       if (!ready) {
         setGenerating(true);
@@ -62,6 +72,7 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
         audio.current.src = `data:audio/mpeg;base64,${result.audioContent}`;
         setReady(true); setRemaining(result.remainingCharacters);
       }
+      if (!alive.current || currentAttempt !== attempt.current || document.hidden) return;
       if (audio.current.ended) audio.current.currentTime = 0;
       try { await audio.current.play(); }
       catch { if (alive.current) setNotice('음성은 준비됐어요. 재생 버튼을 눌러 들어 주세요. 추가로 생성하지 않아요.'); }
@@ -77,7 +88,7 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
     <p className="mt-1 text-xs leading-5">Google Zephyr · {speech.characters.toLocaleString('ko-KR')}자{speech.truncated ? ' · 긴 답변의 앞부분만 읽어요.' : ''}</p>
     {!ready && <p className="text-xs leading-5">누르면 이 답변을 Google에 보내 음성을 만들어요.</p>}
     <audio ref={audio} controls={ready} className={ready ? 'mt-2 w-full min-w-0' : 'hidden'} preload="none" aria-label="Zephyr 답변 음성"
-      onPlay={() => { setPlaying(true); window.dispatchEvent(new CustomEvent(playEvent, { detail: id })); }}
+      onPlay={() => { setPlaying(true); claimSpeechFocus(id); }}
       onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setNotice('재생을 마쳤어요. 다시 재생해도 문자수를 추가로 사용하지 않아요.'); }}
       onError={() => setNotice('음성을 재생하지 못했어요. 새 음성은 생성하지 않고 화면의 답변을 유지해요.')} />
     {remaining !== null && <p className="mt-1 text-xs leading-5">생성 당시 앱의 남은 한도 {remaining.toLocaleString('ko-KR')}자 · 이 화면에서 다시 재생하면 추가 생성 없음</p>}

@@ -1,0 +1,37 @@
+{
+  "receivedAt": "2026-10-07T22:05:27+09:00",
+  "verbatim": "확인 완료 했습니다.",
+  "evidenceType": "user report in response to the immediately preceding two-clip review request",
+  "interpretedScope": [
+    "segment-a.mp4: 조금 쉬는 and adjacent context; perceived sound/mouth coordination and naturalness",
+    "segment-b.mp4: 좋겠어요 and adjacent context; perceived transitions and final closure"
+  ],
+  "reviewArtifacts": [
+    {"path": "segment-a.mp4", "sha256": "4f85db4096bf83ad309d4575bdaf5a9e7872d804a3db879e4e43d4a8d403d872"},
+    {"path": "segment-b.mp4", "sha256": "bd0fecdd2b8c68d35c970b8c7031e20c5a19885c1442cae2b2e5cfb383c10f45"}
+  ],
+  "phase5Status": "completed-for-existing-39-character-Korean-sample-poc",
+  "completionBasis": [
+    "Previously retained controller, viseme, real-audio playback and renderer evidence",
+    "Previously accepted smooth-mouth appearance and naturalness review",
+    "2026-10-07 original acoustic/current mouth/retained Chromium and WebKit sample comparison",
+    "This user confirmation of the two remaining focused review clips"
+  ],
+  "independentlyListenedByCodex": false,
+  "exactPerPhoneBoundaryAccuracyCertified": false,
+  "alignmentOrigin": "automatic-phonemes, original manifest unchanged",
+  "outOfScope": [
+    "Independent Korean u vowel, b/p closures, numbers, long text and arbitrary generated speech",
+    "A manually corrected or expert-certified phonetic reference timeline",
+    "New Japanese timbre certification or new synthesis authorization",
+    "Production merge or deployment authorization"
+  ],
+  "newTtsCalls": 0,
+  "newBrowserRuns": 0,
+  "applicationCodeChanged": false,
+  "productionDeploymentPerformed": false,
+  "completedPhases": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+  "remainingPhases": [16],
+  "progress": {"completed": 15, "total": 16, "percent": 93.75},
+  "nextStep": "Integrate the reviewed character into the actual assistant screen, verify the changed flow in Preview, then prepare an exact production candidate for approval."
+}

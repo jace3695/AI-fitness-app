@@ -1,0 +1,46 @@
+{
+  "receivedAt": "2026-10-07T21:30:10+09:00",
+  "evidenceType": "user-reported physical-device observation",
+  "userVerbatim": "10분 사용/온기는 미지근한 정도/끊김 없음/음성지연없음/아이폰 모델 사용",
+  "requestedRoute": "/assistant/character-check?mode=device",
+  "status": "ten-minute-observation-complete-no-stutter-or-perceived-delay-reported",
+  "observations": {
+    "durationMinutes": 10,
+    "warmthUserDescription": "미지근한 정도",
+    "stutterReported": false,
+    "perceivedAudioDelayReported": false,
+    "deviceFamily": "iPhone"
+  },
+  "notSpecified": [
+    "Exact iPhone model and iOS version",
+    "Speaker versus wired/Bluetooth output",
+    "Charging, brightness and ambient temperature during the test",
+    "Battery percentage before and after",
+    "Exact split between appearances and languages"
+  ],
+  "interpretation": "The requested short-use observation is complete. Mild/lukewarm warmth was reported, with no perceived stutter or audio delay. Record as user-observed behavior, not zero heat, instrumented latency, battery efficiency or long-duration stability certification.",
+  "repeatTenMinuteCheckRequired": false,
+  "followupEvidencePath": "docs/yeoni-device-review/evidence/completion-20261007.json",
+  "nextChecks": [
+    {
+      "id": "physical-reduced-motion",
+      "status": "passed-user-reported-20261007T213604KST",
+      "steps": "With the app motion toggle on and no audio playing, enable iPhone Settings > Accessibility > Motion > Reduce Motion and return to the Preview. Check that idle body/head animation stops. Restore the original iPhone setting afterward.",
+      "expectedFromCode": "The reduced-motion media query disables the render loop and cancels gestures; static character display remains. When reduced motion is disabled and app motion remains enabled, idle animation may resume without audio autoplay.",
+      "settingsSource": "https://support.apple.com/ko-kr/guide/iphone/iph0b691d3ed/ios"
+    },
+    {
+      "id": "physical-scroll-return",
+      "status": "passed-user-reported-20261007T213604KST",
+      "steps": "After stored audio has ended, scroll until the character is outside the viewport, then return. Check that the character displays normally and no audio starts by itself. If the page cannot scroll the character fully out of view, report that limitation rather than claiming a pass.",
+      "scope": "Visual return and no-autoplay check. A user cannot confirm zero offscreen drawing merely by looking at the screen; renderer suspension remains separate code/desktop evidence."
+    }
+  ],
+  "bluetoothCoverage": "Not established; a separate comparison is only relevant if Bluetooth use is intended.",
+  "applicationCodeChanged": false,
+  "newTtsCalls": 0,
+  "newBrowserTestRuns": 0,
+  "physicalDeviceTestedByAgent": false,
+  "technicalPocCompleted": 12,
+  "technicalPocTotal": 16
+}

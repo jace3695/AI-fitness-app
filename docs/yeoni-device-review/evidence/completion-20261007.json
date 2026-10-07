@@ -1,0 +1,60 @@
+{
+  "recordedAt": "2026-10-07T21:36:04+09:00",
+  "status": "sample-poc-device-and-short-use-review-completed",
+  "latestUserConfirmation": {
+    "verbatim": "정상 확인",
+    "interpretedScope": [
+      "The immediately preceding requested iPhone Reduce Motion check",
+      "The immediately preceding requested scroll-away / return display and no-autoplay check"
+    ],
+    "evidenceType": "user report",
+    "independentlyObservedByAgent": false
+  },
+  "phase14": {
+    "status": "sample-poc-completed",
+    "scope": "Current stored Korean/Japanese character Preview: user-reported first playback/appearance/pause/layout checks, app switching, lock-return, explicit replay, Reduce Motion and visual scroll return. Existing technical tests remain distinct evidence.",
+    "limitations": "Not all iPhone/iOS/output combinations; not instrumentation proving zero offscreen frames or every gesture transition."
+  },
+  "phase15": {
+    "status": "short-use-poc-completed",
+    "scope": "The requested 10-minute observation on the user's iPhone: lukewarm warmth, no stutter and no perceived audio delay reported, combined with previously retained renderer/performance evidence.",
+    "limitations": "Not zero heat, long-duration thermal certification, battery efficiency measurement, exact latency measurement or Bluetooth validation."
+  },
+  "evidencePaths": [
+    "docs/yeoni-device-review/evidence/japanese-voice-report.json",
+    "docs/yeoni-device-review/evidence/continuation-20261005.json",
+    "docs/yeoni-device-review/evidence/user-interruption-review-20261007.json",
+    "docs/yeoni-device-review/evidence/user-performance-review-20261007.json",
+    "docs/yeoni-phase13/evidence/chromium/results.json",
+    "docs/yeoni-phase8/README.md"
+  ],
+  "unknownContext": [
+    "Exact iPhone model and iOS version",
+    "Output device",
+    "Brightness, charging and ambient conditions",
+    "Battery change and measured temperatures",
+    "Every tested language/appearance combination"
+  ],
+  "completedPhysicalChecksShouldNotBeRepeated": true,
+  "voicePair": "Keep the current original Korean and selected Japanese. Additional timbre investigation remains deferred by user decision.",
+  "newTtsCalls": 0,
+  "newAutomatedTests": 0,
+  "applicationCodeChanged": false,
+  "productionDeploymentPerformed": false,
+  "technicalPocCompleted": 14,
+  "technicalPocTotal": 16,
+  "completedPhases": [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+  "remainingPhases": [5, 16],
+  "nextSteps": [
+    {
+      "phase": 5,
+      "task": "Reconcile existing lip-sync acceptance and technical evidence; review only the unresolved phoneme boundaries in the saved Korean clip, especially 조금 쉬는 and 좋겠어요. Keep automatic alignment status until boundary accuracy is actually reviewed. Do not repeat general playback or device checks.",
+      "source": "docs/yeoni-phase5/README.md",
+      "newSynthesisAuthorized": false
+    },
+    {
+      "phase": 16,
+      "task": "Prepare the final integration/release scope and remaining limitations after Phase 5 review. Existing Preview push approvals are not blanket production-release approval."
+    }
+  ]
+}

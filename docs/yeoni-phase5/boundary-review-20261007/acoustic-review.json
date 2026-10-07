@@ -1,0 +1,136 @@
+{
+  "sourceAudioSha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+  "decodeSampleRate": 24000,
+  "decodeSamples": 129024,
+  "descriptiveIntervals": [
+    {
+      "label": "reference inter-sentence gap",
+      "startMs": 2720,
+      "endMs": 3370,
+      "rmsDbfs": -49.443,
+      "peakDbfs": -42.689
+    },
+    {
+      "label": "automatic /m/: mouth closed, not a silence assertion",
+      "startMs": 3940,
+      "endMs": 4020,
+      "rmsDbfs": -17.213,
+      "peakDbfs": -10.208
+    },
+    {
+      "label": "old separated-token false-silence interval",
+      "startMs": 3980,
+      "endMs": 4120,
+      "rmsDbfs": -21.881,
+      "peakDbfs": -13.115
+    },
+    {
+      "label": "automatic /s-w/ rounded onset",
+      "startMs": 4020,
+      "endMs": 4090,
+      "rmsDbfs": -26.595,
+      "peakDbfs": -16.739
+    },
+    {
+      "label": "automatic /i/",
+      "startMs": 4090,
+      "endMs": 4190,
+      "rmsDbfs": -17.861,
+      "peakDbfs": -9.269
+    },
+    {
+      "label": "automatic tense /s/",
+      "startMs": 4670,
+      "endMs": 4820,
+      "rmsDbfs": -31.672,
+      "peakDbfs": -14.271
+    },
+    {
+      "label": "automatic /eo/",
+      "startMs": 4820,
+      "endMs": 4960,
+      "rmsDbfs": -18.573,
+      "peakDbfs": -8.122
+    },
+    {
+      "label": "automatic final /o/",
+      "startMs": 4970,
+      "endMs": 5200,
+      "rmsDbfs": -21.606,
+      "peakDbfs": -8.425
+    },
+    {
+      "label": "final gap: display is rest",
+      "startMs": 5200,
+      "endMs": 5376,
+      "rmsDbfs": -51.059,
+      "peakDbfs": -44.13
+    }
+  ],
+  "plotMethod": "Decoded unchanged source MP3. STFT: 512-sample Hann window, 96-sample hop, amplitude 2*abs(Zxx). Mouth weights are renderer outputs, not inferred from energy.",
+  "exportChecks": [
+    {
+      "region": "a",
+      "probe": {
+        "programs": [],
+        "streams": [
+          {
+            "index": 0,
+            "codec_name": "h264",
+            "avg_frame_rate": "30/1",
+            "start_time": "0.000000",
+            "duration": "4.166667"
+          },
+          {
+            "index": 1,
+            "codec_name": "aac",
+            "avg_frame_rate": "0/0",
+            "start_time": "0.000000",
+            "duration": "4.167000"
+          }
+        ],
+        "format": {
+          "duration": "4.167000",
+          "size": "144098"
+        }
+      },
+      "normalAudioCrossCorrelationLagSamples": 0,
+      "normalAudioCorrelationAtZeroLag": 0.9999811738396995,
+      "sha256": "4f85db4096bf83ad309d4575bdaf5a9e7872d804a3db879e4e43d4a8d403d872",
+      "limitations": "Offline 30fps reconstruction, not browser latency measurement. Slow pass is diagnostic only; atempo may alter local timing."
+    },
+    {
+      "region": "b",
+      "probe": {
+        "programs": [],
+        "streams": [
+          {
+            "index": 0,
+            "codec_name": "h264",
+            "avg_frame_rate": "30/1",
+            "start_time": "0.000000",
+            "duration": "4.200000"
+          },
+          {
+            "index": 1,
+            "codec_name": "aac",
+            "avg_frame_rate": "0/0",
+            "start_time": "0.000000",
+            "duration": "4.200000"
+          }
+        ],
+        "format": {
+          "duration": "4.200000",
+          "size": "140450"
+        }
+      },
+      "normalAudioCrossCorrelationLagSamples": 0,
+      "normalAudioCorrelationAtZeroLag": 0.9998130227309983,
+      "sha256": "bd0fecdd2b8c68d35c970b8c7031e20c5a19885c1442cae2b2e5cfb383c10f45",
+      "limitations": "Offline 30fps reconstruction, not browser latency measurement. Slow pass is diagnostic only; atempo may alter local timing."
+    }
+  ],
+  "manualPhoneBoundaryChanges": 0,
+  "directListeningByCodex": false,
+  "status": "Acoustic descriptors and export timing checked; perceptual phone boundaries pending."
+}

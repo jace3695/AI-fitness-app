@@ -1,0 +1,84 @@
+{
+  "receivedAt": "2026-10-05T21:03:19+09:00",
+  "userVerbatim": "확인 완료 했어요\n그런데 일본어 음성은 왜 다른거죠? 여성음성이 아닌데..",
+  "reviewType": "user-reported device check with Japanese voice exception",
+  "status": "current-voice-retained-further-timbre-review-deferred",
+  "userReportedOtherChecksComplete": true,
+  "userReportScope": "Responds to requested playback/appearance switch/pause/layout checks; Japanese voice/timbre is explicitly not accepted. No independent iPhone replay or device model/iOS observed.",
+  "sourceLibraryFileId": "libfile_20c3aebf8abc81919488a8425d53c5b5",
+  "sourceFileName": "Generated Audio October 02, 2026_일본어.wav",
+  "deployedPage": "https://ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app/assistant/character-check?mode=device",
+  "deployedEvidenceMethod": "Extract Japanese WAV base64 from current HTTP 200 React flight audio prop; compare decoded bytes to current Library original and repository candidate.",
+  "fileComparisons": [
+    {
+      "id": "uploaded_original",
+      "bytes": 243884,
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "rate": 24000,
+      "channels": 1,
+      "sampleBytes": 2,
+      "frames": 121920,
+      "duration": 5.08
+    },
+    {
+      "id": "repo_candidate",
+      "bytes": 243884,
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "rate": 24000,
+      "channels": 1,
+      "sampleBytes": 2,
+      "frames": 121920,
+      "duration": 5.08
+    },
+    {
+      "id": "deployed_japanese",
+      "bytes": 243884,
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "rate": 24000,
+      "channels": 1,
+      "sampleBytes": 2,
+      "frames": 121920,
+      "duration": 5.08
+    }
+  ],
+  "allThreeByteIdentical": true,
+  "codeReview": {
+    "browserSpeechSynthesisFallback": false,
+    "audioTransformOrPitchProcessing": false,
+    "sharedPlayerChangedSinceAcceptedPreview": false,
+    "actualIPhonePlaybackRateObserved": false,
+    "japaneseGenerationVoiceIndependentlyVerified": false
+  },
+  "conclusion": "User confirms original and Preview sound alike; the concern is present in the selected original candidate. Local acoustic analysis finds similar median F0 for original Korean (222Hz) and current Japanese (219Hz), but does not establish perceived gender, timbre identity, or the exact cause of the perceived difference.",
+  "newSynthesisCalls": 0,
+  "applicationCodeChanged": false,
+  "redeploymentPerformed": false,
+  "technicalPocCompleted": 12,
+  "technicalPocTotal": 16,
+  "physicalDevicePhaseComplete": false,
+  "limitations": [
+    "Not an independent listening verdict about gender/timbre.",
+    "The user iPhone runtime source, playback speed, output device, exact visited page and cache were not directly captured.",
+    "Original Japanese generation model/voice identity was previously inferred from the comparison plan, not independently verified from Japanese synthesis evidence."
+  ],
+  "originalListeningFollowup": {
+    "receivedAt": "2026-10-05T21:13:12+09:00",
+    "userVerbatim": "그렇네 내가 준 녹음파일과 목소리가 같네.. 그런데 왜 녹음파일도 여자목소리가 아닌거 같지? 약간 어린 남자 목소리 같아.. 같은 음서을 써는데 한국어라 목소리 톤, 음색이 너무 다른데?",
+    "originalAndPreviewSoundSameToUser": true,
+    "currentJapaneseTimbreAccepted": false
+  },
+  "acousticAnalysisPath": "docs/yeoni-voice-comparison/acoustics-20261005/REPORT.md",
+  "acousticAnalysisIsListeningVerdict": false,
+  "externalAudioEvaluationPath": "docs/yeoni-voice-comparison/audio-evaluation-result-20261005.json",
+  "externalAudioEvaluationSummary": "One authorized Gemini audio-input comparison returned feminine impressions for both clips and large character difference. Its substantially-higher-Japanese-pitch claim conflicts with measured F0; anatomy/formant claims are unmeasured. User acceptance remains false.",
+  "continuationDecision": {
+    "receivedAt": "2026-10-05T23:05:37+09:00",
+    "userVerbatim": "그럼 그냥 가시죠 ㅎ",
+    "interpretation": "Continue development with the current Korean/Japanese pair and defer further timbre investigation.",
+    "continueWithCurrentVoice": true,
+    "timbreIdentityApproved": false,
+    "newGenerationApproved": false,
+    "productionDeploymentApproved": false,
+    "nextStep": "Physical iPhone app-switch / lock / explicit-resume verification; earlier first-stage user checks are retained."
+  }
+}

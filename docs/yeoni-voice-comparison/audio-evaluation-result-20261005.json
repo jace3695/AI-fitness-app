@@ -1,0 +1,30 @@
+{
+  "status": "completed-with-material-limitations",
+  "model": "gemini-3.8-flash",
+  "analysisRequests": 1,
+  "rawTextExportStatus": "Browser-side text saved but matching main-container file unavailable after synchronization check. No raw text download link provided.",
+  "screenshotPath": "docs/yeoni-voice-comparison/evidence/gemini-audio-evaluation-20261005.jpg",
+  "modelQualitativeAssessment": {
+    "A": "성숙하고 차분한 여성적 인상",
+    "B": "어리고 발랄한 여성적 인상",
+    "sameCharacter": "차이 큼"
+  },
+  "audioContentCheck": {
+    "A": "안녕하세요",
+    "B": "こんにちは",
+    "scope": "Starting words match supplied clips; this does not validate every perceptual claim or the full transcript."
+  },
+  "criticalReview": [
+    "The model says Japanese baseline pitch is substantially higher throughout, but measured raw-AC median F0 is 221.989801Hz for original Korean and 219.203673Hz for current Japanese. Cross-correlation gives 224.884844Hz vs 215.428212Hz. A substantially higher baseline is not supported by these measurements.",
+    "Japanese p90 F0 (316Hz vs 293Hz) is higher in this sample, but that does not establish a substantially higher baseline throughout. Perceived brightness and pitch are distinct.",
+    "The model did not measure formants, vocal-tract length, head/nasal resonance or breathiness. Its anatomical and mechanism claims are hypotheses, not verified causes or physical properties of a synthetic speaker.",
+    "Feminine/masculine presentation is a model opinion about synthetic audio, not gender proof or an independent human listening panel. It does not invalidate the user impression of a young male voice.",
+    "Same-character mismatch remains open; the model opinion is not a new acceptance or a validated similarity score. Different language, text, codec and a single short sample limit the comparison.",
+    "Do not automatically lower pitch or apply formant filtering based on this response. Preserve original Korean; any later Japanese style comparison should hold text, voice and generation conditions fixed where possible and require its own concrete generation scope."
+  ],
+  "directListeningByAssistant": false,
+  "japaneseVoiceAccepted": false,
+  "newTtsCalls": 0,
+  "applicationCodeChanged": false,
+  "redeploymentPerformed": false
+}

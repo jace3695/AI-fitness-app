@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "preparedDateKst": "2026-10-02",
-  "status": "selected-pair-character-preview-user-approved",
+  "status": "selected-pair-retained-with-known-timbre-difference",
   "goal": "Preserve the familiar Korean Yeoni timbre and assess whether a candidate keeps it across Korean and Japanese.",
   "baselines": [
     {
@@ -291,6 +291,32 @@
         16
       ],
       "nextPhase": 13
+    }
+  },
+  "currentVoiceReview": {
+    "receivedAt": "2026-10-05T21:03:19+09:00",
+    "status": "further-timbre-investigation-deferred-user-proceed",
+    "userVerbatim": "확인 완료 했어요\n그런데 일본어 음성은 왜 다른거죠? 여성음성이 아닌데..",
+    "japaneseVoiceAccepted": false,
+    "previousAcceptanceRetainedAsHistory": true,
+    "sourceFileSubstitutionFound": false,
+    "evidencePath": "docs/yeoni-device-review/evidence/japanese-voice-report.json",
+    "newGenerationApproved": false,
+    "originalAndPreviewSoundSameToUser": true,
+    "originalListeningFollowupAt": "2026-10-05T21:13:12+09:00",
+    "acousticAnalysisPath": "docs/yeoni-voice-comparison/acoustics-20261005/REPORT.md",
+    "acousticAnalysisIsListeningVerdict": false,
+    "externalAudioEvaluationPath": "docs/yeoni-voice-comparison/audio-evaluation-result-20261005.json",
+    "externalAudioEvaluationIsAcceptance": false,
+    "continuationDecision": {
+      "receivedAt": "2026-10-05T23:05:37+09:00",
+      "userVerbatim": "그럼 그냥 가시죠 ㅎ",
+      "interpretation": "Continue development with the current Korean/Japanese pair and defer further timbre investigation.",
+      "continueWithCurrentVoice": true,
+      "timbreIdentityApproved": false,
+      "newGenerationApproved": false,
+      "productionDeploymentApproved": false,
+      "nextStep": "Physical iPhone app-switch / lock / explicit-resume verification; earlier first-stage user checks are retained."
     }
   }
 }

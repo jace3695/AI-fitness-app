@@ -1,0 +1,73 @@
+{
+  "preparedAt": "2026-10-05T23:05:37+09:00",
+  "status": "three-interruption-checks-confirmed-by-user-performance-pending",
+  "followupEvidencePath": "docs/yeoni-device-review/evidence/user-interruption-review-20261007.json",
+  "route": "/assistant/character-check?mode=device",
+  "continuationDecision": {
+    "receivedAt": "2026-10-05T23:05:37+09:00",
+    "userVerbatim": "그럼 그냥 가시죠 ㅎ",
+    "interpretation": "Continue development with the current Korean/Japanese pair and defer further timbre investigation.",
+    "continueWithCurrentVoice": true,
+    "timbreIdentityApproved": false,
+    "newGenerationApproved": false,
+    "productionDeploymentApproved": false,
+    "nextStep": "Physical iPhone app-switch / lock / explicit-resume verification; earlier first-stage user checks are retained."
+  },
+  "sourceReview": [
+    {
+      "path": "lib/yeoni/lip-sync-player.ts",
+      "finding": "visibilitychange while hidden and pagehide pause audio. play rejects while hidden. No visibility/pageshow auto-play handler. Source inspection only."
+    },
+    {
+      "path": "lib/yeoni/character-stage.ts",
+      "finding": "Visibility policy stops RAF and cancels the current gesture. Becoming visible can restart idle animation; it does not replay audio. Source inspection only."
+    },
+    {
+      "path": "docs/yeoni-phase13/evidence/chromium/results.json",
+      "finding": "Existing prior desktop fixture verification records page exit/reload and reduced-motion passes. Not rerun and not an iPhone lock test."
+    }
+  ],
+  "previousUserChecks": {
+    "receivedAt": "2026-10-05T21:03:19+09:00",
+    "scope": "First requested playback / appearance / pause / landscape checks reported complete; Japanese timbre concern recorded separately. Not all phoneme boundaries or device performance certified.",
+    "repeatRequired": false
+  },
+  "nextChecks": [
+    {
+      "id": "app-switch",
+      "steps": "Start a stored sample. After roughly 1 second, switch to another app, wait 5 seconds and return.",
+      "expected": "Audio stops in background and does not restart on return. The old speaking gesture does not replay. Normal idle animation may resume.",
+      "status": "user-confirmed-no-autoplay-on-return-20261007"
+    },
+    {
+      "id": "lock-return",
+      "steps": "Play again. After roughly 1 second, lock the iPhone, wait 5 seconds, unlock and return.",
+      "expected": "Audio stops and remains stopped on return; mouth is closed until explicit playback.",
+      "status": "user-confirmed-stopped-audio-closed-mouth-20261007"
+    },
+    {
+      "id": "explicit-resume",
+      "steps": "Tap 답변 듣기 after return. Repeat the interruption once with the other stored language.",
+      "expected": "One audio stream plays, mouth movement resumes without overlapping or stuck playback.",
+      "status": "user-confirmed-normal-explicit-replay-20261007"
+    }
+  ],
+  "requestedContext": [
+    "iPhone model if known",
+    "speaker or Bluetooth output",
+    "result for each of the three checks"
+  ],
+  "remainingLater": [
+    "Reduced motion and offscreen behavior on physical device",
+    "Speaker/Bluetooth perceived latency where relevant",
+    "Measured usage duration, warmth, stutter and battery observations",
+    "Phase 5 remaining phoneme review",
+    "Phase 16 rollout decision"
+  ],
+  "applicationCodeChanged": false,
+  "newTtsCalls": 0,
+  "newBrowserTestRuns": 0,
+  "physicalDeviceTestedByAgent": false,
+  "technicalPocCompleted": 12,
+  "technicalPocTotal": 16
+}
