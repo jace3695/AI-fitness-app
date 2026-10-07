@@ -9,6 +9,7 @@ import * as contextModule from "./free-advice-context.ts";
 import { loadFreeAdviceContext } from "./free-advice-records.ts";
 import * as provider from "./free-advice.ts";
 import * as policy from "./free-gemini-policy.ts";
+import * as replyPlan from "./yeoni/reply-plan.ts";
 
 const now = new Date("2026-09-14T02:00:00Z");
 const context = contextModule.buildFreeAdviceContext("budget", { expenses: [{ amount: 12000, date: "2026-09-14" }] }, now);
@@ -136,6 +137,7 @@ function routeFixture() {
   const exports = {};
   const modules: Record<string, unknown> = {
     "node:crypto": { createHash },
+    "@/lib/yeoni/reply-plan": replyPlan,
     "@/lib/supabase-server": { createServerSupabaseClient: async () => ({ auth: { getUser: async () => ({ data: { user: state.authenticated ? { id: "owner-fixture" } : null }, error: null }) } }) },
     "@/lib/free-advice-context": contextModule,
     "@/lib/free-advice-records": { loadFreeAdviceContext: async (_client: unknown, userId: string) => { state.recordCalls++; assert.equal(userId, "owner-fixture"); if (state.recordsFail) throw new Error("PRIVATE-DB"); return state.context; } },
@@ -143,7 +145,7 @@ function routeFixture() {
     "@/lib/free-advice": { FreeAdviceError: provider.FreeAdviceError, generateFreeAdvice: async (args: typeof input) => { state.providerCalls++; assert.equal(args.acknowledged, true); assert.deepEqual(args.context, args.context.recordSource === "example" ? contextModule.buildExampleAdviceContext(args.context.scope) : state.context); return advice; } },
   };
   const code = ts.transpileModule(readFileSync(new URL("../app/api/ai/free-advice/route.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  vm.runInNewContext(`(function(exports, require) { ${code}\n})`, { Response, console })(exports, (name: string) => { assert.ok(name in modules, `unexpected import ${name}`); return modules[name]; });
+  vm.runInNewContext(`(function(exports, require) { ${code}\n})`, { Response, console, crypto })(exports, (name: string) => { assert.ok(name in modules, `unexpected import ${name}`); return modules[name]; });
   const { POST } = exports as { POST: (request: Request) => Promise<Response> };
   return { state, post: (body: unknown) => POST(new Request("https://fixture.local/api/ai/free-advice", { method: "POST", body: JSON.stringify(body) })) };
 }
@@ -175,7 +177,12 @@ test("preview does not call AI; analysis requires exactly the reviewed snapshot 
   assert.equal((await post({ ...analyze, fingerprint: "stale" })).status, 409);
   assert.equal(state.providerCalls, 0);
   const result = await post(analyze);
-  assert.equal(result.status, 200); assert.equal((await result.json()).source, "free-gemini");
+  assert.equal(result.status, 200);
+  const body = await result.json();
+  assert.equal(body.source, "free-gemini");
+  assert.deepEqual(body.advice, advice);
+  const spokenText = [advice.summary, ...advice.nextSteps, advice.basis, advice.limitations].join('\n');
+  assert.equal(replyPlan.parseReplyEnvelope({ reply: spokenText, performance: body.performance }).reply, spokenText);
   assert.equal(state.providerCalls, 1);
   state.context = contextModule.buildFreeAdviceContext("budget", {}, now);
   const empty = await (await post({ action: "preview", scope: "budget" })).json();

@@ -1,0 +1,12 @@
+{
+  "reportedAt": "2026-10-07T23:05:28+09:00",
+  "source": "user report in conversation",
+  "quote": "잘리 않았았습니다. 정상이에요",
+  "scope": "iPhone /assistant: cat/human buttons and input field are not clipped",
+  "accepted": true,
+  "runtimeCommit": "649083b34129523d2d0799319587a324fe55f1c2",
+  "subsequentCandidateUiChanges": false,
+  "priorAcceptancesPreserved": ["saved Korean/Japanese voices", "app switch and lock behavior", "10-minute iPhone observation"],
+  "doesNotAuthorize": ["new TTS generation", "production deployment"],
+  "phase16": "Preview implementation and changed-flow verification accepted; production candidate preparation and authorized release remain"
+}
