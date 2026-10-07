@@ -16,7 +16,7 @@
     "candidate": "4567b1f82d66b5b9e358b60eb2617054c0b8b230",
     "actualPreviewPassed": ["secure login", "cat and human assets load", "chat response and text-only state", "synthetic example advice request and response", "saved chat and advice restored after reload", "page navigation and return without autoplay", "long-title validation error before record mutation", "hide character"],
     "foundAndFixed": "Appearance buttons total width 208px exceeded 174px card content; embedded CSS corrected in remote 649083b.",
-    "finalCssVerification": "Stable Preview origin login returned Invalid login credentials; manual sign-in needed before final UI check.",
+    "finalCssVerification": "User completed stable-origin login at 2026-10-07 22:56 KST. Both 83x45px buttons fit inside the 174px container; human appearance renders correctly. Desktop viewport 1363x936 has no horizontal overflow. See layout-verification-20261007.json.",
     "smallViewport": "Not verified; browser zoom keys did not change CSS viewport.",
     "localFileFixture": "file URL rejected by browser URL policy; not retried or published as a workaround."
   },

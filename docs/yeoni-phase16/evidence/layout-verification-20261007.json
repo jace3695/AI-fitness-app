@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-07",
+  "userLoginReportedAt": "2026-10-07T22:56:32+09:00",
+  "runtimeCommit": "649083b34129523d2d0799319587a324fe55f1c2",
+  "verifiedHead": "97eac230264ea53dc1c3bffb644dd6a2e66e5b90",
+  "deploymentId": "dpl_DRpQXtTEsABHEaSgtgKLoikcM9c9",
+  "deploymentState": "READY",
+  "url": "https://ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app/assistant",
+  "browser": "Authenticated cloud Chrome, actual Preview UI",
+  "viewport": {"width": 1363, "height": 936, "documentWidth": 1359},
+  "choiceContainerWidth": 174,
+  "buttons": [
+    {"label": "고양이형", "width": 83, "height": 45, "withinContainer": true},
+    {"label": "인간형", "width": 83, "height": 45, "withinContainer": true}
+  ],
+  "humanAppearanceLoaded": true,
+  "savedSyntheticChatAndAdviceVisible": true,
+  "characterStatus": "idle",
+  "speechState": "empty",
+  "audioElements": {"count": 5, "allPaused": true, "allWithoutSource": true},
+  "screenshot": "assistant-layout-20261007.jpg",
+  "newTtsCalls": 0,
+  "remaining": ["iPhone layout of new assistant integration", "final release candidate review and separate production authorization"],
+  "completedPhases": 15
+}
