@@ -1,0 +1,44 @@
+{
+  "reviewedAt": "2026-10-04T02:06:46.018Z",
+  "source": {
+    "filename": "20261003-1437-37.1573925.mp4",
+    "libraryFileId": "libfile_b7478ba5ad1881919fe4600f752eef05",
+    "sha256": "b16eb4fd2290bcf7829b5a1cd4dbcd70a0c2e4a268c0a3a3191d92edf495d2c8",
+    "durationSeconds": 8.362646,
+    "width": 1920,
+    "height": 1032
+  },
+  "method": "Visual review of 1 fps contact sheet and full resolution frames at approximately 0, 3 and 5 seconds.",
+  "observed": {
+    "browser": "Desktop Microsoft Edge, as visible in recording",
+    "route": "/assistant/character-check",
+    "signedInPageAccessible": true,
+    "catCharacterVisible": true,
+    "selectedRecordSource": "user-records",
+    "visibleLabels": [
+      "최신 기록 다시 확인",
+      "예시 기록으로 먼저 보기",
+      "보낼 기록 요약",
+      "서버에 저장된 기록 기준",
+      "아직 분석할 기록이 없어요. 기록을 서버에 저장한 뒤 다시 확인해 주세요."
+    ],
+    "recordPreviewReloadObserved": true,
+    "displayedMetricsAllZero": true,
+    "exampleSelected": false,
+    "aiAnalysisRequestObserved": false,
+    "generatedReplyObserved": false,
+    "loginFetchErrorVisible": false
+  },
+  "interpretation": "The recording confirms signed-in access and completion of the real-record preview UI. Its zero-record condition hides the analysis consent and action controls. The example-record option remains available next to the refresh button.",
+  "notVerified": [
+    "Credential entry and authentication exchange are not shown.",
+    "Displayed zero metrics have not been audited against stored source records.",
+    "Example-data preview, Google AI generation, and actual reply-to-character flow have not been shown.",
+    "Cloud browser authentication remains independently unverified.",
+    "No physical iPhone, audio, or refresh-after-AI-result validation is shown."
+  ],
+  "nextStep": "Select 예시 기록으로 먼저 보기, verify 가상의 예시 기록, acknowledge the Google data-use notice, and request 무료 AI 조언받기 once.",
+  "privacy": "No account identifiers or full video frames copied into repository evidence.",
+  "overallCompletedPhases": 11,
+  "totalPhases": 16
+}

@@ -1,0 +1,8268 @@
+[
+  {
+    "skin": "cat",
+    "samples": [
+      {
+        "t": 0,
+        "media": 9.311,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 16.137999999999998,
+        "media": 16.137999999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 16.137999999999998,
+        "media": 16.137999999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 16.137999999999998,
+        "media": 16.137999999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 16.137999999999998,
+        "media": 25.37,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 16.137999999999998,
+        "media": 45.362,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 52.411,
+        "media": 65.374,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 52.411,
+        "media": 85.381,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 102.398,
+        "media": 110.064,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 102.398,
+        "media": 121.87299999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 135.77100000000002,
+        "media": 145.342,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 135.77100000000002,
+        "media": 165.377,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 135.77100000000002,
+        "media": 185.385,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 186.008,
+        "media": 203.037,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 219.07399999999998,
+        "media": 226.32,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 219.07399999999998,
+        "media": 245.358,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 219.07399999999998,
+        "media": 265.398,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 269.10699999999997,
+        "media": 285.388,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.03887487542963325
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.03887487542963325
+        }
+      },
+      {
+        "t": 269.10699999999997,
+        "media": 305.359,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.03887487542963325
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.03887487542963325
+        }
+      },
+      {
+        "t": 319.084,
+        "media": 330.63100000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.463429053568
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.463429053568
+        }
+      },
+      {
+        "t": 319.084,
+        "media": 345.38,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.463429053568
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.463429053568
+        }
+      },
+      {
+        "t": 352.42699999999996,
+        "media": 365.436,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8011104378855806
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8011104378855806
+        }
+      },
+      {
+        "t": 352.42699999999996,
+        "media": 385.382,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8011104378855806
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8011104378855806
+        }
+      },
+      {
+        "t": 402.432,
+        "media": 410.851,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        }
+      },
+      {
+        "t": 402.432,
+        "media": 425.35,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        }
+      },
+      {
+        "t": 402.432,
+        "media": 445.337,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.007911934519443676
+        }
+      },
+      {
+        "t": 452.464,
+        "media": 465.38,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.235940439168
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.235940439168
+        }
+      },
+      {
+        "t": 452.464,
+        "media": 485.488,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.235940439168
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.235940439168
+        }
+      },
+      {
+        "t": 502.432,
+        "media": 512.409,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6169134253490108
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6169134253490108
+        }
+      },
+      {
+        "t": 502.432,
+        "media": 525.3679999999999,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6169134253490108
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6169134253490108
+        }
+      },
+      {
+        "t": 535.7579999999999,
+        "media": 546.815,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        }
+      },
+      {
+        "t": 535.7579999999999,
+        "media": 565.3860000000001,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        }
+      },
+      {
+        "t": 535.7579999999999,
+        "media": 585.382,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.8482141570521903
+        }
+      },
+      {
+        "t": 585.758,
+        "media": 605.39,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 585.758,
+        "media": 625.3720000000001,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 635.758,
+        "media": 645.342,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 635.758,
+        "media": 665.402,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 635.758,
+        "media": 685.375,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 685.805,
+        "media": 705.369,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 685.805,
+        "media": 725.36,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 735.812,
+        "media": 745.371,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.01258192532275209
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.01258192532275209
+        }
+      },
+      {
+        "t": 735.812,
+        "media": 765.368,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.01258192532275209
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.01258192532275209
+        }
+      },
+      {
+        "t": 769.0989999999999,
+        "media": 785.3820000000001,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.8230021223232143
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.8230021223232143
+        }
+      },
+      {
+        "t": 802.32,
+        "media": 810.287,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        }
+      },
+      {
+        "t": 802.32,
+        "media": 825.338,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        }
+      },
+      {
+        "t": 802.32,
+        "media": 845.364,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.12413288294101568
+        }
+      },
+      {
+        "t": 852.3870000000001,
+        "media": 865.377,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.8724950446307196
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.8724950446307196
+        }
+      },
+      {
+        "t": 852.3870000000001,
+        "media": 885.285,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.8724950446307196
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.8724950446307196
+        }
+      },
+      {
+        "t": 902.401,
+        "media": 910.0780000000001,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        }
+      },
+      {
+        "t": 902.401,
+        "media": 925.361,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        }
+      },
+      {
+        "t": 902.401,
+        "media": 945.376,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.2570619907435083
+        }
+      },
+      {
+        "t": 952.4359999999999,
+        "media": 965.37,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 952.4359999999999,
+        "media": 985.358,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1002.648,
+        "media": 1009.7860000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1002.648,
+        "media": 1025.3609999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1035.751,
+        "media": 1045.366,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1035.751,
+        "media": 1065.375,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1035.751,
+        "media": 1085.366,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1085.704,
+        "media": 1105.366,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1085.704,
+        "media": 1125.359,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1135.73,
+        "media": 1145.361,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1135.73,
+        "media": 1165.384,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1169.072,
+        "media": 1185.372,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1169.072,
+        "media": 1205.356,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1218.8239999999998,
+        "media": 1226.315,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1218.8239999999998,
+        "media": 1245.3860000000002,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1218.8239999999998,
+        "media": 1265.3700000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1269.231,
+        "media": 1285.381,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1269.231,
+        "media": 1305.359,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1319.277,
+        "media": 1327.05,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1319.277,
+        "media": 1345.3809999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1319.277,
+        "media": 1365.386,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1368.86,
+        "media": 1385.173,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1368.86,
+        "media": 1405.3629999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1419.098,
+        "media": 1426.213,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1419.098,
+        "media": 1445.375,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1419.098,
+        "media": 1465.365,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1469.027,
+        "media": 1485.501,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1469.027,
+        "media": 1505.1380000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1518.904,
+        "media": 1527.401,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1518.904,
+        "media": 1545.359,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1518.904,
+        "media": 1565.377,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1569.044,
+        "media": 1585.394,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.1660091051312818
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.1660091051312818
+        }
+      },
+      {
+        "t": 1569.044,
+        "media": 1605.201,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.1660091051312818
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.1660091051312818
+        }
+      },
+      {
+        "t": 1618.904,
+        "media": 1626.989,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        }
+      },
+      {
+        "t": 1618.904,
+        "media": 1645.45,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        }
+      },
+      {
+        "t": 1618.904,
+        "media": 1665.3819999999998,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5532765995105404
+        }
+      },
+      {
+        "t": 1669.0020000000002,
+        "media": 1685.3780000000002,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.9089908507620008
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.9089908507620008
+        }
+      },
+      {
+        "t": 1669.0020000000002,
+        "media": 1705.357,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.9089908507620008
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.9089908507620008
+        }
+      },
+      {
+        "t": 1719.023,
+        "media": 1726.172,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1719.023,
+        "media": 1745.46,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1752.4630000000002,
+        "media": 1765.364,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.10364504652130783
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.10364504652130783
+        }
+      },
+      {
+        "t": 1752.4630000000002,
+        "media": 1785.376,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.10364504652130783
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.10364504652130783
+        }
+      },
+      {
+        "t": 1802.478,
+        "media": 1810.519,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.7837227419412968
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.7837227419412968
+        }
+      },
+      {
+        "t": 1802.478,
+        "media": 1825.367,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.7837227419412968
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.7837227419412968
+        }
+      },
+      {
+        "t": 1835.696,
+        "media": 1845.374,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        }
+      },
+      {
+        "t": 1835.696,
+        "media": 1865.3709999999999,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        }
+      },
+      {
+        "t": 1835.696,
+        "media": 1885.123,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.0029990342529278386
+        }
+      },
+      {
+        "t": 1885.429,
+        "media": 1905.3500000000001,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.5438847439778234
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.5438847439778234
+        }
+      },
+      {
+        "t": 1885.429,
+        "media": 1925.3880000000001,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.5438847439778234
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.5438847439778234
+        }
+      },
+      {
+        "t": 1935.77,
+        "media": 1945.358,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1935.77,
+        "media": 1965.384,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1969.023,
+        "media": 1985.3700000000001,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.032888028077156545
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.032888028077156545
+        }
+      },
+      {
+        "t": 1969.023,
+        "media": 2005.364,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.032888028077156545
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.032888028077156545
+        }
+      },
+      {
+        "t": 2019.009,
+        "media": 2026.91,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        }
+      },
+      {
+        "t": 2019.009,
+        "media": 2045.311,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        }
+      },
+      {
+        "t": 2019.009,
+        "media": 2065.373,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.9902380352756575
+        }
+      },
+      {
+        "t": 2069.083,
+        "media": 2085.34,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2102.3619999999996,
+        "media": 2109.331,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2102.3619999999996,
+        "media": 2125.372,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2102.3619999999996,
+        "media": 2145.377,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2152.33,
+        "media": 2165.3790000000004,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2152.33,
+        "media": 2185.3570000000004,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2185.67,
+        "media": 2205.353,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2218.9429999999998,
+        "media": 2226.212,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2218.9429999999998,
+        "media": 2245.345,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2218.9429999999998,
+        "media": 2265.38,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2268.998,
+        "media": 2285.373,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2268.998,
+        "media": 2305.368,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2319.0620000000004,
+        "media": 2326.922,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2319.0620000000004,
+        "media": 2345.362,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2352.344,
+        "media": 2365.361,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2352.344,
+        "media": 2385.354,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2402.386,
+        "media": 2409.3089999999997,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2402.386,
+        "media": 2425.2180000000003,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2402.386,
+        "media": 2445.351,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2452.494,
+        "media": 2465.348,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.9258425725945946
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.9258425725945946
+        }
+      },
+      {
+        "t": 2452.494,
+        "media": 2485.343,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.9258425725945946
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.9258425725945946
+        }
+      },
+      {
+        "t": 2502.348,
+        "media": 2510.889,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        }
+      },
+      {
+        "t": 2502.348,
+        "media": 2525.229,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        }
+      },
+      {
+        "t": 2502.348,
+        "media": 2545.3579999999997,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.4971500137179991
+        }
+      },
+      {
+        "t": 2552.3120000000004,
+        "media": 2565.337,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2552.3120000000004,
+        "media": 2585.4309999999996,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2585.676,
+        "media": 2605.331,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2585.676,
+        "media": 2625.2,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2635.5170000000003,
+        "media": 2645.361,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2635.5170000000003,
+        "media": 2665.384,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2668.986,
+        "media": 2685.371,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2668.986,
+        "media": 2705.346,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2718.9939999999997,
+        "media": 2726.2909999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2718.9939999999997,
+        "media": 2745.349,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2718.9939999999997,
+        "media": 2765.377,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2769.002,
+        "media": 2785.368,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2802.323,
+        "media": 2810.084,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        }
+      },
+      {
+        "t": 2802.323,
+        "media": 2825.3469999999998,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        }
+      },
+      {
+        "t": 2802.323,
+        "media": 2845.362,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.009293319951908305
+        }
+      },
+      {
+        "t": 2852.3230000000003,
+        "media": 2865.371,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.7113704236360173
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.7113704236360173
+        }
+      },
+      {
+        "t": 2852.3230000000003,
+        "media": 2885.375,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.7113704236360173
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.7113704236360173
+        }
+      },
+      {
+        "t": 2885.647,
+        "media": 2905.4509999999996,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2885.647,
+        "media": 2925.3520000000003,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2935.682,
+        "media": 2945.366,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2935.682,
+        "media": 2965.384,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2968.9739999999997,
+        "media": 2985.376,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2968.9739999999997,
+        "media": 3005.366,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3019.054,
+        "media": 3026.879,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        }
+      },
+      {
+        "t": 3019.054,
+        "media": 3045.38,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        }
+      },
+      {
+        "t": 3019.054,
+        "media": 3065.3630000000003,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.07893624188797832
+        }
+      },
+      {
+        "t": 3069.051,
+        "media": 3085.372,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.29217000112105324
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.29217000112105324
+        }
+      },
+      {
+        "t": 3069.051,
+        "media": 3105.165,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.29217000112105324
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.29217000112105324
+        }
+      },
+      {
+        "t": 3119.19,
+        "media": 3127.884,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        }
+      },
+      {
+        "t": 3119.19,
+        "media": 3145.3579999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        }
+      },
+      {
+        "t": 3119.19,
+        "media": 3165.366,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5647821206311032
+        }
+      },
+      {
+        "t": 3168.9500000000003,
+        "media": 3185.395,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8178110299624053
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8178110299624053
+        }
+      },
+      {
+        "t": 3202.333,
+        "media": 3210.579,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        }
+      },
+      {
+        "t": 3202.333,
+        "media": 3225.369,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        }
+      },
+      {
+        "t": 3202.333,
+        "media": 3245.341,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9401903019145929
+        }
+      },
+      {
+        "t": 3252.3,
+        "media": 3265.42,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.006330074074074307
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.006330074074074307
+        }
+      },
+      {
+        "t": 3252.3,
+        "media": 3285.379,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.006330074074074307
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.006330074074074307
+        }
+      },
+      {
+        "t": 3285.624,
+        "media": 3305.355,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.10918954541180684
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.10918954541180684
+        }
+      },
+      {
+        "t": 3285.624,
+        "media": 3325.3529999999996,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.10918954541180684
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.10918954541180684
+        }
+      },
+      {
+        "t": 3335.629,
+        "media": 3345.372,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        }
+      },
+      {
+        "t": 3335.629,
+        "media": 3365.388,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        }
+      },
+      {
+        "t": 3335.629,
+        "media": 3385.3849999999998,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.41556841462678074
+        }
+      },
+      {
+        "t": 3385.647,
+        "media": 3405.3740000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.7604903907563925
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.7604903907563925
+        }
+      },
+      {
+        "t": 3385.647,
+        "media": 3425.165,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.7604903907563925
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.7604903907563925
+        }
+      },
+      {
+        "t": 3435.5989999999997,
+        "media": 3445.2690000000002,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        }
+      },
+      {
+        "t": 3435.5989999999997,
+        "media": 3465.3779999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        }
+      },
+      {
+        "t": 3435.5989999999997,
+        "media": 3485.331,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.9816110287367883
+        }
+      },
+      {
+        "t": 3485.587,
+        "media": 3505.362,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3485.587,
+        "media": 3525.369,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3535.875,
+        "media": 3545.347,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3535.875,
+        "media": 3565.38,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3568.977,
+        "media": 3585.377,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3568.977,
+        "media": 3605.337,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3618.96,
+        "media": 3626.44,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3618.96,
+        "media": 3645.371,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3618.96,
+        "media": 3665.376,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3668.971,
+        "media": 3685.393,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.45595082436800016
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.45595082436800016
+        }
+      },
+      {
+        "t": 3668.971,
+        "media": 3705.38,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.45595082436800016
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.45595082436800016
+        }
+      },
+      {
+        "t": 3719.0150000000003,
+        "media": 3727.23,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.18413824778055732
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.18413824778055732
+        }
+      },
+      {
+        "t": 3719.0150000000003,
+        "media": 3745.324,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.18413824778055732
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.18413824778055732
+        }
+      },
+      {
+        "t": 3752.375,
+        "media": 3765.374,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.5956681520711762
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.5956681520711762
+        }
+      },
+      {
+        "t": 3752.375,
+        "media": 3785.357,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.5956681520711762
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.5956681520711762
+        }
+      },
+      {
+        "t": 3802.1029999999996,
+        "media": 3809.873,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        }
+      },
+      {
+        "t": 3802.1029999999996,
+        "media": 3825.3599999999997,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        }
+      },
+      {
+        "t": 3802.1029999999996,
+        "media": 3845.325,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.9999643297684201
+        }
+      },
+      {
+        "t": 3852.2799999999997,
+        "media": 3865.3309999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3852.2799999999997,
+        "media": 3885.3559999999998,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3885.606,
+        "media": 3905.353,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3885.606,
+        "media": 3925.3680000000004,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3935.6659999999997,
+        "media": 3945.358,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3935.6659999999997,
+        "media": 3965.391,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3935.6659999999997,
+        "media": 3985.352,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3985.604,
+        "media": 4005.3650000000002,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3985.604,
+        "media": 4025.355,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4035.7770000000005,
+        "media": 4045.375,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4035.7770000000005,
+        "media": 4065.366,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4069.1670000000004,
+        "media": 4085.316,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4069.1670000000004,
+        "media": 4105.352,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4118.8330000000005,
+        "media": 4126.218,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4118.8330000000005,
+        "media": 4145.346,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4118.8330000000005,
+        "media": 4165.351000000001,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4168.915,
+        "media": 4185.41,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4168.915,
+        "media": 4205.368,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4218.952,
+        "media": 4226.599,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4218.952,
+        "media": 4245.37,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4218.952,
+        "media": 4265.211,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4268.889,
+        "media": 4285.381,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4302.2970000000005,
+        "media": 4309.544,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4302.2970000000005,
+        "media": 4325.378,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4302.2970000000005,
+        "media": 4345.338,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4352.229,
+        "media": 4365.375,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.6323224441614236
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.6323224441614236
+        }
+      },
+      {
+        "t": 4352.229,
+        "media": 4385.3730000000005,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.6323224441614236
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.6323224441614236
+        }
+      },
+      {
+        "t": 4385.6,
+        "media": 4405.375,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4385.6,
+        "media": 4425.334000000001,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4436.338,
+        "media": 4445.821,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        }
+      },
+      {
+        "t": 4436.338,
+        "media": 4465.389,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        }
+      },
+      {
+        "t": 4436.338,
+        "media": 4485.3820000000005,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7737163308819832
+        }
+      },
+      {
+        "t": 4485.607,
+        "media": 4505.3679999999995,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.10911029679061796
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.10911029679061796
+        }
+      },
+      {
+        "t": 4485.607,
+        "media": 4525.368,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.10911029679061796
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.10911029679061796
+        }
+      },
+      {
+        "t": 4535.573,
+        "media": 4545.373,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        }
+      },
+      {
+        "t": 4535.573,
+        "media": 4565.361,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        }
+      },
+      {
+        "t": 4535.573,
+        "media": 4585.366,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.41517355155058705
+        }
+      },
+      {
+        "t": 4585.562999999999,
+        "media": 4605.362999999999,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7599694107081156
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7599694107081156
+        }
+      },
+      {
+        "t": 4585.562999999999,
+        "media": 4625.321,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7599694107081156
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7599694107081156
+        }
+      },
+      {
+        "t": 4635.606,
+        "media": 4645.327,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.9816258266936577
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.9816258266936577
+        }
+      },
+      {
+        "t": 4635.606,
+        "media": 4665.383000000001,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.9816258266936577
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.9816258266936577
+        }
+      },
+      {
+        "t": 4668.918,
+        "media": 4685.399,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.031877806420070876
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.031877806420070876
+        }
+      },
+      {
+        "t": 4668.918,
+        "media": 4705.346,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.031877806420070876
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.031877806420070876
+        }
+      },
+      {
+        "t": 4718.834,
+        "media": 4726.706,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        }
+      },
+      {
+        "t": 4718.834,
+        "media": 4745.37,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        }
+      },
+      {
+        "t": 4718.834,
+        "media": 4765.367,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.989256568261999
+        }
+      },
+      {
+        "t": 4768.907999999999,
+        "media": 4785.388,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4768.907999999999,
+        "media": 4805.349999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4818.95,
+        "media": 4826.097,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4818.95,
+        "media": 4845.348000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4818.95,
+        "media": 4865.370000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4868.884999999999,
+        "media": 4885.37,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4868.884999999999,
+        "media": 4905.348,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4918.929,
+        "media": 4926.575,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4918.929,
+        "media": 4945.353,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4918.929,
+        "media": 4965.344,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4968.9259999999995,
+        "media": 4985.375999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4968.9259999999995,
+        "media": 5005.3679999999995,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5018.936,
+        "media": 5025.791,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5018.936,
+        "media": 5045.356,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5052.210999999999,
+        "media": 5065.351,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5052.210999999999,
+        "media": 5080,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    ]
+  },
+  {
+    "skin": "human",
+    "samples": [
+      {
+        "t": 0,
+        "media": 0,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 0,
+        "media": 7.202,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 7.202,
+        "media": 11.974,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 7.202,
+        "media": 11.974,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 12.168,
+        "media": 12.168,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 12.168,
+        "media": 23.246,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 41.754,
+        "media": 51.647999999999996,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 41.754,
+        "media": 63.235,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 74.957,
+        "media": 84.517,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 74.957,
+        "media": 103.272,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 74.957,
+        "media": 123.237,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 124.898,
+        "media": 143.25199999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 158.20999999999998,
+        "media": 168.18,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 158.20999999999998,
+        "media": 183.10199999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 191.394,
+        "media": 203.3,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 191.394,
+        "media": 223.255,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 241.71200000000002,
+        "media": 251.46699999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 241.71200000000002,
+        "media": 263.261,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 274.891,
+        "media": 293.026,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        }
+      },
+      {
+        "t": 274.891,
+        "media": 303.272,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        }
+      },
+      {
+        "t": 274.891,
+        "media": 323.24399999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.06855616843114369
+        }
+      },
+      {
+        "t": 324.861,
+        "media": 343.253,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5252868360263258
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.5252868360263258
+        }
+      },
+      {
+        "t": 358.21799999999996,
+        "media": 373.554,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        }
+      },
+      {
+        "t": 358.21799999999996,
+        "media": 383.266,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        }
+      },
+      {
+        "t": 358.21799999999996,
+        "media": 403.27000000000004,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.8494799197039122
+        }
+      },
+      {
+        "t": 408.306,
+        "media": 424.144,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.0196100419983624
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.0196100419983624
+        }
+      },
+      {
+        "t": 408.306,
+        "media": 443.26,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.0196100419983624
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.0196100419983624
+        }
+      },
+      {
+        "t": 458.504,
+        "media": 474.224,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        }
+      },
+      {
+        "t": 458.504,
+        "media": 483.268,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        }
+      },
+      {
+        "t": 458.504,
+        "media": 503.243,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.2781928005225066
+        }
+      },
+      {
+        "t": 508.21099999999996,
+        "media": 524.303,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6609174615292515
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6609174615292515
+        }
+      },
+      {
+        "t": 508.21099999999996,
+        "media": 543.2379999999999,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6609174615292515
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.6609174615292515
+        }
+      },
+      {
+        "t": 558.238,
+        "media": 573.557,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        }
+      },
+      {
+        "t": 558.238,
+        "media": 580.99,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        }
+      },
+      {
+        "t": 558.238,
+        "media": 603.255,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "i",
+          "mix": 0.9552465294686482
+        }
+      },
+      {
+        "t": 608.1990000000001,
+        "media": 623.2710000000001,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 608.1990000000001,
+        "media": 643.23,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 658.187,
+        "media": 668.289,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 658.187,
+        "media": 683.436,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 691.491,
+        "media": 703.2460000000001,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 691.491,
+        "media": 723.264,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 741.5699999999999,
+        "media": 757.4739999999999,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.08677959771199888
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.08677959771199888
+        }
+      },
+      {
+        "t": 741.5699999999999,
+        "media": 763.3820000000001,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.08677959771199888
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.08677959771199888
+        }
+      },
+      {
+        "t": 774.9019999999999,
+        "media": 790.005,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        }
+      },
+      {
+        "t": 774.9019999999999,
+        "media": 803.2869999999999,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        }
+      },
+      {
+        "t": 774.9019999999999,
+        "media": 823.2009999999999,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.937742547699071
+        }
+      },
+      {
+        "t": 824.715,
+        "media": 844.39,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.45364259557373166
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.45364259557373166
+        }
+      },
+      {
+        "t": 824.715,
+        "media": 863.249,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.45364259557373166
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.45364259557373166
+        }
+      },
+      {
+        "t": 874.899,
+        "media": 888.816,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 874.899,
+        "media": 903.303,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 908.207,
+        "media": 925.443,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.3934075864977499
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.3934075864977499
+        }
+      },
+      {
+        "t": 908.207,
+        "media": 943.246,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.3934075864977499
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.3934075864977499
+        }
+      },
+      {
+        "t": 958.5310000000001,
+        "media": 970.8670000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 958.5310000000001,
+        "media": 983.159,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 958.5310000000001,
+        "media": 1003.261,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1008.2629999999999,
+        "media": 1023.2699999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1008.2629999999999,
+        "media": 1043.207,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1058.19,
+        "media": 1068.2169999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1058.19,
+        "media": 1083.272,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1091.502,
+        "media": 1103.239,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1091.502,
+        "media": 1123.2649999999999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1141.548,
+        "media": 1152.999,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1141.548,
+        "media": 1163.2450000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1174.9579999999999,
+        "media": 1185.1799999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1174.9579999999999,
+        "media": 1203.2730000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1208.22,
+        "media": 1223.2430000000002,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1208.22,
+        "media": 1243.222,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1258.175,
+        "media": 1268.965,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1258.175,
+        "media": 1283.245,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1258.175,
+        "media": 1303.232,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1308.181,
+        "media": 1323.26,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1308.181,
+        "media": 1343.229,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1358.1049999999998,
+        "media": 1368.0159999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1358.1049999999998,
+        "media": 1383.261,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1358.1049999999998,
+        "media": 1403.2530000000002,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1408.1840000000002,
+        "media": 1423.271,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1441.498,
+        "media": 1451.09,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1441.498,
+        "media": 1463.2160000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1441.498,
+        "media": 1483.155,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1491.4270000000001,
+        "media": 1503.2160000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1491.4270000000001,
+        "media": 1523.28,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1541.535,
+        "media": 1558.033,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.031183969781250258
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.031183969781250258
+        }
+      },
+      {
+        "t": 1541.535,
+        "media": 1563.2930000000001,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.031183969781250258
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.031183969781250258
+        }
+      },
+      {
+        "t": 1574.9660000000001,
+        "media": 1590.8210000000001,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        }
+      },
+      {
+        "t": 1574.9660000000001,
+        "media": 1603.273,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        }
+      },
+      {
+        "t": 1574.9660000000001,
+        "media": 1623.222,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.20535039183446724
+        }
+      },
+      {
+        "t": 1624.812,
+        "media": 1643.222,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.6019599729919992
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.6019599729919992
+        }
+      },
+      {
+        "t": 1658.163,
+        "media": 1674.026,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        }
+      },
+      {
+        "t": 1658.163,
+        "media": 1683.293,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        }
+      },
+      {
+        "t": 1658.163,
+        "media": 1703.249,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "o",
+          "mix": 0.847873299640176
+        }
+      },
+      {
+        "t": 1708.134,
+        "media": 1723.272,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1708.134,
+        "media": 1743.245,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1758.132,
+        "media": 1772.716,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        }
+      },
+      {
+        "t": 1758.132,
+        "media": 1783.222,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        }
+      },
+      {
+        "t": 1758.132,
+        "media": 1803.242,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.1634194087280647
+        }
+      },
+      {
+        "t": 1808.233,
+        "media": 1823.414,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.8519148689843253
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.8519148689843253
+        }
+      },
+      {
+        "t": 1841.487,
+        "media": 1857.1,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        }
+      },
+      {
+        "t": 1841.487,
+        "media": 1863.259,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        }
+      },
+      {
+        "t": 1841.487,
+        "media": 1883.248,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.022778159578394394
+        }
+      },
+      {
+        "t": 1891.5010000000002,
+        "media": 1907.316,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.633556513946001
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.633556513946001
+        }
+      },
+      {
+        "t": 1891.5010000000002,
+        "media": 1923.196,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.633556513946001
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "a",
+          "mix": 0.633556513946001
+        }
+      },
+      {
+        "t": 1941.4560000000001,
+        "media": 1954.098,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1941.4560000000001,
+        "media": 1963.2179999999998,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1941.4560000000001,
+        "media": 1983.247,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      },
+      {
+        "t": 1991.43,
+        "media": 2009.1589999999999,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.47326134299074235
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.47326134299074235
+        }
+      },
+      {
+        "t": 1991.43,
+        "media": 2023.2640000000001,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.47326134299074235
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "rest",
+          "mix": 0.47326134299074235
+        }
+      },
+      {
+        "t": 2024.785,
+        "media": 2043.2579999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2024.785,
+        "media": 2063.234,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2074.869,
+        "media": 2085.218,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2074.869,
+        "media": 2103.277,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2074.869,
+        "media": 2123.272,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2124.795,
+        "media": 2143.2400000000002,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2124.795,
+        "media": 2163.249,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2174.781,
+        "media": 2184.853,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2174.781,
+        "media": 2203.248,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2174.781,
+        "media": 2223.238,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2224.748,
+        "media": 2243.231,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2224.748,
+        "media": 2263.255,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2274.7920000000004,
+        "media": 2284.683,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2274.7920000000004,
+        "media": 2303.2659999999996,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2308.116,
+        "media": 2323.19,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2308.116,
+        "media": 2343.242,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2358.1310000000003,
+        "media": 2369.112,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2358.1310000000003,
+        "media": 2383.2909999999997,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2391.428,
+        "media": 2403.255,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2391.428,
+        "media": 2423.2599999999998,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2441.471,
+        "media": 2457.462,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.7175900399758242
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.7175900399758242
+        }
+      },
+      {
+        "t": 2441.471,
+        "media": 2463.295,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.7175900399758242
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "i",
+          "mix": 0.7175900399758242
+        }
+      },
+      {
+        "t": 2474.795,
+        "media": 2491.256,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        }
+      },
+      {
+        "t": 2474.795,
+        "media": 2503.307,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        }
+      },
+      {
+        "t": 2474.795,
+        "media": 2523.265,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.06359939229541088
+        }
+      },
+      {
+        "t": 2525,
+        "media": 2543.253,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.87738037109375
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.87738037109375
+        }
+      },
+      {
+        "t": 2558.162,
+        "media": 2570.728,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2558.162,
+        "media": 2583.351,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2558.162,
+        "media": 2603.278,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2608.199,
+        "media": 2623.255,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2608.199,
+        "media": 2643.246,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2658.136,
+        "media": 2668.5099999999998,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2658.136,
+        "media": 2683.284,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2658.136,
+        "media": 2703.296,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2708.274,
+        "media": 2723.319,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2741.447,
+        "media": 2751.336,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2741.447,
+        "media": 2763.283,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2741.447,
+        "media": 2783.2729999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2791.455,
+        "media": 2803.302,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2791.455,
+        "media": 2823.272,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2824.843,
+        "media": 2843.275,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.24386352721316437
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.24386352721316437
+        }
+      },
+      {
+        "t": 2824.843,
+        "media": 2863.288,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.24386352721316437
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.24386352721316437
+        }
+      },
+      {
+        "t": 2874.849,
+        "media": 2891.886,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        }
+      },
+      {
+        "t": 2874.849,
+        "media": 2903.29,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        }
+      },
+      {
+        "t": 2874.849,
+        "media": 2923.286,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "i",
+          "mix": 0.9771522184830491
+        }
+      },
+      {
+        "t": 2924.818,
+        "media": 2943.264,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2924.818,
+        "media": 2963.275,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      },
+      {
+        "t": 2974.7509999999997,
+        "media": 2991.792,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        }
+      },
+      {
+        "t": 2974.7509999999997,
+        "media": 3003.301,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        }
+      },
+      {
+        "t": 2974.7509999999997,
+        "media": 3023.234,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.00020735960836747912
+        }
+      },
+      {
+        "t": 3024.7380000000003,
+        "media": 3043.291,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.09781232483612638
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.09781232483612638
+        }
+      },
+      {
+        "t": 3058.156,
+        "media": 3076.8970000000004,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        }
+      },
+      {
+        "t": 3058.156,
+        "media": 3083.303,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        }
+      },
+      {
+        "t": 3058.156,
+        "media": 3103.2709999999997,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.23807458904634274
+        }
+      },
+      {
+        "t": 3108.1690000000003,
+        "media": 3124.42,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5037166362426164
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.5037166362426164
+        }
+      },
+      {
+        "t": 3141.495,
+        "media": 3158.5679999999998,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.6848691726312168
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.6848691726312168
+        }
+      },
+      {
+        "t": 3141.495,
+        "media": 3163.253,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.6848691726312168
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.6848691726312168
+        }
+      },
+      {
+        "t": 3174.886,
+        "media": 3192.968,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8432747327431329
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8432747327431329
+        }
+      },
+      {
+        "t": 3174.886,
+        "media": 3203.297,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8432747327431329
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.8432747327431329
+        }
+      },
+      {
+        "t": 3224.9660000000003,
+        "media": 3243.433,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9878958497230411
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9878958497230411
+        }
+      },
+      {
+        "t": 3224.9660000000003,
+        "media": 3263.263,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9878958497230411
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "small",
+          "mix": 0.9878958497230411
+        }
+      },
+      {
+        "t": 3274.748,
+        "media": 3293.43,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        }
+      },
+      {
+        "t": 3274.748,
+        "media": 3303.331,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        }
+      },
+      {
+        "t": 3274.748,
+        "media": 3323.281,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.0635014098095257
+        }
+      },
+      {
+        "t": 3324.7819999999997,
+        "media": 3343.268,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.3402606804298072
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.3402606804298072
+        }
+      },
+      {
+        "t": 3358.121,
+        "media": 3374.117,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        }
+      },
+      {
+        "t": 3358.121,
+        "media": 3383.283,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        }
+      },
+      {
+        "t": 3358.121,
+        "media": 3403.2960000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.5756055428759187
+        }
+      },
+      {
+        "t": 3408.196,
+        "media": 3423.992,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.8852533998415856
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.8852533998415856
+        }
+      },
+      {
+        "t": 3408.196,
+        "media": 3443.27,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.8852533998415856
+        },
+        "expectedMouth": {
+          "from": "small",
+          "to": "closed",
+          "mix": 0.8852533998415856
+        }
+      },
+      {
+        "t": 3458.132,
+        "media": 3470.974,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3458.132,
+        "media": 3483.302,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3491.4480000000003,
+        "media": 3504.8669999999997,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3491.4480000000003,
+        "media": 3523.301,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3524.729,
+        "media": 3543.2329999999997,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3524.729,
+        "media": 3563.2799999999997,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3574.766,
+        "media": 3587.2540000000004,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3574.766,
+        "media": 3603.3469999999998,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3574.766,
+        "media": 3623.284,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3624.753,
+        "media": 3643.2760000000003,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3624.753,
+        "media": 3663.2920000000004,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3674.826,
+        "media": 3691.1130000000003,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        }
+      },
+      {
+        "t": 3674.826,
+        "media": 3703.276,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        }
+      },
+      {
+        "t": 3674.826,
+        "media": 3723.2690000000002,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "o",
+          "mix": 0.701585475359721
+        }
+      },
+      {
+        "t": 3724.719,
+        "media": 3743.275,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.2464351654120706
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.2464351654120706
+        }
+      },
+      {
+        "t": 3758.298,
+        "media": 3776.315,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        }
+      },
+      {
+        "t": 3758.298,
+        "media": 3783.2940000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        }
+      },
+      {
+        "t": 3758.298,
+        "media": 3803.2560000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "u",
+          "mix": 0.670359775366688
+        }
+      },
+      {
+        "t": 3808.19,
+        "media": 3823.267,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3841.4570000000003,
+        "media": 3853.17,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3841.4570000000003,
+        "media": 3863.295,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3874.8109999999997,
+        "media": 3885.583,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3874.8109999999997,
+        "media": 3903.252,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3874.8109999999997,
+        "media": 3923.272,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3924.952,
+        "media": 3943.265,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3958.1059999999998,
+        "media": 3968.7160000000003,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3958.1059999999998,
+        "media": 3983.2900000000004,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 3958.1059999999998,
+        "media": 4003.24,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4008.127,
+        "media": 4023.57,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4008.127,
+        "media": 4043.369,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4058.121,
+        "media": 4068.391,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4058.121,
+        "media": 4083.2179999999994,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4058.121,
+        "media": 4103.283,
+        "actual": "u",
+        "expected": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4108.098,
+        "media": 4123.2699999999995,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4108.098,
+        "media": 4143.241,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4158.35,
+        "media": 4169.2390000000005,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4158.35,
+        "media": 4183.41,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4158.35,
+        "media": 4203.276,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4208.046,
+        "media": 4223.27,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4208.046,
+        "media": 4243.2480000000005,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4258.074,
+        "media": 4271.51,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4258.074,
+        "media": 4283.271,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4258.074,
+        "media": 4303.266,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4308.043,
+        "media": 4323.3009999999995,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4341.54,
+        "media": 4357.552,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        }
+      },
+      {
+        "t": 4341.54,
+        "media": 4363.26,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        }
+      },
+      {
+        "t": 4341.54,
+        "media": 4383.256,
+        "actual": "i",
+        "expected": "i",
+        "mouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        },
+        "expectedMouth": {
+          "from": "i",
+          "to": "closed",
+          "mix": 0.06990345420799882
+        }
+      },
+      {
+        "t": 4391.357,
+        "media": 4403.26,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4391.357,
+        "media": 4423.256,
+        "actual": "closed",
+        "expected": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4424.654,
+        "media": 4443.219,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.03229938293401301
+        },
+        "expectedMouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.03229938293401301
+        }
+      },
+      {
+        "t": 4458.188,
+        "media": 4476.565,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        }
+      },
+      {
+        "t": 4458.188,
+        "media": 4483.117,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        }
+      },
+      {
+        "t": 4458.188,
+        "media": 4503.264,
+        "actual": "a",
+        "expected": "a",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.015908579466435355
+        }
+      },
+      {
+        "t": 4508.021000000001,
+        "media": 4523.424,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.23129547705415338
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.23129547705415338
+        }
+      },
+      {
+        "t": 4541.424,
+        "media": 4556.541,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        }
+      },
+      {
+        "t": 4541.424,
+        "media": 4563.283,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        }
+      },
+      {
+        "t": 4541.424,
+        "media": 4583.26,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.4566484423727406
+        }
+      },
+      {
+        "t": 4591.339,
+        "media": 4606.755999999999,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7949406318110958
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7949406318110958
+        }
+      },
+      {
+        "t": 4591.339,
+        "media": 4623.259,
+        "actual": "small",
+        "expected": "small",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7949406318110958
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.7949406318110958
+        }
+      },
+      {
+        "t": 4641.338,
+        "media": 4656.494000000001,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        }
+      },
+      {
+        "t": 4641.338,
+        "media": 4663.265,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        }
+      },
+      {
+        "t": 4641.338,
+        "media": 4683.272,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        },
+        "expectedMouth": {
+          "from": "a",
+          "to": "o",
+          "mix": 0.991824802816872
+        }
+      },
+      {
+        "t": 4691.436000000001,
+        "media": 4707.93,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.47341115324208916
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.47341115324208916
+        }
+      },
+      {
+        "t": 4691.436000000001,
+        "media": 4723.267,
+        "actual": "o",
+        "expected": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.47341115324208916
+        },
+        "expectedMouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.47341115324208916
+        }
+      },
+      {
+        "t": 4741.376,
+        "media": 4755.928,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4741.376,
+        "media": 4763.244000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4741.376,
+        "media": 4783.263,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4791.416,
+        "media": 4803.4800000000005,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4791.416,
+        "media": 4823.315,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4824.737,
+        "media": 4843.272,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4824.737,
+        "media": 4863.263,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4874.697,
+        "media": 4885.647,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4874.697,
+        "media": 4902.673,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4874.697,
+        "media": 4923.355,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4924.671,
+        "media": 4943.284000000001,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4924.671,
+        "media": 4963.258,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4974.712,
+        "media": 4986.248,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4974.712,
+        "media": 5002.3949999999995,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 4974.712,
+        "media": 5023.264,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5024.6849999999995,
+        "media": 5043.2119999999995,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5058.015,
+        "media": 5068.397,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      },
+      {
+        "t": 5058.015,
+        "media": 5080,
+        "actual": "rest",
+        "expected": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        },
+        "expectedMouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    ]
+  }
+]

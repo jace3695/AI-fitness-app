@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-07",
+  "productionActivation": {"key": "YEONI_ASSISTANT_CHARACTER_ENABLED", "value": "1", "target": "production", "appliedToVercel": false},
+  "productionDefault": "off",
+  "explicitDisable": "0; requires a new deployment",
+  "unitTests": {"total": 733, "passed": 733, "failed": 0},
+  "initialFailuresResolved": "Three existing free-advice route tests lacked the newly added reply-plan module and crypto in their VM fixture. Added the real module and validated full spoken advice text.",
+  "typescript": "pass",
+  "changedFilesEslint": "pass",
+  "localBuild": {"result": "pass", "VERCEL_ENV": "production", "VERCEL_GIT_COMMIT_REF": "main", "activation": "1", "bothSavedAudioFilesTraced": true},
+  "localHttp": {
+    "assistant": {"status": 200, "savedAudioPropPresent": true},
+    "japaneseTestGenerationPost": {"status": 404},
+    "reviewPages": {"paths": ["/assistant/character-check", "/assistant/japanese-voice-check", "/assistant/lip-sync-check"], "streamedHttpStatus": 200, "notFoundDigest": "NEXT_HTTP_ERROR_FALLBACK;404", "noindex": true}
+  },
+  "localServerNote": "Used same-process loopback server/client; earlier cross-command connection attempts did not reach the local listener. Not real authenticated browser evidence.",
+  "iPhoneLayout": "user accepted at 2026-10-07T23:05:28+09:00",
+  "previewUserFlows": "Previously verified and unchanged by server gate preparation",
+  "productionBrowserValidation": "after approved deployment",
+  "productionBaseline": {"id": "dpl_CA5xqJa7drXgTBqZt136qMcDQmL2", "commit": "a7e2c6913a7fbe1d1c54bf7176243093470be8bb", "state": "READY"},
+  "newTtsCalls": 0,
+  "productionChanged": false
+}

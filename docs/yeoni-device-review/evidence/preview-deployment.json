@@ -1,0 +1,29 @@
+{
+  "recordedAtKst": "2026-10-04T20:40:40+09:00",
+  "repository": "jace3695/AI-fitness-app",
+  "branch": "agent/yeoni-cat-animation-poc",
+  "localSourceCommit": "8548cb552f2042356a30ec221b95ab0056dc0543",
+  "publishedCommit": "293c5a9b8021dae01800ee64948a337f6b4dbabe",
+  "verifiedMatchingTree": "3d3c14c038991d8329c49765e9d904b981fc9f12",
+  "publication": "GitHub connector; 15 exact SHA-verified blobs; non-force branch update",
+  "deployment": {
+    "id": "dpl_9mCrhd3YsZdN5VtnDAjdGyxWU3ce",
+    "url": "https://ai-fitness-ombp01lza-jace3695s-projects.vercel.app",
+    "deviceUrl": "https://ai-fitness-ombp01lza-jace3695s-projects.vercel.app/assistant/character-check?mode=device",
+    "branchDeviceUrl": "https://ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app/assistant/character-check?mode=device",
+    "readyState": "READY",
+    "environment": "preview",
+    "createdAt": 1791096837399,
+    "buildingAt": 1791096839704,
+    "readyAt": 1791096876117
+  },
+  "httpChecksBeforeInterruption": {
+    "fixedDeviceUrl": 200,
+    "branchDeviceUrl": 200,
+    "method": "Vercel authorized fetch",
+    "scope": "Document response only; not authenticated UI, playback or physical-device validation"
+  },
+  "verification": "Build, TypeScript, targeted lint passed; new browser run blocked before launch, physical iPhone still pending.",
+  "newSynthesisCalls": 0,
+  "productionChanged": false
+}

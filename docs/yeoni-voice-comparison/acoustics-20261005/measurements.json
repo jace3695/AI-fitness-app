@@ -1,0 +1,261 @@
+{
+  "kind": "descriptive-acoustics-not-listening-or-identity-verification",
+  "parselmouth_version": "0.4.7",
+  "praat_version": "6.1.38",
+  "pitch_settings": {
+    "time_step_seconds": 0.01,
+    "floor_hz": 60,
+    "ceiling_hz": 600,
+    "very_accurate": true,
+    "voicing_threshold": 0.45
+  },
+  "original_checks": [
+    {
+      "id": "candidate-ko",
+      "latest_original_matches_repo": true,
+      "sha256": "de1e7d1d6d3d51cb76bebcdec435ca490f4646f6ece5fc0da664e80286f96200"
+    },
+    {
+      "id": "candidate-ja",
+      "latest_original_matches_repo": true,
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6"
+    }
+  ],
+  "clips": [
+    {
+      "id": "original-ko",
+      "title": "기존 한국어",
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+      "bytes": 21504,
+      "codec": "mp3",
+      "sample_rate": 24000,
+      "decoded_duration_seconds": 5.376,
+      "pitch_ac_hz": {
+        "count": 356,
+        "median": 221.98980146770026,
+        "p10": 163.58727640694468,
+        "p90": 293.36067918551043
+      },
+      "pitch_cc_hz": {
+        "count": 354,
+        "median": 224.88484416499207,
+        "p10": 163.70766436894567,
+        "p90": 293.2537170275396
+      },
+      "pitch_ac_50_800_hz": {
+        "count": 367,
+        "median": 225.31940813247314,
+        "p10": 164.34075810472402,
+        "p90": 295.15414288043377
+      },
+      "pitch_ac_voiced_fraction": 0.6742424242424242,
+      "cross_method_common_voiced_frames": 350,
+      "cross_method_difference_semitones": {
+        "count": 350,
+        "median": 0.024095991485771077,
+        "p10": 0.0026899163255803965,
+        "p90": 0.2035168995512736
+      },
+      "cross_method_within_one_semitone_fraction": 0.9771428571428571,
+      "voiced_hnr_db": {
+        "count": 342,
+        "median": 12.475544978831751,
+        "p10": 3.942635102328101,
+        "p90": 20.922009712341367
+      },
+      "voiced_magnitude_spectral_centroid_hz": {
+        "count": 356,
+        "median": 940.0868152860013,
+        "p10": 564.152133674736,
+        "p90": 1205.951784949492
+      },
+      "voiced_band_power_median_fractions": {
+        "100-500Hz": 0.7386154143200967,
+        "500-1000Hz": 0.2270316052399425,
+        "1000-2000Hz": 0.00436446358597299,
+        "2000-4000Hz": 0.0024648971779663033,
+        "4000-8000Hz": 0.000650638395744299
+      }
+    },
+    {
+      "id": "original-ja",
+      "title": "기존 일본어",
+      "path": "docs/yeoni-phase12/media/yeoni-zephyr-ja-approved.mp3",
+      "sha256": "317b079799b53af65958d994e3019182c2052f65ad2fed3f357f294079b1647e",
+      "bytes": 16224,
+      "codec": "mp3",
+      "sample_rate": 24000,
+      "decoded_duration_seconds": 4.056,
+      "pitch_ac_hz": {
+        "count": 212,
+        "median": 240.8560336887062,
+        "p10": 169.32788296715177,
+        "p90": 301.12476388091596
+      },
+      "pitch_cc_hz": {
+        "count": 203,
+        "median": 240.27700510141153,
+        "p10": 169.09070260992888,
+        "p90": 301.6585554896338
+      },
+      "pitch_ac_50_800_hz": {
+        "count": 218,
+        "median": 243.1135131820269,
+        "p10": 169.55954137686936,
+        "p90": 301.24194216909166
+      },
+      "pitch_ac_voiced_fraction": 0.5353535353535354,
+      "cross_method_common_voiced_frames": 201,
+      "cross_method_difference_semitones": {
+        "count": 201,
+        "median": 0.03681319382494414,
+        "p10": 0.00491191878637844,
+        "p90": 0.3041069206866297
+      },
+      "cross_method_within_one_semitone_fraction": 0.9850746268656716,
+      "voiced_hnr_db": {
+        "count": 203,
+        "median": 13.050103153812762,
+        "p10": 2.3092053199382208,
+        "p90": 18.992622115693795
+      },
+      "voiced_magnitude_spectral_centroid_hz": {
+        "count": 212,
+        "median": 949.2719336337102,
+        "p10": 620.1001772980071,
+        "p90": 1657.6609910162265
+      },
+      "voiced_band_power_median_fractions": {
+        "100-500Hz": 0.8948261643043312,
+        "500-1000Hz": 0.041125546024225135,
+        "1000-2000Hz": 0.006720835877814765,
+        "2000-4000Hz": 0.001405286322159854,
+        "4000-8000Hz": 0.0006671690347639365
+      }
+    },
+    {
+      "id": "candidate-ko",
+      "title": "후보 한국어",
+      "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ko-user.wav",
+      "sha256": "de1e7d1d6d3d51cb76bebcdec435ca490f4646f6ece5fc0da664e80286f96200",
+      "bytes": 274604,
+      "codec": "pcm_s16le",
+      "sample_rate": 24000,
+      "decoded_duration_seconds": 5.72,
+      "pitch_ac_hz": {
+        "count": 356,
+        "median": 207.009667793367,
+        "p10": 152.0018736695517,
+        "p90": 280.704055459357
+      },
+      "pitch_cc_hz": {
+        "count": 352,
+        "median": 205.67767254889168,
+        "p10": 151.15839570277058,
+        "p90": 280.9716730027795
+      },
+      "pitch_ac_50_800_hz": {
+        "count": 359,
+        "median": 208.4799532897799,
+        "p10": 151.92898452776177,
+        "p90": 287.1867723890885
+      },
+      "pitch_ac_voiced_fraction": 0.6323268206039077,
+      "cross_method_common_voiced_frames": 347,
+      "cross_method_difference_semitones": {
+        "count": 347,
+        "median": 0.12655323763508133,
+        "p10": 0.02083150347795636,
+        "p90": 0.47118806565165744
+      },
+      "cross_method_within_one_semitone_fraction": 0.9798270893371758,
+      "voiced_hnr_db": {
+        "count": 334,
+        "median": 10.604977849223834,
+        "p10": 3.927181514606704,
+        "p90": 19.392108326618644
+      },
+      "voiced_magnitude_spectral_centroid_hz": {
+        "count": 356,
+        "median": 858.9428596959481,
+        "p10": 508.0556474401411,
+        "p90": 1349.9203653920063
+      },
+      "voiced_band_power_median_fractions": {
+        "100-500Hz": 0.9203083161687851,
+        "500-1000Hz": 0.06374504444148293,
+        "1000-2000Hz": 0.0037142180820467934,
+        "2000-4000Hz": 0.0006848997717716639,
+        "4000-8000Hz": 0.00030322673007406113
+      }
+    },
+    {
+      "id": "candidate-ja",
+      "title": "후보 일본어",
+      "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav",
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "bytes": 243884,
+      "codec": "pcm_s16le",
+      "sample_rate": 24000,
+      "decoded_duration_seconds": 5.08,
+      "pitch_ac_hz": {
+        "count": 199,
+        "median": 219.2036729584367,
+        "p10": 160.43873702155045,
+        "p90": 316.06946290115087
+      },
+      "pitch_cc_hz": {
+        "count": 194,
+        "median": 215.42821168788802,
+        "p10": 158.73462504288509,
+        "p90": 313.11838546471733
+      },
+      "pitch_ac_50_800_hz": {
+        "count": 202,
+        "median": 218.99328842953562,
+        "p10": 160.20436269518567,
+        "p90": 315.3599099956548
+      },
+      "pitch_ac_voiced_fraction": 0.39879759519038077,
+      "cross_method_common_voiced_frames": 185,
+      "cross_method_difference_semitones": {
+        "count": 185,
+        "median": 0.17643671738391453,
+        "p10": 0.023184602473999075,
+        "p90": 0.5619172874833782
+      },
+      "cross_method_within_one_semitone_fraction": 0.972972972972973,
+      "voiced_hnr_db": {
+        "count": 182,
+        "median": 11.12065929975263,
+        "p10": 2.10661979945965,
+        "p90": 16.00816877189695
+      },
+      "voiced_magnitude_spectral_centroid_hz": {
+        "count": 199,
+        "median": 1071.9626915746026,
+        "p10": 681.8918882740256,
+        "p90": 1917.700390724527
+      },
+      "voiced_band_power_median_fractions": {
+        "100-500Hz": 0.8951497672950671,
+        "500-1000Hz": 0.04825064394512453,
+        "1000-2000Hz": 0.005645626339384854,
+        "2000-4000Hz": 0.0009986909673816225,
+        "4000-8000Hz": 0.0010074043747180066
+      }
+    }
+  ],
+  "limitations": [
+    "No direct listening or audio-understanding model was used.",
+    "No gender, age, speaker identity, or perceptual similarity classifier was run.",
+    "One short sentence per condition cannot isolate language and model causality.",
+    "Korean and Japanese contain different phonemes and meanings; spectra/HNR depend on these.",
+    "Cloud baselines are MP3; user candidates are PCM WAV. Codec differences confound spectra.",
+    "Pitch is not timbre. Spectral summaries are not speaker embeddings or similarity percentages.",
+    "Japanese candidate model/voice settings were not independently verified at generation."
+  ],
+  "new_tts_calls": 0,
+  "external_audio_uploads": 0
+}

@@ -1,0 +1,98 @@
+{
+  "recordedDateKst": "2026-10-07",
+  "promptedByUserConfirmationAt": "2026-10-07T22:05:27+09:00",
+  "evidenceType": "read-only GitHub and Vercel connector responses plus local source inspection",
+  "repository": "jace3695/AI-fitness-app",
+  "pullRequest": {
+    "number": 207,
+    "url": "https://github.com/jace3695/AI-fitness-app/pull/207",
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "base": "main",
+    "baseSha": "a7e2c6913a7fbe1d1c54bf7176243093470be8bb",
+    "head": "agent/yeoni-cat-animation-poc",
+    "headSha": "293c5a9b8021dae01800ee64948a337f6b4dbabe",
+    "changedFiles": 599
+  },
+  "preview": {
+    "deploymentId": "dpl_9mCrhd3YsZdN5VtnDAjdGyxWU3ce",
+    "projectId": "prj_UDkVoWjM3D1EMRJk9hcBaFvq2sj3",
+    "state": "READY",
+    "environment": "preview",
+    "target": null,
+    "branch": "agent/yeoni-cat-animation-poc",
+    "commit": "293c5a9b8021dae01800ee64948a337f6b4dbabe",
+    "url": "https://ai-fitness-ombp01lza-jace3695s-projects.vercel.app",
+    "aliases": [
+      "ai-fitness-app-git-agent-yeoni-cat-an-ec20ab-jace3695s-projects.vercel.app"
+    ]
+  },
+  "production": {
+    "deploymentId": "dpl_CA5xqJa7drXgTBqZt136qMcDQmL2",
+    "projectId": "prj_UDkVoWjM3D1EMRJk9hcBaFvq2sj3",
+    "state": "READY",
+    "environment": "production",
+    "target": "production",
+    "branch": "main",
+    "commit": "a7e2c6913a7fbe1d1c54bf7176243093470be8bb",
+    "url": "https://ai-fitness-npyujufn5-jace3695s-projects.vercel.app",
+    "aliases": [
+      "ai-fitness-app-ten.vercel.app",
+      "ai-fitness-app-jace3695s-projects.vercel.app",
+      "ai-fitness-app-git-main-jace3695s-projects.vercel.app"
+    ]
+  },
+  "combinedCommitStatus": {
+    "statuses": [
+      {
+        "context": "Vercel",
+        "state": "success",
+        "target_url": "https://vercel.com/jace3695s-projects/ai-fitness-app/9mCrhd3YsZdN5VtnDAjdGyxWU3ce"
+      }
+    ]
+  },
+  "statusScope": "Only returned commit statuses; not all workflow jobs or a new browser test.",
+  "localSource": {
+    "previousMatchingPreviewCommit": "8548cb552f2042356a30ec221b95ab0056dc0543",
+    "previousMatchingTree": "3d3c14c038991d8329c49765e9d904b981fc9f12",
+    "treeEvidence": "docs/yeoni-device-review/evidence/preview-deployment.json",
+    "inspectedHead": "df94883",
+    "runtimePathsCompared": [
+      "app",
+      "components",
+      "lib",
+      "public"
+    ],
+    "runtimePathsUnchanged": true
+  },
+  "sourceFindings": [
+    {
+      "path": "app/assistant/page.tsx",
+      "finding": "Uses AppCompanion and message-level ZephyrReadButton. No ReplyCharacterPanel or use of response performance. finishAdvice does not consume the third performance argument."
+    },
+    {
+      "path": "components/FreeAdvicePanel.tsx",
+      "finding": "Already passes advice, recordSource and optional performance to onComplete."
+    },
+    {
+      "path": "lib/yeoni/reply-plan.ts",
+      "finding": "characterReplyEnabled restricts the check page to preview and agent/yeoni-cat-animation-poc."
+    },
+    {
+      "path": "components/yeoni/ReplyCharacterPanel.tsx",
+      "finding": "Shared panel/session exist for rendering and exact saved-clip matching."
+    }
+  ],
+  "phase16Status": "integration-scope-prepared-not-release-ready",
+  "nextImplementation": "Wire the shared character panel and final reply plans into the actual /assistant flow, then verify the changed flow in Preview.",
+  "newProviderCalls": 0,
+  "personalRecordReads": 0,
+  "personalRecordWrites": 0,
+  "appCodeChanged": false,
+  "deploymentsCreated": 0,
+  "productionAuthorizationGranted": false,
+  "completedPhases": 15,
+  "totalPhases": 16,
+  "preservedUnrelatedDirtyFile": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html"
+}

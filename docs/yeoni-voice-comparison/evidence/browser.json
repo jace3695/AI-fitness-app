@@ -1,0 +1,36 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "originals are embedded, candidates absent, no autoplay",
+      "passed": true
+    },
+    {
+      "name": "original Korean and Japanese play through one audio element",
+      "passed": true
+    },
+    {
+      "name": "candidate upload and switching work using originals as UI-only fixtures",
+      "passed": true
+    },
+    {
+      "name": "invalid upload reports an error and retains last valid candidate",
+      "passed": true
+    },
+    {
+      "name": "review saves and downloads; reload restores review but clears candidate audio",
+      "passed": true
+    },
+    {
+      "name": "mobile/desktop layout fits and all playback remains offline",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "candidateFiles": "Original MP3s used solely as upload UI fixtures; no Gemini generation or listening approval.",
+  "providerCalls": 0,
+  "webkitVerified": false,
+  "physicalIPhoneVerified": false
+}

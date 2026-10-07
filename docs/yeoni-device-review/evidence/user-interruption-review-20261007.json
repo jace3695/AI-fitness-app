@@ -1,0 +1,68 @@
+{
+  "receivedAt": "2026-10-07T21:11:50+09:00",
+  "evidenceType": "user-reported physical-device observation",
+  "userVerbatim": "1. 앱전화: 음성 재생 중 다른 앱으로 갔다 돌아와도 자동 재생 되지 않습니다.\n2. 화면 잠금: 재생 중 잠근 뒤 돌아오면 소리가 멈추고 입이 닫혀 있습니다.\n3. 다시 재생: ‘답변 듣기’를 누르면 소리와 입이 정상적으로 움직입니다.",
+  "requestedRoute": "/assistant/character-check?mode=device",
+  "results": [
+    {
+      "id": "app-switch",
+      "status": "passed-user-reported-scope",
+      "observation": "No automatic playback after returning from another app."
+    },
+    {
+      "id": "lock-return",
+      "status": "passed-user-reported-scope",
+      "observation": "Audio is stopped and the mouth is closed after locking and returning."
+    },
+    {
+      "id": "explicit-resume",
+      "status": "passed-user-reported-scope",
+      "observation": "Tapping 답변 듣기 restores normal audio and mouth movement."
+    }
+  ],
+  "deviceContext": {
+    "platformFromTaskContext": "iPhone",
+    "model": null,
+    "osVersion": null,
+    "outputDevice": null,
+    "testedLanguages": null,
+    "testedAppearances": null,
+    "exactTestTime": null,
+    "deployedVersionIndependentlyObserved": false
+  },
+  "scopeLimits": [
+    "User report, not a new agent browser run or independently captured iPhone session.",
+    "Does not establish every language/appearance combination or absence of replayed gestures.",
+    "Does not establish latency, thermal behavior, battery consumption or phoneme alignment accuracy."
+  ],
+  "repeatTheseChecksRequired": false,
+  "currentVoicePairUnchanged": true,
+  "nextCheck": {
+    "status": "completed-user-report-received",
+    "followupEvidencePath": "docs/yeoni-device-review/evidence/user-performance-review-20261007.json",
+    "kind": "short physical-device performance observation",
+    "suggestedDurationMinutes": 10,
+    "conditions": "Existing stored-sample device screen; unplugged, stable brightness, speaker output if convenient. No new AI/TTS generation.",
+    "workload": "Keep motion enabled; approximately 5 minutes per appearance. Manually replay the stored Korean/Japanese samples a few times during the interval, not continuously or automatically.",
+    "record": [
+      "Actual duration and iPhone model if known",
+      "Warmth compared with the start: none / slight / clearly hot",
+      "Stutter, unresponsive controls or audio/mouth delay",
+      "Optional start/end battery percentage and output device"
+    ],
+    "stopCondition": "Stop if the device becomes clearly hot or displays a temperature warning.",
+    "limit": "A short subjective observation is not a long-duration thermal benchmark or proof of zero heat; battery percentage alone does not isolate this app's consumption."
+  },
+  "remainingChecks": [
+    "Physical reduced-motion and offscreen behavior",
+    "Bluetooth comparison only if relevant to intended use",
+    "Phase 5 remaining phoneme review",
+    "Phase 16 rollout decision"
+  ],
+  "applicationCodeChanged": false,
+  "newTtsCalls": 0,
+  "newBrowserTestRuns": 0,
+  "physicalDeviceTestedByAgent": false,
+  "technicalPocCompleted": 12,
+  "technicalPocTotal": 16
+}

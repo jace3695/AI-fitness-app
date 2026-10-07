@@ -1,0 +1,155 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "all 21 resting states match the approved original and patches pixel for pixel",
+      "passed": true
+    },
+    {
+      "name": "near-neutral mesh has no bright diagonal rasterization seams",
+      "passed": true
+    },
+    {
+      "name": "21 eye/mouth combinations remain attached during the tilt gesture",
+      "passed": true
+    },
+    {
+      "name": "all four gestures have continuous start middle end and source comparison sheets",
+      "passed": true
+    },
+    {
+      "name": "continuous motion has finite bounded render cost at 360px",
+      "passed": true
+    },
+    {
+      "name": "review video contains actual Canvas frames for blink tail and all gestures",
+      "passed": true
+    },
+    {
+      "name": "renderer disposal clears pixels and prevents stale drawing",
+      "passed": true
+    },
+    {
+      "name": "no runtime errors or external requests",
+      "passed": true
+    }
+  ],
+  "identity": [
+    {
+      "eye": "open",
+      "mouth": "closed",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "a",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "i",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "u",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "e",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "o",
+      "changed": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "small",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "closed",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "a",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "i",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "u",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "e",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "o",
+      "changed": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "small",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "closed",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "a",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "i",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "u",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "e",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "o",
+      "changed": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "small",
+      "changed": 0
+    }
+  ],
+  "performanceResult": {
+    "samples": 180,
+    "median": 1.3000000000465661,
+    "p95": 47.20000000001164,
+    "max": 48.59999999997672,
+    "average": 8.285555555554392
+  },
+  "errors": [],
+  "requests": [],
+  "scope": "Opaque original-preserving Canvas motion. Visual review required; no real audio timing judgement or physical iPhone performance claim."
+}

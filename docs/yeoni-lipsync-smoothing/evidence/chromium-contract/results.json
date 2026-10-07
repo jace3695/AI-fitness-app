@@ -1,0 +1,240 @@
+{
+  "phase": 10,
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "real Canvas adapters accept unchanged immutable Controller frames and dispose pixels",
+      "passed": true
+    },
+    {
+      "name": "both mounted adapters honour an injected Controller and disposed commands are inert",
+      "passed": true
+    },
+    {
+      "name": "throwing factories and late readiness cannot revive failed or disposed stages",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "contract": {
+    "rows": [
+      {
+        "time": 0,
+        "viseme": "rest",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "cca0dbffa2aa6bc920bf4d9d39f76a941e9cd4674bebe67916f3489bcec348a0",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "f3088a636f86b1e09a73bb08fc27b1335736afa59b1e08223ed292c0127f8faa",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 500,
+        "viseme": "a",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "6f001f13c3bdadc65247f2d83fc3bf262d132f504391bf1ff6648fc4cc757d88",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "b6e502954f056db96ef15e9d19858b6e983abdcd4135b312f87b124aeab65a00",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 1500,
+        "viseme": "o",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "c3382b7afd85465a9fa9e966b3c68b12821b3e11764e05da5f335b89a670344f",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "e7be342507f3bf8628ac09ee4cb8e089e3d65d5c6300c737c5077ae1f0c435ae",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 2700,
+        "viseme": "i",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "a9e862edd9b80c263a7810218920451d58afc5ce0da4b165ff693eaad4312279",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "4d36725aa971671302cd2383d9d3ebe5d74a1fd91399fa68062aef87d4cbcc58",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 3800,
+        "viseme": "closed",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "cca0dbffa2aa6bc920bf4d9d39f76a941e9cd4674bebe67916f3489bcec348a0",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "f3088a636f86b1e09a73bb08fc27b1335736afa59b1e08223ed292c0127f8faa",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 4700,
+        "viseme": "small",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "d9eeae6f74c0830600d7b0a35c7e1c46b8af74815464daa39541f8c513bae5ef",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "c0641c5acf352d20042e4c0cf4b43e702ffce8ce46f4b23a6cd693daabe9f9ea",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 5700,
+        "viseme": "u",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "0333f4f0d65549042c2b7ccfc0b1cacc16ca1e17ebc2a870487abd6cf7d13f08",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "424b7c7784a9d9b8ca7ac7e1ac2d181f074f2ffda474f9a8c795bb1ac0198415",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      },
+      {
+        "time": 6700,
+        "viseme": "e",
+        "immutable": true,
+        "unchangedByAdapters": true,
+        "cat": {
+          "hash": "8714f04e11c455c2a9dc214a569b00b5aa075bb4f979665bb611ce9ccc68d3b9",
+          "visiblePixels": 25600,
+          "width": 160,
+          "height": 160
+        },
+        "human": {
+          "hash": "4f4d029e2d57a333c9e0afdc6f0ffa05268afc322c9e94bfd09b69e5e33f5da2",
+          "visiblePixels": 28119,
+          "width": 160,
+          "height": 240
+        }
+      }
+    ],
+    "afterDispose": [
+      {
+        "hash": "f627ca4c2c322f15db26152df306bd4f983f0146409b81a4341b9b340c365a16",
+        "visiblePixels": 0,
+        "width": 160,
+        "height": 160
+      },
+      {
+        "hash": "0c5cc90b079d0d9c1ded1376357d23a9782a704a83e01731f50ccd162e246492",
+        "visiblePixels": 0,
+        "width": 160,
+        "height": 240
+      }
+    ],
+    "afterLateRender": [
+      {
+        "hash": "f627ca4c2c322f15db26152df306bd4f983f0146409b81a4341b9b340c365a16",
+        "visiblePixels": 0,
+        "width": 160,
+        "height": 160
+      },
+      {
+        "hash": "0c5cc90b079d0d9c1ded1376357d23a9782a704a83e01731f50ccd162e246492",
+        "visiblePixels": 0,
+        "width": 160,
+        "height": 240
+      }
+    ]
+  },
+  "injections": [
+    {
+      "skin": "cat",
+      "injectedEmotion": "thinking",
+      "emotionAfterDisposedCalls": "happy",
+      "gestureAfterDisposedCalls": "nod"
+    },
+    {
+      "skin": "human",
+      "injectedEmotion": "thinking",
+      "emotionAfterDisposedCalls": "happy",
+      "gestureAfterDisposedCalls": "nod"
+    }
+  ],
+  "factories": [
+    {
+      "mode": "throw",
+      "statuses": [
+        "loading",
+        "error"
+      ],
+      "rendered": 0,
+      "disposed": 0
+    },
+    {
+      "mode": "fail-then-ready",
+      "statuses": [
+        "loading",
+        "error"
+      ],
+      "rendered": 0,
+      "disposed": 1
+    },
+    {
+      "mode": "dispose-before-ready",
+      "statuses": [
+        "loading"
+      ],
+      "rendered": 0,
+      "disposed": 1
+    }
+  ],
+  "scope": "Shared React lifetime, actual adapters, one native MP3 clock with two visible skins. Synthetic visibility and factory faults. No previous original comparison/video suite rerun or physical device verification."
+}

@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-01",
+  "scope": "PHASE 8 human upper-body basic Canvas motion with existing Controller; PHASE 7 asset suitability verified for small continuous motion. No human speech integration.",
+  "runtimeCommit": "f5d6ec70b0211488551c63c21ffc0a8084776c3b",
+  "sourceOriginalSha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+  "approvedImageFilesChanged": false,
+  "ci": {
+    "runId": 36801242030,
+    "url": "https://github.com/jace3695/AI-fitness-app/actions/runs/36801242030",
+    "humanJobId": 110175903082,
+    "allSevenJobsPassed": true,
+    "unitTests": 696,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "artifactId": 11135741572,
+    "artifactBytes": 14229478,
+    "artifactSha256": "6ac71e4f5e7bbfd23b870e887ff9dc776f6232ff4c2cb507160f9965599b4357",
+    "artifactHashVerified": true
+  },
+  "browserCheckTotal": 51,
+  "browsers": {
+    "chromium": {
+      "version": "153.0.8010.12",
+      "flowChecks": 16,
+      "visualChecks": 10,
+      "staticStates": 21,
+      "staticOpaqueAndAlphaChanged": 0,
+      "nearNeutral": {
+        "alphaMax": 0,
+        "opaqueMax": 0
+      },
+      "neck": {
+        "min": 255,
+        "samples": 723520
+      },
+      "performance": [
+        {
+          "requestedSize": 360,
+          "width": 360,
+          "samples": 90,
+          "median": 12,
+          "p95": 12.799999999988358,
+          "max": 13.199999999953434,
+          "average": 12.003333333331911
+        },
+        {
+          "requestedSize": 720,
+          "width": 512,
+          "samples": 90,
+          "median": 24.100000000034925,
+          "p95": 26.5,
+          "max": 36.5,
+          "average": 24.49000000000039
+        }
+      ],
+      "errors": [],
+      "externalRequests": []
+    },
+    "webkit": {
+      "version": "26.6",
+      "flowChecks": 16,
+      "visualChecks": 9,
+      "staticStates": 21,
+      "staticOpaqueAndAlphaChanged": 0,
+      "nearNeutral": {
+        "alphaMax": 0,
+        "opaqueMax": 0
+      },
+      "neck": {
+        "min": 255,
+        "samples": 723520
+      },
+      "performance": [
+        {
+          "requestedSize": 360,
+          "width": 360,
+          "samples": 90,
+          "median": 11,
+          "p95": 12,
+          "max": 12,
+          "average": 10.577777777777778
+        },
+        {
+          "requestedSize": 720,
+          "width": 512,
+          "samples": 90,
+          "median": 21,
+          "p95": 23,
+          "max": 32,
+          "average": 21.766666666666666
+        }
+      ],
+      "errors": [],
+      "externalRequests": []
+    }
+  },
+  "manualReview": {
+    "reviewer": "assistant",
+    "source": "Actual downloaded Chromium/WebKit CI screenshots, approved original A side by side at matching scale",
+    "reviewedBothBrowsers": [
+      "All 21 moving eye/mouth states",
+      "Full portrait at motion cycle samples",
+      "Rest 50 percent original overlay",
+      "Dark backdrop motion",
+      "390px screen"
+    ],
+    "video": "Actual 12-second Chromium Canvas MP4; decoded sample frames inspected; automated browser playback/pause verified",
+    "findings": "No observed face shape change, detached eyes/mouth, doubled outlines, rectangular skin patches, or neck gaps in inspected frames. Fine-hair downsampling improved in Chromium.",
+    "samplingLimitations": "WebKit and Chromium differ in reduction sharpness; moving bilinear samples soften details. Whole moving-frame pixel identity is not claimed."
+  },
+  "fixedIssues": [
+    {
+      "commit": "474d4ac",
+      "issue": "Recreated renderer reused an existing-size canvas without an output buffer; motion failed after image error recovery.",
+      "fix": "Initialize buffer when absent; verify continued rendering for 500ms after recovery."
+    },
+    {
+      "commit": "285948f",
+      "issue": "WebKit comparison used GPU downsampling while renderer used CPU readback surface.",
+      "fix": "Use matching readback sampling settings without relaxing zero-difference assertions."
+    },
+    {
+      "commit": "f5d6ec7",
+      "issue": "Fine-hair reduction looked rougher than approved original in captured output.",
+      "fix": "Explicit high-quality downsampling for source texture and original comparison."
+    }
+  ],
+  "video": {
+    "path": "docs/yeoni-phase8/evidence/human-motion-v1.mp4",
+    "durationSeconds": 12,
+    "fps": 12,
+    "width": 736,
+    "height": 576,
+    "codec": "h264",
+    "audio": false,
+    "slowedClock": false
+  },
+  "limits": [
+    "Small continuous upper-body motion, not full-body or large-angle independent rig",
+    "Mouth states are synthetic visual bindings, not real human speech verification",
+    "Physical iPhone thermal, battery, lock and Bluetooth not tested",
+    "Visibility check uses synthetic document visibility events",
+    "30fps cap is not a sustained 30fps guarantee; Chromium maximum 512px sample was 36.5ms"
+  ],
+  "progress": {
+    "completedStages": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      8
+    ],
+    "total": 16,
+    "phase7Approval": "2026-10-01 10:00 KST user confirmed static rig-v4; motion suitability subsequently verified",
+    "phase8UserApproval": "Pending presentation of this result; not inferred",
+    "phase5ActualListening": "Deferred",
+    "next": "PHASE 9 reuse saved MP3 and phoneme timeline for human lip sync"
+  },
+  "newTtsRequests": 0,
+  "productionMerged": false,
+  "productionDeployed": false,
+  "files": [
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/390.png",
+      "bytes": 274717,
+      "sha256": "1c540eebb3fe3317acc017edf0861c316941981f3f296b6fcfd7802931c2e75c"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/baseline.png",
+      "bytes": 472258,
+      "sha256": "029cdcc4f3c4d7426d9fff95bf8a7794744154e03ad2e8f448b18923b66bfd09"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/dark-motion.png",
+      "bytes": 464013,
+      "sha256": "82ad6eb4d51ca8f27de5fffb7ebc9f9c41dda60d61dce60ac5e819a136fbd7b4"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/fallback.png",
+      "bytes": 283549,
+      "sha256": "1fd31133360cca5e64f2ad717f57c9500d2231119f4a42a2cd7b6a01a830e2aa"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/flow-results.json",
+      "bytes": 1853,
+      "sha256": "9ddc430b5ac14a2818912b5b0f4727d42666bfe0756c5bc02c919645c08f1624"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/motion-cycle.png",
+      "bytes": 1504738,
+      "sha256": "d7d81dfff59cf4432d27c13a4a63ac989c6ae6a0f3fa71e7be18a9a512443823"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-closed.png",
+      "bytes": 431004,
+      "sha256": "01f2e5470679ea249635f2a1842e876de5d7253d6b577228b98e9abf3cd24514"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-half.png",
+      "bytes": 433384,
+      "sha256": "9014950d07ad049c6ad4fcb88973246a9b27c466414ffe3a97a3abbb5502914e"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/moving-open.png",
+      "bytes": 435806,
+      "sha256": "6ca65d3e045aa80e6407dcfb102cfc5d9bc66160f20d256a48992f39a78c4b11"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/offline.png",
+      "bytes": 301794,
+      "sha256": "7ae3dcd90cc9ef3b359354d3af62fdf33ddb5b6ce65987fdcdf3f7ec07d79bd7"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/rest-overlay.png",
+      "bytes": 330814,
+      "sha256": "18bcdcd796182699c4314bb8bc5b8a2920eb33ef1073b0009190986b9abae450"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/chromium/visual-results.json",
+      "bytes": 4306,
+      "sha256": "7f6a65a2c114a9dc3ed1f1844b835c84e2156aac4f0c83377748f3db68e29f7d"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/ci-jobs.json",
+      "bytes": 850,
+      "sha256": "ca474fdb69133a331fc9c580f04527482b5b997d7a83f75077015e642b81befa"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/human-motion-v1.mp4",
+      "bytes": 182747,
+      "sha256": "2eb09f5814f16af5531a54d59d8de29374e300fd5394a43da773a941f4b1776f"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/video-decoded-review.png",
+      "bytes": 985765,
+      "sha256": "92d177e913a2c8cab5873854b85f09afb357366756c21ab33108bf2c56be442a"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/390.png",
+      "bytes": 319185,
+      "sha256": "f7c02eb2fff65aa767624b5bf55aecb20679dc28af7cc89a14523c20112972c0"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/baseline.png",
+      "bytes": 540694,
+      "sha256": "deaec592d164a8c4dd305b5994ddb81fddd031e98e52419a0dd3c28762f44c20"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/dark-motion.png",
+      "bytes": 604953,
+      "sha256": "31ad5af45c1ebe9ed9df61064ee661ebc087a01d7f821b77191e0269ea2e6fd0"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/fallback.png",
+      "bytes": 277937,
+      "sha256": "d2d7ad5d5d9ec5f63d7bd1f6bffecec0d01cd6766ef82e305df2f5c97667664f"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/flow-results.json",
+      "bytes": 1842,
+      "sha256": "a5c3c20e5166fdbcb992e98322e46d6179f0d37284143c095a07b801da4cc601"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/motion-cycle.png",
+      "bytes": 1928329,
+      "sha256": "13d274bbb6e61e8257bb45a037eacf3be0001213ef23d0cecebfbff28e4a6aa9"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-closed.png",
+      "bytes": 537359,
+      "sha256": "1c76604c20312a67dd3443c1d673a47a4ae4b5c3ff32feafaba7060bb3a8b4c4"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-half.png",
+      "bytes": 540016,
+      "sha256": "c93c6d51b9791e81262ca91966a38fce0f03ab3dc6934dec98ab97b986e9855b"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/moving-open.png",
+      "bytes": 543078,
+      "sha256": "15a50e29f9d7eb3e36e0f521fd205b9cff5915710b45ff3beedf949916f7de39"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/offline.png",
+      "bytes": 341110,
+      "sha256": "97a50752ecf19f9b55b1e261e645e2a0055b467ea124ff1f6b264a409e60f7f6"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/rest-overlay.png",
+      "bytes": 517333,
+      "sha256": "d322294f2c615bf8baeca81f86ad6ee5e1c14452785647fd6609fc0eb59a2230"
+    },
+    {
+      "path": "docs/yeoni-phase8/evidence/webkit/visual-results.json",
+      "bytes": 4108,
+      "sha256": "d96d6bf81194b22b4ff5c0fcf503969bd513cf5078a106014b20891848e7aca9"
+    }
+  ]
+}

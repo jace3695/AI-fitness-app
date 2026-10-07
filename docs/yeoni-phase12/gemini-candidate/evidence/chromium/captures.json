@@ -1,0 +1,62 @@
+[
+  {
+    "skin": "cat",
+    "shape": "rest",
+    "t": 0
+  },
+  {
+    "skin": "cat",
+    "shape": "i",
+    "t": 585.758
+  },
+  {
+    "skin": "cat",
+    "shape": "o",
+    "t": 1719.023
+  },
+  {
+    "skin": "cat",
+    "shape": "a",
+    "t": 1935.77
+  },
+  {
+    "skin": "cat",
+    "shape": "u",
+    "t": 2552.3120000000004
+  },
+  {
+    "skin": "cat",
+    "shape": "closed",
+    "t": 3485.587
+  },
+  {
+    "skin": "human",
+    "shape": "rest",
+    "t": 0
+  },
+  {
+    "skin": "human",
+    "shape": "i",
+    "t": 608.1990000000001
+  },
+  {
+    "skin": "human",
+    "shape": "a",
+    "t": 874.899
+  },
+  {
+    "skin": "human",
+    "shape": "o",
+    "t": 1708.134
+  },
+  {
+    "skin": "human",
+    "shape": "u",
+    "t": 2558.162
+  },
+  {
+    "skin": "human",
+    "shape": "closed",
+    "t": 3458.132
+  }
+]

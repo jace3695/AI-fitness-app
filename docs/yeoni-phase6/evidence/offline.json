@@ -1,0 +1,14 @@
+{
+  "sourceCommit": "2b145f8fff45b1b161fccbeaca7b84640c55844a",
+  "browser": "153.0.8010.0",
+  "format": "file:// production HTML",
+  "checks": [
+    "muted paused initial state",
+    "happy expression + finite bow",
+    "saved MP3 natural end with emotion changes",
+    "native mute control sync"
+  ],
+  "errors": [],
+  "externalRequests": [],
+  "humanListening": "deferred by user"
+}

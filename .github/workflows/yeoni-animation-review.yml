@@ -1,0 +1,305 @@
+name: Yeoni animation PoC review
+on:
+  push:
+    branches: [agent/yeoni-cat-animation-poc]
+    paths:
+      - 'components/yeoni/**'
+      - 'components/useYeoniPreferences.ts'
+      - 'utils/yeoniPreferences.ts'
+      - 'lib/yeoni/**'
+      - 'public/yeoni/**'
+      - 'scripts/yeoni-poc/**'
+      - 'scripts/yeoni-speech-poc/**'
+      - 'scripts/yeoni-emotion-poc/**'
+      - 'scripts/yeoni-human-assets/**'
+      - 'scripts/yeoni-human-rig/**'
+      - 'scripts/yeoni-human-motion/**'
+      - 'scripts/yeoni-human-speech/**'
+      - 'scripts/yeoni-cat-review/**'
+      - 'docs/yeoni-phase7/**'
+      - 'docs/yeoni-phase5/fixtures/**'
+      - 'docs/yeoni-phase5/alignment/**'
+      - 'scripts/browser-qa/package*.json'
+      - 'package*.json'
+      - '.github/workflows/yeoni-animation-review.yml'
+permissions:
+  contents: read
+concurrency:
+  group: yeoni-animation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  human-speech:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify shared transport with human artwork and real saved MP3
+        run: |
+          node scripts/yeoni-human-speech/export.mjs
+          git diff --exit-code -- docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html
+          YEONI_CHARACTER=human node scripts/yeoni-speech-poc/check.mjs
+      - name: WebKit human speech transport
+        if: ${{ !cancelled() }}
+        run: |
+          YEONI_CHARACTER=human YEONI_BROWSER=webkit node scripts/yeoni-speech-poc/check.mjs
+      - name: Chromium human speech original comparison and video
+        if: ${{ !cancelled() }}
+        run: |
+          node scripts/yeoni-human-speech/check-visual.mjs
+      - name: WebKit human speech original comparison
+        if: ${{ !cancelled() }}
+        run: |
+          YEONI_BROWSER=webkit node scripts/yeoni-human-speech/check-visual.mjs
+      - name: Preserve human speech evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-human-speech-v1-${{ github.sha }}
+          path: |
+            .e2e/yeoni-human-speech/
+            !.e2e/yeoni-human-speech/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  human-basic-motion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify human source-preserving motion and lifecycle
+        run: |
+          node scripts/yeoni-human-motion/export.mjs
+          git diff --exit-code -- docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html
+          node scripts/yeoni-human-motion/check-flow.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-motion/check-flow.mjs
+          node scripts/yeoni-human-motion/check-visual.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-motion/check-visual.mjs
+      - name: Preserve actual human motion evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-human-motion-v1-${{ github.sha }}
+          path: |
+            .e2e/yeoni-human-motion/
+            !.e2e/yeoni-human-motion/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  human-rig-preparation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify original-preserving human asset preparation
+        run: |
+          node scripts/yeoni-human-rig/pack.mjs
+          node scripts/yeoni-human-rig/export.mjs
+          git diff --exit-code -- public/yeoni/human/rig-v4/ docs/yeoni-phase7/rig-v4/Human_A_Rig_Preview.html docs/yeoni-phase7/rig-v4/Human_A_Rig_Fragment.html
+          node scripts/yeoni-human-rig/check.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-rig/check.mjs
+      - name: Preserve human original comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-human-rig-v4-${{ github.sha }}
+          path: .e2e/yeoni-human-rig-v4/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  cat-motion-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Install review video encoder
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Verify original artwork through motion
+        run: |
+          node scripts/yeoni-cat-review/pack-motion.mjs
+          git diff --exit-code -- public/yeoni/cat/preserved-motion-v3.png public/yeoni/cat/preserved-motion-v3.json
+          node scripts/yeoni-cat-review/check-motion.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-cat-review/check-motion.mjs
+      - name: Preserve original motion evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-cat-motion-v3-${{ github.sha }}
+          path: |
+            .e2e/yeoni-cat-motion-v3/
+            !.e2e/yeoni-cat-motion-v3/**/video-frames/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  cat-reference-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Compare cat appearance against official sprite
+        run: |
+          node scripts/yeoni-cat-review/export.mjs
+          node scripts/yeoni-cat-review/check.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-cat-review/check.mjs
+      - name: Preserve cat original comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-cat-reference-v2-${{ github.sha }}
+          path: .e2e/yeoni-cat-reference-v2/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  reference-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Compare every expression against the original
+        run: |
+          node scripts/yeoni-human-assets/export-reference.mjs
+          node scripts/yeoni-human-assets/check-reference.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check-reference.mjs
+      - name: Preserve original comparison evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-reference-v3-${{ github.sha }}
+          path: .e2e/yeoni-reference-v3/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  preview-compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Verify previews with JavaScript disabled
+        run: |
+          node scripts/yeoni-human-assets/export-compatible.mjs
+          node scripts/yeoni-human-assets/check-compatible.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check-compatible.mjs
+      - name: Preserve compatibility evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-preview-compatible-${{ github.sha }}
+          path: .e2e/yeoni-preview-compatible/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+  visual-poc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix scripts/browser-qa ci
+      - name: Code checks and application build
+        run: |
+          npm test
+          npm run lint
+          npx tsc --noEmit
+          npm run build
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Chromium visual-only lab
+        run: node scripts/yeoni-poc/check.mjs
+      - name: WebKit visual-only lab
+        env:
+          YEONI_BROWSER: webkit
+        run: node scripts/yeoni-poc/check.mjs
+      - name: Chromium saved speech and clock lab
+        run: node scripts/yeoni-speech-poc/check.mjs
+      - name: WebKit saved speech and clock lab
+        env:
+          YEONI_BROWSER: webkit
+        run: node scripts/yeoni-speech-poc/check.mjs
+      - name: Chromium expression and gesture lab
+        run: node scripts/yeoni-emotion-poc/check.mjs
+      - name: WebKit expression and gesture lab
+        env:
+          YEONI_BROWSER: webkit
+        run: node scripts/yeoni-emotion-poc/check.mjs
+      - name: Export and verify human A static assets
+        run: |
+          node scripts/yeoni-human-assets/export.mjs
+          node scripts/yeoni-human-assets/check.mjs
+          YEONI_BROWSER=webkit node scripts/yeoni-human-assets/check.mjs
+      - name: Preserve character and speech evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-animation-${{ github.sha }}
+          path: |
+            .e2e/yeoni-poc/
+            .e2e/yeoni-speech-poc/
+            .e2e/yeoni-emotion-poc/
+            .e2e/yeoni-human-assets/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

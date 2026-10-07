@@ -1,0 +1,184 @@
+{
+  "version": 3,
+  "size": [
+    768,
+    384
+  ],
+  "sourceSize": [
+    313,
+    313
+  ],
+  "padding": 24,
+  "stageSize": 360,
+  "baseSha256": "f502a0447e4eeba04d83b951c80f6dc38520978265f74d9522e1054fcf855430",
+  "atlasSha256": "ba57c54e12acd02cc41f68e26184657f3f7702c38c1abc333f7c83401602e938",
+  "parts": {
+    "a": [
+      {
+        "source": [
+          336,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "i": [
+      {
+        "source": [
+          400,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "u": [
+      {
+        "source": [
+          464,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "e": [
+      {
+        "source": [
+          528,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "o": [
+      {
+        "source": [
+          592,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "small": [
+      {
+        "source": [
+          656,
+          0,
+          51,
+          36
+        ],
+        "rect": [
+          129,
+          163,
+          51,
+          36
+        ],
+        "feather": 4
+      }
+    ],
+    "eyesHalf": [
+      {
+        "source": [
+          336,
+          64,
+          50,
+          48
+        ],
+        "rect": [
+          85,
+          126,
+          50,
+          48
+        ],
+        "feather": 5
+      },
+      {
+        "source": [
+          400,
+          64,
+          50,
+          48
+        ],
+        "rect": [
+          175,
+          126,
+          50,
+          48
+        ],
+        "feather": 5
+      }
+    ],
+    "eyesClosed": [
+      {
+        "source": [
+          464,
+          64,
+          50,
+          48
+        ],
+        "rect": [
+          85,
+          126,
+          50,
+          48
+        ],
+        "feather": 5
+      },
+      {
+        "source": [
+          528,
+          64,
+          50,
+          48
+        ],
+        "rect": [
+          175,
+          126,
+          50,
+          48
+        ],
+        "feather": 5
+      }
+    ]
+  },
+  "scope": "Approved opaque original and local patches. Continuous 2D deformation; not transparent part segmentation."
+}

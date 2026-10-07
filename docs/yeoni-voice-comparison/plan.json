@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "preparedDateKst": "2026-10-02",
+  "status": "selected-pair-retained-with-known-timbre-difference",
+  "goal": "Preserve the familiar Korean Yeoni timbre and assess whether a candidate keeps it across Korean and Japanese.",
+  "baselines": [
+    {
+      "id": "original-ko",
+      "title": "기존 한국어",
+      "language": "ko-KR",
+      "voice": "ko-KR-Chirp3-HD-Zephyr",
+      "text": "안녕하세요. 오늘 일정을 알려드릴게요. 오늘은 조금 쉬는 게 좋겠어요.",
+      "characters": 39,
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+      "durationSeconds": 5.376
+    },
+    {
+      "id": "original-ja",
+      "title": "기존 일본어",
+      "language": "ja-JP",
+      "voice": "ja-JP-Chirp3-HD-Zephyr",
+      "text": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
+      "characters": 25,
+      "path": "docs/yeoni-phase12/media/yeoni-zephyr-ja-approved.mp3",
+      "sha256": "317b079799b53af65958d994e3019182c2052f65ad2fed3f357f294079b1647e",
+      "durationSeconds": 4.056
+    }
+  ],
+  "candidate": {
+    "provider": "Gemini Developer API",
+    "model": "gemini-3.8-flash-tts",
+    "voice": "Zephyr",
+    "style": "omitted for both languages",
+    "format": "audio/wav",
+    "maximumProposedAttempts": 2,
+    "maximumAttemptsPerLanguage": 1,
+    "attemptsMade": 2,
+    "generationApproved": true,
+    "approvedAt": "2026-10-02T18:05:59+09:00",
+    "approvedExecutionSurface": "Google AI Studio browser",
+    "approvedMaximumAttempts": 2,
+    "attemptsByLanguage": {
+      "ko-KR": 1,
+      "ja-JP": 1
+    },
+    "attemptAccountingNote": "Both approved language allowances are treated as consumed after user-provided result files. Exact browser click counts are not independently observable. No further generation or retry.",
+    "manualGenerationEvidence": {
+      "kind": "user-provided Google AI Studio screenshot image(6).png",
+      "fileId": "file_000000009fec820990e8487db06ac95f",
+      "observedModel": "gemini-3.8-flash-tts",
+      "observedVoice": "Zephyr",
+      "observedLanguage": "ko-KR",
+      "textMatchesApproved": true,
+      "visiblePlayerEndTime": "0:05",
+      "audioFileReceived": true,
+      "doesNotVerify": [
+        "exact generation click count",
+        "audio contents or timbre",
+        "active project billing tier",
+        "Japanese generation"
+      ]
+    },
+    "projectFreeTierVerified": true,
+    "projectFreeTierEvidence": {
+      "kind": "user-provided Google AI Studio Projects screenshot",
+      "receivedAt": "2026-10-02T17:40:11+09:00",
+      "libraryFileId": "libfile_f4d57e8f548c8191b9cf9433a87fe23a",
+      "projectName": "AI-Yeoni-Free",
+      "projectId": "gen-lang-client-0270550590",
+      "displayedTier": "무료 등급",
+      "doesNotVerify": [
+        "selected model access",
+        "remaining model quota",
+        "agent browser authentication"
+      ]
+    },
+    "projectModelAccessVerified": false,
+    "allowedPaidCostUsd": 0,
+    "automaticRetries": false,
+    "paidFallback": false,
+    "requests": [
+      {
+        "id": "candidate-ko",
+        "language": "ko-KR",
+        "payload": {
+          "model": "gemini-3.8-flash-tts",
+          "input": [
+            {
+              "type": "user_input",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "안녕하세요. 오늘 일정을 알려드릴게요. 오늘은 조금 쉬는 게 좋겠어요."
+                }
+              ]
+            }
+          ],
+          "response_format": {
+            "type": "audio"
+          },
+          "generation_config": {
+            "speech_config": [
+              {
+                "voice": "Zephyr"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "candidate-ja",
+        "language": "ja-JP",
+        "payload": {
+          "model": "gemini-3.8-flash-tts",
+          "input": [
+            {
+              "type": "user_input",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。"
+                }
+              ]
+            }
+          ],
+          "response_format": {
+            "type": "audio"
+          },
+          "generation_config": {
+            "speech_config": [
+              {
+                "voice": "Zephyr"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "clips": [
+      {
+        "id": "candidate-ko",
+        "title": "후보 한국어",
+        "language": "ko-KR",
+        "voice": "Zephyr",
+        "model": "gemini-3.8-flash-tts",
+        "text": "안녕하세요. 오늘 일정을 알려드릴게요. 오늘은 조금 쉬는 게 좋겠어요.",
+        "textStatus": "approved expected text; no independent transcription",
+        "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ko-user.wav",
+        "filename": "Generated Audio October 02, 2026_한국어.wav",
+        "mimeType": "audio/wav",
+        "bytes": 274604,
+        "sha256": "de1e7d1d6d3d51cb76bebcdec435ca490f4646f6ece5fc0da664e80286f96200",
+        "durationSeconds": 5.72,
+        "sampleRateHz": 24000,
+        "channels": 1,
+        "bitsPerSample": 16,
+        "fileId": "file_00000000fc4882099b9fcd52dfa4abff",
+        "libraryFileId": "libfile_60d69d6459648191980cdc832cb08af5",
+        "receivedAt": "2026-10-02T22:48:07+09:00",
+        "provenance": "user-provided-comparison-audio",
+        "verification": {
+          "bytePreserved": true,
+          "fullDecodePassed": true,
+          "nonSilent": true,
+          "peakAbsSample": 24940,
+          "transcriptVerified": false,
+          "modelAndVoiceIndependentlyVerified": false,
+          "listeningApproved": false
+        }
+      },
+      {
+        "id": "candidate-ja",
+        "title": "후보 일본어",
+        "language": "ja-JP",
+        "voice": "Zephyr",
+        "model": "gemini-3.8-flash-tts",
+        "text": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。",
+        "textStatus": "approved expected text; no independent transcription",
+        "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav",
+        "filename": "Generated Audio October 02, 2026_일본어.wav",
+        "mimeType": "audio/wav",
+        "bytes": 243884,
+        "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+        "durationSeconds": 5.08,
+        "sampleRateHz": 24000,
+        "channels": 1,
+        "bitsPerSample": 16,
+        "fileId": "file_00000000cd4c81f597fa747f511d9922",
+        "libraryFileId": "libfile_20c3aebf8abc81919488a8425d53c5b5",
+        "receivedAt": "2026-10-02T22:48:07+09:00",
+        "provenance": "user-provided-comparison-audio",
+        "verification": {
+          "bytePreserved": true,
+          "fullDecodePassed": true,
+          "nonSilent": true,
+          "peakAbsSample": 22644,
+          "transcriptVerified": false,
+          "modelAndVoiceIndependentlyVerified": false,
+          "listeningApproved": true,
+          "listeningApprovalScope": "Presented candidate Japanese character preview accepted with no reported issues; not general pronunciation or all-boundary certification."
+        }
+      }
+    ],
+    "remainingApprovedAttempts": 0
+  },
+  "pricing": {
+    "checkedDate": "2026-10-02",
+    "freeTierPublished": true,
+    "paidInputUsdPerMillionTokens": 0.5,
+    "paidAudioOutputUsdPerMillionTokens": 9,
+    "paidRatesEndDate": "2026-12-31",
+    "note": "Published free tier does not verify this account's tier, model access, remaining quota, or permission to generate. Chirp3-HD monthly character allowance is separate. Free-tier inputs and outputs may be used to improve Google products."
+  },
+  "sources": [
+    "https://ai.google.dev/gemini-api/docs/speech-generation",
+    "https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash-tts",
+    "https://ai.google.dev/gemini-api/docs/billing"
+  ],
+  "browserAccess": {
+    "status": "blocked-before-tab-binding",
+    "error": "Browser observation is unavailable for a document containing native credentials. Navigate to a new document to continue. If observation remains blocked, use Tab.requestManualHandoff() to let the user take over.",
+    "recovery": "Documented new-document navigation also failed. No usable browser or tab handle was returned, so manual handoff could not be requested.",
+    "classification": "browser credential-observation protection; not evidence of Google bot detection, invalid password, quota exhaustion, or model failure",
+    "generationRequestsSubmitted": 0,
+    "approvalRemainsValid": false,
+    "approvalStatus": "Both language allowances consumed by user-provided results; agent submitted no synthesis requests."
+  },
+  "listeningReview": "user-feedback-received-provisional-pair-preference",
+  "userListeningFeedback": {
+    "receivedAt": "2026-10-02T23:04:37+09:00",
+    "verbatim": "기존 한국어와 후보 일본어가 그나마 비슷한거 같아\n언어가 바뀌는 거다보니 억양이나 음색이 약간 바뀌는거 같아",
+    "comparedClipIds": [
+      "original-ko",
+      "candidate-ja"
+    ],
+    "verdict": "User tentatively finds original Korean and candidate Japanese the closest pair, with slight intonation/timbre differences perceived across languages.",
+    "provisionalPair": {
+      "ko-KR": "original-ko",
+      "ja-JP": "candidate-ja"
+    },
+    "fullTimbreIdentityConfirmed": false,
+    "japanesePronunciationApproved": false,
+    "applicationVoiceReplacementApproved": false,
+    "doesNotResolve": [
+      "candidate Korean versus original Korean verdict",
+      "candidate Korean versus candidate Japanese verdict",
+      "all phoneme boundaries",
+      "physical-device lip-sync review"
+    ],
+    "nextReview": "Prepare character playback using the existing Korean baseline and provided Japanese candidate; align the candidate Japanese audio separately because the old Japanese timeline belongs to a different 4.056-second recording."
+  },
+  "applicationVoiceChanged": false,
+  "characterPreview": {
+    "authorizedAt": "2026-10-02T23:09:12+09:00",
+    "clipIds": [
+      "original-ko",
+      "candidate-ja"
+    ],
+    "alignmentPath": "docs/yeoni-phase12/gemini-candidate/alignment/timeline.json",
+    "sourcePath": "scripts/yeoni-japanese/candidate-browser.tsx",
+    "htmlFilename": "Yeoni_Korean_Japanese_Character_Preview.html",
+    "phonemeIntervals": 42,
+    "phonemeBoundaryReview": "automatic intervals preserved; sample-level naturalness accepted, detailed boundary audit not asserted",
+    "chromiumFlowsPassed": 7,
+    "additionalSynthesisCalls": 0,
+    "applicationVoiceChanged": false,
+    "userReview": {
+      "receivedAt": "2026-10-02T23:30:46+09:00",
+      "verbatim": "확인 완료 문제 없습니다.",
+      "artifact": "Yeoni_Korean_Japanese_Character_Preview.html",
+      "implementationCommit": "87bf456",
+      "scope": "User acceptance of the presented Korean/Japanese character preview, including candidate Japanese lip-sync and pauses in this sample.",
+      "result": "approved-no-issues-reported",
+      "audioSha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "doesNotAssert": [
+        "every phoneme boundary audited",
+        "all Japanese sentences validated",
+        "tested device or browser identity",
+        "production deployment approval",
+        "new synthesis authorization"
+      ],
+      "phase12": "sample-poc-completed",
+      "technicalPocCompleted": 11,
+      "technicalPocTotal": 16,
+      "pendingPhases": [
+        5,
+        13,
+        14,
+        15,
+        16
+      ],
+      "nextPhase": 13
+    }
+  },
+  "currentVoiceReview": {
+    "receivedAt": "2026-10-05T21:03:19+09:00",
+    "status": "further-timbre-investigation-deferred-user-proceed",
+    "userVerbatim": "확인 완료 했어요\n그런데 일본어 음성은 왜 다른거죠? 여성음성이 아닌데..",
+    "japaneseVoiceAccepted": false,
+    "previousAcceptanceRetainedAsHistory": true,
+    "sourceFileSubstitutionFound": false,
+    "evidencePath": "docs/yeoni-device-review/evidence/japanese-voice-report.json",
+    "newGenerationApproved": false,
+    "originalAndPreviewSoundSameToUser": true,
+    "originalListeningFollowupAt": "2026-10-05T21:13:12+09:00",
+    "acousticAnalysisPath": "docs/yeoni-voice-comparison/acoustics-20261005/REPORT.md",
+    "acousticAnalysisIsListeningVerdict": false,
+    "externalAudioEvaluationPath": "docs/yeoni-voice-comparison/audio-evaluation-result-20261005.json",
+    "externalAudioEvaluationIsAcceptance": false,
+    "continuationDecision": {
+      "receivedAt": "2026-10-05T23:05:37+09:00",
+      "userVerbatim": "그럼 그냥 가시죠 ㅎ",
+      "interpretation": "Continue development with the current Korean/Japanese pair and defer further timbre investigation.",
+      "continueWithCurrentVoice": true,
+      "timbreIdentityApproved": false,
+      "newGenerationApproved": false,
+      "productionDeploymentApproved": false,
+      "nextStep": "Physical iPhone app-switch / lock / explicit-resume verification; earlier first-stage user checks are retained."
+    }
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "createdAt": "2026-10-07",
+  "status": "technical-cross-check-complete-listening-boundaries-still-pending",
+  "sourceHashes": {
+    "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+    "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049",
+    "lib/yeoni/mouth-motion.ts": "c5d59d6d37f1e68b444acf2e6dcf1cbb5c25658dc434395ba386bc735bf19e08",
+    "lib/yeoni/mouth-morph.ts": "7cfcc14bf1d90650ab34afee8fea5ff0c673fa27431712137aaa4ad9cdd35f9d",
+    "lib/yeoni/cat-art.ts": "59905d708f13284b431ae1b23b5fe3b13fb9f03b4cd0050221cf212937b7beff",
+    "lib/yeoni/human-art.ts": "5a91a5d0eccdc11140060cc64c15a6dbc9a9455406829b78d6a673fdf4f68bdb"
+  },
+  "sourceHashesUnchanged": true,
+  "artworkMatchesRetainedBrowserVerification": {
+    "lib/yeoni/cat-art.ts": true,
+    "lib/yeoni/human-art.ts": true,
+    "lib/yeoni/mouth-morph.ts": true
+  },
+  "retainedBrowserComparisons": [
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "region": "a",
+      "skin": "cat",
+      "samples": 24,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 21.84100000000035,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/chromium/results.json",
+      "evidenceSha256": "80e4e02256cb5bfbc2e9995ebe96b7518592b73f50d4b90cfe3b6c03a60a30f9",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "region": "a",
+      "skin": "human",
+      "samples": 24,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 17.059000000001106,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/chromium/results.json",
+      "evidenceSha256": "80e4e02256cb5bfbc2e9995ebe96b7518592b73f50d4b90cfe3b6c03a60a30f9",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "region": "b",
+      "skin": "cat",
+      "samples": 22,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 14.923999999999978,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/chromium/results.json",
+      "evidenceSha256": "80e4e02256cb5bfbc2e9995ebe96b7518592b73f50d4b90cfe3b6c03a60a30f9",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "chromium",
+      "version": "153.0.8010.12",
+      "region": "b",
+      "skin": "human",
+      "samples": 22,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 12.837000000000444,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/chromium/results.json",
+      "evidenceSha256": "80e4e02256cb5bfbc2e9995ebe96b7518592b73f50d4b90cfe3b6c03a60a30f9",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "region": "a",
+      "skin": "cat",
+      "samples": 25,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 0,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/webkit/results.json",
+      "evidenceSha256": "7da4df0fc840871dc69b15182d602418666853f54d9589c1c2641489f15e8238",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "region": "a",
+      "skin": "human",
+      "samples": 25,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 0,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/webkit/results.json",
+      "evidenceSha256": "7da4df0fc840871dc69b15182d602418666853f54d9589c1c2641489f15e8238",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "region": "b",
+      "skin": "cat",
+      "samples": 27,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 0,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/webkit/results.json",
+      "evidenceSha256": "7da4df0fc840871dc69b15182d602418666853f54d9589c1c2641489f15e8238",
+      "newBrowserRun": false
+    },
+    {
+      "engine": "webkit",
+      "version": "26.6",
+      "region": "b",
+      "skin": "human",
+      "samples": 27,
+      "mismatches": 0,
+      "maximumRecordedClockAgeMs": 0,
+      "evidencePath": "docs/yeoni-lipsync-smoothing/evidence/webkit/results.json",
+      "evidenceSha256": "7da4df0fc840871dc69b15182d602418666853f54d9589c1c2641489f15e8238",
+      "newBrowserRun": false
+    }
+  ],
+  "offlinePixelIsolation": [
+    {
+      "skin": "cat",
+      "sampledPoses": 7,
+      "changedChannelsOutsideMouth": 0
+    },
+    {
+      "skin": "human",
+      "sampledPoses": 7,
+      "changedChannelsOutsideMouth": 0
+    }
+  ],
+  "exports": [
+    {
+      "id": "a",
+      "label": "조금 쉬는",
+      "startMs": 3370,
+      "endMs": 4410,
+      "path": "docs/yeoni-phase5/boundary-review-20261007/segment-a.mp4",
+      "modes": [
+        "normal 1x",
+        "diagnostic 0.5x (atempo; approximate pitch preservation)"
+      ],
+      "fps": 30,
+      "nature": "offline reconstruction from current artwork/mouth code, not live-browser playback capture",
+      "audio": "Original MP3 decoded, selected range extracted and encoded to AAC; no gain/EQ/new speech synthesis. Original remains unchanged."
+    },
+    {
+      "id": "b",
+      "label": "좋겠어요",
+      "startMs": 4310,
+      "endMs": 5376,
+      "path": "docs/yeoni-phase5/boundary-review-20261007/segment-b.mp4",
+      "modes": [
+        "normal 1x",
+        "diagnostic 0.5x (atempo; approximate pitch preservation)"
+      ],
+      "fps": 30,
+      "nature": "offline reconstruction from current artwork/mouth code, not live-browser playback capture",
+      "audio": "Original MP3 decoded, selected range extracted and encoded to AAC; no gain/EQ/new speech synthesis. Original remains unchanged."
+    }
+  ],
+  "wholeClosure3940To4020Preserved": true,
+  "tailFrom5200Closed": true,
+  "alignmentRemains": "automatic-phonemes",
+  "newTtsCalls": 0,
+  "newBrowserRuns": 0,
+  "limitations": [
+    "Waveform and renderer evidence do not identify every phoneme acoustically.",
+    "No direct listening by Codex; perceptual boundary review still required.",
+    "Offline exports hold body/blink still and omit browser/device output latency."
+  ]
+}

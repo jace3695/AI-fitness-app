@@ -1,0 +1,25 @@
+{
+  "sourceCommit": "2b145f8fff45b1b161fccbeaca7b84640c55844a",
+  "ciRun": 36672747780,
+  "artifactId": 11078372802,
+  "artifactSha256": "3c6df3ae980d850bf3f89d3f0383ee680ac7ff6e3cf3df2e9ac0b847acda8cd2",
+  "unitPassed": 690,
+  "browserScenariosPassed": 102,
+  "perBrowser": {
+    "chromium": {
+      "yeoni-poc": 16,
+      "yeoni-speech-poc": 25,
+      "yeoni-emotion-poc": 10
+    },
+    "webkit": {
+      "yeoni-poc": 16,
+      "yeoni-speech-poc": 25,
+      "yeoni-emotion-poc": 10
+    }
+  },
+  "audioSha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+  "previewSha256": "df27554b1ba406b453d702c700b109e497df62f45e85aecf2da02c3628c97d99",
+  "listeningReview": "deferred by user on 2026-09-30",
+  "newTtsRequests": 0,
+  "productionApplied": false
+}

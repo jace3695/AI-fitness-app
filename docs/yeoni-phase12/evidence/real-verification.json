@@ -1,0 +1,13 @@
+{
+  "julius": "4.6",
+  "labelCount": 42,
+  "playbackTestsPassed": 6,
+  "sampledFrames": 199,
+  "maxClockDifferenceMs": 72.197,
+  "browser": "Chromium 153.0.8010.12",
+  "viewport": "390x844",
+  "webkit": "blocked: missing shared libraries; isolated package download failed due to setgroups permissions",
+  "listeningReview": "pending",
+  "additionalTTSCalls": 0,
+  "phaseComplete": false
+}

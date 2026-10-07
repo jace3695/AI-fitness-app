@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "phase": 10,
+  "verifiedAtUtc": "2026-10-01T12:10:57.054726+00:00",
+  "baselineCommit": "e2738c7969a8f938ac91fd6d66fcebb72ff20c89",
+  "status": "technical_verification_passed",
+  "scope": "Common React lifecycle and renderer host contract; simultaneous cat/human preview of one stored MP3. Skin-switch continuity is PHASE 11.",
+  "progress": {
+    "technicalPhasesComplete": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "totalPhases": 16,
+    "listeningApproval": false,
+    "physicalDeviceApproval": false
+  },
+  "environment": {
+    "path": "docs/yeoni-phase9/evidence/environment.json",
+    "sha256": "093537e2544d857f9ee31cdb4f6d0ce8a3306b9d1c930a71272d00d6139df1be",
+    "reusedUserSpaceDependencies": true,
+    "systemPackageInstallRetried": false
+  },
+  "browserChecks": [
+    {
+      "path": "docs/yeoni-phase10/evidence/chromium/results.json",
+      "bytes": 79132,
+      "sha256": "78561f7556d70a9a3cb271eb0722d0b74ba749592a87a8644224a199ae256dc3",
+      "browser": "chromium",
+      "version": "153.0.8010.12",
+      "passed": 14,
+      "failed": 0,
+      "nativeSamples": 326
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/chromium/legacy-results.json",
+      "bytes": 318,
+      "sha256": "52590ff58049798d93a984989d95c046bc8dbc163460690d2c479a92e3ff777c",
+      "browser": "chromium",
+      "version": "153.0.8010.12",
+      "passed": 4,
+      "failed": 0,
+      "nativeSamples": 0
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/webkit/results.json",
+      "bytes": 41661,
+      "sha256": "2b2d29f87aba98af8355ce58aafe0691ef5188322655d75d4b3ea300d162804a",
+      "browser": "webkit",
+      "version": "26.6",
+      "passed": 14,
+      "failed": 0,
+      "nativeSamples": 149
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/webkit/legacy-results.json",
+      "bytes": 307,
+      "sha256": "50dda3e7797a078b1fac57e5b840a85d9883ab064d36853204e5ae0f88f88171",
+      "browser": "webkit",
+      "version": "26.6",
+      "passed": 4,
+      "failed": 0,
+      "nativeSamples": 0
+    }
+  ],
+  "browserPassedTotal": 36,
+  "codeChecks": [
+    {
+      "path": "docs/yeoni-phase10/evidence/code-checks/tests.log",
+      "bytes": 124543,
+      "sha256": "6c516464f9a244f05cbe26a161b048e4055ff60fdd34d3341d39997c6ebc003a",
+      "command": "npm test",
+      "exitCode": 0,
+      "rawOutputSha256": "6c516464f9a244f05cbe26a161b048e4055ff60fdd34d3341d39997c6ebc003a",
+      "outputNormalization": "Trailing whitespace removed",
+      "passed": 696,
+      "failed": 0
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/code-checks/lint.log",
+      "bytes": 133,
+      "sha256": "89bf86503c819e6a732dac3673ec88faf2e122f8dee17b100cba20932e3ddc47",
+      "command": "npm run lint",
+      "exitCode": 0,
+      "rawOutputSha256": "e2b90348fcef4d9f12f77e42902cbfde8921b147c070eb4550c1c9302766d241",
+      "outputNormalization": "Trailing whitespace removed"
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/code-checks/types.log",
+      "bytes": 99,
+      "sha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "rawOutputSha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "outputNormalization": "Trailing whitespace removed"
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/code-checks/build.log",
+      "bytes": 3184,
+      "sha256": "2654b047051912012c543c3d7b40f0e03f74576fc0cfc09e9a5453ca1f64ba81",
+      "command": "npm run build",
+      "exitCode": 0,
+      "rawOutputSha256": "4c9e35d836ee95bcc9feca443c61eb0248554f867b44e2befe1ac52f8a7e2fc8",
+      "outputNormalization": "Trailing whitespace removed"
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/code-checks/legacyLint.log",
+      "bytes": 99,
+      "sha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "command": "npx eslint scripts/yeoni-control/check-legacy.mjs",
+      "exitCode": 0,
+      "rawOutputSha256": "7125f194612fcff2f454c05d848e7cb71facc1967b4d5017e25b34fdee3ba74f",
+      "outputNormalization": "Trailing whitespace removed"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "docs/yeoni-phase10/evidence/chromium/shared-390.png",
+      "bytes": 212677,
+      "sha256": "977b51d0468df626a253139f2eda3e0561f3bf0dcdadec59ee0cfee7cea1b738",
+      "width": 390,
+      "visuallyReviewed": true
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/chromium/shared-1280.png",
+      "bytes": 384366,
+      "sha256": "c7b086e5d314bbeeb046f725269b7e52b701d0150a286aafcf5ccd0aa68b3fa4",
+      "width": 1280,
+      "visuallyReviewed": true
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/webkit/shared-390.png",
+      "bytes": 225008,
+      "sha256": "5487b213c82bdfdd9fc69628cffe07f4e52661293c0ffc6dba7a6a5001f02d8c",
+      "width": 390,
+      "visuallyReviewed": true
+    },
+    {
+      "path": "docs/yeoni-phase10/evidence/webkit/shared-1280.png",
+      "bytes": 352268,
+      "sha256": "a5dc8bf48d3cf9e9b235f17a1a364758e12f95bb835c8d9395cdd0b89fcff375",
+      "width": 1280,
+      "visuallyReviewed": true
+    }
+  ],
+  "preservation": {
+    "path": "docs/yeoni-phase10/evidence/preservation.json",
+    "bytes": 26066,
+    "sha256": "748527ca1990f4bc0e66e1b5a37b4c6b3dadfb3c6c877679722395466f1d2126"
+  },
+  "unchangedProtectedFileCount": 149,
+  "existing61VisualChecksRerun": false,
+  "existingArtworkAudioVideosRegenerated": false,
+  "contractEvidence": {
+    "immutableFrameMutation": false,
+    "sixMandatoryMouthOutputsDistinctInEachRealAdapter": true,
+    "injectedControllerHonouredByBoth": true,
+    "disposedCallsChangeController": false,
+    "lateReadyRevivesFailedStage": false,
+    "throwingFactoryManagedAsError": true,
+    "strictModeResourceLeaks": false,
+    "remountCyclesPerBrowser": 10,
+    "stageObserversAfterUnmount": 0,
+    "animationLoopsAfterUnmount": 0,
+    "loopsWhileBothSkinsVisible": 2,
+    "audioElements": 1
+  },
+  "testHarnessCorrection": "Initial observer count included an automation observer. Final resource accounting identifies observers constructed by mountCharacterStage; disposal requires zero remaining character observers. This is a harness scope correction, not a looser leak threshold.",
+  "visualReview": "Reviewed Chromium/WebKit 390px and 1280px full-page captures. No control/text overlap; browser-specific scaling and native audio controls differ. Artwork bytes and Canvas drawing bodies remain unchanged; previous original comparison evidence is retained.",
+  "reactReview": [
+    "Shared lifecycle hook owns cleanup; drawing remains outside React state updates",
+    "Renderer factory memoized only by artwork resource inputs",
+    "Latest speech callback read through ref without renderer remount",
+    "Gesture effects depend on semantic command id/kind, not object identity",
+    "No server component boundary or production route added"
+  ],
+  "verifiedFiles": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "b45f3ae60f18c06929da25813e5366ad27ccf643f997f9dae3b891d588543221"
+    },
+    {
+      "path": "components/yeoni/CatAnimationStage.tsx",
+      "sha256": "b5fb53073262ce0f0bf77678c16d0a0eeb01ee5ad128a8907b76166eb73ba0dd"
+    },
+    {
+      "path": "components/yeoni/HumanAnimationStage.tsx",
+      "sha256": "92505a12259aff4676c2b8fd0ffd2e3dc81f57e9161f4381fb8d45aea4514c0a"
+    },
+    {
+      "path": "components/yeoni/useCharacterStage.ts",
+      "sha256": "ea461996a091a4ae14b013dc3c330d6ab6812d48f9365d066650a45c14bb6bb3"
+    },
+    {
+      "path": "docs/yeoni-character-architecture.md",
+      "sha256": "24aec4c7811509bba295afd527f25d8bb8360e16d8dd1eb73a00aa9b027a72ab"
+    },
+    {
+      "path": "docs/yeoni-phase10/CHECKPOINT.md",
+      "sha256": "fb5ce32ee716e6a460a37006233a28b221e50035c733c9e927e29c7a8ab32fb8"
+    },
+    {
+      "path": "docs/yeoni-phase10/README.md",
+      "sha256": "3eed7d074983e5ac84dd74159f5bd6c52116a5a452d68894adc5d870e65aa1ce"
+    },
+    {
+      "path": "docs/yeoni-phase10/Yeoni_Shared_Control_Preview.html",
+      "sha256": "8859b0ec42406f3ba71eefb28ebce71060a94fcd131ddc41898df37f13c4591b"
+    },
+    {
+      "path": "docs/yeoni-phase5/Yeoni_Lip_Sync_Dev_Preview.html",
+      "sha256": "c2268dcccb981680e510e3fdd7baa4c866c568a9398acede2adf9532e1ea98d1"
+    },
+    {
+      "path": "docs/yeoni-phase6/Yeoni_Emotion_Gesture_Preview.html",
+      "sha256": "ae519cd5897f97a8184e0ec6ebadd8b66f20ea2e000abc05f65be1f85d020a20"
+    },
+    {
+      "path": "docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html",
+      "sha256": "ba24011448863bd5ad6b6eaa9f41d66399b7c0966de9880377393981b38f94b5"
+    },
+    {
+      "path": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html",
+      "sha256": "46e6123f71888899b5e45ce66c129a68e98d0f05348585345643c2b961ae2f4a"
+    },
+    {
+      "path": "lib/yeoni/cat-renderer.ts",
+      "sha256": "9990475a3b8128ec90b2c3a5dc0d98f53a4ec6eabc51bca895ef22fbb7c045d5"
+    },
+    {
+      "path": "lib/yeoni/character-stage.ts",
+      "sha256": "2e6ddb7bf2609ce9f219058b94094bacd328adeda7e9d5f37a18fe330e698622"
+    },
+    {
+      "path": "lib/yeoni/human-renderer.ts",
+      "sha256": "0fbab81a32574c84c72fa6051785c7661770d4b999a7dd4e4825878574a65453"
+    },
+    {
+      "path": "scripts/yeoni-control/browser.tsx",
+      "sha256": "a349fcddb55dddc32d114580600304c399b03299543b32689a7f90d18802f1f1"
+    },
+    {
+      "path": "scripts/yeoni-control/check-legacy.mjs",
+      "sha256": "2cde6f376097356128b89cf8af4558e7abe1123b8928a1ac31e0255c42d1595e"
+    },
+    {
+      "path": "scripts/yeoni-control/check.mjs",
+      "sha256": "37c04484f4a65214269491890de785859955b38b801561de016d1acd4eeac862"
+    },
+    {
+      "path": "scripts/yeoni-control/control.css",
+      "sha256": "e5515e690a2801b32a197a803f66906326bd182c56b113a43b1d1601acdb7baa"
+    },
+    {
+      "path": "scripts/yeoni-control/export.mjs",
+      "sha256": "b0b4c1a0fe481896755f3bf1d3704abbc8b71b0551d54f36fd21194529eb3b5e"
+    },
+    {
+      "path": "scripts/yeoni-control/probe.ts",
+      "sha256": "44f358ff8fb07712648daff84a544abfe9f3e62b74934afa65465a4d72d5d380"
+    },
+    {
+      "path": "scripts/yeoni-control/server.mjs",
+      "sha256": "0740a07353f03913d624329242464f27fc2c92c415192a8d24bd502e8c5c7881"
+    }
+  ],
+  "pending": [
+    "PHASE 5 user listening, phoneme boundaries and naturalness",
+    "PHASE 11 skin switch with continuous audio/Controller state",
+    "Physical iPhone, lock, Bluetooth, heat and battery",
+    "Production integration, merge and deployment"
+  ],
+  "delivery": {
+    "branch": "agent/yeoni-cat-animation-poc",
+    "pullRequest": 207,
+    "draft": true,
+    "ciMarker": "[skip ci]",
+    "ciReason": "Avoid automatic regeneration of previously completed artwork/video comparison suites as requested. Local source and browser gates passed."
+  }
+}

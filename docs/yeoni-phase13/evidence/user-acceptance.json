@@ -1,0 +1,43 @@
+{
+  "receivedAt": "2026-10-04T11:42:03+09:00",
+  "verbatim": "2개 확인 완료'",
+  "evidenceType": "user report, not an agent replay",
+  "confirmedChecks": [
+    {
+      "id": "appearance-switch-preserves-reply",
+      "result": "user-confirmed",
+      "description": "인간형을 눌러도 실제 AI 답변 내용이 유지됨"
+    },
+    {
+      "id": "reload-resets-to-idle",
+      "result": "user-confirmed",
+      "description": "새로고침 후 답변을 기다리고 있어요 상태로 복귀"
+    }
+  ],
+  "phase13": "reply-integration-poc-completed",
+  "completionScope": "실제 답변·규칙 기반 표정/몸짓 계획을 공통 캐릭터에 전달. 정확히 맞는 기존 음성만 재사용하며 새 문장은 글로 표시.",
+  "combinedEvidence": [
+    "user-preview-review.json",
+    "user-ai-reply-review.json",
+    "unit.txt",
+    "chromium/results.json",
+    "boundaries.json",
+    "build.txt"
+  ],
+  "technicalPocCompleted": 12,
+  "technicalPocTotal": 16,
+  "pendingPhases": [
+    5,
+    14,
+    15,
+    16
+  ],
+  "doesNotAssert": [
+    "임의의 AI 답변에 새 TTS 생성 완료",
+    "전체 음소 경계 검토 완료",
+    "물리 iPhone·Bluetooth·잠금·발열 검수 완료",
+    "자동 검증 브라우저의 로그인 오류 해결",
+    "운영 배포 또는 추가 음성 생성 승인"
+  ],
+  "nextWork": "기존 한국어·일본어 표본으로 기기·성능 검증 준비"
+}

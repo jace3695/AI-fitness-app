@@ -1,0 +1,12 @@
+{
+  "input": {
+    "text": "こんにちは。今日は、ゆっくり一歩ずつ進みましょう。"
+  },
+  "voice": {
+    "languageCode": "ja-JP",
+    "name": "ja-JP-Chirp3-HD-Zephyr"
+  },
+  "audioConfig": {
+    "audioEncoding": "MP3"
+  }
+}

@@ -1,0 +1,1181 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> ai-yeoni@0.1.0 test
+> node scripts/test.mjs
+
+(node:33) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/delete-undo.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 삭제한 가계부 행은 JSON 필드 순서와 무관하게 전체 값을 대조한다 (8.945439ms)
+✔ 가계부 종류별 복원 대상과 안내 문구를 구분한다 (1.004234ms)
+(node:34) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/history-edit.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ amount boundaries are inclusive and invalid filters cannot silently broaden results (2.017191ms)
+✔ edit inputs preserve intentional empty memos and reject invalid dates and unsafe amounts (0.8622ms)
+✔ filtered CSV has a real BOM and line endings, preserves quotes/newlines and neutralizes formula cells (0.267383ms)
+(node:35) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/monthly-check.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ merchant memory uses exact names, preserves income/savings and never mutates original previews (1.09411ms)
+✔ monthly reference includes today, month-end, prepaid exclusion and missing fixed reservations (2.200809ms)
+✔ duplicate candidates retain every original row and distinguish payment/date/place (1.135823ms)
+✔ future dates and partial months do not inflate period comparisons or claim a subscription price change (3.386016ms)
+✔ pagination reads more than the default cap, scopes owner and rejects truncation or changing totals (3.970327ms)
+(node:41) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/payment-plans.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ monthly due dates clamp at month-end and handle leap years and year transitions without timezone shifts (3.206195ms)
+✔ only exact names count, unknown usage stays unknown, future records do not imply payment and top-ups are excluded (1.111526ms)
+✔ explicit plans replace old fixed guesses once, subtract recorded totals and leave historic reports independent (7.690837ms)
+✔ increase explanations use comparable days, transaction counts and exact merchant deltas without inventing price changes (0.555868ms)
+(node:57) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/transaction-amount.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ currency amounts take precedence over digits in store names or dates (2.520941ms)
+✔ thousands separators stay inside one amount while transaction commas split entries (0.846306ms)
+(node:58) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/budget/lib/transaction-date.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Korean morning uses the visible local date in both AI and fallback parsing (3.949645ms)
+✔ the first morning of a month does not become the previous month in a budget request (0.531511ms)
+(node:59) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/appRecordReset.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 운동 초기화는 오래된 기기의 운동 기록을 버리고 식단·설정 변경은 보존한다 (16.038583ms)
+✔ 최초 동기화에도 일본어 초기화 이전 초안·복습을 되살리지 않는다 (0.269156ms)
+✔ 초기화 이후 두 기기에서 새로 작성한 기록은 합친다 (0.196356ms)
+✔ 초기화 도중 도착한 이전 서버 응답이 새 초기화를 덮어쓰지 않는다 (0.131479ms)
+✔ 사용자가 직접 복원한 백업은 현재 초기화 기준을 유지하며 복구한다 (0.184378ms)
+✔ 초기화 대상을 앱끼리 공유하지 않고 로그인·설정 키를 포함하지 않는다 (4.45649ms)
+✔ DB 트랜잭션의 삭제 키가 화면의 삭제 범위와 일치한다 (0.737452ms)
+✔ 클라우드의 삭제를 기기에 적용할 때 다른 앱과 인증 저장값은 유지한다 (0.768068ms)
+(node:89) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/assistantNextAction.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 오늘 또는 지난 마감의 할 일을 가장 먼저 고른다 (14.501557ms)
+✔ 예산 초과는 일반 앱 루틴보다 먼저 확인한다 (3.397042ms)
+✔ 운동일에는 완료하지 않은 실제 계획으로 연결한다 (0.157768ms)
+✔ 언어 앱이 알려준 정확한 다음 학습 주소를 사용한다 (0.211018ms)
+✔ 저녁의 미완료 식단과 남은 성장 루틴을 순서대로 안내한다 (0.149756ms)
+✔ 조회에 실패한 영역은 빈 값으로 추천하지 않는다 (0.098989ms)
+(node:95) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/assistantWeeklyBriefing.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 월초에는 지난달에 걸친 최근 7일 지출도 조회한다 (1.712532ms)
+✔ 최근 7일의 앱별 기록만 합산하고 같은 언어 학습일을 한 번만 센다 (18.719095ms)
+✔ 기한이 지난 할 일은 주간 일관성 제안보다 먼저 안내한다 (0.464401ms)
+✔ 조회 실패 영역은 0으로 오해하지 않고 카드와 추천 후보에서 제외한다 (0.161573ms)
+(node:102) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/cloudSync.abort.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ GET/PATCH/insert and confirmation GET pass the session abort signal to the actual SDK (211.409072ms)
+✔ a PATCH already committed before logout cannot start its confirmation GET after abort (60.186241ms)
+(node:111) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/cloudSync.authLifecycle.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ logout removes records and every baseline together; login preserves all 17 remote keys (2.271846ms)
+✔ an already logged-out legacy cache cannot delete the remote state on upgrade (0.227664ms)
+✔ an owned cache keeps intentional deletion of its last key across reload (0.37125ms)
+✔ switching accounts invalidates the previous scope and does not import its records (0.228735ms)
+✔ logout recovers an interrupted write before cleanup so its journal cannot resurrect records (0.269446ms)
+✔ failed cleanup restores records with their baseline but invalidates pending requests (0.885104ms)
+(node:118) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/cloudSync.merge.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 서로 다른 날짜의 기록을 함께 보존한다 (2.596029ms)
+✔ 삭제와 수정이 충돌하면 수정 기록을 보존한다 (0.253993ms)
+✔ 한 기기만 삭제한 값은 삭제한다 (0.160252ms)
+✔ 두 기기에서 추가한 운동 세트를 함께 보존한다 (14.78919ms)
+✔ 같은 날짜에서 서로 다른 항목 수정을 함께 보존한다 (0.319802ms)
+(node:125) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/cloudSync.pendingWrite.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a write response preserves later local input and independent remote changes (20.259658ms)
+✔ deleting during a pending write does not resurrect an unchanged record (0.333483ms)
+(node:137) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/cloudSync.workoutRestore.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 백업 복원 후 서버의 JSON 필드 순서가 달라도 45세트와 운동 상세를 중복하지 않는다 (21.956657ms)
+✔ 서버 필드 순서 변경을 다른 기기의 수정으로 오인해 수정 전 운동을 다시 추가하지 않는다 (1.620534ms)
+✔ 반복 동기화에서도 같은 기록은 증가하지 않고 양쪽의 다른 날짜 기록은 유지한다 (7.256161ms)
+✔ 중첩 필드 순서는 무시하되 운동·라운드 순서와 실제 반복 기록은 보존한다 (0.360875ms)
+✔ 서버의 필드 순서가 달라도 한 기기에서 삭제한 운동을 되살리지 않는다 (0.868981ms)
+(node:143) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/currentWorkoutDirection.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 현재 운동 방향으로 이전하면 개인 기록 목표는 보존하고 주간 루틴만 정확히 갱신한다 (5.83594ms)
+(node:144) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dailyAppStatus.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 문자열과 객체 상태를 안전하게 읽는다 (1.200961ms)
+✔ 일본어 완료 항목을 중복 없이 계산하고 다음 학습으로 연결한다 (0.251799ms)
+✔ 다른 날짜의 일본어 완료 기록은 오늘 기록으로 세지 않는다 (0.190417ms)
+✔ 일부 완료를 전체 운동 완료로 바꾸지 않는다 (0.460835ms)
+✔ 운동 쉬는 날은 완료 여부와 별개로 회복일을 표시한다 (0.136977ms)
+✔ 오늘 저장한 식단만 완료로 보고 다른 날짜 기록은 유지한다 (0.135895ms)
+✔ 날짜별 운동 변경이 요일 변경과 기본 계획보다 우선하며 다른 날짜에 새지 않는다 (0.157938ms)
+(node:161) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dailyBriefing.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ daily briefing separates area failures from missing and retains morning/evening intent (1.061901ms)
+✔ daily briefing counts due tasks by Korean day, excludes completed/cancelled and never mutates (26.545475ms)
+(node:168) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dietFavorites.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 즐겨찾기는 명시한 양만 저장하며 날짜·상태·완료를 복사하지 않는다 (2.905341ms)
+✔ 불러오기는 선택한 끼니의 입력만 만들며 현재 점심 평가를 유지한다 (0.352542ms)
+✔ 미기록과 0g 구분, 음수·무한대·범위 초과·다른 끼니 보충 값 거부 (0.463008ms)
+✔ 저장 응답 유실 뒤 결과 재확인은 GET만 하며 같은 값을 확인한다 (3.539386ms)
+✔ 중복 이름과 다른 값·미저장을 구분하고 다른 소유자로 쓰지 않는다 (0.691352ms)
+✔ 삭제 결과 유실도 GET으로 확인하고 남은 행은 삭제 성공으로 표시하지 않는다 (0.294865ms)
+(node:175) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dietPatterns.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 비교 기준 날짜는 기기 시간대와 관계없이 한국 자정에 바뀐다 (5.491961ms)
+✔ 28일 비교는 오늘 제외, 두 기간의 양 끝 포함, 윤년·잘못된 날짜 구분 (18.096517ms)
+✔ 미응답·잘못된 값은 지표별 분모에서 제외하고 아니요는 0으로 포함 (0.440384ms)
+✔ 응답 수가 다른 기간은 각 분모로 비교하고 7일 기준을 항목별로 적용 (5.861438ms)
+✔ 기록 없음은 0%가 아니라 비율 미기록이며 미래·오래된 기록을 넣어도 동일 (0.348245ms)
+(node:185) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dietPhotoAnalysis.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 사진 분석의 잔액·지출 한도 오류를 일시적인 요청 제한과 구분한다 (1.195403ms)
+✔ 식단 사진 분석값은 표시 가능한 범위와 길이로 제한한다 (1.142342ms)
+✔ 코드 펜스가 있는 AI JSON도 파싱하고 빈 결과는 거부한다 (0.942191ms)
+✔ 사진 추정값은 기존 식단 입력 형식으로 명시적으로 변환한다 (0.319822ms)
+✔ 사진 파일과 data URL 형식·크기를 전송 전에 제한한다 (0.349967ms)
+(node:186) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/dietWorkoutContext.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 운동 표시는 실제 완료·일부·중단과 유산소만 사용하고 저장 시각은 무시한다 (5.709514ms)
+✔ 양쪽 날짜 합집합과 28일 경계를 사용하고 오늘·미래·잘못된 날짜를 제외한다 (0.285981ms)
+✔ 빈 기록은 미확인이고 잘못된 저장 형식은 빈 기록으로 표시하지 않는다 (0.273222ms)
+✔ 운동 후 식사 응답과 마지막 식사 시각은 서로 추정하지 않는다 (3.577414ms)
+(node:197) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/fitnessAiReviewHistory.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 선택 직전 7일과 28일 기준 지표를 서로 다른 기간으로 만든다 (11.303454ms)
+✔ 추천 후 7일 전에는 남은 날짜만 안내하고 운동 기록을 평가하지 않는다 (0.31215ms)
+✔ 안전 신호가 늘지 않고 운동일이 늘면 1주 개선 신호로 표시한다 (0.309056ms)
+✔ 통증이나 높은 피로가 기준보다 늘면 운동량보다 회복 확인을 우선한다 (0.335365ms)
+✔ 4주 효과는 선택 다음 날부터 28일까지만 기준 28일과 비교한다 (0.349006ms)
+✔ 저장 요약은 원본 운동일·세트 데이터 없이 분석과 계획 요약만 남긴다 (0.28516ms)
+✔ Supabase 행을 화면에서 쓰는 안전한 형식으로 변환한다 (2.229051ms)
+(node:209) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/freeDietTools.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 지난 식사는 오늘·미래·잘못된 날짜와 다른 끼니를 복사하지 않는다 (2.895916ms)
+✔ 간편 기본값은 한 끼의 명시된 입력값만 바꾼다 (0.662039ms)
+✔ 주간 요약은 미응답과 미래 기록을 빼고 지표마다 실제 응답 수를 표시한다 (6.266389ms)
+(node:217) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/freeFitnessReport.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 무료 운동 요약은 수행 기록만 집계하고 미응답 상태를 양호하다고 추정하지 않는다 (12.14335ms)
+✔ 월간·장기 요약은 잘린 상세 목록 대신 각 기간의 집계를 사용한다 (0.342937ms)
+(node:223) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/freeLearning.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 회화는 5개 상황의 예문을 제공하며 자유 문장을 교정했다고 가장하지 않는다 (1.950921ms)
+✔ 복습은 힌트·오답·응답 시간을 반영하고 입력을 선택식으로 풀면 타이핑 숙련도로 계산하지 않는다 (0.300694ms)
+✔ 새로 측정한 정답도 복습에 남고 반복 저장과 재시도로 성취를 부풀리지 않는다 (2.941225ms)
+✔ 숙련도는 실제 측정한 문제만 포함하며 연속 정답과 간격 조건을 함께 확인한다 (0.326853ms)
+(node:232) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthPatterns.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ empty days remain unrecorded and never become failures (1.400843ms)
+✔ same-day repeats count once with completed then partial then stopped precedence, regardless of order (7.037522ms)
+✔ invalid, future, today, old and unrelated records are excluded without mutating input (0.35863ms)
+✔ recommendation requires enough distinct weekday and weekend observations (0.452312ms)
+✔ small differences keep the current schedule and year boundaries use date keys (0.23928ms)
+(node:238) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthPlatform.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 주간 요약은 범위 안 기록만 합산한다 (1.198798ms)
+✔ 이전 기간과 현재 기간의 차이를 계산한다 (0.202094ms)
+✔ 타자 정확도와 분당 타수를 계산한다 (0.754158ms)
+✔ AI 제안은 루틴 ID와 시간 범위를 제한한다 (0.217578ms)
+✔ AI가 없어도 기록 기반 주간 제안을 만든다 (5.72367ms)
+✔ 서로 다른 날 미완료가 반복되면 선택한 이유로 시간을 줄이되 자동 변경하지 않는다 (0.515557ms)
+✔ 선택하지 않은 중단 이유는 추정하지 않고 미래·이전 주 기록은 제안에서 제외한다 (0.263216ms)
+(node:246) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthResourceUsage.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 활용일은 한국 자정 경계와 윤년·30일 경계를 따른다 (1.157866ms)
+✔ 미기록·잘못된 날짜를 오래 쓰지 않은 자료로 추정하지 않는다 (0.240733ms)
+✔ 응답 유실 뒤 읽기 재확인은 쓰기를 반복하지 않고 좁은 변경과 원본 조건을 유지한다 (7020.466927ms)
+✔ 다른 변경·삭제를 구분하고 잘못된 입력·소유자·미적용 스키마에는 쓰지 않는다 (1.812443ms)
+(node:253) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthRoutines.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 저장값이 없거나 손상되면 간단한 기본 루틴으로 복구한다 (2.668313ms)
+✔ 사용자 루틴의 중복과 잘못된 값을 안전하게 정리한다 (0.502167ms)
+✔ 오늘 완료 상태를 다시 누르면 취소할 수 있다 (0.252982ms)
+✔ 계정별 백업과 초기 클라우드 ID를 서로 격리한다 (9.315035ms)
+✔ 사용 종료된 전용 과정은 기존 데이터를 지우지 않고 화면에서 제외할 수 있다 (1.12103ms)
+(node:261) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthSchedule.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 기존 루틴의 일정값이 없으면 매일 7회로 호환한다 (1.991132ms)
+✔ 요일은 중복과 범위를 정리하고 주간 목표는 선택 요일 수를 넘지 않는다 (0.287724ms)
+✔ 날짜의 ISO 요일과 월요일 시작 주간을 시간대와 무관하게 계산한다 (0.759345ms)
+✔ 주간 달성은 같은 날 중복 완료를 한 번만 계산한다 (0.315355ms)
+(node:272) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthTimePatterns.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ explicit offsets resolve Korean clock boundaries independently of machine timezone (13.88727ms)
+✔ winning status cannot borrow a lower status clock and conflicting starts stay unconfirmed (0.533795ms)
+✔ missing and malformed times never fall back to creation, end time or duration (3.300897ms)
+✔ the shared 28-day selection excludes today, old dates, other routines and invalid statuses without writes (0.279201ms)
+✔ comparison needs four distinct days in each eligible slot, not repeated sessions (0.904825ms)
+✔ empty and unconfirmed days never become failed mornings or recommendations (0.436418ms)
+(node:279) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/growthWorkoutPatterns.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ only explicit main, cardio and pullup execution marks count; absent records do not mean rest (1.959605ms)
+✔ comparison uses only valid, distinct routine days in the last 28 complete days (1.096844ms)
+✔ comparison waits for four days per group and only describes a difference at 25 percentage points (0.210888ms)
+✔ unreadable data blocks comparison instead of becoming no exercise; missing stores remain unconfirmed (0.222025ms)
+(node:286) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/handwritingCourse.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ handwriting curriculum covers every worksheet once with stable page references (0.752585ms)
+✔ handwriting resume ignores legacy, partial, foreign and duplicate records (0.825895ms)
+(node:287) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/handwritingMaterials.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ private handwriting bundle accepts complete structure and rejects paths, duplicates, missing files and invalid payloads (1.292669ms)
+(node:309) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/hubNavigation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 기본 하단 메뉴는 언어 학습을 직접 노출한다 (3.462491ms)
+✔ 저장된 메뉴는 중복과 알 수 없는 값을 제거하고 AI 연이를 유지한다 (0.274074ms)
+✔ 하단에는 앱을 최대 여섯 개까지만 둔다 (0.226852ms)
+✔ 손상된 브라우저 설정은 안전한 기본 메뉴로 복구한다 (0.261284ms)
+✔ 하위 화면에서도 해당 앱을 활성 상태로 인식한다 (0.219682ms)
+(node:315) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/japaneseAudio.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 무료 음성은 서버를 호출하지 않고 설치된 일본어 음성을 우선 사용한다 (62.750979ms)
+✔ 무료 음성도 반복 횟수와 시작·완료 콜백을 지킨다 (152.762898ms)
+✔ 이미 취소된 듣기는 기기와 API 모두 호출하지 않는다 (5.747036ms)
+✔ 재생 중 취소하면 반복과 완료 콜백이 멈춘다 (53.376068ms)
+✔ 일본어 음성이 없으면 다른 언어를 재생하거나 유료 음성으로 전환하지 않는다 (1.38605ms)
+✔ 기기 재생 오류를 성공으로 처리하지 않는다 (51.077918ms)
+✔ 음성을 지원하지 않는 환경에서는 오류를 전달한다 (0.459353ms)
+(node:323) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/japaneseLearning.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 일본어 자료는 필수 필드와 고유 식별자를 유지한다 (4.474096ms)
+✔ 첫 가나는 다섯 글자로 시작하며 46글자를 중복 없이 나눈다 (0.506764ms)
+✔ 첫 자료 목록에는 숫자 묶음 대신 짧은 표현이 충분히 남는다 (1.580142ms)
+✔ 수업을 바꿔도 이전 초안을 보존하고 해당 세션만 정리한다 (0.739154ms)
+✔ 저장 재시도는 동일 세션의 오답 횟수와 복습 간격을 중복 변경하지 않는다 (3.7741ms)
+✔ 숫자 및 단위를 일반 명사의 끝 글자와 혼동하지 않는다 (0.408025ms)
+✔ 단어의 난이도는 순서와 무관하고 품사는 명시적으로 구분한다 (2.275632ms)
+✔ 자동 확장 예문은 동사·형용사에 명사 접속을 붙이지 않는다 (1.989349ms)
+✔ 장음·인사와 숫자 예문의 조사 발음 보조를 구분한다 (1.800215ms)
+✔ 문법은 서로 다른 예문·보기와 유효한 정답을 제공한다 (0.663109ms)
+✔ 5분·10분·20분의 문제 수와 기존 복습 식별자를 유지한다 (0.445401ms)
+✔ 입문 모드의 입력 문제는 선택으로 풀 수 있고 정답 위치가 고정되지 않는다 (0.299892ms)
+✔ 다시 맞혀도 첫 시도 점수를 덮어쓰지 않고 재연습 성취를 따로 계산한다 (0.22488ms)
+✔ 전부 틀린 상태는 이해 완료로 표시되지 않는다 (0.343648ms)
+✔ 짧은 학습을 저장해도 출제하지 않은 오답은 삭제되지 않는다 (0.341374ms)
+✔ 수업 초안은 다른 수업으로 섞이지 않고 범위를 벗어난 상태를 제한한다 (1.387061ms)
+✔ 직접 입력은 공백·문장 부호와 단어 읽기 입력을 허용한다 (0.453664ms)
+(node:324) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/japaneseLearningStorage.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 기존 학습 기록과 설정을 새 화면에서 읽어도 기록을 초기화하지 않는다 (1.665141ms)
+✔ 새로고침에 해당하는 재조회에서 분량·문제·첫 오답·진행 위치가 복원된다 (3.051792ms)
+✔ 저장 공간 오류를 호출자에게 전달하며 기존 성공 기록은 유지한다 (0.473634ms)
+✔ 계정 준비 시 이전 계정의 새 수업 초안도 함께 격리한다 (0.19254ms)
+(node:337) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/localWorkoutPlanProposal.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 로컬 계획은 현재 설정을 유지하고 7일 미리보기를 만든다 (4.402699ms)
+✔ 통증 신호는 회복 운동을 자동 추천하지 않고 증상 확인을 안내한다 (0.413213ms)
+✔ 높은 피로나 중단 기록도 회복 신호로 처리한다 (0.275485ms)
+✔ 허리 악화나 신경 증상은 강도 상승 없이 의료 평가 안내로 연결한다 (0.219892ms)
+✔ 월 예산 보호 시에도 비용 없는 로컬 계획의 이유를 정확히 알린다 (0.210207ms)
+✔ AI 응답이 완전하지 않아도 재호출 없이 로컬 계획으로 전환한다 (0.188795ms)
+(node:347) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/practiceEvidence.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ typing evidence counts final mismatches, leaves untyped characters alone and compares only same passage (1.867786ms)
+✔ handwriting measures drawing bounds and time without interpreting constant mouse pressure as measured pen variation (0.604702ms)
+(node:357) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/recordAnalytics.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 월간 실제 세트·반복·중량 볼륨을 완료 세트만으로 계산한다 (2.483105ms)
+✔ 부위별 세트는 서킷 라운드도 실제 수행 세트로 합산한다 (1.25336ms)
+✔ 같은 날짜의 서킷 라운드는 성장 비교의 직전 날짜로 취급하지 않는다 (11.630527ms)
+✔ 교체 운동의 실제 세트는 팔로프를 코어, 햄스트링 컬을 하체로 분류한다 (0.366382ms)
+✔ 장기 요약은 최근 28일과 직전 28일을 같은 기준으로 비교한다 (1.335344ms)
+✔ 지정 기간 요약은 통증·높은 피로·중단을 날짜 단위로 센다 (0.464119ms)
+(node:365) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/storageTransaction.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a later local save failure preserves the entire previous snapshot (2.442342ms)
+✔ a full device that cannot reserve a journal does not change any record (0.289136ms)
+✔ an interrupted save is recovered before another operation (0.245159ms)
+(node:371) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/timerClock.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a background gap is counted without waiting for missed interval callbacks (1.014841ms)
+(node:379) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/typingBasics.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ typing positions cover the keyboard and Korean two-set word sequence (1.196274ms)
+✔ wrong keys persist in accuracy, unsupported keys and completed input cannot alter result (0.299462ms)
+✔ position progress excludes old sentence records, partials and other courses (0.931173ms)
+(node:388) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/userWorkoutSettings.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 운동 설정 저장은 공통 클라우드 동기화에 즉시 변경을 알린다 (0.843983ms)
+(node:396) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/weightManagement.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 7일 평균은 각 기록일을 포함한 최근 7일의 측정값만 사용한다 (7.882836ms)
+✔ 현재·이전 7일에 두 번 이상 기록되면 평균 변화와 목표 진행률을 계산한다 (0.535237ms)
+✔ 체지방이 줄고 골격근이 유지되면 리컴포지션을 좋은 방향으로 판정한다 (0.231019ms)
+✔ 인바디가 한 번뿐이면 변화 방향을 단정하지 않는다 (0.615107ms)
+✔ 기준일 이후의 미래 기록은 현재 추세와 인바디 판정에서 제외한다 (0.234053ms)
+✔ 목표 범위에 들어오면 남은 체중은 0이고 진행률은 100%다 (0.162145ms)
+✔ 골격근 감소가 기준을 넘으면 좋은 체중 변화만으로 성공 판정을 하지 않는다 (0.652714ms)
+✔ 목표 범위는 유효한 소수만 보존하고 잘못된 값은 기본값으로 복구한다 (0.201964ms)
+(node:397) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutAdaptiveCoach.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 기록이 없으면 제공된 86kg을 기준값으로만 사용한다 (9.871636ms)
+✔ 완료 표시만 있고 비교할 근력·반복수 기록이 없으면 증가하지 않는다 (0.688759ms)
+✔ 허리 악화나 신경 증상이 있으면 강도 상승을 막고 의료 평가를 안내한다 (0.29848ms)
+✔ 체중 하락과 수행 저하·높은 피로가 겹치면 감량과 회복을 재검토한다 (1.127199ms)
+(node:405) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutAdaptiveReview.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ current routine starts recovery days at one round, strength days at three (1.124635ms)
+✔ three fully recorded comparable strength sessions propose only one weekday rep increase (14.993087ms)
+✔ three capped sessions propose only a 0.5kg dumbbell step and prefill the confirmed plan (3.402251ms)
+✔ a capped band exercise advances exactly one recognized resistance level (1.466742ms)
+✔ a safely learned two-round variation proposes only the third round (6.271317ms)
+✔ keep saves a decision while preserving the entire plan (4.963414ms)
+✔ changed records or settings invalidate a preview before applying (5.316747ms)
+✔ missing details, unknown back status, missing load, recovery-only and outdated sessions never increase (5.484364ms)
+✔ future and invalid dates do not become training evidence (0.360764ms)
+✔ fatigue reduces only the next date and does not alter weekly recovery structure (4.095802ms)
+✔ fatigue lowers a strength session from three to two rounds with more rest (0.29849ms)
+✔ all neurological symptoms, worsening back and current symptoms hold changes including stopped sessions (1.818552ms)
+✔ custom edits and date exceptions are not overwritten by a proposal (0.944144ms)
+✔ after sufficient stable practice, a replacement needs preparation and keeps five main moves (1.786614ms)
+✔ a lower planned round count is not a performance decline (0.219792ms)
+✔ Pallof press is offered only after the hamstring variation is established (3.454889ms)
+✔ a prior small rep increase does not prevent a later balance replacement (0.541687ms)
+✔ weekly limit uses the user local date, including a Korean Monday before UTC Monday (1.031525ms)
+(node:419) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutCompletion.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 일반 운동 삭제 시 다른 운동 종류의 기록을 모두 보존한다 (2.588623ms)
+✔ 일반 운동만 있던 기록은 빈 객체가 된다 (0.227103ms)
+✔ 종류별 삭제는 선택한 기록만 제거하고 나머지를 보존한다 (6.505629ms)
+(node:428) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutEvidence.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ workout evidence separates incomplete, missing and next-calendar-day responses without assuming recovery (22.060554ms)
+✔ workout evidence excludes impossible and out-of-period dates (0.35159ms)
+(node:437) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutGroups.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 슬라이딩보드 운동명에는 기도 문구를 섞지 않는다 (6.100769ms)
+✔ 현재 기본 계획은 월수금 근력·화목 회복형이며 슬라이딩보드를 루틴에서만 제외한다 (2.309783ms)
+✔ 근력·회복형 서킷은 준비와 정리를 한 번만 하고 본운동만 라운드 반복한다 (5.959536ms)
+✔ 선택 유산소의 슬라이딩보드 항목은 하나만 제공한다 (3.112994ms)
+(node:443) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutPlanDecision.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 브라우저가 아니면 계획 결정 기록은 안전하게 비어 있다 (1.853485ms)
+(node:452) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutPlanProposal.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI 운동 계획에서 허용된 요일·그룹·운동값만 보존한다 (1.485019ms)
+✔ 사용자가 적용했을 때만 기존 설정에 AI 계획을 합친다 (0.500665ms)
+✔ 일부 적용은 사용자가 고른 요일과 운동량만 변경한다 (0.29137ms)
+(node:461) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutProgramReview.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 현재 주간 설정을 7일 프로그램 구성표로 안전하게 계산한다 (7.118374ms)
+✔ 준비·자세 연습은 근력 균형 세트에 포함하지 않는다 (1.740414ms)
+✔ 전신 루틴은 실제 본운동을 부위별 세트로 나누어 계산한다 (2.454241ms)
+✔ 통증·높은 피로·중단 기록이 있으면 로컬 점검도 회복을 우선한다 (2.736346ms)
+✔ AI 프로그램 점검 결과는 허용된 상태·카드만 표시한다 (0.392782ms)
+(node:468) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutTimeHistory.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ workout history uses 28 complete calendar days across leap and year boundaries (2.439298ms)
+✔ workout history distinguishes missing clocks and preserves same-day evidence without writes (10.900145ms)
+✔ workout history rejects malformed, duplicate, foreign and out-of-period rows rather than claiming no records (0.535408ms)
+(node:469) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/workoutTimes.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 운동 시각은 날짜·분 단위·순서·한국 시간의 미래 여부를 검증한다 (2.024652ms)
+✔ 마지막 식사와 운동 구간의 선후를 계산하고 미기록은 추정하지 않는다 (0.400975ms)
+✔ 응답 유실 후 GET만 재확인하고 삽입을 반복하지 않는다 (7020.979567ms)
+✔ 다른 계정과 바뀐 revision은 성공으로 표시하지 않는다 (3.833471ms)
+(node:482) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/data/yeoniPreferences.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 연이 설정이 없거나 손상돼도 반복 움직임을 기본으로 켜지 않는다 (1.858081ms)
+✔ 기존 일본어의 숨김·정지 선택을 공통 설정의 초기값으로 보존한다 (0.270327ms)
+✔ 숨김·전체 정지·집중 화면은 홈 반복보다 우선하고 학습 반응은 반복하지 않는다 (0.220072ms)
+(node:490) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/aiBudget.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Gemini Flash-Lite token cost uses the conservative KRW rate (1.247361ms)
+✔ Gemini 3.7 Flash on-demand analysis uses current standard pricing (0.21209ms)
+✔ GPT-4o mini token cost is calculated independently (0.139931ms)
+✔ Chirp HD TTS includes every input character (0.13932ms)
+✔ standard TTS uses the lower character rate (0.119851ms)
+✔ pre-call estimate never becomes zero (0.190217ms)
+✔ 월 예산 보호 단계는 70%, 85%, 95%로 동작한다 (1.715046ms)
+✔ AI 사용량은 앱별로 안전하게 묶어 보여준다 (0.648718ms)
+✔ 앱별 사용량은 원본 프롬프트나 내용 대신 기능 범주만 사용한다 (4.225121ms)
+✔ 95% 유료 AI 중지 메시지는 실제 제한 이유를 보존한다 (0.38475ms)
+(node:498) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/aiProviderProtocol.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Gemini 구조화 출력은 REST enum MIME 형식을 사용한다 (2.272587ms)
+✔ Gemini 2.5 절약 모델에는 3세대 사고 수준을 보내지 않는다 (0.266993ms)
+✔ Gemini의 여러 답변 조각을 합치고 사고 조각은 제외한다 (0.410449ms)
+✔ AI 제공자 오류에서 안전한 상태와 설명만 추출한다 (4.900178ms)
+✔ 비정형 제공자 오류 본문은 로그용 설명으로 노출하지 않는다 (0.548547ms)
+✔ OpenAI 오류는 구체적인 code를 보존하고 비밀값과 추가 본문은 제외한다 (0.452002ms)
+(node:509) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/aiRouterPolicy.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 저비용 일반 분석은 Gemini 경량 모델로 연결한다 (1.338529ms)
+✔ 운동 코치 기능은 정밀 분석 모델로 일관되게 연결한다 (0.419763ms)
+✔ 일본어 회화와 이미지 평가는 OpenAI JSON 경로를 사용한다 (0.124438ms)
+✔ 기능별 출력 토큰 한도를 넘지 않도록 보정한다 (0.127202ms)
+✔ 85% 절약 모드에서는 운동 코치만 경량 Gemini로 전환한다 (0.201184ms)
+(node:516) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/assistantConversation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 저장된 대화는 최근 메시지만 안전하게 정리한다 (1.81726ms)
+✔ 서버 저장 대화가 있으면 클라이언트 임시 기록보다 우선한다 (0.251188ms)
+✔ 개인 기억은 모델에 전달할 짧은 목록으로 만든다 (0.30493ms)
+(node:517) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/assistantRecurrence.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 한국어 반복 표현을 반복 규칙으로 변환한다 (1.165818ms)
+✔ 반복 완료 시 다음 마감일을 계산한다 (0.61655ms)
+(node:530) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/assistantVoice.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 연이 답변을 짧고 자연스러운 음성 문장으로 정리한다 (1.587153ms)
+✔ 오류도 사용자가 이해할 수 있는 음성 안내로 바꾼다 (0.270308ms)
+✔ 한국어 여성 음성이 있으면 먼저 선택하고 없으면 한국어 기본 음성을 사용한다 (0.42451ms)
+(node:540) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/fitnessAiSnapshot.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI 운동 스냅샷은 최근 기록·운동 방식·세트 상세와 통증 정보를 정규화한다 (12.951589ms)
+✔ AI 운동 스냅샷은 미래·오래된 기록을 빼고 최근 28일만 전달한다 (8.765922ms)
+✔ AI 운동 스냅샷은 사용자가 바꾼 체중 목표와 7일 평균을 전달한다 (6.274081ms)
+(node:548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/googleCalendar.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 달력 칸에는 첫 Google 일정 제목과 나머지 개수를 보여준다 (1.354472ms)
+✔ 시간 일정 입력을 검증하고 Google 일정 형식으로 바꾼다 (0.53019ms)
+✔ 끝 시간이 시작 시간보다 빠르면 거부한다 (0.178268ms)
+✔ 종일 일정의 종료일과 월 경계를 정확히 계산한다 (0.611672ms)
+✔ UTC Google 일정을 서울 날짜와 시간으로 표시한다 (13.276379ms)
+✔ 제목과 시간이 같은 일정은 중복으로 판단한다 (0.305831ms)
+(node:556) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/oaReportParser.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 오아 OCR의 쉼표 소수점과 유사 문자를 숫자로 보정한다 (0.90854ms)
+✔ 소수점이 누락된 체지방률을 허용 범위로 복구한다 (0.163116ms)
+✔ 항목 허용 범위를 벗어난 OCR 값은 저장 후보에서 제외한다 (0.416628ms)
+(node:557) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/pinStatus.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ PIN status never treats failed or malformed responses as an unlocked account (7.843477ms)
+(node:569) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/queuedRefresh.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a mutation during a read waits for a fresh read instead of losing its refresh (1.148682ms)
+✔ a failed read releases the lock for retry (0.791744ms)
+(node:581) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/app/lib/workoutMethods.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 서킷은 동작 사이 짧게 쉬고 라운드 끝에는 설정한 만큼 쉰다 (1.821656ms)
+✔ 슈퍼세트는 운동을 두 개씩 묶어 반복한다 (0.309257ms)
+✔ 인터벌 설정은 안전 범위로 보정된다 (0.21831ms)
+✔ 일반 세트도 원본 순서와 계획 세트 수를 기록한다 (0.196025ms)
+✔ 휴식 0초 설정은 사용자의 선택을 유지한다 (0.143066ms)
+(node:582) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/ai-json.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI JSON 코드 블록과 앞뒤 설명을 안전하게 읽는다 (1.609096ms)
+✔ 끊긴 AI JSON은 추측으로 완성하지 않는다 (0.286362ms)
+(node:594) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/assistant-advice-intent.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unified chat recognizes advice scopes and preserves write/query commands (2.96471ms)
+(node:596) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/diet-photo-free-ai.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 무료 확인과 전용 키가 모두 있어야 하며 기존 유료 키로 대체하지 않는다 (1.94975ms)
+✔ 사진 형식과 무료 데이터 활용 확인을 검증한 뒤에만 외부 요청을 허용한다 (0.586394ms)
+✔ 사진 한 장을 무료 전용 Gemini에 한 번 전송하고 정규화된 추정값만 반환한다 (4.013271ms)
+✔ 무료 한도 오류에서 재시도·유료 전환 없이 직접 입력을 안내한다 (0.966938ms)
+✔ 연결·권한·모델 없음 오류의 원문을 노출하지 않으며 실패를 자동 재요청하지 않는다 (0.996352ms)
+✔ 잘린 답변·차단·잘못된 JSON을 정상 추정값으로 사용하지 않는다 (1.448794ms)
+(node:613) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/copy.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ copy lessons reduce scaffolds deliberately: blank body, four anchors, two anchors, blank page (2.291505ms)
+✔ the correction demonstration actually removes the low eye before replacing it (0.256557ms)
+✔ printing uses the starting scaffold and keeps the solution off the learner side (0.62371ms)
+✔ correction copies preserve source strokes, source reference and version through save/restore (8.157891ms)
+✔ remote packs with missing copy guidance or correction line pointers are rejected (111.562148ms)
+(node:621) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/gesture.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 18 gesture examples preserve independent snapshots and linked progressive frames (33.087951ms)
+✔ traced and free ink, direction choice and checks roundtrip independently; bad choices rejected (4.922101ms)
+✔ stage7 confirmation requires final direction checks on distinct examples (0.440514ms)
+✔ pose goals have distinct directions, bent sitting knees, two foot anchors and unchanged D59 skeleton (0.371951ms)
+(node:627) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/identity.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ character emotion variants preserve all unselected features and 28 complete linked targets (3.66091ms)
+✔ source picker excludes another owner, wrong family, unsaved/empty/paper and unrelated lesson (0.601086ms)
+✔ collection copy preserves source and survives source deletion without mutating snapshot (10.922859ms)
+✔ pose collection requires baseline, distinct lesson sources, final comparison and note (0.549859ms)
+✔ malformed choices, duplicate features and wrong source relations are rejected (7.941164ms)
+✔ one complete same-character collection advances D65 and confirms stage8 without forcing another mascot (1.686814ms)
+(node:628) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/memory.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ recall phases hide original including after saving and restoring; D33 starts hidden (42.123897ms)
+✔ memory hints never show eyes or ears; normal recall is blank (2.096491ms)
+✔ saved source supplies a snapshot but never copies or mutates old ink; foreign sources rejected (2.46775ms)
+✔ memory completion requires recall and comparison evidence and excludes copy fallback (0.610411ms)
+✔ unknown memory features or invalid lesson line links are rejected (42.544631ms)
+(node:645) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/model.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ authoritative 80 lessons retain 9-stage allocation and C01–C04 with reviewed examples (2.697207ms)
+✔ D01 has one start-only frame then six cumulative actions with no invented head or neck (0.571712ms)
+✔ malformed remote packs cannot replace the good pack (149.927702ms)
+✔ completion count alone, short practice and assisted confirmation never certify a stage (15.098517ms)
+✔ difficulty wins over a confident self check; no invented visual appraisal (0.631182ms)
+✔ restoring drawings rejects malformed photo, ink and lesson pointers before rendering (5.884473ms)
+✔ stage one alternates cover every taught line with distinct geometry and preserve old snapshots (1.628856ms)
+✔ stage one advances after two distinct self-confirmed examples, not repeated completions (1.349545ms)
+✔ construction examples separate guide geometry from finished outlines and validate saved part checks (42.872759ms)
+(node:653) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/original.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ all 80 lessons playable; all D71–D80 have two authored examples and connected dynamic diagrams (3.238253ms)
+✔ owner, motif, project and saved nonempty vector source filtering (2.894084ms)
+✔ two body candidates remain separate and downstream copies only selected body (0.726275ms)
+✔ own source snapshots survive original mutation/deletion and roundtrip without touching originals (7.998341ms)
+✔ coloring requires source copy and both chosen palette colors; source line art preserved (0.395346ms)
+✔ three expressions and poses, partial save gates, one character card confirms only a full self-check (4.842152ms)
+✔ cross-project, wrong lesson and duplicate source links cannot enter stored document (4.222667ms)
+✔ paper/external comparison requires explicit note and role, without claiming a vector collection (0.261705ms)
+(node:654) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/projects.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ project copies are private, saved vector sources and remain independent of the original (10.098507ms)
+✔ four sessions save in order, resume both faces and require comparison (4.844645ms)
+✔ editing an earlier session invalidates that session and its dependents, without erasing drawings (0.789881ms)
+✔ paper and external sessions require their own notes and never imply app vector evidence (0.393594ms)
+✔ project records do not reset or advance the basic curriculum recommendation (0.615267ms)
+(node:665) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/structure.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 20 structure examples have linked progressive frames and stable snapshot roundtrips (22.870987ms)
+✔ D46 copies saved analysis without editing source or assembly strokes; wrong sources rejected (7.263462ms)
+✔ both independent canvases, choice, source, checks and explanation survive saved JSON (3.7406ms)
+✔ stage6 completion and recommendation require final relationship checks on distinct examples (1.114911ms)
+✔ occlusion examples preserve hidden paths outside finished contours; directions mirror correctly (0.317769ms)
+(node:676) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/template-zip.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ZIP decoder reads original bytes and validates their SHA before any upload (23.016104ms)
+✔ truncated, encrypted and oversized archives fail closed (1.937196ms)
+✔ catalog contains 150 originals and exact lesson references; paths remain owner-scoped (1.208282ms)
+(node:689) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/drawing/variation.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ all variation targets change only declared lines and preserve baseline and saved snapshots (22.794761ms)
+✔ ear length and fold preserve attachment points; waving preserves the shoulder (0.268645ms)
+✔ changing choice preserves ink but resets old comparison and prevents premature completion (0.299972ms)
+✔ stage five and recommendation require both comparison checks on two distinct examples (0.736781ms)
+✔ unknown choices and dangling replacement paths are rejected; old lessons remain readable (40.699309ms)
+(node:695) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/free-advice.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ summary uses Seoul dates, excludes future/invalid dates, and preserves observed zero water (3.643354ms)
+✔ current curriculum and legacy learning days are combined without duplicate dates or private text (0.577171ms)
+✔ budget totals cover the complete 28 days, omit names/memos and reject invalid stored money (1.031135ms)
+✔ record loader selects only the owner and rejects errors or incomplete financial pages (2.419959ms)
+✔ provider needs explicit consent and both dedicated free settings; paid keys cannot enable it (1.076313ms)
+✔ free advice makes one bounded request with no tools or raw records (6.04891ms)
+✔ quota, network and incomplete output stop without retries, fallback or leaked errors (4.571693ms)
+✔ route validates authentication, literal actions, body fields and consent before reading records (136.847405ms)
+✔ preview does not call AI; analysis requires exactly the reviewed snapshot and real records (32.534977ms)
+✔ fixed example previews and generates without any account-record access, and cannot authorize real-record analysis (21.181008ms)
+✔ example provider prompt identifies fictional data and never describes it as the user's real records (3.847512ms)
+(node:705) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/free-mode.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy keys and environment switches cannot enable paid AI or reserve budget (112.633704ms)
+✔ ../app/api/tts/route.ts authenticates and rejects paid calls before provider or budget access (81.256077ms)
+✔ ../app/api/language/tts/route.ts authenticates and rejects paid calls before provider or budget access (31.370643ms)
+✔ ../app/api/claude/route.ts authenticates and rejects paid calls before provider or budget access (22.444694ms)
+(node:712) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/supabase-config.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ browser Supabase respects the complete isolated URL and anonymous-key pair (138.462139ms)
+✔ a configured publishable key takes precedence over the legacy anon key (139.715685ms)
+✔ a partially configured project fails instead of mixing credentials with the deployed default (240.600463ms)
+✔ with neither override the existing deployed public configuration remains available (122.629487ms)
+(node:718) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/syncQaTrace.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA requires explicit opt-in, a loopback host and development mode (1.359009ms)
+✔ real SDK GET/PATCH bodies, CAS rejection and confirmation GET are captured (77.134567ms)
+✔ holding actual SDK GET response allows a second client to win CAS before release (17.332826ms)
+✔ request hold sends nothing until release; post-response withholding records server commit separately (17.028286ms)
+✔ GET error simulation is distinguished from real HTTP and does not send a request (7007.54011ms)
+✔ auth, unrelated tables and different origins bypass capture and fault controls (0.639975ms)
+✔ Request bodies are cloned, sensitive fields omitted, abort cancels a held request (1.408944ms)
+✔ capture overflow is explicit and missing or differing confirmation is never a pass (0.859796ms)
+(node:735) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/cat-motion.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ every suspension reason independently stops motion (0.907689ms)
+✔ resting pose resets a closed blink and every transform (1.109623ms)
+✔ long running motion remains bounded and invalid clocks cannot corrupt the canvas (0.37172ms)
+(node:746) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/cat-warp.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cat neutral maps the entire source exactly onto itself (12.044981ms)
+✔ face eye, nose and mouth distances remain rigid at combined motion limits (0.355926ms)
+✔ neck and tail mesh cannot fold over at combined allowed extremes (15.243565ms)
+(node:770) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/character-controller.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ one controller delivers identical immutable semantic frames to independent render adapters without DOM (3.759299ms)
+✔ pause, end, wait, seek, error and every visibility gate close the mouth (0.419894ms)
+✔ media position, not idle clock, controls seeks, gaps and replacement clips (0.156746ms)
+✔ all twelve expressions preserve speech cues and immutable bounded frames (0.400014ms)
+✔ expression retargeting is continuous; disabled snapshots do not replay old blends (0.255436ms)
+✔ gestures are finite, replace instead of queue, and use the host animation clock (0.220152ms)
+✔ visibility/reduced-motion gates and reset cancel gestures permanently (0.217137ms)
+(node:785) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/human-warp.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ human neutral is identity and torso bottom remains anchored (2.219306ms)
+✔ all facial patch corners follow a single rigid head transformation (2.025263ms)
+✔ inverse mapping is continuous and accurate through head-body split and neck (47.419672ms)
+(node:801) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/lip-sync.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Korean visible phoneme groups and unknown phone rejection (1.293991ms)
+✔ Korean MFA IPA projection preserves vowel distinctions, length and rounding (0.174904ms)
+✔ silence, exact boundaries, backward seek, end and invalid media times (4.493205ms)
+✔ reject overlap, reversed/negative/nonfinite/overlong timing; never repair silently (0.339031ms)
+✔ reject malformed contracts, wrong voice/language and excessive inputs (0.25214ms)
+✔ validated timeline is copied and frozen against later caller mutation (0.187092ms)
+✔ audio and exact spoken text both bound to SHA-256; wrong pairs rejected (9.608528ms)
+(node:808) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/zephyr-playback.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ speech preserves numeric ranges before stripping Markdown (1.176003ms)
+✔ speech limits Unicode characters and discloses truncation without sending links (1.652231ms)
+✔ simultaneous buttons share one synthesis and cached replay sends no new requests (38.581504ms)
+✔ lost response cannot be synthesized again after cache loss or reload (13.620497ms)
+✔ a disabled or insufficient allowance sends no text and remains checkable (7.890879ms)
+✔ unavailable attempt storage fails before synthesis (5.005928ms)
+✔ provider failure or wrong voice is not retried and never falls back (15.8897ms)
+✔ audio is isolated by owner and month; cache eviction preserves attempt receipts (9.489759ms)
+✔ short workout audio survives reload and memory eviction without generating again (2.369723ms)
+✔ workout retention never retries a lost or corrupt response and tolerates a full audio store (2.824439ms)
+(node:817) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/app-wide-transactions.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ budget: a later SQL failure rolls back earlier entries and the receipt (2392.214094ms)
+✔ budget: retry after a lost response saves a mixed batch exactly once (29.595796ms)
+✔ budget: a receipt and its records cannot be read by a different owner (17.133685ms)
+✔ recurrence: failed next occurrence rolls back completion (39.159827ms)
+✔ recurrence: retries and undo/recomplete create one next item, with Korean date and month end (22.406075ms)
+✔ recurrence: another owner cannot complete or attach a child to this task (23.003897ms)
+✔ growth: a stale second routine rolls back the first change and decision (21.902054ms)
+✔ growth: selected changes and decision commit together; retry and changed selection are safe (20.815436ms)
+✔ growth: keep changes no routine, and a different owner cannot decide (23.744904ms)
+(node:823) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-budget-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ amount commands resolve one explicit date, merchant and integer without confusing merchant digits (3.493387ms)
+✔ uncertain amounts, missing dates, multiple changes and nonexistent dates do not become proposals (0.375175ms)
+✔ a budget draft restores exact reviewed values and rejects another owner or malformed amount (0.707497ms)
+✔ proposal selection refuses ambiguous and foreign currency records without mutation (21.960844ms)
+✔ apply uses the reviewed original and returns the same saved receipt on repeat without a second mutation (9.475823ms)
+✔ expired new requests and changed owners/currency never mutate; expired saved requests only read the receipt (11.476504ms)
+✔ failed history lookup is not absence; changed-record RPC error is reported and cannot become success (7017.956035ms)
+✔ request collisions cannot report unrelated receipts as this change (2.18176ms)
+(node:836) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-command-drafts.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ draft reload preserves the exact request and attempted state, including expired ambiguous requests (1.753414ms)
+✔ another account cannot restore a previous account draft (0.216697ms)
+✔ missing draft is empty; malformed JSON and invalid shape report a restore failure (0.508307ms)
+✔ unrenderable or oversized drafts fail rather than crashing a review (0.369797ms)
+(node:853) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-diet-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ water replaces the reviewed total in both stores, preserves all meals and nutrition, and undoes exactly (2625.252201ms)
+✔ a lost response retry remains readable after expiry and never adds water twice (191.429015ms)
+✔ memo appends literal text once without food inference or rewriting the water store (38.908548ms)
+✔ water accepts zero and updates only the derived water flag at the 2000mL boundary (60.401766ms)
+✔ water store and summary disagreement is shown and restored without discarding either value (40.598636ms)
+✔ concurrent stale requests have one winner and the rejected memo cannot overwrite water (36.540777ms)
+✔ history insertion failure rolls back both water stores (31.802132ms)
+✔ changes to other dates and settings survive apply and undo (31.744005ms)
+✔ later same-day meal edits block undo and preserve the new record (27.859347ms)
+✔ absent keys, empty records, and empty memos round-trip without inventing any meal facts (96.153563ms)
+✔ legacy JSON strings retain all dates and keep their representation type (48.484708ms)
+✔ malformed stores and records fail closed without erasing data (98.9239ms)
+✔ oversized or malformed old memos are preserved and cannot be silently replaced (47.78363ms)
+✔ date, expiry, invalid values, extra fields and changed request IDs cannot mutate records (53.809415ms)
+✔ RLS isolates owner histories and anonymous requests have no access (32.505583ms)
+✔ diet reset removes history and blocks old confirmations (50.493706ms)
+✔ assistant reset removes history and blocks old confirmations (52.835777ms)
+✔ Auth account deletion cascades without application grants for the Auth role (38.328123ms)
+✔ parser requires explicit total or literal memo and rejects questions, increments, past dates and conditions (28.593154ms)
+✔ draft recovery retains the owner and exact request, rejecting malformed dates, changes and snapshots (42.679824ms)
+(node:860) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-diet-meal-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ lunch protein keeps unrelated fields, mirrors review and restores exactly (2565.82947ms)
+✔ lunch rice keeps unrelated fields, mirrors review and restores exactly (44.51002ms)
+✔ dinner protein keeps unrelated fields, mirrors review and restores exactly (49.089018ms)
+✔ dinner rice keeps unrelated fields, mirrors review and restores exactly (52.494263ms)
+✔ zero clears only the selected meal amount and derives the remaining total (42.442547ms)
+✔ a first record never invents a meal time, other meals, rice type or completion (28.518691ms)
+✔ string stores and legacy numeric supplements survive save and exact semantic undo (28.295755ms)
+✔ legacy numeric and named rice records can be explicitly replaced without inventing their type (29.526701ms)
+✔ stale meal, supplement, rice, social and aggregate snapshots cannot overwrite changes (49.855884ms)
+✔ later same-day edits block undo while unrelated dates stay intact (43.970241ms)
+✔ inconsistent stored totals stop protein writes instead of discarding unknown intake (43.102401ms)
+✔ malformed existing food measurements fail closed in TypeScript and SQL (58.137802ms)
+✔ invalid grams and unexpected payload fields cannot mutate data via direct RPC (28.65059ms)
+✔ expired, future, prior date and reused request payloads are rejected (44.486938ms)
+✔ lost-response retry stays idempotent after expiration (181.208342ms)
+✔ a receipt failure rolls back meal details and both protein totals together (40.783014ms)
+✔ reset deletes history and invalidates an outstanding meal proposal (45.483612ms)
+✔ RLS hides receipts and rejects another owner undo (41.545744ms)
+✔ anonymous callers have no meal write privileges (43.931432ms)
+✔ bounded grammar recognizes direct meal grams and rejects inference or added amounts (53.082169ms)
+✔ meal drafts preserve scope, owner and expiry; old diet snapshots remain unchanged (42.423777ms)
+(node:877) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-diet-time-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ confirmed clock synchronizes four stores and exactly restores legacy raw clock without changing fasting completion (2702.875007ms)
+✔ JSON scalar fasting format preserves previous dates and restores exact original value (108.121179ms)
+✔ object map fasting format preserves previous dates and restores exact original value (82.872734ms)
+✔ JSON map fasting format preserves previous dates and restores exact original value (33.143064ms)
+✔ empty fasting format preserves previous dates and restores exact original value (61.06749ms)
+✔ first record adds only clock facts and removes newly created keys on undo (39.96468ms)
+✔ string date stores keep their representation and other dates after undo (63.701596ms)
+✔ stale summary, meal, dinner and global fasting confirmations never overwrite later edits (48.207289ms)
+✔ undo protects later global clocks including another day (54.934582ms)
+✔ unrelated dated records added later survive undo (30.786851ms)
+✔ malformed existing clocks and stores fail closed consistently (78.53604ms)
+✔ invalid clock, missing fields and extra payload fields cannot write through RPC (52.936479ms)
+✔ future, expired, far-future expiry and non-today requests fail without mutation (58.465306ms)
+✔ lost-response retries stay idempotent after expiry and reject request reuse (211.795036ms)
+✔ receipt insert failure rolls all four writes back (72.0042ms)
+✔ reset invalidates proposals and receipts (76.285467ms)
+✔ owner isolation and anonymous permissions protect clock writes and receipts (74.502277ms)
+✔ explicit 24-hour grammar rejects inferred, multi-action and other-day times (46.830152ms)
+✔ clock validation compares KST date at minute boundaries without inferring fasting success (37.361555ms)
+✔ time drafts recover safely; water and meal snapshot shapes remain isolated (35.200156ms)
+✔ legacy display reads scalar and date map, and never reuses a different dated entry (34.680282ms)
+(node:889) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-growth-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ confirmation stores only the completion fact, atomically journals it, retries once and restores every original row (3397.936848ms)
+✔ explicit actual minutes are distinct from planned minutes; upper input boundary is supported (114.703649ms)
+✔ ledger failure rolls back the session and allows the same request to retry (165.010037ms)
+✔ separately confirmed requests cannot both complete the same routine and date (87.033341ms)
+✔ existing completed, partial and stopped sessions remain byte-for-byte unchanged (87.436049ms)
+✔ changed routine names, plans and schedules invalidate confirmation even without an updated timestamp (68.724234ms)
+✔ other routines and dates can change before and after confirmation and survive undo (114.12771ms)
+✔ editing the command session blocks undo and preserves that edit (45.698035ms)
+✔ a later additional session in the same routine blocks undo without deleting either (57.524452ms)
+✔ routine deletion detaches the session and undo refuses to delete the detached record (59.110579ms)
+✔ missing app state remains absent after apply and undo (40.70742ms)
+✔ expiry, dates, invalid minutes, unexpected fields and reused IDs cannot create extra sessions (94.408953ms)
+✔ an expired committed request still returns its original receipt and never duplicates a session (69.519103ms)
+✔ owners and anonymous users cannot read or undo one another’s commands (69.268495ms)
+✔ growth reset removes history and invalidates pending confirmations (41.656521ms)
+✔ assistant reset removes history and invalidates pending confirmations (41.776502ms)
+✔ deleting an Auth account cascades receipts with the restricted Auth role (65.661937ms)
+✔ parser accepts one explicit today completion and optional real minutes (39.774403ms)
+✔ exact routine names take precedence; ambiguous aliases, retired and disabled routines are rejected (31.755261ms)
+✔ draft recovery preserves the request and rejects other accounts, malformed records and dates (47.901929ms)
+(node:901) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-language-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atomic completion records both keys, preserves old days/settings, retries once, and undo restores exact original values (2869.74615ms)
+✔ history insert failure rolls back the learning record and same request remains retryable (65.176481ms)
+✔ two stale proposals cannot replace learning completed since review (51.426148ms)
+✔ later settings are preserved by apply and undo; later learning blocks undo without partial changes (65.751231ms)
+✔ missing row and missing keys are supported, and undo removes only newly created record keys (60.77603ms)
+✔ object-valued records are supported and progress/history discrepancies retain every completed routine (68.812858ms)
+✔ malformed JSON or completion lists cannot erase old records (62.867574ms)
+✔ expired/cross-day/already-completed/invalid requests fail without a write (68.124289ms)
+✔ RLS protects another owner and anon has no command or history access (61.045386ms)
+✔ language reset removes snapshots and invalidates all earlier pending commands (63.817872ms)
+✔ assistant reset removes snapshots and invalidates all earlier pending commands (74.182945ms)
+✔ Auth admin account deletion cascades snapshots without permission on application history (68.370071ms)
+✔ ambiguous, negated and non-today language commands do not become completion proposals (31.288297ms)
+✔ language drafts recover same request only for their owner and reject malformed snapshots (22.121245ms)
+(node:909) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-task-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ confirmation creates one task and durable before/after receipt; lost-response retries do not duplicate (3236.297877ms)
+✔ failure saving history rolls back the task and allows the same confirmed request to be retried (64.253053ms)
+✔ update receipt preserves unrelated fields; undo restores values, remains in history and cannot execute again (94.946334ms)
+✔ two stale sessions cannot overwrite a task or undo later edits even if updated_at was not changed (55.849642ms)
+✔ undoing an untouched addition removes only that task and retains the undo receipt (76.706916ms)
+✔ an existing next recurrence prevents deletion when undoing an addition (62.397325ms)
+✔ other owners cannot read, update, undo or link another owner’s project (89.718525ms)
+✔ expired proposals, invalid fields and an unauthenticated role cannot create tasks (86.553247ms)
+✔ assistant reset clears snapshots and rejects pre-reset pending additions without touching another user (79.444089ms)
+✔ account deletion cascades command snapshots (65.516708ms)
+✔ Korean command dates preserve the reviewed date across month/year boundaries and reject invalid dates (69.236086ms)
+✔ completion is atomic and idempotent and undo restores the exact parent before addition undo (74.845425ms)
+✔ daily weekly monthly and no-date waiting tasks create one next occurrence and restore exactly (190.162824ms)
+✔ modified or missing next occurrence blocks completion undo and preserves the newer records (133.672795ms)
+✔ completion refuses stale snapshots, cancelled tasks, preexisting recurrence, changed requests and expired confirmations (87.283639ms)
+✔ history failure rolls back completion and its next occurrence (83.841969ms)
+✔ completion enforces ownership, authentication and reset markers (78.718455ms)
+✔ completion parser requires a direct request and preserves titles without guessing (38.177776ms)
+(node:925) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-workout-cardio-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cardio changes only its three fields, preserving stopped workouts, pain, actual sets, notes, plans and other dates (3958.365346ms)
+✔ retry and undo are idempotent and an already matching value produces no extra receipt (142.391417ms)
+✔ a ledger failure rolls back the state and the identical request can retry (100.166884ms)
+✔ two reviewed requests cannot overwrite each other (71.775005ms)
+✔ new settings and records on other dates survive apply and undo (138.93701ms)
+✔ later same-date safety edits block both stale confirmation and undo (117.569044ms)
+✔ missing stores, empty dates and legacy booleans restore exactly without invented exercise details (209.363115ms)
+✔ legacy JSON string stores keep their format and all dates through save and undo (128.788552ms)
+✔ malformed stores and cardio values fail without changing any record (159.859631ms)
+✔ database rejects unsupported kinds, types, extra fields and out-of-range or fractional minutes (105.617884ms)
+✔ expired requests, different dates and changed reset markers fail before saving (38.191767ms)
+✔ fitness reset clears cardio receipts and rejects pending requests (113.572273ms)
+✔ assistant reset clears cardio receipts and rejects pending requests (82.948803ms)
+✔ RLS, owner checks and anonymous grants isolate cardio records and receipts (74.68992ms)
+✔ Auth deletion cascades cardio receipts without Auth application permissions (66.992303ms)
+✔ old completion and cardio commands share ordering protection and undo in reverse order (89.997381ms)
+✔ supported explicit total commands accept every existing type without guessing exercise location (75.235723ms)
+✔ questions, conditions, negatives, additions, vague types, durations and other days are rejected (60.76285ms)
+✔ description distinguishes missing completion and zero from an actual completed cardio record (74.974759ms)
+✔ cardio drafts preserve owner and payload across recovery while old completion drafts remain valid (62.135149ms)
+✔ proposal checks the database capability without applying records and reports pending migration clearly (65.257548ms)
+✔ read-only database validation failures do not produce a confirmable proposal (59.199292ms)
+✔ available cardio validation produces the exact reviewed proposal and skips unchanged values (37.28478ms)
+(node:937) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-workout-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completion is atomic and idempotent, preserves other records and custom plans, and never invents performed sets or pain answers (4170.150407ms)
+✔ a ledger failure rolls back the workout and the same request is retryable (84.296666ms)
+✔ two reviewed requests cannot both complete the same day (71.090553ms)
+✔ later changes on other dates and settings survive both apply and undo (65.894928ms)
+✔ later edits on the same date block undo, even when only cardio changed (60.416118ms)
+✔ partial, stopped, pain, actual sets, and unknown workout fields never become completed (126.751399ms)
+✔ missing state, absent dates and legacy false values are reversible (68.636482ms)
+✔ legacy JSON string stores retain every date and remain strings (54.758146ms)
+✔ malformed records fail without erasing saved data (71.85189ms)
+✔ expiry, date changes, reused IDs, and already completed records cannot create extra writes (45.240214ms)
+✔ RLS and anonymous grants isolate each owner and their receipts (83.552634ms)
+✔ fitness reset erases snapshots and rejects older pending requests (99.065144ms)
+✔ assistant reset erases snapshots and rejects older pending requests (74.04043ms)
+✔ Auth account deletion cascades history without granting the Auth role application permissions (82.444993ms)
+✔ only explicit today completion is accepted; details, questions and conditions require the workout UI (29.260991ms)
+✔ workout draft recovery keeps the request and owner, rejecting malformed dates and snapshots (70.935178ms)
+(node:949) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/assistant-workout-feedback-command.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ feedback parser accepts explicit one-field records and rejects mixed or guessed values (4390.100704ms)
+✔ feedback apply is atomic, repeat-safe, and undo restores complete original snapshot (216.395618ms)
+✔ all direct feedback fields match SQL, preserving sets; partial status and pain have explicit flags (221.883653ms)
+✔ stale record and later changes block write or undo (96.69524ms)
+✔ expired, other-day, forged fields, and failed ledger insert leave original unchanged (96.591383ms)
+✔ owner RLS keeps histories and source rows private (111.042257ms)
+(node:957) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/budget-categories.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ amount batch changes only that field, records original scalar values and restores nullable legacy rows (5227.438347ms)
+✔ date batch changes only that field, records original scalar values and restores nullable legacy rows (77.390852ms)
+✔ payment batch changes only that field, records original scalar values and restores nullable legacy rows (90.455191ms)
+✔ place batch changes only that field, records original scalar values and restores nullable legacy rows (61.506301ms)
+✔ memo batch changes only that field, records original scalar values and restores nullable legacy rows (33.699403ms)
+✔ field batch and undo roll back every row when another field changes in either session (53.714573ms)
+✔ field edits reject foreign owners, anonymous callers and deleted-row undo (41.597352ms)
+✔ malformed and oversized field requests never leave a transaction or history change (60.644692ms)
+✔ category batch and memory commit together; repeat/undo preserve all original fields including nulls (44.803226ms)
+✔ stale second row rolls back the first category, memory and receipt (19.583909ms)
+✔ undo never overwrites a newer record or remembered category; failures roll back all rows (29.07492ms)
+✔ deleted rows cannot be resurrected by category undo; reset clears history and retains rules as settings (48.149271ms)
+✔ owner RLS, composite foreign keys and anonymous function grants reject cross-account actions (24.484188ms)
+✔ invalid category, duplicate rows, missing expected record and invalid memory key do not commit (36.675024ms)
+(node:973) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/budget-payment-plans.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ plan create/update/delete retries preserve later changes and cannot resurrect deleted settings or change expenses (4992.889874ms)
+✔ exact merchant identity prevents duplicate plans but keeps different branches; owner RLS and invoker grants protect both tables (36.216689ms)
+✔ invalid plans roll back both setting and receipt; real dates, whole amounts and bounded inputs are enforced (55.786377ms)
+✔ per-owner limit is checked atomically; deleting a plan makes room without erasing receipt recovery (240.905178ms)
+(node:985) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/chatgpt-connection.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ OAuth exchanges PKCE once, stores no raw secrets, and exposes only allowed aggregate numbers (4791.216797ms)
+✔ wrong PKCE, redirect, client and audience cannot redeem or burn a valid authorization code (69.178309ms)
+✔ reused authorization code revokes the issued capability (82.694499ms)
+✔ refresh rotates once; reuse revokes every token in that connection (149.335803ms)
+✔ expired code, access token and grant are refused (90.435081ms)
+✔ owner connection revoke takes effect immediately and another owner cannot revoke it (66.270364ms)
+✔ session revocation, account banning, and anonymous login block ongoing access (100.746338ms)
+✔ requested scopes and consented areas are enforced for all tools and cannot be widened by arguments (60.564801ms)
+✔ advice saves atomically with its source snapshot and identical retries do not duplicate (92.164829ms)
+✔ other users cannot read advice, attach foreign snapshots, or insert arbitrary advice through REST (97.476338ms)
+✔ changed records reject stale analysis; a fresh snapshot can be saved (135.831561ms)
+✔ snapshot expiry and a failed save leave no successful receipt; the same request can be retried (139.75672ms)
+✔ record reset removes derived advice and invalidates tokens and pending snapshots (93.963711ms)
+✔ account deletion cascades advice, connection credentials and snapshots (93.629298ms)
+✔ fitness, diet, language and task summaries tolerate missing records and count only known activity (143.768328ms)
+✔ anonymous callers cannot authorize, enumerate grants or read private tables (130.881587ms)
+✔ discovery uses a fixed issuer, PKCE and the verified ChatGPT callback; production stays disabled (67.619429ms)
+✔ actual SDK transport initializes, advertises three scoped tools and refuses invalid arguments before execution (89.886584ms)
+(node:993) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/diet-favorites-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 소유자가 저장·조회하며 같은 이름과 ID는 중복 삽입되지 않는다 (4419.192893ms)
+✔ 다른 계정은 조회·삭제할 수 없고 남의 소유자로 삽입하지 못한다 (5.13941ms)
+✔ 인증 계정의 직접 덮어쓰기·소유권/생성 시각 변경 및 비로그인 접근 차단 (10.527744ms)
+✔ 서버에서도 잘못된 이름·음수·과량·저녁 보충 수치를 거부한다 (10.517789ms)
+✔ 소유자 삭제 후 원본 하루 기록은 그대로이며 계정 삭제는 즐겨찾기만 연쇄 정리 (10.093349ms)
+(node:1009) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/drawing-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ atomic private drawing, owner readback, CAS, snapshot preservation and other-account isolation (4488.499397ms)
+(node:1021) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/growth-resource-usage-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 기존 행의 파일·분류·생성 시각은 그대로이고 활용일만 미기록으로 추가된다 (4251.469401ms)
+✔ 소유자는 활용일을 저장하고 미기록으로 되돌릴 수 있다 (13.99015ms)
+✔ 미래·잘못된 날짜와 범위 밖 날짜는 DB에서도 차단한다 (12.167577ms)
+✔ 오래된 화면은 다른 세션의 날짜·메모 변경을 덮어쓰지 못한다 (7.116241ms)
+✔ 다른 계정과 비로그인 사용자는 자료를 읽거나 활용일을 변경하지 못한다 (7.878259ms)
+✔ 활용일 권한 추가가 파일·소유자·생성 시각 변경이나 다른 루틴 연결을 허용하지 않는다 (12.990547ms)
+(node:1033) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/growth-schedule-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 마이그레이션은 기존 루틴을 매일·주 7회로 보존한다 (3341.257276ms)
+✔ 소유자는 새 일정 열만 갱신하고 다른 사용자는 원본을 바꾸지 못한다 (5.560745ms)
+✔ 빈 요일·중복·허용 범위 밖 요일·요일 수보다 큰 목표를 거부한다 (18.382067ms)
+(node:1045) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/navigation-diagnostics.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ navigation diagnostics never export tokens, arbitrary paths or exception text (1.019488ms)
+✔ page errors preserve only fixed failure categories and route labels (14.687296ms)
+✔ navigation diagnostics bound evidence and detach before intentional cleanup (0.70969ms)
+(node:1053) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/request-probe.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ passive HTTP observer sees real receipt and completion without leaking query, cookies or bodies (93.503738ms)
+✔ native output is classified into fixed labels and raw secrets are discarded (7.325105ms)
+✔ network library evidence verifies mapped bytes without exporting process paths or environment (3.15646ms)
+(node:1061) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/review-focus.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review focus respects due dates, interest track and explicit help/error evidence without changing source (1.990932ms)
+✔ manufacturing lessons have separate IDs, readings and valid unambiguous answer choices (0.37177ms)
+(node:1069) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/route-drain.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ route teardown waits for every pending response, not just the first completion (1.728116ms)
+✔ a response that arrives while draining also finishes before interceptor removal (0.194424ms)
+✔ a routing failure remains an error while pending cleanup is still released (0.485572ms)
+(node:1075) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/workout-times-migration.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 계정별 하루 한 구간을 저장하고 중복 삽입은 거부한다 (3489.719682ms)
+✔ 다른 계정 조회·수정·삭제와 위조 소유자 삽입은 차단한다 (5.489007ms)
+✔ 서버가 미래·역순·잘못된 시각·소유권 및 날짜 변경을 거부한다 (12.217431ms)
+✔ 검토 후 다른 변경이 있으면 오래된 수정과 삭제가 새 값을 보존한다 (8.752156ms)
+✔ 삭제 후 다시 생성한 구간을 오래된 요청으로 지우지 않고 원본 운동 데이터도 유지한다 (9.546624ms)
+✔ 운동 초기화 표식만 해당 계정의 시각을 지우고 식단 초기화는 보존한다 (8.690914ms)
+(node:1076) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/zephyr-free-guard.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ disabled switch, absent/wrong key, missing month, unverified pool and unauthenticated calls never reach Google (3317.94822ms)
+✔ successful Unicode request commits four characters first; replay never generates again; status is reservation count, not cost (95.578727ms)
+✔ lost-grant never refunds committed allowance or retries an ambiguous provider call (76.094117ms)
+✔ google-network never refunds committed allowance or retries an ambiguous provider call (45.907631ms)
+✔ google-http never refunds committed allowance or retries an ambiguous provider call (43.848526ms)
+✔ bad-audio never refunds committed allowance or retries an ambiguous provider call (43.500812ms)
+✔ expired-grant never refunds committed allowance or retries an ambiguous provider call (46.998555ms)
+✔ wrong-grant never refunds committed allowance or retries an ambiguous provider call (43.922508ms)
+✔ shared monthly cap rejects an overshoot across users; daily and rapid repeats also fail before generation (42.022743ms)
+✔ expired verification, month boundary safety window and old month approval never renew automatically (32.829131ms)
+✔ receipts survive account deletion and cannot be reused by another account or in another month (33.452461ms)
+✔ untrusted roles cannot read, configure, reserve, refund or erase receipts; incomplete or oversized approval is rejected (52.006097ms)
+✔ body limits, missing request IDs, malicious character counts and user IDs cannot cross trust boundaries (27.816754ms)
+(node:1093) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/tests/zephyr-probe.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ only the selected Preview branch, authenticated owner and configured key can reach the provider (3246.956373ms)
+✔ exactly three 61-character calls are available; concurrent repeats and arbitrary IDs cannot add calls (105.096417ms)
+✔ lost-grant: no refund or automatic provider retry (54.794742ms)
+✔ stale-grant: no refund or automatic provider retry (48.650387ms)
+✔ network: no refund or automatic provider retry (44.947263ms)
+✔ http: no refund or automatic provider retry (33.134081ms)
+✔ audio: no refund or automatic provider retry (41.674007ms)
+✔ expired/absent grants and altered text never generate; account deletion retains consumed slots (46.990744ms)
+✔ normal roles cannot read or consume grants; service role cannot add a fourth slot, reset expiry or delete receipts (40.195628ms)
+ℹ tests 696
+ℹ suites 0
+ℹ pass 696
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23920.373064

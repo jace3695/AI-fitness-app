@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-01",
+  "scope": "Human A v4 static source-preserving asset preparation and comparison viewer; not motion or speech validation.",
+  "runtimeCommit": "e3a55019ae501b15bb8b67137e57085b5cdac13c",
+  "sourceOriginalSha256": "086109dd5bdfa452247020885209559d266438d4aae79715988f298802bcc984",
+  "ci": {
+    "runId": 36796485345,
+    "url": "https://github.com/jace3695/AI-fitness-app/actions/runs/36796485345",
+    "humanRigJobId": 110160996809,
+    "artifactId": 11133882825,
+    "artifactBytes": 8175030,
+    "artifactSha256": "c372bb26688d19e70953b13177bb75ebfd3ecfea9d4ce63553f2bba467592d60",
+    "artifactHashVerified": true,
+    "allSixJobsPassed": true,
+    "unitTestsPassed": 693,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "repackAndExportGitDiff": "clean"
+  },
+  "browserResults": {
+    "chromium": {
+      "version": "153.0.8010.12",
+      "checksPassed": 7,
+      "expressionStates": 21,
+      "opaquePixels": 1072095,
+      "opaquePixelsChanged": 0,
+      "neckSeamPixelsChanged": 0,
+      "allStatesOpaqueDifferenceZero": true,
+      "allStatesOutsidePatchDifferenceZero": true,
+      "runtimeErrors": [],
+      "externalRequests": []
+    },
+    "webkit": {
+      "version": "26.6",
+      "checksPassed": 7,
+      "expressionStates": 21,
+      "opaquePixels": 1072095,
+      "opaquePixelsChanged": 0,
+      "neckSeamPixelsChanged": 0,
+      "allStatesOpaqueDifferenceZero": true,
+      "allStatesOutsidePatchDifferenceZero": true,
+      "runtimeErrors": [],
+      "externalRequests": []
+    }
+  },
+  "intentionalImageChanges": {
+    "opaqueOriginalRgbPreservedPixels": 1072095,
+    "fullyTransparentPixels": 450895,
+    "semitransparentEdgePixels": 49874,
+    "policy": "Background alpha changed; decontaminated generated color used only for partial outer edges. Opaque face and clothing RGB copied from approved original. Whole-image pixel equality is not claimed."
+  },
+  "manualReview": {
+    "reviewer": "assistant",
+    "evidence": "Downloaded actual CI browser screenshots; original A side-by-side at matching scale.",
+    "bothBrowsers": [
+      "All 21 eye/mouth CSS composites versus original",
+      "Full portrait",
+      "Face close-up",
+      "50 percent original overlay",
+      "Dark backdrop"
+    ],
+    "additionalWebKit": [
+      "390px mobile",
+      "Script-blocked sandbox iframe"
+    ],
+    "findings": "No observed face proportion change, eye/mouth drift, duplicate facial contours, rectangular patch boundaries, or static neck gap in inspected captures. Original fine hair and garment shapes retained.",
+    "issueFixed": "Initial pale lavender hair fringe on dark background was reduced by using decontaminated RGB only for semitransparent outer-edge pixels. Final dark captures directly inspected.",
+    "limitations": "Static captures only; human motion, physical iPhone, user ChatGPT surface and speech naturalness are not verified."
+  },
+  "motionPrerequisites": {
+    "status": "not-motion-validated",
+    "sharedNeckBand": [
+      632,
+      816
+    ],
+    "splitY": 740,
+    "independentRigidHeadRotation": false,
+    "note": "Use shared continuous deformation and validate small motion before accepting pivot/joint limits."
+  },
+  "userApproval": {
+    "catMotionV3": "2026-10-01 09:14 KST user confirmed",
+    "humanReferenceV3": "Previously confirmed static appearance",
+    "humanRigV4": "Prepared for user review; no new user approval inferred",
+    "actualSpeechListening": "deferred"
+  },
+  "progress": {
+    "functionalStagesComplete": [
+      1,
+      2,
+      3,
+      4,
+      6
+    ],
+    "totalStages": 16,
+    "current": "PHASE 7 static assets prepared; motion suitability remains to be checked with PHASE 8",
+    "next": "Common Controller human blink/breath/small head motion and neck continuity; PHASE 9 saved speech later"
+  },
+  "newTtsRequests": 0,
+  "productionMerged": false,
+  "productionDeployed": false,
+  "files": [
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/dark.png",
+      "sha256": "8d3167c721810a49af0ef481b5d5a8b282231c00d8dada139cb77a02746f23ed",
+      "bytes": 445740
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/face.png",
+      "sha256": "45e42585c9ecd14496514a1287d009139f5bf86b5df0438ec459306c305cc088",
+      "bytes": 227471
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/faces-eyesClosed.png",
+      "sha256": "f8c682c2ca4f020b84b7ba563325fbb760ca49870971fc20e7aa872fb3fdb6ad",
+      "bytes": 402369
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/faces-eyesHalf.png",
+      "sha256": "4aa947dfda284bcdac56596b60dd3549b1e4d918b5e57d3d1c6dded8674350be",
+      "bytes": 404849
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/faces-open.png",
+      "sha256": "a358e4dc63e8f8372acadc38f398026c98460a40a56c7d74239bca16f44ffc45",
+      "bytes": 382394
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/full.png",
+      "sha256": "8f2beac87beb4f9e179188a20497d1c6ce274eec412abf4b346e9a0bd6639a85",
+      "bytes": 443603
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/mobile-320.png",
+      "sha256": "bba8d2b1d40c368e675f2a6c266308f0c0da1a064312f9d4f352e1ff8f7cfbd4",
+      "bytes": 343873
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/mobile-390.png",
+      "sha256": "fc0456295e28c2076a7b7ebd4cf7741cb88965200843f177777ab9ffe4aa612a",
+      "bytes": 489986
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/overlay.png",
+      "sha256": "5b9594a2020708cc02811901401b0bb82ccc1b842ccb9de609d06941b26acce9",
+      "bytes": 311346
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/results.json",
+      "sha256": "a313cde00cc99729b0ca33260768039b82d2fd7bf8c670b467511a3c13fb14b5",
+      "bytes": 4178
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/chromium/sandbox.png",
+      "sha256": "b7ac941c6848eaa15c19d438aad8ce2f35c0af64c5795a4771ea90e84035c729",
+      "bytes": 452979
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/ci-jobs.json",
+      "sha256": "85af8a86560806403df8d56fc02cea61b2d6d2d43a1337a770b9cd570d401c8a",
+      "bytes": 745
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/dark.png",
+      "sha256": "45ebaa3054b543b4debcf4e95b73d62bbfac3a8087cc92d784f65f72586b687a",
+      "bytes": 517949
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/face.png",
+      "sha256": "0673521e1da0bbbdc0b03d5bf651f8d459739bcfc17932ea255902a0ae8ce7b0",
+      "bytes": 257721
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/faces-eyesClosed.png",
+      "sha256": "e518f935347808de34f92e8fa6a5c7e819029aa37abe2e3792566a998e290f21",
+      "bytes": 462078
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/faces-eyesHalf.png",
+      "sha256": "1b872f2978399bcbe8e8458575d853d644cc3027d2db5b7b49bdde0dc8c56c31",
+      "bytes": 464741
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/faces-open.png",
+      "sha256": "13e35c70eb5281c175fb5432d6d5ea95437602874dd028137282e46a81a48ebc",
+      "bytes": 439458
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/full.png",
+      "sha256": "eca6446740fb31707d25c4775914c408652629a358300e041f97fbfd226d7213",
+      "bytes": 517919
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/mobile-320.png",
+      "sha256": "887f43077df46dbe771277a831eae0da1a56d76cb189eb2a991cdbd7800a33ed",
+      "bytes": 386774
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/mobile-390.png",
+      "sha256": "1bbf43a08a7aa44880f17d6fd6bd5efb8df974595b34b0df4cc0049a37efabca",
+      "bytes": 552882
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/overlay.png",
+      "sha256": "4b87b9409b83e98b73423902847f432db5dc4287686832fb91730ee61c0072b7",
+      "bytes": 257936
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/results.json",
+      "sha256": "b4c70ac03e322adbd94854ed8bffe9448ddf0494c76e8a422161dd43c1dc4fe4",
+      "bytes": 4167
+    },
+    {
+      "path": "docs/yeoni-phase7/rig-v4/evidence/webkit/sandbox.png",
+      "sha256": "5d260343bd49db06f8af898c0dab14488e630ba91bcc321de58600e828e2be7b",
+      "bytes": 527272
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { adviceSpokenText, buildReplyPlan } from '@/lib/yeoni/reply-plan';
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { buildExampleAdviceContext, isFreeAdviceScope } from "@/lib/free-advice-context";
 import { loadFreeAdviceContext } from "@/lib/free-advice-records";
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
     if (body.fingerprint !== fingerprint) return reply({ error: "기록이 바뀌었어요. 최신 기록을 다시 확인한 뒤 조언을 요청해 주세요.", code: "FREE_ADVICE_RECORDS_CHANGED" }, 409);
     if (context.recordCount === 0) return reply({ error: "아직 분석할 기록이 없어요. 이 분야의 기록을 서버에 저장한 뒤 다시 이용해 주세요.", code: "FREE_ADVICE_NO_RECORDS" }, 422);
     const advice = await generateFreeAdvice({ context, question: question || "이 기록을 바탕으로 오늘 할 수 있는 행동을 조언해 줘.", acknowledged: true });
-    return reply({ advice, context, source: "free-gemini", model: FREE_GEMINI_MODEL, generatedAt: new Date().toISOString() });
+    return reply({ advice, performance: buildReplyPlan(adviceSpokenText(advice), crypto.randomUUID()),
+      context, source: "free-gemini", model: FREE_GEMINI_MODEL, generatedAt: new Date().toISOString() });
   } catch (error) {
     if (error instanceof SyntaxError) return reply({ error: "요청 형식을 확인해 주세요." }, 400);
     if (error instanceof FreeAdviceError) return reply({ error: error.message, code: error.code }, error.status);

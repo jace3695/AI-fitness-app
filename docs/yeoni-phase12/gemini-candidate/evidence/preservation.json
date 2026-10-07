@@ -1,0 +1,91 @@
+{
+  "files": [
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+      "sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json",
+      "sha256": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "docs/yeoni-phase12/media/yeoni-zephyr-ja-approved.mp3",
+      "sha256": "317b079799b53af65958d994e3019182c2052f65ad2fed3f357f294079b1647e",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "docs/yeoni-phase12/alignment/timeline.json",
+      "sha256": "0b769385800e61809fe088877472e91cf8438b95dc0aa38fa7228670f87a3869",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav",
+      "sha256": "ba42df730eac9896d5b9561b324c5937e6336822d5dcdf9f8fe06eeb2bd0b2f6",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "docs/yeoni-voice-comparison/media/gemini-zephyr-ko-user.wav",
+      "sha256": "de1e7d1d6d3d51cb76bebcdec435ca490f4646f6ece5fc0da664e80286f96200",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni-cat-sprite-v1.webp",
+      "sha256": "0188841269a6835acc9e4f3af36003a1a3381ff748187f95ed3cf8cf385e7559",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/cat/preserved-motion-v3.png",
+      "sha256": "ba57c54e12acd02cc41f68e26184657f3f7702c38c1abc333f7c83401602e938",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "lib/yeoni/mouth-motion.ts",
+      "sha256": "c5d59d6d37f1e68b444acf2e6dcf1cbb5c25658dc434395ba386bc735bf19e08",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "components/yeoni/SwitchableCharacterStage.tsx",
+      "sha256": "6aa97d705603a3b28dbe06b9e04b157f1a61735e25b1fc2ad8718ae76e5b82fa",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/manifest.json",
+      "sha256": "2c6375b5597ab14ed6c91453c8912b88649dec328f013847415fa22e7fb7a290",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/assembled-preview.webp",
+      "sha256": "efc275fa8db7075dd272c98009767dfba5554a374f2c58be1d896da35b1ec776",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/original-preview.webp",
+      "sha256": "9080efeb9c9d8d8cf957f6b649fbeab8fe9c96c33d1299da69d0caddfefc8062",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/head.png",
+      "sha256": "f40dcb8329efc5af6b86780082008f9f37756ed4163735b017a2045b1576d47d",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/body.png",
+      "sha256": "ea6de9ae964a90e73622be81340d3b2463cf992de69db0862c82d8d6c4dd19b9",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/matte-source.png",
+      "sha256": "f3d3d2d764353a0b4f4fe85bf09833a3258919510bb2c6b6ec2d6aaa72814d2d",
+      "unchangedFromCommit": "1f925be"
+    },
+    {
+      "path": "public/yeoni/human/rig-v4/edge-colors.png",
+      "sha256": "af37dc529cffc294f1996e3457dffb2076d26319cac6be99b030077073c4c354",
+      "unchangedFromCommit": "1f925be"
+    }
+  ],
+  "allUnchanged": true,
+  "providerCalls": 0
+}

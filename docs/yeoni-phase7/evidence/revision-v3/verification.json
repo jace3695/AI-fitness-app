@@ -1,0 +1,40 @@
+{
+  "codeCommit": "c43f77645ab2c5634f920a15ea565ca21cac648c",
+  "run": "https://github.com/jace3695/AI-fitness-app/actions/runs/36710712824",
+  "job": 109871559740,
+  "artifactId": 11094132204,
+  "artifactSha256": "1244e23b90ea780f4d01c3fa6eded266f8647f21ff027f4f3419f9634ff38009",
+  "checksPassed": 18,
+  "statesPerBrowser": 21,
+  "neutralChangedPixels": 0,
+  "outsideEditRegionsChangedPixels": 0,
+  "patchOuterEdgeChangedPixels": 0,
+  "errors": 0,
+  "externalRequests": 0,
+  "manualReview": {
+    "reference": "Original A, not v1/v2",
+    "views": [
+      "same-scale enlarged face",
+      "50% original overlay",
+      "whole original portrait",
+      "21 CSS combinations per browser",
+      "mobile 390px"
+    ],
+    "findings": [
+      "Original face silhouette, head angle, eye line and basic smile preserved.",
+      "No original-open-eye remnants in closed/half eyelid states observed.",
+      "No duplicate resting mouth, visible rectangular skin edges or patch displacement observed across the 21 combinations.",
+      "A/E and U/O have separate restrained openings; lip thickness and angle were compared with the original."
+    ],
+    "scope": "Static expression artwork only. Dynamic jaw/head deformation and speech naturalness remain unverified."
+  },
+  "phase7": "in-progress: original-preserving rig separation still needed",
+  "completedPhases": [
+    1,
+    2,
+    3,
+    4,
+    6
+  ],
+  "phase5": "user-listening-deferred"
+}

@@ -1,0 +1,3434 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "baseline": "2e4a2c30f9bca55a800f57f15f942082bf7e670b",
+  "results": [
+    {
+      "name": "new preview clearly distinguishes Japanese silent clock from real Korean speech",
+      "passed": true
+    },
+    {
+      "name": "every sampled Korean v1 raw and smoothed pose matches the committed PHASE 11 baseline",
+      "passed": true
+    },
+    {
+      "name": "Japanese v2 clock loads without auto-play and declares its non-speech status",
+      "passed": true
+    },
+    {
+      "name": "Japanese native media clock drives exact poses during 12 appearance switches with one host",
+      "passed": true
+    },
+    {
+      "name": "Japanese paused/ended switches, half-speed and backward seeks keep current media state",
+      "passed": true
+    },
+    {
+      "name": "12 Korean MP3 / Japanese WAV replacements retain canvas and never auto-play the new clip",
+      "passed": true
+    },
+    {
+      "name": "wrong version, convention, language, voice, hashes and duration are rejected then recover",
+      "passed": true
+    },
+    {
+      "name": "rapid Korean/Japanese requests apply only the last selection without stale review controls",
+      "passed": true
+    },
+    {
+      "name": "reduced motion, offscreen and hidden-page policies remain effective for Japanese",
+      "passed": true
+    },
+    {
+      "name": "leaving/remounting releases resources and preserves the selected clip without resuming",
+      "passed": true
+    },
+    {
+      "name": "Japanese text and both appearances fit 320/390/1280px",
+      "passed": true
+    },
+    {
+      "name": "reload removes local clip selection and does not auto-resume speech",
+      "passed": true
+    },
+    {
+      "name": "no runtime errors or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "switches": [
+    {
+      "skin": "human",
+      "before": 0.033289352,
+      "after": 0.30055656
+    },
+    {
+      "skin": "cat",
+      "before": 0.307717994,
+      "after": 0.362132447
+    },
+    {
+      "skin": "human",
+      "before": 0.380032131,
+      "after": 0.520677436
+    },
+    {
+      "skin": "cat",
+      "before": 0.543777184,
+      "after": 0.623913596
+    },
+    {
+      "skin": "human",
+      "before": 0.628401102,
+      "after": 0.755407379
+    },
+    {
+      "skin": "cat",
+      "before": 0.771250465,
+      "after": 0.832487591
+    },
+    {
+      "skin": "human",
+      "before": 0.836404715,
+      "after": 0.960996348
+    },
+    {
+      "skin": "cat",
+      "before": 0.966390558,
+      "after": 1.022157069
+    },
+    {
+      "skin": "human",
+      "before": 1.027278703,
+      "after": 1.133423417
+    },
+    {
+      "skin": "cat",
+      "before": 1.144237042,
+      "after": 1.291543604
+    },
+    {
+      "skin": "human",
+      "before": 1.29837136,
+      "after": 1.403307472
+    },
+    {
+      "skin": "cat",
+      "before": 1.409917058,
+      "after": 1.452451124
+    }
+  ],
+  "samples": [
+    {
+      "skin": "cat",
+      "time": 0,
+      "mediaTime": 7.136972999999999,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 37.371434,
+      "mediaTime": 45.834944,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 107.22235300000001,
+      "mediaTime": 131.57952600000002,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 216.515838,
+      "mediaTime": 271.159137,
+      "pose": {
+        "from": "rest",
+        "to": "a",
+        "mix": 0.18559711415405597
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "rest",
+          "to": "a",
+          "mix": 0.18559711415405597
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 276.39132900000004,
+      "mediaTime": 296.739731,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 317.50061800000003,
+      "mediaTime": 327.33308500000004,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 341.432302,
+      "mediaTime": 360.82643800000005,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 365.750287,
+      "mediaTime": 378.502211,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 414.06034600000004,
+      "mediaTime": 424.570353,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 459.75280699999996,
+      "mediaTime": 469.714729,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 469.714729,
+      "mediaTime": 509.49145699999997,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 529.3765030000001,
+      "mediaTime": 544.26012,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 577.423681,
+      "mediaTime": 586.931926,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 594.345139,
+      "mediaTime": 605.6043880000001,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 614.9401650000001,
+      "mediaTime": 622.859316,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 658.137924,
+      "mediaTime": 669.9492270000001,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 692.649257,
+      "mediaTime": 724.497195,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 762.221369,
+      "mediaTime": 771.705323,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 803.320421,
+      "mediaTime": 811.976294,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 817.658247,
+      "mediaTime": 826.301014,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 851.661161,
+      "mediaTime": 862.883693,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 886.894217,
+      "mediaTime": 893.843408,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 893.843408,
+      "mediaTime": 921.303261,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 942.892984,
+      "mediaTime": 952.8747159999999,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 983.7030110000001,
+      "mediaTime": 992.513317,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1006.334114,
+      "mediaTime": 1015.003955,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1032.0556780000002,
+      "mediaTime": 1039.5247000000002,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1083.833586,
+      "mediaTime": 1102.388911,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1113.231201,
+      "mediaTime": 1125.5389810000001,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1146.8981350000001,
+      "mediaTime": 1182.1370920000002,
+      "pose": {
+        "from": "a",
+        "to": "i",
+        "mix": 0.009533478324118118
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "i",
+          "mix": 0.009533478324118118
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1183.8343790000001,
+      "mediaTime": 1211.1643880000001,
+      "pose": {
+        "from": "a",
+        "to": "i",
+        "mix": 0.3028192260719773
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "i",
+          "mix": 0.3028192260719773
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1226.7350059999999,
+      "mediaTime": 1253.2244349999999,
+      "pose": {
+        "from": "a",
+        "to": "i",
+        "mix": 0.8120705293043254
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "a",
+          "to": "i",
+          "mix": 0.8120705293043254
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1258.8742530000002,
+      "mediaTime": 1283.100198,
+      "pose": {
+        "from": "a",
+        "to": "i",
+        "mix": 0.999737629086612
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "a",
+          "to": "i",
+          "mix": 0.999737629086612
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1308.9191879999998,
+      "mediaTime": 1318.883906,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1343.858242,
+      "mediaTime": 1350.281485,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1378.889138,
+      "mediaTime": 1393.978926,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1420.266102,
+      "mediaTime": 1430.89889,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1442.620736,
+      "mediaTime": 1446.3221369999999,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1468.603422,
+      "mediaTime": 1475.257425,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1517.293607,
+      "mediaTime": 1523.4319249999999,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1565.535255,
+      "mediaTime": 1574.2621000000001,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1613.821528,
+      "mediaTime": 1622.911525,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1662.146217,
+      "mediaTime": 1670.916841,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1710.420808,
+      "mediaTime": 1719.35116,
+      "pose": {
+        "from": "i",
+        "to": "u",
+        "mix": 0.07702085996334194
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.07702085996334194
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1758.741857,
+      "mediaTime": 1767.7398799999999,
+      "pose": {
+        "from": "i",
+        "to": "u",
+        "mix": 0.608500002697055
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.608500002697055
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1806.9663110000001,
+      "mediaTime": 1815.9338089999999,
+      "pose": {
+        "from": "i",
+        "to": "u",
+        "mix": 0.9981149669502363
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "i",
+          "to": "u",
+          "mix": 0.9981149669502363
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1855.230984,
+      "mediaTime": 1862.91674,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1903.524847,
+      "mediaTime": 1910.906064,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1951.87088,
+      "mediaTime": 1958.9505570000001,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2000.2370429999999,
+      "mediaTime": 2006.9173779999999,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2048.7295849999996,
+      "mediaTime": 2055.598798,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2096.68213,
+      "mediaTime": 2102.921963,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2144.989621,
+      "mediaTime": 2153.3144869999996,
+      "pose": {
+        "from": "u",
+        "to": "e",
+        "mix": 0.005042956019119354
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "e",
+          "mix": 0.005042956019119354
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2193.442326,
+      "mediaTime": 2202.8860689999997,
+      "pose": {
+        "from": "u",
+        "to": "e",
+        "mix": 0.4183554641597215
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "e",
+          "mix": 0.4183554641597215
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2241.58955,
+      "mediaTime": 2250.8860830000003,
+      "pose": {
+        "from": "u",
+        "to": "e",
+        "mix": 0.9366088928572569
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "u",
+          "to": "e",
+          "mix": 0.9366088928572569
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2290.243555,
+      "mediaTime": 2298.911437,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2338.102791,
+      "mediaTime": 2346.8865229999997,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2386.376818,
+      "mediaTime": 2394.88781,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2434.617681,
+      "mediaTime": 2442.88215,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2482.928755,
+      "mediaTime": 2490.8830900000003,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2531.1991150000003,
+      "mediaTime": 2538.899184,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2579.4949429999997,
+      "mediaTime": 2586.915771,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2627.781259,
+      "mediaTime": 2634.8838090000004,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "e",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2676.0787760000003,
+      "mediaTime": 2684.382252,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.21682766457237773
+      },
+      "viseme": "e",
+      "expected": {
+        "viseme": "e",
+        "mouth": {
+          "from": "e",
+          "to": "o",
+          "mix": 0.21682766457237773
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2724.556673,
+      "mediaTime": 2732.1335289999997,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.7898190431062502
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "e",
+          "to": "o",
+          "mix": 0.7898190431062502
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2772.663795,
+      "mediaTime": 2779.2459,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2820.920059,
+      "mediaTime": 2826.907383,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2869.278527,
+      "mediaTime": 2874.900538,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2917.652469,
+      "mediaTime": 2923.605528,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2965.882045,
+      "mediaTime": 2971.338448,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3014.159772,
+      "mediaTime": 3019.820075,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3062.445522,
+      "mediaTime": 3069.422177,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3110.742342,
+      "mediaTime": 3118.880886,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3159.531203,
+      "mediaTime": 3168.33286,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.24890354950580557
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "rest",
+          "mix": 0.24890354950580557
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3207.3651839999998,
+      "mediaTime": 3216.4318789999998,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.0017786029343778125
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.0017786029343778125
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3255.751147,
+      "mediaTime": 3263.204372,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.09077040717621644
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.09077040717621644
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3304.2121469999997,
+      "mediaTime": 3312.832154,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.2781715121979458
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.2781715121979458
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3352.2987350000003,
+      "mediaTime": 3359.697306,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.5114927752270022
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.5114927752270022
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3400.875623,
+      "mediaTime": 3408.344173,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.7446238297259576
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.7446238297259576
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3449.055526,
+      "mediaTime": 3456.383556,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.9232826265303123
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.9232826265303123
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3497.5053470000003,
+      "mediaTime": 3504.892848,
+      "pose": {
+        "from": "rest",
+        "to": "closed",
+        "mix": 0.9997937068772105
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "closed",
+          "mix": 0.9997937068772105
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3545.896934,
+      "mediaTime": 3554.9012279999997,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3593.8513080000002,
+      "mediaTime": 3602.913038,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3642.2852780000003,
+      "mediaTime": 3650.886682,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3691.219227,
+      "mediaTime": 3698.880208,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3739.373954,
+      "mediaTime": 3748.446274,
+      "pose": {
+        "from": "closed",
+        "to": "a",
+        "mix": 0.7267220088947751
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "closed",
+          "to": "a",
+          "mix": 0.7267220088947751
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3788.0456090000002,
+      "mediaTime": 3795.3001780000004,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3836.007748,
+      "mediaTime": 3842.897588,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3884.3252970000003,
+      "mediaTime": 3890.897432,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3932.622819,
+      "mediaTime": 3938.8969989999996,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3981.311732,
+      "mediaTime": 3987.601596,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4029.3546180000003,
+      "mediaTime": 4035.6046579999997,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4077.6066159999996,
+      "mediaTime": 4083.338169,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4125.949393,
+      "mediaTime": 4132.189545,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4174.201158,
+      "mediaTime": 4182.638733,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.1175424114174243
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "small",
+          "mix": 0.1175424114174243
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4222.490207,
+      "mediaTime": 4230.895151000001,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.5233381505373118
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "a",
+          "to": "small",
+          "mix": 0.5233381505373118
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4270.757704000001,
+      "mediaTime": 4278.897223000001,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9120012619569168
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "a",
+          "to": "small",
+          "mix": 0.9120012619569168
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4319.156661,
+      "mediaTime": 4330.541997,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4368.645656,
+      "mediaTime": 4378.984504,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4417.027455,
+      "mediaTime": 4426.983075,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4465.4080189999995,
+      "mediaTime": 4474.892377,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4513.558444,
+      "mediaTime": 4522.873027000001,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4561.954892,
+      "mediaTime": 4570.921767,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4610.15024,
+      "mediaTime": 4618.888192,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4658.4265,
+      "mediaTime": 4666.993828,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4706.701171,
+      "mediaTime": 4714.8854790000005,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "small",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4755.095383,
+      "mediaTime": 4762.959714,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.033117279394216693
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "o",
+          "mix": 0.033117279394216693
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4803.378226999999,
+      "mediaTime": 4812.130179999999,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.24040610665686926
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "o",
+          "mix": 0.24040610665686926
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4851.8544950000005,
+      "mediaTime": 4859.616265,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.5446502896087455
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "small",
+          "to": "o",
+          "mix": 0.5446502896087455
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4900.256618,
+      "mediaTime": 4908.337694,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.8326360858369919
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "small",
+          "to": "o",
+          "mix": 0.8326360858369919
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4948.244238,
+      "mediaTime": 4955.355691000001,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.9924297415508618
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "small",
+          "to": "o",
+          "mix": 0.9924297415508618
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4996.845456,
+      "mediaTime": 5003.236537000001,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5045.389181,
+      "mediaTime": 5051.199057,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5093.28289,
+      "mediaTime": 5099.099534,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5141.627836,
+      "mediaTime": 5147.799443,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5190.126173000001,
+      "mediaTime": 5195.986333999999,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5238.528501,
+      "mediaTime": 5244.394576000001,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5286.659551,
+      "mediaTime": 5292.2504850000005,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5334.915364,
+      "mediaTime": 5340.6297939999995,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "o",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5383.413973,
+      "mediaTime": 5390.89786,
+      "pose": {
+        "from": "o",
+        "to": "a",
+        "mix": 0.08632708510081934
+      },
+      "viseme": "o",
+      "expected": {
+        "viseme": "o",
+        "mouth": {
+          "from": "o",
+          "to": "a",
+          "mix": 0.08632708510081934
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5431.484056,
+      "mediaTime": 5439.128416,
+      "pose": {
+        "from": "o",
+        "to": "a",
+        "mix": 0.3251300951216891
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "o",
+          "to": "a",
+          "mix": 0.3251300951216891
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5479.791714,
+      "mediaTime": 5487.298524,
+      "pose": {
+        "from": "o",
+        "to": "a",
+        "mix": 0.6225765905747416
+      },
+      "viseme": "small",
+      "expected": {
+        "viseme": "small",
+        "mouth": {
+          "from": "o",
+          "to": "a",
+          "mix": 0.6225765905747416
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5528.055931,
+      "mediaTime": 5535.532776,
+      "pose": {
+        "from": "o",
+        "to": "a",
+        "mix": 0.8797464852466101
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "o",
+          "to": "a",
+          "mix": 0.8797464852466101
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5576.298551,
+      "mediaTime": 5584.143409,
+      "pose": {
+        "from": "o",
+        "to": "a",
+        "mix": 0.9992937574713371
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "o",
+          "to": "a",
+          "mix": 0.9992937574713371
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5624.736962,
+      "mediaTime": 5630.895629000001,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5673.049797,
+      "mediaTime": 5678.906484,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5721.602334,
+      "mediaTime": 5727.207179999999,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "a",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5769.73717,
+      "mediaTime": 5776.932449,
+      "pose": {
+        "from": "a",
+        "to": "u",
+        "mix": 0.11618534308255458
+      },
+      "viseme": "a",
+      "expected": {
+        "viseme": "a",
+        "mouth": {
+          "from": "a",
+          "to": "u",
+          "mix": 0.11618534308255458
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5818.001539,
+      "mediaTime": 5826.890605,
+      "pose": {
+        "from": "a",
+        "to": "u",
+        "mix": 0.5853573817457361
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "a",
+          "to": "u",
+          "mix": 0.5853573817457361
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5866.501969,
+      "mediaTime": 5874.897223999999,
+      "pose": {
+        "from": "a",
+        "to": "u",
+        "mix": 0.9739052201327237
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "a",
+          "to": "u",
+          "mix": 0.9739052201327237
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5914.652398,
+      "mediaTime": 5922.881152000001,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5963.349882,
+      "mediaTime": 5970.912664,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6011.6276370000005,
+      "mediaTime": 6018.898763,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6059.5202229999995,
+      "mediaTime": 6066.908542,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6107.997245,
+      "mediaTime": 6114.946190000001,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6156.209493,
+      "mediaTime": 6162.890601,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6204.733631,
+      "mediaTime": 6210.922715,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6252.959458,
+      "mediaTime": 6260.067608,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6301.632086,
+      "mediaTime": 6307.635718,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6349.5323260000005,
+      "mediaTime": 6355.151425,
+      "pose": {
+        "from": "u",
+        "to": "u",
+        "mix": 0
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "u",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6398.097445,
+      "mediaTime": 6405.773295999999,
+      "pose": {
+        "from": "u",
+        "to": "closed",
+        "mix": 0.04972441795887354
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "closed",
+          "mix": 0.04972441795887354
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6446.059024,
+      "mediaTime": 6454.94377,
+      "pose": {
+        "from": "u",
+        "to": "closed",
+        "mix": 0.9876240016984207
+      },
+      "viseme": "u",
+      "expected": {
+        "viseme": "u",
+        "mouth": {
+          "from": "u",
+          "to": "closed",
+          "mix": 0.9876240016984207
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6494.349352,
+      "mediaTime": 6504.976103999999,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6543.1515979999995,
+      "mediaTime": 6549.187014,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "viseme": "closed",
+      "expected": {
+        "viseme": "closed",
+        "mouth": {
+          "from": "closed",
+          "to": "closed",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6591.054233000001,
+      "mediaTime": 6598.888852,
+      "pose": {
+        "from": "closed",
+        "to": "i",
+        "mix": 0.08932279861974628
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "closed",
+          "to": "i",
+          "mix": 0.08932279861974628
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6625.121247,
+      "mediaTime": 6634.88717,
+      "pose": {
+        "from": "closed",
+        "to": "i",
+        "mix": 0.846017239398079
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "closed",
+          "to": "i",
+          "mix": 0.846017239398079
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6671.522155,
+      "mediaTime": 6682.882232,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6720.078695,
+      "mediaTime": 6730.886847,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6768.201941,
+      "mediaTime": 6778.885187,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6816.3657840000005,
+      "mediaTime": 6826.883816,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6864.833123,
+      "mediaTime": 6874.881405,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6913.161098,
+      "mediaTime": 6922.884431,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 6961.298816,
+      "mediaTime": 6970.9034440000005,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7009.670996,
+      "mediaTime": 7018.869204,
+      "pose": {
+        "from": "i",
+        "to": "i",
+        "mix": 0
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "i",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7058.3109970000005,
+      "mediaTime": 7066.90235,
+      "pose": {
+        "from": "i",
+        "to": "rest",
+        "mix": 0.22256289819874944
+      },
+      "viseme": "i",
+      "expected": {
+        "viseme": "i",
+        "mouth": {
+          "from": "i",
+          "to": "rest",
+          "mix": 0.22256289819874944
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7106.477879,
+      "mediaTime": 7114.884127,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7154.58167,
+      "mediaTime": 7162.887572,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7202.854149,
+      "mediaTime": 7210.882036,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7251.184887,
+      "mediaTime": 7258.881379,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7299.758021,
+      "mediaTime": 7306.901379,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7348.073952,
+      "mediaTime": 7355.006933000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7396.220493000001,
+      "mediaTime": 7402.938271,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7444.570122,
+      "mediaTime": 7450.90127,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7493.294105999999,
+      "mediaTime": 7499.186633,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7541.760415,
+      "mediaTime": 7547.506143,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7589.908356,
+      "mediaTime": 7596.130786,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7638.278996999999,
+      "mediaTime": 7644.164729,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7686.564093,
+      "mediaTime": 7692.187545000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7734.904483,
+      "mediaTime": 7740.753841,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7783.204752,
+      "mediaTime": 7789.190740999999,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7831.496426000001,
+      "mediaTime": 7838.882398,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7879.748323000001,
+      "mediaTime": 7886.920907999999,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7928.164112,
+      "mediaTime": 7934.8978609999995,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 7976.528287,
+      "mediaTime": 7982.897193000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "viseme": "rest",
+      "expected": {
+        "viseme": "rest",
+        "mouth": {
+          "from": "rest",
+          "to": "rest",
+          "mix": 0
+        }
+      }
+    }
+  ],
+  "koreanComparisonCount": 770,
+  "replacements": 12,
+  "scope": "Japanese v2 input and synthetic SILENT media-clock integration. No Japanese speech generated, aligned or listening-verified. Existing Korean MP3 v1 compatibility verified."
+}

@@ -1,0 +1,33 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "real Japanese file loads with verified manifest, no autoplay",
+      "passed": true
+    },
+    {
+      "name": "normal playback switches appearance without replacing or restarting audio",
+      "passed": true
+    },
+    {
+      "name": "rendered Japanese frames follow the measured timeline and media clock",
+      "passed": true
+    },
+    {
+      "name": "both appearances render measured vowel, silence and bilabial intervals",
+      "passed": true
+    },
+    {
+      "name": "pause, stop and rate change retain one audio and neutral mouth",
+      "passed": true
+    },
+    {
+      "name": "reload clears playback and allows reloading embedded audio without network",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "alignmentReview": "not human approved"
+}

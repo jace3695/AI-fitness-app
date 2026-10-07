@@ -1,0 +1,24 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "phase": 5,
+      "passed": true
+    },
+    {
+      "phase": 6,
+      "passed": true
+    },
+    {
+      "phase": 8,
+      "passed": true
+    },
+    {
+      "phase": 9,
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": []
+}

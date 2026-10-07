@@ -1,0 +1,58 @@
+{
+  "date": "2026-09-30",
+  "runtimeCommit": "7272455becbb6d2dccfda82ed904e52e3d2e81eb",
+  "runId": 36714215165,
+  "jobId": 109883022100,
+  "jobConclusion": "success",
+  "artifactId": 11095428407,
+  "artifactSha256": "23f2ae402b61f7bcf79cd2d21b2707c4f4c261e87d0b4985e94c57afad0d406f",
+  "officialSource": {
+    "image": "/yeoni-cat-sprite-v1.webp",
+    "sha256": "0188841269a6835acc9e4f3af36003a1a3381ff748187f95ed3cf8cf385e7559",
+    "crop": [
+      0,
+      0,
+      313,
+      313
+    ]
+  },
+  "baseSha256": "f502a0447e4eeba04d83b951c80f6dc38520978265f74d9522e1054fcf855430",
+  "checksPerBrowser": 9,
+  "totalChecks": 18,
+  "eyeMouthStatesPerBrowser": 21,
+  "baselineChangedPixels": 0,
+  "pixelsChangedOutsideSelectedRegions": 0,
+  "pixelsChangedAtOuterTwoPixelEdge": 0,
+  "runtimeErrors": 0,
+  "externalRequests": 0,
+  "manualVisualReview": {
+    "reviewed": [
+      "Both browser contact sheets: original plus 7 mouths for each of 3 eye states",
+      "Same-position 50 percent original overlay",
+      "Full silhouette and base face comparison",
+      "390px stacked layout",
+      "Native composite full-body contact sheets for all 21 states",
+      "Existing v1 expression contact sheet, mouth palette, greet/tilt screenshots and one-second samples of the existing seven-second motion video"
+    ],
+    "result": "In the new static revision, no visible doubled eye/mouth contours, patch rectangle seams or displaced parts were observed. Base silhouette and colors are the original. Mouth shapes i/e and u/o remain distinguishable. Existing v1 proportions/eye flattening and tail offset remain rejected as final artwork."
+  },
+  "limitations": [
+    "Static appearance review only; original white backdrop and source resolution retained.",
+    "Existing Canvas motion renderer not replaced; original-preserving segmentation and motion revalidation remain next work.",
+    "This does not complete listening, lip-sync naturalness or physical iPhone verification."
+  ],
+  "evidenceSha256": {
+    "webkit/overlay.png": "3b377c601364874f8114efc19d7267d0e2fe891b5db6a6e139f83c04d96d6c5d",
+    "webkit/full-portrait.png": "98aa82f510bdd08cb1f16fdff42073b695ec19889598e39337eeff1253bec2b8",
+    "webkit/compare-open.png": "e75521128408025d17fea39ddcf13ace4e41cc9b2735d55380f10d79be0d7edb",
+    "webkit/compare-eyesClosed.png": "89fb597249ccea1fee844abce45fd1904ea9ef68af3d894ae629751c2fbd3146",
+    "webkit/results.json": "b6fd07f4a50d9385d45806dba0251221810b3d1ce1fc1821235f06a930e74cbb",
+    "webkit/mobile-390.png": "48b2afd86b69ca80c9a978cea587c4f261e0a6763a94db21c90287e1ba973d61",
+    "webkit/baseline.png": "5311a2f850a5db97d7f44454c0a2bbd51bec824a0d348ab7c02ebd62a710fcdd",
+    "webkit/compare-eyesHalf.png": "33d61a58705d04db3fc7f2d8bdd575efca6a1c099df199323d9e96a28b6d5970",
+    "chromium/compare-open.png": "24f5e6fff1f841bce5f527d7ed78db5156a9f75ab1cf190f9e05462867f7e0d4",
+    "chromium/compare-eyesClosed.png": "58fd9eb7ca25966b0349af7c1f46b4e9590bee5e86ec03a2753b7454715ef05b",
+    "chromium/results.json": "374339873cc4b0100c76f01ccb64d02157834a1f4ba570621e0f00c19f11393e",
+    "chromium/compare-eyesHalf.png": "1a98ee79e945f43e3da18394929d6e3b967ce00dbcfdda1407219b916887f635"
+  }
+}

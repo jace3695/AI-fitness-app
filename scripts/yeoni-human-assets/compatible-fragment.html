@@ -1,0 +1,65 @@
+<div id="yeoni-human-compatible">
+  <style>
+    #yeoni-human-compatible { color:var(--foreground); --yeoni-base: url("@@BASE@@"); --yeoni-face: url("@@FACE@@"); }
+    #yeoni-human-compatible .yeoni-layout { display:grid; grid-template-columns:minmax(0,340px) minmax(0,1fr); gap:24px; align-items:center; }
+    #yeoni-human-compatible .yeoni-controls { min-width:0; }
+    #yeoni-human-compatible fieldset { border:0; padding:0; margin:0 0 20px; min-width:0; }
+    #yeoni-human-compatible legend { font-weight:500; margin-bottom:8px; }
+    #yeoni-human-compatible .yeoni-options { display:flex; flex-wrap:wrap; gap:8px 16px; }
+    #yeoni-human-compatible .yeoni-stage { position:relative; aspect-ratio:760/1150; width:100%; overflow:hidden; background:var(--card); }
+    #yeoni-human-compatible .yeoni-part { position:absolute; background-repeat:no-repeat; }
+    #yeoni-human-compatible .yeoni-eye, #yeoni-human-compatible .yeoni-mouth { display:none; }
+    #yeoni-human-compatible .eyesOpen, #yeoni-human-compatible .closed { display:block; }
+    #yeoni-human-compatible:has(input[name="yeoni-eyes"]:checked) .yeoni-eye { display:none; }
+    #yeoni-human-compatible:has(input[name="yeoni-mouth"]:checked) .yeoni-mouth { display:none; }
+    #yeoni-human-compatible:has(#yeoni-eye-open:checked) .eyesOpen,
+    #yeoni-human-compatible:has(#yeoni-eye-half:checked) .eyesHalf,
+    #yeoni-human-compatible:has(#yeoni-eye-closed:checked) .eyesClosed,
+    #yeoni-human-compatible:has(#yeoni-mouth-closed:checked) .closed,
+    #yeoni-human-compatible:has(#yeoni-mouth-a:checked) .a,
+    #yeoni-human-compatible:has(#yeoni-mouth-i:checked) .i,
+    #yeoni-human-compatible:has(#yeoni-mouth-u:checked) .u,
+    #yeoni-human-compatible:has(#yeoni-mouth-e:checked) .e,
+    #yeoni-human-compatible:has(#yeoni-mouth-o:checked) .o { display:block; }
+    #yeoni-human-compatible:has(#yeoni-background-contrast:checked) .yeoni-stage { background:var(--foreground); }
+    #yeoni-human-compatible:has(#yeoni-background-soft:checked) .yeoni-stage { background:var(--secondary); }
+    @media(max-width:520px) {
+      #yeoni-human-compatible .yeoni-layout { grid-template-columns:minmax(0,1fr); gap:16px; }
+      #yeoni-human-compatible .yeoni-stage { max-width:280px; justify-self:center; }
+    }
+  </style>
+  <div class="yeoni-layout">
+    <div class="yeoni-stage" role="img" aria-label="선택한 눈과 입 모양을 합성한 인간형 연이">
+      @@PARTS@@
+    </div>
+    <div class="yeoni-controls">
+      <fieldset>
+        <legend>눈</legend>
+        <div class="yeoni-options">
+          <label class="form-check"><input class="form-check-input" id="yeoni-eye-open" type="radio" name="yeoni-eyes" checked><span class="form-check-label">뜸</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-eye-half" type="radio" name="yeoni-eyes"><span class="form-check-label">반쯤 감음</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-eye-closed" type="radio" name="yeoni-eyes"><span class="form-check-label">감음</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>입</legend>
+        <div class="yeoni-options">
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-closed" type="radio" name="yeoni-mouth" checked><span class="form-check-label">닫힘</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-a" type="radio" name="yeoni-mouth"><span class="form-check-label">아</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-i" type="radio" name="yeoni-mouth"><span class="form-check-label">이</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-u" type="radio" name="yeoni-mouth"><span class="form-check-label">우</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-e" type="radio" name="yeoni-mouth"><span class="form-check-label">에</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-mouth-o" type="radio" name="yeoni-mouth"><span class="form-check-label">오</span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>배경</legend>
+        <div class="yeoni-options">
+          <label class="form-check"><input class="form-check-input" id="yeoni-background-basic" type="radio" name="yeoni-background" checked><span class="form-check-label">기본</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-background-soft" type="radio" name="yeoni-background"><span class="form-check-label">부드럽게</span></label>
+          <label class="form-check"><input class="form-check-input" id="yeoni-background-contrast" type="radio" name="yeoni-background"><span class="form-check-label">대비</span></label>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+</div>

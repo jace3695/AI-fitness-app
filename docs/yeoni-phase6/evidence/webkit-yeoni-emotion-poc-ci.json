@@ -1,0 +1,49 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "initial static neutral, audio muted and no source/autoplay",
+      "passed": true
+    },
+    {
+      "name": "twelve distinct static expressions and inspectable contact sheet",
+      "passed": true
+    },
+    {
+      "name": "four finite gestures reach a visible pose and return without queues",
+      "passed": true
+    },
+    {
+      "name": "rapid replacement keeps one frame loop; expression change keeps gesture progress",
+      "passed": true
+    },
+    {
+      "name": "manual stop and reduced motion cancel transient motion without replay",
+      "passed": true
+    },
+    {
+      "name": "muted saved voice keeps phoneme mouth priority across all expressions and gestures",
+      "passed": true
+    },
+    {
+      "name": "background pause cancels a gesture and audio never resumes automatically",
+      "passed": true
+    },
+    {
+      "name": "unmount/remount cannot replay a prior command and leaves no extra frame loops",
+      "passed": true
+    },
+    {
+      "name": "small/tall layouts, dark background, and reload reset the review session",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "requestCount": 44,
+  "scope": "12 expressions, 4 transient gestures and existing muted audio integration. Human listening deferred; no new TTS or AI emotion inference; no physical iPhone verification."
+}

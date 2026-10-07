@@ -1,0 +1,205 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "all 21 resting states preserve approved opaque pixels and alpha at render resolution",
+      "passed": true
+    },
+    {
+      "name": "near-neutral inverse sampling preserves opacity with no triangle cracks or doubled hair alpha",
+      "passed": true
+    },
+    {
+      "name": "all 21 facial states remain on the rigid face during maximum idle tilt",
+      "passed": true
+    },
+    {
+      "name": "neck remains opaque across y740 split and complete motion cycle",
+      "passed": true
+    },
+    {
+      "name": "full portrait extremes face zoom original overlay and dark backdrop are captured",
+      "passed": true
+    },
+    {
+      "name": "render work is bounded at both regular and high-DPR maximum sizes",
+      "passed": true
+    },
+    {
+      "name": "offline preview starts still loads assets and plays without external requests",
+      "passed": true
+    },
+    {
+      "name": "12-second review video uses actual browser Canvas motion frames and plays on request",
+      "passed": true
+    },
+    {
+      "name": "disposing releases resources clears pixels and prevents stale drawing",
+      "passed": true
+    },
+    {
+      "name": "no runtime errors or external requests",
+      "passed": true
+    }
+  ],
+  "identity": [
+    {
+      "eye": "open",
+      "mouth": "closed",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "a",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "i",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "u",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "e",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "o",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "open",
+      "mouth": "small",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "closed",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "a",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "i",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "u",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "e",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "o",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "half",
+      "mouth": "small",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "closed",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "a",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "i",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "u",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "e",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "o",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    },
+    {
+      "eye": "closed",
+      "mouth": "small",
+      "opaqueChanged": 0,
+      "alphaChanged": 0
+    }
+  ],
+  "nearNeutral": {
+    "alphaMax": 0,
+    "opaqueMax": 0
+  },
+  "neckResults": {
+    "min": 255,
+    "samples": 723520
+  },
+  "performanceResults": [
+    {
+      "requestedSize": 360,
+      "width": 360,
+      "samples": 90,
+      "median": 12,
+      "p95": 12.799999999988358,
+      "max": 13.199999999953434,
+      "average": 12.003333333331911
+    },
+    {
+      "requestedSize": 720,
+      "width": 512,
+      "samples": 90,
+      "median": 24.100000000034925,
+      "p95": 26.5,
+      "max": 36.5,
+      "average": 24.49000000000039
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "scope": "Basic human motion only. All mouth states are synthetic visual binding checks, not speech or lip-sync verification. Physical devices not tested."
+}

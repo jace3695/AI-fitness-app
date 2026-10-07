@@ -1,0 +1,127 @@
+{
+  "browser": "webkit",
+  "version": "26.6",
+  "results": [
+    {
+      "name": "initial no autoplay and explicit non-speech label",
+      "passed": true
+    },
+    {
+      "name": "six static mouth drawings are distinct without breath or blink movement",
+      "passed": true
+    },
+    {
+      "name": "load creates valid 8-second real media, remains paused",
+      "passed": true
+    },
+    {
+      "name": "actual media clock selects six vowel/lip shapes, neutral and silence after arbitrary seeks",
+      "passed": true
+    },
+    {
+      "name": "pause closes mouth, freezes media; resume keeps position",
+      "passed": true
+    },
+    {
+      "name": "2x playback follows media time rather than wall-clock cue timers",
+      "passed": true
+    },
+    {
+      "name": "waiting event closes mouth and playing event resumes (synthetic stall)",
+      "passed": true
+    },
+    {
+      "name": "hidden event pauses audio, return does not autoplay (synthetic visibility)",
+      "passed": true
+    },
+    {
+      "name": "stop and natural end reset mouth",
+      "passed": true
+    },
+    {
+      "name": "reload drops audio and does not retain private file/text",
+      "passed": true
+    },
+    {
+      "name": "actual audio+JSON import, SHA mismatch rejection and recovery",
+      "passed": true
+    },
+    {
+      "name": "decoded duration mismatch and corrupt audio fail closed",
+      "passed": true
+    },
+    {
+      "name": "late hash completion cannot revive a superseded file selection",
+      "passed": true
+    },
+    {
+      "name": "play rejection leaves mouth closed and actionable message",
+      "passed": true
+    },
+    {
+      "name": "stage exit pauses sound; return does not replay",
+      "passed": true
+    },
+    {
+      "name": "reduced motion and manual motion-off keep closed mouth",
+      "passed": true
+    },
+    {
+      "name": "mobile widths and dark-background visual evidence",
+      "passed": true
+    },
+    {
+      "name": "saved Zephyr MP3 loads without provider calls, stays paused and declares automatic alignment",
+      "passed": true
+    },
+    {
+      "name": "real MP3 natural playback follows 60 acoustic cues and closes at sentence pauses/end",
+      "passed": true
+    },
+    {
+      "name": "real MP3 seek, pause and resume reuse the same saved source",
+      "passed": true
+    },
+    {
+      "name": "saved-voice review seeks, plays at half speed and stops at context endpoint",
+      "passed": true
+    },
+    {
+      "name": "review can switch context and speed while playing, then naturally finish",
+      "passed": true
+    },
+    {
+      "name": "review cancellation survives rewind, background pause and replacing audio",
+      "passed": true
+    },
+    {
+      "name": "review table fits mobile and reload does not claim listening approval",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "requestCount": 63,
+  "realSpeechClock": {
+    "sampleCount": 334,
+    "mismatches": 0,
+    "p95ClockAgeMs": 32.210072000000025,
+    "maxClockAgeMs": 32.57872300000031,
+    "observedShapes": [
+      "rest",
+      "a",
+      "small",
+      "e",
+      "o",
+      "i",
+      "closed",
+      "u"
+    ],
+    "unobservedShortShapes": [],
+    "scope": "Media-to-render clock age, NOT phonetic alignment accuracy or speaker/Bluetooth latency."
+  },
+  "scope": "Synthetic lifecycle + saved Zephyr MP3 media-clock checks. Automatic phoneme alignment remains listening-review pending; no physical iPhone validation."
+}

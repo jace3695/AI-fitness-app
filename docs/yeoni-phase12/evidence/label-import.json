@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "checks": [
+    "ffprobe duration 8000ms",
+    "exact audio SHA256",
+    "exact UTF8 text SHA256",
+    "refuses overwrite"
+  ],
+  "scope": "CLI plumbing only; existing silent clock and synthetic labels, NOT Japanese speech or measured alignment."
+}

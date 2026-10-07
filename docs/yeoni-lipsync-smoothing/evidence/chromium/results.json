@@ -1,0 +1,4324 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "baseline": "cee57128dbc37298b2aa5657b2b5b57c91fe0c53",
+  "results": [
+    {
+      "name": "offline preview shows both approved skins, one audio and smooth mode by default",
+      "passed": true
+    },
+    {
+      "name": "48 endpoint/eye combinations are pixel identical to committed artwork renderers",
+      "passed": true
+    },
+    {
+      "name": "mouth morph preserves all pixels outside its patch, exact endpoints and opaque skin",
+      "passed": true
+    },
+    {
+      "name": "normal-speed frame sequence reduces peak and 95th-percentile mouth pixel jumps",
+      "passed": true
+    },
+    {
+      "name": "native MP3 playback samples both actual canvas poses from their recorded media times",
+      "passed": true
+    },
+    {
+      "name": "A/B switching during playback preserves audio source, playback position and canvas instances",
+      "passed": true
+    },
+    {
+      "name": "backward seek, half-speed and replay use the audio position with no stale mouth history",
+      "passed": true
+    },
+    {
+      "name": "reduced-motion, offscreen and hidden-page policies close both mouths and pause safely",
+      "passed": true
+    },
+    {
+      "name": "unmount/remount restores original rest and layout fits mobile and desktop",
+      "passed": true
+    },
+    {
+      "name": "no runtime errors or external requests",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "external": [],
+  "pixels": [
+    {
+      "skin": "cat",
+      "outsideChanged": 0,
+      "endpointMismatches": 0,
+      "fullyOpaque": true,
+      "restoredExact": true,
+      "rawChanges": {
+        "mean": 3.2518121580355155,
+        "p95": 17.424291938997822,
+        "maximum": 20.458424110384893
+      },
+      "smoothChanges": {
+        "mean": 3.2081286620928564,
+        "p95": 13.30519244734931,
+        "maximum": 16.35185185185185
+      },
+      "drawCostMs": {
+        "mean": 0.3617283951629091,
+        "p95": 1,
+        "maximum": 4.200000002980232
+      }
+    },
+    {
+      "skin": "human",
+      "outsideChanged": 0,
+      "endpointMismatches": 0,
+      "fullyOpaque": true,
+      "restoredExact": true,
+      "rawChanges": {
+        "mean": 2.6226327270038445,
+        "p95": 14.564255952380952,
+        "maximum": 14.930892857142856
+      },
+      "smoothChanges": {
+        "mean": 2.52943544809228,
+        "p95": 8.370967261904761,
+        "maximum": 12.467708333333333
+      },
+      "drawCostMs": {
+        "mean": 1.87839506175599,
+        "p95": 3.8000000044703484,
+        "maximum": 6.799999997019768
+      }
+    }
+  ],
+  "hashes": {
+    "previous": [
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "rest",
+        "hash": "38b29755c56543ce43560e29e461d9d042f824eeb1ef7bce1eac1a746697fec0"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "closed",
+        "hash": "38b29755c56543ce43560e29e461d9d042f824eeb1ef7bce1eac1a746697fec0"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "small",
+        "hash": "dbae8a4133b0734a09174a27c5499c8d9e0c70c4b033a67f294494187245d45d"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "a",
+        "hash": "c1de97e781aa07cfadb42158d5c84278f643acc111a98210de09794922528fb1"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "i",
+        "hash": "76128140b062363a2bfbbf2dbf1bf7da4b0c36c8bdb0c8ddd4638d30def596ac"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "u",
+        "hash": "aaba05b21d27209ab13ce46ba37a0b3648e8a8f21501f52c4665de2383552c49"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "e",
+        "hash": "02a8c54759b65ea0d3e0f36c6720d62c03fc1fc68417573fd036f465b822edea"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "o",
+        "hash": "daa3fdfa56c972c684c15931b5c30fe097b92952d2c39f3f9205521dcf1c44db"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "rest",
+        "hash": "4523af7c1be35904a3fe0f2ac8bc19efa2802d01c28047338d8c16c29729c5fd"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "hash": "4523af7c1be35904a3fe0f2ac8bc19efa2802d01c28047338d8c16c29729c5fd"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "hash": "80b9f69725d5b0a009956ece2a501f1330ecb886a42039b38a0dece82249fb7e"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "hash": "2962481eb77c667c33fb2dcc767ab24481004b9a7aa526e23f260ecc3a231839"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "hash": "b2ece2a128c3239b56c09b3ddfbc8b11e926c9dd2ddc90160f0a952eb0fd70e4"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "hash": "ed4ff512117e20591bef061b7c251a16f03b4276e5198148f6c766fafdc794e0"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "hash": "cd527001bbec4c2ce88d2af7851f54f7df1829ade9e59e8b8441a97d9a01ca80"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "hash": "b9f467c70d9b1945a4e2d8d80a5186279314d7ce60ab8aee2fdcbc651b907d6a"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "rest",
+        "hash": "17eb889b234ee3f4f8f7a74c16bd1281838ba4c8f448262d423f2e61af382751"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "hash": "17eb889b234ee3f4f8f7a74c16bd1281838ba4c8f448262d423f2e61af382751"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "hash": "0bf53f22a986aaf48568635a02b2ee71ad94fd8cce9359d2f8c32d03d359c412"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "hash": "67fba7435b5f60c885548317b5329e07e7df3a9b9b4878fadbbea02f99fde39e"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "hash": "fb8167050e28413268057fdef0849e36ebb0d2807fa53c884d7bccf3626ad8e4"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "hash": "597f2827ab408e723d212da8b396207e7d6eb8b2f428a7e7971e194cefc08b9b"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "hash": "3c238a800632129ed089a044b1cca29ad0522d8f12af452f17d461a478eeec6a"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "hash": "51b8de2151d41758c728d31f947cb796dfd19d0e3a1c137db286059940b192db"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "rest",
+        "hash": "a86779ef33f1ef29f95d8e2be8acfaaa6c3d1f2475b5e6354d21c199d795efa2"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "closed",
+        "hash": "a86779ef33f1ef29f95d8e2be8acfaaa6c3d1f2475b5e6354d21c199d795efa2"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "small",
+        "hash": "f3bac911a982aab616651fde7f76d16d04f7e7390e4e974fa263c0d204ca7262"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "a",
+        "hash": "ea4c9d073b660f9b04ae5adff5c5cf9b0f3228ba791a4b2e50009db7010b8006"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "i",
+        "hash": "9ee3b8cd371166b5a1793fbd2897c8b8320c832bec9fd8980e0852d60ea61742"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "u",
+        "hash": "b7b2cd518ca35e716496d92fb76cd9e04aa65cdde23622e656227c5c4ab1ea31"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "e",
+        "hash": "9b329458887ee6bb2d5901e5edace5dbcd6f64e65f0ef71a47c64c71341d5059"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "o",
+        "hash": "90bd226a715eaa89d26ecd45335ffa5b312c167adff70cb57c61a1ebf9b029ce"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "rest",
+        "hash": "8006424fda78e02d5da7f2afb81048e36400d0f7deb74c529575a3cfd60d8a49"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "hash": "8006424fda78e02d5da7f2afb81048e36400d0f7deb74c529575a3cfd60d8a49"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "hash": "943b942194bd94493cf56fdb1328feda8208eb5d7556fc8d69389c27e41f6551"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "hash": "bea6ae311cf80f05ee930bed19c777498e0c7b340d02f14012e8c788c46a10c0"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "hash": "f7a8f3e44583bfec5e855aae8b684179d2d757c3122c9da0e5094d1928e67b23"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "hash": "3e42c11c1841d544b93587dd8812a2d127e3d0201709658c68ea1c54aa26e5e0"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "hash": "3b4d9dfa35929aa6563ef2885f306ea2e267b4e263ae6f3d4bfb6b3c6e348ee1"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "hash": "5f729d54d1c6f46e9bff5993cdc8d8a190ec763f7ac2199bb5e693219e9f58a8"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "rest",
+        "hash": "ee087634ac166816689524910cc1763a71d71a15ed18b65065d0c00099bff610"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "hash": "ee087634ac166816689524910cc1763a71d71a15ed18b65065d0c00099bff610"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "hash": "84626f9bb97a614410e7027f6db21ca6709939195fd432db2a395dfcdca87dc2"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "hash": "e9a81fbef128cdd308131c0d95d259c520c7e0b05e4b4daab3c47839efce6e79"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "hash": "af2e93e549d35c14e4b0117e70ec840b6860ece64ec01c9ef993dfebb30c064e"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "hash": "9196169ca68a9ae5bbdafc48d37481d50c2a5a8145d04dc90bdd587ad18f6b65"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "hash": "79305fc0672f6dff35723c50708c68f9f6205c448d020e77d8fa872602e3ce4a"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "hash": "f2ea93c8a21f2deb13b8f97aff86e3b232db31208dc9f80abfe1b7c2b3fbee65"
+      }
+    ],
+    "current": [
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "rest",
+        "hash": "38b29755c56543ce43560e29e461d9d042f824eeb1ef7bce1eac1a746697fec0"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "closed",
+        "hash": "38b29755c56543ce43560e29e461d9d042f824eeb1ef7bce1eac1a746697fec0"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "small",
+        "hash": "dbae8a4133b0734a09174a27c5499c8d9e0c70c4b033a67f294494187245d45d"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "a",
+        "hash": "c1de97e781aa07cfadb42158d5c84278f643acc111a98210de09794922528fb1"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "i",
+        "hash": "76128140b062363a2bfbbf2dbf1bf7da4b0c36c8bdb0c8ddd4638d30def596ac"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "u",
+        "hash": "aaba05b21d27209ab13ce46ba37a0b3648e8a8f21501f52c4665de2383552c49"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "e",
+        "hash": "02a8c54759b65ea0d3e0f36c6720d62c03fc1fc68417573fd036f465b822edea"
+      },
+      {
+        "skin": "cat",
+        "eye": "open",
+        "mouth": "o",
+        "hash": "daa3fdfa56c972c684c15931b5c30fe097b92952d2c39f3f9205521dcf1c44db"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "rest",
+        "hash": "4523af7c1be35904a3fe0f2ac8bc19efa2802d01c28047338d8c16c29729c5fd"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "hash": "4523af7c1be35904a3fe0f2ac8bc19efa2802d01c28047338d8c16c29729c5fd"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "hash": "80b9f69725d5b0a009956ece2a501f1330ecb886a42039b38a0dece82249fb7e"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "hash": "2962481eb77c667c33fb2dcc767ab24481004b9a7aa526e23f260ecc3a231839"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "hash": "b2ece2a128c3239b56c09b3ddfbc8b11e926c9dd2ddc90160f0a952eb0fd70e4"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "hash": "ed4ff512117e20591bef061b7c251a16f03b4276e5198148f6c766fafdc794e0"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "hash": "cd527001bbec4c2ce88d2af7851f54f7df1829ade9e59e8b8441a97d9a01ca80"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "hash": "b9f467c70d9b1945a4e2d8d80a5186279314d7ce60ab8aee2fdcbc651b907d6a"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "rest",
+        "hash": "17eb889b234ee3f4f8f7a74c16bd1281838ba4c8f448262d423f2e61af382751"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "hash": "17eb889b234ee3f4f8f7a74c16bd1281838ba4c8f448262d423f2e61af382751"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "hash": "0bf53f22a986aaf48568635a02b2ee71ad94fd8cce9359d2f8c32d03d359c412"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "hash": "67fba7435b5f60c885548317b5329e07e7df3a9b9b4878fadbbea02f99fde39e"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "hash": "fb8167050e28413268057fdef0849e36ebb0d2807fa53c884d7bccf3626ad8e4"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "hash": "597f2827ab408e723d212da8b396207e7d6eb8b2f428a7e7971e194cefc08b9b"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "hash": "3c238a800632129ed089a044b1cca29ad0522d8f12af452f17d461a478eeec6a"
+      },
+      {
+        "skin": "cat",
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "hash": "51b8de2151d41758c728d31f947cb796dfd19d0e3a1c137db286059940b192db"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "rest",
+        "hash": "a86779ef33f1ef29f95d8e2be8acfaaa6c3d1f2475b5e6354d21c199d795efa2"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "closed",
+        "hash": "a86779ef33f1ef29f95d8e2be8acfaaa6c3d1f2475b5e6354d21c199d795efa2"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "small",
+        "hash": "f3bac911a982aab616651fde7f76d16d04f7e7390e4e974fa263c0d204ca7262"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "a",
+        "hash": "ea4c9d073b660f9b04ae5adff5c5cf9b0f3228ba791a4b2e50009db7010b8006"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "i",
+        "hash": "9ee3b8cd371166b5a1793fbd2897c8b8320c832bec9fd8980e0852d60ea61742"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "u",
+        "hash": "b7b2cd518ca35e716496d92fb76cd9e04aa65cdde23622e656227c5c4ab1ea31"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "e",
+        "hash": "9b329458887ee6bb2d5901e5edace5dbcd6f64e65f0ef71a47c64c71341d5059"
+      },
+      {
+        "skin": "human",
+        "eye": "open",
+        "mouth": "o",
+        "hash": "90bd226a715eaa89d26ecd45335ffa5b312c167adff70cb57c61a1ebf9b029ce"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "rest",
+        "hash": "8006424fda78e02d5da7f2afb81048e36400d0f7deb74c529575a3cfd60d8a49"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "closed",
+        "hash": "8006424fda78e02d5da7f2afb81048e36400d0f7deb74c529575a3cfd60d8a49"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "small",
+        "hash": "943b942194bd94493cf56fdb1328feda8208eb5d7556fc8d69389c27e41f6551"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "a",
+        "hash": "bea6ae311cf80f05ee930bed19c777498e0c7b340d02f14012e8c788c46a10c0"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "i",
+        "hash": "f7a8f3e44583bfec5e855aae8b684179d2d757c3122c9da0e5094d1928e67b23"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "u",
+        "hash": "3e42c11c1841d544b93587dd8812a2d127e3d0201709658c68ea1c54aa26e5e0"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "e",
+        "hash": "3b4d9dfa35929aa6563ef2885f306ea2e267b4e263ae6f3d4bfb6b3c6e348ee1"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesHalf",
+        "mouth": "o",
+        "hash": "5f729d54d1c6f46e9bff5993cdc8d8a190ec763f7ac2199bb5e693219e9f58a8"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "rest",
+        "hash": "ee087634ac166816689524910cc1763a71d71a15ed18b65065d0c00099bff610"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "closed",
+        "hash": "ee087634ac166816689524910cc1763a71d71a15ed18b65065d0c00099bff610"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "small",
+        "hash": "84626f9bb97a614410e7027f6db21ca6709939195fd432db2a395dfcdca87dc2"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "a",
+        "hash": "e9a81fbef128cdd308131c0d95d259c520c7e0b05e4b4daab3c47839efce6e79"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "i",
+        "hash": "af2e93e549d35c14e4b0117e70ec840b6860ece64ec01c9ef993dfebb30c064e"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "u",
+        "hash": "9196169ca68a9ae5bbdafc48d37481d50c2a5a8145d04dc90bdd587ad18f6b65"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "e",
+        "hash": "79305fc0672f6dff35723c50708c68f9f6205c448d020e77d8fa872602e3ce4a"
+      },
+      {
+        "skin": "human",
+        "eye": "eyesClosed",
+        "mouth": "o",
+        "hash": "f2ea93c8a21f2deb13b8f97aff86e3b232db31208dc9f80abfe1b7c2b3fbee65"
+      }
+    ]
+  },
+  "timings": [
+    {
+      "skin": "cat",
+      "samples": 121,
+      "frameIntervalP95Ms": 50.261999999999944,
+      "maximumObservedClockAgeMs": 30.76400000000001
+    },
+    {
+      "skin": "human",
+      "samples": 121,
+      "frameIntervalP95Ms": 50.85400000000027,
+      "maximumObservedClockAgeMs": 23.534000000000006
+    }
+  ],
+  "samples": [
+    {
+      "skin": "cat",
+      "time": 0,
+      "audio": 0,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 0,
+      "audio": 0,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 0,
+      "audio": 0,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 0,
+      "audio": 0,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5.5649999999999995,
+      "audio": 18.723,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 7.303,
+      "audio": 18.723,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 55.336999999999996,
+      "audio": 68.98700000000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 57.457,
+      "audio": 68.98700000000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 88.585,
+      "audio": 119.349,
+      "pose": {
+        "from": "rest",
+        "to": "a",
+        "mix": 0.4470260358867185
+      },
+      "expected": {
+        "from": "rest",
+        "to": "a",
+        "mix": 0.4470260358867185
+      }
+    },
+    {
+      "skin": "human",
+      "time": 95.815,
+      "audio": 119.349,
+      "pose": {
+        "from": "rest",
+        "to": "a",
+        "mix": 0.7119178213007812
+      },
+      "expected": {
+        "from": "rest",
+        "to": "a",
+        "mix": 0.7119178213007812
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 138.56199999999998,
+      "audio": 148.417,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 140.421,
+      "audio": 148.417,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 172.00199999999998,
+      "audio": 179.249,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 173.75199999999998,
+      "audio": 179.249,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 222.055,
+      "audio": 229.075,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 223.78300000000002,
+      "audio": 229.075,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 271.993,
+      "audio": 280.12199999999996,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 274.15299999999996,
+      "audio": 280.12199999999996,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 321.928,
+      "audio": 328.87300000000005,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 323.592,
+      "audio": 328.87300000000005,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 372.034,
+      "audio": 379.248,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 373.85200000000003,
+      "audio": 379.248,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 405.381,
+      "audio": 421.22700000000003,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.02307669591030279
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.02307669591030279
+      }
+    },
+    {
+      "skin": "human",
+      "time": 409.961,
+      "audio": 421.22700000000003,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.03812305990405826
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.03812305990405826
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 455.336,
+      "audio": 468.48,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.3295893897117624
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.3295893897117624
+      }
+    },
+    {
+      "skin": "human",
+      "time": 457.455,
+      "audio": 468.48,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.3473897619188377
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.3473897619188377
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 488.62,
+      "audio": 506.74399999999997,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.6191479462943212
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.6191479462943212
+      }
+    },
+    {
+      "skin": "human",
+      "time": 493.172,
+      "audio": 506.74399999999997,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.657898356757807
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.657898356757807
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 538.6469999999999,
+      "audio": 551.648,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.9566328141905054
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.9566328141905054
+      }
+    },
+    {
+      "skin": "human",
+      "time": 540.843,
+      "audio": 551.648,
+      "pose": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.964766059176834
+      },
+      "expected": {
+        "from": "a",
+        "to": "e",
+        "mix": 0.964766059176834
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 571.9490000000001,
+      "audio": 582.109,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "expected": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 573.986,
+      "audio": 582.109,
+      "pose": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      },
+      "expected": {
+        "from": "e",
+        "to": "e",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 622.0409999999999,
+      "audio": 637.815,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.24610534721900623
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.24610534721900623
+      }
+    },
+    {
+      "skin": "human",
+      "time": 624.765,
+      "audio": 637.815,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.27406163084012275
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.27406163084012275
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 672.018,
+      "audio": 685.767,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.793792223714309
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.793792223714309
+      }
+    },
+    {
+      "skin": "human",
+      "time": 674.062,
+      "audio": 685.767,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.8129859711731198
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.8129859711731198
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 722.696,
+      "audio": 734.17,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 724.598,
+      "audio": 734.17,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 772.19,
+      "audio": 779.5079999999999,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 773.9300000000001,
+      "audio": 779.5079999999999,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 805.394,
+      "audio": 812.126,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 806.88,
+      "audio": 812.126,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 855.2950000000001,
+      "audio": 862.955,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 857.673,
+      "audio": 862.955,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 888.503,
+      "audio": 900.434,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 890.1329999999999,
+      "audio": 900.434,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.000014719049657390712
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.000014719049657390712
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 938.663,
+      "audio": 951.495,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.9063855170347501
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.9063855170347501
+      }
+    },
+    {
+      "skin": "human",
+      "time": 941.024,
+      "audio": 951.495,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.9395556638720001
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.9395556638720001
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 988.6030000000001,
+      "audio": 1001.4060000000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 990.928,
+      "audio": 1001.4060000000001,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1021.9590000000001,
+      "audio": 1029.243,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1023.512,
+      "audio": 1029.243,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1072.017,
+      "audio": 1078.921,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1073.504,
+      "audio": 1078.921,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1121.979,
+      "audio": 1135.5839999999998,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.0031919356783427257
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.0031919356783427257
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1124.681,
+      "audio": 1135.5839999999998,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.017310088303324363
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.017310088303324363
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1155.232,
+      "audio": 1167.548,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.6294738903039993
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.6294738903039993
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1157.204,
+      "audio": 1167.548,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.6766382367994063
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.6766382367994063
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1205.526,
+      "audio": 1220.081,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.0876085683151783
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.0876085683151783
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1207.878,
+      "audio": 1220.081,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.10316479679289166
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.10316479679289166
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1255.279,
+      "audio": 1268.058,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.5564534880957441
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.5564534880957441
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1257.4840000000002,
+      "audio": 1268.058,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.5798801889534244
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.5798801889534244
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1288.616,
+      "audio": 1301.73,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8717720089439531
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8717720089439531
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1290.507,
+      "audio": 1301.73,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8855600027668787
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8855600027668787
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1338.878,
+      "audio": 1353.3980000000001,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.08535053002111677
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.08535053002111677
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1341.251,
+      "audio": 1353.3980000000001,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.1063051157002464
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.1063051157002464
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1388.611,
+      "audio": 1403.026,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.7229322802710201
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.7229322802710201
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1390.957,
+      "audio": 1403.026,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.7528085372378926
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.7528085372378926
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1421.894,
+      "audio": 1434.0839999999998,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.9974266703725576
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.9974266703725576
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1424.041,
+      "audio": 1434.0839999999998,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.9997512704314073
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.9997512704314073
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1472.034,
+      "audio": 1485.47,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.11282402135347246
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.11282402135347246
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1473.988,
+      "audio": 1485.47,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.1215698108635355
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.1215698108635355
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1521.974,
+      "audio": 1535.5430000000001,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.3971504783015109
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.3971504783015109
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1524.308,
+      "audio": 1535.5430000000001,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.41245643479157423
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.41245643479157423
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1572.02,
+      "audio": 1587.086,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.7229107127294594
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.7229107127294594
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1574.2259999999999,
+      "audio": 1587.086,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.7361423218892414
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.7361423218892414
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1621.791,
+      "audio": 1634.31,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.9567859365040686
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.9567859365040686
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1623.8809999999999,
+      "audio": 1634.31,
+      "pose": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.9627018199450261
+      },
+      "expected": {
+        "from": "i",
+        "to": "a",
+        "mix": 0.9627018199450261
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1671.995,
+      "audio": 1684.616,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.14998508017866807
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.14998508017866807
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1674.1209999999999,
+      "audio": 1684.616,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.17698741457184738
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.17698741457184738
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1706.287,
+      "audio": 1720.606,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.6841717481017756
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.6841717481017756
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1708.713,
+      "audio": 1720.606,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.7214754324880736
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.7214754324880736
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1738.2649999999999,
+      "audio": 1758.5919999999999,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9988994303576816
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9988994303576816
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1741.731,
+      "audio": 1758.5919999999999,
+      "pose": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.0007351057311930833
+      },
+      "expected": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.0007351057311930833
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1788.6580000000001,
+      "audio": 1806.4,
+      "pose": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.41390147461110316
+      },
+      "expected": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.41390147461110316
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1791.4699999999998,
+      "audio": 1806.4,
+      "pose": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.45192973249736773
+      },
+      "expected": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.45192973249736773
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1822.011,
+      "audio": 1839.625,
+      "pose": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.8387193962399231
+      },
+      "expected": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.8387193962399231
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1824.97,
+      "audio": 1839.625,
+      "pose": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.8682324102584525
+      },
+      "expected": {
+        "from": "small",
+        "to": "a",
+        "mix": 0.8682324102584525
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1871.957,
+      "audio": 1881.773,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1873.575,
+      "audio": 1881.773,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1905.267,
+      "audio": 1912.01,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1906.701,
+      "audio": 1912.01,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 1955.352,
+      "audio": 1963.801,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 1957.193,
+      "audio": 1963.801,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2005.2050000000002,
+      "audio": 2011.831,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2006.6329999999998,
+      "audio": 2011.831,
+      "pose": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      },
+      "expected": {
+        "from": "a",
+        "to": "a",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2055.244,
+      "audio": 2069.157,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.32809488059296765
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.32809488059296765
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2057.344,
+      "audio": 2069.157,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.35672408401065353
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.35672408401065353
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2105.224,
+      "audio": 2117.512,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9461639891339193
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9461639891339193
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2107.197,
+      "audio": 2117.512,
+      "pose": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9590225323194081
+      },
+      "expected": {
+        "from": "a",
+        "to": "small",
+        "mix": 0.9590225323194081
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2155.2400000000002,
+      "audio": 2168.48,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.41117128975000433
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.41117128975000433
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2157.1600000000003,
+      "audio": 2168.48,
+      "pose": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.4468394777500057
+      },
+      "expected": {
+        "from": "small",
+        "to": "i",
+        "mix": 0.4468394777500057
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2205.286,
+      "audio": 2220.961,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.0014339331924687812
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.0014339331924687812
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2207.739,
+      "audio": 2220.961,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.003052323269036628
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.003052323269036628
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2255.205,
+      "audio": 2269.691,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.1343881382031066
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.1343881382031066
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2257.276,
+      "audio": 2269.691,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.14367740802074927
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.14367740802074927
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2288.54,
+      "audio": 2301.3590000000004,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.3078797679594905
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.3078797679594905
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2290.451,
+      "audio": 2301.3590000000004,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.3190514633038411
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.3190514633038411
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2321.819,
+      "audio": 2338.52,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.5113678792482261
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.5113678792482261
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2323.785,
+      "audio": 2338.52,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.5236484049824028
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.5236484049824028
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2371.973,
+      "audio": 2384.286,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.8045203284571298
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.8045203284571298
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2373.939,
+      "audio": 2384.286,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.8144146159469005
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.8144146159469005
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2405.334,
+      "audio": 2418.605,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.9434369019039776
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.9434369019039776
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2408.074,
+      "audio": 2418.605,
+      "pose": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.9516209759737814
+      },
+      "expected": {
+        "from": "i",
+        "to": "e",
+        "mix": 0.9516209759737814
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2455.203,
+      "audio": 2469.8869999999997,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.004677318392874784
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.004677318392874784
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2457.245,
+      "audio": 2469.8869999999997,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.008971565447314254
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.008971565447314254
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2488.945,
+      "audio": 2505.314,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.21546713802128062
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.21546713802128062
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2493.082,
+      "audio": 2505.314,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.2566852337119988
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.2566852337119988
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2521.902,
+      "audio": 2550.338,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.5793391490734571
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.5793391490734571
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2539.501,
+      "audio": 2550.338,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.7693147466331373
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.7693147466331373
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2571.902,
+      "audio": 2585.1890000000003,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9888424348267567
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9888424348267567
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2574.1679999999997,
+      "audio": 2585.1890000000003,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.994142899963921
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.994142899963921
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2621.954,
+      "audio": 2632.002,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2624.0389999999998,
+      "audio": 2632.002,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2671.904,
+      "audio": 2684.302,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.10246861619199994
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.10246861619199994
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2673.696,
+      "audio": 2684.302,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.13252903761540585
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.13252903761540585
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2721.9280000000003,
+      "audio": 2731.439,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2723.8630000000003,
+      "audio": 2731.439,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2755.284,
+      "audio": 2763.044,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2757.1279999999997,
+      "audio": 2763.044,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2805.252,
+      "audio": 2811.706,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2806.8520000000003,
+      "audio": 2811.706,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2838.69,
+      "audio": 2844.977,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2840.2400000000002,
+      "audio": 2844.977,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2888.5710000000004,
+      "audio": 2895.622,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2890.182,
+      "audio": 2895.622,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2938.58,
+      "audio": 2944.83,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2940.052,
+      "audio": 2944.83,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 2988.526,
+      "audio": 2994.739,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 2990.0229999999997,
+      "audio": 2994.739,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3038.602,
+      "audio": 3047.025,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3041.188,
+      "audio": 3047.025,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3088.607,
+      "audio": 3095.005,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3090.103,
+      "audio": 3095.005,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3138.472,
+      "audio": 3144.951,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3139.951,
+      "audio": 3144.951,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3188.618,
+      "audio": 3196.519,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3190.1099999999997,
+      "audio": 3196.519,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3221.9,
+      "audio": 3230.753,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3224.46,
+      "audio": 3230.753,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3271.8630000000003,
+      "audio": 3278.479,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3273.3469999999998,
+      "audio": 3278.479,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3321.8489999999997,
+      "audio": 3327.984,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3323.2529999999997,
+      "audio": 3327.984,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3371.8590000000004,
+      "audio": 3385.965,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.003350091056001348
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.003350091056001348
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3374.5660000000003,
+      "audio": 3385.965,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.01953172984527938
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.01953172984527938
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3422.227,
+      "audio": 3435.167,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.9926303461627882
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.9926303461627882
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3424.174,
+      "audio": 3435.167,
+      "pose": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.9993301372198468
+      },
+      "expected": {
+        "from": "rest",
+        "to": "o",
+        "mix": 0.9993301372198468
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3471.882,
+      "audio": 3481.979,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.36307856496955054
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.36307856496955054
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3473.78,
+      "audio": 3481.979,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.38713280821632534
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.38713280821632534
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3521.712,
+      "audio": 3534.2090000000003,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.9321754266772377
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.9321754266772377
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3523.8160000000003,
+      "audio": 3534.2090000000003,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.9461591822569313
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.9461591822569313
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3571.808,
+      "audio": 3581.255,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "expected": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3573.457,
+      "audio": 3581.255,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "expected": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3605.2149999999997,
+      "audio": 3612.302,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "expected": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3607.033,
+      "audio": 3612.302,
+      "pose": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      },
+      "expected": {
+        "from": "small",
+        "to": "small",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3655.27,
+      "audio": 3667.601,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.019314134860166185
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.019314134860166185
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3657.159,
+      "audio": 3667.601,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.02421259443723275
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.02421259443723275
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3688.723,
+      "audio": 3704.176,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.17155177395642737
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.17155177395642737
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3692.467,
+      "audio": 3704.176,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.19567416325696457
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.19567416325696457
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3738.603,
+      "audio": 3754.2819999999997,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.5494119803984837
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.5494119803984837
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3740.949,
+      "audio": 3754.2819999999997,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.5683148897185644
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.5683148897185644
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3771.9230000000002,
+      "audio": 3785.5080000000003,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.8002922541590943
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.8002922541590943
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3774.6,
+      "audio": 3785.5080000000003,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.817781269105482
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.817781269105482
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3821.824,
+      "audio": 3834.3289999999997,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.9991259433070582
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.9991259433070582
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3823.967,
+      "audio": 3834.3289999999997,
+      "pose": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.9999068122655518
+      },
+      "expected": {
+        "from": "small",
+        "to": "o",
+        "mix": 0.9999068122655518
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3855.163,
+      "audio": 3867.373,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.2001546944420742
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.2001546944420742
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3857.222,
+      "audio": 3867.373,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.22472008815454655
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.22472008815454655
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3905.176,
+      "audio": 3917.905,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8587468982239043
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.8587468982239043
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3907.1310000000003,
+      "audio": 3917.905,
+      "pose": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.878352967504003
+      },
+      "expected": {
+        "from": "o",
+        "to": "small",
+        "mix": 0.878352967504003
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3955.2239999999997,
+      "audio": 3965.1,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "expected": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3956.954,
+      "audio": 3965.1,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "expected": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 3988.581,
+      "audio": 4002.4449999999997,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "expected": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 3990.676,
+      "audio": 4002.4449999999997,
+      "pose": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      },
+      "expected": {
+        "from": "closed",
+        "to": "closed",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4038.796,
+      "audio": 4052.15,
+      "pose": {
+        "from": "closed",
+        "to": "u",
+        "mix": 0.555441316275864
+      },
+      "expected": {
+        "from": "closed",
+        "to": "u",
+        "mix": 0.555441316275864
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4041.05,
+      "audio": 4052.15,
+      "pose": {
+        "from": "closed",
+        "to": "u",
+        "mix": 0.6500559125364507
+      },
+      "expected": {
+        "from": "closed",
+        "to": "u",
+        "mix": 0.6500559125364507
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4071.8050000000003,
+      "audio": 4086.1660000000006,
+      "pose": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.10180714456299939
+      },
+      "expected": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.10180714456299939
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4073.6030000000005,
+      "audio": 4086.1660000000006,
+      "pose": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.12273123551483794
+      },
+      "expected": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.12273123551483794
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4121.856,
+      "audio": 4135.206,
+      "pose": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.8827583533970549
+      },
+      "expected": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.8827583533970549
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4123.905,
+      "audio": 4135.206,
+      "pose": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.9060147148214912
+      },
+      "expected": {
+        "from": "u",
+        "to": "i",
+        "mix": 0.9060147148214912
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4171.935,
+      "audio": 4184.108,
+      "pose": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.28836829917593204
+      },
+      "expected": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.28836829917593204
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4173.928,
+      "audio": 4184.108,
+      "pose": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.3191904182311312
+      },
+      "expected": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.3191904182311312
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4205.184,
+      "audio": 4227.025000000001,
+      "pose": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.8138407747887433
+      },
+      "expected": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.8138407747887433
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4209.965999999999,
+      "audio": 4227.025000000001,
+      "pose": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.8734077183519936
+      },
+      "expected": {
+        "from": "i",
+        "to": "small",
+        "mix": 0.8734077183519936
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4255.18,
+      "audio": 4268.906999999999,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.07059721240267348
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.07059721240267348
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4257.525000000001,
+      "audio": 4268.906999999999,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.08340468597059825
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.08340468597059825
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4288.3820000000005,
+      "audio": 4302.317999999999,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.3187399559926371
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.3187399559926371
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4290.514,
+      "audio": 4302.317999999999,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.33825149044651504
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.33825149044651504
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4338.844,
+      "audio": 4353.379,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.7867904545906705
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.7867904545906705
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4341.368,
+      "audio": 4353.379,
+      "pose": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.8068905514024899
+      },
+      "expected": {
+        "from": "small",
+        "to": "e",
+        "mix": 0.8068905514024899
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4388.531000000001,
+      "audio": 4401.99,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.002348767556823147
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.002348767556823147
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4390.821,
+      "audio": 4401.99,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.0063037631332749505
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.0063037631332749505
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4438.599,
+      "audio": 4452.548,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.39391013161646365
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.39391013161646365
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4440.995,
+      "audio": 4452.548,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.42222186545932666
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.42222186545932666
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4488.6720000000005,
+      "audio": 4501.616,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9225969511214646
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9225969511214646
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4490.832,
+      "audio": 4501.616,
+      "pose": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9366684318818652
+      },
+      "expected": {
+        "from": "e",
+        "to": "o",
+        "mix": 0.9366684318818652
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4538.615,
+      "audio": 4552.773,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.10825170826648899
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.10825170826648899
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4541.118,
+      "audio": 4552.773,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.12625130719021282
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.12625130719021282
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4588.491,
+      "audio": 4602.055,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.5905288073507499
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.5905288073507499
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4590.47,
+      "audio": 4602.055,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.6113420329278453
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.6113420329278453
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4638.484,
+      "audio": 4652.0070000000005,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.9808144300846193
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.9808144300846193
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4641.129,
+      "audio": 4652.0070000000005,
+      "pose": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.9884637212465821
+      },
+      "expected": {
+        "from": "o",
+        "to": "e",
+        "mix": 0.9884637212465821
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4671.954000000001,
+      "audio": 4685.427,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.02559400056897258
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.02559400056897258
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4673.966,
+      "audio": 4685.427,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.030310187824000853
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.030310187824000853
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4721.903,
+      "audio": 4736.0470000000005,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.23209053976718685
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.23209053976718685
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4724.179999999999,
+      "audio": 4736.0470000000005,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.24496321843806668
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.24496321843806668
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4772.088,
+      "audio": 4786.885,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.5461675516880936
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.5461675516880936
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4774.463,
+      "audio": 4786.885,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.5615759231994973
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.5615759231994973
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4805.1320000000005,
+      "audio": 4817.722,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.7511056804175311
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.7511056804175311
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4807.089999999999,
+      "audio": 4817.722,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.7622430259999958
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.7622430259999958
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4855.169,
+      "audio": 4870.093,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.96755003841591
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.96755003841591
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4857.255999999999,
+      "audio": 4870.093,
+      "pose": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.9725980674425537
+      },
+      "expected": {
+        "from": "e",
+        "to": "a",
+        "mix": 0.9725980674425537
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4905.339,
+      "audio": 4917.710999999999,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.00492150370667354
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.00492150370667354
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4907.665,
+      "audio": 4917.710999999999,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.010019433837391805
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.010019433837391805
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 4955.197,
+      "audio": 4969.898999999999,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.38774604608523305
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.38774604608523305
+      }
+    },
+    {
+      "skin": "human",
+      "time": 4958.866999999999,
+      "audio": 4969.898999999999,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.42944461516124527
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.42944461516124527
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5005.224,
+      "audio": 5018.862,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.9048775308516862
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.9048775308516862
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5007.398,
+      "audio": 5018.862,
+      "pose": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.91982741197197
+      },
+      "expected": {
+        "from": "a",
+        "to": "o",
+        "mix": 0.91982741197197
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5055.222,
+      "audio": 5066.075,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5057.2660000000005,
+      "audio": 5066.075,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5105.131,
+      "audio": 5112.130999999999,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5106.957,
+      "audio": 5112.130999999999,
+      "pose": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      },
+      "expected": {
+        "from": "o",
+        "to": "o",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5155.142,
+      "audio": 5167.84,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.15892087515473743
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.15892087515473743
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5157.225,
+      "audio": 5167.84,
+      "pose": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.19992951837385006
+      },
+      "expected": {
+        "from": "o",
+        "to": "rest",
+        "mix": 0.19992951837385006
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5205.0599999999995,
+      "audio": 5215.263,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5206.947,
+      "audio": 5215.263,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5255.157999999999,
+      "audio": 5261.996,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5257.089,
+      "audio": 5261.996,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5305.146,
+      "audio": 5312.326,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5306.958,
+      "audio": 5312.326,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "cat",
+      "time": 5338.4400000000005,
+      "audio": 5345.656,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    },
+    {
+      "skin": "human",
+      "time": 5339.84,
+      "audio": 5345.656,
+      "pose": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      },
+      "expected": {
+        "from": "rest",
+        "to": "rest",
+        "mix": 0
+      }
+    }
+  ],
+  "scope": "New deterministic visual motion and mouth-only morph. Original audio/alignment retained. Pixel-jump statistics are not listening approval or phoneme accuracy."
+}

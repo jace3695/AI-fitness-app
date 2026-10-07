@@ -1,0 +1,46 @@
+✔ one controller delivers identical immutable semantic frames to independent render adapters without DOM (3.111786ms)
+✔ pause, end, wait, seek, error and every visibility gate close the mouth (0.406444ms)
+✔ media position, not idle clock, controls seeks, gaps and replacement clips (0.215114ms)
+✔ all twelve expressions preserve speech cues and immutable bounded frames (0.459969ms)
+✔ expression retargeting is continuous; disabled snapshots do not replay old blends (0.348792ms)
+✔ gestures are finite, replace instead of queue, and use the host animation clock (0.236783ms)
+✔ visibility/reduced-motion gates and reset cancel gestures permanently (0.177754ms)
+✔ Japanese Open JTalk vowels, devoiced vowels, closure and silence have explicit projections (0.126368ms)
+✔ Japanese symbols never leak into Korean; identical j has language-specific meaning (0.364701ms)
+✔ kana, unknown phones, G2P prosody and prototype names are not silently interpreted (0.471629ms)
+✔ new language requires v2 and explicit Open JTalk convention; voice and language must agree (0.398657ms)
+✔ Japanese timeline freezes copied cues and preserves exact text and timing (0.176547ms)
+(node:5) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/cfae9046ae4e/repo/lib/yeoni/character-controller.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/cfae9046ae4e/repo/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Gemini Japanese candidate keeps its own voice identity without broadening Korean or other voices (6.52522ms)
+✔ Japanese media boundaries, end, silence and random seeks select the declared phone (0.16699ms)
+✔ long vowels stay open while short measured closures and pauses survive smoothing (0.354055ms)
+✔ one Controller swaps language at the same audio hash without stale cached poses (0.333905ms)
+✔ Japanese pair hashes exact UTF-8 text and audio; changed bytes and normalization are rejected (0.90054ms)
+✔ Japanese intervals reject overlap, negative/reversed/nonfinite/overrun clocks (0.347064ms)
+✔ measured label import preserves nonuniform timing and equivalent explicit seconds/HTS units (0.938199ms)
+✔ label import rejects text-only phonemes, guessed units, full context and unsafe timestamps (1.304535ms)
+✔ Korean visible phoneme groups and unknown phone rejection (0.391844ms)
+✔ Korean MFA IPA projection preserves vowel distinctions, length and rounding (0.126718ms)
+✔ silence, exact boundaries, backward seek, end and invalid media times (0.126751ms)
+✔ reject overlap, reversed/negative/nonfinite/overlong timing; never repair silently (0.172132ms)
+✔ reject malformed contracts, wrong voice/language and excessive inputs (0.312295ms)
+✔ validated timeline is copied and frozen against later caller mutation (0.0902ms)
+✔ audio and exact spoken text both bound to SHA-256; wrong pairs rejected (1.492924ms)
+✔ brief consonants join adjacent vowels; 10 ms glides do not force a full-mouth flash (0.289391ms)
+✔ all measured silence and lip closure interiors remain completely closed (0.504699ms)
+✔ visual pose is immutable, bounded and independent of sampling order or playback rate (4.216391ms)
+✔ all gates, playback interruptions and replaced clips clear visual pose without a lingering blend (0.2629ms)
+✔ every mouth geometry is ordered inside its renderer patch (17.732306ms)
+✔ pixel morph preserves exact endpoints, identity, fixed border and symmetric halfway blend (7.064567ms)
+✔ cat nose rows stay pinned while every interior pixel receives opaque output (3.117844ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 147.562533

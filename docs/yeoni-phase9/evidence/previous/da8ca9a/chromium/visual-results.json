@@ -1,0 +1,683 @@
+{
+  "browser": "chromium",
+  "version": "153.0.8010.12",
+  "results": [
+    {
+      "name": "record actual normal-speed MP3 playback and return to the original closed mouth",
+      "passed": true
+    },
+    {
+      "name": "actual speech pixels match approved face patches and neck remains opaque",
+      "passed": true
+    },
+    {
+      "name": "original comparison sheets capture natural speech states and end state",
+      "passed": true
+    },
+    {
+      "name": "offline HTML loads its embedded MP3 and face assets without external requests or autoplay",
+      "passed": true
+    },
+    {
+      "name": "review MP4 reuses the original voice with timestamped actual browser frames",
+      "passed": true
+    },
+    {
+      "name": "no runtime exceptions or external requests",
+      "passed": true
+    }
+  ],
+  "sampleCount": 71,
+  "comparison": [
+    {
+      "media": 0,
+      "rendered": 0,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 0,
+      "rendered": 0,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 74.47099999999999,
+      "rendered": 56.914,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 153.096,
+      "rendered": 140.207,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 236.49800000000002,
+      "rendered": 223.524,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 306.928,
+      "rendered": 273.565,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 386.483,
+      "rendered": 373.52299999999997,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 456.909,
+      "rendered": 423.529,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 542.5210000000001,
+      "rendered": 523.528,
+      "shape": "e",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 636.284,
+      "rendered": 623.4929999999999,
+      "shape": "e",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 706.806,
+      "rendered": 673.544,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 786.173,
+      "rendered": 773.514,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 856.837,
+      "rendered": 823.547,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 936.395,
+      "rendered": 923.475,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1006.7839999999999,
+      "rendered": 978.4540000000001,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1073.388,
+      "rendered": 1056.841,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1140.171,
+      "rendered": 1106.773,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1219.6290000000001,
+      "rendered": 1206.765,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1303.788,
+      "rendered": 1290.1339999999998,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1373.461,
+      "rendered": 1340.1860000000001,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1453.0069999999998,
+      "rendered": 1440.1409999999998,
+      "shape": "i",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1523.5749999999998,
+      "rendered": 1490.128,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1590.1080000000002,
+      "rendered": 1573.443,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1669.664,
+      "rendered": 1656.7259999999999,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1740.18,
+      "rendered": 1706.8239999999998,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1806.731,
+      "rendered": 1790.2,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1886.3490000000002,
+      "rendered": 1873.4379999999999,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 1969.661,
+      "rendered": 1956.8229999999999,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2053.243,
+      "rendered": 2040.1250000000002,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2123.451,
+      "rendered": 2090.1510000000003,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2190.033,
+      "rendered": 2173.414,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2256.8630000000003,
+      "rendered": 2223.423,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2336.384,
+      "rendered": 2323.473,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2425.361,
+      "rendered": 2406.732,
+      "shape": "e",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2502.788,
+      "rendered": 2490.088,
+      "shape": "e",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2586.779,
+      "rendered": 2573.378,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2669.6209999999996,
+      "rendered": 2656.7630000000004,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2740.11,
+      "rendered": 2706.813,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2806.722,
+      "rendered": 2790.031,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2873.472,
+      "rendered": 2840.076,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 2953.012,
+      "rendered": 2940.076,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3036.279,
+      "rendered": 3023.516,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3120.154,
+      "rendered": 3106.8120000000004,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3203.366,
+      "rendered": 3190.1549999999997,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3273.42,
+      "rendered": 3240.182,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3352.948,
+      "rendered": 3340.106,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3423.481,
+      "rendered": 3390.192,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3509.1290000000004,
+      "rendered": 3490.062,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3586.329,
+      "rendered": 3573.4539999999997,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3669.965,
+      "rendered": 3656.788,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3752.8630000000003,
+      "rendered": 3740.024,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3836.1079999999997,
+      "rendered": 3823.388,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 3919.656,
+      "rendered": 3906.701,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4002.6229999999996,
+      "rendered": 3990.011,
+      "shape": "closed",
+      "eye": "eyesHalf",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4086.138,
+      "rendered": 4073.271,
+      "shape": "u",
+      "eye": "eyesClosed",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4156.704000000001,
+      "rendered": 4123.399,
+      "shape": "i",
+      "eye": "eyesClosed",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4242.298,
+      "rendered": 4223.366999999999,
+      "shape": "small",
+      "eye": "eyesHalf",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4308.849,
+      "rendered": 4290.003,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4408.999,
+      "rendered": 4389.97,
+      "shape": "e",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4508.871,
+      "rendered": 4490.0289999999995,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4602.902,
+      "rendered": 4589.985000000001,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4685.976000000001,
+      "rendered": 4673.329,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4756.672,
+      "rendered": 4723.366,
+      "shape": "small",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4842.025,
+      "rendered": 4823.351,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 4919.455,
+      "rendered": 4906.641,
+      "shape": "a",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5003.351000000001,
+      "rendered": 4990.066,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5086.071,
+      "rendered": 5073.334,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5169.367,
+      "rendered": 5156.692999999999,
+      "shape": "o",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5240.022,
+      "rendered": 5206.657,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5319.6,
+      "rendered": 5306.651,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    },
+    {
+      "media": 5376,
+      "rendered": 5376,
+      "shape": "rest",
+      "eye": "open",
+      "opaqueChanged": 0,
+      "alphaMax": 0,
+      "neckMin": 255
+    }
+  ],
+  "video": {
+    "path": "human-speech-v1.mp4",
+    "durationSeconds": 6,
+    "fps": 24,
+    "sourceFrames": 71,
+    "audio": "unchanged 5.376-second MP3 decoded and AAC muxed; silence padded to 6s",
+    "sampling": "Timestamped actual playback Canvas snapshots held until next captured media timestamp; not interpolated or slowed"
+  },
+  "errors": [],
+  "external": [],
+  "scope": "Actual saved MP3 and approved human artwork. Automatic alignment/listening and physical-device latency remain unverified."
+}

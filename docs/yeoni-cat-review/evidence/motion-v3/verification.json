@@ -1,0 +1,127 @@
+{
+  "date": "2026-09-30",
+  "runtimeCommit": "fa05a9dad2778aacf23fe3eb2f3c2d59f4283f57",
+  "validatedCommit": "9e16bc37d987d023c7e53aa15f536e73d692d89a",
+  "workflowRun": 36718189111,
+  "motionJob": 109896855365,
+  "regressionJob": 109896855165,
+  "artifacts": [
+    {
+      "id": 11096663666,
+      "sha256": "b7ca959bd5c5d2f5001cc74a79110a7efdc0f72513ed3302e8b5eb865994d969",
+      "verified": true
+    },
+    {
+      "id": 11097367088,
+      "sha256": "5ee56675ef1a63e2983718b91d9e4629c634f121b5c589946e4364bf57d7ca2c",
+      "verified": true
+    }
+  ],
+  "codeChecks": {
+    "unitTestsPassed": 693,
+    "lint": "passed",
+    "typecheck": "passed",
+    "build": "passed"
+  },
+  "browserChecks": {
+    "motion": {
+      "chromium": 8,
+      "webkit": 7
+    },
+    "existingCat": {
+      "chromium": 51,
+      "webkit": 51
+    },
+    "legacyHumanStatic": {
+      "chromium": 6,
+      "webkit": 6
+    }
+  },
+  "originalComparison": {
+    "statesPerBrowser": 21,
+    "allStationaryChangedPixels": 0,
+    "fullMovingStateSheetsReviewedBothBrowsers": true,
+    "faceCropsReviewedBothBrowsers": true,
+    "restOverlayReviewedBothBrowsers": true,
+    "allFourGestureSheetsReviewedBothBrowsers": true,
+    "findings": "No visible displaced eye/mouth patches, duplicated contours, square patch boundaries, neck/tail gaps or bright mesh seams in inspected frames. Does not establish human listening approval."
+  },
+  "video": {
+    "file": "cat-motion-v3.mp4",
+    "durationSeconds": 13,
+    "fps": 12,
+    "size": [
+      360,
+      400
+    ],
+    "source": "Chromium screenshots of actual Canvas renderer",
+    "audio": false,
+    "gesturePlayback": "Each gesture is shown over 2 seconds for slower inspection; runtime durations remain 1.1/1.5/1.3/1.2 seconds. First 5 seconds use the normal idle timeline.",
+    "decodedContactSheetInspected": true,
+    "browserPlayPauseTest": "passed"
+  },
+  "performance": {
+    "scope": "180 synchronous Canvas samples at 360px in headless CI; not device performance or sustained 30fps claim",
+    "chromium": {
+      "samples": 180,
+      "median": 1.3000000000465661,
+      "p95": 47.20000000001164,
+      "max": 48.59999999997672,
+      "average": 8.285555555554392
+    },
+    "webkit": {
+      "samples": 180,
+      "median": 1,
+      "p95": 2,
+      "max": 3,
+      "average": 1.3333333333333333
+    }
+  },
+  "limitations": [
+    "Opaque white original backdrop",
+    "Subtle motion only; no transparent separated rig or independent ears/paws",
+    "Emotion distinctions are limited to approved eye states and subtle head pose",
+    "Human listening and physical iPhone performance remain unverified",
+    "No production merge/deploy and no new TTS calls"
+  ],
+  "overallProgress": "5/16 functional PoC phases (1-4,6); human PHASE 7 original-preserving assets and PHASE 5 listening remain open",
+  "overlayDerivation": "Equal-size original/revised 360x360 canvas crops from baseline.png at (12,12) and (388,12), with a 50% alpha overlay; no artwork retouching.",
+  "files": {
+    "cat-motion-v3.mp4": "da5a5a2b779113b70a2fa2e9e3faf9722875ffacb448c0424b9d2d049ec38d98",
+    "chromium/baseline.png": "0210100970a80ccccb5a8a21ad1acf9291bdc81f846390d140f9e961fd9b01d8",
+    "chromium/gesture-cheer.png": "0eecd24429854b5732e68eb2f2104998306ae8744d8f5c7b6c9d4805a45fd14b",
+    "chromium/gesture-greet.png": "54b0e0d7b9ea2dcf4e7081e11c1242ad6d90de62d7f85980572c3523dc251f6c",
+    "chromium/gesture-nod.png": "aa60111e56a76dc952276eb46aea9521bcc2b183c0fbc67045bbb373e8fb2ce2",
+    "chromium/gesture-tilt.png": "d32398ec5a168ad89a62349a044f98fa0e8ffd9fd49b729e5305116bdcb1d6fd",
+    "chromium/moving-closed.png": "a07551d80e98db4eb580a33ccee6a8f13c6bb25018a7ef08f856048af9bad01f",
+    "chromium/moving-half.png": "bbd6fbf467a591f0a5180693b51b629f0c919b5778142d0a01e9da07cff2269c",
+    "chromium/moving-open.png": "de172a297d50438df022fe6c2b7e4396cec97981f6a8c5093efcb8109c6aded2",
+    "chromium/rest-overlay.png": "6b417e85c66224d5d793f41853418d6c414109cee7a0a687ddeacab0c7394348",
+    "chromium/results.json": "3650df33344883ebe0eb8e0f0f3479983e255c5a87d9aa531d4548ac0a640f9d",
+    "regression/yeoni-emotion-poc/chromium/expressions.png": "4e1ef7dd678c7157f54f479e40f6b0ade3b8cf48ad1da6940a3c49392c7dcd9f",
+    "regression/yeoni-emotion-poc/chromium/results.json": "1f402590ee2ff0a834db220c8080a9ee796a2e84cb74440a8ddd71adccf331b1",
+    "regression/yeoni-emotion-poc/webkit/390.png": "44867857ec46e84b7f377c4e38c800867c691e4ab1eb9d934e9abbdb9369660e",
+    "regression/yeoni-emotion-poc/webkit/expressions.png": "ec778ce6a27f27b075c56344a92b9ff1ce78ab7a95d6bb1e6c34672b3afe996b",
+    "regression/yeoni-emotion-poc/webkit/results.json": "62e9315c0dd046ef602ac5335ccb2619ad89078b96aa73de8e8bbae6a30cdadb",
+    "regression/yeoni-human-assets/chromium/results.json": "9ccdb029950f71157bcf78612f3de057f2fd4774c4d901d68ad949cffe6743f1",
+    "regression/yeoni-human-assets/webkit/results.json": "459a9e0ec0a726e28401dbadcf3a2d70924797d17b045eb36a08edde106470dc",
+    "regression/yeoni-poc/chromium/results.json": "f90713aa3ce605fe44a204ea82358402aaae3d6bc64b2c4e8e0893d847e7f032",
+    "regression/yeoni-poc/webkit/390.png": "9dfbeacaf24e47035163f3c7e3889639339d543acda87341fa55be637f163868",
+    "regression/yeoni-poc/webkit/results.json": "653309e9ee3e8614df2d7290c8efa95e69af8b6ba5590cee3b85f3262ce89d7c",
+    "regression/yeoni-speech-poc/chromium/results.json": "a69419d8ae9dc69d7160d6572f623760d292678dbfcc00229d086ec1facc643b",
+    "regression/yeoni-speech-poc/chromium/six-mouths.png": "87b5aaec116b86f8c2037041a370d3e5c4c23f5f90cfa2d02eec17e36f4fc721",
+    "regression/yeoni-speech-poc/webkit/real-voice-ended.png": "f643aa8d8ba389711e00b65b48b7f16b3d28082a32220b115057bbd5fa69a4bc",
+    "regression/yeoni-speech-poc/webkit/results.json": "d97e8f8c770a80b43d9c9ad785f353e3db5a34757f320d77f17542ec05c8fec8",
+    "regression/yeoni-speech-poc/webkit/six-mouths.png": "591bb44dfb25f603a20f4188196a51576e51d3fa26274c4ed800781acf75e638",
+    "webkit/baseline.png": "6c90dd2ec71b4ee11e231f72b59249f06794053699de7bf06c220e6272c9039b",
+    "webkit/gesture-cheer.png": "98d9725378b086295c7fe8a4489b23a1eda3d1d3d4f4bf963de2fc642d237dc5",
+    "webkit/gesture-greet.png": "42addc0cefc2d93d6fcf87d5558e45e2ff9f567c00e808d6a0d55fd6fec9920f",
+    "webkit/gesture-nod.png": "336c066aebc4a0e057a4225e6801ae870734d6a5d1382c8f892344861a6d0d10",
+    "webkit/gesture-tilt.png": "4c3a3949bd780f15d44ee4721631b3305ac9f8323782c3a5d818037bd3409c4c",
+    "webkit/moving-closed.png": "6554fa8b348b9cea000a3195675dc97e09163bfaf7263a795f7504ced29a1a3e",
+    "webkit/moving-half.png": "0616be382d48ad670b9711a0b5b77ec41973b2807df7f16c5fb0a324f2f8181b",
+    "webkit/moving-open.png": "8aafc4c2688d7431b6f40e3065b4d7eb1bec512898b730ccd984c86ecf5f1e90",
+    "webkit/rest-overlay.png": "6b417e85c66224d5d793f41853418d6c414109cee7a0a687ddeacab0c7394348",
+    "webkit/results.json": "0ac052a5dcf6566cb4a8742c4ede32303cfa29f9376411f17d67370eff6b820c"
+  }
+}

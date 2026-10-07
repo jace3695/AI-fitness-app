@@ -1,0 +1,19 @@
+{
+  "engine": "Julius 4.6",
+  "engineCommit": "3b7174d0d4091f5e6ebb917769822032d079996f",
+  "kitCommit": "e0e8bbaf98e27d19dfc6fe8312be607ad03592ad",
+  "source": "https://github.com/julius-speech/segmentation-kit",
+  "model": "hmmdefs_monof_mix16_gid.binhmm",
+  "modelSha256": "58952ccfe60f283c7efb1c22f9e012c7d297429700b7eeb4b60f7651a6e65940",
+  "analysisAudio": "16kHz PCM derived using ffmpeg, no trim/stretch",
+  "transcription": "Manually supplied pronunciation from approved text; not ASR confirmation",
+  "mapping": {
+    "silB/silE": "sil",
+    "sp": "pau",
+    "q": "cl",
+    "o:": "o (whole measured long-vowel interval preserved)"
+  },
+  "labelCount": 42,
+  "timing": "Original Julius intervals preserved; 10 ms feature step, kit 12.5 ms offset",
+  "review": "automatic candidate; listening and phoneme boundaries not approved"
+}
