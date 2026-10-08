@@ -5,6 +5,7 @@ import { characterReplyEnabled } from '@/lib/yeoni/reply-plan';
 import CharacterCheck from './CharacterCheck';
 import DeviceCheck from './DeviceCheck';
 import AlignmentCheck from './AlignmentCheck';
+import GeneralAlignmentCheck from './GeneralAlignmentCheck';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '연이 답변과 캐릭터 연결', robots: { index: false, follow: false } };
@@ -12,6 +13,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   if (!characterReplyEnabled(process.env)) notFound();
   const mode = (await searchParams).mode;
   if (mode === 'alignment') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><AlignmentCheck /></main>;
+  if (mode === 'general') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><GeneralAlignmentCheck /></main>;
   const deviceReview = mode === 'device';
   const [ko, ja] = await Promise.all([
     readFile(path.join(process.cwd(), 'docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3'), 'base64'),
