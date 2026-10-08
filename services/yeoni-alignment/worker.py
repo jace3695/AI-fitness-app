@@ -7,6 +7,7 @@ This file does not download models or send recordings to another provider.
 import base64
 import hashlib
 import json
+import re
 import math
 import os
 from pathlib import Path
@@ -156,6 +157,13 @@ def align(body, dictionary, acoustic):
             value = timings.get(name)
             if isinstance(value, int) and 0 <= value <= 50_000:
                 print(f'alignment-phase={name} milliseconds={value}', flush=True)
+        for item in timings.get('hotspots', [])[:15]:
+            # Profile output contains only allowlisted package code identities and numbers.
+            if (isinstance(item, dict) and isinstance(item.get('code'), str)
+                    and re.fullmatch(r'(?:montreal_forced_aligner|kalpy)/[A-Za-z0-9_./:]{1,150}', item['code'])
+                    and all(type(item.get(k)) is int and 0 <= item[k] <= 10_000_000
+                            for k in ('totalMs', 'selfMs', 'calls'))):
+                print('alignment-hotspot=' + json.dumps(item, separators=(',', ':')), flush=True)
         raw = json.loads((root / 'aligned.json').read_text(encoding='utf-8'))
         return manifest_from_raw(audio, text, raw)
 
