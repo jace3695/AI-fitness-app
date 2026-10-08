@@ -71,3 +71,9 @@ PoC/iPhone checks were repeated.
 - Branch alias app login succeeded through secure credential input; refreshed current 15f135e UI shows saved alignment check.
 - One explicit saved-fixture request reached private `/align` (gunicorn startup logged) and returned worker HTTP422. Auth, same-origin guard, binding and bearer routing are working. No TTS generation or automatic retry.
 - Processing/playback is NOT passed. Added fixed-category stage/timeout/exit diagnostics; raw process output, audio, transcript, paths and tokens are never emitted. Local Python suite 9 passed.
+
+### Hosted timeout identified (16:30 KST)
+
+- Diagnostic f3eb55d deployment READY. Explicit fixed MP3 retry: decode OK 0.22s, MFA killed at the configured 15s limit. No auth/binding/model-file configuration failure was reported.
+- Increase bounded MFA time to45s, worker55s, alignment caller50s; saved-check API60s/client55s. Opt-in TTS API90s/client95s accommodates provider30s plus alignment50s. Non-alignment client timeout remains45s. No auto retry or flag activation.
+- Six Node tests, nine Python tests, changed-file ESLint and Next build pass. This timeout adjustment still requires a fresh hosted attempt; latency suitability is not yet established.

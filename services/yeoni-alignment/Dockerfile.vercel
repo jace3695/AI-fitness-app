@@ -13,4 +13,4 @@ ENV YEONI_MFA_ACOUSTIC=/opt/yeoni/models/korean_mfa.zip \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
 # The image's upstream entrypoint activates the base environment.
 # Vercel handles TLS/ingress; this service has no public rewrite.
-CMD ["sh", "-c", "exec gunicorn --workers 1 --threads 2 --timeout 25 --bind 0.0.0.0:${PORT:-8080} worker:application"]
+CMD ["sh", "-c", "exec gunicorn --workers 1 --threads 2 --timeout 55 --bind 0.0.0.0:${PORT:-8080} worker:application"]

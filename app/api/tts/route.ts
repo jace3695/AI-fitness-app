@@ -7,6 +7,7 @@ import { alignGeneratedReply, alignmentConfiguration } from '@/lib/yeoni/speech-
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 90;
 
 const json = (body: Record<string, unknown>, status = 200) => NextResponse.json({
   voice: YEONI_VOICE_NAME, useDeviceVoice: false, ...body,

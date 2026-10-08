@@ -26,7 +26,7 @@ mfa model download acoustic korean_mfa --version v3.0.0
 mfa model download dictionary korean_mfa --version v3.0.0
 # Set YEONI_MFA_ACOUSTIC and YEONI_MFA_DICTIONARY to absolute local model paths.
 # Inject YEONI_ALIGNMENT_TOKEN (random secret, at least 32 characters) securely.
-gunicorn --workers 1 --threads 2 --timeout 25 --bind 127.0.0.1:8080 worker:application
+gunicorn --workers 1 --threads 2 --timeout 55 --bind 127.0.0.1:8080 worker:application
 ```
 
 Terminate TLS with a reverse proxy. Limit request body to 2.1 MB and body-read time
@@ -35,8 +35,8 @@ Do not expose gunicorn directly. Models are installed at provisioning, never on
 a user request. `/health` requires the token and checks configuration/binaries,
 **not** model execution. `/align` accepts only authenticated POST, one concurrent
 job per worker. Temporary audio/output is removed in success and failure paths.
-FFmpeg and MFA have separate 3/15-second process-group timeouts. The caller's
-total alignment timeout is 20 seconds; longer jobs produce voice-only playback.
+FFmpeg and MFA have separate 3/45-second process-group timeouts. The caller's
+total alignment timeout is 50 seconds; longer jobs produce voice-only playback.
 
 MFA 3.4.2 and Korean v3 models match the saved experiment. Model source, hashes,
 CC BY 4.0 attribution and known connected-pronunciation limitations are documented

@@ -7,7 +7,7 @@ import sample from '@/docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 60;
 const json = (body: object, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 // Coalesce concurrent clicks and reuse the fixed public fixture result for one minute.
 let recent: { until: number; result: Promise<{ body: object; status: number }> } | null = null;

@@ -113,7 +113,7 @@ def align(body, dictionary, acoustic):
         run_bounded(['mfa', 'align_one', str(root / 'speech.wav'), str(root / 'speech.lab'),
                      str(dictionary), str(acoustic), str(root / 'aligned.json'),
                      '--output_format', 'json', '--temporary_directory', str(root / 'mfa'),
-                     '--num_jobs', '1', '--no_use_mp', '--no_use_postgres', '--clean', '--quiet'], 15, directory)
+                     '--num_jobs', '1', '--no_use_mp', '--no_use_postgres', '--clean', '--quiet'], 45, directory)
         raw = json.loads((root / 'aligned.json').read_text(encoding='utf-8'))
         return manifest_from_raw(audio, text, raw)
 

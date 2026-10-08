@@ -40,7 +40,7 @@ export async function alignGeneratedReply(audioContent: string, text: string,
     // Leave headroom below the hosting request/response limit for JSON and cues.
     if (audioContent.length > 2_000_000) return null;
     const response = await request(config.endpoint, {
-      method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(20_000),
+      method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(50_000),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.token}` },
       body: JSON.stringify({ audioContent, spokenText: text, voice: YEONI_VOICE_NAME, language: 'ko-KR' }),
     });

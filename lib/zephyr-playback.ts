@@ -77,7 +77,7 @@ export class ZephyrAudioCache {
     } catch { throw new Error('중복 생성 방지 기록을 보관할 수 없어 음성을 생성하지 않았어요.'); }
 
     // No retry, including a timeout or an ambiguous provider response.
-    const response = await request({ method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(includeAlignment ? 65_000 : 45_000),
+    const response = await request({ method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(includeAlignment ? 95_000 : 45_000),
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId, ...(includeAlignment ? { includeAlignment: true } : {}) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || '음성 생성 완료 여부를 확인하지 못했어요. 추가 생성은 멈췄어요.');

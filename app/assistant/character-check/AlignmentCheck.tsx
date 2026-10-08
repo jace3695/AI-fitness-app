@@ -18,7 +18,7 @@ export default function AlignmentCheck() {
     attempted.current = true; setSent(true); setBusy(true); setMessage('저장 음성을 정렬하는 중이에요.');
     try {
       const response = await authenticatedFetch('/api/yeoni/alignment-check', {
-        method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(30_000),
+        method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(55_000),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(`정렬 확인 중단: ${data.code ?? response.status} · 서버 응답 ${data.workerStatus ?? '없음'}${data.bindingPresent === false ? ' · 연결 설정 없음' : ''}`);
