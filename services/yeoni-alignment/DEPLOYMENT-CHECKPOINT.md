@@ -89,3 +89,9 @@ Pinned upstream 3.4.2 `align_one_function` rebuilds dictionary FSTs under `--cle
 96df99f /dpl_CVyYQn11jJfEXa8129hGWseWLJD2 READY. Both saved-file attempts returned66 phones,5.376s and verified audio/text. First total21.68s (engine19.66s), second total41.77s (engine37.77s). Both logs show `precompiled`; the second was a new container, not a warm sample. The platform terminated the first container after idling. Do not report a reliable23% improvement from the first sample alone.
 
 Add a bounded diagnostic entrypoint invoking the exact pinned MFA CLI. Measure module import, full command and original align_one_function separately; emit only fixed numeric fields. This does not alter the aligner or retain inputs. General feature remainsOFF. Python10 tests passed; hosted phase measurements pending.
+
+## 2026-10-08 20:37 KST — audio reader bottleneck identified
+
+0a41652 /dpl_73NVC4tdCGw8bzTacnjUSugxQp25: engine36.66s, import4.321s, alignment30.274s with profiler. Kalpy Segment.load_audio consumes29.430s; actual align_utterance0.062s. Profile times overlap and profiling can add overhead. The prior13.798s alignment measurement was the whole function, not acoustic decoding.
+
+Candidate reads only worker-normalized16kHz mono PCM16 WAV directly. Samples remain float32 scaled by1/32768, with identical offset/duration truncation. Unexpected formats/channels fail closed. Container build compares all65,536 PCM16 values and7 full/partial/end cases against its actual installed upstream reader. No model, tokenizer, beam, voice, transcript, or viseme changes. Hosted latency/output verification pending; general flag remainsOFF.

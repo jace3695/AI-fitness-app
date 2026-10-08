@@ -14,6 +14,9 @@ timings = {'importMs': round((time.monotonic() - started) * 1000)}
 output = Path.cwd() / 'phase-times.json'
 output.write_text(json.dumps(timings))
 module = importlib.import_module('montreal_forced_aligner.command_line.align_one')
+# Safe only for the worker-normalized WAV; build verifies against installed upstream.
+from pcm_audio import load_pcm_audio
+module.Segment.load_audio = load_pcm_audio
 original = module.align_one_function
 
 

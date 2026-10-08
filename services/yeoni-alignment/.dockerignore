@@ -5,3 +5,5 @@
 !prepare_lexicon.py
 !profile_mfa.py
 !Dockerfile.vercel
+!pcm_audio.py
+!verify_pcm.py
