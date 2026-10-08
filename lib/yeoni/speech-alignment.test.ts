@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { alignmentConfiguration, alignGeneratedReply, validateReplyAlignment } from './speech-alignment.ts';
+import { alignmentConfiguration, savedAlignmentConfiguration, alignGeneratedReply, validateReplyAlignment } from './speech-alignment.ts';
 import { readerSnapshot, ReaderSpeechChannel } from './reader-speech.ts';
 import { parseLipSyncManifest } from './lip-sync.ts';
 import { ZephyrAudioCache } from '../zephyr-playback.ts';
@@ -56,4 +56,16 @@ test('invalid optional alignment preserves generated audio and cached replay nev
   }};
   const result=await cache.get('owner',manifest.spokenText,deps);assert.equal(result.alignment,undefined);assert.ok(result.audioContent);
   await cache.get('owner',manifest.spokenText,deps);assert.equal(posts,1);
+});
+
+test('saved review requires exact Preview branch and internal binding without enabling general TTS', () => {
+  const env = {VERCEL_ENV:'preview', VERCEL_GIT_COMMIT_REF:'agent/yeoni-cat-animation-poc', YEONI_ALIGNMENT_INTERNAL_URL:'https://private.invalid/alignment', YEONI_ALIGNMENT_TOKEN:config.token};
+  assert.equal(alignmentConfiguration(env), null);
+  assert.equal(savedAlignmentConfiguration(env)?.endpoint, 'https://private.invalid/alignment/align');
+  assert.equal(savedAlignmentConfiguration({...env, VERCEL_ENV:'production'}),null);
+  assert.equal(savedAlignmentConfiguration({...env, VERCEL_GIT_COMMIT_REF:'main'}),null);
+  assert.equal(savedAlignmentConfiguration({...env, YEONI_ALIGNMENT_INTERNAL_URL:undefined, YEONI_ALIGNMENT_URL:config.endpoint}),null);
+  assert.equal(savedAlignmentConfiguration({...env, YEONI_ALIGNMENT_INTERNAL_URL:'http://private.invalid'}),null);
+  assert.equal(savedAlignmentConfiguration({...env, YEONI_ALIGNMENT_TOKEN:'short'}),null);
+  assert.equal(alignmentConfiguration(env),null);
 });

@@ -1,5 +1,12 @@
 import { verifyLipSyncPair, type LipSyncManifest } from './lip-sync.ts';
 import { YEONI_VOICE_NAME } from '../yeoni-voice-policy.ts';
+import { characterReplyEnabled } from './reply-plan.ts';
+
+/** Fixed-fixture review only; does not enable alignment for normal TTS requests. */
+export function savedAlignmentConfiguration(env: Record<string, string | undefined>) {
+  if (!characterReplyEnabled(env) || !env.YEONI_ALIGNMENT_INTERNAL_URL) return null;
+  return alignmentConfiguration({ ...env, YEONI_REPLY_ALIGNMENT_ENABLED: '1' });
+}
 
 /** Validate against the exact audio and normalized text sent to Zephyr, never display Markdown. */
 export async function validateReplyAlignment(audio: ArrayBuffer, text: string, input: unknown): Promise<LipSyncManifest> {

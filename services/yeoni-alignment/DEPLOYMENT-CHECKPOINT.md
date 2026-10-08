@@ -51,3 +51,10 @@ alignment, runtime binding/latency/resource fit, authenticated Preview playback.
 No new TTS and no production change. Native browser protection remains unresolved.
 The prior 99956d0 isolated CI was cancelled, not passed. No completed earlier
 PoC/iPhone checks were repeated.
+
+## 2026-10-08 authenticated saved-fixture review
+
+- GitHub, Vercel and app login completed in the browser; authenticated Preview assistant was visibly verified. The earlier login blocker is resolved.
+- Added `character-check?mode=alignment` and authenticated POST `/api/yeoni/alignment-check` on the exact Preview branch only. It accepts no arbitrary text/audio/URL, reads the existing Korean MP3, and calls the private binding once. No Google/TTS generation. General reply alignment remains OFF.
+- UI validates returned audio/text hashes and automatic phonemes again, then offers the existing player/character. Never autoplays or automatically retries. Server coalesces fixed-fixture requests for 60 seconds per instance.
+- Local validation: 6 focused alignment tests, changed-file ESLint and Next production build passed. Hosted processing and playback remain pending until the new Preview is tested.
