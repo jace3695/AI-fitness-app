@@ -6,6 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 import unittest
+from contextlib import redirect_stdout
 from unittest.mock import patch
 import worker
 
@@ -13,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class WorkerTests(unittest.TestCase):
+    def test_rejected_new_phone_results_are_diagnosable_without_private_output(self):
+        cases = [('spn', 0, .1, 'UNKNOWN_PHONE'), ('', 0, .1, 'EMPTY_PHONE'),
+                 ('sil', .2, .1, 'INVALID_PHONE_TIMING')]
+        for phone, start, finish, category in cases:
+            raw = {'end': 1, 'tiers': {'phones': {'entries': [[start, finish, phone]]}}}
+            with self.assertRaises(ValueError) as error:
+                worker.manifest_from_raw(b'audio', 'private transcript', raw)
+            self.assertEqual(worker.result_category(error.exception), category)
+        output = io.StringIO()
+        with redirect_stdout(output), patch.object(worker, 'align', side_effect=ValueError('private transcript token /private/path')):
+            self.assertEqual(self.call(), ('422 Unprocessable Entity', {'error': 'ALIGNMENT_UNAVAILABLE'}))
+        self.assertEqual(output.getvalue().strip(), 'alignment-result=INVALID_RESULT_OR_INPUT')
+
     def test_diagnostic_categories_do_not_return_private_output(self):
         self.assertEqual(worker.failure_category('private transcript Permission denied /private/path'), 'PERMISSION_DENIED')
         self.assertEqual(worker.failure_category('private transcript and token'), 'PROCESS_FAILED')

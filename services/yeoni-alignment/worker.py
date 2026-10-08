@@ -38,6 +38,21 @@ def failure_category(message):
 VOICE = 'ko-KR-Chirp3-HD-Zephyr'
 SLOT = threading.BoundedSemaphore(1)
 MAX_BODY = 2_100_000
+SAFE_RESULT_ERRORS = frozenset({
+    'INVALID_DURATION', 'INVALID_PHONES', 'UNKNOWN_PHONE', 'EMPTY_PHONE',
+    'INVALID_PHONE_TIMING', 'INVALID_PHONE_LABEL', 'ALIGNMENT_FAILED',
+    'ALIGNMENT_TIMEOUT', 'UNSUPPORTED_VOICE', 'INVALID_TEXT', 'INVALID_AUDIO',
+    'INVALID_BODY', 'LEXICON_VERSION_MISMATCH', 'LEXICON_MODEL_MISMATCH',
+    'LEXICON_HASH_MISMATCH', 'LEXICON_NOT_CONFIGURED',
+})
+
+
+def result_category(error):
+    # Only our fixed validation codes are safe to log. Never emit raw exceptions.
+    if (isinstance(error, ValueError) and len(error.args) == 1
+            and isinstance(error.args[0], str) and error.args[0] in SAFE_RESULT_ERRORS):
+        return error.args[0]
+    return 'IO_ERROR' if isinstance(error, OSError) else 'INVALID_RESULT_OR_INPUT'
 
 
 @lru_cache(maxsize=1)
@@ -117,8 +132,14 @@ def manifest_from_raw(audio, text, raw):
     cues, end = [], 0
     for start, finish, phone in entries:
         start, finish = round(start * 1000), round(finish * 1000)
-        if not isinstance(phone, str) or phone in ('spn', '<unk>', '') or start < end or finish <= start or finish > duration:
-            raise ValueError('UNALIGNED_PHONE')
+        if not isinstance(phone, str):
+            raise ValueError('INVALID_PHONE_LABEL')
+        if phone in ('spn', '<unk>'):
+            raise ValueError('UNKNOWN_PHONE')
+        if not phone:
+            raise ValueError('EMPTY_PHONE')
+        if start < end or finish <= start or finish > duration:
+            raise ValueError('INVALID_PHONE_TIMING')
         cues.append({'startMs': start, 'endMs': finish, 'phone': phone})
         end = finish
     return {'version': 1, 'language': 'ko-KR', 'voice': VOICE, 'spokenText': text,
@@ -200,7 +221,7 @@ def application(environ, start_response):
         return respond('200 OK', result)
     except Exception as error:
         # Do not log transcripts, audio, tokens, model output or sensitive paths.
-        category = 'IO_ERROR' if isinstance(error, OSError) else 'INVALID_RESULT_OR_INPUT'
+        category = result_category(error)
         print(f'alignment-result={category}', flush=True)
         return respond('422 Unprocessable Entity', {'error': 'ALIGNMENT_UNAVAILABLE'})
     finally:
