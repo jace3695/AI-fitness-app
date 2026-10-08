@@ -35,8 +35,10 @@ def configuration():
 
 def run_bounded(command, seconds, cwd):
     # No shell, no user-supplied command/filename; kill the entire process group.
+    environment = dict(os.environ, MFA_ROOT_DIR=str(Path(cwd) / 'mfa-root'),
+                       OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
     with subprocess.Popen(command, cwd=cwd, stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL, start_new_session=True) as process:
+                          stderr=subprocess.DEVNULL, start_new_session=True, env=environment) as process:
         try:
             if process.wait(timeout=seconds) != 0:
                 raise ValueError('ALIGNMENT_FAILED')
@@ -82,12 +84,12 @@ def align(body, dictionary, acoustic):
         root = Path(directory)
         (root / 'speech.mp3').write_bytes(audio)
         (root / 'speech.lab').write_text(text, encoding='utf-8')
-        run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-i', str(root / 'speech.mp3'),
+        run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mp3', '-i', str(root / 'speech.mp3'),
                      '-t', '121', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(root / 'speech.wav')], 3, directory)
         run_bounded(['mfa', 'align_one', str(root / 'speech.wav'), str(root / 'speech.lab'),
                      str(dictionary), str(acoustic), str(root / 'aligned.json'),
                      '--output_format', 'json', '--temporary_directory', str(root / 'mfa'),
-                     '--num_jobs', '1', '--no_use_mp', '--clean', '--quiet'], 15, directory)
+                     '--num_jobs', '1', '--no_use_mp', '--no_use_postgres', '--clean', '--quiet'], 15, directory)
         raw = json.loads((root / 'aligned.json').read_text(encoding='utf-8'))
         return manifest_from_raw(audio, text, raw)
 

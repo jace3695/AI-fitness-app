@@ -2,6 +2,10 @@
 
 Status: application integration and private worker prepared; **no live alignment
 service has been provisioned or validated**. Production remains disabled.
+Local real-engine smoke on the existing MP3 succeeded: 66 cues / 5.376 seconds,
+12.97s initially and 4.20s with isolated MFA root and single-thread numerical
+libraries. Both model hashes match the original phase5 provenance. See
+`saved-audio-smoke.json`. These are local observations, not hosted latency promises.
 This does not certify phonetic accuracy, latency, resource fit or iPhone behavior.
 No new TTS was generated during implementation.
 
