@@ -46,6 +46,37 @@ evaluation; zero OOV alone does not establish correct alignment.
 
 ## Preview enablement gate
 
+### Prepared Vercel Services option (not activated)
+
+`vercel.services.example.json` is a proposed **repository-root** configuration,
+not an active `vercel.json`. It keeps all public routes on Next.js and grants only
+the web service a private binding to the alignment container. Vercel Services is
+currently Beta. Bindings appear only at runtime; the assistant page now opts out
+of prerendering when alignment is explicitly enabled. The app retains token
+authorization and validates the generated binding URL; no token is in the image.
+
+`Dockerfile.vercel` pins the official micromamba 2.9.0 registry digest, installs the
+tested environment, downloads original models at build time, and verifies their
+SHA-256 values before publishing them. Runtime uses an unprivileged user. No model
+downloads occur on a speech request. The container image itself has **not** been
+built here because no container runtime is installed.
+
+Do not copy the example to root until the account plan/remaining resources and
+allowed additional cost are established. The connected team API returned only
+identity fields, without billing plan or quotas. Services compute, internal
+requests, transfer and container storage can be metered; no zero-cost guarantee
+is inferred from the presence of a Hobby allowance. Existing approval to continue
+development does not establish an unknown recurring spend budget.
+
+Once costs are resolved, activate the root configuration on the existing work
+branch; set one shared server-only random token for the two services in this
+branch's Preview environment. Keep the feature OFF until the container builds
+and the saved-MP3 service test passes. The platform supplies
+`YEONI_ALIGNMENT_INTERNAL_URL`; do not manually set it or expose it to clients.
+
+Official references: https://vercel.com/docs/services/bindings and
+https://vercel.com/docs/services/pricing .
+
 1. Select a Linux/container host and verify actual plan, memory and cost first.
    No new paid resource or account upgrade is authorized by this implementation.
 2. Provision pinned engine/models and measure saved-audio cold/warm jobs first.

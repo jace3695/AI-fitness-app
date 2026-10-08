@@ -14,7 +14,11 @@ export async function validateReplyAlignment(audio: ArrayBuffer, text: string, i
 export function alignmentConfiguration(env: Record<string, string | undefined>) {
   if (env.YEONI_REPLY_ALIGNMENT_ENABLED !== '1') return null;
   try {
-    const endpoint = new URL(env.YEONI_ALIGNMENT_URL ?? '');
+    const binding = env.YEONI_ALIGNMENT_INTERNAL_URL;
+    const base = new URL(binding ?? env.YEONI_ALIGNMENT_URL ?? '');
+    if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) return null;
+    // Preserve any platform routing prefix in the runtime-only binding URL.
+    const endpoint = binding ? new URL('align', base.href.endsWith('/') ? base.href : `${base.href}/`) : base;
     const token = env.YEONI_ALIGNMENT_TOKEN;
     if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash
       || !token || token.length < 32) return null;

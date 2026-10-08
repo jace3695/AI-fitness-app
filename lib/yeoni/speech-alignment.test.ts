@@ -13,6 +13,8 @@ test('alignment requires explicit switch, HTTPS and private server credential', 
   assert.equal(alignmentConfiguration({YEONI_REPLY_ALIGNMENT_ENABLED:'1',YEONI_ALIGNMENT_URL:'http://alignment.invalid',YEONI_ALIGNMENT_TOKEN:'x'.repeat(32)}),null);
   assert.equal(alignmentConfiguration({YEONI_REPLY_ALIGNMENT_ENABLED:'1',YEONI_ALIGNMENT_URL:config.endpoint,YEONI_ALIGNMENT_TOKEN:'short'}),null);
   assert.deepEqual(alignmentConfiguration({YEONI_REPLY_ALIGNMENT_ENABLED:'1',YEONI_ALIGNMENT_URL:config.endpoint,YEONI_ALIGNMENT_TOKEN:config.token}),config);
+  assert.deepEqual(alignmentConfiguration({YEONI_REPLY_ALIGNMENT_ENABLED:'1',YEONI_ALIGNMENT_INTERNAL_URL:'https://private.invalid/service/worker',YEONI_ALIGNMENT_TOKEN:config.token}),{...config,endpoint:'https://private.invalid/service/worker/align'});
+  assert.equal(alignmentConfiguration({YEONI_REPLY_ALIGNMENT_ENABLED:'1',YEONI_ALIGNMENT_INTERNAL_URL:'https://private.invalid/?token=unsafe',YEONI_ALIGNMENT_URL:config.endpoint,YEONI_ALIGNMENT_TOKEN:config.token}),null);
 });
 test('exact saved recording validates; swapped audio, text, source and unknown phones reject', async () => {
   await validateReplyAlignment(bytes,manifest.spokenText,manifest);

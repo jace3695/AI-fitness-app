@@ -1,0 +1,16 @@
+# Official micromamba 2.9.0 multi-platform image, pinned by registry digest.
+FROM mambaorg/micromamba:2.9.0@sha256:e0a99b0f17a759e14c2f967dc0ca2d3a3c1ca3c62955f4d20bba770eaaf0184d
+COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
+RUN micromamba install -y -n base -f /tmp/environment.yml && micromamba clean --all --yes
+USER root
+RUN mkdir -p /opt/yeoni/models && chown -R $MAMBA_USER:$MAMBA_USER /opt/yeoni
+USER $MAMBA_USER
+WORKDIR /opt/yeoni
+COPY --chown=$MAMBA_USER:$MAMBA_USER download_models.py worker.py ./
+RUN micromamba run -n base python download_models.py
+ENV YEONI_MFA_ACOUSTIC=/opt/yeoni/models/korean_mfa.zip \
+    YEONI_MFA_DICTIONARY=/opt/yeoni/models/korean_mfa.dict \
+    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
+# The image's upstream entrypoint activates the base environment.
+# Vercel handles TLS/ingress; this service has no public rewrite.
+CMD ["sh", "-c", "exec gunicorn --workers 1 --threads 2 --timeout 25 --bind 0.0.0.0:${PORT:-8080} worker:application"]

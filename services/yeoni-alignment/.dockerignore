@@ -1,0 +1,5 @@
+*
+!environment.yml
+!worker.py
+!download_models.py
+!Dockerfile.vercel
