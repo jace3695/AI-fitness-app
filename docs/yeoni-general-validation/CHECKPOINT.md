@@ -69,6 +69,9 @@ within the existing approved scope. Production merge/activation remains separate
   model, controller, unknown-phone rejection or general feature OFF state.
 - New targeted checks: acoustic/G2P filename collision prevention, corrupt G2P
   rejection, private error suppression and failed-job cleanup all passed.
+- MFA3.4.2 source inspection shows G2P writes OOV lexicon additions. G2P requests
+  therefore use writable job-local copies; the shared immutable lexicon stays
+  untouched. The modified cache test verifies isolation and deletion after exit.
 - Hosted G2P validation is pending. Number readings, connected pronunciation,
   latency and iPhone review remain unverified. PR208 remains Draft; no production
   merge, deployment, flag activation or quota change is authorized here.

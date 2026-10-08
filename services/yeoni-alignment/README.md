@@ -11,7 +11,9 @@ The additional model is Montreal Corpus Tools' [Korean MFA G2P v3.0.0](https://g
 licensed CC BY 4.0. Its unchanged upstream archive SHA-256 is
 `6938db05d83fa92c5c80681bf76fd7dd7af7f3ea8c7d7df1093790c641ad0344`.
 The build stores it separately as `korean_mfa_g2p.zip`; the worker verifies the
-pin before use. Model download occurs only at build time. Predictions need
+pin before use. Since MFA writes OOV additions, G2P jobs copy the precompiled
+lexicon into their temporary directory instead of linking to shared files.
+These copies are removed with the job. Model download occurs only at build time. Predictions need
 phonetic review; this does not establish correct number readings or connected
 pronunciation. No new synthesis is required to validate this change.
 

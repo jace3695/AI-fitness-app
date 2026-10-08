@@ -78,7 +78,7 @@ def verified_g2p(path):
     return str(path)
 
 
-def seed_lexicon(root, dictionary, acoustic):
+def seed_lexicon(root, dictionary, acoustic, *, mutable=False):
     source = os.environ.get('YEONI_MFA_LEXICON')
     if not source:
         return False
@@ -91,7 +91,12 @@ def seed_lexicon(root, dictionary, acoustic):
     destination = root / 'mfa' / 'extracted_models' / 'dictionary' / dictionary.stem
     destination.mkdir(parents=True)
     for name in names:
-        (destination / name).symlink_to(source / name)
+        if mutable:
+            # MFA persists OOV additions. Copy into the job, never write through
+            # symlinks to the shared immutable cache or another request's words.
+            shutil.copyfile(source / name, destination / name)
+        else:
+            (destination / name).symlink_to(source / name)
     return True
 
 
@@ -172,9 +177,9 @@ def align(body, dictionary, acoustic):
         root = Path(directory)
         (root / 'speech.mp3').write_bytes(audio)
         (root / 'speech.lab').write_text(text, encoding='utf-8')
-        cached = seed_lexicon(root, dictionary, acoustic)
         g2p = os.environ.get('YEONI_MFA_G2P')
         g2p_args = ['--g2p_model_path', verified_g2p(Path(g2p).resolve())] if g2p else []
+        cached = seed_lexicon(root, dictionary, acoustic, mutable=bool(g2p))
         print(f'alignment-lexicon={"precompiled" if cached else "per-request"}', flush=True)
         run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mp3', '-i', str(root / 'speech.mp3'),
                      '-t', '121', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(root / 'speech.wav')], 3, directory)

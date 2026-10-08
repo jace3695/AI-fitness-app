@@ -58,6 +58,13 @@ class WorkerTests(unittest.TestCase):
                     self.assertTrue(worker.seed_lexicon(Path(job),dictionary,acoustic))
                     self.assertTrue((Path(job)/'mfa/extracted_models/dictionary/korean/L.fst').is_symlink())
                 self.assertTrue((source/'L.fst').exists())
+                with tempfile.TemporaryDirectory(dir=base) as job:
+                    self.assertTrue(worker.seed_lexicon(Path(job), dictionary, acoustic, mutable=True))
+                    local = Path(job)/'mfa/extracted_models/dictionary/korean/words.txt'
+                    self.assertFalse(local.is_symlink())
+                    local.write_text('private OOV')
+                    self.assertEqual((source/'words.txt').read_text(), 'words.txt')
+                self.assertFalse(local.exists())
                 worker.verify_lexicon.cache_clear()
                 (source/'L.fst').write_text('corrupt')
                 with self.assertRaisesRegex(ValueError, 'LEXICON_HASH_MISMATCH'):
