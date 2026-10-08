@@ -65,3 +65,9 @@ PoC/iPhone checks were repeated.
 - Local compiled handler: production POST 404, Preview foreign-origin POST 403. Without local auth configuration Preview returns 503 safely; isolated dummy Supabase configuration is used to verify unauthenticated 401 without contacting the personal-data project.
 - First review Preview `ccf2866` / `dpl_78sX5qGkMxHp2MgkBVL7t5uS79jR` reached READY.
 - Branch alias requires a separate app session. Secure login attempt returned visible `Invalid login credentials`; no repeat attempted. Previous immutable Preview login success remains valid evidence, but new review processing/playback is still unverified.
+
+## 2026-10-08 16:23 KST live processing attempt
+
+- Branch alias app login succeeded through secure credential input; refreshed current 15f135e UI shows saved alignment check.
+- One explicit saved-fixture request reached private `/align` (gunicorn startup logged) and returned worker HTTP422. Auth, same-origin guard, binding and bearer routing are working. No TTS generation or automatic retry.
+- Processing/playback is NOT passed. Added fixed-category stage/timeout/exit diagnostics; raw process output, audio, transcript, paths and tokens are never emitted. Local Python suite 9 passed.

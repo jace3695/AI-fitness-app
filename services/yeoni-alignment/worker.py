@@ -16,6 +16,21 @@ import signal
 import subprocess
 import tempfile
 import threading
+import time
+
+
+def failure_category(message):
+    # Fixed categories only: never emit subprocess output or exception values.
+    for marker, category in [('Read-only file system', 'READ_ONLY_FILESYSTEM'),
+                             ('Permission denied', 'PERMISSION_DENIED'),
+                             ('No space left', 'DISK_FULL'),
+                             ('No module named', 'MISSING_MODULE'),
+                             ('cannot cache function', 'NUMBA_CACHE'),
+                             ('ImportError', 'IMPORT_ERROR'),
+                             ('MemoryError', 'OUT_OF_MEMORY')]:
+        if marker in message:
+            return category
+    return 'PROCESS_FAILED'
 
 VOICE = 'ko-KR-Chirp3-HD-Zephyr'
 SLOT = threading.BoundedSemaphore(1)
@@ -37,15 +52,24 @@ def run_bounded(command, seconds, cwd):
     # No shell, no user-supplied command/filename; kill the entire process group.
     environment = dict(os.environ, MFA_ROOT_DIR=str(Path(cwd) / 'mfa-root'),
                        OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1')
-    with subprocess.Popen(command, cwd=cwd, stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL, start_new_session=True, env=environment) as process:
-        try:
-            if process.wait(timeout=seconds) != 0:
-                raise ValueError('ALIGNMENT_FAILED')
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            raise ValueError('ALIGNMENT_TIMEOUT') from None
+    stage = 'decode' if command[0] == 'ffmpeg' else 'align'
+    started = time.monotonic()
+    with tempfile.TemporaryFile() as diagnostic:
+        with subprocess.Popen(command, cwd=cwd, stdout=diagnostic,
+                              stderr=diagnostic, start_new_session=True, env=environment) as process:
+            try:
+                code = process.wait(timeout=seconds)
+                if code != 0:
+                    diagnostic.seek(max(0, diagnostic.tell() - 16_384))
+                    category = failure_category(diagnostic.read(16_384).decode('utf-8', errors='replace'))
+                    print(f'alignment-stage={stage} result={category} exit={code}', flush=True)
+                    raise ValueError('ALIGNMENT_FAILED')
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                print(f'alignment-stage={stage} result=TIMEOUT limit={seconds}', flush=True)
+                raise ValueError('ALIGNMENT_TIMEOUT') from None
+    print(f'alignment-stage={stage} result=OK elapsed={time.monotonic() - started:.2f}', flush=True)
 
 
 def manifest_from_raw(audio, text, raw):
@@ -124,8 +148,10 @@ def application(environ, start_response):
             raise ValueError('INVALID_BODY')
         result = align(body, dictionary, acoustic)
         return respond('200 OK', result)
-    except Exception:
+    except Exception as error:
         # Do not log transcripts, audio, tokens, model output or sensitive paths.
+        category = 'IO_ERROR' if isinstance(error, OSError) else 'INVALID_RESULT_OR_INPUT'
+        print(f'alignment-result={category}', flush=True)
         return respond('422 Unprocessable Entity', {'error': 'ALIGNMENT_UNAVAILABLE'})
     finally:
         SLOT.release()

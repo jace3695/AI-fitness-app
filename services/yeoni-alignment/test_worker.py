@@ -10,6 +10,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class WorkerTests(unittest.TestCase):
+    def test_diagnostic_categories_do_not_return_private_output(self):
+        self.assertEqual(worker.failure_category('private transcript Permission denied /private/path'), 'PERMISSION_DENIED')
+        self.assertEqual(worker.failure_category('private transcript and token'), 'PROCESS_FAILED')
+
     def call(self, **overrides):
         env = dict(REQUEST_METHOD='POST', PATH_INFO='/align', CONTENT_LENGTH='2',
                    HTTP_AUTHORIZATION='Bearer ' + 'x' * 32, **{'wsgi.input': io.BytesIO(b'{}')})
