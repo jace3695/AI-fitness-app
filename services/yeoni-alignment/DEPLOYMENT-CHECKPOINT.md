@@ -31,3 +31,23 @@ Next: establish plan/allowed spend; activate root config on work branch, build
 container, provision Preview-only token, verify existing MP3 through private
 service, then enable Preview and verify playback. New TTS sentence/voice/count
 and final production promotion remain separate gates under AGENTS.md.
+
+## 2026-10-08 14:48 KST onward — Hobby confirmed
+
+The user confirmed the free plan. Root `vercel.json` was activated on the existing
+work branch (remote `54b0fd2`, local `558ad45`, identical tree
+`1c61383d283d88a29157d634a8b7f3bac1dfa307`). Services is Beta on Hobby; included
+usage applies and exceeding limits can pause use. No upgrade or paid add-on.
+
+Vercel container build completed successfully in about 3 minutes, including MFA,
+FFmpeg, original model downloads and checksum validation. Image digest:
+`sha256:cb9b7102369225dfecac1fe238aff17bb7baad6a8e399e800223417b27c77765`.
+Initial deployment: `dpl_FDUBJTz8NvNyfLzroDcpp5A1ve4B`.
+A sensitive server token was registered only for this branch's Preview after
+that build started; the documentation follow-up deployment will include it.
+
+Still OFF: `YEONI_REPLY_ALIGNMENT_ENABLED`. Still unverified: hosted saved-audio
+alignment, runtime binding/latency/resource fit, authenticated Preview playback.
+No new TTS and no production change. Native browser protection remains unresolved.
+The prior 99956d0 isolated CI was cancelled, not passed. No completed earlier
+PoC/iPhone checks were repeated.

@@ -1,7 +1,8 @@
 # General Korean reply alignment — staging candidate
 
-Status: application integration and private worker prepared; **no live alignment
-service has been provisioned or validated**. Production remains disabled.
+Status (2026-10-08): private Vercel Services configuration is active on the work
+branch. The first hosted container build succeeded; hosted alignment and signed-in
+playback are still unverified. The application alignment flag remains OFF.
 Local real-engine smoke on the existing MP3 succeeded: 66 cues / 5.376 seconds,
 12.97s initially and 4.20s with isolated MFA root and single-thread numerical
 libraries. Both model hashes match the original phase5 provenance. See
@@ -46,10 +47,10 @@ evaluation; zero OOV alone does not establish correct alignment.
 
 ## Preview enablement gate
 
-### Prepared Vercel Services option (not activated)
+### Vercel Services Preview deployment
 
-`vercel.services.example.json` is a proposed **repository-root** configuration,
-not an active `vercel.json`. It keeps all public routes on Next.js and grants only
+`vercel.services.example.json` is the template for the active repository-root
+`vercel.json` on the work branch. It keeps all public routes on Next.js and grants only
 the web service a private binding to the alignment container. Vercel Services is
 currently Beta. Bindings appear only at runtime; the assistant page now opts out
 of prerendering when alignment is explicitly enabled. The app retains token
@@ -58,21 +59,19 @@ authorization and validates the generated binding URL; no token is in the image.
 `Dockerfile.vercel` pins the official micromamba 2.9.0 registry digest, installs the
 tested environment, downloads original models at build time, and verifies their
 SHA-256 values before publishing them. Runtime uses an unprivileged user. No model
-downloads occur on a speech request. The container image itself has **not** been
-built here because no container runtime is installed.
+downloads occur on a speech request. The container image built successfully on Vercel from commit `54b0fd2`; local
+Docker was not available. Model checksum checks ran during that build.
 
-Do not copy the example to root until the account plan/remaining resources and
-allowed additional cost are established. The connected team API returned only
-identity fields, without billing plan or quotas. Services compute, internal
-requests, transfer and container storage can be metered; no zero-cost guarantee
-is inferred from the presence of a Hobby allowance. Existing approval to continue
-development does not establish an unknown recurring spend budget.
+The user confirmed the free Hobby plan on 2026-10-08. Official Services docs
+include Hobby; its included limits apply and exceeding them can pause usage.
+No plan upgrade or paid add-on was requested. Remaining allowance is not exposed
+by the connected team API, so hosted usage capacity is not yet established.
 
-Once costs are resolved, activate the root configuration on the existing work
-branch; set one shared server-only random token for the two services in this
-branch's Preview environment. Keep the feature OFF until the container builds
-and the saved-MP3 service test passes. The platform supplies
-`YEONI_ALIGNMENT_INTERNAL_URL`; do not manually set it or expose it to clients.
+The root configuration is active only on the existing work branch. A sensitive
+`YEONI_ALIGNMENT_TOKEN` was created for this branch's Preview environment after
+the first build started; the next deployment includes it. The feature stays OFF
+until the saved-MP3 service test passes. The platform supplies
+`YEONI_ALIGNMENT_INTERNAL_URL`; never manually set it or expose it to clients.
 
 Official references: https://vercel.com/docs/services/bindings and
 https://vercel.com/docs/services/pricing .
