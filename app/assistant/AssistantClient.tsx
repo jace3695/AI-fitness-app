@@ -114,7 +114,7 @@ const weeklyCardTones: Record<AssistantWeeklyArea, string> = {
 
 const AssistantCharacter = dynamic(() => import('@/components/yeoni/AssistantCharacter'));
 
-export default function AssistantClient({ characterAudio = null }: { characterAudio?: { ko: string; ja: string } | null }) {
+export default function AssistantClient({ characterAudio = null, alignReplies = false }: { characterAudio?: { ko: string; ja: string } | null; alignReplies?: boolean }) {
   const [items, setItems] = useState<Item[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -447,7 +447,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서.</p></div>
         </div>
-        <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio}
+        <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio} alignReplies={alignReplies}
           incoming={characterReply?.ownerId === pending.ownerId ? characterReply : null} busy={chatSending || adviceBusy} />
           : <AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion>}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
@@ -463,7 +463,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
                   event.preventDefault();
                   if (!chatSending && !adviceBusy) setChatInput(ADVICE_QUESTIONS[scope]);
                 }
-              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} />}</div></div>)}
+              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} align={!!characterAudio && alignReplies} />}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}

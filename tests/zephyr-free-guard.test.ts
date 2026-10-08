@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { PGlite } from '@electric-sql/pglite';
 import * as voice from '../lib/yeoni-voice-policy.ts';
+import * as speechAlignment from '../lib/yeoni/speech-alignment.ts';
 
 const db = new PGlite();
 const owner = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
@@ -74,6 +75,7 @@ beforeEach(async () => {
   const server = moduleAt('../lib/zephyr-free-server.ts', {'node:crypto':crypto}, {process:{env}});
   route = moduleAt('../app/api/tts/route.ts', {
     'next/server':{NextResponse:{json:Response.json}}, '@/lib/yeoni-voice-policy':voice,
+    '@/lib/yeoni/speech-alignment':speechAlignment,
     '@/lib/supabase-server':{createServerSupabaseClient:async()=>client}, '@/lib/zephyr-free-server':server,
   }, {fetch:async (url:string, options:RequestInit) => {
     googleCalls++; assert.equal(await balance(),4);
