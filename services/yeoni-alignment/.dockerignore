@@ -3,4 +3,5 @@
 !worker.py
 !download_models.py
 !prepare_lexicon.py
+!profile_mfa.py
 !Dockerfile.vercel

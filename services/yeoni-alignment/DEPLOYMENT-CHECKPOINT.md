@@ -83,3 +83,9 @@ PoC/iPhone checks were repeated.
 Baseline c048f31: hosted 66 phones /5.376s, total28.24s, MFA25.89s; authenticated cat/human playback, pause/end neutral and no autoplay confirmed. New TTS0. General flagOFF.
 
 Pinned upstream 3.4.2 `align_one_function` rebuilds dictionary FSTs under `--clean`. Candidate moves only that fixed lexicon compilation to the container build. Four artifacts are model/hash verified and linked into each isolated job; MFA uses `--no_clean`. No retained audio or result cache. Unit suite10 passes including tamper rejection and link cleanup safety. Actual container build and hosted latency remain pending.
+
+### Candidate measured, not accepted as a stable latency fix
+
+96df99f /dpl_CVyYQn11jJfEXa8129hGWseWLJD2 READY. Both saved-file attempts returned66 phones,5.376s and verified audio/text. First total21.68s (engine19.66s), second total41.77s (engine37.77s). Both logs show `precompiled`; the second was a new container, not a warm sample. The platform terminated the first container after idling. Do not report a reliable23% improvement from the first sample alone.
+
+Add a bounded diagnostic entrypoint invoking the exact pinned MFA CLI. Measure module import, full command and original align_one_function separately; emit only fixed numeric fields. This does not alter the aligner or retain inputs. General feature remainsOFF. Python10 tests passed; hosted phase measurements pending.

@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import sys
 from functools import lru_cache
 
 
@@ -145,11 +146,16 @@ def align(body, dictionary, acoustic):
         print(f'alignment-lexicon={"precompiled" if cached else "per-request"}', flush=True)
         run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mp3', '-i', str(root / 'speech.mp3'),
                      '-t', '121', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(root / 'speech.wav')], 3, directory)
-        run_bounded(['mfa', 'align_one', str(root / 'speech.wav'), str(root / 'speech.lab'),
+        run_bounded([sys.executable, str(Path(__file__).with_name('profile_mfa.py')), 'align_one', str(root / 'speech.wav'), str(root / 'speech.lab'),
                      str(dictionary), str(acoustic), str(root / 'aligned.json'),
                      '--output_format', 'json', '--temporary_directory', str(root / 'mfa'),
                      '--num_jobs', '1', '--no_use_mp', '--no_use_postgres',
                      '--no_clean' if cached else '--clean', '--quiet'], 45, directory)
+        timings = json.loads((root / 'phase-times.json').read_text())
+        for name in ('importMs', 'commandMs', 'alignmentMs'):
+            value = timings.get(name)
+            if isinstance(value, int) and 0 <= value <= 50_000:
+                print(f'alignment-phase={name} milliseconds={value}', flush=True)
         raw = json.loads((root / 'aligned.json').read_text(encoding='utf-8'))
         return manifest_from_raw(audio, text, raw)
 
