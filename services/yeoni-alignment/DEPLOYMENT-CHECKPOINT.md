@@ -77,3 +77,9 @@ PoC/iPhone checks were repeated.
 - Diagnostic f3eb55d deployment READY. Explicit fixed MP3 retry: decode OK 0.22s, MFA killed at the configured 15s limit. No auth/binding/model-file configuration failure was reported.
 - Increase bounded MFA time to45s, worker55s, alignment caller50s; saved-check API60s/client55s. Opt-in TTS API90s/client95s accommodates provider30s plus alignment50s. Non-alignment client timeout remains45s. No auto retry or flag activation.
 - Six Node tests, nine Python tests, changed-file ESLint and Next build pass. This timeout adjustment still requires a fresh hosted attempt; latency suitability is not yet established.
+
+## 2026-10-08 17:03 KST latency work
+
+Baseline c048f31: hosted 66 phones /5.376s, total28.24s, MFA25.89s; authenticated cat/human playback, pause/end neutral and no autoplay confirmed. New TTS0. General flagOFF.
+
+Pinned upstream 3.4.2 `align_one_function` rebuilds dictionary FSTs under `--clean`. Candidate moves only that fixed lexicon compilation to the container build. Four artifacts are model/hash verified and linked into each isolated job; MFA uses `--no_clean`. No retained audio or result cache. Unit suite10 passes including tamper rejection and link cleanup safety. Actual container build and hosted latency remain pending.

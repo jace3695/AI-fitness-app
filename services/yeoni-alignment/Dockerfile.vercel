@@ -6,10 +6,12 @@ USER root
 RUN mkdir -p /opt/yeoni/models && chown -R $MAMBA_USER:$MAMBA_USER /opt/yeoni
 USER $MAMBA_USER
 WORKDIR /opt/yeoni
-COPY --chown=$MAMBA_USER:$MAMBA_USER download_models.py worker.py ./
+COPY --chown=$MAMBA_USER:$MAMBA_USER download_models.py prepare_lexicon.py worker.py ./
 RUN micromamba run -n base python download_models.py
+RUN OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 micromamba run -n base python prepare_lexicon.py
 ENV YEONI_MFA_ACOUSTIC=/opt/yeoni/models/korean_mfa.zip \
     YEONI_MFA_DICTIONARY=/opt/yeoni/models/korean_mfa.dict \
+    YEONI_MFA_LEXICON=/opt/yeoni/lexicon \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
 # The image's upstream entrypoint activates the base environment.
 # Vercel handles TLS/ingress; this service has no public rewrite.

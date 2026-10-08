@@ -2,4 +2,5 @@
 !environment.yml
 !worker.py
 !download_models.py
+!prepare_lexicon.py
 !Dockerfile.vercel

@@ -1,6 +1,9 @@
 import base64
 import io
 import json
+import hashlib
+import os
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -13,6 +16,31 @@ class WorkerTests(unittest.TestCase):
     def test_diagnostic_categories_do_not_return_private_output(self):
         self.assertEqual(worker.failure_category('private transcript Permission denied /private/path'), 'PERMISSION_DENIED')
         self.assertEqual(worker.failure_category('private transcript and token'), 'PROCESS_FAILED')
+
+    def test_precompiled_lexicon_is_verified_and_only_links_are_job_local(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base / 'cache'; source.mkdir()
+            dictionary = base / 'korean.dict'; dictionary.write_text('dictionary')
+            acoustic = base / 'korean.zip'; acoustic.write_text('acoustic')
+            files = {}
+            for name in ('L.fst', 'L_align.fst', 'words.txt', 'phones.txt'):
+                (source / name).write_text(name)
+                files[name] = hashlib.sha256(name.encode()).hexdigest()
+            provenance = {'mfa':'3.4.2', 'models':{
+                'dictionary':['korean.dict',hashlib.sha256(dictionary.read_bytes()).hexdigest()],
+                'acoustic':['korean.zip',hashlib.sha256(acoustic.read_bytes()).hexdigest()]},'files':files}
+            (source / 'provenance.json').write_text(json.dumps(provenance))
+            with patch.dict(os.environ, {'YEONI_MFA_LEXICON': str(source)}):
+                with tempfile.TemporaryDirectory(dir=base) as job:
+                    self.assertTrue(worker.seed_lexicon(Path(job),dictionary,acoustic))
+                    self.assertTrue((Path(job)/'mfa/extracted_models/dictionary/korean/L.fst').is_symlink())
+                self.assertTrue((source/'L.fst').exists())
+                worker.verify_lexicon.cache_clear()
+                (source/'L.fst').write_text('corrupt')
+                with self.assertRaisesRegex(ValueError, 'LEXICON_HASH_MISMATCH'):
+                    worker.seed_lexicon(base/'job2',dictionary,acoustic)
+            worker.verify_lexicon.cache_clear()
 
     def call(self, **overrides):
         env = dict(REQUEST_METHOD='POST', PATH_INFO='/align', CONTENT_LENGTH='2',

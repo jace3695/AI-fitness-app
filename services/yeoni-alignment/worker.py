@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import threading
 import time
+from functools import lru_cache
 
 
 def failure_category(message):
@@ -35,6 +36,38 @@ def failure_category(message):
 VOICE = 'ko-KR-Chirp3-HD-Zephyr'
 SLOT = threading.BoundedSemaphore(1)
 MAX_BODY = 2_100_000
+
+
+@lru_cache(maxsize=1)
+def verify_lexicon(source, dictionary, acoustic):
+    provenance = json.loads((source / 'provenance.json').read_text())
+    if provenance.get('mfa') != '3.4.2':
+        raise ValueError('LEXICON_VERSION_MISMATCH')
+    for kind, path in (('dictionary', dictionary), ('acoustic', acoustic)):
+        if hashlib.sha256(path.read_bytes()).hexdigest() != provenance['models'][kind][1]:
+            raise ValueError('LEXICON_MODEL_MISMATCH')
+    names = ('L.fst', 'L_align.fst', 'words.txt', 'phones.txt')
+    for name in names:
+        if hashlib.sha256((source / name).read_bytes()).hexdigest() != provenance['files'][name]:
+            raise ValueError('LEXICON_HASH_MISMATCH')
+    return names
+
+
+def seed_lexicon(root, dictionary, acoustic):
+    source = os.environ.get('YEONI_MFA_LEXICON')
+    if not source:
+        return False
+    source = Path(source).resolve()
+    names = verify_lexicon(source, dictionary, acoustic)
+    # The image builds these from the same pinned model/dictionary. No request
+    # input controls paths. Missing/partial provisioning fails closed.
+    if not all((source / name).is_file() and (source / name).stat().st_size > 0 for name in names):
+        raise ValueError('LEXICON_NOT_CONFIGURED')
+    destination = root / 'mfa' / 'extracted_models' / 'dictionary' / dictionary.stem
+    destination.mkdir(parents=True)
+    for name in names:
+        (destination / name).symlink_to(source / name)
+    return True
 
 
 def configuration():
@@ -108,12 +141,15 @@ def align(body, dictionary, acoustic):
         root = Path(directory)
         (root / 'speech.mp3').write_bytes(audio)
         (root / 'speech.lab').write_text(text, encoding='utf-8')
+        cached = seed_lexicon(root, dictionary, acoustic)
+        print(f'alignment-lexicon={"precompiled" if cached else "per-request"}', flush=True)
         run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mp3', '-i', str(root / 'speech.mp3'),
                      '-t', '121', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(root / 'speech.wav')], 3, directory)
         run_bounded(['mfa', 'align_one', str(root / 'speech.wav'), str(root / 'speech.lab'),
                      str(dictionary), str(acoustic), str(root / 'aligned.json'),
                      '--output_format', 'json', '--temporary_directory', str(root / 'mfa'),
-                     '--num_jobs', '1', '--no_use_mp', '--no_use_postgres', '--clean', '--quiet'], 45, directory)
+                     '--num_jobs', '1', '--no_use_mp', '--no_use_postgres',
+                     '--no_clean' if cached else '--clean', '--quiet'], 45, directory)
         raw = json.loads((root / 'aligned.json').read_text(encoding='utf-8'))
         return manifest_from_raw(audio, text, raw)
 

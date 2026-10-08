@@ -1,8 +1,8 @@
 # General Korean reply alignment — staging candidate
 
 Status (2026-10-08): private Vercel Services configuration is active on the work
-branch. The first hosted container build succeeded; hosted alignment and signed-in
-playback are still unverified. The application alignment flag remains OFF.
+branch. Hosted c048f31 saved-audio alignment and signed-in browser playback succeeded
+(66 phones / 5.376s; 28.24s total, including 25.89s MFA). The application alignment flag remains OFF.
 Local real-engine smoke on the existing MP3 succeeded: 66 cues / 5.376 seconds,
 12.97s initially and 4.20s with isolated MFA root and single-thread numerical
 libraries. Both model hashes match the original phase5 provenance. See
@@ -102,3 +102,14 @@ npm test
 Worker unit tests mock engine execution and replay an existing raw acoustic
 output. They are not evidence of live MFA operation. Browser component tests use
 JSDOM/media simulation and are not physical-device or live-service verification.
+
+## Precompiled lexicon candidate
+
+MFA 3.4.2 `align_one_function` compiles dictionary FSTs on each `--clean` run.
+`prepare_lexicon.py` performs that same fixed-model step at image build time,
+without audio or transcripts. Each job verifies the model/artifact hashes once
+per worker and links four read-only artifacts into its otherwise isolated temp
+workspace, then runs with `--no_clean`. With no configured lexicon the existing
+per-request path remains available. Partial/mismatched caches fail closed.
+The acoustic model, tokenizer, alignment options and per-job audio cleanup are
+unchanged. Runtime speed and new-result quality must be measured in Preview.
