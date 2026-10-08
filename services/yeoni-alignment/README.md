@@ -1,5 +1,20 @@
 # General Korean reply alignment — staging candidate
 
+2026-10-08 general-sample follow-up: short, numbers and long were each preserved
+after one approved synthesis. All three saved-audio jobs on diagnostic Preview
+`1a97385` were rejected with `UNKNOWN_PHONE`. The worker now uses MFA 3.4.2's
+supported `--g2p_model_path` option for dictionary OOV words. This remains a
+Preview candidate; the application alignment flag stays OFF. Unknown phones
+still fail closed. No hand-authored timings or substituted silence are accepted.
+
+The additional model is Montreal Corpus Tools' [Korean MFA G2P v3.0.0](https://github.com/MontrealCorpusTools/mfa-models/releases/tag/g2p-korean_mfa-v3.0.0),
+licensed CC BY 4.0. Its unchanged upstream archive SHA-256 is
+`6938db05d83fa92c5c80681bf76fd7dd7af7f3ea8c7d7df1093790c641ad0344`.
+The build stores it separately as `korean_mfa_g2p.zip`; the worker verifies the
+pin before use. Model download occurs only at build time. Predictions need
+phonetic review; this does not establish correct number readings or connected
+pronunciation. No new synthesis is required to validate this change.
+
 Status (2026-10-08): private Vercel Services configuration is active on the work
 branch. Hosted c048f31 saved-audio alignment and signed-in browser playback succeeded
 (66 phones / 5.376s; 28.24s total, including 25.89s MFA). The application alignment flag remains OFF.

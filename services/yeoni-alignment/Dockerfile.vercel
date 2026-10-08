@@ -12,6 +12,7 @@ RUN OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 micromamba run -n base python prepa
 RUN OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 micromamba run -n base python verify_pcm.py
 ENV YEONI_MFA_ACOUSTIC=/opt/yeoni/models/korean_mfa.zip \
     YEONI_MFA_DICTIONARY=/opt/yeoni/models/korean_mfa.dict \
+    YEONI_MFA_G2P=/opt/yeoni/models/korean_mfa_g2p.zip \
     YEONI_MFA_LEXICON=/opt/yeoni/lexicon \
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1
 # The image's upstream entrypoint activates the base environment.

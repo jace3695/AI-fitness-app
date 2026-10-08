@@ -43,7 +43,7 @@ SAFE_RESULT_ERRORS = frozenset({
     'INVALID_PHONE_TIMING', 'INVALID_PHONE_LABEL', 'ALIGNMENT_FAILED',
     'ALIGNMENT_TIMEOUT', 'UNSUPPORTED_VOICE', 'INVALID_TEXT', 'INVALID_AUDIO',
     'INVALID_BODY', 'LEXICON_VERSION_MISMATCH', 'LEXICON_MODEL_MISMATCH',
-    'LEXICON_HASH_MISMATCH', 'LEXICON_NOT_CONFIGURED',
+    'LEXICON_HASH_MISMATCH', 'LEXICON_NOT_CONFIGURED', 'G2P_MODEL_MISMATCH',
 })
 
 
@@ -68,6 +68,14 @@ def verify_lexicon(source, dictionary, acoustic):
         if hashlib.sha256((source / name).read_bytes()).hexdigest() != provenance['files'][name]:
             raise ValueError('LEXICON_HASH_MISMATCH')
     return names
+
+
+@lru_cache(maxsize=1)
+def verified_g2p(path):
+    from download_models import MODELS
+    if hashlib.sha256(path.read_bytes()).hexdigest() != MODELS['g2p'][1]:
+        raise ValueError('G2P_MODEL_MISMATCH')
+    return str(path)
 
 
 def seed_lexicon(root, dictionary, acoustic):
@@ -165,6 +173,8 @@ def align(body, dictionary, acoustic):
         (root / 'speech.mp3').write_bytes(audio)
         (root / 'speech.lab').write_text(text, encoding='utf-8')
         cached = seed_lexicon(root, dictionary, acoustic)
+        g2p = os.environ.get('YEONI_MFA_G2P')
+        g2p_args = ['--g2p_model_path', verified_g2p(Path(g2p).resolve())] if g2p else []
         print(f'alignment-lexicon={"precompiled" if cached else "per-request"}', flush=True)
         run_bounded(['ffmpeg', '-nostdin', '-v', 'error', '-protocol_whitelist', 'file,pipe', '-f', 'mp3', '-i', str(root / 'speech.mp3'),
                      '-t', '121', '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', str(root / 'speech.wav')], 3, directory)
@@ -172,7 +182,7 @@ def align(body, dictionary, acoustic):
                      str(dictionary), str(acoustic), str(root / 'aligned.json'),
                      '--output_format', 'json', '--temporary_directory', str(root / 'mfa'),
                      '--num_jobs', '1', '--no_use_mp', '--no_use_postgres',
-                     '--no_clean' if cached else '--clean', '--quiet'], 45, directory)
+                     '--no_clean' if cached else '--clean', '--quiet', *g2p_args], 45, directory)
         timings = json.loads((root / 'phase-times.json').read_text())
         for name in ('importMs', 'commandMs', 'alignmentMs'):
             value = timings.get(name)

@@ -14,6 +14,14 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class WorkerTests(unittest.TestCase):
+    def test_modified_g2p_model_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model = Path(directory) / 'g2p.zip'
+            model.write_bytes(b'corrupt')
+            with self.assertRaisesRegex(ValueError, 'G2P_MODEL_MISMATCH'):
+                worker.verified_g2p(model)
+        worker.verified_g2p.cache_clear()
+
     def test_rejected_new_phone_results_are_diagnosable_without_private_output(self):
         cases = [('spn', 0, .1, 'UNKNOWN_PHONE'), ('', 0, .1, 'EMPTY_PHONE'),
                  ('sil', .2, .1, 'INVALID_PHONE_TIMING')]
