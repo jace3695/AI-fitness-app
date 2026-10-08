@@ -92,3 +92,37 @@ within the existing approved scope. Production merge/activation remains separate
   was stopped. No local engine execution or phonetic review is claimed.
 - No numbers/long hosted retries were performed on a8c4a51 while diagnosing the
   common short failure. All originals and three server reservation IDs remain.
+
+## 2026-10-09 00:20 KST — saved-audio review checkpoint
+
+- Code Preview `6a1f52a9885bc101e32cce5a86477f08fe9be2f0` /
+  `dpl_MCwd5wxkKzHt7derUn6yNcuPGGQL` READY. The complete phone inventory
+  fix resolved the short manifest rejection; its actual new phones include
+  `pʲ`, `t͈`, `ɟ`, which were absent from the old renderer map.
+- Short: 51 cues /4.728s, alignment8443ms. Original MP3 and request ID unchanged.
+  Browser played to4.728s and returned to `rest:rest:0` at end.
+- Numbers: saved-audio attempt still rejected with `UNKNOWN_PHONE`
+  (2026-10-08T15:15:55.498Z). No manifest accepted, no regenerated audio.
+  The pinned G2P model has no digit graphemes; MFA's Korean tokenizer preserves
+  numeric surface forms. Spoken-number normalization remains an open issue.
+- Long: 363 cues /28.896s, alignment13833ms (UI13.83s). Original MP3 and request
+  ID unchanged. Cat playback advanced12.074s with a non-rest mouth pose and
+  reached28.896s/rest. Human playback showed changing poses, paused at10.34391s
+  with a stable clock/rest, resumed and reached25.959s with `a:a:0` before manual
+  reset. A role-based appearance click failed during the first playback;
+  a subsequent DOM check resolved it after playback ended. No in-play
+  appearance-switch pass is claimed.
+- Cat appearance and motionOFF were restored. Original JSON/MP3 backups remain
+  separate from the two accepted alignment exports. The browser retains all three
+  recordings with generation disabled. Independent archive:
+  `AI_Yeoni_Original_Voices_2026-10-08.zip`, SHA256
+  `885ff7e6ac2bb4eb5a0b8e0e7f86df972657b1c8d0ee0d8a866f38da29de29ee`.
+- Final server read-back: IDs unchanged32/52/217; limit326/reserved326/remaining0.
+  Production alias still resolves to `62c2141` /`dpl_7sQeDrCAVugwnwhgHkNt6MLkxhfK`
+  READY. PR208 Draft/unmerged. General alignmentOFF. PoC16/16 is unchanged.
+- Targeted changed-code checks pass. Latest code CI run37798354656 was still
+  in progress at this checkpoint, not a pass. No CI rerun requested manually.
+- Remaining: establish the numeric recording's actual readings, implement and
+  evaluate bounded spoken-number normalization using the same MP3, review
+  phonetic boundaries/naturalness and iPhone behavior. Two accepted manifests
+  are technical validation only; no phonetic, listening or device acceptance.
