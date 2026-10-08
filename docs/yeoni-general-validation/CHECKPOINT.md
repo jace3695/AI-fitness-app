@@ -75,3 +75,20 @@ within the existing approved scope. Production merge/activation remains separate
 - Hosted G2P validation is pending. Number readings, connected pronunciation,
   latency and iPhone review remain unverified. PR208 remains Draft; no production
   merge, deployment, flag activation or quota change is authorized here.
+
+## G2P Preview and renderer inventory follow-up
+
+- G2P + isolated mutable lexicon Preview `a8c4a51d09e16047be3fd93221d9b5da0703c7fa`
+  / `dpl_AdQs6aj2yCnr26wDfAFPZdGRGBHS` READY. At 23:59 KST, a saved-short
+  request completed decode0.27s /engine7.96s with no worker validation error,
+  but the app still returned ALIGNMENT_UNAVAILABLE. No playback success claimed.
+- Static model/renderer comparison found only45 of108 G2P symbols supported.
+  The next candidate explicitly projects the complete pinned inventory using
+  published MFA IPA categories; unknown symbols still fail. See PHONE_PROJECTION.md.
+  Two targeted checks cover all108 symbols, rejection outside the inventory and
+  preservation of source phone labels/timing. Both pass.
+- A local MFA environment setup was attempted for deeper source-output review,
+  but package processing reported `fatal library error, lookup self`; installation
+  was stopped. No local engine execution or phonetic review is claimed.
+- No numbers/long hosted retries were performed on a8c4a51 while diagnosing the
+  common short failure. All originals and three server reservation IDs remain.
