@@ -58,3 +58,10 @@ PoC/iPhone checks were repeated.
 - Added `character-check?mode=alignment` and authenticated POST `/api/yeoni/alignment-check` on the exact Preview branch only. It accepts no arbitrary text/audio/URL, reads the existing Korean MP3, and calls the private binding once. No Google/TTS generation. General reply alignment remains OFF.
 - UI validates returned audio/text hashes and automatic phonemes again, then offers the existing player/character. Never autoplays or automatically retries. Server coalesces fixed-fixture requests for 60 seconds per instance.
 - Local validation: 6 focused alignment tests, changed-file ESLint and Next production build passed. Hosted processing and playback remain pending until the new Preview is tested.
+
+### Same-origin guard follow-up
+
+- Next's internal request URL used a different host in the local production server. Match browser Origin against the HTTP Host instead; foreign origins still fail closed.
+- Local compiled handler: production POST 404, Preview foreign-origin POST 403. Without local auth configuration Preview returns 503 safely; isolated dummy Supabase configuration is used to verify unauthenticated 401 without contacting the personal-data project.
+- First review Preview `ccf2866` / `dpl_78sX5qGkMxHp2MgkBVL7t5uS79jR` reached READY.
+- Branch alias requires a separate app session. Secure login attempt returned visible `Invalid login credentials`; no repeat attempted. Previous immutable Preview login success remains valid evidence, but new review processing/playback is still unverified.

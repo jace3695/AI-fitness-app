@@ -14,7 +14,10 @@ let recent: { until: number; result: Promise<{ body: object; status: number }> }
 
 export async function POST(request: Request) {
   if (!characterReplyEnabled(process.env)) return json({ code: 'NOT_FOUND' }, 404);
-  if (request.headers.get('origin') !== new URL(request.url).origin) return json({ code: 'ORIGIN_REQUIRED' }, 403);
+  // Next's internal request URL can use localhost behind the hosting proxy.
+  // Match the browser Origin to the original HTTP Host, not that internal URL.
+  const origin = request.headers.get('origin'), host = request.headers.get('host');
+  if (!host || (origin !== `https://${host}` && origin !== `http://${host}`)) return json({ code: 'ORIGIN_REQUIRED' }, 403);
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user }, error } = await supabase.auth.getUser();
