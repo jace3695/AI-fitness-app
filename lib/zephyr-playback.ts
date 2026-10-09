@@ -1,6 +1,7 @@
 import { validateReplyAlignment } from './yeoni/speech-alignment.ts';
 import type { LipSyncManifest } from './yeoni/lip-sync.ts';
 import { YEONI_VOICE_NAME, YEONI_VOICE_PENDING_MESSAGE } from './yeoni-voice-policy.ts';
+import { normalizeKoreanCurrencySpeech } from './yeoni/korean-currency-speech.ts';
 
 export function prepareZephyrSpeech(value: string) {
   const clean = value.replace(/https?:\/\/\S+/g, '화면의 링크')
@@ -10,7 +11,9 @@ export function prepareZephyrSpeech(value: string) {
         `${start}${startUnit || endUnit || ''}에서 ${end}${endUnit || startUnit || ''}`)
     .replace(/[*#_~`]/g, '').replace(/\s+/g, ' ').trim();
   const characters = Array.from(clean);
-  return { text: characters.slice(0, 1200).join(''), characters: Math.min(characters.length, 1200), truncated: characters.length > 1200 };
+  // Preserve the original prepared text: existing attempt keys must not change after this fix.
+  const text = characters.slice(0, 1200).join('');
+  return { text, characters: Array.from(normalizeKoreanCurrencySpeech(text)).length, truncated: characters.length > 1200 };
 }
 
 type AudioResult = { audioContent: string; remainingCharacters: number; alignment?: LipSyncManifest };
@@ -44,8 +47,9 @@ export class ZephyrAudioCache {
   }
 
   private async generate(key: string, text: string, { request, storage, retainWorkoutAudio, includeAlignment }: Dependencies): Promise<AudioResult> {
-    const characters = Array.from(text).length;
-    if (!characters || characters > 1200) throw new Error('읽을 답변을 확인해 주세요.');
+    const spokenText = normalizeKoreanCurrencySpeech(text);
+    const characters = Array.from(spokenText).length;
+    if (!characters || characters > 1200 || Array.from(text).length > 1200) throw new Error('실제로 읽을 문장은 1자 이상 1,200자 이하로 입력해 주세요.');
     let previous: string | null;
     try { previous = storage.getItem(key); }
     catch { throw new Error('중복 생성 방지 기록을 보관할 수 없어 음성을 생성하지 않았어요.'); }
@@ -89,7 +93,7 @@ export class ZephyrAudioCache {
     }
     let alignment: LipSyncManifest | undefined;
     if (includeAlignment && data.alignment) {
-      try { alignment = await validateReplyAlignment(Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0)).buffer, text, data.alignment); }
+      try { alignment = await validateReplyAlignment(Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0)).buffer, spokenText, data.alignment); }
       catch { /* Invalid alignment must never discard valid audio or trigger regeneration. */ }
     }
     const result: AudioResult = { audioContent: data.audioContent, remainingCharacters: data.remainingCharacters, ...(alignment ? { alignment } : {}) };

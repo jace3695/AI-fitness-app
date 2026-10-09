@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { ZEPHYR_REQUEST_ID, readZephyrRequest, zephyrBudget, zephyrFreeConfiguration } from '@/lib/zephyr-free-server';
 
 import { alignGeneratedReply, alignmentConfiguration } from '@/lib/yeoni/speech-alignment';
+import { normalizeKoreanCurrencySpeech } from '@/lib/yeoni/korean-currency-speech';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -49,7 +50,10 @@ export async function POST(req: NextRequest) {
     let body: Record<string, unknown> | null;
     try { body = await readZephyrRequest(req); }
     catch (error) { return json({ error: '음성 요청 형식을 확인해주세요.' }, error instanceof Error && error.message === 'BODY_TOO_LARGE' ? 413 : 400); }
-    const text = typeof body?.text === 'string' ? body.text.trim() : '';
+    const sourceText = typeof body?.text === 'string' ? body.text.trim() : '';
+    if (Array.from(sourceText).length > 1200) return json({ error: '읽을 문장은 1자 이상 1,200자 이하로 입력해주세요.' }, 400);
+    // Reserve, synthesize and align the exact same final spoken text.
+    const text = normalizeKoreanCurrencySpeech(sourceText);
     const characters = Array.from(text).length;
     if (!text || characters > 1200) return json({ error: '읽을 문장은 1자 이상 1,200자 이하로 입력해주세요.' }, 400);
     const config = zephyrFreeConfiguration();
@@ -76,7 +80,7 @@ export async function POST(req: NextRequest) {
       if (typeof audioContent !== 'string' || !audioContent || audioContent.length > 8_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audioContent)) throw new Error('INVALID_AUDIO');
       const alignmentConfig = body?.includeAlignment === true ? alignmentConfiguration(process.env) : null;
       const alignment = alignmentConfig ? await alignGeneratedReply(audioContent, text, alignmentConfig) : null;
-      return json({ audioContent, requestId, reservedCharacters: characters, remainingCharacters: grant.remainingCharacters,
+      return json({ audioContent, requestId, spokenText: text, reservedCharacters: characters, remainingCharacters: grant.remainingCharacters,
         ...(body?.includeAlignment === true ? { alignment, alignmentStatus: alignment ? 'ready' : 'unavailable' } : {}) });
     } catch {
       return json({ error: '음성 생성 완료 여부를 확인하지 못했어요. 추가 생성을 멈췄으며, 예약 문자 수는 유지해요. 화면의 답변을 확인해 주세요.', code: 'ZEPHYR_UNCONFIRMED', requestId }, 502);

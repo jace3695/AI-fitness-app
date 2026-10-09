@@ -126,3 +126,43 @@ within the existing approved scope. Production merge/activation remains separate
   evaluate bounded spoken-number normalization using the same MP3, review
   phonetic boundaries/naturalness and iPhone behavior. Two accepted manifests
   are technical validation only; no phonetic, listening or device acceptance.
+
+## 2026-10-09 — user-confirmed currency pronunciation defect
+
+- User heard the existing numbers recording read `12,500원` as `십이 오백원`,
+  rather than `만이천오백원`. This is a TTS pronunciation defect, separate from
+  the worker's `UNKNOWN_PHONE` rejection. The readings of `3시`, `30분`, and
+  `2개` have not been confirmed by this report.
+- The original numbers MP3, request ID and 52-character receipt remain intact.
+  Do not relabel this old audio with the corrected transcript or align it against
+  the desired reading. This supersedes the previous suggestion to normalize the
+  transcript while reusing that recording for a corrected-reading check.
+- Added bounded Korean won integer normalization at the server synthesis boundary:
+  `12,500원` becomes `만이천오백원`. Valid grouped/plain integers through16 digits
+  and a bounded set of Korean currency suffixes are supported. Signs, decimal
+  amounts, malformed grouping, time/count units, IDs and unknown suffixes are
+  deliberately left unchanged; this is not complete numeric speech normalization.
+- One final spoken text is used for character reservation, Google input, returned
+  `spokenText`, and optional alignment. Raw and normalized1200-character caps are
+  enforced before reservation. Client quota/count/alignment checks use that same
+  conversion. Existing raw-text attempt keys are preserved, so updating the reader
+  cannot silently regenerate an old numeric answer. Stored audio is not rewritten.
+- Mocked provider/worker and local synthetic PGlite tests verify final text/hash,
+  quota expansion, no provider call on rejection, duplicate IDs, legacy receipt
+  preservation, matching/incorrect alignment transcripts, and replay without retry.
+  All34 targeted checks pass after correcting the new test's expected count from
+  52 to51. Changed-file ESLint and TypeScript checks pass. These are code checks,
+  not actual speech, browser playback or iPhone acceptance for this correction.
+- Baseline `b3114fb81cef7f351030a7044ddd251180cc3299` still matched the remote
+  branch when work resumed. Its CI run37800120761 completed successfully overnight.
+  The local source tree was verified as exactly2ac65f2eb5fdc54112c8025e5ec94cafbba2a0d5
+  before edits; missing old worktree metadata did not require overwriting source.
+- No real TTS/alignment request, production DB/quota change, receipt reset, voice
+  regeneration, general alignment activation or production merge/deployment was
+  performed for this fix. PR208 remains Draft; the three one-call approvals have
+  already been consumed. Original plan texts and IDs are unchanged.
+- Next live pronunciation check requires a new, separately approved recording.
+  Minimal proposed Google input: `예상 비용은 만이천오백원이에요.` (17 Unicode
+  characters including spaces/punctuation), voice `ko-KR-Chirp3-HD-Zephyr`, once.
+  This is a proposal only: no request ID, grant or audio has been created. Preserve
+  the original defective sample and give any approved follow-up a separate ID/file.
