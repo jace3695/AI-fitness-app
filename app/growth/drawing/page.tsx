@@ -45,6 +45,7 @@ export default function DrawingPage() {
   const [compare, setCompare] = useState<string>("");
   const [album, setAlbum] = useState(false);
   const [localStatus, setLocalStatus] = useState("");
+  const [checkpointRetry, retryCheckpoint] = useState(0);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [filter, setFilter] = useState(0);
   const [review, setReview] = useState(false);
@@ -82,7 +83,7 @@ export default function DrawingPage() {
       clearTimeout(timer);
       if (checkpointTimer.current === timer) checkpointTimer.current = null;
     };
-  }, [attempt, dirty, owner, checkpoint, records.busy]);
+  }, [attempt, dirty, owner, checkpoint, records.busy, checkpointRetry]);
 
   const owned = attempt?.user_id === records.owner ? attempt : null;
   const doc = owned?.document;
@@ -126,6 +127,9 @@ export default function DrawingPage() {
     }
     const saved = await records.save({ ...owned, document: {...owned.document,...patch}, status: completed ? "completed" : "draft" });
     if (saved && saved.user_id === latestOwner.current) { checkpointGeneration.current++; setAttempt(saved); setDirty(false); setLocalStatus("클라우드 저장 확인 완료"); setReview(completed); return true; }
+    // Size/ownership checks can reject before busy changes. Keep local recovery
+    // scheduled even when the server save never starts.
+    if (latestOwner.current === owned.user_id) retryCheckpoint(value => value + 1);
     return false;
   }
   const previous = records.records.find(a => a.id === compare);

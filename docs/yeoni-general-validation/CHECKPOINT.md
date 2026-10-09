@@ -351,3 +351,15 @@ within the existing approved scope. Production merge/activation remains separate
   short/numbers/long/currency audio, alignment, backups and request/duplicate
   records remain intact. No TTS/realignment, hosted DB mutation, production merge
   or production deployment is part of this repair.
+
+### Early save rejection follow-up
+
+- Review of the cancellation change found one additional edge case: the size
+  guard can reject a save before busy changes, leaving the cancelled local timer
+  unscheduled. A controlled oversized-drawing case reproduced that regression.
+  An unsuccessful save now explicitly schedules local recovery again for the
+  same owner. It does not retry any server request or replace existing data.
+- The oversized rejection case now leaves the server untouched and rearms the
+  local checkpoint. Confirmed-save ordering and failed-server-save retry remain
+  covered by the same focused source harness. The follow-up replaces the still
+  preparatory CI run on cbb285c; a cancelled run is not recorded as passed.
