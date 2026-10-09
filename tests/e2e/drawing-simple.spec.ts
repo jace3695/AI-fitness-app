@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
 import { delayDrawingCheckpointUntilConfirmation, localDrawingConfirmation } from './drawing-checkpoint-race';
+import { RouteDrain } from './route-drain';
 
 async function draw(page:Page) {
   const canvas=page.getByLabel('내 그림 연습장',{exact:true});
@@ -18,6 +19,49 @@ async function chooseProject(page:Page,id:string) {
   await page.locator('summary').filter({hasText:`${id} · ${project.title}`}).click();
   await page.getByRole('button',{name:`${id} 시작·이어하기`,exact:true}).click();
 }
+
+test('drawing simple: menus wait for loaded records and open with one click after reload', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page); const original = await qa.read();
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/growth/drawing');
+  await page.getByRole('button', { name: '처음 그림 그리기', exact: true }).click();
+  await draw(page);
+  await page.getByRole('button', { name: '여기까지 저장', exact: true }).click();
+  await expect(page.getByText('저장했어요. 화면을 닫아도 나중에 이어 할 수 있어요.', { exact: true })).toBeVisible();
+  const saved = await qa.account.client.from('growth_drawing_attempts').select('*').single();
+  expect(saved.error).toBeNull(); expect(saved.data.document.strokes).toHaveLength(1);
+
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  let arrived!: () => void; const received = new Promise<void>(resolve => { arrived = resolve; });
+  const pattern = '**/rest/v1/growth_drawing_attempts*', drain = new RouteDrain();
+  await page.route(pattern, route => drain.run(async () => {
+    if (route.request().method() !== 'GET') { await route.fallback(); return; }
+    // Keep the real authenticated database response; delay delivery only.
+    const response = await route.fetch({ maxRetries: 0 });
+    expect(response.status()).toBe(200); arrived(); await held;
+    await route.fulfill({ response });
+  }));
+  try {
+    await page.reload(); await received;
+    await expect(page.getByText('저장한 그림을 확인하고 있어요…', { exact: true })).toBeVisible();
+    const menu = page.getByRole('navigation', { name: '그림 연습 메뉴' });
+    await expect(menu.getByRole('button')).toHaveCount(3);
+    for (const button of await menu.getByRole('button').all()) await expect(button).toBeDisabled();
+    release();
+    const toggle = menu.getByRole('button', { name: '전체 도구 보기', exact: true });
+    await expect(toggle).toBeEnabled();
+    await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#drawing-map')).toBeVisible();
+    await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await menu.getByRole('button', { name: '다른 수업 고르기', exact: true }).click();
+    await expect(page.locator('#drawing-map')).toBeVisible();
+    await menu.getByRole('button', { name: '내 그림 1장', exact: true }).click();
+    await page.getByRole('button', { name: '열고 이어 그리기', exact: true }).click();
+    await expect(page.getByRole('button', { name: '되돌리기', exact: true })).toBeEnabled();
+    expect((await qa.account.client.from('growth_drawing_attempts').select('*').single()).data).toEqual(saved.data);
+    expect(await qa.read()).toEqual(original);
+  } finally { release(); await drain.wait(); await page.unroute(pattern); }
+});
+
 for(const width of [320,390]) test(`drawing simple: first start, partial save, resume and finish at ${width}px`,async({page,qa},info)=>{
   await login(page,qa.account);await synced(page);const original=await qa.read();
   await page.setViewportSize({width,height:844});await page.goto('/growth/drawing');

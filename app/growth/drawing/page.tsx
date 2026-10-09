@@ -172,9 +172,11 @@ export default function DrawingPage() {
         </>}
         <nav aria-label="그림 연습 메뉴" className="drawing-menu">
           {owned && <button className="drawing-button" disabled={records.busy} onClick={async()=>{if(await preserve()){setAttempt(null);setDirty(false);setReview(false);setLocalStatus("");window.scrollTo({top:0});}}}>처음 화면</button>}
-          <button className="drawing-button" aria-expanded={album} onClick={()=>setAlbum(!album)}>내 그림 {records.records.length}장</button>
-          <button className="drawing-button" aria-expanded={libraryOpen || !simple} onClick={()=>setLibraryOpen(!libraryOpen)}>다른 수업 고르기</button>
-          <button className="drawing-button" aria-pressed={!simple} onClick={()=>setSimple(!simple)}>전체 도구 보기</button>
+          {/* Loading records changes the welcome card above these controls.
+              Accept input only after that layout change, like the start button. */}
+          <button className="drawing-button" disabled={!records.ready} aria-expanded={album} onClick={()=>setAlbum(!album)}>내 그림 {records.records.length}장</button>
+          <button className="drawing-button" disabled={!records.ready} aria-expanded={libraryOpen || !simple} onClick={()=>setLibraryOpen(!libraryOpen)}>다른 수업 고르기</button>
+          <button className="drawing-button" disabled={!records.ready} aria-pressed={!simple} onClick={()=>setSimple(!simple)}>전체 도구 보기</button>
         </nav>
         {!simple && <p className="mt-3 text-sm text-slate-500">모든 도구를 펼쳤어요. ‘전체 도구 보기’를 다시 누르면 쉬운 화면으로 돌아가요. · 연습한 수업 {doneIds.size}개</p>}
       </section>

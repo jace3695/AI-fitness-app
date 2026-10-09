@@ -363,3 +363,43 @@ within the existing approved scope. Production merge/activation remains separate
   local checkpoint. Confirmed-save ordering and failed-server-save retry remain
   covered by the same focused source harness. The follow-up replaces the still
   preparatory CI run on cbb285c; a cancelled run is not recorded as passed.
+
+## 2026-10-09 — drawing menu loading race reproduced and repaired
+
+- CI37916351409 on beb733a finished with435 passed/1 failed in the final run.
+  The sole failure was WebKit D80 sprout, waiting at drawing-tools.ts:10 for
+  the tools toggle's aria-pressed=true. D65 and the beginner save/checkpoint
+  cases passed both engines. A toggle timeout does not establish a DB save or
+  PNG export failure. PR208 contains the detailed completed-run checkpoint.
+- The initial hydration hypothesis was excluded after reading AuthGate: the
+  drawing page is mounted on the client after authentication. No speculative
+  hydration flag or auth change was made.
+- Reproduced a concrete input-loss path in a separate local Chromium153.0.8010.0
+  browser,390x844 viewport, using the actual DrawingPage, useDrawingRecords,
+  drawing components, IndexedDB and generated application CSS. Only service
+  responses and Next Link/Image adapters were synthetic. Holding the record
+  response, pressing the enabled tools button, delivering a completed D75 row,
+  and releasing at the original point moved the button from y720 to y692 and
+  left aria-pressed=false. A fresh single click after readiness succeeded.
+  This proves the code's loading/layout race, not the historical CI's exact
+  cause: that run has no pointer-event/layout evidence. It is not an authenticated
+  Next/WebKit/Supabase integration result or a live Preview inspection.
+- The album, lesson chooser and tools menu now use the same records.ready gate
+  as the start button. Loading feedback already exists. No additional timeout,
+  repeated click, test retry, storage reset or relaxed assertion was introduced.
+  The fixed browser case verifies disabled controls during loading and one-click
+  expansion/collapse after readiness. Existing drawing/save code is unchanged.
+- Added a browser regression in the existing two-engine beginner suite: save
+  an actual stroke, reload, hold the real authenticated GET response, verify all
+  three menu buttons are disabled, release it, toggle once in each direction,
+  open the lesson chooser and album, resume the same drawing, and compare the
+  complete saved row and unrelated original records. No fake successful DB
+  response is supplied. Existing D80 and all CI gates remain in place.
+- TypeScript, changed-file ESLint and whitespace checks passed locally. Temporary
+  browser/harness dependencies were installed outside the repository; project
+  dependencies are unchanged. The new regression and full D80 flow still need
+  the development branch's automatically triggered CI; no full-suite success
+  or production readiness is claimed at commit time.
+- Original voices, alignments, backups, quotas, request IDs and duplicate guards
+  are untouched. No TTS/alignment call, hosted DB mutation, production merge or
+  production deployment. General alignment OFF and Draft PR208 are retained.
