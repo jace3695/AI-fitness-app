@@ -40,8 +40,9 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915052413_chatgpt_scoped_connection.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916043619_assistant_language_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009164307_language_live_report_history.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009173440_language_live_learning_history.sql', 'utf8'));
     // Disposable fixture cleanup only; production migration grants stay unchanged.
-    appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons to service_role;\n');
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches to service_role;\n');
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
@@ -63,6 +64,7 @@ try {
       grant all on public.growth_resources to service_role;
     ` + resourcePolicies);
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260902223000_harden_growth_routine_links.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009183602_save_sentence_typing_session.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917084426_growth_resource_usage.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917114328_diet_meal_favorites.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917133223_workout_actual_times.sql', 'utf8'));

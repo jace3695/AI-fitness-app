@@ -10,6 +10,7 @@ import { normalizeLiveReportMetadata, validateLiveReport } from '@/lib/language-
 import { LanguageLiveError, LIVE_REPORT_MAX_LENGTH, type LiveErrorCode, type LiveFieldKey, type LiveFieldValue, type LiveLesson } from '@/lib/language-live/types';
 import { draftKey, draftPrefix, forkLiveDraft, liveDraftSaveInput, LiveRequestEpoch, persistLiveDraft, readLiveDrafts, removeLiveDraft, type LiveEditorDraft } from '@/app/language/live/draft-state';
 import ReportFields, { ReportSource } from './ReportFields';
+import LiveLearningWorkspace from './LiveLearningWorkspace';
 
 const PAGE_SIZE = 20;
 const operationLabels = { create: '처음 등록', edit: '내용 수정', delete: '휴지통 이동', restore: '이전 내용 복원' };
@@ -69,7 +70,9 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
   const busyRef = useRef(false);
   const baseline = useRef<string | null>(null);
   const editorRef = useRef<LiveEditorDraft | null>(null);
-  const [view, setView] = useState<'import' | 'history' | 'detail'>('import');
+  const [view, setView] = useState<'import' | 'history' | 'detail' | 'learning'>('import');
+  const [learningOpened, setLearningOpened] = useState(false);
+  const [learningBusy, setLearningBusy] = useState(false);
   const [editor, setEditor] = useState<LiveEditorDraft | null>(null);
   const [recoveredDrafts, setRecoveredDrafts] = useState<LiveEditorDraft[]>([]);
   const [localStatus, setLocalStatus] = useState('');
@@ -294,15 +297,18 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
     <Link className="live-back" href="/language">← 일본어 학습</Link>
     <header><span className="live-eyebrow">CHATGPT LIVE · 직접 가져오기</span><h1 id="live-title">AI Live 학습 기록</h1>
       <p className="live-intro">수업이 끝나면 보고서를 복사해 붙여넣으세요. 원문과 확인한 내용을 함께 보관해요.</p>
-      <p className="live-hint">현재는 기록 등록·조회 단계예요. 장기 복습과 다음 수업 준비 기능은 아직 제공하지 않아요. 기존 일본어 학습 완료 기록은 바뀌지 않아요.</p>
+      <p className="live-hint">보고서의 근거를 직접 확인하면 영역별 학습 상태와 복습일을 관리할 수 있어요. 기존 일본어 학습 완료 기록은 바뀌지 않아요.</p>
     </header>
     {persistence === 'blocked' ? <div className="live-notice live-notice-warning" role="alert"><strong>서버 기록 저장을 아직 사용할 수 없어요.</strong><p>Live 전용 저장소가 준비되지 않아 기록 조회·저장을 중단했어요. 빈 기록으로 판단하지 않습니다. 붙여넣기와 기기 초안 보관은 할 수 있어요.</p><button type="button" onClick={() => void refreshList()} disabled={listLoading}>저장소 다시 확인</button></div> : null}
     <nav className="live-tabs" aria-label="AI Live 메뉴">
-      <button type="button" aria-current={view === 'import' ? 'page' : undefined} disabled={busy} onClick={() => { detailEpoch.current.invalidate(); setView('import'); setNotice(null); setMutation(null); setDiscardRequested(false); }}>보고서 가져오기</button>
-      <button type="button" aria-current={view !== 'import' ? 'page' : undefined} disabled={busy} onClick={() => { detailEpoch.current.invalidate(); setView('history'); setNotice(null); setMutation(null); setDiscardRequested(false); void refreshList(); }}>학습 이력</button>
+      <button type="button" aria-current={view === 'import' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setView('import'); setNotice(null); setMutation(null); setDiscardRequested(false); }}>보고서 가져오기</button>
+      <button type="button" aria-current={view === 'history' || view === 'detail' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setView('history'); setNotice(null); setMutation(null); setDiscardRequested(false); void refreshList(); }}>학습 이력</button>
+      <button type="button" aria-current={view === 'learning' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setLearningOpened(true); setView('learning'); setNotice(null); setMutation(null); }}>복습·학습 상태</button>
     </nav>
     <div className="live-status" aria-live="polite">{busy ? <p role="status">저장한 내용을 서버에서 다시 확인하는 중…</p> : null}{success ? <p className="live-notice live-notice-success" role="status">{success}</p> : null}</div>
     {notice ? <div className="live-notice live-notice-error" role="alert">{notice.text}{notice.code === 'conflict' && editor ? <div className="live-actions"><button type="button" onClick={() => void openLesson(editor.lessonId)}>서버의 최신 기록 보기</button></div> : null}</div> : null}
+
+    {learningOpened ? <LiveLearningWorkspace owner={owner} client={client} active={view === 'learning'} onBusyChange={setLearningBusy} /> : null}
 
     {view === 'import' ? <>
       {recoveredDrafts.length ? <details className="live-source"><summary>이 계정의 기기 초안 {recoveredDrafts.length}개</summary><div className="live-card live-draft-list"><p className="live-hint">이 브라우저의 원문 보관본이에요. 불러오면 이 탭의 별도 초안이 만들어져요. 서버 저장을 마친 예전 보관본이 남아 있을 수 있어요.</p>{recoveredDrafts.map(draft => <button type="button" key={draft.draftId} disabled={busy || Boolean(localError && editor)} onClick={() => recoverDraft(draft)}>{draft.expectedRevision ? '수정 초안' : '새 수업 초안'} · {dateTime(draft.updatedAt)}{draft.submitted ? ' · 저장 결과 확인 필요' : ''}</button>)}</div></details> : null}

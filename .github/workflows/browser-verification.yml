@@ -60,6 +60,12 @@ jobs:
         run: node scripts/e2e-stack.mjs start
       - name: Build the isolated production app
         run: npm run build
+      - name: Verify handoff data safety and Live learning in both browsers
+        run: node scripts/qa-playwright.mjs tests/e2e/language-live.spec.ts tests/e2e/language-live-learning.spec.ts tests/e2e/google-calendar.spec.ts tests/e2e/free-first.spec.ts tests/e2e/sentence-typing-recovery.spec.ts --project=chromium --project=webkit-small
+      - name: Diagnose drawing reload protocol without retries
+        env:
+          QA_DRAWING_PROTOCOL: '1'
+        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(27|33)'
       - name: Verify beginner drawing flow in both browsers
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races
