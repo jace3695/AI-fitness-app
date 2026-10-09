@@ -100,6 +100,7 @@ jobs:
             .e2e/evidence/server-navigation.jsonl
             .e2e/evidence/drawing-simple-*.png
             .e2e/evidence/pin-status-*.png
+            .e2e/evidence/language-live-*.png
             .e2e/evidence/drawing-stage3-*.png
             .e2e/evidence/drawing-stage4-*.png
             .e2e/evidence/drawing-stage5-*.png

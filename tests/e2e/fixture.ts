@@ -198,17 +198,30 @@ export const test = base.extend<{ qa: Qa }>({
         navigationEvidence = JSON.stringify(evidence, null, 2);
         console.log('QA_NAVIGATION_FAILURE ' + JSON.stringify(evidence));
       }
+      const cleanupStarted = performance.now();
+      const cleanupPhase = (phase: 'traffic-drain' | 'unroute' | 'context-close' | 'account-cleanup', boundary: 'start' | 'end') => {
+        // Node-side fixed labels only. Keep useful boundaries even if a later
+        // browser command stalls before the normal evidence files are written.
+        if (navigationEvidence) console.log('QA_CLEANUP_PHASE ' + JSON.stringify({ phase, boundary, ms: Math.round(performance.now() - cleanupStarted) }));
+      };
       traffic.releaseAll();
       // Drain while the routing list is still installed. Removing it first can
       // auto-continue a second response before its callback calls fulfill.
+      cleanupPhase('traffic-drain', 'start');
       await traffic.drain();
+      cleanupPhase('traffic-drain', 'end');
       // Finish in-flight route.fetch/fulfill callbacks before closing their
       // request context. Keep callback errors visible; do not ignore them.
+      cleanupPhase('unroute', 'start');
       await context.unrouteAll({ behavior: 'wait' });
+      cleanupPhase('unroute', 'end');
       // Stop browser writers before removing the synthetic Auth users. Cascade
       // then removes their rows; verify cleanup even when an assertion fails.
+      cleanupPhase('context-close', 'start');
       await context.close();
+      cleanupPhase('context-close', 'end');
       let storageFilesRemoved = 0;
+      cleanupPhase('account-cleanup', 'start');
       for (const account of accounts) {
         const ownedFiles = async (prefix: string): Promise<string[]> => {
           const result = await admin.storage.from('growth-resources').list(prefix, { limit: 1000 });
@@ -237,6 +250,7 @@ export const test = base.extend<{ qa: Qa }>({
           expect(remainingBudget.error).toBeNull(); expect(remainingBudget.count, `${table} synthetic cleanup`).toBe(0);
         }
       }
+      cleanupPhase('account-cleanup', 'end');
       cleaned = true;
       mkdirSync('.e2e/evidence', { recursive: true });
       // Diagnostic file IO must not prevent synthetic account cleanup.

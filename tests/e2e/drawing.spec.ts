@@ -1,4 +1,5 @@
 import { showDrawingTools } from './drawing-tools';
+import { localDrawingConfirmation } from './drawing-checkpoint-race';
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { readFileSync } from 'node:fs';
@@ -355,7 +356,15 @@ test('drawing D33 D34: previous memory source remains untouched and reference sn
     else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
     await expect(practice.getByRole('button',{name:'위로 긴 귀',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+    // A server row can exist before the UI receives its response and finishes
+    // its local confirmation. Do not leave this drawing during that interval.
+    await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
     await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.length;}).toBe(n===33?2:3);
+    const saved=await qa.account.client.from('growth_drawing_attempts').select('*').eq('document->lesson->>id',`D${n}`).single();
+    expect(saved.error).toBeNull();
+    expect(saved.data.revision).toBe(1);
+    expect(saved.data.document.memory.source).toEqual({attemptId:original.id,revision:original.revision,lessonId:'D31'});
+    expect(await localDrawingConfirmation(page,qa.account.id,saved.data.id)).toEqual({pending:false,revision:saved.data.revision,baseRevision:saved.data.revision});
     const source=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data;
     expect(source).toEqual(original);
   }

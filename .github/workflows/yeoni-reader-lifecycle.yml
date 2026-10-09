@@ -11,6 +11,7 @@ on:
       - 'utils/yeoniPreferences.ts'
       - 'app/globals.css'
       - 'lib/zephyr-playback.ts'
+      - 'lib/yeoni-voice-policy.ts'
       - 'lib/yeoni/**'
       - 'public/yeoni/**'
       - 'public/yeoni-cat-sprite-v1.webp'

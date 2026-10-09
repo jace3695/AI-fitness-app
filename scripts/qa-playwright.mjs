@@ -26,7 +26,7 @@ const capture = stream => {
       native.push({ at: Date.now(), label });
       if (label !== 'other-native') console.log('QA_NATIVE ' + JSON.stringify({ at: Date.now(), label }));
     }
-    if (/^(?:QA_CLEANUP |QA_NAVIGATION_FAILURE |QA_FAILURE_LOCATION |QA_RUNNER_FAILURE |(?:passed|failed|timedOut|skipped): )/.test(line)) console.log(line);
+    if (/^(?:QA_CLEANUP |QA_CLEANUP_PHASE |QA_NAVIGATION_FAILURE |QA_FAILURE_LOCATION |QA_RUNNER_FAILURE |(?:passed|failed|timedOut|skipped): )/.test(line)) console.log(line);
     // Discard all other raw output. Test summaries
     // and fixture evidence are already saved separately by the safe reporter.
   });

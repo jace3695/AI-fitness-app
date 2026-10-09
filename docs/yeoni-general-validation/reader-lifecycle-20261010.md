@@ -54,6 +54,44 @@ conditions; they are not real network starvation or physical-device background
 tests. The account API is synthetic. The remaining transport cases use real
 HTMLAudioElement playback and events.
 
+## Pre-push harness readiness review (2026-10-09 UTC)
+
+The review hardened the test harness only; application components and media
+behavior were not changed. The existing assertions remain, with these additional
+checks:
+
+- Cat and human checks now sample `data-speech-time-ms` after a new real Canvas
+  draw, bounded by media-clock observations before and after that draw. This
+  checks the rendered clock rather than only comparing the reader's audio clock
+  to a snapshot that reads that same element. Recorded samples are included in
+  each case's `renderedClocks` evidence.
+- Delayed-stop cases capture real media `play` events before mounting React and
+  require zero events before explicit replay. An erroneous autoplay followed by
+  natural completion can no longer pass merely by eventually showing the replay
+  button. Explicit replay must produce exactly one reader play event.
+- Rest checks require a fresh draw. Buffering begins from observed active speech
+  and verifies that speech and the rendered clock resume after the injected
+  condition is removed.
+- Decode-error checks require an existing audio element with a real error. The
+  retry observes the unchanged native `play()` promise settling and the terminal
+  UI before checking the duplicate-generation count.
+- Route assertion failures are captured as `routeErrors`, raced into the case's
+  failure path, and aborted. Pending route handlers finish before context
+  teardown. Missing synthetic POSTs have a 30-second bound; existing Playwright
+  timeouts and retry behavior were not increased. Build/listen failures now enter
+  the structured infrastructure-failure path as well.
+
+Node syntax, targeted ESLint, build-only JavaScript/CSS compilation, fixture
+audio/text hashes, and static asset-reference checks passed. Four browser-free
+Node fault-injection checks executed the actual scenario function with synthetic
+route objects: wrong authorization, method, text, and alignment request flags
+each produced one failed result, one aborted route, and clean context teardown.
+These checks validate harness error handling, not browser/media behavior.
+
+No browser was launched during this review. All twelve browser cases still
+require the supported CI runner; physical-device and short/long/currency
+acceptance remain separate.
+
 ## Run commands and evidence
 
 Build-only validation, with no browser or provider execution:

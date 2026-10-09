@@ -81,10 +81,21 @@ function App(){
   </main>;
 }
 const root=createRoot(document.getElementById('root'));
+const playEvents=[];
+document.addEventListener('play',event=>{
+  const element=event.target;
+  if(element instanceof HTMLMediaElement) playEvents.push({
+    reader:element.closest('[data-qa-reader]')?.dataset.qaReader??'panel',
+    timeMs:element.currentTime*1000,
+  });
+},true);
 window.qa={changeAccount,authReadCount,stopAllSpeech,snapshot:()=>readerSpeech.snapshot(),
+  playEvents:()=>playEvents.slice(),
   setView:value=>setView(value),unmount:()=>root.unmount()};
 root.render(<App/>);
 `;
+let browser, server;
+try {
 const bundle = await build({
   stdin: { contents: entry, resolveDir: root, loader: 'tsx' },
   bundle: true, write: false, outfile: 'reader-lifecycle.js', jsx: 'automatic',
@@ -109,7 +120,7 @@ if (process.argv.includes('--build-only')) {
   console.log(JSON.stringify({ ...result, evidence: `${output}.build.json` }));
   process.exit(0);
 }
-const server = createServer((request, response) => {
+server = createServer((request, response) => {
   response.setHeader('Cache-Control', 'no-store');
   if (request.method !== 'GET') { response.writeHead(405).end(); return; }
   const pathname = new URL(request.url, 'http://localhost').pathname;
@@ -126,10 +137,11 @@ const server = createServer((request, response) => {
   } catch { response.writeHead(404).end(); }
 });
 
-let browser;
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+await new Promise((resolve, reject) => {
+  server.once('error', reject);
+  server.listen(0, '127.0.0.1', resolve);
+});
 const origin = `http://127.0.0.1:${server.address().port}`;
-try {
   browser = await chromium.launch({
     executablePath: process.env.YEONI_CHROMIUM,
     env: { ...process.env, HOME: temporary, XDG_CONFIG_HOME: temporary },
@@ -139,14 +151,28 @@ try {
   async function scenario(name, options, run) {
     const context = await browser.newContext({ viewport: { width: 390, height: 1100 } });
     const page = await context.newPage();
-    const result = { name, passed: false, syntheticStatusRequests: 0, syntheticAudioResponses: 0, blockedRequests: [], pageErrors: [] };
+    const result = { name, passed: false, syntheticStatusRequests: 0, syntheticAudioResponses: 0, blockedRequests: [], pageErrors: [], routeErrors: [], renderedClocks: [] };
     let release;
     const gate = options.delayed ? new Promise(resolve => { release = resolve; }) : Promise.resolve();
     let arrived;
     const submitted = new Promise(resolve => { arrived = resolve; });
+    const waitForSubmission = async () => {
+      let timer;
+      try {
+        await Promise.race([submitted, routeFailed, new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Synthetic audio POST did not arrive within 30000ms')), 30_000);
+        })]);
+      } finally { clearTimeout(timer); }
+    };
+    let rejectRoute;
+    const routeFailed = new Promise((_, reject) => { rejectRoute = reject; });
+    // The route can fail before the scenario's race begins. Keep that rejection
+    // observed, then propagate it through the same per-case evidence path.
+    void routeFailed.catch(() => {});
     const policy = { enabled: true, voice: manifest.voice, useDeviceVoice: false, remainingCharacters: 1000 };
     page.on('pageerror', error => result.pageErrors.push(error.message));
     await context.route('**/*', async route => {
+      try {
       const request = route.request(), url = new URL(request.url());
       if (url.origin === origin && url.pathname === '/api/tts') {
         assert.equal(request.headers().authorization, 'Bearer synthetic-test-token');
@@ -172,6 +198,11 @@ try {
       }
       result.blockedRequests.push({ method: request.method(), origin: url.origin, path: url.pathname });
       await route.abort();
+      } catch (error) {
+        result.routeErrors.push(error instanceof Error ? error.message : String(error));
+        rejectRoute(error);
+        await route.abort().catch(() => {});
+      }
     });
     const reader = name => page.locator(`[data-qa-reader="${name}"]`);
     const first = reader('first');
@@ -180,7 +211,35 @@ try {
     const skin = value => page.waitForFunction(expected =>
       document.querySelector('[data-appearance-status]')?.dataset.appearanceStatus === 'ready'
       && document.querySelector('canvas')?.dataset.appearance === expected, value);
-    const rest = () => page.waitForFunction(() => document.querySelector('canvas')?.dataset.viseme === 'rest');
+    const rest = async () => {
+      const draws = await page.locator('canvas').evaluate(canvas => Number(canvas.dataset.draws));
+      await page.waitForFunction(previous => {
+        const canvas = document.querySelector('canvas');
+        return Number(canvas?.dataset.draws) > previous && canvas?.dataset.viseme === 'rest';
+      }, draws);
+    };
+    const renderedClock = async (name = 'first') => {
+      const before = await audio(name).evaluate(element => ({
+        timeMs: element.currentTime * 1000,
+        draws: Number(document.querySelector('canvas')?.dataset.draws),
+      }));
+      const sampleHandle = await page.waitForFunction(({ key, previous }) => {
+        const element = document.querySelector(`[data-qa-reader="${key}"] audio`);
+        const canvas = document.querySelector('canvas');
+        const draws = Number(canvas?.dataset.draws);
+        if (!element || !canvas || draws <= previous.draws || element.currentTime * 1000 <= previous.timeMs
+          || window.qa.snapshot()?.playback.state !== 'playing') return false;
+        return { draws, appearance: canvas.dataset.appearance,
+          renderedTimeMs: Number(canvas.dataset.speechTimeMs), audioTimeMs: element.currentTime * 1000 };
+      }, { key: name, previous: before });
+      const sample = await sampleHandle.jsonValue();
+      await sampleHandle.dispose();
+      result.renderedClocks.push({ previousAudioTimeMs: before.timeMs, ...sample });
+      // A newly completed real render must have sampled this same media clock
+      // between the surrounding observations. No frame-rate tolerance is hidden.
+      assert.ok(sample.renderedTimeMs >= before.timeMs - 5, 'Canvas clock must advance from the prior media observation');
+      assert.ok(sample.renderedTimeMs <= sample.audioTimeMs + 5, 'Canvas clock must not run ahead of the media');
+    };
     const play = async (name = 'first') => {
       await reader(name).getByRole('button').click();
       await page.waitForFunction(key => {
@@ -189,6 +248,7 @@ try {
       }, name);
     };
     try {
+      await Promise.race([routeFailed, (async () => {
       await page.goto(origin + '/seed');
       await page.evaluate(() => {
         localStorage.setItem('unrelated-synthetic-original', 'preserve');
@@ -197,25 +257,39 @@ try {
       await page.goto(origin); await skin('cat');
       await first.getByRole('button', { name: '답변 읽기', exact: true }).waitFor();
       await button('움직임 켜기').click();
-      await run({ page, context, reader, audio, button, skin, rest, play, result,
-        submitted, release: () => release?.() });
+      await run({ page, context, reader, audio, button, skin, rest, play, renderedClock, result,
+        waitForSubmission, release: () => release?.() });
       assert.deepEqual(result.pageErrors, []);
       assert.deepEqual(result.blockedRequests, []);
+      assert.deepEqual(result.routeErrors, []);
       assert.equal(await page.evaluate(() => localStorage.getItem('unrelated-synthetic-original')), 'preserve');
       assert.equal(await page.evaluate(() => sessionStorage.getItem('unrelated-synthetic-receipt')), 'preserve');
+      })()]);
       result.passed = true;
-      console.log('PASS', name);
     } catch (error) {
       result.failure = error instanceof Error ? error.message : String(error);
-      console.error('FAIL', name, result.failure);
     } finally {
       release?.();
       evidence.results.push(result);
-      await context.close();
+      try {
+        await context.unrouteAll({ behavior: 'wait' });
+        await context.close();
+      } catch (error) {
+        result.passed = false;
+        result.failure ??= error instanceof Error ? error.message : String(error);
+        throw error;
+      } finally {
+        if (result.routeErrors.length) {
+          result.passed = false;
+          result.failure ??= result.routeErrors[0];
+        }
+        if (result.passed) console.log('PASS', name);
+        else console.error('FAIL', name, result.failure);
+      }
     }
   }
 
-  await scenario('Original fixture, no autoplay, shared live clock and uninterrupted cat/human switch', {}, async ({ page, audio, play, skin, button, result }) => {
+  await scenario('Original fixture, no autoplay, shared live clock and uninterrupted cat/human switch', {}, async ({ page, audio, play, skin, button, renderedClock, result }) => {
     assert.equal(result.syntheticStatusRequests, 0);
     assert.equal(result.syntheticAudioResponses, 0);
     assert.equal(await audio('first').getAttribute('src'), null);
@@ -239,6 +313,8 @@ try {
       }));
       assert.equal(sample.snapshot.manifest.audioSha256, manifest.audioSha256);
       assert.ok(Math.abs(sample.snapshot.playback.currentTimeMs - sample.time) < 5);
+      await renderedClock();
+      await renderedClock();
     }
     assert.equal(result.syntheticAudioResponses, 1);
   });
@@ -269,8 +345,12 @@ try {
     assert.equal(result.syntheticAudioResponses, 1);
   });
 
-  await scenario('Controlled buffering fault closes the actual renderer and recovers the same clock', {}, async ({ page, audio, rest, play, result }) => {
+  await scenario('Controlled buffering fault closes the actual renderer and recovers the same clock', {}, async ({ page, audio, rest, play, renderedClock, result }) => {
     await play();
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('canvas');
+      return window.qa.snapshot()?.playback.state === 'playing' && canvas && canvas.dataset.viseme !== 'rest';
+    });
     await audio('first').evaluate(element => {
       element.playbackRate = 0.6;
       Object.defineProperty(element, 'readyState', { configurable: true, get: () => 1 });
@@ -282,12 +362,17 @@ try {
       delete element.readyState; element.dispatchEvent(new Event('playing'));
     });
     await page.waitForFunction(() => window.qa.snapshot()?.playback.state === 'playing');
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('canvas');
+      return canvas && canvas.dataset.viseme !== 'rest';
+    });
+    await renderedClock();
     assert.equal(result.syntheticAudioResponses, 1);
   });
 
   for (const stop of ['new-answer', 'pagehide', 'visibility']) {
-    await scenario(`Delayed response cannot autoplay after ${stop} (controlled lifecycle event)`, { delayed: true }, async ({ page, reader, audio, submitted, release, result }) => {
-      await reader('first').getByRole('button').click(); await submitted;
+    await scenario(`Delayed response cannot autoplay after ${stop} (controlled lifecycle event)`, { delayed: true }, async ({ page, reader, audio, waitForSubmission, release, result }) => {
+      await reader('first').getByRole('button').click(); await waitForSubmission();
       await page.evaluate(mode => {
         if (mode === 'new-answer') window.qa.stopAllSpeech();
         if (mode === 'pagehide') window.dispatchEvent(new PageTransitionEvent('pagehide'));
@@ -306,8 +391,10 @@ try {
       }, stop);
       assert.equal(await audio('first').evaluate(element => element.paused), true);
       assert.equal(await page.evaluate(() => window.qa.snapshot()), null);
+      assert.deepEqual(await page.evaluate(() => window.qa.playEvents()), [], 'No real play event may occur before explicit replay');
       await reader('first').getByRole('button').click();
       await page.waitForFunction(() => window.qa.snapshot()?.playback.state === 'playing');
+      assert.equal(await page.evaluate(() => window.qa.playEvents().filter(event => event.reader === 'first').length), 1);
       assert.equal(result.syntheticAudioResponses, 1);
     });
   }
@@ -326,8 +413,8 @@ try {
   });
 
   for (const delayed of [false, true]) {
-    await scenario(`Account change clears ${delayed ? 'pending' : 'playing'} speech and ignores late completion`, { delayed }, async ({ page, audio, reader, play, submitted, release, result }) => {
-      if (delayed) { await reader('first').getByRole('button').click(); await submitted; }
+    await scenario(`Account change clears ${delayed ? 'pending' : 'playing'} speech and ignores late completion`, { delayed }, async ({ page, audio, reader, play, waitForSubmission, release, result }) => {
+      if (delayed) { await reader('first').getByRole('button').click(); await waitForSubmission(); }
       else await play();
       await audio('first').evaluate(element => { window.oldAccountAudio = element; });
       await page.evaluate(() => window.qa.changeAccount('synthetic-other-owner'));
@@ -342,13 +429,30 @@ try {
     });
   }
 
-  await scenario('Real decode error stays closed and preserves duplicate-generation receipt', { invalidAudio: true }, async ({ page, reader, rest, result }) => {
+  await scenario('Real decode error stays closed and preserves duplicate-generation receipt', { invalidAudio: true }, async ({ page, audio, reader, rest, result }) => {
     await reader('first').getByRole('button').click();
-    await page.waitForFunction(() => document.querySelector('[data-qa-reader="first"] audio')?.error !== null);
+    await page.waitForFunction(() => {
+      const element = document.querySelector('[data-qa-reader="first"] audio');
+      return element && element.error !== null;
+    });
     await rest();
     assert.equal(await page.evaluate(() => window.qa.snapshot()), null);
     assert.notEqual(await reader('first').getByRole('button').textContent(), '읽기 중지');
+    await audio('first').evaluate(element => {
+      const play = element.play.bind(element);
+      window.qa.retryPlay = { calls: 0, settled: 0 };
+      element.play = (...args) => {
+        window.qa.retryPlay.calls++;
+        const promise = play(...args);
+        // Observe the real promise while returning it unchanged to the reader.
+        promise.then(() => { window.qa.retryPlay.settled++; }, () => { window.qa.retryPlay.settled++; });
+        return promise;
+      };
+    });
     await reader('first').getByRole('button').click();
+    await page.waitForFunction(() => window.qa.retryPlay.calls === 1 && window.qa.retryPlay.settled === 1);
+    await reader('first').getByText('음성은 준비됐어요. 재생 버튼을 눌러 들어 주세요. 추가로 생성하지 않아요.', { exact: true }).waitFor();
+    assert.equal(await reader('first').getByRole('button').isEnabled(), true);
     assert.equal(result.syntheticAudioResponses, 1);
   });
 
@@ -382,7 +486,7 @@ try {
   evidence.notRun = evidence.plannedCases - evidence.total;
   writeFileSync(`${output}.json`, JSON.stringify(evidence, null, 2) + '\n');
   await browser?.close();
-  await new Promise(resolve => server.close(resolve));
+  if (server?.listening) await new Promise(resolve => server.close(resolve));
   console.log(JSON.stringify({ evidence: `${output}.json`, passed: evidence.passed, failed: evidence.failed, infrastructureFailure: Boolean(evidence.infrastructureFailure) }));
   if (evidence.failed || evidence.infrastructureFailure) process.exitCode = 1;
 }

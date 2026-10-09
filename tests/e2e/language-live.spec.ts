@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Page, Route } from '@playwright/test';
+import type { Page, Route, TestInfo } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { test, expect, login, originalLanguage, Traffic } from './fixture';
 import { RouteDrain } from './route-drain';
@@ -11,6 +11,12 @@ const rpcUrl = '**/rest/v1/rpc/save_language_live_lesson';
 const recordsUrl = '**/rest/v1/language_live_lessons?*';
 const currentUrl = '**/rest/v1/language_live_current_lessons?*';
 const workspace = (page: Page) => page.locator('.live-workspace');
+// Capture only the authenticated Live workspace with this test's synthetic report.
+// Stable filenames make each state/viewport/browser easy to inspect in CI artifacts.
+const captureLive = (page: Page, state: 'preview' | 'saved-detail' | 'history', width: number, info: TestInfo) => workspace(page).screenshot({
+  path: `.e2e/evidence/language-live-${state}-${width}-${info.project.name}.png`,
+  animations: 'disabled', caret: 'hide',
+});
 const reviewed = (page: Page) => workspace(page).getByRole('checkbox', { name: '분석한 내용과 미확인 항목을 확인했어요. 이 내용으로 저장할게요.' });
 const reportText = (topic = '합성 첫 히라가나 수업', date = '2026-10-09', version = 'v1.1') => [
   `[연이 AI 일본어 학습 기록 ${version}]`,
@@ -59,7 +65,7 @@ async function relogin(page: Page, account: { email: string; password: string })
 
 // All writes use the fixture's real, authenticated disposable Auth/PostgREST DB.
 // Browser requests to hosted origins are blocked by Traffic; no AI calls are mocked as success.
-test('Live import confirms all 25 fields, preserves immutable raw and legacy progress across refresh and relogin', async ({ page, qa }) => {
+test('Live import confirms all 25 fields, preserves immutable raw and legacy progress across refresh and relogin', async ({ page, qa }, testInfo) => {
   const legacy = {
     ...originalLanguage,
     japaneseCurriculumProgressV1: JSON.stringify({ completedLessonIds: ['f01'], selectedTrack: 'foundation', quizScores: { f01: 75 }, activityDates: ['2001-01-02'], lessonAttempts: { f01: [{ score: 75, completedAt: '2001-01-02T09:00:00Z' }] } }),
@@ -83,6 +89,12 @@ test('Live import confirms all 25 fields, preserves immutable raw and legacy pro
   await expect(workspace(page).getByLabel('쓰기 학습 결과 기록 상태')).toHaveValue('not_learned');
   await expect(workspace(page).getByLabel('틀린 부분 기록 상태')).toHaveValue('none');
   await expect(workspace(page).locator('.live-field')).toHaveCount(25);
+  for (const width of [320, 390, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await captureLive(page, 'preview', width, testInfo);
+  }
+  // Preserve the original save flow's viewport after the additive preview captures.
+  await page.setViewportSize({ width: 320, height: 844 });
   await save(page);
   const rows = await historyRows(qa.account.client);
   expect(rows).toHaveLength(1); expect(rows[0].report.rawText).toBe(raw);
@@ -92,12 +104,20 @@ test('Live import confirms all 25 fields, preserves immutable raw and legacy pro
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 844 });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await captureLive(page, 'saved-detail', width, testInfo);
   }
   await page.reload({ waitUntil: 'domcontentloaded' }); await ready(page);
   await openHistory(page, rows[0].report.topic);
   await relogin(page, qa.account); await openHistory(page, rows[0].report.topic);
   expect(await historyRows(qa.account.client)).toEqual(rows);
   expect(await qa.readLanguage()).toEqual(legacy);
+  await openHistory(page);
+  // Wait for the real saved row instead of capturing an in-flight loading state.
+  await expect(workspace(page).getByRole('button', { name: `${rows[0].report.topic} 기록 보기`, exact: true })).toBeVisible();
+  for (const width of [320, 390, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    await captureLive(page, 'history', width, testInfo);
+  }
 });
 
 test('Live uncertain RPC response survives reload and retries the same request exactly once', async ({ page, qa }) => {

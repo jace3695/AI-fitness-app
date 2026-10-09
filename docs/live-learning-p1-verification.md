@@ -63,3 +63,19 @@ schema/RLS/environment modification or additional speech generation is included.
 
 P2 learning states/review/relearning and P3 lesson preparation are subsequent
 implementation stages, not completed by this P1 candidate.
+
+## Coordinated candidate check, 2026-10-09 17:29 UTC
+
+After adding isolated PHASE C statistics, the demonstrated drawing save-confirmation
+barrier, synthetic Live screenshots, and reader-harness false-pass protection:
+
+- Full Node/PGlite suite: **907 passed, 0 failed, 0 skipped**.
+- Full ESLint, TypeScript and production build: passed.
+- The baseline CI result is preserved separately in
+  `handoff-baseline-ci-20261010.md`: 437/1, not a full pass.
+- The stronger drawing test addresses a proved ordering gap but does not establish
+  the sole cause of the historical Chromium protocol timeout. Official CI must
+  verify the candidate. Failed-test cleanup timing is diagnostic only.
+- New browser cases and synthetic screenshots still await official execution.
+- PHASE C is isolated pure statistics; no automatic analysis, provider, billing,
+  scheduling or Push activation is implied.
