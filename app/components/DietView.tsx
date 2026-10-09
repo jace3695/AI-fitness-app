@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
 import DietPatterns from './DietPatterns';
+import { DIET_SELF_RESPONSE_FIELDS, DIET_SELF_RESPONSE_LABELS, dietSelfResponseMetricText, dietSelfResponsePatch, hasUnrecognizedDietResponse, preserveUneditedDietResponse, readDietSelfResponses, summarizeDietSelfResponses, type DietSelfResponseEdits } from '../data/dietSelfResponses';
 import DietWorkoutContext from './DietWorkoutContext';
 import WorkoutTimes from './WorkoutTimes';
 import WorkoutTimeHistory from './WorkoutTimeHistory';
@@ -292,6 +293,9 @@ export default function DietView() {
   const [digestionStatus, setDigestionStatus] = useState<DigestionStatus>('unrecorded');
   const [lateSnack, setLateSnack] = useState<MealCheck>('unrecorded');
   const [afterWorkoutMeal, setAfterWorkoutMeal] = useState<MealCheck>('unrecorded');
+  const [selfResponses, setSelfResponses] = useState(() => readDietSelfResponses({}));
+  const [selfResponseEdits, setSelfResponseEdits] = useState<DietSelfResponseEdits>({});
+  const [legacyResponseEdits, setLegacyResponseEdits] = useState<Partial<Record<'digestionStatus' | 'lateSnack' | 'afterWorkoutMeal', boolean>>>({});
   const [quickMeal, setQuickMeal] = useState<QuickMeal | null>(null);
   const [message, setMessage] = useState('');
   const [photoMealSlot, setPhotoMealSlot] = useState<DietPhotoMealSlot>('lunch');
@@ -305,8 +309,8 @@ export default function DietView() {
   const [photoMessage, setPhotoMessage] = useState('');
   const [dataVersion, setDataVersion] = useState(0);
   const [savedInput, setSavedInput] = useState<string | null>(null);
-  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo, digestionStatus, lateSnack, afterWorkoutMeal]);
-  const dirty = hydrated && savedInput !== null && savedInput !== inputSnapshot;
+  const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo, digestionStatus, lateSnack, afterWorkoutMeal, selfResponses]);
+  const dirty = hydrated && savedInput !== null && (savedInput !== inputSnapshot || Object.keys(selfResponseEdits).length > 0 || Object.keys(legacyResponseEdits).length > 0);
   const dirtyRef = useRef(dirty);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
   useUnsavedChanges(dirty);
@@ -389,6 +393,9 @@ export default function DietView() {
     setDigestionStatus(normalizeDigestion(today.digestionStatus));
     setLateSnack(normalizeMealCheck(today.lateSnack));
     setAfterWorkoutMeal(normalizeMealCheck(today.afterWorkoutMeal));
+    setSelfResponses(readDietSelfResponses(today));
+    setSelfResponseEdits({});
+    setLegacyResponseEdits({});
     setSavedInput(JSON.stringify([
       todayMeal, savedWater[todayKey] || Number(today.waterMl) || 0,
       savedLunchCarbs[todayKey] ? normalizeLunchCarbRecord(savedLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB,
@@ -398,7 +405,7 @@ export default function DietView() {
       savedSocial[todayKey] || 'none', today.dietStatus ?? 'normal',
       today.fastingRecordStatus ?? (today.fasting14h ? '14h' : 'unrecorded'),
       typeof today.dietMemo === 'string' ? today.dietMemo : '',
-      normalizeDigestion(today.digestionStatus), normalizeMealCheck(today.lateSnack), normalizeMealCheck(today.afterWorkoutMeal),
+      normalizeDigestion(today.digestionStatus), normalizeMealCheck(today.lateSnack), normalizeMealCheck(today.afterWorkoutMeal), readDietSelfResponses(today),
     ]));
     setHydrated(true);
 
@@ -406,10 +413,12 @@ export default function DietView() {
     return () => window.clearInterval(timer);
   }, [todayKey, dataVersion]);
 
+  const unknownDigestion = !legacyResponseEdits.digestionStatus && hasUnrecognizedDietResponse(store[todayKey]?.digestionStatus, normalizeDigestion);
   const switchDay = useMemo(() => getSwitchOnDay(startDate, now), [startDate, now]);
   const currentPhase = mode === 'auto' ? getAutoDietPhase(switchDay) : manualPhase;
   const plan = DIET_PLANS[currentPhase];
   const weeklyDiet = summarizeFreeDiet(store, todayKey);
+  const weeklySelfResponses = summarizeDietSelfResponses(store, todayKey, 7);
   const proteinTotal = calculateProteinTotal(mealLog, lunchProtein.protein);
   const proteinStatus = getProteinStatus(proteinTotal);
   const mealCompletion = getMealCompletion(mealLog, lunchProtein.protein);
@@ -635,7 +644,10 @@ export default function DietView() {
         lastMealTime,
         socialMeal,
         dietMemo: dietMemo.trim() || undefined,
-        digestionStatus, lateSnack, afterWorkoutMeal,
+        digestionStatus: preserveUneditedDietResponse(previousToday.digestionStatus, digestionStatus, Boolean(legacyResponseEdits.digestionStatus)),
+        lateSnack: preserveUneditedDietResponse(previousToday.lateSnack, lateSnack, Boolean(legacyResponseEdits.lateSnack)),
+        afterWorkoutMeal: preserveUneditedDietResponse(previousToday.afterWorkoutMeal, afterWorkoutMeal, Boolean(legacyResponseEdits.afterWorkoutMeal)),
+        ...dietSelfResponsePatch(selfResponseEdits),
       },
     };
     const nextMeals = {
@@ -667,6 +679,8 @@ export default function DietView() {
     setLunchProteinStore(nextLunchProteins);
     setDinnerTimeStore(nextDinnerTimes);
     setSocialStore(nextSocial);
+    setSelfResponseEdits({});
+    setLegacyResponseEdits({});
     setSavedInput(inputSnapshot);
     dirtyRef.current = false;
     notifyRecordsChanged();
@@ -722,6 +736,7 @@ export default function DietView() {
     setLastMealTime('');
     setDietMemo('');
     setDigestionStatus('unrecorded'); setLateSnack('unrecorded'); setAfterWorkoutMeal('unrecorded'); setQuickMeal(null);
+    setSelfResponses(readDietSelfResponses({})); setSelfResponseEdits({}); setLegacyResponseEdits({});
 
     dirtyRef.current = false;
     setSavedInput(null);
@@ -1410,6 +1425,7 @@ export default function DietView() {
               <li>소화 불편 {weeklyDiet.discomfortDays}일 / 상태 응답 {weeklyDiet.digestionDays}일</li>
               <li>야식 {weeklyDiet.lateSnackDays}일 / 응답 {weeklyDiet.lateSnackAnswers}일</li>
               <li>운동 후 식사 {weeklyDiet.afterWorkoutDays}일 / 응답 {weeklyDiet.afterWorkoutAnswers}일</li>
+              {DIET_SELF_RESPONSE_FIELDS.map(({ key, label }) => <li key={key}>{label}: {dietSelfResponseMetricText(weeklySelfResponses[key])}</li>)}
             </ul>
           </section>
           <DietFavorites meal={mealLog} lunchRice={lunchCarb} dinnerRice={dinnerCarb} supplement={lunchProtein} onApply={value => {
@@ -1530,9 +1546,37 @@ export default function DietView() {
                 {SOCIAL_MEAL_MODE_LABELS[socialMeal]}
               </p>
             </div>
+            <fieldset className="mt-4 rounded-xl border border-gray-100 p-3" aria-describedby="diet-self-responses-help">
+              <legend className="px-1 text-xs font-bold text-gray-700">오늘의 자기응답 (선택)</legend>
+              <p id="diet-self-responses-help" className="text-xs leading-5 text-gray-500">각 항목은 느낀 대로 따로 선택해 주세요. 답하지 않아도 됩니다. 야식·식사 시간으로 추정하거나 음식의 좋고 나쁨, 질병을 판단하지 않습니다.</p>
+              {DIET_SELF_RESPONSE_FIELDS.map(({ key, question }) => <label key={key} htmlFor={`diet-${key}`} className="mt-3 block text-xs font-bold text-gray-600">
+                {question}
+                <select id={`diet-${key}`} aria-label={question} value={selfResponses[key]} onChange={event => {
+                  const value = event.target.value;
+                  if (value !== 'yes' && value !== 'no' && value !== 'unrecorded') return;
+                  setSelfResponses(current => ({ ...current, [key]: value }));
+                  setSelfResponseEdits(current => ({ ...current, [key]: value }));
+                }} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm">
+                  <option value="unrecorded">미기록</option><option value="yes">예</option><option value="no">아니요</option>
+                  {selfResponses[key] === 'unknown' && <option value="unknown" disabled>{DIET_SELF_RESPONSE_LABELS.unknown}</option>}
+                </select>
+                {selfResponses[key] === 'unknown' && <span className="mt-1 block font-normal leading-5 text-gray-500">인식하지 못한 기존 값은 선택을 바꾸기 전까지 유지합니다. 요약 계산에서는 제외합니다.</span>}
+              </label>)}
+            </fieldset>
             <label className="mt-4 block text-xs font-bold text-gray-600" htmlFor="diet-digestion">소화 상태</label>
-            <select id="diet-digestion" value={digestionStatus} onChange={event => setDigestionStatus(normalizeDigestion(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm">{Object.entries(DIGESTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-            {([{ id: 'late-snack', label: '야식을 먹었나요?', value: lateSnack, set: setLateSnack }, { id: 'after-workout-meal', label: '운동 후 식사를 했나요?', value: afterWorkoutMeal, set: setAfterWorkoutMeal }]).map(check => <label key={check.id} htmlFor={check.id} className="mt-3 block text-xs font-bold text-gray-600">{check.label}<select id={check.id} aria-label={check.label} value={check.value} onChange={event => check.set(normalizeMealCheck(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm"><option value="unrecorded">미기록</option><option value="yes">예</option><option value="no">아니요</option></select></label>)}
+            <select id="diet-digestion" value={unknownDigestion ? 'unknown' : digestionStatus} onChange={event => {
+              setDigestionStatus(normalizeDigestion(event.target.value)); setLegacyResponseEdits(current => ({ ...current, digestionStatus: true }));
+            }} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm">
+              {Object.entries(DIGESTION_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {unknownDigestion && <option value="unknown" disabled>{DIET_SELF_RESPONSE_LABELS.unknown}</option>}
+            </select>
+            {([{ key: 'lateSnack', id: 'late-snack', label: '야식을 먹었나요?', value: lateSnack, set: setLateSnack }, { key: 'afterWorkoutMeal', id: 'after-workout-meal', label: '운동 후 식사를 했나요?', value: afterWorkoutMeal, set: setAfterWorkoutMeal }] as const).map(check => {
+              const unknown = !legacyResponseEdits[check.key] && hasUnrecognizedDietResponse(store[todayKey]?.[check.key], normalizeMealCheck);
+              return <label key={check.id} htmlFor={check.id} className="mt-3 block text-xs font-bold text-gray-600">{check.label}<select id={check.id} aria-label={check.label} value={unknown ? 'unknown' : check.value} onChange={event => {
+                check.set(normalizeMealCheck(event.target.value)); setLegacyResponseEdits(current => ({ ...current, [check.key]: true }));
+              }} className="mt-2 min-h-11 w-full rounded-xl border border-gray-200 px-3 text-sm"><option value="unrecorded">미기록</option><option value="yes">예</option><option value="no">아니요</option>{unknown && <option value="unknown" disabled>{DIET_SELF_RESPONSE_LABELS.unknown}</option>}</select></label>;
+            })}
+            {(unknownDigestion || ['lateSnack', 'afterWorkoutMeal'].some(key => !legacyResponseEdits[key as 'lateSnack' | 'afterWorkoutMeal'] && hasUnrecognizedDietResponse(store[todayKey]?.[key], normalizeMealCheck))) && <p className="mt-2 text-xs leading-5 text-gray-500">인식하지 못한 기존 값은 선택을 바꾸기 전까지 유지하며, 요약 계산에서 제외합니다.</p>}
             <label className="mt-4 block text-[11px] font-bold text-gray-600" htmlFor="diet-memo">
               메모
             </label>

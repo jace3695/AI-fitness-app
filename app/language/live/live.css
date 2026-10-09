@@ -71,3 +71,7 @@
 .live-history-event:last-child { border-bottom: 0; }
 .live-event-summary { min-width: 0; }
 @media (max-width: 600px) { .live-skill-grid, .live-learning-grid { grid-template-columns: minmax(0, 1fr); } .live-tabs > button { flex: 1 1 130px; } }
+
+.live-preparation-workspace > .live-card > label:not(.live-checkbox) { display: block; margin: 16px 0 8px; font-weight: 650; }
+.live-preparation-workspace .live-learning-grid { margin-bottom: 16px; }
+.live-preparation-workspace .live-field-group-body > .live-preserved-text { max-height: 400px; overflow: auto; }

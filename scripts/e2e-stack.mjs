@@ -30,6 +30,7 @@ try {
     if (!/^sign_in_sign_ups\s*=\s*\d+/m.test(config)) throw new Error('Pinned CLI rate-limit config changed');
     writeFileSync(configPath, config.replace(/^sign_in_sign_ups\s*=\s*\d+/m, 'sign_in_sign_ups = 600'));
     copyFileSync('tests/e2e/schema.sql', `${workdir}/supabase/seed.sql`);
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('tests/e2e/growth-reset-contract.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260901125340_add_fitness_ai_review_history.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260908233141_app_wide_reliability.sql', 'utf8').split('alter table public.assistant_items')[0]);
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914113147_budget_category_history.sql', 'utf8'));
@@ -41,8 +42,9 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916043619_assistant_language_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009164307_language_live_report_history.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009173440_language_live_learning_history.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009184604_language_live_preparations.sql', 'utf8'));
     // Disposable fixture cleanup only; production migration grants stay unchanged.
-    appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches to service_role;\n');
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches,public.language_live_preparations to service_role;\n');
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
@@ -69,6 +71,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917114328_diet_meal_favorites.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917133223_workout_actual_times.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + growthSchema.slice(growthSchema.indexOf('insert into storage.buckets')));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009190454_validate_growth_progression_evidence.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST, Storage and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));

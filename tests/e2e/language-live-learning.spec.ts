@@ -3,6 +3,7 @@ import type { Page, Route } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { test, expect, login, originalLanguage, Traffic } from './fixture';
 import { RouteDrain } from './route-drain';
+import { reauthenticateFixtureAccount, type FixtureAccount } from './fixture-account-auth';
 import { createLanguageLiveRepository } from '../../app/data/languageLiveRepository';
 import { createLanguageLiveLearningRepository } from '../../app/data/languageLiveLearningRepository';
 import { parseLiveReport } from '../../lib/language-live/report-parser';
@@ -58,13 +59,32 @@ async function save(page: Page, revision = 1, version = 1) {
   await expect(workspace(page).getByRole('status').filter({ hasText: `복습 서버 저장 확인 · 보고서 버전 ${revision} · 근거 버전 ${version}` })).toBeVisible();
   await expect(workspace(page).getByRole('button', { name: '복습 기록 새로고침', exact: true })).toBeEnabled();
 }
-async function relogin(page: Page, account: { email: string; password: string }) {
+async function relogin(page: Page, account: FixtureAccount) {
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
   await page.getByLabel('이메일', { exact: true }).fill(account.email); await page.getByLabel('비밀번호', { exact: true }).fill(account.password);
   await page.getByRole('button', { name: 'AI 연이 시작', exact: true }).click(); await ready(page);
+  await test.step('Reauthenticate the independent fixture verifier after global logout', () => reauthenticateFixtureAccount(account));
 }
 
 // Authenticated disposable local Auth/PostgREST only. Authored coverage; execution is a separate gate.
+test('Live P2 global logout revokes the independent fixture verifier until explicit owner-verified reauthentication', async ({ page, qa }) => {
+  await login(page, qa.account, '/language/live'); await ready(page);
+  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+  await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+  await test.step('Verify the old independent Auth session is revoked by browser global logout', async () => {
+    const revoked = await qa.account.client.auth.getUser();
+    expect(revoked.data.user).toBeNull();
+    expect(revoked.error?.code).toBe('session_not_found');
+  });
+  await test.step('Fresh fixture sign-in verifies the exact owner before reading the learning repository', async () => {
+    await reauthenticateFixtureAccount(qa.account);
+    const snapshot = await learningRepo(qa.account.client, qa.account.id).readLearning();
+    expect(snapshot.ownerId).toBe(qa.account.id);
+    expect(snapshot.lessons).toEqual([]); expect(snapshot.batches).toEqual([]);
+  });
+  await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+});
+
 test('Live P2 confirms source excerpts, preserves four independent skills and survives reload/relogin at small widths', async ({ page, qa }, info) => {
   const lesson = await seed(qa.account.client, qa.account.id, '합성 P2 첫 학습');
   await page.setViewportSize({ width: 320, height: 844 }); await login(page, qa.account, '/language/live'); await openLearning(page);

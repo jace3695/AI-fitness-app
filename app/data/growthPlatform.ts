@@ -1,3 +1,4 @@
+import { buildGrowthProgressionSuggestion } from "./growthRoutineProgression.ts";
 import type { GrowthCategoryId, GrowthRoutine } from "./growthRoutines";
 import { normalizeGrowthPreferredDays, normalizeGrowthWeeklyTarget } from "./growthSchedule.ts";
 
@@ -62,6 +63,7 @@ export type GrowthCoachSuggestion = {
   title: string;
   reason: string;
   recommendedMinutes: number | null;
+  progression?: { targetMinutes: number; routineUpdatedAt: string; dates: string[]; sessionIds: string[] };
 };
 
 export type GrowthAiReviewRow = {
@@ -236,6 +238,14 @@ export function buildLocalGrowthCoach(
       recommendedMinutes: Math.max(5, Math.min(interrupted.routine.target_minutes, Math.floor(interrupted.routine.target_minutes * 0.75 / 5) * 5)),
     });
   }
+  for (const routine of enabled) {
+    const progression = buildGrowthProgressionSuggestion(routine, sessions, endDate);
+    if (!progression) continue;
+    const existing = suggestions.findIndex(suggestion => suggestion.routineId === routine.id);
+    if (existing >= 0) suggestions.splice(existing, 1);
+    suggestions.push(progression);
+  }
+  suggestions.splice(6);
   const days = ['일', '월', '화', '수', '목', '금', '토'];
   const weekday = days.map((label, index) => {
     const selected = recent.filter(record => new Date(`${record.session_date}T12:00:00Z`).getUTCDay() === index);

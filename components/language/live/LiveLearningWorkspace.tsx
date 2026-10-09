@@ -204,7 +204,7 @@ export default function LiveLearningWorkspace({ owner, client, active, onBusyCha
   const frozen = busy || Boolean(draft?.submitted) || !usable || staleDraft;
   return <div className="live-learning-workspace" hidden={!active}>
     <section className="live-card" aria-labelledby="learning-title"><div className="live-toolbar"><h2 id="learning-title">복습·학습 상태</h2><button type="button" disabled={loading || busy} onClick={() => void refresh()}>복습 기록 새로고침</button></div>
-      <p>저장한 보고서의 근거를 직접 확인하면 영역별 상태와 복습일을 계산해요. 다음 AI 수업 준비는 아직 제공하지 않아요.</p>
+      <p>저장한 보고서의 근거를 직접 확인하면 영역별 상태와 복습일을 계산해요. 다음 AI 수업 준비 메뉴에서 이 기록을 지시문으로 만들 수 있어요.</p>
       {loading ? <p role="status">수업과 복습 기록을 함께 확인하는 중…</p> : null}
       {readError ? <div className="live-notice live-notice-error" role="alert"><strong>{readError.code === 'schema_unavailable' ? '복습 전용 서버 저장소가 아직 준비되지 않았어요.' : '최신 복습 기록을 확인하지 못했어요.'}</strong><p>{readError.text} 기록이 없는 상태로 처리하지 않았어요. 최신 상태와 복습일 표시는 보류합니다.</p></div> : null}
       {busy ? <p role="status">복습 근거 저장 후 서버에서 다시 확인하는 중…</p> : null}

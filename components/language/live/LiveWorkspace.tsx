@@ -11,6 +11,7 @@ import { LanguageLiveError, LIVE_REPORT_MAX_LENGTH, type LiveErrorCode, type Liv
 import { draftKey, draftPrefix, forkLiveDraft, liveDraftSaveInput, LiveRequestEpoch, persistLiveDraft, readLiveDrafts, removeLiveDraft, type LiveEditorDraft } from '@/app/language/live/draft-state';
 import ReportFields, { ReportSource } from './ReportFields';
 import LiveLearningWorkspace from './LiveLearningWorkspace';
+import LivePreparationWorkspace from './LivePreparationWorkspace';
 
 const PAGE_SIZE = 20;
 const operationLabels = { create: '처음 등록', edit: '내용 수정', delete: '휴지통 이동', restore: '이전 내용 복원' };
@@ -70,9 +71,11 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
   const busyRef = useRef(false);
   const baseline = useRef<string | null>(null);
   const editorRef = useRef<LiveEditorDraft | null>(null);
-  const [view, setView] = useState<'import' | 'history' | 'detail' | 'learning'>('import');
+  const [view, setView] = useState<'import' | 'history' | 'detail' | 'learning' | 'prepare'>('import');
   const [learningOpened, setLearningOpened] = useState(false);
   const [learningBusy, setLearningBusy] = useState(false);
+  const [preparationOpened, setPreparationOpened] = useState(false);
+  const [preparationBusy, setPreparationBusy] = useState(false);
   const [editor, setEditor] = useState<LiveEditorDraft | null>(null);
   const [recoveredDrafts, setRecoveredDrafts] = useState<LiveEditorDraft[]>([]);
   const [localStatus, setLocalStatus] = useState('');
@@ -301,14 +304,17 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
     </header>
     {persistence === 'blocked' ? <div className="live-notice live-notice-warning" role="alert"><strong>서버 기록 저장을 아직 사용할 수 없어요.</strong><p>Live 전용 저장소가 준비되지 않아 기록 조회·저장을 중단했어요. 빈 기록으로 판단하지 않습니다. 붙여넣기와 기기 초안 보관은 할 수 있어요.</p><button type="button" onClick={() => void refreshList()} disabled={listLoading}>저장소 다시 확인</button></div> : null}
     <nav className="live-tabs" aria-label="AI Live 메뉴">
-      <button type="button" aria-current={view === 'import' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setView('import'); setNotice(null); setMutation(null); setDiscardRequested(false); }}>보고서 가져오기</button>
-      <button type="button" aria-current={view === 'history' || view === 'detail' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setView('history'); setNotice(null); setMutation(null); setDiscardRequested(false); void refreshList(); }}>학습 이력</button>
-      <button type="button" aria-current={view === 'learning' ? 'page' : undefined} disabled={busy || learningBusy} onClick={() => { detailEpoch.current.invalidate(); setLearningOpened(true); setView('learning'); setNotice(null); setMutation(null); }}>복습·학습 상태</button>
+      <button type="button" aria-current={view === 'import' ? 'page' : undefined} disabled={busy || learningBusy || preparationBusy} onClick={() => { detailEpoch.current.invalidate(); setView('import'); setNotice(null); setMutation(null); setDiscardRequested(false); }}>보고서 가져오기</button>
+      <button type="button" aria-current={view === 'history' || view === 'detail' ? 'page' : undefined} disabled={busy || learningBusy || preparationBusy} onClick={() => { detailEpoch.current.invalidate(); setView('history'); setNotice(null); setMutation(null); setDiscardRequested(false); void refreshList(); }}>학습 이력</button>
+      <button type="button" aria-current={view === 'learning' ? 'page' : undefined} disabled={busy || learningBusy || preparationBusy} onClick={() => { detailEpoch.current.invalidate(); setLearningOpened(true); setView('learning'); setNotice(null); setMutation(null); }}>복습·학습 상태</button>
+      <button type="button" aria-current={view === 'prepare' ? 'page' : undefined} disabled={busy || learningBusy || preparationBusy} onClick={() => { detailEpoch.current.invalidate(); setPreparationOpened(true); setView('prepare'); setNotice(null); setMutation(null); }}>다음 AI 수업 준비</button>
     </nav>
     <div className="live-status" aria-live="polite">{busy ? <p role="status">저장한 내용을 서버에서 다시 확인하는 중…</p> : null}{success ? <p className="live-notice live-notice-success" role="status">{success}</p> : null}</div>
     {notice ? <div className="live-notice live-notice-error" role="alert">{notice.text}{notice.code === 'conflict' && editor ? <div className="live-actions"><button type="button" onClick={() => void openLesson(editor.lessonId)}>서버의 최신 기록 보기</button></div> : null}</div> : null}
 
     {learningOpened ? <LiveLearningWorkspace owner={owner} client={client} active={view === 'learning'} onBusyChange={setLearningBusy} /> : null}
+
+    {preparationOpened ? <LivePreparationWorkspace owner={owner} client={client} active={view === 'prepare'} onBusyChange={setPreparationBusy} /> : null}
 
     {view === 'import' ? <>
       {recoveredDrafts.length ? <details className="live-source"><summary>이 계정의 기기 초안 {recoveredDrafts.length}개</summary><div className="live-card live-draft-list"><p className="live-hint">이 브라우저의 원문 보관본이에요. 불러오면 이 탭의 별도 초안이 만들어져요. 서버 저장을 마친 예전 보관본이 남아 있을 수 있어요.</p>{recoveredDrafts.map(draft => <button type="button" key={draft.draftId} disabled={busy || Boolean(localError && editor)} onClick={() => recoverDraft(draft)}>{draft.expectedRevision ? '수정 초안' : '새 수업 초안'} · {dateTime(draft.updatedAt)}{draft.submitted ? ' · 저장 결과 확인 필요' : ''}</button>)}</div></details> : null}
@@ -352,7 +358,7 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
         <ReportSource report={displayLesson.report} /><ReportFields report={displayLesson.report} prefix="live-record" />
         <div className="live-actions">{selected.operation !== 'delete' && !snapshot ? <><button type="button" className="live-primary" disabled={busy || Boolean(editor && localError)} onClick={beginEdit}>이 수업 수정하기</button><button type="button" className="live-danger" disabled={busy} onClick={() => { setNotice(null); setMutation({ operation: 'delete', lesson: selected, requestId: crypto.randomUUID(), attempted: false }); }}>휴지통으로 이동</button></> : null}</div>
         <section className="live-card" aria-label="수정·삭제·복원 이력"><h3>수정·삭제·복원 이력</h3><p className="live-hint">예전 원문을 덮어쓰지 않고 새 버전을 추가해요.</p><ul className="live-list">{history.map(revision => <li key={revision.revision}><strong>버전 {revision.revision} · {operationLabels[revision.operation]}</strong><p className="live-hint">{dateTime(revision.created_at)} (한국 시간){revision.restored_from_revision ? ` · 버전 ${revision.restored_from_revision}에서 복원` : ''}</p><div className="live-actions"><button type="button" disabled={busy} onClick={() => setSnapshot(revision)}>버전 {revision.revision} 보기</button>{revision.operation !== 'delete' && revision.revision !== selected.revision ? <button type="button" disabled={busy} onClick={() => { setNotice(null); setMutation({ operation: 'restore', lesson: selected, restoreRevision: revision.revision, requestId: crypto.randomUUID(), attempted: false }); }}>이 버전으로 복원</button> : null}</div></li>)}</ul></section>
-        {mutation ? <div className="live-confirm" role="region" aria-label={mutation.operation === 'delete' ? '휴지통 이동 확인' : '복원 확인'}><h3>{mutation.operation === 'delete' ? '이 수업을 휴지통으로 옮길까요?' : `버전 ${mutation.restoreRevision}의 내용으로 복원할까요?`}</h3><p>{mutation.operation === 'delete' ? '일반 수업 목록에서 제외돼요. 원문과 이전 이력은 남아 다시 복원할 수 있어요.' : '선택한 내용으로 새 버전을 추가해요. 학습 날짜와 이전 이력은 보존돼요.'}</p><div className="live-actions"><button type="button" className="live-primary" disabled={busy || persistence === 'blocked'} onClick={() => void runMutation()}>{mutation.attempted ? '같은 요청으로 다시 확인' : mutation.operation === 'delete' ? '확인하고 휴지통으로 이동' : '확인하고 복원'}</button><button type="button" disabled={busy} onClick={() => { setMutation(null); setNotice(null); }}>닫기</button></div></div> : null}
+        {mutation ? <div className="live-confirm" role="region" aria-label={mutation.operation === 'delete' ? '휴지통 이동 확인' : '복원 확인'}><h3>{mutation.operation === 'delete' ? '이 수업을 휴지통으로 옮길까요?' : `버전 ${mutation.restoreRevision}의 내용으로 복원할까요?`}</h3><p>{mutation.operation === 'delete' ? '일반 수업 목록과 새 수업 준비에서 제외돼요. 원문·이전 이력과 이미 저장한 수업 지시문은 과거 기록으로 남아요. 수업은 다시 복원할 수 있어요.' : '선택한 내용으로 새 버전을 추가해요. 학습 날짜와 이전 이력은 보존돼요.'}</p><div className="live-actions"><button type="button" className="live-primary" disabled={busy || persistence === 'blocked'} onClick={() => void runMutation()}>{mutation.attempted ? '같은 요청으로 다시 확인' : mutation.operation === 'delete' ? '확인하고 휴지통으로 이동' : '확인하고 복원'}</button><button type="button" disabled={busy} onClick={() => { setMutation(null); setNotice(null); }}>닫기</button></div></div> : null}
       </> : null}
     </section> : null}
   </section>;

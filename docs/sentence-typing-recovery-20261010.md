@@ -62,3 +62,28 @@
 추가 migration은 함수 하나와 그 함수의 실행 권한만 만든다. 기존 기록을 수정/삭제하거나 기존 reset 동작을 교체하지 않는다. 의존성은 기존 `growth_sessions`, `user_app_state`, `auth.uid()`, RLS와 `reset_my_app_records`의 계정별 `app-record-reset:` advisory lock 규약이다. disposable 브라우저 fixture는 growth 테이블/정책 뒤에 함수를 설치한다. 운영에는 적용하지 않았다.
 
 클라이언트 배포 전 서버 migration을 적용하는 순서가 필요하다. 함수를 제거하는 되돌리기는 저장된 행을 지우지 않지만 새 클라이언트의 저장을 pending-deployment 상태로 막는다. 로컬 초안과 pending은 남고 direct INSERT로 우회하지 않는다. 기존 버전 클라이언트는 direct INSERT를 계속 할 수 있으므로 전체 오래된 클라이언트를 포함한 초기화 fencing은 이 범위의 완료 주장에 포함하지 않는다.
+
+## 실제 CI 실패 후 수정 · 2026-10-10 KST / 2026-10-09 UTC
+
+후보 `3a36a3951dad625d94a65e607cb3a16ca8c99733`의 GitHub Actions run `37975602088`에서 문장 spec 7개가 Chromium과 WebKit 각각 실패했다. 따라서 위의 미실행 기록은 최초 구현 시점의 기록이며, 이 후보의 실제 브라우저 결과는 **14개 실패**다. 수정 뒤 새 브라우저 실행은 아직 대기 중이다.
+
+### 확인한 원인과 최소 수정
+
+1. **입력 뒤 정확한 label 조회가 사라지는 마크업 구조.** CI는 입력 전 편집 확인·입력·저장 또는 확인창 단계까지 진행한 뒤 `getByLabel('입력 칸', { exact: true })`를 다시 평가하는 48/95/143/196행에서 시간 초과했다. 기존 `<label>입력 칸<textarea ... /></label>`의 textarea에는 React 19의 제어값 동기화로 입력 내용이 descendant text로 생긴다. 설치된 Playwright 1.63의 `getElementLabels`는 연결된 label의 전체 descendant text를 읽으므로 입력 뒤에는 `입력 칸xx`처럼 정확한 label 문자열이 달라진다. label과 textarea를 형제로 분리하고 `htmlFor="sentence-typing-input"` / 같은 `id`로 연결했다. 선택자를 느슨하게 바꾸거나 timeout·retry·assertion을 줄이지 않았다.
+   - 새 `tests/sentence-typing-ui.test.ts`는 실제 shipping component를 transpile하고 React `renderToStaticMarkup`으로 빈 입력, 입력 중, pending 복구, 업데이트 대기 값을 렌더링한다. label의 고정 문자열/명시 연결과 textarea 값/readonly를 함께 확인한다. 수정 전 명시 연결 검사가 실패했고 수정 후 4/4 통과했다. 이것은 렌더 회귀이며 실제 DOM·브라우저 통과를 대신하지 않는다.
+2. **disposable schema에서 빠진 기존 reset 권한.** CI의 원격 reset 사례는 160행 `reset.error === null`에서 실패했다. 실제 `tests/e2e/schema.sql`을 그대로 로드한 PGlite에서 `reset_my_app_records('growth',...)`가 `42501 permission denied for table growth_ai_reviews`로 실패함을 재현했다. 기존 production migration `20260906141943_add_app_record_resets.sql` 4, 7–8행의 `grant delete ... to authenticated`와 owner-only DELETE policy가 disposable schema에는 없었다. 그 테이블의 DELETE grant와 동일한 owner policy만 browser 전용 `tests/e2e/growth-reset-contract.sql` fragment로 추가하고 `scripts/e2e-stack.mjs`가 seed에 포함한다. production migration, reset 함수, sentence save RPC와 SECURITY INVOKER/RLS 계약은 바꾸지 않았다.
+   - 새 `tests/sentence-typing-fixture.test.ts`는 fixture 전체와 browser 전용 fragment, 실제 reset/save 함수 원문을 실행한다. frozen payload readback, save→reset, reset→stale-save 거부, 새 세대 저장, 다른 계정 행·루틴·상태 보존, owner-only DELETE와 anon 거부를 검증한다. 수정 전 실제 권한 거부를 재현했고 수정 후 3/3 통과했다. 별도 연결의 동시 lock 대기 검증은 아니다.
+   - 최초 수정은 공유 `schema.sql`에 policy를 넣었으나 통합 unit 검사에서 원래 reset migration도 적용하는 fixture들과 policy 이름이 충돌했다. 공유 schema를 원상 복구하고 browser 전용 fragment로 이동했다. production migration이나 다른 fixture를 느슨하게 변경하지 않았으며, 동일 의미의 중복 permissive policy도 추가하지 않는다.
+
+CI 원본 artifact는 지원되는 다운로드 경로에서 접근이 거부되어 원문 assertion/trace를 열지 않았다. 시간 초과 위치와 진행 범위는 CI 전체 로그에 근거하며, label 원인 설명은 설치된 React/Playwright 코드와 렌더 회귀로 뒷받침했다. 외부 접근 제한을 우회하지 않았다.
+
+### 수정 후 로컬 검증
+
+- sentence focused **49/49 통과**: 기존 draft/hook/migration 42개 + UI 4개 + 실제 fixture SQL 3개.
+- browser 전용 fragment로 분리한 뒤 전체 `npm test` **1312/1312 통과**, 실패·취소·skip 0. 공유 fixture와 기존 reset migration의 policy 충돌이 없는지 전체 회귀로 재확인했다.
+- 수정한 TS/TSX 파일 ESLint 통과.
+- 문장 수정의 `npx tsc --noEmit --incremental false` 19:21 UTC 검사 통과. 19:24 통합 재검사에서는 동시에 추가된 growth progression test의 unknown 타입 오류 2개만 보고되어 부모 작업에 전달했다. 최종 통합 타입 검사는 부모 작업의 확인과 구분한다.
+- `git diff --check` 통과.
+- 기존 7개 acceptance/14개 browser case의 assertion·timeout·retry를 변경하지 않았다.
+
+이 수정의 Chromium/WebKit 재검증, 통합 최종 후보 전체 회귀와 physical device 검증은 남아 있다. 로컬 브라우저 실행 차단/재시도 금지를 준수했으며 hosted DB/API, 운영 변경, commit/push는 하지 않았다.
