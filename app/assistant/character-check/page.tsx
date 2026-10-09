@@ -14,6 +14,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const mode = (await searchParams).mode;
   if (mode === 'alignment') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><AlignmentCheck /></main>;
   if (mode === 'general') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><GeneralAlignmentCheck /></main>;
+  if (mode === 'currency') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><GeneralAlignmentCheck key="currency-20261009" currencyOnly /></main>;
   const deviceReview = mode === 'device';
   const [ko, ja] = await Promise.all([
     readFile(path.join(process.cwd(), 'docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3'), 'base64'),

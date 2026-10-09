@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { characterReplyEnabled } from '@/lib/yeoni/reply-plan';
 import { alignGeneratedReply, savedAlignmentConfiguration } from '@/lib/yeoni/speech-alignment';
 import plan from '@/services/yeoni-alignment/general-validation-plan.json';
+import currencyPlan from '@/services/yeoni-alignment/currency-validation-plan.json';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       }
     } finally { reader.releaseLock(); }
     const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    const sample = plan.cases.find(item => item.id === body?.id);
+    const sample = [...plan.cases, ...currencyPlan.cases].find(item => item.id === body?.id);
     const audio = body?.audioContent;
     if (!sample || typeof audio !== 'string' || !audio || audio.length > 2_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audio)) return json({ error: 'INVALID_SAMPLE' }, 400);
     // Only these approved texts are accepted. This endpoint never synthesizes audio.

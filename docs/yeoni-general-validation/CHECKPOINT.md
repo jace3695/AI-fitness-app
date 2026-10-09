@@ -166,3 +166,21 @@ within the existing approved scope. Production merge/activation remains separate
   characters including spaces/punctuation), voice `ko-KR-Chirp3-HD-Zephyr`, once.
   This is a proposal only: no request ID, grant or audio has been created. Preserve
   the original defective sample and give any approved follow-up a separate ID/file.
+
+## 2026-10-09 11:51:49 KST — currency follow-up authorized
+
+- User approved the proposed17-character, one-call Zephyr verification by asking
+  to proceed with verification. Separate fixed plan: currency-validation-plan.json.
+- New ID `8e6dada6-c377-4a6d-854f-f9ecf310d9fa`; case currency-20261009. The
+  numeric request `예상 비용은 12,500원이에요.` must be normalized by the server
+  to the exact approved Google input `예상 비용은 만이천오백원이에요.` (17chars).
+- Preview mode=currency uses a separate storage prefix and exposes only this new
+  case. The three old cases/texts/UUIDs/storage keys remain unchanged. An attempt
+  receipt is written before submission; no automatic retry. Export the response
+  before alignment or replay. Verify server spokenText and reservedCharacters17.
+- Read-only starting ledger: limit326/reserved326/remaining0, verification still
+  valid until2026-11-01T07:00Z, external reserved800000. The three old receipts
+  still match32/52/217 and their original text hashes. No new TTS yet.
+- The current cloud browser opens at the app login form. No auth/session data was
+  extracted. Secure sign-in must be resumed before live validation. This is not a
+  request for another TTS approval; the one-call approval above persists.
