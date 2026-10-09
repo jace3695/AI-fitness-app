@@ -230,3 +230,42 @@ within the existing approved scope. Production merge/activation remains separate
 - PR208 stays Draft; general alignment stays OFF. No main merge or production
   deployment is included. Currency pronunciation, original MP3 integrity, alignment
   and playback acceptance remain open until the actual saved bytes are recovered.
+
+## 2026-10-09 15:49 KST — numeric display separated from currency pronunciation
+
+- Currency original recovery completed at15:39KST from the user's copied JSON.
+  JSON17,525bytes/SHA256
+  `b1b7f35659d03e4e311da6b72bca23ab488ec43af7d8932633c3871697950838`;
+  MP312,864bytes/SHA256
+  `32bcb9f42d01ed8669dd3cbd5a4ce7604b9ce9cc9267090bef165dae6384488e`.
+  Strict base64 decoding only, no re-encoding. Full decode24kHz mono,
+  77,184samples/3.216seconds. Original JSON/MP3/integrity report are durably backed
+  up; the same fixed UUID/17characters/spoken-text hash match the server receipt.
+- At15:41:29KST the user confirmed the recovered MP3 sounds correct. Record
+  `만이천오백원` as user listening acceptance for this sample only.
+- User screenshot `image(20261009-064616).png` shows alignment completed:
+  34phone cues,11.41seconds,3.216second audio, verified pair status and character
+  playback ready. No alignment rerun is needed. The actual manifest has not yet
+  been exported for independent inspection/backup; this still image does not
+  establish moving lip-sync quality or cat/human playback acceptance.
+- User correctly requested numeric display. The review card and character quote
+  were rendering the spoken Korean transcript. Show the approved numeric
+  `requestText` in the card and backup description. Pass a display-only string
+  into ReplyCharacterPanel; use it only when its KRW normalization exactly equals
+  the current spoken reply, otherwise retain the current reply. Other callers
+  omit this optional prop. Label the17-character count as the voice character count.
+- The strict reply/plan/manifest checks, speech text, MP3, timestamps, storage keys,
+  original request IDs and server normalization are unchanged. Display formatting
+  is not a playback effect dependency, so it cannot restart the audio/session.
+  Existing assistant chat renders the original chat text separately; no history
+  text is rewritten. General alignment remains OFF and production is unchanged.
+- Changed-file ESLint/TypeScript and diff whitespace checks pass. React review:
+  display-only primitive prop, no new effects or data fetching, fallback for stale
+  or mismatched display text, original audio/session ownership unchanged. This
+  low-impact display change adds no mirror tests and reruns no old voice tests.
+  Preview build is checked after push; live updated UI verification is pending.
+- Agent browser access was still blocked at the preceding15:41 check by native
+  credential protection. No further reset or authentication workaround was tried.
+  Preserve the original aligned tab; open an updated same-origin review tab and
+  restore the saved result to verify numeric display without generating or aligning
+  again. Export the existing alignment through the read-only backup page afterward.

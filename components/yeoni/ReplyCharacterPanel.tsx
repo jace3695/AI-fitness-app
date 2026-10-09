@@ -7,14 +7,16 @@ import { LipSyncPlayer } from '../../lib/yeoni/lip-sync-player';
 import { ReplySession, type ReplyClip, type ReplyTransport } from '../../lib/yeoni/reply-session';
 import { claimSpeechFocus, SPEECH_FOCUS_EVENT, SPEECH_STOP_EVENT } from '../../lib/yeoni/speech-focus';
 import { readerSpeech } from '../../lib/yeoni/reader-speech';
+import { normalizeKoreanCurrencySpeech } from '../../lib/yeoni/korean-currency-speech';
 import SwitchableCharacterStage from './SwitchableCharacterStage';
 import styles from './reply-character.module.css';
 
 const statusNames = { idle: '답변을 기다리고 있어요', waiting: '답변 준비 중', loading: '저장된 음성 확인 중', ready: '음성 준비 완료', 'text-only': '글로 답변했어요', error: '다시 확인해 주세요' };
 const emotionNames = { neutral: '차분하게', smile: '미소로', happy: '기쁘게', proud: '뿌듯하게', encouraging: '응원하며', concerned: '걱정하며', surprised: '놀라며', thinking: '생각하며', serious: '진지하게', disappointed: '아쉬워하며', sleepy: '나른하게', comforting: '다정하게' };
-export default function ReplyCharacterPanel({ transport, clips, samples, assets, incoming, busy = false, presentation = 'review', alignReplies = false }: {
+export default function ReplyCharacterPanel({ transport, clips, samples, assets, incoming, displayText, busy = false, presentation = 'review', alignReplies = false }: {
   transport?: ReplyTransport; clips: readonly ReplyClip[]; assets?: Record<string, string>;
   incoming?: Readonly<{ value: unknown }> | null;
+  displayText?: string;
   samples?: readonly Readonly<{ label: string; message: string }>[];
   busy?: boolean; presentation?: 'review' | 'assistant'; alignReplies?: boolean;
 }) {
@@ -39,6 +41,9 @@ export default function ReplyCharacterPanel({ transport, clips, samples, assets,
     else session.current?.reset();
   }, [incoming, clips]);
   const current = session.current, state = current?.state;
+  // Display formatting never changes the approved spoken text or audio/manifest pairing.
+  const replyText = typeof displayText === 'string' && normalizeKoreanCurrencySpeech(displayText) === state?.reply
+    ? displayText : state?.reply;
   const speech = () => (embedded && alignReplies ? readerSpeech.snapshot() : null) ?? session.current?.snapshot() ?? { manifest: null, playback: EMPTY_PLAYBACK };
   function send(message: string) { if (message.trim() && transport) void session.current?.submit(message.trim(), transport); }
   const playing = player.current?.snapshot().state === 'playing';
@@ -54,7 +59,7 @@ export default function ReplyCharacterPanel({ transport, clips, samples, assets,
       <div className={styles.conversation}>
         <p className={styles.eyebrow}>연이의 답변</p>
         <div role="status" aria-live="polite" className={styles.status}>{busy ? statusNames.waiting : statusNames[state?.status ?? 'idle']}</div>
-        {!embedded && state?.reply && <blockquote className={styles.reply} lang={state.plan?.language === 'ja-JP' ? 'ja' : 'ko'} data-reply-text>{state.reply}</blockquote>}
+        {!embedded && state?.reply && <blockquote className={styles.reply} lang={state.plan?.language === 'ja-JP' ? 'ja' : 'ko'} data-reply-text>{replyText}</blockquote>}
         {state?.plan && <p className={styles.tone} data-reply-tone>{emotionNames[state.plan.emotion]} 답해요</p>}
         {state?.status === 'text-only' && <p className={styles.hint}>{embedded ? alignReplies ? '‘답변 읽기’를 누르면 준비된 음성 시각에 맞춰 입 모양을 연결해요. 정렬을 확인하지 못하면 음성만 재생해요.' : '답변은 아래 대화에서 확인해 주세요. ‘답변 읽기’로 들을 때는 입 모양이 움직이지 않아요.' : '이 답변에 맞는 저장 음성이 없어요. 음성 준비 후 같은 문장으로 연결할 수 있어요.'}</p>}
         {state?.notice && <p role={state.status === 'error' ? 'alert' : 'status'} className={styles.hint}>{state.notice}</p>}

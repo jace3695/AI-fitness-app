@@ -109,8 +109,7 @@ export default function GeneralAlignmentCheck({ currencyOnly = false }: { curren
     </div>
     <p role="status" className="my-4">{message}</p>
     {samples.map(sample => <section key={sample.id} className="my-4 rounded-2xl border bg-white p-4">
-      <h2 className="font-bold">{labels[sample.id]} · {Array.from(sample.text).length}자</h2><p className="my-3 leading-7">{sample.text}</p>
-      {sample.requestText && <p className="mb-3 text-sm">화면의 숫자 문장: {sample.requestText}</p>}
+      <h2 className="font-bold">{labels[sample.id]} · 음성 {Array.from(sample.text).length}자</h2><p className="my-3 leading-7">{sample.requestText ?? sample.text}</p>
       <div className="flex flex-wrap gap-2">
         <button disabled={busy || attempted[sample.id] || !!rows[sample.id]} onClick={() => void run(() => generate(sample.id))} className="rounded-xl bg-violet-700 p-3 text-white disabled:opacity-40">{labels[sample.id]} 1회 생성</button>
         {rows[sample.id] && <><button onClick={() => download(rows[sample.id])} className="rounded-xl border p-3">{labels[sample.id]} 검증 파일 저장</button>
@@ -120,6 +119,7 @@ export default function GeneralAlignmentCheck({ currencyOnly = false }: { curren
       </div>
       {currencyOnly && rows[sample.id]?.responseSpokenText === sample.text && rows[sample.id].reservedCharacters === 17 && !rows[sample.id].alignment && <audio controls preload="none" aria-label="금액 읽기 원본 음성" src={`data:audio/mpeg;base64,${rows[sample.id].audioContent}`} className="mt-3 w-full" />}
     </section>)}
-    {playback && <ReplyCharacterPanel key={selected} clips={playback.clips} incoming={playback.incoming} />}
+    {playback && <ReplyCharacterPanel key={selected} clips={playback.clips} incoming={playback.incoming}
+      displayText={currencyOnly ? currencyPlan.cases[0].requestText : undefined} />}
   </>;
 }

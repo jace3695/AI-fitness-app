@@ -40,7 +40,7 @@ export default function CurrencyBackup() {
 
   return <>
     <h1 className="text-2xl font-bold">금액 음성 백업</h1>
-    <p className="my-4 leading-7">이미 생성한 “{approved.text}”의 저장 결과를 텍스트로 꺼내요.
+    <p className="my-4 leading-7">이미 생성한 “{approved.requestText}”의 저장 결과를 텍스트로 꺼내요.
       원래 음성 탭은 백업이 끝날 때까지 닫거나 새로고침하지 마세요.</p>
     <p className="mb-4 text-sm leading-6">새 음성 생성이나 정렬을 요청하지 않으며, 저장 데이터와 중복 생성 방지 기록을 변경하지 않아요.</p>
     <button type="button" onClick={load} disabled={backup !== null}
