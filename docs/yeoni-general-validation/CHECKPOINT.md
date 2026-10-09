@@ -269,3 +269,42 @@ within the existing approved scope. Production merge/activation remains separate
   Preserve the original aligned tab; open an updated same-origin review tab and
   restore the saved result to verify numeric display without generating or aligning
   again. Export the existing alignment through the read-only backup page afterward.
+
+## 2026-10-09 17:41 KST — offline currency acceptance and safe CI failure locations
+
+- The currency aligned JSON was recovered and backed up at16:16KST: original
+  request ID `8e6dada6-c377-4a6d-854f-f9ecf310d9fa`, unchanged MP3 SHA256
+  `32bcb9f42d01ed8669dd3cbd5a4ce7604b9ce9cc9267090bef165dae6384488e`,
+  34 contiguous cues /3216ms. The user's screenshot already confirmed numeric
+  display and saved-result restoration. No synthesis or alignment retry is needed.
+- At17:31KST the user confirmed the offline currency renderer review and requested
+  the next step. The saved6-second video uses current cat/human renderers, original
+  MP3 packets and the existing timeline. Its13 controller/renderer checks passed.
+  This acceptance is scoped to that review, not actual Preview HTMLAudioElement,
+  browser persistence, device timing or production release. General alignment is
+  still OFF. Original short/numbers/long/currency audio and request records remain.
+- Existing CI37895640727 failed in WebKit D65 with a timeout after the final
+  reload. Six drawing document responses were200, with no crash/disconnect.
+  This suggests the restore stage but does not identify the failed action or root
+  cause. The previous reporter dropped failure locations; raw exception messages
+  were also discarded by the wrapper. The old artifact bytes remain unread.
+- Added bounded failure diagnostics: only known tests/e2e source files, positive
+  line/column coordinates, fixed failure categories and innermost failed action
+  categories. No step titles/params, exception text/stack/snippet, attachments,
+  selectors, URLs, credentials or row values are newly exported. Unknown locations
+  remain null rather than blaming the last successful step. The safe records are
+  included in both JSON evidence and wrapper output; runner errors use the same
+  safe format. Failure exit status is unchanged.
+- D65/D70 final restore statements now occupy distinct source lines. Parsed code
+  structure and executable leaf tokens match the old test exactly. No assertions,
+  timeouts, retries, workflow gates, application code or data behavior changed.
+- Four new privacy/location checks, changed-file ESLint, TypeScript and a real
+  Playwright-reporter-to-wrapper synthetic failure check pass. The latter runs no
+  browser, application or DB; it deliberately fails an assertion and verifies the
+  correct file/line/column, absent secret sentinel, matching JSON/log evidence and
+  nonzero exit. Initial harness expectations needed correction (column counting
+  and template-literal token parsing); those were harness errors, not app failures.
+- The diagnostic change is ready for the development branch. Its automatically
+  triggered CI must be observed after push; this entry does not claim D65 is fixed
+  or the new run has passed. No manual old-CI rerun, TTS, alignment, quota/receipt
+  reset, hosted-data mutation, main merge or production deployment was performed.

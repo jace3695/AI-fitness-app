@@ -548,7 +548,14 @@ for(const capstone of ['D65','D70'])test(`drawing ${capstone}: own collection co
  await practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true}).first().click();await draw();for(let i=0;i<4;i++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();await practice.getByLabel('캐릭터 비교 메모',{exact:true}).fill('귀와 눈 간격을 유지하고 한 곳을 보완했어요.');await practice.getByLabel('캐릭터 특징 비교 완료',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await page.getByRole('button',{name:'스스로 해봤어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
  await expect.poll(async()=>{const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return rows?.some(a=>a.document.lesson.id===capstone&&a.status==='completed');}).toBe(true);
  const after=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=after.find(a=>a.document.lesson.id===capstone)!;for(const source of originals)expect(after.find(a=>a.id===source.id)).toEqual(source);expect(saved.document.strokes).toHaveLength(2);expect(saved.document.identity.collection).toHaveLength(sources.length);expect(saved.document.identity.baseline.attemptId).toBe(base.id);
- await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:`내 그림 ${after.length}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:capstone}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true})).toHaveCount(sources.length);expect(await qa.read()).toEqual(before);
+ // Keep each restore action on a distinct source line for safe failure locations.
+ await page.reload();
+ await showDrawingTools(page);
+ await page.getByRole('button',{name:`내 그림 ${after.length}장`,exact:true}).click();
+ await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:capstone}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+ await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();
+ await expect(practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true})).toHaveCount(sources.length);
+ expect(await qa.read()).toEqual(before);
 });
 
 for(const authored of parsePack(pack).lessons.slice(70,80))test(`drawing ${authored.id}: original creator variants, paper notes and exact restored state`,async({page,qa},testInfo)=>{
