@@ -448,3 +448,53 @@ within the existing approved scope. Production merge/activation remains separate
   push. Actual authenticated Preview/physical playback remains for user review.
   PR208 stays Draft, general alignment OFF, production unchanged. Original voices,
   alignments, backups, request IDs, duplicate guards and quota remain preserved.
+
+
+## 2026-10-10 — Human CI failure diagnosis and prepared fix
+
+- User reported the currency-file Preview normal at 2026-10-09 23:57 KST.
+  This closes the user review requested for that file-import/playback flow, not
+  all-device certification or permission to merge/deploy production.
+- Base HEAD is54bf2b0. Animation run37943569416 failed: human-motion and
+  human-speech jobs failed; cat-motion was cancelled during dependency install.
+  The latter has no application assertion result. Keep its timeout and checks.
+- Dedicated log retrieval returned Transport closed. Downloaded the saved speech
+  artifact11622022655, verified its ZIP SHA256, and read both engines' original
+  assertion results. Playback/end passed; the old reference comparison reported
+ 1935/2401 different opaque pixels in Chromium/WebKit while neck alpha stayed255.
+- Reproduced stale archived PHASE8/9 HTML versus current source bundles with
+  esbuild0.28.2. Preserve both historical HTML files byte-for-byte. Current CI
+  builds now use .e2e/current-human-previews and an explicit reviewed SHA256 for
+  each complete HTML, including embedded images/audio. No byte-equality check is
+  silently removed: changed source/lock files require a reviewed digest update.
+- The speech reference probe now records the displayed mouth pose and assembles
+  approved patches with that interpolation, retaining exact opaque RGB, alpha,
+  neck, and shape-coverage assertions. Wrong raw-viseme substitution and an
+  altered forehead pixel must still fail the comparison. The static motion
+  probe explicitly requests direct endpoints so default rest interpolation does
+  not override the synthetic selected mouth; no production mode is disabled.
+- The corrected reference exposed a genuine floating-point border defect:
+ 199*(1-t)+199*t could be198.99999999999997; floor(maxX) skipped all112 pixels
+  of the right edge. Stable interpolation a+(b-a)*t preserves identical border
+  coordinates. A fresh/reused-buffer regression covers human/cat geometry,
+  recorded failing ratios, complete alpha coverage, and exact endpoints.
+- Passed: new mesh regression1 plus existing mouth-motion tests7; changed TS
+  ESLint, TypeScript and diff checks; Chromium153 source speech6 and motion9
+  checks.64 speech frames had opaque difference0, alpha difference0 and neck
+  minimum255. Current exported motion HTML was separately checked for ready,
+  initial stillness, start/stop, no runtime error and no external request after
+  updating its offline-test path. See human-ci-fix-20261010.json.
+- Existing source images/39-character MP3/alignment and archived HTML are unchanged;
+  current HTML embeds the same original images. Review-video encoding is now
+  explicit opt-in (YEONI_REVIEW_VIDEO=1), so accepted videos are not regenerated
+  by routine CI. This run created no TTS, alignment job, or review video. No
+  requestId, duplicate guard, quota, hosted data, or currency backup changed.
+- Local WebKit26.6 downloaded, but required system libraries are unavailable and
+  standard dependency installation failed at setgroups/seteuid permission checks.
+  No privilege bypass was attempted. GitHub WebKit checks remain required; local
+  Chromium results do not certify WebKit, authenticated Preview or physical iPhone.
+- Before branch update, whole-app run37943581831 on54bf2b0 was still executing its
+  final browser step. Preserve that result independently of the forthcoming fix
+  commit. Development CI/Preview outcome will be recorded in PR208 without a
+  status-only commit. PR208 stays Draft; general alignment OFF; no production
+  merge/deployment. Existing ba077839438/0 success remains historical evidence.

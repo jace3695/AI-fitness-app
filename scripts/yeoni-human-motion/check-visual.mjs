@@ -5,6 +5,7 @@ import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {renderHumanRig} from '../yeoni-human-rig/render.mjs';
+import {humanPreviewPath} from '../browser-qa/human-preview-path.mjs';
 const root=new URL('../../',import.meta.url),dir=new URL('public/yeoni/human/rig-v4/',root),kind=process.env.YEONI_BROWSER||'chromium';
 const out=new URL(`.e2e/yeoni-human-motion/${kind}/`,root);mkdirSync(out,{recursive:true});
 const spec=JSON.parse(readFileSync(new URL('manifest.json',dir))),assets={};
@@ -12,7 +13,9 @@ const uri=(url)=>'data:image/'+(url.pathname.endsWith('.png')?'png':'webp')+';ba
 for(const p of [spec.source,...Object.values(spec.layers),...Object.values(spec.faceParts).flat()])assert.equal(createHash('sha256').update(readFileSync(new URL(p.image,dir))).digest('hex'),p.sha256);
 for(const name of ['head.png','body.png',...Object.values(spec.faceParts).flat().map(p=>p.image)])assets[name]=uri(new URL(name,dir));
 const bundle=await build({entryPoints:[new URL('probe.ts',import.meta.url).pathname],bundle:true,write:false,format:'iife',globalName:'humanReview',tsconfig:new URL('tsconfig.json',root).pathname});
-const browser=await({chromium,webkit})[kind].launch({headless:true}),page=await browser.newPage({viewport:{width:752,height:600},deviceScaleFactor:1});
+const browser=await({chromium,webkit})[kind].launch({headless:true,
+ ...(kind==='chromium'&&process.env.YEONI_CHROMIUM?{executablePath:process.env.YEONI_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']}:{}),
+}),page=await browser.newPage({viewport:{width:752,height:600},deviceScaleFactor:1});
 const errors=[],external=[],results=[];let identity,performanceResults,nearNeutral,neckResults;
 const observe=p=>{p.on('pageerror',e=>errors.push(e.message));p.on('request',r=>{if(/^https?:/.test(r.url()))external.push(r.url())});};observe(page);
 const test=async(name,fn)=>{await fn();results.push({name,passed:true});console.log('PASS '+name)};
@@ -52,9 +55,9 @@ try{
   performanceResults=[];for(const size of [360,720]){const p=await page.evaluate(size=>{const times=[];for(let i=0;i<90;i++)times.push(humanReview.show({time:i*1000/30,size}).milliseconds);times.sort((a,b)=>a-b);return{requestedSize:size,width:document.querySelector('#revised').width,samples:times.length,median:times[45],p95:times[85],max:times[89],average:times.reduce((a,b)=>a+b)/times.length}},size);assert.ok(p.width<=512);assert.ok(p.average<33.34,JSON.stringify(p));performanceResults.push(p);}await show({time:0,size:360});
  });
  await test('offline preview starts still loads assets and plays without external requests',async()=>{
-  const offline=await browser.newPage({viewport:{width:430,height:960}});observe(offline);await offline.setContent(readFileSync(new URL('docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html',root),'utf8'));await offline.locator('[data-human-status="ready"]').waitFor();assert.equal(await offline.locator('canvas').getAttribute('data-running'),'false');await offline.getByRole('button',{name:'움직임 켜기',exact:true}).click();await offline.evaluate(()=>scrollTo(0,0));await offline.waitForFunction(()=>document.querySelector('canvas')?.dataset.running==='true');await offline.getByRole('button',{name:'움직임 멈추기',exact:true}).click();await offline.screenshot({path:new URL('offline.png',out).pathname});await offline.close();
+  const offline=await browser.newPage({viewport:{width:430,height:960}});observe(offline);await offline.setContent(readFileSync(humanPreviewPath('motion'),'utf8'));await offline.locator('[data-human-status="ready"]').waitFor();assert.equal(await offline.locator('canvas').getAttribute('data-running'),'false');await offline.getByRole('button',{name:'움직임 켜기',exact:true}).click();await offline.evaluate(()=>scrollTo(0,0));await offline.waitForFunction(()=>document.querySelector('canvas')?.dataset.running==='true');await offline.getByRole('button',{name:'움직임 멈추기',exact:true}).click();await offline.screenshot({path:new URL('offline.png',out).pathname});await offline.close();
  });
- if(kind==='chromium')await test('12-second review video uses actual browser Canvas motion frames and plays on request',async()=>{
+ if(kind==='chromium'&&process.env.YEONI_REVIEW_VIDEO==='1')await test('12-second review video uses actual browser Canvas motion frames and plays on request',async()=>{
   const frames=new URL('video-frames/',out);mkdirSync(frames,{recursive:true});
   for(let i=0;i<144;i++){await show({time:i*1000/12});await page.evaluate(dark=>document.body.classList.toggle('dark',dark),i>=72);await page.locator('#label').evaluate((e,t)=>{e.textContent=t},'깜빡임 · 숨쉬기 · 작은 고개 움직임');await page.locator('.row').screenshot({path:new URL(String(i).padStart(4,'0')+'.png',frames).pathname});}
   const videoFile=new URL('human-motion-v1.mp4',out);execFileSync('ffmpeg',['-y','-framerate','12','-i',new URL('%04d.png',frames).pathname,'-c:v','libx264','-crf','23','-pix_fmt','yuv420p','-movflags','+faststart',videoFile.pathname],{stdio:'pipe'});rmSync(frames,{recursive:true});
@@ -63,7 +66,7 @@ try{
  await test('disposing releases resources clears pixels and prevents stale drawing',async()=>{await page.evaluate(()=>humanReview.dispose());const blank=await page.locator('#revised').evaluate(c=>c.toDataURL());await show({time:2000});assert.equal(await page.locator('#revised').evaluate(c=>c.toDataURL()),blank)});
  await test('no runtime errors or external requests',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(external,[])});
 }catch(e){results.push({passed:false,error:String(e)});console.error(e);process.exitCode=1;}
-finally{writeFileSync(new URL('visual-results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,identity,nearNeutral,neckResults,performanceResults,errors,external,scope:'Basic human motion only. All mouth states are synthetic visual binding checks, not speech or lip-sync verification. Physical devices not tested.'},null,2));await browser.close();}
+finally{writeFileSync(new URL('visual-results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,reviewVideoRequested:process.env.YEONI_REVIEW_VIDEO==='1',identity,nearNeutral,neckResults,performanceResults,errors,external,scope:'Basic human motion only. All mouth states are synthetic visual binding checks, not speech or lip-sync verification. Physical devices not tested.'},null,2));await browser.close();}
 async function sheet(frames,name,face){
  const p=await browser.newPage({viewport:{width:1440,height:face?780:1160}});await p.setContent('<style>body{margin:0;background:#f4f0fa;font:18px system-ui}.grid{display:grid;grid-template-columns:repeat(4,360px)}figure{margin:0}.view{position:relative;width:360px;height:'+(face?'343':'540')+'px;overflow:hidden}img{position:absolute;'+(face?'width:878px;height:1317px;left:-257px;top:-236px':'width:360px;height:540px')+'}figcaption{height:30px;text-align:center}</style><div class="grid">'+frames.map(f=>`<figure><figcaption>${f.label}</figcaption><div class="view"><img src="${f.src}"></div></figure>`).join('')+'</div>');await p.locator('img').evaluateAll(imgs=>Promise.all(imgs.map(i=>i.decode())));await p.screenshot({path:new URL(name+'.png',out).pathname,fullPage:true});await p.close();
 }

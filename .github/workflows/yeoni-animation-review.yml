@@ -20,6 +20,7 @@ on:
       - 'docs/yeoni-phase5/fixtures/**'
       - 'docs/yeoni-phase5/alignment/**'
       - 'scripts/browser-qa/package*.json'
+      - 'scripts/browser-qa/*human-preview*'
       - 'package*.json'
       - '.github/workflows/yeoni-animation-review.yml'
 permissions:
@@ -27,8 +28,13 @@ permissions:
 concurrency:
   group: yeoni-animation-${{ github.ref }}
   cancel-in-progress: true
+# Previously accepted HTML/video are historical evidence. Verify current source
+# with exact build digests in a disposable directory; video re-encoding is opt-in
+# via YEONI_REVIEW_VIDEO=1 and is never required for these regression checks.
 jobs:
   human-speech:
+    env:
+      YEONI_PREVIEW_ROOT: .e2e/current-human-previews
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -45,13 +51,13 @@ jobs:
       - name: Verify shared transport with human artwork and real saved MP3
         run: |
           node scripts/yeoni-human-speech/export.mjs
-          git diff --exit-code -- docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html
+          node scripts/browser-qa/check-human-preview.mjs speech
           YEONI_CHARACTER=human node scripts/yeoni-speech-poc/check.mjs
       - name: WebKit human speech transport
         if: ${{ !cancelled() }}
         run: |
           YEONI_CHARACTER=human YEONI_BROWSER=webkit node scripts/yeoni-speech-poc/check.mjs
-      - name: Chromium human speech original comparison and video
+      - name: Chromium human speech original comparison
         if: ${{ !cancelled() }}
         run: |
           node scripts/yeoni-human-speech/check-visual.mjs
@@ -71,6 +77,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   human-basic-motion:
+    env:
+      YEONI_PREVIEW_ROOT: .e2e/current-human-previews
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -87,7 +95,7 @@ jobs:
       - name: Verify human source-preserving motion and lifecycle
         run: |
           node scripts/yeoni-human-motion/export.mjs
-          git diff --exit-code -- docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html
+          node scripts/browser-qa/check-human-preview.mjs motion
           node scripts/yeoni-human-motion/check-flow.mjs
           YEONI_BROWSER=webkit node scripts/yeoni-human-motion/check-flow.mjs
           node scripts/yeoni-human-motion/check-visual.mjs
