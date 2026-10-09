@@ -8,7 +8,9 @@ const root=new URL('../../',import.meta.url),kind=process.env.YEONI_BROWSER||'ch
 const out=new URL(`.e2e/yeoni-cat-motion-v3/${kind}/`,root);mkdirSync(out,{recursive:true});
 const bundle=await build({entryPoints:[new URL('motion-probe.ts',import.meta.url).pathname],bundle:true,write:false,format:'iife',globalName:'catReview',tsconfig:new URL('tsconfig.json',root).pathname});
 const uri=(path,mime)=>`data:${mime};base64,`+readFileSync(new URL(path,root)).toString('base64');
-const browser=await({chromium,webkit})[kind].launch({headless:true});
+const browser=await({chromium,webkit})[kind].launch({headless:true,
+ ...(kind==='chromium'&&process.env.YEONI_CHROMIUM?{executablePath:process.env.YEONI_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']}:{}),
+});
 const page=await browser.newPage({viewport:{width:760,height:460},deviceScaleFactor:1});
 const errors=[],requests=[],results=[];let identity,performanceResult;
 page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url())});

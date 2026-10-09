@@ -498,3 +498,24 @@ within the existing approved scope. Production merge/activation remains separate
   commit. Development CI/Preview outcome will be recorded in PR208 without a
   status-only commit. PR208 stays Draft; general alignment OFF; no production
   merge/deployment. Existing ba077839438/0 success remains historical evidence.
+
+
+### 2026-10-10 00:48 KST — GitHub human checks passed; cat fixture follow-up
+
+-54bf2b0 whole-app run37943581831 completed success at00:43:15KST; final
+  QA_BROWSER_RESULT438passed/0failed was read before advancing the branch.
+- b602d97 animation run37953913220: human-basic-motion113899440633 and
+  human-speech113899440706 both completed success, including their Chromium
+  and WebKit steps. Local WebKit limitation is therefore covered for these
+  specific b602d97 human jobs, not every current/past device scenario.
+- Cat motion now reached actual validation after its earlier dependency-install
+  cancellation. Job113899440652 failed the same stale synthetic mouth input:
+  requested a was overridden by default smooth rest,1238 changed pixels.
+  Corrected only the cat review probe to explicit direct endpoints and added
+  the existing executable-path option for isolated local validation.
+- All7 local Chromium cat checks pass;21 resting eye/mouth states have exactly
+  zero different pixels. Source assets, production controller/renderer, and
+  all original voices remain unchanged by this follow-up; no review video made.
+- A follow-up development commit replaces the failed b602d97 candidate. Its
+  automatically superseded CI must not be labelled passed;54bf2b0's completed
+ 438/0 and b602d97's two human-job successes remain separately recorded.

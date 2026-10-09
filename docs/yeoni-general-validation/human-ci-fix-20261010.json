@@ -192,5 +192,61 @@
     "newReviewVideos": 0,
     "originalVoiceAndRequestRecordsChanged": false,
     "productionDeploymentPerformed": false
+  },
+  "followupCat": {
+    "observedCiRun": 37953913220,
+    "failedJob": 113899440652,
+    "failure": "Explicit mouth a compared against default smooth rest pose: 1238 changed pixels; exact same synthetic-fixture mismatch as human motion.",
+    "fix": "Static motion probe requests direct mode; production controller and renderer unchanged.",
+    "localChecks": [
+      {
+        "name": "all 21 resting states match the approved original and patches pixel for pixel",
+        "passed": true
+      },
+      {
+        "name": "near-neutral mesh has no bright diagonal rasterization seams",
+        "passed": true
+      },
+      {
+        "name": "21 eye/mouth combinations remain attached during the tilt gesture",
+        "passed": true
+      },
+      {
+        "name": "all four gestures have continuous start middle end and source comparison sheets",
+        "passed": true
+      },
+      {
+        "name": "continuous motion has finite bounded render cost at 360px",
+        "passed": true
+      },
+      {
+        "name": "renderer disposal clears pixels and prevents stale drawing",
+        "passed": true
+      },
+      {
+        "name": "no runtime errors or external requests",
+        "passed": true
+      }
+    ],
+    "identityStates": 21,
+    "maxChangedPixels": 0,
+    "errors": [],
+    "externalRequests": [],
+    "reviewVideoRequested": false
+  },
+  "githubHumanVerification": {
+    "commit": "b602d97c87f8e625805759d26ec5c9247c578430",
+    "run": 37953913220,
+    "humanMotionJob": 113899440633,
+    "humanSpeechJob": 113899440706,
+    "bothJobs": "success",
+    "scope": "Includes unchanged Chromium and WebKit checks for both human jobs."
+  },
+  "priorWholeAppCi": {
+    "commit": "54bf2b0d521168956307d347daed22c23691e16c",
+    "run": 37943581831,
+    "completedKst": "2026-10-10 00:43:15",
+    "passed": 438,
+    "failed": 0
   }
 }
