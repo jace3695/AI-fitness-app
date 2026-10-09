@@ -1,6 +1,6 @@
 export const CURRENCY_BACKUP_KEY = 'yeoni-approved-currency-20261009:currency-20261009';
 
-type ApprovedCurrency = {
+export type ApprovedCurrency = {
   id: string; text: string; requestText: string; requestId: string; voice: string;
 };
 
@@ -8,6 +8,11 @@ type ApprovedCurrency = {
 export function readCurrencyBackup(storage: Pick<Storage, 'getItem'>, approved: ApprovedCurrency) {
   const raw = storage.getItem(CURRENCY_BACKUP_KEY);
   if (raw === null) throw new Error('이 브라우저에서 저장된 금액 음성을 찾지 못했어요. 원래 음성 탭을 열어 둔 채 이 메시지를 알려 주세요.');
+  return parseCurrencyBackup(raw, approved);
+}
+
+/** Shared metadata/base64 checks; importing a file never needs browser storage. */
+export function parseCurrencyBackup(raw: string, approved: ApprovedCurrency) {
   if (raw.length > 2_200_000) throw new Error('저장 결과의 크기를 확인할 수 없어 중단했어요. 원본은 그대로 두었어요.');
   let row: Record<string, unknown>;
   try {

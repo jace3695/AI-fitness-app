@@ -403,3 +403,48 @@ within the existing approved scope. Production merge/activation remains separate
 - Original voices, alignments, backups, quotas, request IDs and duplicate guards
   are untouched. No TTS/alignment call, hosted DB mutation, production merge or
   production deployment. General alignment OFF and Draft PR208 are retained.
+
+
+## 2026-10-09 — currency backup file playback for a separate browser
+
+- User authorized the backup JSON import approach at23:11KST after the Work
+  cloud browser repeatedly refused native credential-state resumption. That
+  browser was not bypassed/reset; the new feature uses the app's existing
+  authentication and exact development-branch Preview gate.
+- Added `mode=currency-file` and a link from the existing currency review page.
+  The file input reads at most128KiB only after selection. Nothing is uploaded
+  by this importer, and audio/attempt/quota records are never read, overwritten
+  or created by it. Imported data lives in component memory; reload asks for
+  the file again. The ordinary app authentication/sync shell is unchanged.
+- Shared existing metadata/base64 checks with the read-only backup helper.
+  Import additionally pins the actual original MP3 SHA256 and the canonical
+  parsed manifest SHA256. Exact request ID, numeric/spoken text, voice and17
+  reserved characters must match. Missing alignment, other audio, altered
+  timeline or oversized/corrupt files stop before playback. This is local
+  validation of an existing manifest, not another alignment job.
+- The original file supplies the existing ReplyCharacterPanel/player/controller
+  and cat/human renderers. The dedicated file page has no synthesis or alignment
+  controls, no autoplay and no automatic import. Failed file selection retains
+  the previously loaded playback; closing it disposes the audio/blob URL.
+- Three new unit tests, changed-file ESLint and TypeScript passed. React review:
+  labeled file input, announced status/errors, event-only File reads, synchronous
+  duplicate-action lock, memoized playback references, bounded input, safe text
+  rendering and existing player lifecycle cleanup. No project dependencies added.
+- Seven source-component checks passed in separate local Chromium153.0.8010.0
+  using actual original file bytes, HTMLAudioElement, React and Canvas renderers:
+  exact hash/numeric display/no autoplay; pause/resume and uninterrupted cat/human
+  switch/ended mouth rest; six malformed/missing/tampered/oversized file rejections
+  preserving the loaded audio; same-file reselection;320/390/1280px no overflow;
+  close/reload cleanup and receipt preservation; empty-origin import with no
+  storage writes. No API or external requests, synthesis, or alignment jobs.
+  See currency-import-browser.json. This is not authenticated Next/live Preview
+  or physical-device acceptance. Headless Korean fonts were unavailable, so
+  displayed Korean text was checked in DOM, not screenshot typography.
+- Local harness setup needed static CSS URL/UTF-8 handling and removal of the
+  temporary browser package's single-process mode to test isolated contexts.
+  These were harness setup issues; no app timeout/retry/assertion was relaxed.
+- Existing CI37924690564 onba077839 remains success438/0, recorded in PR208.
+  New commit CI and Preview build must be checked separately after development
+  push. Actual authenticated Preview/physical playback remains for user review.
+  PR208 stays Draft, general alignment OFF, production unchanged. Original voices,
+  alignments, backups, request IDs, duplicate guards and quota remain preserved.

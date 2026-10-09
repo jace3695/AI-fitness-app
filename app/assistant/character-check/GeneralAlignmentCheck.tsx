@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { authenticatedFetch } from '@/lib/supabase';
 import { YEONI_VOICE_NAME } from '@/lib/yeoni-voice-policy';
 import { validateReplyAlignment } from '@/lib/yeoni/speech-alignment';
@@ -102,6 +103,7 @@ export default function GeneralAlignmentCheck({ currencyOnly = false }: { curren
   }
   return <>
     <h1 className="text-2xl font-bold">{currencyOnly ? '금액 읽기 수정 검증' : '새 문장 음성·립싱크 검증'}</h1>
+    {currencyOnly ? <p className="my-4"><Link href="?mode=currency-file" className="inline-flex min-h-11 items-center rounded-xl border p-3 text-violet-800 underline underline-offset-4">백업 JSON 불러오기</Link></p> : null}
     <p className="my-4 leading-7">{currencyOnly ? '승인된 17자 문장을 기존 한국어 Zephyr로 한 번만 생성해요. 이전 세 음성은 그대로 보존해요.' : '승인된 세 문장을 기존 한국어 Zephyr로 각각 한 번 생성해요.'} 정렬과 다시 듣기는 받은 음성을 재사용하며 자동 재시도하지 않아요.</p>
     <div className="flex flex-wrap gap-3">
       <button disabled={busy} onClick={() => void run(async () => setMessage(`무료 사용 조건 확인 · 남은 ${await budget()}자 · 이번 검증 최대 ${approvedCharacters}자`))} className="rounded-xl border p-3">무료 사용 확인</button>

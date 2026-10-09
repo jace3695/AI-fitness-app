@@ -1,0 +1,24 @@
+{
+  "browser": "153.0.8010.0",
+  "scope": "Actual React component, HTMLAudioElement, original file and renderers on local isolated server; not authenticated Next/Preview or physical device",
+  "checks": [
+    "original file imported; exact audio hash, numeric display, no autoplay",
+    "native audio pause/resume, continuous human/cat switch, ended mouth rest",
+    "six invalid/corrupt/missing/tampered/oversize files rejected; loaded playback retained",
+    "same file can be selected again after rejection",
+    "320/390/1280 layouts have no horizontal overflow; cat/human rendered",
+    "close releases audio/blob; reload clears temporary import; saved originals/receipts unchanged",
+    "empty browser storage imports successfully without creating a receipt or audio record"
+  ],
+  "passed": 7,
+  "errors": [],
+  "blockedNetworkRequests": [],
+  "newTtsCalls": 0,
+  "newAlignmentJobs": 0,
+  "storageVoiceOrReceiptWrites": 0,
+  "limitations": [
+    "Local source-component browser only; no authenticated Next or live Preview verification.",
+    "Headless Chromium has no Korean fonts; Korean text checked via DOM, not screenshot typography.",
+    "Physical device and live Preview acceptance remain pending."
+  ]
+}
