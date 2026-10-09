@@ -308,3 +308,46 @@ within the existing approved scope. Production merge/activation remains separate
   triggered CI must be observed after push; this entry does not claim D65 is fixed
   or the new run has passed. No manual old-CI rerun, TTS, alignment, quota/receipt
   reset, hosted-data mutation, main merge or production deployment was performed.
+
+## 2026-10-09 19:09 KST — drawing checkpoint race reproduced and repaired
+
+- User authorized failure diagnosis and repair at18:55KST. CI37906571623 on
+  877f920 finished with433 passed/1 failed in its final invocation. D65 passed
+  both scenarios in both engines in the targeted and final invocations (8pass
+  records). The sole failure was the320px WebKit beginner flow waiting for the
+  practice review after completion save, previously at drawing-simple.spec.ts:51.
+  The historical run did not retain drawing-request/local-revision evidence;
+  its exact cause cannot be proved from the timeout location alone.
+- Reproduced a concrete matching failure with the actual DrawingPage and
+  useDrawingRecords source, React, a controlled timer and synthetic persistence:
+  delay the local confirmation transaction, fire the old250ms checkpoint, then
+  release confirmation. Writes were pending/revision0 -> confirmed/revision1 ->
+  pending/revision0. Reload selected that stale recovery. Completion attempted
+  an INSERT for an existing UUID, exact-payload readback correctly rejected the
+  mismatch, and the review remained absent with a conflict notice. No hosted
+  data, browser credentials or stored voice material was used in this harness.
+- Cancel and invalidate the delayed checkpoint synchronously before manual save,
+  before its exact payload is staged. Suspend debounce scheduling while saving,
+  and guard callbacks before both the write and subsequent status update. A
+  failed save leaves dirty data and resumes autosave. The existing serial write
+  queue, UUID reuse, revision CAS, exact readback and conflict protections remain.
+  Existing cached records are not deleted or silently reconciled/overwritten.
+- The same controlled reproduction now retains confirmed revision1, reloads it,
+  saves completed revision2 and displays the review. An injected first-save
+  failure additionally verifies pending data preservation, autosave rearming and
+  successful retry. Old-source reproduction fails in the expected way; fixed
+  source passes. This is a React/source test with simulated storage, not an
+  actual browser/IndexedDB/Supabase integration result.
+- Added a focused320px browser regression to the existing beginner suite. It
+  releases delayed checkpoints during a real IndexedDB confirmation, checks the
+  local/server revision and pending flag, reloads, finishes, verifies the same
+  UUID/strokes and completed revision2, and preserves unrelated fixture data.
+  Existing320/390px flows, timeouts, assertions, retries and CI gates are retained.
+- Changed-file ESLint, TypeScript and whitespace checks pass. No new project
+  dependency was added. The new browser regression and original failing flow
+  still require the automatically triggered isolated CI after this development
+  push; full-suite success and production readiness are not claimed here.
+- PR208 remains Draft/unmerged, general alignment remains OFF. Original
+  short/numbers/long/currency audio, alignment, backups and request/duplicate
+  records remain intact. No TTS/realignment, hosted DB mutation, production merge
+  or production deployment is part of this repair.
