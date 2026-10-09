@@ -184,3 +184,49 @@ within the existing approved scope. Production merge/activation remains separate
 - The current cloud browser opens at the app login form. No auth/session data was
   extracted. Secure sign-in must be resumed before live validation. This is not a
   request for another TTS approval; the one-call approval above persists.
+
+## 2026-10-09 15:17 KST — currency generated once; text backup recovery prepared
+
+- The approved currency call was consumed at13:01:57.727KST, fixed request ID
+  `8e6dada6-c377-4a6d-854f-f9ecf310d9fa`,17characters, UI generation2.24s.
+  Last server read at13:15KST found exactly one receipt with spoken-text SHA256
+  `aaf43843b3e8a8598ae1d8b25c70f639bfa92ce6f5278b4bfa6f45c70f1618fa`.
+  The separately authorized app limit326→343 was applied before that call;
+  limit343/reserved343/remaining0. This entry does not claim a newer DB read.
+- Browser automation remains blocked by native credential protection. User videos
+  demonstrate manual playback controls and Chrome menus do respond; the browser
+  is not wholly view-only. The15:09KST video shows an empty Chrome Download history.
+  This does not identify the download failure's cause or prove a download policy.
+  The screen recording's silence does not establish the source MP3's audio quality.
+- Currency JSON/MP3 bytes have NOT been recovered outside the original browser.
+  Playback proves the original tab held audio; localStorage persistence remains
+  unconfirmed. Its save handler could retain memory even if storage failed. Keep
+  that tab open without refresh until backup is independently confirmed. The server
+  reservation receipt does not contain audio. Never regenerate or reset any ID,
+  attempt key or quota. Earlier short/numbers/long external backups remain separate.
+- Added `mode=currency-backup` under the existing authenticated, exact-branch
+  Preview gate. It reads only
+  `yeoni-approved-currency-20261009:currency-20261009` after an explicit click,
+  checks the fixed case/text/request/voice/reserved17 and bounded canonical base64,
+  then shows the exact stored JSON in a readonly textarea. Copy and whole-text
+  selection are user actions. No new TTS/alignment/network request, storage write,
+  key deletion, download or automatic recovery is part of this component/helper.
+  The existing application authentication/sync shell is unchanged.
+- Four new synthetic transport checks pass: exact JSON/audio bytes preserved;
+  only the fixed key read, old receipts unchanged; missing/denied/corrupt/oversized
+  storage stops; mismatched metadata and malformed/truncated base64 rejected.
+  Changed-file ESLint and TypeScript pass. React review: event-only storage reads,
+  no effects/fetches, labeled readonly textarea, status feedback, wrapping controls.
+  No previous voice/PoC generation or old local test suite was repeated.
+- Previous39fb8de CI run37877048525 is now confirmed successful. Deployment and
+  CI for this recovery change must be checked after push. Actual cloud-browser
+  loading/copying, small-screen interaction and reload persistence remain unverified
+  because agent browser access is blocked; code checks are not browser acceptance.
+- Next: after Preview READY, open the recovery URL in a NEW tab of the SAME cloud
+  Chrome on the SAME branch alias origin. Copy the existing JSON and return it to
+  this Work conversation. Decode the original audio without re-encoding, hash and
+  durably back it up before alignment. If missing or copy blocked, report that state
+  and preserve the original tab. No new synthesis or ID replacement as fallback.
+- PR208 stays Draft; general alignment stays OFF. No main merge or production
+  deployment is included. Currency pronunciation, original MP3 integrity, alignment
+  and playback acceptance remain open until the actual saved bytes are recovered.
