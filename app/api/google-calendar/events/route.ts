@@ -7,6 +7,7 @@ import {
   parseGoogleCalendarEventInput,
   type GoogleEventResource,
 } from "@/lib/google-calendar";
+import { GoogleCalendarReadError, readGoogleCalendarPages } from "@/lib/google-calendar-pages";
 import {
   GoogleCalendarConnectionError,
   getGoogleCalendarConfig,
@@ -23,7 +24,7 @@ async function authenticate() {
 }
 
 function errorResponse(error: unknown) {
-  if (error instanceof GoogleCalendarConnectionError) {
+  if (error instanceof GoogleCalendarConnectionError || error instanceof GoogleCalendarReadError) {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
   if (error instanceof Error && (error.message.includes("날짜") || error.message.includes("월을 선택"))) {
@@ -48,10 +49,13 @@ async function googleRequest(
   return { response, supabase, user, config };
 }
 
-async function readGoogleItems(response: Response) {
-  const data = await response.json().catch(() => ({})) as { items?: GoogleEventResource[]; error?: unknown };
-  if (!response.ok) throw new GoogleCalendarConnectionError("Google 일정을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.", response.status === 403 ? 403 : 502);
-  return Array.isArray(data.items) ? data.items : [];
+async function readGoogleItems(response: Response, request: NextRequest, params: URLSearchParams) {
+  return readGoogleCalendarPages(response, async (pageToken) => {
+    const pageParams = new URLSearchParams(params);
+    pageParams.set("pageToken", pageToken);
+    const result = await googleRequest(request, "GET", `/calendars/primary/events?${pageParams}`);
+    return result.response;
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -68,7 +72,7 @@ export async function GET(request: NextRequest) {
     });
     const result = await googleRequest(request, "GET", `/calendars/primary/events?${params}`);
     if (result.response instanceof NextResponse) return result.response;
-    const items = await readGoogleItems(result.response);
+    const items = await readGoogleItems(result.response, request, params);
     return NextResponse.json({ events: items.map(mapGoogleCalendarEvent).filter(Boolean) }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return errorResponse(error);
@@ -91,7 +95,7 @@ export async function POST(request: NextRequest) {
     });
     const existing = await googleRequest(request, "GET", `/calendars/primary/events?${duplicateParams}`);
     if (existing.response instanceof NextResponse) return existing.response;
-    const duplicate = (await readGoogleItems(existing.response)).find((item) => isSameGoogleCalendarEvent(item, input));
+    const duplicate = (await readGoogleItems(existing.response, request, duplicateParams)).find((item) => isSameGoogleCalendarEvent(item, input));
     if (duplicate) {
       return NextResponse.json({ event: mapGoogleCalendarEvent(duplicate), duplicate: true });
     }

@@ -10,6 +10,7 @@ import AuthGate from "../components/AuthGate";
 import AppIdentity from "../components/AppIdentity";
 import GoogleCalendarPanel from "../components/GoogleCalendarPanel";
 import { getGoogleCalendarDayPreview, type GoogleCalendarEvent } from "@/lib/google-calendar";
+import type { GoogleCalendarLoadState } from "@/lib/google-calendar-load";
 import { supabase } from "../lib/supabase";
 import { readRecordStores, type DietDayRecord } from "../data/recordStorage";
 import { getWorkoutRecord, isWorkoutPerformed, type WorkoutDayRecord } from "../data/workoutCompletion";
@@ -30,7 +31,7 @@ function CalendarCard({ title, href, tone, children }: { title: string; href: st
 function UnifiedCalendar() {
   const [month, setMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
   const [info, setInfo] = useState<Record<string, DayInfo>>({});
-  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [googleLoadState, setGoogleLoadState] = useState<GoogleCalendarLoadState | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadFailures, setLoadFailures] = useState<string[]>([]);
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -115,10 +116,18 @@ function UnifiedCalendar() {
   }, [selected]);
 
   const days = useMemo(() => [...Array(new Date(month.getFullYear(), month.getMonth(), 1).getDay()).fill(null), ...Array.from({ length: new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate() }, (_, index) => index + 1)], [month]);
-  const googleByDate = useMemo(() => googleEvents.reduce<Record<string, GoogleCalendarEvent[]>>((grouped, event) => {
+  const googleLoading = googleLoadState?.monthKey !== monthKey || googleLoadState.phase === "loading";
+  const googleFailed = googleLoadState?.monthKey === monthKey && googleLoadState.phase === "error";
+  const googleDisconnected = googleLoadState?.monthKey === monthKey && googleLoadState.phase === "disconnected";
+  const googleNotice = googleLoading ? "Google 일정을 확인하고 있어요."
+    : googleFailed ? googleLoadState?.events === null
+      ? "Google 일정을 확인하지 못했어요. 다시 불러온 뒤 확인해 주세요."
+      : "Google 일정을 확인하지 못했어요. 이전에 불러온 일정은 유지하며, 최신 일정은 다시 불러온 뒤 확인해 주세요."
+    : googleDisconnected ? "Google Calendar가 연결되지 않아 Google 일정은 확인할 수 없어요." : "";
+  const googleByDate = useMemo(() => (googleLoadState?.monthKey === monthKey ? googleLoadState.events || [] : []).reduce<Record<string, GoogleCalendarEvent[]>>((grouped, event) => {
     grouped[event.date] = [...(grouped[event.date] || []), event];
     return grouped;
-  }, {}), [googleEvents]);
+  }, {}), [googleLoadState, monthKey]);
   const row = selected ? info[selected] : undefined;
   const selectedGoogleEvents = selected ? googleByDate[selected] || [] : [];
   const workout = row?.workout ? [row.workout.workoutRoutineName || row.workout.workoutPlanName, ...(row.workout.workoutExerciseNames || []), row.workout.cardioDone ? `${row.workout.cardioType || "유산소"} ${row.workout.cardioMinutes || 0}분` : "", row.workout.workoutMemo || row.note].filter(Boolean) as string[] : [];
@@ -153,8 +162,8 @@ function UnifiedCalendar() {
         </button>;
       })}</div>
     </section>
-    <GoogleCalendarPanel monthKey={monthKey} onEvents={setGoogleEvents} />
-    {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2">
+    <GoogleCalendarPanel monthKey={monthKey} onLoadState={setGoogleLoadState} />
+    {selected ? <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/45 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelected(""); }}><section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title" className="max-h-[min(82dvh,760px)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-violet-600">통합 기록</p><h2 id="calendar-detail-title" className="mt-1 text-xl font-bold">{selected} 기록 상세</h2></div><button type="button" onClick={() => setSelected("")} aria-label="기록 상세 닫기" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gray-100 text-xl font-bold text-gray-600 hover:bg-gray-200">×</button></div>{googleNotice ? <p role="status" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{googleNotice}</p> : null}<div className="mt-5 grid gap-3 sm:grid-cols-2">
       {row?.tasks?.length ? <CalendarCard title="AI 연이" href="/assistant" tone="border-violet-100 bg-violet-50">{row.tasks.map((item) => <p key={item.id}>• {item.title} · {item.status === "completed" ? "완료" : "진행 중"}</p>)}</CalendarCard> : null}
       {selectedGoogleEvents.length ? <article className="rounded-2xl border border-sky-100 bg-sky-50 p-4"><div className="flex justify-between"><b>Google Calendar</b><span className="text-xs font-bold text-sky-700">{selectedGoogleEvents.length}개</span></div><div className="mt-2 space-y-2 text-sm text-gray-700">{selectedGoogleEvents.map((item) => <p key={item.id}>• {item.htmlLink ? <a href={item.htmlLink} target="_blank" rel="noreferrer" className="font-medium underline decoration-sky-300 underline-offset-2">{item.title}</a> : item.title} · {item.allDay ? "종일" : `${item.startLabel}${item.endLabel ? `–${item.endLabel}` : ""}`}</p>)}</div></article> : null}
       {row?.workout ? <CalendarCard title="운동" href="/fitness" tone="border-blue-100 bg-blue-50">{(workout.length ? workout : ["운동 완료"]).map((item, index) => <p key={index}>• {item}</p>)}</CalendarCard> : null}
@@ -162,7 +171,7 @@ function UnifiedCalendar() {
       {row?.language ? <CalendarCard title="언어 학습" href="/language" tone="border-amber-100 bg-amber-50"><p>{row.language.count}개 과정 완료</p><p>{row.language.ids.map((id) => LANGUAGE[id] || id).join(" · ")}</p></CalendarCard> : null}
       {row?.growth?.length ? <CalendarCard title="자기계발" href="/growth" tone="border-fuchsia-100 bg-fuchsia-50">{row.growth.map((item) => <p key={item.id}>• {item.growth_routines?.title || "삭제된 루틴"} · {growthSessionTimeLabel(item)} · {item.status === "completed" ? "완료" : item.status === "partial" ? "진행" : "중단"}</p>)}</CalendarCard> : null}
       {row?.budget?.length ? <CalendarCard title="가계부" href="/budget" tone="border-blue-100 bg-blue-50">{row.budget.map((item) => <p key={item.id}>• {item.category || item.description || item.memo || "거래"} · {Number(item.amount).toLocaleString()}원</p>)}</CalendarCard> : null}
-    </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">{loading ? "기록을 확인하고 있어요." : loadFailures.length ? "조회하지 못한 기록이 있어요. 다시 불러온 뒤 확인해 주세요." : "이 날짜에 저장된 기록이 없습니다."}</p> : null}</section></div> : null}
+    </div>{!row && !selectedGoogleEvents.length ? <p className="mt-5 rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">{loading || googleLoading ? "기록을 확인하고 있어요." : loadFailures.length || googleFailed ? "조회하지 못한 기록이 있어요. 다시 불러온 뒤 확인해 주세요." : googleDisconnected ? "이 날짜에 저장된 앱 기록이 없습니다." : "이 날짜에 저장된 기록이 없습니다."}</p> : null}</section></div> : null}
   </div></main>;
 }
 

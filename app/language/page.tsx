@@ -194,6 +194,11 @@ export default function HomePage() {
       <div className="home-container">
         <LearningWelcome />
         <YeoniAdviceEntry scope="language" />
+        <Link href="/language/live" className="review-nudge" aria-label="AI Live 학습 기록 가져오기">
+          <span aria-hidden="true">▤</span>
+          <span><strong>AI Live 학습 기록</strong><small>수업 보고서를 붙여넣고 확인해 보관해요.</small></span>
+          <span aria-hidden="true">→</span>
+        </Link>
 
         <details className="routine-details">
           <summary>기존 자유 학습 바로가기 <span>{completedCount}/{todayRoutine.length} 완료</span></summary>

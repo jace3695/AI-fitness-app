@@ -16,7 +16,7 @@ export type GrowthRoutineRow = {
 };
 
 export type GrowthSessionStatus = "completed" | "partial" | "stopped";
-export const GROWTH_STOP_REASONS = { unrecorded: '선택 안 함', time: '시간이 부족했어요', tired: '피곤했어요', difficult: '너무 어려웠어요', distracted: '집중이 어려웠어요', interrupted: '다른 일이 생겼어요' };
+export const GROWTH_STOP_REASONS = { unrecorded: '선택 안 함', time: '시간이 부족했어요', tired: '피곤했어요', difficult: '너무 어려웠어요', distracted: '집중이 어려웠어요', interrupted: '다른 일이 생겼어요', illness: '몸이 아팠어요', forgot: '깜빡했어요', no_motivation: '의욕이 없었어요' };
 export type GrowthStopReason = keyof typeof GROWTH_STOP_REASONS;
 export function normalizeGrowthStopReason(value: unknown): GrowthStopReason { return typeof value === 'string' && Object.hasOwn(GROWTH_STOP_REASONS, value) ? value as GrowthStopReason : 'unrecorded'; }
 export type GrowthSessionSource = "manual" | "typing" | "handwriting" | "assistant";

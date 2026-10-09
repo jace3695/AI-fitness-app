@@ -4,6 +4,8 @@ import {
   buildGrowthComparison,
   buildLocalGrowthCoach,
   calculateTypingMetrics,
+  GROWTH_STOP_REASONS,
+  normalizeGrowthStopReason,
   sanitizeCoachSuggestions,
   summarizeGrowthPeriod,
   type GrowthRoutineRow,
@@ -100,4 +102,49 @@ test('선택하지 않은 중단 이유는 추정하지 않고 미래·이전 �
   const result = buildLocalGrowthCoach([routine], [session('2026-09-01', 1, 'stopped'), session('2026-09-02', 1, 'partial'), { ...session('2026-09-03', 1, 'stopped'), metrics: { stopReason: 'tired' } }], '2026-09-02');
   assert.match(result.suggestions[0].reason, /이유는 기록되지 않아 추정하지/);
   assert.doesNotMatch(result.suggestions[0].reason, /피곤/);
+});
+
+test('중단 이유는 새 자기응답과 기존 키를 구분하고 알 수 없는 값은 미기록으로 읽는다', () => {
+  const labels = {
+    unrecorded: '선택 안 함', time: '시간이 부족했어요', tired: '피곤했어요',
+    difficult: '너무 어려웠어요', distracted: '집중이 어려웠어요', interrupted: '다른 일이 생겼어요',
+    illness: '몸이 아팠어요', forgot: '깜빡했어요', no_motivation: '의욕이 없었어요',
+  };
+  assert.deepEqual(GROWTH_STOP_REASONS, labels);
+  for (const key of Object.keys(labels)) assert.equal(normalizeGrowthStopReason(key), key);
+  for (const value of [undefined, null, '', 'unknown', 'constructor', 'toString', '__proto__', false, 0, {}, []]) {
+    assert.equal(normalizeGrowthStopReason(value), 'unrecorded');
+  }
+});
+
+for (const [reason, label] of [['illness', '몸이 아팠어요'], ['forgot', '깜빡했어요'], ['no_motivation', '의욕이 없었어요']]) {
+  test(`무료 코칭은 ${reason} 자기응답만 설명하고 기존 기록·목표를 바꾸지 않는다`, () => {
+    const target = { ...routine, target_minutes: 30 };
+    const records = [
+      { ...session('2026-09-01', 4, 'stopped'), metrics: { stopReason: reason, original: { keep: true } } },
+      { ...session('2026-09-02', 3, 'partial'), metrics: { stopReason: reason } },
+      { ...session('2026-09-03', 2, 'stopped'), metrics: { stopReason: 'tired' } },
+      { ...session('2026-09-04', 1, 'stopped'), metrics: { stopReason: 'future-reason' } },
+      session('2026-09-05', 0, 'stopped'),
+    ];
+    const before = JSON.stringify({ target, records });
+    const result = buildLocalGrowthCoach([target], records, '2026-09-05');
+    assert.deepEqual(result.suggestions[0], {
+      id: 'local-reduce-load', routineId: target.id, title: '타자 목표 시간 줄여보기',
+      reason: `서로 다른 5일에 미완료 기록이 있어요. 선택한 이유 중 ‘${label}’가 가장 많았어요.`,
+      recommendedMinutes: 20,
+    });
+    assert.equal(JSON.stringify({ target, records }), before);
+  });
+}
+
+test('미기록·알 수 없는 이유만 있는 기록에서는 새 중단 이유도 추정하지 않는다', () => {
+  const records = [
+    { ...session('2026-09-01', 1, 'stopped'), metrics: { stopReason: 'unknown' } },
+    { ...session('2026-09-02', 1, 'partial'), metrics: { stopReason: 'unrecorded' } },
+  ];
+  const before = JSON.stringify(records);
+  const result = buildLocalGrowthCoach([routine], records, '2026-09-02');
+  assert.equal(result.suggestions[0].reason, '서로 다른 2일에 미완료 기록이 있어요. 이유는 기록되지 않아 추정하지 않아요.');
+  assert.equal(JSON.stringify(records), before);
 });
