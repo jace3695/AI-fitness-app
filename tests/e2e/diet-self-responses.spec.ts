@@ -9,6 +9,25 @@ const daysAgo = (days: number) => { const date = new Date(`${today()}T12:00:00Z`
 const answers = async (page: Page, values: readonly string[]) => {
   for (const [index, question] of questions.entries()) await expect(page.getByLabel(question, { exact: true })).toHaveValue(values[index]);
 };
+// Only fixed response enums from the isolated fixture may enter CI diagnostics.
+// Do not print raw records, owner IDs, memos, tokens, or authentication details.
+async function responseReadback(read: () => Promise<Record<string, unknown>>, expected: Record<string, string>, phase: string) {
+  let received: unknown;
+  try {
+    await expect.poll(async () => {
+      const state = await read(); received = (state[key] as Record<string, unknown> | undefined)?.[today()];
+      return received;
+    }).toMatchObject(expected);
+  } catch (error) {
+    const row = received && typeof received === 'object' && !Array.isArray(received) ? received as Record<string, unknown> : {};
+    const allowed = new Set(['unrecorded', 'yes', 'no', 'comfortable', 'heartburn', 'bloated', 'nausea', 'abdominal_pain', 'diarrhea']);
+    const actual = Object.fromEntries([...fields, 'digestionStatus', 'lateSnack', 'afterWorkoutMeal'].map(field => [field,
+      row[field] === undefined ? 'absent' : typeof row[field] === 'string' && allowed.has(row[field] as string) ? row[field] : 'unknown',
+    ]));
+    console.log('QA_DIET_RESPONSE_READBACK ' + JSON.stringify({ phase, hasDay: received !== undefined, expected, actual }));
+    throw error;
+  }
+}
 const noOverflow = async (page: Page) => { await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); };
 const failNextLocalSave = async (page: Page) => page.evaluate(() => {
   const originalSetItem = Storage.prototype.setItem;
@@ -164,11 +183,11 @@ test('diet dirty self-response saves retain another tab\'s independent answers a
     await otherTab.getByLabel('운동 후 식사를 했나요?', { exact: true }).selectOption('no');
     await otherTab.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
     await synced(otherTab);
-    await expect.poll(async () => (await qa.read())[key]).toMatchObject({ [today()]: { bingeUrge: 'no', preSleepOvereating: 'yes', digestionStatus: 'diarrhea', lateSnack: 'yes', afterWorkoutMeal: 'no' } });
+    await responseReadback(qa.read, { bingeUrge: 'no', preSleepOvereating: 'yes', digestionStatus: 'diarrhea', lateSnack: 'yes', afterWorkoutMeal: 'no' }, 'peer-save');
     await expect(page.getByText('다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.', { exact: true })).toBeVisible();
     await answers(page, ['yes', 'unrecorded', 'unrecorded']);
     await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
-    await expect.poll(async () => (await qa.read())[key]).toMatchObject({ [today()]: { hunger: 'yes', bingeUrge: 'no', preSleepOvereating: 'yes', digestionStatus: 'diarrhea', lateSnack: 'yes', afterWorkoutMeal: 'no' } });
+    await responseReadback(qa.read, { hunger: 'yes', bingeUrge: 'no', preSleepOvereating: 'yes', digestionStatus: 'diarrhea', lateSnack: 'yes', afterWorkoutMeal: 'no' }, 'merged-save');
     await synced(page); await page.reload(); await synced(page);
     await answers(page, ['yes', 'no', 'yes']);
     await expect(page.getByLabel('소화 상태', { exact: true })).toHaveValue('diarrhea');
@@ -181,7 +200,7 @@ test('diet dirty self-response saves retain another tab\'s independent answers a
     await synced(otherTab);
     await answers(page, ['no', 'no', 'yes']);
     await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
-    await expect.poll(async () => (await qa.read())[key]).toMatchObject({ [today()]: { hunger: 'no', digestionStatus: 'unrecorded', lateSnack: 'unrecorded', afterWorkoutMeal: 'unrecorded' } });
+    await responseReadback(qa.read, { hunger: 'no', digestionStatus: 'unrecorded', lateSnack: 'unrecorded', afterWorkoutMeal: 'unrecorded' }, 'save-after-peer-reset');
     await synced(page); await page.reload(); await synced(page);
     await answers(page, ['no', 'unrecorded', 'unrecorded']);
     const saved = await qa.read(); assertOriginalPreserved(saved);

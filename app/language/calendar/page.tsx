@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getLocalDateKey } from "@/utils/dateKey";
+import LiveCalendarOverlay, { LiveCalendarBadges } from "@/components/language/live/LiveCalendarOverlay";
+import { useLiveOverview } from "@/components/language/live/useLiveOverview";
 
 const DAILY_LEARNING_HISTORY_STORAGE_KEY = "dailyLearningHistory";
 const LEARNING_SETTINGS_STORAGE_KEY = "learningSettings";
@@ -120,6 +122,7 @@ const getSafeDailyGoalCount = (value: unknown) => {
 };
 
 export default function CalendarPage() {
+  const live = useLiveOverview();
   const today = useMemo(() => new Date(), []);
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDateKey, setSelectedDateKey] = useState(toDateKey(today));
@@ -330,6 +333,7 @@ export default function CalendarPage() {
                 key={dateKey}
                 type="button"
                 onClick={() => setSelectedDateKey(dateKey)}
+                aria-label={`${dateKey} 학습 기록`}
                 style={{
                   minHeight: "68px",
                   borderRadius: "12px",
@@ -347,6 +351,7 @@ export default function CalendarPage() {
                 }}
               >
                 <div>{day.getDate()}</div>
+                {live.status === "ready" ? <LiveCalendarBadges day={live.overview?.calendar[dateKey]} /> : null}
                 {visual.label && (
                   <div style={{ fontSize: "11px", color: visual.tone, fontWeight: 700 }}>
                     {visual.label}
@@ -357,6 +362,8 @@ export default function CalendarPage() {
           })}
         </div>
       </section>
+
+      <LiveCalendarOverlay state={live} selectedDateKey={selectedDateKey} monthKey={toDateKey(viewDate).slice(0, 7)} onSelectDate={setSelectedDateKey} />
 
       <section className="card" style={{ marginTop: 0 }}>
         <h2 style={{ marginTop: 0, marginBottom: "12px", color: "#1e40af" }}>{selectedDateLabel} 학습 상세</h2>

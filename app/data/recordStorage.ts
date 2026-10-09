@@ -4,7 +4,7 @@ import type { DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './di
 import { WORKOUT_COMPLETED_DAYS_KEY } from './workoutCompletion.ts';
 import type { WorkoutCompletionStore } from './workoutCompletion.ts';
 import type { DailyConditionRecord } from './recoveryMode.ts';
-import { notifyRecordsChanged, recoverStorageTransaction } from './storageTransaction.ts';
+import { notifyRecordsChanged, readStorageSnapshot } from './storageTransaction.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
@@ -80,10 +80,9 @@ export interface RecordStores {
   conditions: DailyConditionStore;
 }
 
-export function readJson<T>(key: string, fallback: T): T {
+export function readJson<T>(key: string, fallback: T, source?: Pick<Storage, 'getItem'>): T {
   if (typeof window === 'undefined') return fallback;
-  recoverStorageTransaction(window.localStorage);
-  const raw = window.localStorage.getItem(key);
+  const raw = (source ?? readStorageSnapshot(window.localStorage)).getItem(key);
   if (!raw) return fallback;
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
@@ -120,21 +119,23 @@ export function saveWeightGoal(goal: WeightGoal) {
 }
 
 export function readRecordStores(): RecordStores {
+  const snapshot = typeof window === 'undefined' ? undefined : readStorageSnapshot(window.localStorage);
+  const read = <T,>(key: string, fallback: T) => readJson(key, fallback, snapshot);
   return {
-    workouts: readJson<WorkoutCompletionStore>(WORKOUT_COMPLETED_DAYS_KEY, {}),
-    diet: readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {}),
-    water: readJson<NumberStore>(WATER_INTAKE_KEY, {}),
-    dinner: readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, {}),
-    dinnerCarbs: normalizeDinnerCarbStore(readJson<Record<string, unknown>>(DINNER_CARB_CHOICE_KEY, {})),
-    lunchCarbs: normalizeLunchCarbStore(readJson<Record<string, unknown>>(LUNCH_CARB_CHOICE_KEY, {})),
-    lunchProteins: normalizeLunchProteinStore(readJson<Record<string, unknown>>(LUNCH_PROTEIN_CHOICE_KEY, {})),
-    fastingStart: typeof window === 'undefined' ? '' : fastingStartForDay(window.localStorage.getItem(FASTING_START_TIME_KEY) ?? undefined, getLocalDateKey()),
-    weights: readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
-    inbody: readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
-    weightGoal: normalizeWeightGoal(readJson<unknown>(WEIGHT_GOAL_KEY, DEFAULT_WEIGHT_GOAL)),
-    notes: readJson<DailyNotesStore>(DAILY_NOTES_KEY, {}),
-    recovery: readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY_FOR_RECORDS, {}),
-    conditions: readJson<DailyConditionStore>(DAILY_CONDITION_KEY_FOR_RECORDS, {}),
+    workouts: read<WorkoutCompletionStore>(WORKOUT_COMPLETED_DAYS_KEY, {}),
+    diet: read<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {}),
+    water: read<NumberStore>(WATER_INTAKE_KEY, {}),
+    dinner: read<StringStore>(DINNER_COMPLETED_TIME_KEY, {}),
+    dinnerCarbs: normalizeDinnerCarbStore(read<Record<string, unknown>>(DINNER_CARB_CHOICE_KEY, {})),
+    lunchCarbs: normalizeLunchCarbStore(read<Record<string, unknown>>(LUNCH_CARB_CHOICE_KEY, {})),
+    lunchProteins: normalizeLunchProteinStore(read<Record<string, unknown>>(LUNCH_PROTEIN_CHOICE_KEY, {})),
+    fastingStart: typeof window === 'undefined' ? '' : fastingStartForDay(snapshot?.getItem(FASTING_START_TIME_KEY) ?? undefined, getLocalDateKey()),
+    weights: read<WeightRecordStore>(WEIGHT_RECORDS_KEY, {}),
+    inbody: read<InbodyRecordStore>(INBODY_RECORDS_KEY, {}),
+    weightGoal: normalizeWeightGoal(read<unknown>(WEIGHT_GOAL_KEY, DEFAULT_WEIGHT_GOAL)),
+    notes: read<DailyNotesStore>(DAILY_NOTES_KEY, {}),
+    recovery: read<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY_FOR_RECORDS, {}),
+    conditions: read<DailyConditionStore>(DAILY_CONDITION_KEY_FOR_RECORDS, {}),
   };
 }
 

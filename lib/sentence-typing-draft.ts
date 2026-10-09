@@ -1,4 +1,4 @@
-import { calculateTypingMetrics, type GrowthSessionRow } from '../app/data/growthPlatform.ts';
+import { calculateTypingMetrics } from '../app/data/growthPlatform.ts';
 import { typingMistakes } from '../app/data/practiceEvidence.ts';
 
 export const TYPING_PASSAGES = [
@@ -6,11 +6,9 @@ export const TYPING_PASSAGES = [
   '작은 기록을 매일 이어가면 분명한 성장으로 돌아옵니다.',
   '오늘 할 수 있는 만큼 시작하고 끝난 뒤 한 줄을 남깁니다.',
 ];
-export type SentenceTypingSession = {
-  id: string; routineId: string; sessionDate: string; status: 'partial' | 'completed';
-  plannedMinutes: number; actualMinutes: number; source: 'typing'; memo: string;
-  metrics: Record<string, unknown>; startedAt: string; endedAt: string;
-};
+export type { TypingSession as SentenceTypingSession } from './typing-session-recovery.ts';
+import type { TypingSession as SentenceTypingSession } from './typing-session-recovery.ts';
+export { typingRowMatches as sentenceTypingRowMatches, confirmTypingSave as confirmSentenceTypingSave } from './typing-session-recovery.ts';
 export type SentenceTypingDraft = {
   version: 1; ownerId: string; resetMarker: string | null;
   passageIndex: number; passage: string; typed: string; startedAt: number | null;
@@ -80,48 +78,6 @@ export function removeSentenceTypingDraft(storage: DraftStorage, owner: string, 
   if (storage.getItem(key) !== expected) throw new Error('typing_draft_changed');
   storage.removeItem(key);
   if (storage.getItem(key) !== null) throw new Error('typing_draft_changed');
-}
-
-export function sentenceTypingRowMatches(row: GrowthSessionRow, owner: string, session: SentenceTypingSession) {
-  return row.id === session.id && row.user_id === owner && row.routine_id === session.routineId
-    && row.session_date === session.sessionDate && row.status === session.status && row.planned_minutes === session.plannedMinutes
-    && row.actual_minutes === session.actualMinutes && row.source === session.source && row.memo === session.memo
-    && row.started_at !== null && Date.parse(row.started_at) === Date.parse(session.startedAt)
-    && row.ended_at !== null && Date.parse(row.ended_at) === Date.parse(session.endedAt)
-    && canonical(row.metrics) === canonical(session.metrics);
-}
-
-type SaveBoundary = {
-  assertOwner: () => Promise<void>;
-  read: () => Promise<{ data: GrowthSessionRow | null; error: unknown }>;
-  insert: () => Promise<unknown>;
-};
-/** Retried/reloaded attempts read first. Only confirmed absence permits the same ID to be inserted.
- * A successful POST alone never marks the draft saved: the full immutable payload must read back. */
-export async function confirmSentenceTypingSave(owner: string, session: SentenceTypingSession, retry: boolean, boundary: SaveBoundary): Promise<GrowthSessionRow> {
-  const read = async () => {
-    await boundary.assertOwner();
-    const result = await boundary.read();
-    await boundary.assertOwner();
-    if (result.error) throw new Error('typing_save_unconfirmed');
-    if (result.data && !sentenceTypingRowMatches(result.data, owner, session)) throw new Error('typing_save_conflict');
-    return result.data;
-  };
-  if (retry) {
-    const existing = await read();
-    if (existing) return existing;
-  }
-  await boundary.assertOwner();
-  // A lost or thrown response is inconclusive; still try a read, never generate another ID.
-  try { await boundary.insert(); } catch (error) {
-    // These authoritative rejections cannot be reinterpreted as a successful
-    // save in an obsolete generation or bypassed through a legacy direct write.
-    if (error instanceof Error && ['typing_reset_changed', 'typing_save_schema_unavailable'].includes(error.message)) throw error;
-    // Lost responses and other uncertain failures are confirmed independently below.
-  }
-  const row = await read();
-  if (!row) throw new Error('typing_save_unconfirmed');
-  return row;
 }
 
 /** Cancel does not mutate the attempt, its timer, or its pending request. */

@@ -8,6 +8,7 @@ import * as drafts from '../app/language/live/learning-draft.ts';
 import * as draftState from '../app/language/live/draft-state.ts';
 import * as validation from '../lib/language-live/learning-validation.ts';
 import * as reducer from '../lib/language-live/state-reducer.ts';
+import * as overview from '../lib/language-live/overview.ts';
 import * as types from '../lib/language-live/types.ts';
 import { parseLiveReport } from '../lib/language-live/report-parser.ts';
 import type { LiveLearningBatch, LiveLearningSnapshot, SaveLiveLearningInput } from '../lib/language-live/learning-types.ts';
@@ -79,7 +80,7 @@ function fixture(env = environment()) {
     '@/app/data/languageLiveLearningRepository': { createLanguageLiveLearningRepository: () => repository },
     '@/app/language/live/draft-state': draftState, '@/app/language/live/learning-draft': drafts,
     '@/lib/language-live/learning-validation': validation, '@/lib/language-live/state-reducer': reducer,
-    '@/lib/language-live/types': types,
+    '@/lib/language-live/types': types, '@/lib/language-live/overview': overview,
     './LearningDashboard': { __esModule: true, default: 'LearningDashboard', LearningEventSummary: 'LearningEventSummary' },
     './LearningEventEditor': { __esModule: true, default: 'LearningEventEditor' },
   };
@@ -187,4 +188,18 @@ test('failed snapshot hides the dashboard rather than treating history as empty'
   assert.equal(qa.nodes().filter(node => node.type === 'LearningDashboard').length, 0);
   assert.match(textOf(qa.render()), /기록이 없는 상태로 처리하지 않았어요/);
   assert.doesNotMatch(textOf(qa.render()), /먼저 보고서 가져오기에서 수업을 저장해 주세요/); qa.unmount();
+});
+
+
+test('P2 summary leaves same-day ambiguous stage unknown and ignores future lesson imports', async () => {
+  const env = environment(), first = env.snapshot.lessons[0], conflicting = lesson(), future = lesson();
+  first.report = parseLiveReport('학습 날짜: 2026-10-09\n현재 학습 단계: 기초');
+  conflicting.report = parseLiveReport('학습 날짜: 2026-10-09\n현재 학습 단계: 초급');
+  future.report = parseLiveReport('학습 날짜: 2099-10-09\n현재 학습 단계: 미래 상급');
+  env.snapshot.lessons.push(conflicting, future);
+  const qa = fixture(env); await flush();
+  assert.match(textOf(qa.render()), /현재 보관한 수업 2회 · 최근 수업일 2026-10-09/);
+  assert.match(textOf(qa.render()), /최근 확인한 학습 단계: 미확인/);
+  assert.match(textOf(qa.render()), /같은 최근 날짜의 보고서 단계가 달라/);
+  qa.unmount();
 });

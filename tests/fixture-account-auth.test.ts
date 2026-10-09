@@ -1,10 +1,30 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, isAuthSessionMissingError } from '@supabase/supabase-js';
 import { reauthenticateFixtureAccount, type FixtureAccount } from './e2e/fixture-account-auth.ts';
 import { createLanguageLiveLearningRepository } from '../app/data/languageLiveLearningRepository.ts';
 import { LanguageLiveError } from '../lib/language-live/types.ts';
+
+test('installed SDK translates server session_not_found to AuthSessionMissingError without retaining the raw code', async () => {
+  let requests = 0;
+  const client = createClient('http://127.0.0.1:54321', 'synthetic-anon-key', {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: async (input, options) => {
+      const request = new Request(input, options);
+      assert.equal(request.url, 'http://127.0.0.1:54321/auth/v1/user');
+      assert.equal(request.method, 'GET'); requests++;
+      return Response.json({ code: 'session_not_found', message: 'Synthetic revoked session' }, {
+        status: 403, headers: { 'x-supabase-api-version': '2024-01-01' },
+      });
+    } },
+  });
+  const result = await client.auth.getUser('synthetic-revoked-access-token');
+  assert.equal(requests, 1); assert.equal(result.data.user, null);
+  assert.equal(isAuthSessionMissingError(result.error), true);
+  assert.equal(result.error?.name, 'AuthSessionMissingError');
+  assert.equal(result.error?.code, undefined, 'server code is normalized to the SDK error class');
+});
 
 test('global logout revokes an independent fixture session; explicit fresh authentication restores repository verification', async () => {
   const id = randomUUID();

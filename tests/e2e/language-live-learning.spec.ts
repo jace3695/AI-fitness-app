@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import type { Page, Route } from '@playwright/test';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import { test, expect, login, originalLanguage, Traffic } from './fixture';
+import type { Page, Request, Route } from '@playwright/test';
+import { isAuthSessionMissingError, type SupabaseClient } from '@supabase/supabase-js';
+import { test, expect, login, synced, originalLanguage, Traffic } from './fixture';
 import { RouteDrain } from './route-drain';
 import { reauthenticateFixtureAccount, type FixtureAccount } from './fixture-account-auth';
 import { createLanguageLiveRepository } from '../../app/data/languageLiveRepository';
@@ -68,21 +68,64 @@ async function relogin(page: Page, account: FixtureAccount) {
 
 // Authenticated disposable local Auth/PostgREST only. Authored coverage; execution is a separate gate.
 test('Live P2 global logout revokes the independent fixture verifier until explicit owner-verified reauthentication', async ({ page, qa }) => {
-  await login(page, qa.account, '/language/live'); await ready(page);
-  await page.getByRole('button', { name: '로그아웃', exact: true }).click();
-  await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
-  await test.step('Verify the old independent Auth session is revoked by browser global logout', async () => {
-    const revoked = await qa.account.client.auth.getUser();
-    expect(revoked.data.user).toBeNull();
-    expect(revoked.error?.code).toBe('session_not_found');
-  });
-  await test.step('Fresh fixture sign-in verifies the exact owner before reading the learning repository', async () => {
-    await reauthenticateFixtureAccount(qa.account);
-    const snapshot = await learningRepo(qa.account.client, qa.account.id).readLearning();
-    expect(snapshot.ownerId).toBe(qa.account.id);
-    expect(snapshot.lessons).toEqual([]); expect(snapshot.batches).toEqual([]);
-  });
-  await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+  let phase = 'starting', logoutStatus: number | null = null;
+  const authRequests = { user: 0, token: 0, logout: 0 };
+  let logoutRequestFailed = false;
+  const authPath = (request: Request) => {
+    const url = new URL(request.url());
+    return url.origin === 'http://127.0.0.1:54321' ? url.pathname : '';
+  };
+  const requested = (request: Request) => {
+    const path = authPath(request);
+    if (path === '/auth/v1/user') authRequests.user++;
+    if (path === '/auth/v1/token') authRequests.token++;
+    if (path === '/auth/v1/logout') authRequests.logout++;
+  };
+  const failed = (request: Request) => { if (authPath(request) === '/auth/v1/logout') logoutRequestFailed = true; };
+  page.on('request', requested); page.on('requestfailed', failed);
+  try {
+    await login(page, qa.account, '/language/live'); await openLearning(page); await synced(page);
+    // This diagnostic starts from a confirmed Live snapshot, not the heading
+    // shared with the initial auth placeholder. It does not test startup races.
+    phase = 'learning-ready';
+    const [logout] = await Promise.all([page.waitForResponse(value => {
+      const url = new URL(value.url());
+      return url.origin === 'http://127.0.0.1:54321' && url.pathname === '/auth/v1/logout' && value.request().method() === 'POST';
+    }), page.getByRole('button', { name: '로그아웃', exact: true }).click()]);
+    logoutStatus = logout.status(); phase = 'logout-response';
+    expect(new URL(logout.url()).searchParams.get('scope')).toBe('global');
+    expect(logoutStatus).toBe(204);
+    await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+    await expect(workspace(page)).toHaveCount(0);
+    phase = 'browser-signed-out';
+    await test.step('Verify the old independent Auth session is revoked by browser global logout', async () => {
+      const revoked = await qa.account.client.auth.getUser();
+      expect(revoked.data.user).toBeNull();
+      // auth-js converts the server's session_not_found code to this class,
+      // intentionally dropping its raw code. Assert the public SDK contract.
+      expect(isAuthSessionMissingError(revoked.error)).toBe(true);
+      await expect(learningRepo(qa.account.client, qa.account.id).readLearning()).rejects.toMatchObject({ code: 'unauthenticated' });
+    });
+    phase = 'verifier-revoked';
+    await test.step('Fresh fixture sign-in verifies the exact owner before reading the learning repository', async () => {
+      await reauthenticateFixtureAccount(qa.account);
+      const snapshot = await learningRepo(qa.account.client, qa.account.id).readLearning();
+      expect(snapshot.ownerId).toBe(qa.account.id);
+      expect(snapshot.lessons).toEqual([]); expect(snapshot.batches).toEqual([]);
+    });
+    await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+    await expect(workspace(page)).toHaveCount(0);
+    phase = 'verified';
+  } finally {
+    // Fixed state labels only; never log session data, provider errors or DOM text.
+    page.off('request', requested); page.off('requestfailed', failed);
+    console.log('QA_LIVE_LOGOUT ' + JSON.stringify({ phase, authRequests, logoutStatus, logoutRequestFailed,
+      loginVisible: await page.getByLabel('이메일', { exact: true }).isVisible().catch(() => false),
+      protectedWorkspaceVisible: await workspace(page).isVisible().catch(() => false),
+      gateLoadingVisible: await page.getByText('AI 연이를 불러오는 중…', { exact: true }).isVisible().catch(() => false),
+      gateErrorVisible: await page.getByRole('heading', { name: '로그인 확인을 완료하지 못했어요', exact: true }).isVisible().catch(() => false),
+    }));
+  }
 });
 
 test('Live P2 confirms source excerpts, preserves four independent skills and survives reload/relogin at small widths', async ({ page, qa }, info) => {

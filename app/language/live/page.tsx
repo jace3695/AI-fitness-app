@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: '일본어 수업 보고서를 직접 붙여넣고 확인해 보관합니다.',
 };
 
-export default function LivePage() {
-  return <LiveWorkspace />;
+export default async function LivePage({ searchParams }: { searchParams: Promise<{ view?: string | string[] }> }) {
+  const view = (await searchParams).view;
+  const initialView = view === 'history' || view === 'learning' || view === 'prepare' ? view : 'import';
+  return <LiveWorkspace key={initialView} initialView={initialView} />;
 }

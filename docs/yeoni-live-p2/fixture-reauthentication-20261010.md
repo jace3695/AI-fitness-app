@@ -93,3 +93,51 @@ Fresh exact-commit CI, final aggregate typecheck/tests/build, visual review, and
 real authenticated browser verification remain integration gates. No hosted
 database/API, paid service, production resource, commit, push, or deployment was
 used or changed by this correction.
+
+## Exact-commit CI follow-up and diagnostic correction, 19:53 UTC
+
+[Run 37980448169](https://github.com/jace3695/AI-fitness-app/actions/runs/37980448169)
+tested `a6624c0d7e9173767a4b3cbd9fee928b5542f9c7` and ended the early
+handoff suite at 120 passed / 8 failed. All nine original P2 scenarios now passed
+in each engine, including the original four failures, and all thirteen P3
+scenarios passed in each engine. This verifies the fresh-verifier correction on
+that commit. It does not certify unrelated work added to the checkout afterward.
+
+The newly added diagnostic itself failed at two different locations:
+
+- Chromium passed the null-user check and failed the raw `error.code ===
+  'session_not_found'` assertion at line 77.
+- WebKit timed out waiting for the login email field at line 73, before calling
+  the Node verifier. Its log recorded no crash, disconnect, or page error, and
+  did not report the logout HTTP response or final UI state.
+
+The Chromium assumption was wrong. Installed auth-js `lib/fetch.ts` recognizes
+the server's `session_not_found` and throws `AuthSessionMissingError` instead.
+`lib/errors.ts` gives that SDK error an undefined code. A new unit test executes
+the installed SDK against the precise synthetic HTTP response and proves this
+translation. The browser diagnostic now requires the public
+`isAuthSessionMissingError` predicate, null user, and repository rejection with
+`unauthenticated`; it does not accept generic network or authorization failures.
+
+The exact WebKit cause cannot be established from the available log. The
+diagnostic now starts from the actual learning snapshot and completed root sync
+rather than a heading also rendered by the auth placeholder. It observes the
+real logout POST, asserts global scope and HTTP 204 (the Auth Logout endpoint's
+success response), and retains the login-form assertion. It additionally checks
+that the protected workspace is absent before and after renewing only the Node
+verifier. There are no sleeps, increased timeouts, retries, or product-auth edits.
+
+If the diagnostic fails again, `QA_LIVE_LOGOUT` reports only fixed phase labels,
+Auth request counts, logout status/failure, and fixed UI-state booleans. It never
+reports tokens, user IDs, request/response bodies, URLs, or arbitrary DOM text.
+This scoped test verifies logout of an established session. It does not prove
+logout-during-startup behavior; the existing Auth/PIN in-flight regressions remain
+separate gates. The readiness change is not claimed as a proven WebKit fix before
+another exact-commit browser run.
+
+Executed for this correction: 19/19 focused tests (3 fixture Auth + 9 P2
+repository + 7 P3 repository), scoped ESLint, and `git diff --check`. No browser
+was launched locally. The original passing fixture helper and P3 browser spec
+were not changed. Files changed in this follow-up are only the P2 browser spec,
+the fixture Auth unit tests, and this note. Integration typecheck and fresh CI
+remain with the parent task.

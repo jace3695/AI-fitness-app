@@ -3,7 +3,7 @@
 import { fastingStartForDay } from '@/lib/diet-time';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
-import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
+import { notifyRecordsChanged, readStorageSnapshot, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
@@ -148,9 +148,9 @@ const EMPTY_LUNCH_CARB: LunchCarbRecord = {
   estimatedCarbs: 0,
 };
 
-function readJson<T>(key: string, fallback: T): T {
+function readJson<T>(key: string, fallback: T, source?: Pick<Storage, 'getItem'>): T {
   if (typeof window === 'undefined') return fallback;
-  const raw = window.localStorage.getItem(key);
+  const raw = (source ?? window.localStorage).getItem(key);
   if (!raw) return fallback;
   try {
     return JSON.parse(raw) as T;
@@ -163,8 +163,8 @@ function writeJson<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function readCurrentFastingStart(todayKey: string) {
-  return fastingStartForDay(window.localStorage.getItem(FASTING_START_TIME_KEY) ?? undefined, todayKey);
+function readCurrentFastingStart(todayKey: string, source?: Pick<Storage, 'getItem'>) {
+  return fastingStartForDay((source ?? window.localStorage).getItem(FASTING_START_TIME_KEY) ?? undefined, todayKey);
 }
 
 function addHoursToTime(time: string, hours: number) {
@@ -184,11 +184,14 @@ function getMondayKey(date: Date) {
 }
 
 function getDateKeysInRange(start: string, end: string) {
-  if (!start || !end || end < start) return [];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return [];
   const [startYear, startMonth, startDay] = start.split('-').map(Number);
   const [endYear, endMonth, endDay] = end.split('-').map(Number);
   const cursor = new Date(startYear, (startMonth || 1) - 1, startDay || 1);
   const finalDate = new Date(endYear, (endMonth || 1) - 1, endDay || 1);
+  // Date normalizes impossible days/months. Reject them instead of storing a
+  // different travel period; keep the existing local-calendar date semantics.
+  if (getLocalDateKey(cursor) !== start || getLocalDateKey(finalDate) !== end) return [];
   const dates: string[] = [];
   while (cursor <= finalDate && dates.length < 31) {
     dates.push(getLocalDateKey(cursor));
@@ -320,7 +323,6 @@ export default function DietView() {
   useEffect(() => {
     const refresh = () => {
       if (dirtyRef.current) { setMessage('다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.'); return; }
-      setSavedInput(null);
       setDataVersion(value => value + 1);
     };
     window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
@@ -329,33 +331,35 @@ export default function DietView() {
   }, []);
 
   useEffect(() => {
-    recoverStorageTransaction(window.localStorage);
-    const existingDietStart = window.localStorage.getItem(DIET_START_DATE_KEY);
+    let storage: ReturnType<typeof readStorageSnapshot>;
+    try { storage = readStorageSnapshot(window.localStorage); }
+    catch { setMessage('기록을 아직 읽지 못했어요. 원본과 작성 내용을 유지합니다. 다른 창의 저장 상태를 확인한 뒤 다시 시도해 주세요.'); return; }
+    const existingDietStart = storage.getItem(DIET_START_DATE_KEY);
     const initialStart =
       existingDietStart ||
-      window.localStorage.getItem(SWITCHON_START_DATE_KEY) ||
+      storage.getItem(SWITCHON_START_DATE_KEY) ||
       SWITCHON_DEFAULT_START_DATE;
     setStartDate(initialStart);
     // Display the fallback without persisting it. The initial cloud GET may
     // still be pending; an automatic write would overwrite the saved start date.
     // Explicit date changes below remain real user edits and are persisted.
 
-    const oldPhase = window.localStorage.getItem(DIET_PHASE_KEY) as
+    const oldPhase = storage.getItem(DIET_PHASE_KEY) as
       | DietPhaseId
       | 'adaptation'
       | null;
     setManualPhase(oldPhase && oldPhase !== 'adaptation' ? oldPhase : 'week1');
-    setMode((window.localStorage.getItem(DIET_MODE_KEY) as DietMode | null) || 'auto');
+    setMode((storage.getItem(DIET_MODE_KEY) as DietMode | null) || 'auto');
 
-    const savedDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {});
-    setWorkoutContext(window.localStorage.getItem(WORKOUT_COMPLETED_DAYS_KEY));
-    const savedMeals = readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, {});
-    const savedWater = readJson<NumberStore>(WATER_INTAKE_KEY, {});
-    const savedLunchCarbs = readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, {});
-    const savedDinnerCarbs = readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, {});
-    const savedLunchProtein = readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, {});
-    const savedDinnerTimes = readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, {});
-    const savedSocial = readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, {});
+    const savedDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, {}, storage);
+    setWorkoutContext(storage.getItem(WORKOUT_COMPLETED_DAYS_KEY));
+    const savedMeals = readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, {}, storage);
+    const savedWater = readJson<NumberStore>(WATER_INTAKE_KEY, {}, storage);
+    const savedLunchCarbs = readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, {}, storage);
+    const savedDinnerCarbs = readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, {}, storage);
+    const savedLunchProtein = readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, {}, storage);
+    const savedDinnerTimes = readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, {}, storage);
+    const savedSocial = readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, {}, storage);
     const today = savedDiet[todayKey] || {};
     const todayMeal = { ...DEFAULT_MEAL_LOG, ...savedMeals[todayKey], lastMealTime: savedMeals[todayKey]?.lastMealTime ?? '' };
 
@@ -385,7 +389,7 @@ export default function DietView() {
     setLastMealTime(
       (typeof today.lastMealTime === 'string' && today.lastMealTime) ||
         savedDinnerTimes[todayKey] ||
-        readCurrentFastingStart(todayKey) ||
+        readCurrentFastingStart(todayKey, storage) ||
         (savedMeals[todayKey] ? todayMeal.lastMealTime : '') ||
         '',
     );
@@ -401,7 +405,7 @@ export default function DietView() {
       savedLunchCarbs[todayKey] ? normalizeLunchCarbRecord(savedLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB,
       normalizeDinnerCarbRecord(savedDinnerCarbs[todayKey] || todayMeal.dinnerCarb),
       normalizeLunchProteinRecord(savedLunchProtein[todayKey]),
-      (typeof today.lastMealTime === 'string' && today.lastMealTime) || savedDinnerTimes[todayKey] || readCurrentFastingStart(todayKey) || (savedMeals[todayKey] ? todayMeal.lastMealTime : '') || '',
+      (typeof today.lastMealTime === 'string' && today.lastMealTime) || savedDinnerTimes[todayKey] || readCurrentFastingStart(todayKey, storage) || (savedMeals[todayKey] ? todayMeal.lastMealTime : '') || '',
       savedSocial[todayKey] || 'none', today.dietStatus ?? 'normal',
       today.fastingRecordStatus ?? (today.fasting14h ? '14h' : 'unrecorded'),
       typeof today.dietMemo === 'string' ? today.dietMemo : '',
@@ -747,7 +751,8 @@ export default function DietView() {
   if (!hydrated) {
     return (
       <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">
-        식단 정보를 불러오는 중...
+        {message || '식단 정보를 불러오는 중...'}
+        {message && <button type="button" className="mt-3 block min-h-11 underline" onClick={() => setDataVersion(value => value + 1)}>다시 읽기</button>}
       </div>
     );
   }

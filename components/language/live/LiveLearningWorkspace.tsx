@@ -8,6 +8,7 @@ import { blankLearningEvent, createLearningDraft, forkLearningDraft, knownLearni
 import { validateLiveLearningInput, LIVE_LEARNING_MAX_EVENTS, matchLiveItem } from '@/lib/language-live/learning-validation';
 import type { LiveLearningBatch, LiveLearningEvent, LiveLearningSnapshot } from '@/lib/language-live/learning-types';
 import { projectLiveLearning } from '@/lib/language-live/state-reducer';
+import { projectLiveOverview } from '@/lib/language-live/overview';
 import { LanguageLiveError, type LiveErrorCode, type LiveLesson } from '@/lib/language-live/types';
 import LearningDashboard, { LearningEventSummary } from './LearningDashboard';
 import LearningEventEditor from './LearningEventEditor';
@@ -47,6 +48,7 @@ export default function LiveLearningWorkspace({ owner, client, active, onBusyCha
   const [today, setToday] = useState(koreanDate);
   const usable = Boolean(snapshot && !loading && !readError);
   const projection = useMemo(() => snapshot ? projectLiveLearning(snapshot) : null, [snapshot]);
+  const overview = useMemo(() => snapshot ? projectLiveOverview(snapshot, today) : null, [snapshot, today]);
   const currentLesson = snapshot?.lessons.find(lesson => lesson.lesson_id === draft?.input.lessonId);
   const exactSource = currentLesson?.revision === draft?.input.lessonRevision && currentLesson?.operation !== 'delete' ? currentLesson : undefined;
   const currentBatch = projection?.activeBatches.find(batch => batch.lesson_id === draft?.input.lessonId);
@@ -198,7 +200,6 @@ export default function LiveLearningWorkspace({ owner, client, active, onBusyCha
   };
 
   const currentLessons = snapshot?.lessons.filter(lesson => lesson.operation !== 'delete') ?? [];
-  const latestLesson = currentLessons.filter(lesson => lesson.report.lessonDate).sort((a, b) => b.report.lessonDate!.localeCompare(a.report.lessonDate!) || b.created_at.localeCompare(a.created_at))[0];
   const selected = currentLessons.find(lesson => lesson.lesson_id === selectedId);
   const errors = draft ? validateLiveLearningInput(draft.input) : [];
   const frozen = busy || Boolean(draft?.submitted) || !usable || staleDraft;
@@ -211,7 +212,7 @@ export default function LiveLearningWorkspace({ owner, client, active, onBusyCha
       {success ? <p className="live-notice live-notice-success" role="status">{success}</p> : null}
       {notice ? <p className="live-notice live-notice-error" role="alert">{notice.text}</p> : null}
     </section>
-    {usable && projection ? <><section className="live-card" aria-label="Live 학습 현황"><h2>최근 Live 수업</h2><p>현재 보관한 수업 {currentLessons.length}회 · 최근 수업일 {latestLesson?.report.lessonDate ?? '미확인'}</p><p>최근 확인한 학습 단계: {latestLesson?.report.stage || '미확인'}</p><p className="live-hint">재학습 필요 {projection.states.filter(state => state.status === 'relearn_needed').length}개 영역 · 숙달 확인 {projection.states.filter(state => state.status === 'mastery_confirmed').length}개 영역 · 날짜 없는 수업 {currentLessons.filter(lesson => !lesson.report.lessonDate).length}회는 최근 수업일 계산에서 제외해요.</p></section><LearningDashboard projection={projection} today={today} /></> : null}
+    {usable && overview ? <><section className="live-card" aria-label="Live 학습 현황"><h2>최근 Live 수업</h2><p>현재 보관한 수업 {overview.lessons.length}회 · 최근 수업일 {overview.latestDate ?? '미확인'}</p><p>최근 확인한 학습 단계: {overview.stage ?? '미확인'}</p><p className="live-hint">재학습 필요 {overview.relearning.length}개 영역 · 숙달 확인 {overview.learning.states.filter(state => state.status === 'mastery_confirmed').length}개 영역 · 날짜 없는 수업 {overview.undatedLessons}회는 최근 수업일 계산에서 제외해요.</p>{overview.stageAmbiguous ? <p className="live-hint">같은 최근 날짜의 보고서 단계가 달라 현재 단계를 먼저 확인해야 해요.</p> : null}{overview.futureLessons || overview.futureObservations ? <p className="live-hint">{today} 한국 날짜보다 뒤의 수업·관찰은 현재 학습 상태에서 제외해요.</p> : null}</section><LearningDashboard projection={overview.learning} today={today} /></> : null}
     <section className="live-card" aria-labelledby="live-confirm-source-title"><h2 id="live-confirm-source-title">보고서의 학습 근거 확인</h2>
       <p className="live-hint">수업 저장만으로 평가를 만들지 않아요. 수정·삭제된 보고서의 근거는 현재 상태 계산에서 제외하며 이전 이력은 보존해요.</p>
       {usable && projection ? <p>{projection.unconfirmedLessons.length}개 수업의 현재 버전에 확인한 관찰이 없어요.</p> : null}

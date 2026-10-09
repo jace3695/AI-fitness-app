@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase.ts";
 import { respectRecordResets } from "./appRecordReset.ts";
-import { notifyRecordsChanged, recoverStorageTransaction, writeStorageBatch } from "./storageTransaction.ts";
+import { notifyRecordsChanged, readStorageSnapshot, recoverStorageTransaction, writeStorageBatch } from "./storageTransaction.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";
@@ -71,17 +71,17 @@ function mergeValue(base: unknown, remote: unknown, local: unknown): unknown {
 
 export function readLocalCloudState(): CloudState {
   if (typeof window === "undefined") return {};
-  recoverStorageTransaction(window.localStorage);
+  const storage = readStorageSnapshot(window.localStorage);
   const keys = Array.from(
-    { length: window.localStorage.length },
-    (_, index) => window.localStorage.key(index),
+    { length: storage.length },
+    (_, index) => storage.key(index),
   ).filter(
     (key): key is string =>
       Boolean(key) && key!.startsWith(SYNCED_STORAGE_PREFIX),
   );
   return Object.fromEntries(
     keys.flatMap((key) => {
-      const value = parseStoredValue(window.localStorage.getItem(key));
+      const value = parseStoredValue(storage.getItem(key));
       return value === undefined ? [] : [[key, value]];
     }),
   );
@@ -164,7 +164,6 @@ export function readSyncBase(userId: string): CloudState | null {
   try {
     return JSON.parse(window.localStorage.getItem(`${SYNC_BASE_PREFIX}${userId}`) || "null") as CloudState | null;
   } catch {
-    window.localStorage.removeItem(`${SYNC_BASE_PREFIX}${userId}`);
     return null;
   }
 }

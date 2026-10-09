@@ -87,3 +87,15 @@ CI 원본 artifact는 지원되는 다운로드 경로에서 접근이 거부되
 - 기존 7개 acceptance/14개 browser case의 assertion·timeout·retry를 변경하지 않았다.
 
 이 수정의 Chromium/WebKit 재검증, 통합 최종 후보 전체 회귀와 physical device 검증은 남아 있다. 로컬 브라우저 실행 차단/재시도 금지를 준수했으며 hosted DB/API, 운영 변경, commit/push는 하지 않았다.
+
+## 다음 CI의 transport 관측 수정 · 2026-10-09 19:52 UTC
+
+후보 `a6624c0d7e9173767a4b3cbd9fee928b5542f9c7` / run `37980448169`에서는 문장 7개 중 **5개 통과, 2개 실패가 두 browser에서 동일**했다. label/reset 권한 수정은 실제 browser를 통과했다. 남은 두 사례는 미확정 기록의 reload 후 읽기 실패 구간에서 `calls.slice(mark) === ['GET']`라는 101행 HTTP 횟수 검사가 실패했다. 성공한 사례를 포함한 전체 문장 결과는 10 pass / 4 fail이며, 그 뒤 수정의 browser 결과는 아직 없다.
+
+- 설치된 `@supabase/postgrest-js` **2.110.8**은 단일 GET의 503 응답을 기본적으로 1초·2초·4초 뒤 재시도한다. 최초 요청에 이어 `X-Retry-Count: 1`, `2`, `3`을 붙인 세 요청이 발생한다. 기존 E2E는 repository의 논리적 read 한 번과 실제 HTTP 한 번을 동일하게 가정했다. CI의 초기 실패 조회와 reload 후 실패 조회가 각각 약 8초 걸린 시간도 이 경로와 일치한다.
+- 새 `tests/sentence-typing-transport.test.ts`는 실제 설치 Supabase client와 shipping 확인 함수를 사용하고 fetch만 메모리 경계로 바꾼다. 기본 retry와 backoff를 그대로 실행한 결과 committed/absent 두 경우 각각 **논리 read 1회 → 같은 URL/owner/ID의 GET 4회, 추가 POST 0회**를 재현했다. 연결 회복 뒤에는 committed의 GET 1회, 확실한 부재의 GET→POST→GET도 그대로 검증한다. 실제 browser나 서버를 실행한 검증은 아니다.
+- E2E가 모든 해당 HTTP 요청의 owner/ID/경로를 정확히 검사하고, 실패 read를 `GET`, `GET:retry:1`, `GET:retry:2`, `GET:retry:3`의 정확한 순서로 검증하도록 했다. 같은 ID에 대한 두 번째 논리 read, 잘못된 retry 순서, 다른 row 조회 또는 POST는 여전히 실패한다. 요청을 필터링해서 숨기지 않고, 앱 retry·timeout·보존/중복 방지 검사는 바꾸지 않았다. 식별자를 제외한 실제 시퀀스를 `QA_SENTENCE_RECOVERY_TRANSPORT` 로그로 남겨 다음 CI에서 원문 artifact 없이도 확인할 수 있게 했다.
+- shipping hook, 전용 RPC와 동시에 진행 중인 공용 typing helper 추출은 수정하지 않았다.
+- 수정 후 sentence focused **51/51 통과**(기존 49 + 실제 client transport 2), 변경 테스트 ESLint, 전체 `tsc --noEmit --incremental false`, `git diff --check` 통과. 이 결과는 새 browser CI와 구분한다.
+
+실제 CI의 상세 assertion artifact는 접근 제한 때문에 열지 못했으므로 4회 시퀀스는 원본 trace 관측이라고 주장하지 않는다. pinned client 코드·실제 client 재현과 CI 실패 위치/시간의 일치에 근거한 원인 진단이다. 다음 Chromium/WebKit에서 그대로 재확인해야 한다.

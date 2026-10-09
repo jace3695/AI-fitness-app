@@ -77,14 +77,19 @@ for (const committed of [true, false]) test(`unresolved sentence reload reads fi
   const pattern = sentenceRequestPattern, drain = new RouteDrain();
   const requests: Record<string, unknown>[] = []; const calls: string[] = []; let failReads = true, failPost = true;
   await page.route(pattern, route => drain.run(async () => {
-    const request = route.request(); const targeted = new URL(request.url()).searchParams.has('id');
+    const request = route.request(), url = new URL(request.url()); const targeted = url.searchParams.has('id');
     if (request.method() === 'POST') {
       expect(new URL(request.url()).pathname).toBe(saveRpcPath);
       const payload = request.postDataJSON(); requests.push(payload); calls.push(`POST:${payload.p_payload.id}`);
       if (committed || !failPost) await route.fetch({ maxRetries: 0 });
       await route.fulfill({ status: failPost ? 503 : 201, contentType: 'application/json', body: failPost ? '{"message":"synthetic lost response"}' : '' });
     } else if (targeted) {
-      calls.push('GET');
+      expect(request.method()).toBe('GET');
+      expect(url.pathname).toBe('/rest/v1/growth_sessions');
+      expect(url.searchParams.get('user_id')).toBe(`eq.${qa.account.id}`);
+      expect(url.searchParams.get('id')).toBe(`eq.${(requests[0].p_payload as { id: string }).id}`);
+      const retryCount = request.headers()['x-retry-count'];
+      calls.push(retryCount === undefined ? 'GET' : `GET:retry:${retryCount}`);
       if (failReads) await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"synthetic unavailable confirmation"}' });
       else await route.fallback();
     } else await route.fallback();
@@ -98,7 +103,12 @@ for (const committed of [true, false]) test(`unresolved sentence reload reads fi
     await page.reload(); await expect(retry(page)).toBeEnabled(); await expect(input(page)).toHaveValue('xx');
     expect(await checkpoint(page, qa.account.id)).toBe(raw);
     const mark = calls.length; await retry(page).click(); await expect(retry(page)).toBeEnabled();
-    expect(calls.slice(mark)).toEqual(['GET']); expect(requests).toHaveLength(1);
+    // The pinned PostgREST transport retries a single 503 read three times.
+    // Distinguish those marked, same-ID attempts from another logical read or
+    // a forbidden POST; never hide requests or disable the application's retry.
+    console.log('QA_SENTENCE_RECOVERY_TRANSPORT', JSON.stringify({ committed, phase: 'unconfirmed-read',
+      attempts: calls.slice(mark).map(call => call.startsWith('POST:') ? 'POST' : call), posts: requests.length }));
+    expect(calls.slice(mark)).toEqual(['GET', 'GET:retry:1', 'GET:retry:2', 'GET:retry:3']); expect(requests).toHaveLength(1);
     failReads = false; failPost = false; const confirmedMark = calls.length;
     await retry(page).click(); await expect(page.getByRole('button', { name: '저장 완료', exact: true })).toBeDisabled();
     expect(calls.slice(confirmedMark)).toEqual(committed ? ['GET'] : ['GET', `POST:${pending.id}`, 'GET']);

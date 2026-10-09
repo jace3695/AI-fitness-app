@@ -23,7 +23,7 @@ const errorNotice = (error: unknown): Notice => error instanceof LanguageLiveErr
   : { code: 'storage', text: '연결을 확인하지 못했어요. 입력한 내용은 유지됩니다. 잠시 뒤 다시 확인해 주세요.' };
 
 /** Auth changes hide the old owner before any new reads or draft restoration. */
-export default function LiveWorkspace() {
+export default function LiveWorkspace({ initialView = 'import' }: { initialView?: 'import' | 'history' | 'learning' | 'prepare' }) {
   const [owner, setOwner] = useState<string | null>(null);
   const [authError, setAuthError] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -59,10 +59,10 @@ export default function LiveWorkspace() {
     return () => { alive = false; version += 1; clearTimeout(timer); data.subscription.unsubscribe(); };
   }, [attempt]);
   if (!owner || !supabase) return <section className="live-workspace"><h1>AI Live 학습 기록</h1><p role={authError ? 'alert' : 'status'}>{authError ? '로그인 정보를 확인하지 못했어요. 다시 확인해 주세요.' : '내 학습 기록을 안전하게 여는 중…'}</p>{authError ? <button type="button" onClick={() => { setAuthError(false); setAttempt(value => value + 1); }}>로그인 다시 확인</button> : null}</section>;
-  return <OwnerWorkspace key={owner} owner={owner} client={supabase} />;
+  return <OwnerWorkspace key={owner} owner={owner} client={supabase} initialView={initialView} />;
 }
 
-function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClient }) {
+function OwnerWorkspace({ owner, client, initialView }: { owner: string; client: SupabaseClient; initialView: 'import' | 'history' | 'learning' | 'prepare' }) {
   const repository = useMemo(() => createLanguageLiveRepository(client, owner), [client, owner]);
   const alive = useRef(true);
   const listEpoch = useRef(new LiveRequestEpoch());
@@ -71,10 +71,10 @@ function OwnerWorkspace({ owner, client }: { owner: string; client: SupabaseClie
   const busyRef = useRef(false);
   const baseline = useRef<string | null>(null);
   const editorRef = useRef<LiveEditorDraft | null>(null);
-  const [view, setView] = useState<'import' | 'history' | 'detail' | 'learning' | 'prepare'>('import');
-  const [learningOpened, setLearningOpened] = useState(false);
+  const [view, setView] = useState<'import' | 'history' | 'detail' | 'learning' | 'prepare'>(initialView);
+  const [learningOpened, setLearningOpened] = useState(initialView === 'learning');
   const [learningBusy, setLearningBusy] = useState(false);
-  const [preparationOpened, setPreparationOpened] = useState(false);
+  const [preparationOpened, setPreparationOpened] = useState(initialView === 'prepare');
   const [preparationBusy, setPreparationBusy] = useState(false);
   const [editor, setEditor] = useState<LiveEditorDraft | null>(null);
   const [recoveredDrafts, setRecoveredDrafts] = useState<LiveEditorDraft[]>([]);
