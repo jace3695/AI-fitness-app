@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { readFileSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import ts from 'typescript';
 import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const config = 'project_id = "isolated_stack"\n[api]\nport = 54321\n[db]\nport = 54322\nmajor_version = 17\n[auth]\nenabled = true\n';
@@ -10,6 +13,93 @@ const status = { API_URL: 'http://127.0.0.1:54321', ANON_KEY: 'synthetic-anon', 
 const metadata = () => ({ Id: 'a'.repeat(64), Name: '/supabase_db_isolated_stack', State: { Running: true },
   Config: { Labels: { 'com.supabase.cli.project': 'isolated_stack' }, Image: 'public.ecr.aws/supabase/postgres:17.6.1.063' }, Image: `sha256:${'b'.repeat(64)}`,
   NetworkSettings: { Ports: { '5432/tcp': [{ HostIp: '127.0.0.1', HostPort: '54322' }] } } });
+
+const driverSource = readFileSync(new URL('../scripts/qa-legacy-evidence-postgres.mjs', import.meta.url), 'utf8');
+const driverAst = ts.createSourceFile('qa-legacy-evidence-postgres.mjs', driverSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+const sessionClass = driverAst.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'PsqlSession');
+assert.ok(sessionClass && ts.isClassDeclaration(sessionClass));
+
+test('every direct psql query/scalar template terminates before its echo barrier', () => {
+  let checked = 0, forwarded = 0;
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ['query', 'scalar'].includes(node.expression.name.text)) {
+      assert.equal(node.arguments.length, 1);
+      const sql = node.arguments[0];
+      if (ts.isStringLiteralLike(sql) || ts.isTemplateExpression(sql)) {
+        const suffix = ts.isTemplateExpression(sql) ? sql.templateSpans.at(-1)!.literal.text : sql.text;
+        assert.ok(suffix.trimEnd().endsWith(';'), 'direct psql command must terminate before its echo barrier'); checked++;
+      } else {
+        // The only dynamic pass-through is scalar(sql) -> query(sql). call()
+        // quotes dynamic RPC bodies inside its own terminated outer SELECT.
+        let parent: ts.Node | undefined = node.parent;
+        while (parent && !ts.isMethodDeclaration(parent)) parent = parent.parent;
+        assert.ok(ts.isIdentifier(sql) && sql.text === 'sql' && parent && ts.isMethodDeclaration(parent) && parent.name.getText(driverAst) === 'scalar');
+        assert.equal(node.expression.expression.kind, ts.SyntaxKind.ThisKeyword); forwarded++;
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(driverAst); assert.ok(checked >= 25); assert.equal(forwarded, 1);
+});
+
+function transportFixture() {
+  const writes: string[] = []; let timers = 0, clears = 0;
+  const child = Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(), stderr: new PassThrough(),
+    stdin: { write(text: string) { writes.push(text); }, end() {} }, kill() {},
+  });
+  const literal = (value: unknown) => `'${String(value).replaceAll("'", "''")}'`;
+  const Session = new Function('spawn', 'randomUUID', 'setTimeout', 'clearTimeout', 'assert', 'literal', 'delay',
+    sessionClass!.getText(driverAst) + '\nreturn PsqlSession;')(
+    () => child, () => '11111111-1111-4111-8111-111111111111', () => { timers++; return timers; }, () => { clears++; }, assert, literal, async () => {},
+  );
+  const session = new Session({ id: 'synthetic' }, 'synthetic');
+  const barrier = () => writes.at(-1)!.match(/\n\\echo (qa_end_[a-f0-9]+)\n$/)![1];
+  const emit = (text: string) => child.stdout.emit('data', text);
+  return { session, child, writes, barrier, emit, counts: () => ({ timers, clears }) };
+}
+
+test('psql transport refuses missing terminators before stdin or timers and keeps exact scalar cardinality', async () => {
+  const fixture = transportFixture();
+  for (const sql of [null, undefined, 1, {}, '', '   \n', 'select 1', "select ';'", 'select 1; -- trailing comment']) {
+    await assert.rejects(fixture.session.query(sql), /unterminated psql command/);
+    assert.equal(fixture.writes.length, 0); assert.deepEqual(fixture.counts(), { timers: 0, clears: 0 });
+  }
+  const pending = fixture.session.scalar('select 1;');
+  await assert.rejects(fixture.session.query('select 2;'), /overlapping or closed/);
+  assert.equal(fixture.writes.length, 1);
+  fixture.emit('1\r'); fixture.emit('\n' + fixture.barrier().slice(0, 9)); fixture.emit(fixture.barrier().slice(9) + '\r\n');
+  assert.equal(await pending, 1); assert.deepEqual(fixture.counts(), { timers: 1, clears: 1 });
+  for (const rows of ['', '1\n2\n']) {
+    const rejected = assert.rejects(fixture.session.scalar('select 1;'), { code: 'ERR_ASSERTION' });
+    fixture.emit(rows + fixture.barrier() + '\n'); await rejected;
+  }
+  fixture.child.emit('close', 0);
+  await assert.rejects(fixture.session.query('select 1;'), /overlapping or closed/);
+});
+
+test('authored dependency SELECT uses actual session framing and dynamic RPC text stays quoted', async () => {
+  let dependency: string | undefined;
+  function visit(node: ts.Node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(driverAst) === 'dependencyAudit' && node.initializer && ts.isAwaitExpression(node.initializer) && ts.isCallExpression(node.initializer.expression)) {
+      const sql = node.initializer.expression.arguments[0]; assert.ok(ts.isNoSubstitutionTemplateLiteral(sql)); dependency = sql.text;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(driverAst); assert.ok(dependency);
+  const fixture = transportFixture(), value = { executor_auth_usage: false };
+  const pending = fixture.session.scalar(dependency);
+  // The pure stream models the psql boundary: without a semicolon, only echo
+  // produces output; PGlite's query API alone cannot catch that difference.
+  const transmitted = fixture.writes[0].split('\n\\echo ')[0];
+  fixture.emit((transmitted.trimEnd().endsWith(';') ? JSON.stringify(value) + '\n' : '') + fixture.barrier() + '\n');
+  assert.deepEqual(await pending, value);
+  const rpc = "select 'synthetic; quote'' and newline\nvalue'::jsonb";
+  const result = fixture.session.call(rpc);
+  assert.ok(fixture.writes.at(-1)!.startsWith(`select pg_temp.qa_call('${rpc.replaceAll("'", "''")}');\n\\echo `));
+  fixture.emit('{"ok":true,"value":null}\n' + fixture.barrier() + '\n');
+  assert.deepEqual(await result, { ok: true, value: null });
+});
 
 test('CI harness preflight is pure and refuses ordinary execution before files or subprocesses', () => {
   assert.throws(() => validateEnvironment({}, config, status), /disposable GitHub Actions runner required/);

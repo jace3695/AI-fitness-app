@@ -187,6 +187,9 @@ class PsqlSession {
   }
   query(sql) {
     if (this.closed || this.pending) return Promise.reject(new Error('overlapping or closed psql command'));
+    // psql's echo does not execute a buffered SQL statement. Require an authored
+    // terminator before scheduling a barrier; never append or replay SQL here.
+    if (typeof sql !== 'string' || !sql.trimEnd().endsWith(';')) return Promise.reject(new Error('unterminated psql command'));
     return new Promise((resolveResult, reject) => {
       const end = `qa_end_${randomUUID().replaceAll('-', '')}`;
       const timer = setTimeout(() => { this.fail(Object.assign(new Error('psql barrier timeout'), { code: '57014' })); this.child.stdin.end(); }, 18_000);
@@ -365,7 +368,7 @@ export async function runPostgresHarness(stack, diagnostics = createLegacyEviden
       'executor_context_json',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.context_json(public.language_legacy_evidence_generations,timestamptz)','EXECUTE'),
       'executor_receipt',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.receipt(public.language_legacy_evidence_events)','EXECUTE'),
       'executor_validate_event',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.validate_event(text,uuid,public.language_legacy_evidence_generations,timestamptz,text)','EXECUTE'),
-      'executor_check_read',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.check_read(jsonb,uuid)','EXECUTE'))`);
+      'executor_check_read',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.check_read(jsonb,uuid)','EXECUTE'));`);
     assert.deepEqual(Object.keys(dependencyAudit).sort(), [...EXECUTOR_DEPENDENCIES].sort());
     for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, dependencyAudit[name]);
     for (const name of EXECUTOR_DEPENDENCIES) assert.equal(dependencyAudit[name], true);
