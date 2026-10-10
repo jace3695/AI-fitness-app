@@ -38,6 +38,14 @@ const fixture = {
   }])),
   [settingsKey]: { weeklyGroups: { mon: 'fixture-plan' }, exerciseTargets: {} },
 };
+const sessionDraftFixture = {
+  version: 2, feedbackVersion: 1, exerciseSignature: 'fixture-exercise', savedAt: 1,
+  currentIndex: 0, mode: 'exercise', completed: [], skipped: [], elapsedSeconds: 0,
+  timerSeconds: 143, restSeconds: 0, painScore: 0, painSymptoms: [], painMemo: '',
+  neurologicalSymptoms: [], overallStatus: 'partial',
+  exerciseRecords: [{ exerciseName: 'fixture-exercise', status: 'pending', sets: [] }],
+};
+
 function deferred() {
   let resolvePromise;
   const promise = new Promise(done => { resolvePromise = done; });
@@ -61,9 +69,22 @@ class FakeServer {
   }
   pauseNext(method, phase = 'after') {
     const arrived = deferred();
+    let thisRequestArrived = false;
+    const originalResolve = arrived.resolve;
+    arrived.resolve = () => { thisRequestArrived = true; originalResolve(); };
+    const server = this;
     const released = deferred();
     this.pauses.push({ method, phase, arrived, released });
-    return { arrived: arrived.promise, release: released.resolve };
+    return {
+      // There is no real I/O in this scheduler: after one event-loop drain, a
+      // request not started by the driven events is a test failure, not a wait.
+      get arrived() { return (async () => {
+        await flush();
+        assert.ok(thisRequestArrived, `Expected ${method} ${phase} checkpoint was never reached; requests: ${JSON.stringify(server.requests.map(request => ({ method: request.method, result: request.result })))}`);
+        return arrived.promise;
+      })(); },
+      release: released.resolve,
+    };
   }
   async request(method, payload, filters, signal) {
     const request = { method, payload: payload && copy(payload), filters: copy(filters), signal };
@@ -116,7 +137,7 @@ class FakeServer {
 // Compile the original module with a strict dependency allowlist in a fresh VM.
 // No browser or React renderer is used. The actual synchronization effect is invoked below.
 let dateSequence = 0;
-function createDevice(server, seed = {}) {
+async function createDevice(server, seed = {}) {
   const storage = new MemoryStorage();
   const window = new EventTarget();
   const document = new EventTarget();
@@ -144,9 +165,19 @@ function createDevice(server, seed = {}) {
       return { data: { subscription: { unsubscribe: () => authCallbacks.delete(callback) } } };
     },
   };
-  const context = vm.createContext({ window, document, Event, CustomEvent, AbortController, queueMicrotask, Date: FixtureDate });
+  // This is an explicit, deterministic Web Locks model, never an unlocked
+  // fallback. Each fixture device models an independent origin storage area.
+  let lockTail = Promise.resolve();
+  const locks = { request(_name, options, callback) {
+    assert.equal(options.mode, 'exclusive');
+    const work = lockTail.then(callback);
+    lockTail = work.then(() => {}, () => {});
+    return work;
+  } };
+  const context = vm.createContext({ window, document, Event, CustomEvent, AbortController,
+    queueMicrotask, crypto, Error, navigator: { locks }, Date: FixtureDate });
   const cache = new Map();
-  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts']);
+  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
   function load(path) {
     if (cache.has(path)) return cache.get(path);
     assert.ok(allowed.has(path), `Unexpected module ${path}`);
@@ -167,6 +198,7 @@ function createDevice(server, seed = {}) {
   const cloud = load('app/data/cloudSync.ts');
   const reset = load('app/data/appRecordReset.ts');
   const events = load('app/data/storageTransaction.ts');
+  const workouts = load('app/data/workoutCompletion.ts');
   const panelPath = 'app/components/CloudSyncPanel.tsx';
   const source = readFileSync(resolve(root, panelPath), 'utf8');
   const ast = ts.createSourceFile(panelPath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -196,20 +228,17 @@ function createDevice(server, seed = {}) {
   const refs = { lastSynced: { current: '' }, syncing: { current: false },
     authUserId: { current: 'fixture-user' }, authEpoch: { current: null }, cancelSync: { current: null } };
   Object.assign(context, cloud, reset, events, refs, {
+    migrateLegacyWorkoutWeekdays: workouts.migrateLegacyWorkoutWeekdays,
     user: { id: 'fixture-user' }, userId: 'fixture-user', supabase: client,
-    authRevision: 0,
+    authRevision: 0, retryAuth: { current: null },
     setAuthRevision: update => { context.authRevision = typeof update === 'function' ? update(context.authRevision) : update; },
     setUser: value => { context.user = value; context.userId = value?.id; },
     setStatus: value => { status = value; }, setMessage: value => { message = value; },
     setLastSyncedAt: () => {}, requestSafeReload: window.location.reload,
   });
-  function write(state) {
-    for (const name of [...storage.values.keys()]) if (name.startsWith('ai-fitness-')) storage.removeItem(name);
-    for (const [name, value] of Object.entries(state)) storage.setItem(name, JSON.stringify(value));
-    events.notifyRecordsChanged();
-  }
-  write(seed);
-  cloud.prepareLocalCloudState?.('fixture-user');
+  await cloud.prepareLocalCloudState('fixture-user');
+  const write = state => cloud.applyCloudState(state);
+  await write(seed);
   let cleanup;
   let authCleanup;
   let committedDeps;
@@ -220,7 +249,8 @@ function createDevice(server, seed = {}) {
   const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
   return {
     cloud, window, storage,
-    discardDraft: draftKey => {
+    disableLocks: () => { context.navigator.locks = undefined; },
+    discardDraft: async draftKey => {
       const path = 'app/components/WorkoutSession.tsx';
       const source = readFileSync(resolve(root, path), 'utf8');
       const ast = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -234,11 +264,26 @@ function createDevice(server, seed = {}) {
       }
       visit(ast);
       assert.ok(handler, 'Discard UI handler not found');
-      Object.assign(context, { draftKey, shouldPersistDraftRef: { current: true }, onClose: () => {} });
+      const readDraft = vm.runInContext(originalFunction(path, 'readSessionDraft'), context);
+      const initialDraft = readDraft(draftKey, sessionDraftFixture.exerciseSignature, sessionDraftFixture.exerciseRecords.length);
+      assert.ok(initialDraft, 'The synthetic resumable draft must pass the shipped validator');
+      let closed = false, notice = '', completion;
+      Object.assign(context, { draftKey, shouldPersistDraftRef: { current: true },
+        owner: events.captureStorageOwner(storage), draftQueue: { current: Promise.resolve() },
+        expectedDraft: { current: storage.getItem(draftKey) }, savingRef: { current: false },
+        initialDraft, persistedOnce: { current: false }, completionSaved: { current: false },
+        setSaving: () => {}, setStorageNotice: value => { notice = value; }, onClose: () => { closed = true; } });
+      context.fitnessStorageError = vm.runInContext(originalFunction('app/data/fitnessStorageUpdates.ts', 'fitnessStorageError'), context);
+      context.removeDraft = vm.runInContext(originalFunction(path, 'removeDraft'), context);
+      const discard = vm.runInContext(originalFunction(path, 'discardSession'), context);
+      context.discardSession = () => { completion = discard(); return completion; };
       vm.runInContext(ts.transpileModule(`(${handler})()`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+      assert.ok(completion, 'The actual button did not start the awaited discard handler');
+      await completion;
+      assert.equal(notice, '', notice); assert.equal(closed, true, 'Discard did not close after durable deletion');
     },
     read: () => copy(cloud.readLocalCloudState()), write,
-    saveFromCalendarSnapshot: workouts => {
+    saveFromCalendarSnapshot: async workouts => {
       // The component's one-time record read is supplied explicitly; no React mount is simulated.
       Object.assign(context, {
         stores: { workouts: copy(workouts) }, selected: '2030-02-02', todayKey: '2030-02-09',
@@ -247,12 +292,20 @@ function createDevice(server, seed = {}) {
         backFeedback: { workoutPain: false, workoutNeurologicalSymptoms: [] },
         workoutMemoDraft: 'fixture-new', workoutDifficultyDraft: undefined, workoutFatigueDraft: undefined,
         WORKOUT_COMPLETED_DAYS_KEY: key,
-        setStores: value => { context.stores = value; }, setEditingWorkout: () => {}, setWorkoutNotice: () => {},
+        setStores: value => { context.stores = typeof value === 'function' ? value(context.stores) : value; }, setEditingWorkout: () => {}, setWorkoutNotice: () => {},
+        workoutOwner: { current: events.captureStorageOwner(storage) }, pendingRef: { current: false },
+        setPending: () => {}, setStorageError: error => { assert.equal(error, '', error); },
       });
-      context.writeJson = vm.runInContext(originalFunction('app/data/recordStorage.ts', 'writeJson'), context);
-      context.readJson = vm.runInContext(originalFunction('app/data/recordStorage.ts', 'readJson'), context);
+      for (const name of ['readJsonForUpdate', 'updateJson']) context[name] = vm.runInContext(originalFunction('app/data/recordStorage.ts', name), context);
+      context.fitnessStorageError = vm.runInContext(originalFunction('app/data/fitnessStorageUpdates.ts', 'fitnessStorageError'), context);
+      const formatCalendarError = context.fitnessStorageError;
+      context.fitnessStorageError = error => {
+        assert.notEqual(error?.name, 'ReferenceError', `Missing production dependency in calendar VM: ${error?.stack ?? error}`);
+        return formatCalendarError(error);
+      };
+      context.runRecordChange = vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'runRecordChange'), context);
       context.writeWorkoutStore = vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'writeWorkoutStore'), context);
-      vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'saveNewWorkoutRecord'), context)();
+      await vm.runInContext(originalFunction('app/components/RecordCalendarView.tsx', 'saveNewWorkoutRecord'), context)();
     },
     get status() { return status; }, get message() { return message; },
     get waitingTimers() { return timers.size; },
@@ -272,6 +325,8 @@ function createDevice(server, seed = {}) {
       for (const callback of authCallbacks) callback(event, userId ? { user: { id: userId } } : null);
     },
     commitAuth: async () => {
+      // Preparation and cleanup settle before the simulated React effect commit.
+      await flush();
       if (!committedDeps || currentDeps().some((value, index) => !Object.is(value, committedDeps[index]))) { cleanup?.(); mountSync(); }
       await flush();
     },
@@ -296,10 +351,10 @@ function createDevice(server, seed = {}) {
     },
   };
 }
-function changeMemo(device, date, memo) {
+async function changeMemo(device, date, memo) {
   const state = device.read();
   state[key][date] = { ...state[key][date], workoutMemo: memo };
-  device.write(state);
+  await device.write(state);
   return state;
 }
 function expectState(actual, expected, label) {
@@ -313,7 +368,7 @@ async function check(name, body) {
 
 await check('로그아웃·재로그인: 합성 원본 17개 키 보존, 로그인 직후 빈 PATCH 없음', async () => {
   const original = { ...copy(fixture), ...Object.fromEntries(Array.from({ length: 15 }, (_, i) => [`ai-fitness-fixture-${i}`, { value: i }])) };
-  const server = new FakeServer(original); const device = createDevice(server);
+  const server = new FakeServer(original); const device = await createDevice(server);
   await device.mountAuth(); await device.mount();
   device.emitAuth('SIGNED_OUT', null); await device.commitAuth();
   assert.equal(device.cloud.readSyncBase('fixture-user'), null, 'Logout retained a deletion baseline');
@@ -326,9 +381,9 @@ await check('로그아웃·재로그인: 합성 원본 17개 키 보존, 로그�
 });
 
 await check('기존 버전의 빈 로컬·잔여 기준값으로 로그인: 빈 PATCH 없이 원본 복구', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   device.storage.removeItem('fitness-cloud-sync-user');
-  device.cloud.saveSyncBase('fixture-user', fixture);
+  device.storage.setItem('fitness-cloud-sync-base:fixture-user', JSON.stringify(fixture));
   await device.mountAuth(); await device.mount();
   expectState(server.row.state, fixture, 'Legacy logout cache sent an empty replacement');
   expectState(device.read(), fixture, 'Original records were not hydrated');
@@ -337,8 +392,8 @@ await check('기존 버전의 빈 로컬·잔여 기준값으로 로그인: 빈 
 });
 
 await check('로그아웃 직후 React 정리 전 늦은 GET: PATCH·기준값 재생성 없음', async () => {
-  const server = new FakeServer(); const device = createDevice(server, fixture);
-  device.cloud.saveSyncBase('fixture-user', fixture);
+  const server = new FakeServer(); const device = await createDevice(server, fixture);
+  await device.cloud.saveSyncBase('fixture-user', fixture);
   await device.mountAuth(); const pause = server.pauseNext('GET');
   await device.mount(); await pause.arrived;
   device.emitAuth('SIGNED_OUT', null); // Deliberately do not commit React cleanup yet.
@@ -351,10 +406,10 @@ await check('로그아웃 직후 React 정리 전 늦은 GET: PATCH·기준값 �
 });
 
 await check('CAS 거절 응답 대기 중 로그아웃: 재조회·재PATCH 중단', async () => {
-  const server = new FakeServer(); const device = createDevice(server, fixture);
+  const server = new FakeServer(); const device = await createDevice(server, fixture);
   await device.mountAuth(); await device.mount();
   const pause = server.pauseNext('PATCH', 'before');
-  changeMemo(device, '2030-02-02', 'fixture-before-logout');
+  await changeMemo(device, '2030-02-02', 'fixture-before-logout');
   // Both sides changed, so this enters the retrying three-way merge branch.
   server.row.state[settingsKey].exerciseTargets = { remote: 9 };
   server.row.updated_at = '2030-03-01T00:00:00.000Z';
@@ -369,7 +424,7 @@ await check('CAS 거절 응답 대기 중 로그아웃: 재조회·재PATCH 중�
 });
 
 await check('이전 GET 대기 중 다른 계정 로그인: 새 동기화 즉시 시작·기록 혼합 없음', async () => {
-  const server = new FakeServer(); const device = createDevice(server, fixture);
+  const server = new FakeServer(); const device = await createDevice(server, fixture);
   await device.mountAuth(); const pause = server.pauseNext('GET');
   await device.mount(); await pause.arrived;
   const other = { 'ai-fitness-other-account': { memo: 'fixture-b-only' } };
@@ -384,7 +439,7 @@ await check('이전 GET 대기 중 다른 계정 로그인: 새 동기화 즉시
 });
 
 await check('늦은 초기 getUser 응답: 이후 로그아웃을 되돌리지 않음', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   const releaseAuth = device.pauseInitialAuth(); await device.mountAuth();
   device.emitAuth('SIGNED_OUT', null); releaseAuth('fixture-user'); await flush();
   assert.equal(device.userId, undefined, 'Stale initial auth result reactivated the previous user');
@@ -392,7 +447,7 @@ await check('늦은 초기 getUser 응답: 이후 로그아웃을 되돌리지 �
 });
 
 await check('한 번의 React 반영에 같은 계정 로그아웃·재로그인: 취소된 동기화 재시작', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   await device.mountAuth(); const pause = server.pauseNext('GET');
   await device.mount(); await pause.arrived;
   device.emitAuth('SIGNED_OUT', null); device.emitAuth('SIGNED_IN', 'fixture-user');
@@ -404,10 +459,10 @@ await check('한 번의 React 반영에 같은 계정 로그아웃·재로그인
 });
 
 await check('동일 계정 토큰 갱신·재확인: 저장 기준과 요청 유지', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   await device.mountAuth(); await device.mount(); const before = device.lastSynced;
   const pause = server.pauseNext('PATCH');
-  const expected = changeMemo(device, '2030-02-02', 'fixture-token-refresh');
+  const expected = await changeMemo(device, '2030-02-02', 'fixture-token-refresh');
   await flush(); await device.advance(500); await pause.arrived;
   device.emitAuth('TOKEN_REFRESHED', 'fixture-user'); device.emitAuth('SIGNED_IN', 'fixture-user');
   assert.equal(device.lastSynced, before, 'Same-user auth event discarded the confirmed baseline');
@@ -417,9 +472,9 @@ await check('동일 계정 토큰 갱신·재확인: 저장 기준과 요청 유
 });
 
 await check('저장 성공 응답 뒤 제3 세션 덮어쓰기: 완료 표시 금지·로컬 새 기록 보존', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const pause = server.pauseNext('PATCH');
-  const expected = changeMemo(device, '2030-02-02', 'fixture-unconfirmed');
+  const expected = await changeMemo(device, '2030-02-02', 'fixture-unconfirmed');
   await flush(); await device.advance(500); await pause.arrived;
   server.row = { state: copy(fixture), updated_at: '2030-03-01T00:00:00.000Z' };
   pause.release(); await flush();
@@ -432,19 +487,19 @@ await check('저장 성공 응답 뒤 제3 세션 덮어쓰기: 완료 표시 �
 
 await check('실제 저장 없이 종료 핸들러: 수동 동기화 없이 서버 임시 진행 삭제', async () => {
   const draftKey = 'ai-fitness-workout-session-draft:2030-02-02:fixture';
-  const state = { ...copy(fixture), [draftKey]: { version: 2, timerSeconds: 143 } };
-  const server = new FakeServer(state); const device = createDevice(server); await device.mount();
-  device.discardDraft(draftKey); await flush(); device.leaveRoute(); await device.advance(500);
+  const state = { ...copy(fixture), [draftKey]: copy(sessionDraftFixture) };
+  const server = new FakeServer(state); const device = await createDevice(server); await device.mount();
+  await device.discardDraft(draftKey); await flush(); device.leaveRoute(); await device.advance(500);
   expectState(server.row.state, fixture, 'Discarded draft remained on server');
-  const fresh = createDevice(server); await fresh.mount();
+  const fresh = await createDevice(server); await fresh.mount();
   expectState(fresh.read(), fixture, 'Discarded draft restored on another device');
   device.unmount(); fresh.unmount();
 });
 
 await check('저장 후 확인 GET 실패: 오류·기기 보존·재조회 복구', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const pause = server.pauseNext('PATCH');
-  const expected = changeMemo(device, '2030-02-02', 'fixture-readback-error');
+  const expected = await changeMemo(device, '2030-02-02', 'fixture-readback-error');
   await flush(); await device.advance(500); await pause.arrived;
   server.failRead = true; pause.release(); await flush();
   assert.equal(device.status, 'error');
@@ -455,12 +510,12 @@ await check('저장 후 확인 GET 실패: 오류·기기 보존·재조회 복�
 });
 
 await check('저장 확인 GET 대기 중 추가 수정: 마지막 입력 후속 저장', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const writePause = server.pauseNext('PATCH');
-  changeMemo(device, '2030-02-02', 'fixture-before-confirmation');
+  await changeMemo(device, '2030-02-02', 'fixture-before-confirmation');
   await flush(); await device.advance(500); await writePause.arrived;
   const readPause = server.pauseNext('GET'); writePause.release(); await readPause.arrived;
-  const expected = changeMemo(device, '2030-02-02', 'fixture-during-confirmation');
+  const expected = await changeMemo(device, '2030-02-02', 'fixture-during-confirmation');
   readPause.release(); await flush();
   assert.equal(device.status, 'pending'); await device.advance(500);
   expectState(server.row.state, expected, 'Readback erased later edit');
@@ -469,11 +524,11 @@ await check('저장 확인 GET 대기 중 추가 수정: 마지막 입력 후속
 
 await check('임시 진행 PATCH 대기 중 실제 종료: 늦은 응답 뒤 재복구 없음', async () => {
   const draftKey = 'ai-fitness-workout-session-draft:2030-02-02:fixture';
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const pause = server.pauseNext('PATCH');
-  device.write({ ...device.read(), [draftKey]: { version: 2, timerSeconds: 143 } });
+  await device.write({ ...device.read(), [draftKey]: copy(sessionDraftFixture) });
   await flush(); await device.advance(500); await pause.arrived;
-  device.discardDraft(draftKey); await flush(); device.leaveRoute();
+  await device.discardDraft(draftKey); await flush(); device.leaveRoute();
   pause.release(); await flush(); await device.advance(500);
   expectState(server.row.state, fixture, 'Late draft acknowledgement resurrected discarded progress');
   expectState(device.read(), fixture, 'Discarded draft restored locally'); device.unmount();
@@ -482,24 +537,27 @@ await check('임시 진행 PATCH 대기 중 실제 종료: 늦은 응답 뒤 재
 await check('GET 중 첫 로컬 저장: 서버 원본 4일과 새 날짜 병합', async () => {
   const server = new FakeServer();
   const pause = server.pauseNext('GET');
-  const device = createDevice(server);
+  const device = await createDevice(server);
   await device.mount();
   await pause.arrived;
   const added = { workoutDone: false, workoutStatus: 'partial', workoutMemo: 'fixture-new' };
-  device.write({ [key]: { '2030-02-02': added } });
+  await device.write({ [key]: { '2030-02-02': added } });
   pause.release(); await flush();
   const expected = copy(fixture); expected[key]['2030-02-02'] = added;
   expectState(device.read(), expected, 'Initial merge lost records');
+  assert.equal(device.status, 'pending', 'The GET snapshot cannot acknowledge an edit created after it');
+  await device.advance(500);
+  assert.equal(device.status, 'synced');
   expectState(server.row.state, expected, 'Server merge lost records');
   device.unmount();
 });
 
 await check('PATCH 응답 대기 중 수정: 늦은 응답 이후 후속 저장', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   await device.mount();
   const pause = server.pauseNext('PATCH');
-  changeMemo(device, '2030-01-01', 'fixture-first'); await flush(); await device.advance(500); await pause.arrived;
-  const expected = changeMemo(device, '2030-01-01', 'fixture-later');
+  await changeMemo(device, '2030-01-01', 'fixture-first'); await flush(); await device.advance(500); await pause.arrived;
+  const expected = await changeMemo(device, '2030-01-01', 'fixture-later');
   pause.release(); await flush();
   assert.equal(device.status, 'pending');
   expectState(device.read(), expected, 'Late response erased local edit');
@@ -509,24 +567,24 @@ await check('PATCH 응답 대기 중 수정: 늦은 응답 이후 후속 저장'
 });
 
 await check('PATCH 응답 대기 중 삭제: 후속 저장과 새 세션에서 재등장 없음', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   await device.mount();
   const pause = server.pauseNext('PATCH');
-  changeMemo(device, '2030-01-01', 'fixture-before-delete'); await flush(); await device.advance(500); await pause.arrived;
-  const expected = device.read(); delete expected[key]['2030-01-01']; device.write(expected);
+  await changeMemo(device, '2030-01-01', 'fixture-before-delete'); await flush(); await device.advance(500); await pause.arrived;
+  const expected = device.read(); delete expected[key]['2030-01-01']; await device.write(expected);
   pause.release(); await flush(); await device.advance(500);
   expectState(server.row.state, expected, 'Deleted date resurrected');
   device.unmount();
-  const fresh = createDevice(server); await fresh.mount();
+  const fresh = await createDevice(server); await fresh.mount();
   expectState(fresh.read(), expected, 'New device resurrected date'); fresh.unmount();
 });
 
 await check('독립 저장소 2개: 동시 수정 충돌 후 재시도로 양쪽 변경 보존', async () => {
-  const server = new FakeServer(); const a = createDevice(server); const b = createDevice(server);
+  const server = new FakeServer(); const a = await createDevice(server); const b = await createDevice(server);
   await a.mount(); await b.mount();
   const pause = server.pauseNext('PATCH', 'before');
-  changeMemo(a, '2030-01-01', 'fixture-a'); await flush(); await a.advance(500); await pause.arrived;
-  changeMemo(b, '2030-01-02', 'fixture-b'); await flush(); await b.advance(500);
+  await changeMemo(a, '2030-01-01', 'fixture-a'); await flush(); await a.advance(500); await pause.arrived;
+  await changeMemo(b, '2030-01-02', 'fixture-b'); await flush(); await b.advance(500);
   pause.release(); await flush();
   assert.equal(a.status, 'error', 'Lost CAS should be visible');
   await a.focus(); await b.focus();
@@ -537,12 +595,12 @@ await check('독립 저장소 2개: 동시 수정 충돌 후 재시도로 양쪽
 });
 
 await check('서버 반영 후 응답 유실: 오류 표시·재접속 재조회로 중복 없이 복구', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   server.loseWriteResponse = true;
-  const expected = changeMemo(device, '2030-01-01', 'fixture-lost-response'); await flush(); await device.advance(500);
+  const expected = await changeMemo(device, '2030-01-01', 'fixture-lost-response'); await flush(); await device.advance(500);
   assert.equal(device.status, 'error'); expectState(device.read(), expected, 'Response loss erased local record');
   device.unmount();
-  const restarted = createDevice(server, device.read()); await restarted.mount();
+  const restarted = await createDevice(server, device.read()); await restarted.mount();
   expectState(server.row.state, expected, 'Retry duplicated or lost record'); expectState(restarted.read(), expected, 'Reconnect failed');
   assert.equal(restarted.status, 'synced');
   assert.equal(server.requests.filter(request => request.method === 'PATCH').length, 1, 'Reconnect resubmitted already committed state');
@@ -550,7 +608,7 @@ await check('서버 반영 후 응답 유실: 오류 표시·재접속 재조회
 });
 
 await check('조회 실패: 기존 기록 유지·오류 표시·포커스 재시도', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   server.failRead = true;
   await device.focus();
   assert.equal(device.status, 'error'); assert.ok(device.message.trim(), 'Read error must have a user-facing message');
@@ -561,7 +619,7 @@ await check('조회 실패: 기존 기록 유지·오류 표시·포커스 재�
 });
 
 await check('서버 명령 저장 후 즉시 재조회: 본인 알림만 반영하고 기존 로컬 값을 다시 쓰지 않음', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const expected = copy(fixture); expected[key]['2030-01-01'].workoutMemo = 'fixture-server-command';
   server.row = { state: expected, updated_at: '2030-02-01T00:01:00.000Z' };
   const count = server.requests.length;
@@ -573,7 +631,7 @@ await check('서버 명령 저장 후 즉시 재조회: 본인 알림만 반영�
 });
 
 await check('이전 GET 응답 대기 중 서버 명령 알림: 완료 뒤 재조회하여 최신 기록을 복구', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const pause = server.pauseNext('GET'); await device.focus(); await pause.arrived;
   const expected = copy(fixture); expected[key]['2030-01-01'].workoutMemo = 'fixture-command-during-read';
   server.row = { state: expected, updated_at: '2030-02-01T00:02:00.000Z' };
@@ -585,12 +643,12 @@ await check('이전 GET 응답 대기 중 서버 명령 알림: 완료 뒤 재�
 });
 
 await check('달력의 동기화 전 스냅샷으로 첫 저장: 원본 4일 보존', async () => {
-  const server = new FakeServer(); const device = createDevice(server);
+  const server = new FakeServer(); const device = await createDevice(server);
   const pause = server.pauseNext('GET'); await device.mount(); await pause.arrived;
   const calendarSnapshot = device.read()[key] ?? {};
   pause.release(); await flush();
   expectState(device.read(), fixture, 'Initial sync did not load fixture originals');
-  device.saveFromCalendarSnapshot(calendarSnapshot); await flush(); await device.advance(500);
+  await device.saveFromCalendarSnapshot(calendarSnapshot); await flush(); await device.advance(500);
   const saved = copy(server.row.state); device.unmount();
   expectState(saved[settingsKey], fixture[settingsKey], 'Settings changed');
   assert.equal(Object.keys(saved[key]).length, 5, 'Expected original 4 dates plus the new date after calendar save');
@@ -598,8 +656,8 @@ await check('달력의 동기화 전 스냅샷으로 첫 저장: 원본 4일 보
 });
 
 await check('대조군: 최신 스냅샷으로 같은 달력 저장을 실행하면 원본 4일 보존', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
-  device.saveFromCalendarSnapshot(device.read()[key]); await flush(); await device.advance(500);
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
+  await device.saveFromCalendarSnapshot(device.read()[key]); await flush(); await device.advance(500);
   const saved = copy(server.row.state); device.unmount();
   expectState(saved[settingsKey], fixture[settingsKey], 'Settings changed');
   assert.equal(Object.keys(saved[key]).length, 5);
@@ -607,8 +665,8 @@ await check('대조군: 최신 스냅샷으로 같은 달력 저장을 실행하
 });
 
 await check('삭제 직후 화면 이탈: 공통 동기화가 서버 삭제 완료', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
-  const expected = device.read(); delete expected[key]['2030-01-01']; device.write(expected); await flush();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
+  const expected = device.read(); delete expected[key]['2030-01-01']; await device.write(expected); await flush();
   assert.equal(device.status, 'pending'); device.leaveRoute();
   await device.advance(60000);
   expectState(device.read(), expected, 'Local deletion was lost');
@@ -617,10 +675,10 @@ await check('삭제 직후 화면 이탈: 공통 동기화가 서버 삭제 완�
 });
 
 await check('PATCH 도중 추가 수정 후 화면 이탈: 추가 수정까지 서버 반영', async () => {
-  const server = new FakeServer(); const device = createDevice(server); await device.mount();
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
   const pause = server.pauseNext('PATCH');
-  changeMemo(device, '2030-01-01', 'fixture-first'); await flush(); await device.advance(500); await pause.arrived;
-  const expected = changeMemo(device, '2030-01-01', 'fixture-later'); await flush();
+  await changeMemo(device, '2030-01-01', 'fixture-first'); await flush(); await device.advance(500); await pause.arrived;
+  const expected = await changeMemo(device, '2030-01-01', 'fixture-later'); await flush();
   device.leaveRoute(); pause.release(); await flush(); await device.advance(60000);
   expectState(device.read(), expected, 'Local later edit was lost');
   expectState(server.row.state, expected, 'Later edit remains only on device after unmount');
@@ -630,13 +688,43 @@ await check('PATCH 도중 추가 수정 후 화면 이탈: 추가 수정까지 �
 await check('달력의 오래된 날짜 편집: 같은 날짜의 원격 유산소 필드도 보존', async () => {
   const state = copy(fixture);
   state[key]['2030-02-02'] = { cardioDone: true, cardioMinutes: 25, cardioMemo: 'fixture-remote-cardio' };
-  const server = new FakeServer(state); const device = createDevice(server); await device.mount();
-  device.saveFromCalendarSnapshot({}); await flush(); await device.advance(500);
+  const server = new FakeServer(state); const device = await createDevice(server); await device.mount();
+  await device.saveFromCalendarSnapshot({}); await flush(); await device.advance(500);
   const saved = server.row.state[key]['2030-02-02'];
   assert.equal(saved.cardioMinutes, 25);
   assert.equal(saved.cardioMemo, 'fixture-remote-cardio');
   assert.equal(saved.workoutMemo, 'fixture-new');
   for (const [date, record] of Object.entries(fixture[key])) expectState(server.row.state[key][date], record, 'Original changed');
+  device.unmount();
+});
+
+await check('달력 저장의 실제 요일 마이그레이션: 기존 날짜 우선·새 날짜 보존·유산소 유지', async () => {
+  const state = copy(fixture);
+  const dated = { cardioDone: true, cardioMinutes: 25, cardioMemo: 'fixture-canonical-cardio' };
+  state[key]['2030-01-28'] = dated;
+  state[key].mon = { workoutMemo: 'fixture-obsolete-weekday' };
+  state[key].tue = { workoutDone: true, workoutMemo: 'fixture-migrated-weekday' };
+  const server = new FakeServer(state); const device = await createDevice(server); await device.mount();
+  await device.saveFromCalendarSnapshot({}); await flush(); await device.advance(500);
+  const saved = server.row.state;
+  expectState(saved[key]['2030-01-28'], dated, 'Legacy marker replaced the canonical dated record');
+  expectState(saved[key]['2030-01-29'], state[key].tue, 'Legacy-only weekday was lost instead of migrated');
+  assert.equal(saved[key].mon, undefined); assert.equal(saved[key].tue, undefined);
+  assert.equal(saved[key]['2030-02-02'].workoutMemo, 'fixture-new');
+  assert.equal(Object.keys(saved[key]).length, 7, 'Expected original four dates, two migrated/canonical dates and the new save');
+  for (const [date, value] of Object.entries(fixture[key])) expectState(saved[key][date], value, 'Original date changed during migration');
+  expectState(saved[settingsKey], fixture[settingsKey], 'Settings changed during migration');
+  expectState(device.read(), saved, 'Local and acknowledged migrated records differ');
+  device.unmount();
+});
+
+await check('Web Locks 미지원: 잠금 없는 쓰기 없이 원본·기준값 보존', async () => {
+  const server = new FakeServer(); const device = await createDevice(server); await device.mount();
+  const before = [...device.storage.values];
+  device.disableLocks();
+  await assert.rejects(device.write({ ...device.read(), 'ai-fitness-unsupported-write': true }), /Web Locks/);
+  expectState([...device.storage.values], before, 'Unsupported browser modified protected storage');
+  expectState(server.row.state, fixture, 'Unsupported local write changed the server');
   device.unmount();
 });
 

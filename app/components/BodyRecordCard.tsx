@@ -9,8 +9,9 @@ import {
   WeightRecordStore,
   getPreviousWeightRecord,
   isTodayKey,
-  writeJson,
 } from "../data/recordStorage";
+import { captureStorageOwner, isStorageOwnerCurrent, StorageSessionChangedError, type StorageOwnerToken } from "../data/storageTransaction";
+import { fitnessStorageError, readFitnessValue, updateFitnessValues } from "../data/fitnessStorageUpdates";
 import { parseOaReport } from "../lib/oaReportParser";
 
 type InbodyField = {
@@ -102,9 +103,21 @@ export default function BodyRecordCard({
   const [importProgress, setImportProgress] = useState(0);
   const [importMessage, setImportMessage] = useState("");
   const [recordMessage, setRecordMessage] = useState("");
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const editorOwner = useRef<StorageOwnerToken | null>(null);
+  const dirtyFields = useRef(new Set<string>());
+  const draftDate = useRef(dateKey);
+  const liveDate = useRef(dateKey);
+  liveDate.current = dateKey;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (draftDate.current === dateKey && (dirtyFields.current.size || pendingRef.current)) return;
+    draftDate.current = dateKey;
+    dirtyFields.current.clear();
+    try { editorOwner.current = captureStorageOwner(); }
+    catch (error) { editorOwner.current = null; setRecordMessage(fitnessStorageError(error)); }
     const next: Record<string, string> = {
       weight:
         currentWeight?.weight?.toString() ??
@@ -128,7 +141,8 @@ export default function BodyRecordCard({
       : null;
   const hasRecord = Boolean(currentWeight || currentInbody);
 
-  const save = () => {
+  const save = async () => {
+    if (pendingRef.current || importing) return;
     const weightInput = (form.weight ?? "").trim();
     const parsedWeight = Math.round(Number(weightInput) * 10) / 10;
     if (
@@ -159,55 +173,90 @@ export default function BodyRecordCard({
       );
       return;
     }
-    const nextWeights = { ...weights };
-    if (Number.isFinite(parsedWeight) && parsedWeight > 0)
-      nextWeights[dateKey] = {
-        weight: parsedWeight,
-        recordedAt: new Date().toISOString(),
-      };
-    else delete nextWeights[dateKey];
-
-    const record: InbodyRecord = {};
-    inbodyFields.forEach(({ key }) => {
-      const input = (form[key] ?? "").trim();
-      const value = Number(input);
-      if (input && Number.isFinite(value))
-        record[key] = value as never;
-    });
-    if (form.memo?.trim()) record.memo = form.memo.trim();
-    const nextInbody = { ...inbody };
-    if (Object.keys(record).length) nextInbody[dateKey] = record;
-    else delete nextInbody[dateKey];
-
-    writeJson(WEIGHT_RECORDS_KEY, nextWeights);
-    writeJson(INBODY_RECORDS_KEY, nextInbody);
-    onChange({ weights: nextWeights, inbody: nextInbody });
-    setRecordMessage(`${dateKey} 체중·인바디 기록을 저장했습니다.`);
+    const editedFields = new Set(dirtyFields.current);
+    const savedDate = dateKey;
+    pendingRef.current = true;
+    setPending(true);
+    setRecordMessage("");
+    try {
+      const owner = editorOwner.current;
+      if (!owner) throw new StorageSessionChangedError();
+      const next = await updateFitnessValues((snapshot) => {
+        const nextWeights = { ...readFitnessValue<WeightRecordStore>(snapshot, WEIGHT_RECORDS_KEY, {}) };
+        const nextInbody = { ...readFitnessValue<InbodyRecordStore>(snapshot, INBODY_RECORDS_KEY, {}) };
+        const record = { ...nextInbody[savedDate] };
+        if (editedFields.has("weight")) {
+          if (weightInput) nextWeights[savedDate] = { ...nextWeights[savedDate], weight: parsedWeight, recordedAt: new Date().toISOString() };
+          else delete nextWeights[savedDate];
+          delete record.weight;
+        }
+        inbodyFields.forEach(({ key }) => {
+          if (!editedFields.has(key)) return;
+          const input = (form[key] ?? "").trim();
+          if (input) record[key] = Number(input) as never;
+          else delete record[key];
+        });
+        if (editedFields.has("memo")) {
+          if (form.memo?.trim()) record.memo = form.memo.trim();
+          else delete record.memo;
+        }
+        if (Object.keys(record).length) nextInbody[savedDate] = record;
+        else delete nextInbody[savedDate];
+        return {
+          changes: { [WEIGHT_RECORDS_KEY]: JSON.stringify(nextWeights), [INBODY_RECORDS_KEY]: JSON.stringify(nextInbody) },
+          value: { weights: nextWeights, inbody: nextInbody },
+        };
+      }, owner);
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new StorageSessionChangedError();
+      if (liveDate.current === savedDate) dirtyFields.current.clear();
+      onChange(next);
+      if (liveDate.current === savedDate) setRecordMessage(`${savedDate} 체중·인바디 기록을 저장했습니다.`);
+    } catch (error) {
+      if (liveDate.current === savedDate) setRecordMessage(fitnessStorageError(error));
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
   };
 
-  const remove = () => {
-    if (
-      !window.confirm(
-        `${dateKey}의 체중과 인바디 기록을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
-      )
-    ) {
-      return;
+  const remove = async () => {
+    if (pendingRef.current || importing) return;
+    if (!window.confirm(`${dateKey}의 체중과 인바디 기록을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    const savedDate = dateKey;
+    pendingRef.current = true;
+    setPending(true);
+    setRecordMessage("");
+    try {
+      const owner = editorOwner.current;
+      if (!owner) throw new StorageSessionChangedError();
+      const next = await updateFitnessValues((snapshot) => {
+        const weights = { ...readFitnessValue<WeightRecordStore>(snapshot, WEIGHT_RECORDS_KEY, {}) };
+        const inbody = { ...readFitnessValue<InbodyRecordStore>(snapshot, INBODY_RECORDS_KEY, {}) };
+        delete weights[savedDate];
+        delete inbody[savedDate];
+        return { changes: { [WEIGHT_RECORDS_KEY]: JSON.stringify(weights), [INBODY_RECORDS_KEY]: JSON.stringify(inbody) }, value: { weights, inbody } };
+      }, owner);
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new StorageSessionChangedError();
+      if (liveDate.current === savedDate) {
+        dirtyFields.current.clear();
+        setForm({});
+        setRecordMessage(`${savedDate} 체중·인바디 기록을 삭제했습니다.`);
+      }
+      onChange(next);
+    } catch (error) {
+      if (liveDate.current === savedDate) setRecordMessage(fitnessStorageError(error));
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
     }
-    const nextWeights = { ...weights };
-    const nextInbody = { ...inbody };
-    delete nextWeights[dateKey];
-    delete nextInbody[dateKey];
-    writeJson(WEIGHT_RECORDS_KEY, nextWeights);
-    writeJson(INBODY_RECORDS_KEY, nextInbody);
-    onChange({ weights: nextWeights, inbody: nextInbody });
-    setForm({});
-    setRecordMessage(`${dateKey} 체중·인바디 기록을 삭제했습니다.`);
   };
 
   const importOaReport = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || pendingRef.current) return;
+    const importDate = dateKey;
+    const importOwner = editorOwner.current;
     if (!file.type.startsWith("image/")) {
       setImportMessage("이미지 파일을 선택해주세요.");
       return;
@@ -217,9 +266,13 @@ export default function BodyRecordCard({
     setImportProgress(0);
     setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
     try {
+      if (!importOwner) throw new StorageSessionChangedError();
       const result = await parseOaReport(file, setImportProgress);
       if (!result.recognizedCount)
         throw new Error("보고서의 숫자를 읽지 못했습니다. 원본 이미지를 다시 선택해주세요.");
+      if (liveDate.current !== importDate) return;
+      if (!isStorageOwnerCurrent(window.localStorage, importOwner)) throw new StorageSessionChangedError();
+      Object.keys(result.values).forEach((key) => dirtyFields.current.add(key));
       setForm((current) => {
         const next = { ...current };
         Object.entries(result.values).forEach(([key, value]) => {
@@ -250,6 +303,7 @@ export default function BodyRecordCard({
 
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+      <fieldset disabled={pending || importing} className="min-w-0" aria-busy={pending}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[15px] font-bold text-gray-800">
@@ -322,6 +376,8 @@ export default function BodyRecordCard({
             inputMode="decimal"
             value={form.weight || ""}
             onChange={(event) => {
+              if (pendingRef.current) return;
+              dirtyFields.current.add("weight");
               setForm({ ...form, weight: event.target.value });
               setRecordMessage("");
             }}
@@ -375,6 +431,8 @@ export default function BodyRecordCard({
                       inputMode="decimal"
                       value={form[field.key] || ""}
                       onChange={(event) => {
+                        if (pendingRef.current) return;
+                        dirtyFields.current.add(field.key);
                         setForm({ ...form, [field.key]: event.target.value });
                         setRecordMessage("");
                       }}
@@ -394,6 +452,8 @@ export default function BodyRecordCard({
       <textarea
         value={form.memo || ""}
         onChange={(event) => {
+          if (pendingRef.current) return;
+          dirtyFields.current.add("memo");
           setForm({ ...form, memo: event.target.value });
           setRecordMessage("");
         }}
@@ -420,13 +480,14 @@ export default function BodyRecordCard({
       </div>
       {recordMessage && (
         <p
-          role="status"
+          role={(recordMessage.includes("저장했습니다") || recordMessage.includes("삭제했습니다")) ? "status" : "alert"}
           aria-live="polite"
-          className={`mt-2 text-[11px] font-medium ${recordMessage.includes("해주세요") ? "text-red-700" : "text-emerald-700"}`}
+          className={`mt-2 text-[11px] font-medium ${(recordMessage.includes("저장했습니다") || recordMessage.includes("삭제했습니다")) ? "text-emerald-700" : "text-red-700"}`}
         >
           {recordMessage}
         </p>
       )}
+      </fieldset>
     </section>
   );
 }

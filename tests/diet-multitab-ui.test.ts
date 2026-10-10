@@ -10,6 +10,8 @@ import * as photos from '../app/data/dietPhotoAnalysis.ts';
 import * as patterns from '../app/data/dietPatterns.ts';
 import * as transactions from '../app/data/storageTransaction.ts';
 import * as resets from '../app/data/appRecordReset.ts';
+import { applyFitnessEdits } from '../app/data/fitnessStorageUpdates.ts';
+import { readJsonForUpdate } from '../app/data/recordStorage.ts';
 import * as dietTime from '../lib/diet-time.ts';
 
 type Node = { type: unknown; props: Record<string, unknown> };
@@ -27,6 +29,10 @@ function source(path: string) {
 function sharedBrowser() {
   const values = new Map(Object.entries(original).map(([key, value]) => [key, JSON.stringify(value)]));
   values.set('fitness-cloud-sync-user', owner);
+  let lockTail = Promise.resolve();
+  const locks = { request(_name: string, _options: unknown, callback: () => unknown) {
+    const work = lockTail.then(callback); lockTail = work.then(() => {}, () => {}); return work;
+  } };
   let duringWrite: ((writer: string, key: string) => void) | undefined;
   const contexts = new Map<string, { dispatch: (event: { type: string; key?: string }) => void }>();
   const remote = { state: structuredClone(original) as Record<string, unknown>, revision: 1, writes: 0, reads: 0 };
@@ -35,7 +41,8 @@ function sharedBrowser() {
     setItem(key: string, value: string) { values.set(key, value); duringWrite?.(id, key); },
     removeItem(key: string) { values.delete(key); duringWrite?.(id, key); },
   });
-  return { remote, local, values, contexts, interleave(callback?: typeof duringWrite) { duringWrite = callback; },
+  return { remote, local, values, contexts, locks,
+    holdLock() { let release!: () => void; const hold = new Promise<void>(resolve => { release = resolve; }); lockTail = lockTail.then(() => hold); return release; }, interleave(callback?: typeof duringWrite) { duringWrite = callback; },
     read() { return JSON.parse(values.get(key) ?? '{}') as Record<string, Record<string, unknown>>; } };
 }
 // Runs the actual DietView and CloudSyncPanel handlers with shared synthetic
@@ -59,10 +66,10 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
     '../lib/supabase.ts': { supabase: null }, '../data/appRecordReset': { ...resets, isRecordResetRunning: () => false }, './appRecordReset.ts': resets,
     '../lib/supabase': { isSupabaseConfigured: true, supabase: { auth: { async getUser() { return { data: { user: { id: owner, email: 'synthetic@example.test' } } }; }, onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; } } } },
     '../lib/passwordPolicy': {}, '../lib/unsavedChanges': { requestSafeReload() {} },
-    './storageTransaction.ts': transactions,
-    '../data/storageTransaction': { ...transactions, notifyRecordsChanged() { queueMicrotask(() => win.dispatchEvent({ type: transactions.RECORDS_CHANGED_EVENT })); } },
     'next/image': { default: () => null }, '@/lib/diet-time': dietTime,
     '@/components/useUnsavedChanges': { useUnsavedChanges() {} }, '@/app/lib/authenticatedHeaders': {},
+    '../data/recordStorage': { readJsonForUpdate },
+    '../data/fitnessStorageUpdates': { applyFitnessEdits },
     '../data/dietPlans': { ...plans, getLocalDateKey: (date = new Clock()) => plans.getLocalDateKey(date) },
     '../data/freeDietTools': freeDiet, '../data/dietSelfResponses': responses, '../data/dietPhotoAnalysis': photos, '../data/dietPatterns': patterns,
     '../data/workouts': { SWITCHON_DEFAULT_START_DATE: '2026-08-24', SWITCHON_START_DATE_KEY: 'ai-fitness-switchon-start-date' },
@@ -70,14 +77,18 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   for (const name of ['DietPatterns', 'DietWorkoutContext', 'WorkoutTimes', 'WorkoutTimeHistory', 'DietFavorites']) modules[`./${name}`] = { default: () => null };
   const load = (path: string) => {
     const exports: Record<string, unknown> = {};
-    vm.runInNewContext(`(function(exports, require) { ${source(path)}\n})`, { Date: Clock, URL, console, AbortController, Event, queueMicrotask,
+    vm.runInNewContext(`(function(exports, require) { ${source(path)}\n})`, { Date: Clock, URL, console, AbortController, Event, Error, crypto, queueMicrotask, navigator: { locks: browser.locks },
       window: win, document: { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' },
     })(exports, (name: string) => { assert.ok(name in modules, `Unexpected dependency ${name}`); return modules[name]; });
     return exports;
   };
+  const localTransactions = load('../app/data/storageTransaction.ts') as typeof transactions;
+  modules['./storageTransaction.ts'] = localTransactions;
+  modules['../data/storageTransaction'] = localTransactions;
   const cloud = load('../app/data/cloudSync.ts') as typeof import('../app/data/cloudSync.ts');
   modules['../data/cloudSync'] = { ...cloud,
     async getRemoteState() { browser.remote.reads++; const result = { state: structuredClone(browser.remote.state), updated_at: String(browser.remote.revision) }; const hold = nextRead; nextRead = undefined; if (hold) await hold.promise; return result; },
+    async saveRemoteState(_owner: string, state: Record<string, unknown>) { browser.remote.state = structuredClone(state); browser.remote.revision++; browser.remote.writes++; },
     async saveRemoteStateIfUnchanged(_owner: string, state: Record<string, unknown>, revision: string) {
       if (revision !== String(browser.remote.revision)) return false;
       browser.remote.state = structuredClone(state); browser.remote.revision++; browser.remote.writes++; return true;
@@ -89,7 +100,7 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
       useState(initial: unknown) { const slot = cursor++; if (!(slot in slots)) slots[slot] = typeof initial === 'function' ? initial() : initial; return [slots[slot], (update: unknown) => { const next = typeof update === 'function' ? update(slots[slot]) : update; if (!Object.is(slots[slot], next)) { slots[slot] = next; changed = true; } }]; },
       useRef(initial: unknown) { const slot = cursor++; if (!(slot in slots)) slots[slot] = { current: initial }; return slots[slot]; },
       useMemo(factory: () => unknown, deps: unknown[]) { const slot = cursor++, old = slots[slot] as { deps: unknown[]; value: unknown } | undefined; if (!old || old.deps.length !== deps.length || old.deps.some((value, index) => value !== deps[index])) slots[slot] = { deps, value: factory() }; return (slots[slot] as { value: unknown }).value; },
-      useEffect(effect: () => void, deps: unknown[]) { const slot = cursor++, old = slots[slot] as unknown[] | undefined; if (!old || old.length !== deps.length || old.some((value, index) => value !== deps[index])) { slots[slot] = deps; effects.push(() => { cleanups[slot]?.(); const cleanup = effect(); if (typeof cleanup === 'function') cleanups[slot] = cleanup; }); } },
+      useEffect(effect: () => void, deps?: unknown[]) { const slot = cursor++, old = slots[slot] as unknown[] | undefined; if (!deps || !old || old.length !== deps.length || old.some((value, index) => value !== deps[index])) { slots[slot] = deps; effects.push(() => { cleanups[slot]?.(); const cleanup = effect(); if (typeof cleanup === 'function') cleanups[slot] = cleanup; }); } },
     };
     const component = load(path).default as (props: object) => Node;
     const render = (): Node => { let result: Node, rounds = 0; do { assert.ok(rounds++ < 20); changed = false; cursor = 0; result = component({}); effects.splice(0).forEach(effect => effect()); } while (changed); return result; };
@@ -97,12 +108,12 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   }
   const diet = mount('../app/components/DietView.tsx'), sync = mount('../app/components/CloudSyncPanel.tsx');
   const select = (id: string) => { const found = nodes(diet.render()).find(node => node.type === 'select' && node.props.id === id); assert.ok(found); return found; };
-  return { local, cloud, render: diet.render, status: () => textOf(sync.render()),
+  return { local, cloud, transactions: localTransactions, render: diet.render, status: () => textOf(sync.render()),
     holdNextRead() { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); nextRead = { promise, release }; return release; },
     focus() { win.dispatchEvent({ type: 'focus' }); },
-    change(id: string, value: string) { (select(id).props.onChange as (event: unknown) => void)({ target: { value } }); diet.render(); },
+    change(id: string, value: string, flushRender = true) { const tree = diet.render(); const input = select(id); (tree.props.onChangeCapture as () => void)?.(); (input.props.onChange as (event: unknown) => void)({ target: { value } }); if (flushRender) diet.render(); },
     value(id: string) { return select(id).props.value; },
-    click(label: string) { const button = nodes(diet.render()).find(node => node.type === 'button' && textOf(node) === label); assert.ok(button); (button.props.onClick as () => void)(); diet.render(); },
+    async click(label: string) { const button = nodes(diet.render()).find(node => node.type === 'button' && textOf(node) === label); assert.ok(button); (button.props.onClick as () => void)(); diet.render(); await tick(); diet.render(); },
     event(key: string) { win.dispatchEvent({ type: 'storage', key }); diet.render(); sync.render(); },
     async ready() { for (let i = 0; i < 5; i++) { await tick(); diet.render(); sync.render(); } assert.match(textOf(sync.render()), /서버 반영 완료/); },
     async sync() { for (let i = 0; i < 5; i++) { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } await tick(); diet.render(); sync.render(); } },
@@ -120,7 +131,7 @@ test('shipping dirty diet and cloud reader cannot roll back a peer diet save hal
   shared.interleave((writer, changedKey) => {
     if (writer === 'B' && changedKey === key && !interleaved) { interleaved = true; a.event(changedKey); }
   });
-  b.click('오늘 식단 저장'); shared.interleave();
+  await b.click('오늘 식단 저장'); shared.interleave();
   assert.equal(interleaved, true);
   assert.equal(a.value('diet-hunger'), 'yes', 'Unsaved first-tab response remains visible');
   assert.deepEqual(responses.readDietSelfResponses(shared.read()[day]), { hunger: 'unrecorded', bingeUrge: 'no', preSleepOvereating: 'yes' });
@@ -150,4 +161,128 @@ for (const releaseWhileWriting of [true, false]) test(`shipping cloud sync defer
   await a.sync();
   assert.deepEqual(shared.remote.state[key], newer);
   assert.match(a.status(), /서버 반영 완료/);
+});
+
+test('queued diet save reads latest stores and preserves a newer unsaved editor revision', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  const release = shared.holdLock();
+  const peer = a.transactions.updateStorageBatch(a.local, snapshot => ({
+    [key]: JSON.stringify({ ...JSON.parse(snapshot.getItem(key) ?? '{}'), '2002-02-02': { dietMemo: 'peer after hydration', unusualField: 7 } }),
+  }));
+  a.change('diet-hunger', 'yes');
+  await a.click('오늘 식단 저장');
+  assert.equal(shared.read()[day], undefined, 'No premature local commit while the lock is held');
+  assert.doesNotMatch(textOf(a.render()), /오늘 식단 기록을 저장했습니다/);
+  a.change('diet-hunger', 'no');
+  release(); await peer; await tick(); a.render();
+  assert.equal(shared.read()['2002-02-02'].dietMemo, 'peer after hydration');
+  assert.equal(shared.read()[day].hunger, 'yes', 'The clicked revision, not the newer editor, was saved');
+  assert.equal(a.value('diet-hunger'), 'no');
+  assert.match(textOf(a.render()), /이후 작성한 내용은 아직 저장되지 않았습니다/);
+  await a.click('오늘 식단 저장');
+  assert.equal(shared.read()[day].hunger, 'no');
+  assert.equal(a.value('diet-hunger'), 'no');
+});
+
+test('an old mounted diet editor cannot adopt a newly ready different owner at save time', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  a.change('diet-hunger', 'yes');
+  await a.cloud.prepareLocalCloudState('other-owner');
+  await a.click('오늘 식단 저장');
+  assert.equal(Object.keys(a.cloud.readLocalCloudState()).length, 0);
+  assert.equal(a.value('diet-hunger'), 'yes', 'The old unsaved editor remains unacknowledged');
+  assert.match(textOf(a.render()), /기기에 저장하지 못했어요/);
+  assert.doesNotMatch(textOf(a.render()), /오늘 식단 기록을 저장했습니다/);
+});
+
+test('A to B to A fencing rejects a diet save queued under the original A epoch', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  const epoch = a.cloud.readCloudSyncEpoch();
+  a.change('diet-hunger', 'yes');
+  const release = shared.holdLock();
+  await a.click('오늘 식단 저장');
+  const b = a.cloud.prepareLocalCloudState('other-owner').catch(error => error);
+  const back = a.cloud.prepareLocalCloudState(owner);
+  assert.notEqual(a.cloud.readCloudSyncEpoch(), epoch);
+  release(); await b; await back; await tick(); a.render();
+  assert.equal(shared.read()[day], undefined);
+  assert.equal(a.value('diet-hunger'), 'yes');
+  assert.match(textOf(a.render()), /기기에 저장하지 못했어요/);
+});
+
+test('corrupt records block a diet mutation without silently replacing the unreadable map', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  a.change('diet-hunger', 'yes');
+  shared.values.set(key, '{synthetic invalid JSON');
+  const before = [...shared.values];
+  await a.click('오늘 식단 저장');
+  assert.deepEqual([...shared.values], before);
+  assert.equal(a.value('diet-hunger'), 'yes');
+  assert.match(textOf(a.render()), /기기에 저장하지 못했어요/);
+});
+
+test('a remote-only response preserves a local edit committed after its coherent request snapshot', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  const remote = { ...original[key], '2003-03-03': { dietMemo: 'remote-only update' } };
+  shared.remote.state[key] = remote; shared.remote.revision++;
+  const release = a.holdNextRead(); a.focus();
+  a.change('diet-hunger', 'yes'); await a.click('오늘 식단 저장');
+  release(); await tick(); a.render();
+  assert.equal(shared.read()[day].hunger, 'yes');
+  assert.equal(shared.read()['2003-03-03'].dietMemo, 'remote-only update');
+  assert.match(a.status(), /서버 반영 대기/);
+  await a.sync();
+  assert.equal((shared.remote.state[key] as Record<string, Record<string, unknown>>)[day].hunger, 'yes');
+  assert.match(a.status(), /서버 반영 완료/);
+});
+
+test('queued diet reset keeps input typed afterward and removes only today from latest stores', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  a.change('diet-hunger', 'yes'); await a.click('오늘 식단 저장');
+  const release = shared.holdLock();
+  const peer = a.transactions.updateStorageBatch(a.local, snapshot => ({
+    [key]: JSON.stringify({ ...JSON.parse(snapshot.getItem(key) ?? '{}'), '2004-04-04': { dietMemo: 'peer during reset wait' } }),
+  }));
+  await a.click('오늘 기록 초기화');
+  a.change('diet-hunger', 'no');
+  assert.equal(shared.read()[day].hunger, 'yes');
+  release(); await peer; await tick(); a.render();
+  assert.equal(shared.read()[day], undefined);
+  assert.equal(shared.read()['2004-04-04'].dietMemo, 'peer during reset wait');
+  assert.equal(a.value('diet-hunger'), 'no');
+  assert.match(textOf(a.render()), /이후 작성한 내용은 그대로 남아 있습니다/);
+  await a.click('오늘 식단 저장');
+  assert.equal(shared.read()[day].hunger, 'no');
+});
+
+test('saving one diet answer preserves peer edits to untouched fields on the same day', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  a.change('diet-hunger', 'yes');
+  const release = shared.holdLock();
+  const peer = a.transactions.updateStorageBatch(a.local, snapshot => ({
+    [key]: JSON.stringify({ ...JSON.parse(snapshot.getItem(key) ?? '{}'), [day]: { waterMl: 1500, dietMemo: 'peer memo', originalField: true } }),
+    [plans.WATER_INTAKE_KEY]: JSON.stringify({ [day]: 1500 }),
+    [plans.DIET_MEAL_LOG_KEY]: JSON.stringify({ [day]: { ...plans.DEFAULT_MEAL_LOG, breakfastShake: 'full', lunchProteinChoice: '25' } }),
+  }));
+  await a.click('오늘 식단 저장'); release(); await peer; await tick(); a.render();
+  assert.equal(shared.read()[day].hunger, 'yes');
+  assert.equal(shared.read()[day].dietMemo, 'peer memo');
+  assert.equal(shared.read()[day].waterMl, 1500);
+  assert.equal(shared.read()[day].originalField, true);
+  assert.equal(JSON.parse(a.local.getItem(plans.WATER_INTAKE_KEY)!)[day], 1500);
+  assert.equal(JSON.parse(a.local.getItem(plans.DIET_MEAL_LOG_KEY)!)[day].lunchProteinChoice, '25');
+  assert.equal(shared.read()[day].proteinTotal, 56, 'Derived protein uses the merged committed meal');
+});
+
+test('input captured before its React render cannot be cleared by a resolving diet save', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  a.change('diet-hunger', 'yes');
+  const release = shared.holdLock(); await a.click('오늘 식단 저장');
+  a.change('diet-hunger', 'no', false); // state queued; effects deliberately have not run
+  release(); await tick(); a.render();
+  assert.equal(shared.read()[day].hunger, 'yes');
+  assert.equal(a.value('diet-hunger'), 'no');
+  assert.match(textOf(a.render()), /이후 작성한 내용은 아직 저장되지 않았습니다/);
+  await a.click('오늘 식단 저장');
+  assert.equal(shared.read()[day].hunger, 'no', 'The newer self-response edit flag was not cleared');
 });

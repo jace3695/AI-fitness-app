@@ -4,7 +4,8 @@ import type { DinnerCarbRecord, LunchCarbRecord, LunchProteinRecord } from './di
 import { WORKOUT_COMPLETED_DAYS_KEY } from './workoutCompletion.ts';
 import type { WorkoutCompletionStore } from './workoutCompletion.ts';
 import type { DailyConditionRecord } from './recoveryMode.ts';
-import { notifyRecordsChanged, readStorageSnapshot } from './storageTransaction.ts';
+import { captureStorageOwner, StorageCorruptionError, readStorageSnapshot, updateStorageBatch, writeStorageBatch } from './storageTransaction.ts';
+import type { StorageOwnerToken, StorageReader } from './storageTransaction.ts';
 
 export const WEIGHT_RECORDS_KEY = 'ai-fitness-weight-records';
 export const INBODY_RECORDS_KEY = 'ai-fitness-inbody-records';
@@ -87,10 +88,30 @@ export function readJson<T>(key: string, fallback: T, source?: Pick<Storage, 'ge
   try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
-export function writeJson<T>(key: string, value: T) {
+export function readJsonForUpdate<T>(snapshot: Pick<StorageReader, 'getItem'>, key: string, fallback: T): T {
+  const raw = snapshot.getItem(key);
+  if (raw === null) return fallback;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (fallback !== null && (value === null || typeof value !== typeof fallback || Array.isArray(value) !== Array.isArray(fallback))) throw new StorageCorruptionError();
+    return value as T;
+  } catch { throw new StorageCorruptionError(); }
+}
+
+export async function writeJson<T>(key: string, value: T, owner?: StorageOwnerToken): Promise<void> {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(key, JSON.stringify(value));
-  notifyRecordsChanged();
+  await writeStorageBatch(window.localStorage, { [key]: JSON.stringify(value) }, { owner });
+}
+
+export async function updateJson<T>(key: string, fallback: T, transform: (current: T) => T, owner?: StorageOwnerToken): Promise<T> {
+  if (typeof window === 'undefined') throw new Error('기록 저장은 브라우저에서만 가능합니다.');
+  const captured = owner ?? captureStorageOwner();
+  let result = fallback;
+  await updateStorageBatch(window.localStorage, snapshot => {
+    result = transform(readJsonForUpdate(snapshot, key, fallback));
+    return { [key]: JSON.stringify(result) };
+  }, { owner: captured });
+  return result;
 }
 
 export function normalizeWeightGoal(value: unknown): WeightGoal {
@@ -112,9 +133,9 @@ export function normalizeWeightGoal(value: unknown): WeightGoal {
   return { minKg, maxKg };
 }
 
-export function saveWeightGoal(goal: WeightGoal) {
+export async function saveWeightGoal(goal: WeightGoal, owner?: StorageOwnerToken) {
   const normalized = normalizeWeightGoal(goal);
-  writeJson(WEIGHT_GOAL_KEY, normalized);
+  await writeJson(WEIGHT_GOAL_KEY, normalized, owner);
   return normalized;
 }
 

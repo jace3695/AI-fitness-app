@@ -1,94 +1,243 @@
-type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export type StorageReader = Pick<Storage, 'getItem' | 'length' | 'key'>;
+export type TransactionStorage = StorageReader & Pick<Storage, 'setItem' | 'removeItem'>;
 export const STORAGE_JOURNAL_KEY = 'yeoni-storage-transaction-v1';
 export const STORAGE_GENERATION_KEY = 'yeoni-storage-generation-v1';
-const JOURNAL_KEY = STORAGE_JOURNAL_KEY;
-
-export const hasStorageTransaction = (storage: Pick<Storage, 'getItem'>) => storage.getItem(JOURNAL_KEY) !== null;
-export const readStorageGeneration = (storage: Pick<Storage, 'getItem'>) => storage.getItem(STORAGE_GENERATION_KEY);
+export const STORAGE_PROTOCOL_KEY = 'yeoni-storage-transaction-v2';
+export const STORAGE_LOCK_NAME = 'yeoni-shared-local-storage-v2';
+export const STORAGE_OWNER_KEY = 'fitness-cloud-sync-user';
+export const STORAGE_SESSION_KEY = 'fitness-cloud-sync-epoch';
+export const STORAGE_READY_KEY = 'fitness-cloud-sync-ready';
+export const CLOUD_SESSION_CHANGED_EVENT = 'yeoni-cloud-session-changed';
 
 export class StorageSnapshotBusyError extends Error {
   constructor() { super('다른 창의 기록 저장이 끝난 뒤 다시 읽어 주세요.'); this.name = 'StorageSnapshotBusyError'; }
 }
+export class StorageCorruptionError extends Error {
+  constructor() { super('저장 중인 기록의 복구 정보를 읽지 못했습니다. 원본을 유지합니다.'); this.name = 'StorageCorruptionError'; }
+}
+export class StorageLegacyMigrationRequiredError extends Error {
+  constructor() { super('이전 버전의 저장 복구 정보가 남아 있습니다. 모든 이전 창을 닫고 별도 복구 절차를 진행해야 합니다. 기록은 그대로 보존했습니다.'); this.name = 'StorageLegacyMigrationRequiredError'; }
+}
+export class StorageLocksUnavailableError extends Error {
+  constructor() { super('이 브라우저에서는 안전한 기록 저장을 지원하지 않습니다. Web Locks를 지원하는 최신 브라우저를 사용해 주세요.'); this.name = 'StorageLocksUnavailableError'; }
+}
+export class StorageSessionChangedError extends Error {
+  constructor() { super('로그인 계정이 변경되었거나 기록을 준비 중입니다. 다시 확인한 뒤 저장해 주세요.'); this.name = 'StorageSessionChangedError'; }
+}
+export interface StorageOwnerToken { userId: string | null; epoch: string | null }
+export interface StorageSnapshot extends StorageReader { generation: string | null; pending: boolean }
+export interface StorageWriteOptions { owner?: StorageOwnerToken }
+type Changes = Record<string, string | null>;
+type Protocol = { version: 2; state: 'committed'; generation: string }
+  | { version: 2; state: 'prepared'; generation: string; transactionId: string; before: Changes };
+type Session = { version: 2; id: string; userId: string | null };
+type Ready = { epoch: string; userId: string | null };
+const locallyFenced = new WeakSet<object>();
+const failedInvalidations = new WeakSet<object>();
+const insideTransform = new WeakSet<object>();
 
-/** Reads never recover a journal: it may belong to a writer in another tab. */
-export function readStorageSnapshot(storage: Pick<Storage, 'getItem' | 'length' | 'key'>) {
+const isMap = (value: unknown): value is Changes => value !== null && typeof value === 'object' && !Array.isArray(value)
+  && Object.values(value).every(item => item === null || typeof item === 'string');
+function parseProtocol(raw: string | null): Protocol | null {
+  if (raw === null) return null;
+  try {
+    const value = JSON.parse(raw) as Protocol;
+    if (value?.version !== 2 || typeof value.generation !== 'string' || !value.generation
+      || (value.state !== 'committed' && value.state !== 'prepared')
+      || (value.state === 'prepared' && (typeof value.transactionId !== 'string' || !value.transactionId || !isMap(value.before)))) throw new StorageCorruptionError();
+    if (value.state === 'prepared') validateChanges(value.before);
+    return value;
+  } catch { throw new StorageCorruptionError(); }
+}
+function parseLegacy(raw: string): Changes {
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!isMap(value)) throw new StorageCorruptionError();
+    // Legacy readers project only records, never session invalidation metadata.
+    if (Object.keys(value).some(key => key === STORAGE_SESSION_KEY || key === STORAGE_PROTOCOL_KEY || key === STORAGE_JOURNAL_KEY || key === STORAGE_GENERATION_KEY)) throw new StorageCorruptionError();
+    return value;
+  } catch { throw new StorageCorruptionError(); }
+}
+function parseSession(raw: string | null): Session | null {
+  if (raw === null || !raw.startsWith('{')) return null; // Legacy numeric epoch is read-only until preparation.
+  try {
+    const value = JSON.parse(raw) as Session;
+    if (value?.version !== 2 || typeof value.id !== 'string' || !value.id
+      || (value.userId !== null && typeof value.userId !== 'string')) throw new StorageCorruptionError();
+    return value;
+  } catch { throw new StorageCorruptionError(); }
+}
+function validateChanges(changes: Changes) {
+  if (!isMap(changes) || Object.keys(changes).some(key => [STORAGE_JOURNAL_KEY, STORAGE_GENERATION_KEY, STORAGE_PROTOCOL_KEY, STORAGE_SESSION_KEY].includes(key))) throw new StorageCorruptionError();
+}
+export const hasStorageTransaction = (storage: Pick<Storage, 'getItem'>) => storage.getItem(STORAGE_JOURNAL_KEY) !== null
+  || parseProtocol(storage.getItem(STORAGE_PROTOCOL_KEY))?.state === 'prepared';
+export const readStorageGeneration = (storage: Pick<Storage, 'getItem'>) => parseProtocol(storage.getItem(STORAGE_PROTOCOL_KEY))?.generation ?? storage.getItem(STORAGE_GENERATION_KEY);
+
+/** Pure readers never recover. Both journal formats expose their whole before-image. */
+export function readStorageSnapshot(storage: StorageReader): StorageSnapshot {
   for (let attempt = 0; attempt < 3; attempt++) {
-    const generation = readStorageGeneration(storage);
-    const journal = storage.getItem(JOURNAL_KEY);
-    let before: Record<string, string | null> = {};
-    if (journal !== null) {
-      const parsed: unknown = JSON.parse(journal);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
-        || Object.values(parsed).some(value => value !== null && typeof value !== 'string')) {
-        throw new Error('저장 중인 기록의 복구 정보를 읽지 못했습니다. 원본을 유지합니다.');
-      }
-      before = parsed as Record<string, string | null>;
-    }
+    const generation = storage.getItem(STORAGE_GENERATION_KEY);
+    const protocolRaw = storage.getItem(STORAGE_PROTOCOL_KEY);
+    const journal = storage.getItem(STORAGE_JOURNAL_KEY);
+    const protocol = parseProtocol(protocolRaw);
+    if (journal !== null && protocol?.state === 'prepared') throw new StorageCorruptionError();
+    const before = journal !== null ? parseLegacy(journal) : protocol?.state === 'prepared' ? protocol.before : {};
     const values: Record<string, string> = Object.create(null);
     for (let index = 0; index < storage.length; index++) {
       const key = storage.key(index);
-      if (key === null || key === JOURNAL_KEY || key === STORAGE_GENERATION_KEY) continue;
+      if (key === null || [STORAGE_JOURNAL_KEY, STORAGE_GENERATION_KEY, STORAGE_PROTOCOL_KEY].includes(key)) continue;
       const value = storage.getItem(key);
       if (value !== null) values[key] = value;
     }
-    // Restore deleted keys in the view and hide keys newly added by the writer.
     for (const [key, value] of Object.entries(before)) {
       if (value === null) delete values[key];
       else values[key] = value;
     }
-    const afterJournal = storage.getItem(JOURNAL_KEY);
-    const afterGeneration = readStorageGeneration(storage);
-    if (journal !== afterJournal || generation !== afterGeneration) continue;
+    const afterJournal = storage.getItem(STORAGE_JOURNAL_KEY);
+    const afterProtocol = storage.getItem(STORAGE_PROTOCOL_KEY);
+    const afterGeneration = storage.getItem(STORAGE_GENERATION_KEY);
+    if (journal !== afterJournal || protocolRaw !== afterProtocol || generation !== afterGeneration) continue;
     const keys = Object.keys(values);
-    return { generation, pending: journal !== null, length: keys.length,
+    return { generation: protocol?.generation ?? generation, pending: journal !== null || protocol?.state === 'prepared', length: keys.length,
       key: (index: number) => keys[index] ?? null,
       getItem: (key: string): string | null => Object.hasOwn(values, key) ? values[key] : null };
   }
   throw new StorageSnapshotBusyError();
 }
 
-function markTransactionBoundary(storage: StorageLike) {
-  // Keep this after commit/rollback and before removing the journal. A reader
-  // must detect a whole null→journal→null cycle between its samples (ABA).
-  storage.setItem(STORAGE_GENERATION_KEY, crypto.randomUUID());
+export function requireStorageLocks(): LockManager {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks || typeof locks.request !== 'function') throw new StorageLocksUnavailableError();
+  return locks;
 }
-
-/** Explicit recovery only. Ordinary readers cannot know whether a peer is active. */
-export function recoverStorageTransaction(storage: StorageLike) {
-  const raw = storage.getItem(JOURNAL_KEY);
-  if (!raw) return;
-  const before = JSON.parse(raw) as Record<string, string | null>;
-  // Remove new values first so restoring the old snapshot does not need extra quota.
-  for (const key of Object.keys(before)) storage.removeItem(key);
-  for (const [key, value] of Object.entries(before)) {
-    if (value !== null) storage.setItem(key, value);
-  }
-  markTransactionBoundary(storage);
-  storage.removeItem(JOURNAL_KEY);
+export function readDesiredStorageOwner(storage: Pick<Storage, 'getItem'>): StorageOwnerToken | null {
+  if (failedInvalidations.has(storage)) return null;
+  const epoch = storage.getItem(STORAGE_SESSION_KEY);
+  const session = parseSession(epoch);
+  return session ? { userId: session.userId, epoch } : null;
 }
-
-/** All callers publish React state only after this synchronous commit succeeds. */
-export function writeStorageBatch(storage: StorageLike, changes: Record<string, string | null>) {
-  recoverStorageTransaction(storage);
-  const before = Object.fromEntries(Object.keys(changes).map(key => [key, storage.getItem(key)]));
-  // If the journal cannot be saved, none of the user's keys have been changed.
-  storage.setItem(JOURNAL_KEY, JSON.stringify(before));
+export function captureStorageOwner(storage: Pick<Storage, 'getItem'> = window.localStorage): StorageOwnerToken {
+  const epoch = storage.getItem(STORAGE_SESSION_KEY);
+  const session = parseSession(epoch);
+  const owner = { userId: session ? session.userId : storage.getItem(STORAGE_OWNER_KEY), epoch };
+  assertCurrentStorageOwner(storage, owner);
+  return owner;
+}
+function assertOwner(storage: Pick<Storage, 'getItem'>, owner: StorageOwnerToken, preparing = false) {
+  const epoch = storage.getItem(STORAGE_SESSION_KEY);
+  if (epoch !== owner.epoch) throw new StorageSessionChangedError();
+  const session = parseSession(epoch);
+  if (preparing) {
+    if (failedInvalidations.has(storage) || !session || session.userId !== owner.userId) throw new StorageSessionChangedError();
+  } else if (!session || locallyFenced.has(storage) || storage.getItem(STORAGE_OWNER_KEY) !== owner.userId
+    || (session && (storage.getItem(STORAGE_READY_KEY) !== JSON.stringify({ epoch: epoch!, userId: owner.userId } satisfies Ready) || session.userId !== owner.userId || session.userId === null))) throw new StorageSessionChangedError();
+  if (storage.getItem(STORAGE_SESSION_KEY) !== epoch) throw new StorageSessionChangedError();
+}
+function assertCurrentStorageOwner(storage: Pick<Storage, 'getItem'>, owner: StorageOwnerToken) {
+  if (locallyFenced.has(storage)) throw new StorageSessionChangedError();
+  const epoch = storage.getItem(STORAGE_SESSION_KEY);
+  const source = 'length' in storage && 'key' in storage ? readStorageSnapshot(storage as StorageReader) : storage;
+  assertOwner(source, owner);
+  if (epoch !== storage.getItem(STORAGE_SESSION_KEY) || epoch !== owner.epoch) throw new StorageSessionChangedError();
+}
+export function isStorageOwnerCurrent(storage: Pick<Storage, 'getItem'>, owner: StorageOwnerToken) {
+  try { assertCurrentStorageOwner(storage, owner); return true; } catch { return false; }
+}
+function sessionChanged() {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(CLOUD_SESSION_CHANGED_EVENT));
+}
+/** Synchronous, irreversible fence. It is deliberately never included in a journal. */
+export function invalidateStorageOwner(storage: TransactionStorage, userId: string | null): StorageOwnerToken {
+  locallyFenced.add(storage);
+  sessionChanged();
+  try { requireStorageLocks(); } catch (error) { failedInvalidations.add(storage); throw error; }
+  const epoch = JSON.stringify({ version: 2, id: crypto.randomUUID(), userId } satisfies Session);
+  try { storage.setItem(STORAGE_SESSION_KEY, epoch); } catch (error) { failedInvalidations.add(storage); throw error; }
+  failedInvalidations.delete(storage);
+  sessionChanged();
+  return { userId, epoch };
+}
+function markCommitted(storage: TransactionStorage) {
+  storage.setItem(STORAGE_PROTOCOL_KEY, JSON.stringify({ version: 2, state: 'committed', generation: crypto.randomUUID() } satisfies Protocol));
+}
+/** Only called while owning STORAGE_LOCK_NAME. An old v1 writer never owned it. */
+function recoverLocked(storage: TransactionStorage) {
+  if (storage.getItem(STORAGE_JOURNAL_KEY) !== null) throw new StorageLegacyMigrationRequiredError();
+  const protocol = parseProtocol(storage.getItem(STORAGE_PROTOCOL_KEY));
+  if (protocol?.state !== 'prepared') return;
+  // Free replacement bytes first. On any failure the durable before-image stays.
+  for (const key of Object.keys(protocol.before)) storage.removeItem(key);
+  for (const [key, value] of Object.entries(protocol.before)) if (value !== null) storage.setItem(key, value);
+  markCommitted(storage);
+  notifyRecordsChanged();
+}
+function commitLocked(storage: TransactionStorage, changes: Changes, owner: StorageOwnerToken, preparing: boolean) {
+  validateChanges(changes);
+  if (!preparing && (Object.hasOwn(changes, STORAGE_OWNER_KEY) || Object.hasOwn(changes, STORAGE_READY_KEY))) throw new StorageCorruptionError();
+  assertOwner(storage, owner, preparing);
+  const effective = Object.fromEntries(Object.entries(changes).filter(([key, value]) => storage.getItem(key) !== value));
+  if (!Object.keys(effective).length) return false;
+  const before = Object.fromEntries(Object.keys(effective).map(key => [key, storage.getItem(key)]));
+  const protocol: Protocol = { version: 2, state: 'prepared', generation: readStorageGeneration(storage) ?? crypto.randomUUID(), transactionId: crypto.randomUUID(), before };
+  storage.setItem(STORAGE_PROTOCOL_KEY, JSON.stringify(protocol));
   try {
-    for (const [key, value] of Object.entries(changes)) {
-      if (value === null) storage.removeItem(key);
-      else storage.setItem(key, value);
+    for (const [key, value] of Object.entries(effective)) {
+      if (value === null) storage.removeItem(key); else storage.setItem(key, value);
     }
-    markTransactionBoundary(storage);
-    storage.removeItem(JOURNAL_KEY);
+    assertOwner(storage, owner, preparing);
+    markCommitted(storage);
   } catch (error) {
-    recoverStorageTransaction(storage);
+    // Never restore the synchronous owner fence. A failed rollback retains v2.
+    try { recoverLocked(storage); } catch (recoveryError) { throw new AggregateError([error, recoveryError], '기록 저장과 복구를 마치지 못했습니다. 복구 정보를 보존했습니다.'); }
     throw error;
   }
+  return Object.keys(effective).some(key => !key.startsWith('fitness-cloud-sync-'));
+}
+function updateWithOwner(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, owner: StorageOwnerToken, preparing: boolean): Promise<void> {
+  if (insideTransform.has(storage)) throw new Error('A storage transform cannot acquire a nested storage lock.');
+  const locks = requireStorageLocks();
+  return locks.request(STORAGE_LOCK_NAME, { mode: 'exclusive' }, () => {
+    assertOwner(storage, owner, preparing);
+    recoverLocked(storage);
+    assertOwner(storage, owner, preparing);
+    const snapshot = readStorageSnapshot(storage);
+    let changes: Changes;
+    insideTransform.add(storage);
+    try {
+      changes = transform(snapshot);
+      if (changes && typeof (changes as unknown as { then?: unknown }).then === 'function') throw new Error('Storage transforms must be synchronous; never hold the lock over network work.');
+    } finally { insideTransform.delete(storage); }
+    if (commitLocked(storage, changes, owner, preparing)) notifyRecordsChanged();
+  }).then(() => {
+    // The commit may be durable, but a newer owner must not receive its UI success.
+    // Rejection here preserves the caller's editor; it does not undo the commit.
+    assertOwner(storage, owner, preparing);
+  });
+}
+/** Capture before queueing; compute replacements only from the fresh locked snapshot. */
+export function updateStorageBatch(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, options: StorageWriteOptions = {}): Promise<void> {
+  return updateWithOwner(storage, transform, options.owner ?? captureStorageOwner(storage), false);
+}
+export function writeStorageBatch(storage: TransactionStorage, changes: Changes, options: StorageWriteOptions = {}): Promise<void> {
+  return updateStorageBatch(storage, () => changes, options);
+}
+export function recoverStorageTransaction(storage: TransactionStorage): Promise<void> {
+  return updateStorageBatch(storage, () => ({}));
+}
+/** Auth-only preparation, using the same private lock primitive rather than nesting public writers. */
+export async function completeStorageOwnerTransition(storage: TransactionStorage, owner: StorageOwnerToken, transform: (snapshot: StorageSnapshot) => Changes): Promise<void> {
+  await updateWithOwner(storage, snapshot => ({ ...transform(snapshot),
+    [STORAGE_READY_KEY]: JSON.stringify({ epoch: owner.epoch!, userId: owner.userId } satisfies Ready),
+  }), owner, true);
+  // Completion never rewrites the epoch: it cannot race and resurrect an older fence.
+  assertOwner(storage, owner, true);
+  locallyFenced.delete(storage);
+  sessionChanged();
 }
 
 export const RECORDS_CHANGED_EVENT = 'yeoni-records-changed';
 export const CLOUD_RECORDS_REFRESH_EVENT = 'yeoni-cloud-records-refresh';
-/** A confirmed server command changed records without changing local storage. */
 export function requestCloudRecordsRefresh(ownerId: string) {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(CLOUD_RECORDS_REFRESH_EVENT, { detail: { ownerId } }));
 }

@@ -3,7 +3,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
-  applyCloudState,
+  commitCloudSyncResponse,
+  CloudSyncAcknowledgementStaleError,
   clearLocalCloudState,
   CLOUD_SESSION_CHANGED_EVENT,
   getRemoteState,
@@ -13,18 +14,16 @@ import {
   readLocalCloudState,
   prepareLocalCloudState,
   readCloudSyncEpoch,
-  readSyncBase,
-  reconcileSyncResponse,
+  readCloudSyncRequest,
   saveRemoteState,
   saveRemoteStateIfUnchanged,
-  saveSyncBase,
   stableState,
 } from "../data/cloudSync";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, readStorageGeneration, StorageSnapshotBusyError } from "../data/storageTransaction";
+import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, STORAGE_JOURNAL_KEY, StorageSnapshotBusyError } from "../data/storageTransaction";
 import { requestSafeReload } from "../lib/unsavedChanges";
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
@@ -42,44 +41,70 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const lastSynced = useRef("");
   const authUserId = useRef<string | null>(null);
   const authEpoch = useRef<string | null>(null);
+  const retryAuth = useRef<(() => void) | null>(null);
   const cancelSync = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     let authVersion = 0;
-    const applyUser = (nextUser: User | null) => {
+    const applyUser = async (nextUser: User | null, version: number) => {
       if (!active) return;
       const nextId = nextUser?.id ?? null;
-      if (authUserId.current !== nextId || authEpoch.current !== readCloudSyncEpoch()) {
-        // Cancel synchronously, before React cleans up the previous effect.
-        cancelSync.current?.();
-        authUserId.current = nextId;
-        // React can batch sign-out and same-user sign-in into one render.
-        // The identity string alone cannot restart the cancelled owner then.
-        setAuthRevision(revision => revision + 1);
-        lastSynced.current = "";
+      const alreadyReady = nextId !== null && authUserId.current === nextId
+        && isCurrentCloudSession(nextId, authEpoch.current);
+      if (alreadyReady) { setUser(nextUser); return; }
+      // Cancellation and shared owner fencing happen before either awaits.
+      cancelSync.current?.();
+      authUserId.current = nextId;
+      setUser(null);
+      setAuthRevision(revision => revision + 1);
+      lastSynced.current = "";
+      setStatus("idle");
+      setLastSyncedAt(null);
+      setMessage("");
+      try {
+        if (nextUser) await prepareLocalCloudState(nextUser.id);
+        else await clearLocalCloudState();
+        if (!active || version !== authVersion) return;
+        const preparedEpoch = readCloudSyncEpoch();
+        if (nextUser && !isCurrentCloudSession(nextUser.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        authEpoch.current = preparedEpoch;
         setStatus("idle");
-        setLastSyncedAt(null);
         setMessage("");
+        setUser(nextUser);
+      } catch (error) {
+        if (!active || version !== authVersion) return;
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "기기 기록을 안전하게 준비하지 못했습니다. 다시 로그인해 주세요.");
       }
-      if (nextUser) prepareLocalCloudState(nextUser.id);
-      authEpoch.current = readCloudSyncEpoch();
-      setUser(nextUser);
     };
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      authVersion += 1;
-      if (event === "SIGNED_OUT") {
-        applyUser(null);
-        clearLocalCloudState();
-      } else applyUser(session?.user ?? null);
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const version = ++authVersion;
+      void applyUser(session?.user ?? null, version);
     });
+    retryAuth.current = () => {
+      const version = ++authVersion;
+      void supabase!.auth.getUser().then(({ data, error }) => {
+        if (error && error.name !== "AuthSessionMissingError") throw error;
+        if (active && version === authVersion) return applyUser(data.user, version);
+      }).catch(error => {
+        if (!active || version !== authVersion) return;
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
+      });
+    };
     // A delayed initial lookup cannot undo a subsequent sign-out/sign-in event.
     const initialVersion = authVersion;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (authVersion === initialVersion) applyUser(data.user);
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (error && error.name !== "AuthSessionMissingError") throw error;
+      if (authVersion === initialVersion) return applyUser(data.user, initialVersion);
+    }).catch(error => {
+      if (!active || authVersion !== initialVersion) return;
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
     });
-    return () => { active = false; data.subscription.unsubscribe(); };
+    return () => { active = false; retryAuth.current = null; data.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -87,6 +112,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     let active = true;
     let syncing = false;
     let refreshRequested = false;
+    let remoteRefreshRequested = false;
     let resetVersion = 0;
     let followUpTimer: number | undefined;
     const controller = new AbortController();
@@ -98,143 +124,104 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       window.clearTimeout(followUpTimer);
     };
     cancelSync.current = stop;
-    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, stop);
+    const onSessionChange = () => {
+      if (!active || isCurrentCloudSession(userId, epoch)) return;
+      stop();
+      setStatus("error");
+      setMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 시도하여 계정을 확인해 주세요.");
+    };
+    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
     const onReset = () => { resetVersion += 1; };
     window.addEventListener(RECORD_RESET_EVENT, onReset);
 
-    const sync = async (initial = false) => {
+    const transactionPending = () => {
+      try { return hasStorageTransaction(window.localStorage); }
+      catch { return false; } // The guarded snapshot below reports corrupt metadata.
+    };
+    const deferTransaction = () => {
+      refreshRequested = true;
+      setStatus("pending");
+      setMessage(window.localStorage.getItem(STORAGE_JOURNAL_KEY) !== null
+        ? "이전 버전의 저장 복구 정보가 남아 있습니다. 이전 창을 모두 닫고 별도 복구 절차를 확인해 주세요. 기록은 그대로 보존했습니다."
+        : "다른 창의 기록 저장이 끝나면 다시 동기화합니다.");
+    };
+    const sync = async () => {
       if (syncing || !active || !isCurrentCloudSession(userId, epoch) || isRecordResetRunning()) return;
-      if (hasStorageTransaction(window.localStorage)) {
-        refreshRequested = true;
-        setStatus("pending");
+      if (transactionPending()) {
+        deferTransaction();
         return;
       }
       const version = resetVersion;
-      let generation = readStorageGeneration(window.localStorage);
       const cancelled = () => !active || !isCurrentCloudSession(userId, epoch)
         || version !== resetVersion || isRecordResetRunning();
       const interrupted = () => {
         if (cancelled()) return true;
-        if (hasStorageTransaction(window.localStorage) || readStorageGeneration(window.localStorage) !== generation) {
-          refreshRequested = true;
-          setStatus("pending");
+        if (transactionPending()) {
+          deferTransaction();
           return true;
         }
         return false;
       };
       syncing = true;
       refreshRequested = false;
+      remoteRefreshRequested = false;
       setStatus("syncing");
       try {
-        let local = readLocalCloudState();
+        // One owner-scoped coherent snapshot supplies both records and base.
+        // Network never runs in the origin-wide local-storage lock.
+        const request = readCloudSyncRequest(userId, epoch);
+        const local = request.local;
         if (interrupted()) return;
         let remoteRow = await getRemoteState(userId, signal);
         if (interrupted()) return;
-        local = readLocalCloudState();
-        if (interrupted()) return;
-        let remote = remoteRow?.state ?? {};
-        const localHash = stableState(local);
-        const remoteHash = stableState(remote);
-
+        let acknowledged = local;
         if (!remoteRow) {
-          if (interrupted()) return;
           await saveRemoteState(userId, local, signal);
           if (interrupted()) return;
-          lastSynced.current = localHash;
-          saveSyncBase(userId, local);
-        } else if (!lastSynced.current || initial) {
-          const base = readSyncBase(userId);
-          let merged = base
-            ? mergeCloudStateFromBase(base, remote, local)
-            : mergeCloudState(remote, local);
-          let mergedHash = stableState(merged);
-          if (mergedHash !== remoteHash) {
-            let saved = false;
-            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
-              if (interrupted()) return;
-              saved = await saveRemoteStateIfUnchanged(
-                userId,
-                merged,
-                remoteRow.updated_at,
-                signal,
-              );
-              if (interrupted()) return;
-              if (!saved) {
-                remoteRow = await getRemoteState(userId, signal);
-                if (interrupted()) return;
-                if (!remoteRow) break;
-                remote = remoteRow.state;
-                merged = mergeCloudStateFromBase(base ?? {}, remote, local);
-                mergedHash = stableState(merged);
-              }
-            }
-            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
-          }
-          if (interrupted()) return;
-          const reconciled = reconcileSyncResponse(local, merged, readLocalCloudState());
-          if (interrupted()) return;
-          applyCloudState(reconciled);
-          generation = readStorageGeneration(window.localStorage);
-          if (interrupted()) return;
-          lastSynced.current = mergedHash;
-          saveSyncBase(userId, merged);
-          if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
         } else {
-          const localChanged = localHash !== lastSynced.current;
-          const remoteChanged = remoteHash !== lastSynced.current;
-          if (localChanged && remoteChanged) {
-            const base = readSyncBase(userId) ?? {};
-            let merged = mergeCloudStateFromBase(base, remote, local);
+          acknowledged = request.base
+            ? mergeCloudStateFromBase(request.base, remoteRow.state, local)
+            : mergeCloudState(remoteRow.state, local);
+          if (stableState(acknowledged) !== stableState(remoteRow.state)) {
             let saved = false;
-            for (let attempt = 0; attempt < 4 && !saved; attempt += 1) {
+            // Keep a lost local-only CAS visible. A merge that already observed
+            // changes on both sides may reread/retry its conditional update.
+            const attempts = request.base && stableState(remoteRow.state) === stableState(request.base) ? 1 : 4;
+            for (let attempt = 0; attempt < attempts && !saved; attempt += 1) {
               if (interrupted()) return;
-              saved = await saveRemoteStateIfUnchanged(userId, merged, remoteRow.updated_at, signal);
+              saved = await saveRemoteStateIfUnchanged(userId, acknowledged, remoteRow.updated_at, signal);
               if (interrupted()) return;
-              if (!saved) {
+              if (!saved && attempt + 1 < attempts) {
                 remoteRow = await getRemoteState(userId, signal);
                 if (interrupted()) return;
                 if (!remoteRow) break;
-                merged = mergeCloudStateFromBase(base, remoteRow.state, local);
+                acknowledged = request.base
+                  ? mergeCloudStateFromBase(request.base, remoteRow.state, local)
+                  : mergeCloudState(remoteRow.state, local);
               }
             }
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
-            if (interrupted()) return;
-            const reconciled = reconcileSyncResponse(local, merged, readLocalCloudState());
-            if (interrupted()) return;
-            applyCloudState(reconciled);
-            generation = readStorageGeneration(window.localStorage);
-            if (interrupted()) return;
-            lastSynced.current = stableState(merged);
-            saveSyncBase(userId, merged);
-            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== merged[resetMarkerKey(app)])) requestSafeReload();
-          } else if (localChanged) {
-            if (interrupted()) return;
-            const saved = await saveRemoteStateIfUnchanged(userId, local, remoteRow.updated_at, signal);
-            if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
-            if (interrupted()) return;
-            lastSynced.current = localHash;
-            saveSyncBase(userId, local);
-          } else if (remoteChanged) {
-            if (interrupted()) return;
-            applyCloudState(remote);
-            generation = readStorageGeneration(window.localStorage);
-            if (interrupted()) return;
-            lastSynced.current = remoteHash;
-            saveSyncBase(userId, remote);
-            if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== remote[resetMarkerKey(app)])) requestSafeReload();
           }
         }
-        if (!interrupted()) {
-          const pending = stableState(readLocalCloudState()) !== lastSynced.current;
-          if (interrupted()) return;
-          setStatus(pending ? "pending" : "synced");
-          if (pending) followUpTimer = window.setTimeout(() => void sync(), 500);
-          setMessage("");
-          setLastSyncedAt(new Date());
-        }
+        if (interrupted()) return;
+        // Reconcile fresh local edits and advance the acknowledged base in the
+        // same guarded transaction, including the remote-only/initial branches.
+        const committed = await commitCloudSyncResponse(request, acknowledged);
+        if (cancelled()) return;
+        lastSynced.current = stableState(acknowledged);
+        if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== committed.local[resetMarkerKey(app)])) requestSafeReload();
+        const pending = committed.pending || transactionPending()
+          || stableState(readLocalCloudState()) !== lastSynced.current;
+        // The commit's own record event arrives before its Promise resolves.
+        // Consume only that satisfied local wake; explicit remote wakes survive.
+        if (!pending && !remoteRefreshRequested) refreshRequested = false;
+        setStatus(pending ? "pending" : "synced");
+        if (pending) followUpTimer = window.setTimeout(() => void sync(), 500);
+        setMessage("");
+        setLastSyncedAt(new Date());
       } catch (error) {
         if (!cancelled()) {
-          if (error instanceof StorageSnapshotBusyError || hasStorageTransaction(window.localStorage)) {
+          if (error instanceof StorageSnapshotBusyError || error instanceof CloudSyncAcknowledgementStaleError || transactionPending()) {
             refreshRequested = true;
             setStatus("pending");
             return;
@@ -248,14 +235,14 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         syncing = false;
         // A server command may finish while an older GET is in flight. Read again
         // after that response settles, even if local storage has not changed.
-        if (refreshRequested && !cancelled() && !hasStorageTransaction(window.localStorage)) {
+        if (refreshRequested && !cancelled() && !transactionPending()) {
           window.clearTimeout(followUpTimer);
           followUpTimer = window.setTimeout(() => void sync(), 0);
         }
       }
     };
 
-    void sync(!lastSynced.current);
+    void sync();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void sync();
     }, 30000);
@@ -267,14 +254,14 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     const onRemoteRecordsChanged = (event: Event) => {
       if ((event as CustomEvent<{ ownerId?: string }>).detail?.ownerId !== userId || !active || !isCurrentCloudSession(userId, epoch)) return;
       refreshRequested = true;
+      remoteRefreshRequested = true;
       void sync();
     };
     const onRecordsChanged = () => {
-      if (!isCurrentCloudSession(userId, epoch)) { stop(); return; }
+      if (!isCurrentCloudSession(userId, epoch)) { onSessionChange(); return; }
       if (!active) return;
-      if (hasStorageTransaction(window.localStorage)) {
-        refreshRequested = true;
-        setStatus("pending");
+      if (transactionPending()) {
+        deferTransaction();
         return;
       }
       // Retain a commit/removal event arriving during a GET/PATCH. Its finally
@@ -298,7 +285,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     return () => {
       stop();
       if (cancelSync.current === stop) cancelSync.current = null;
-      window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, stop);
+      window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
       window.removeEventListener(RECORD_RESET_EVENT, onReset);
       window.clearInterval(interval);
       window.clearTimeout(followUpTimer);
@@ -311,7 +298,10 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     };
   }, [syncRequest, userId, authRevision]);
 
-  if (hideSignedOut && (!user || !isSupabaseConfigured)) return null;
+  if (hideSignedOut && (!user || !isSupabaseConfigured)) {
+    if (status === "error") return <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{message}</p>;
+    return null;
+  }
   if (!isSupabaseConfigured)
     return (
       <div className="mt-3 w-full">
@@ -411,7 +401,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
                   : status === "synced" ? "서버 반영 완료" : "기기 기록 · 서버 반영 대기"}
             </p>
             <p className="mt-0.5 truncate opacity-80">{user.email}</p>
-            {status === "error" ? (
+            {message ? (
               <p className="mt-1 break-words">{message}</p>
             ) : lastSyncedAt ? (
               <p className="mt-1 opacity-80">
@@ -431,7 +421,10 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           <button
             type="button"
             disabled={status === "syncing"}
-            onClick={() => setSyncRequest((current) => current + 1)}
+            onClick={() => {
+              if (!isCurrentCloudSession(userId!, authEpoch.current)) retryAuth.current?.();
+              else setSyncRequest((current) => current + 1);
+            }}
             className="flex-1 rounded-xl bg-white px-3 py-2 font-bold text-[#3C3489] shadow-sm disabled:cursor-wait disabled:opacity-50"
           >
             {status === "error" ? "다시 시도" : "지금 동기화"}

@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import type {
   InbodyRecordStore,
   WeightGoal,
   WeightRecordStore,
 } from "../data/recordStorage";
+import { captureStorageOwner, StorageSessionChangedError, type StorageOwnerToken } from "../data/storageTransaction";
+import { fitnessStorageError } from "../data/fitnessStorageUpdates";
 import {
   getRollingWeightAverages,
   getWeightManagementSummary,
@@ -20,7 +22,7 @@ interface Props {
   year: number;
   monthIndex: number;
   cutoffDateKey: string;
-  onGoalChange: (goal: WeightGoal) => void;
+  onGoalChange: (goal: WeightGoal, owner: StorageOwnerToken) => Promise<void>;
 }
 
 function signed(value: number, unit: string) {
@@ -58,6 +60,13 @@ export default function WeightChart({
   const [minimumDraft, setMinimumDraft] = useState(String(goal.minKg));
   const [maximumDraft, setMaximumDraft] = useState(String(goal.maxKg));
   const [goalMessage, setGoalMessage] = useState("");
+  const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const editorOwner = useRef<StorageOwnerToken | null>(null);
+  useEffect(() => {
+    try { editorOwner.current = captureStorageOwner(); }
+    catch (error) { setGoalMessage(fitnessStorageError(error)); }
+  }, []);
 
   const summary = getWeightManagementSummary(
     weights,
@@ -122,8 +131,9 @@ export default function WeightChart({
   );
   const progress = summary.goal.progressPercent;
 
-  const saveGoal = (event: FormEvent<HTMLFormElement>) => {
+  const saveGoal = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (pendingRef.current) return;
     const minKg = Math.round(Number(minimumDraft) * 10) / 10;
     const maxKg = Math.round(Number(maximumDraft) * 10) / 10;
     if (
@@ -136,8 +146,19 @@ export default function WeightChart({
       setGoalMessage("최소 목표는 최대 목표보다 작게, 30~250kg 안에서 입력해주세요.");
       return;
     }
-    onGoalChange({ minKg, maxKg });
-    setGoalMessage(`목표를 ${minKg.toFixed(1)}~${maxKg.toFixed(1)}kg로 저장했습니다.`);
+    pendingRef.current = true;
+    setPending(true);
+    setGoalMessage("");
+    try {
+      if (!editorOwner.current) throw new StorageSessionChangedError();
+      await onGoalChange({ minKg, maxKg }, editorOwner.current);
+      setGoalMessage(`목표를 ${minKg.toFixed(1)}~${maxKg.toFixed(1)}kg로 저장했습니다.`);
+    } catch (error) {
+      setGoalMessage(fitnessStorageError(error));
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
   };
 
   const remainingText =
@@ -371,6 +392,7 @@ export default function WeightChart({
             목표 최소
             <div className="mt-1 flex items-center rounded-xl border border-gray-200 px-3">
               <input
+                disabled={pending}
                 type="number"
                 min="30"
                 max="250"
@@ -390,6 +412,7 @@ export default function WeightChart({
             목표 최대
             <div className="mt-1 flex items-center rounded-xl border border-gray-200 px-3">
               <input
+                disabled={pending}
                 type="number"
                 min="30"
                 max="250"
@@ -406,6 +429,7 @@ export default function WeightChart({
             </div>
           </label>
           <button
+            disabled={pending}
             type="submit"
             className="rounded-xl bg-[#534AB7] px-4 py-2.5 text-[12px] font-bold text-white"
           >

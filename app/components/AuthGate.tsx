@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, ReactNode, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
-import { prepareLocalCloudState } from "../data/cloudSync";
+import { CLOUD_SESSION_CHANGED_EVENT, clearLocalCloudState, isCurrentCloudSession, prepareLocalCloudState, readCloudSyncEpoch } from "../data/cloudSync";
 import { clearLanguageLocalState } from "../data/languageCloudSync";
 import {
   hasDevicePin,
@@ -23,6 +23,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authCheckError, setAuthCheckError] = useState(false);
+  const [authCheckMessage, setAuthCheckMessage] = useState("");
   const [authCheckAttempt, setAuthCheckAttempt] = useState(0);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,11 +50,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const authClient = supabase;
     let active = true;
     let authVersion = 0;
+    let confirming = true;
     let confirmedUserId: string | null = null;
+    let confirmedEpoch: string | null = null;
     let controller = new AbortController();
     let confirmationTimer: ReturnType<typeof setTimeout> | undefined;
-    const failed = (version: number, signal: AbortSignal) => {
+    const failed = (version: number, signal: AbortSignal, error?: unknown) => {
       if (!active || version !== authVersion || signal.aborted) return;
+      confirming = false;
+      setAuthCheckMessage(error instanceof Error ? error.message : "연결 상태를 확인한 후 다시 시도해 주세요.");
       setAuthCheckError(true);
       setLoading(false);
     };
@@ -72,31 +77,40 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           }
         }
 
-        const { data } = await authClient.auth.getUser();
+        const { data, error } = await authClient.auth.getUser();
+        if (error && error.name !== "AuthSessionMissingError") throw error;
         if (!active || version !== authVersion) return;
-        if (data.user) prepareLocalCloudState(data.user.id);
+        if (data.user) await prepareLocalCloudState(data.user.id);
+        else await clearLocalCloudState();
+        if (!active || version !== authVersion || signal.aborted) return;
+        const preparedEpoch = readCloudSyncEpoch();
         setUser(data.user);
         if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
           setRecoveryMode(true);
         }
         const configured = data.user ? await hasDevicePin(data.user.id, signal) : false;
         if (!active || version !== authVersion) return;
+        if (data.user && !isCurrentCloudSession(data.user.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
         setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
         setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
         confirmedUserId = data.user?.id ?? null;
+        confirmedEpoch = preparedEpoch;
+        confirming = false;
+        setAuthCheckError(false);
         setLoading(false);
-      } catch { failed(version, signal); }
+      } catch (error) { failed(version, signal, error); }
     };
     void initializeAuth();
     const { data } = authClient.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       // Focus/token refresh for an already checked owner must not unmount an
       // editor or discard its unsaved work.
-      if (session?.user.id === confirmedUserId && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+      if (session?.user.id === confirmedUserId && isCurrentCloudSession(session.user.id, confirmedEpoch) && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
         setUser(session.user);
         return;
       }
       const version = ++authVersion;
+      confirming = true;
       controller.abort();
       controller = new AbortController();
       const signal = controller.signal;
@@ -107,31 +121,52 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setRecoveryMode(true);
       }
       if (event === "SIGNED_OUT") {
-        // The root CloudSyncPanel cancels requests and clears cloud records and
-        // their baseline together, including routes without this page gate.
         clearLanguageLocalState();
         setRecoveryMode(false);
       }
-      if (session?.user) prepareLocalCloudState(session.user.id);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        // Leave the synchronous auth notification before calling getSession.
-        confirmationTimer = setTimeout(() => {
-          void hasDevicePin(session.user.id, signal).then((configured) => {
-            if (!active || version !== authVersion || signal.aborted) return;
-            setPinRequired(configured && !isPinSessionUnlocked(session.user.id));
-            confirmedUserId = session.user.id;
-            setLoading(false);
-          }).catch(() => failed(version, signal));
-        }, 0);
-      } else {
-        confirmedUserId = null;
-        setPinRequired(false);
-        setLoading(false);
-      }
+      // The shared preparation invalidates old work synchronously, and dedupes
+      // this gate with the root synchronizer before waiting for the local lock.
+      const preparation = session?.user
+        ? prepareLocalCloudState(session.user.id)
+        : clearLocalCloudState();
+      // Attach a rejection handler now, even before the auth-callback timer.
+      const ready = preparation.then(() => true, (error) => {
+        failed(version, signal, error);
+        return false;
+      });
+      const nextUser = session?.user ?? null;
+      confirmationTimer = setTimeout(() => {
+        void (async () => {
+          if (!await ready || !active || version !== authVersion || signal.aborted) return;
+          const preparedEpoch = readCloudSyncEpoch();
+          const configured = nextUser ? await hasDevicePin(nextUser.id, signal) : false;
+          if (!active || version !== authVersion || signal.aborted) return;
+          if (nextUser && !isCurrentCloudSession(nextUser.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+          setUser(nextUser);
+          setPinRequired(Boolean(nextUser && configured && !isPinSessionUnlocked(nextUser.id)));
+          confirmedUserId = nextUser?.id ?? null;
+          confirmedEpoch = preparedEpoch;
+          confirming = false;
+          setAuthCheckError(false);
+          setLoading(false);
+        })().catch(error => failed(version, signal, error));
+      }, 0);
       setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
     });
-    return () => { active = false; controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe(); };
+    const onSessionChange = () => {
+      if (!confirming && confirmedUserId && !isCurrentCloudSession(confirmedUserId, confirmedEpoch)) {
+        setAuthCheckMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 확인해 주세요.");
+        setAuthCheckError(true);
+        setLoading(false);
+      }
+    };
+    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
+    window.addEventListener("storage", onSessionChange);
+    return () => {
+      active = false; controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe();
+      window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
+      window.removeEventListener("storage", onSessionChange);
+    };
   }, [authCheckAttempt]);
 
   const authenticate = async (event: FormEvent) => {
@@ -243,7 +278,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   };
 
   if (loading) return <div className="grid min-h-dvh place-items-center bg-yeoni-bg"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
-  if (authCheckError) return <main className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><section className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 확인을 완료하지 못했어요</h1><p role="alert" className="mt-3 text-sm text-gray-600">연결 상태를 확인한 후 다시 시도해 주세요.</p><button type="button" className="mt-5 min-h-11 rounded-xl bg-[#534AB7] px-5 font-bold text-white" onClick={() => { setLoading(true); setAuthCheckError(false); setAuthCheckAttempt(value => value + 1); }}>다시 확인</button></section></main>;
+  if (authCheckError) return <main className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><section className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 확인을 완료하지 못했어요</h1><p role="alert" className="mt-3 text-sm text-gray-600">{authCheckMessage || "연결 상태를 확인한 후 다시 시도해 주세요."}</p><button type="button" className="mt-5 min-h-11 rounded-xl bg-[#534AB7] px-5 font-bold text-white" onClick={() => { setLoading(true); setAuthCheckError(false); setAuthCheckAttempt(value => value + 1); }}>다시 확인</button></section></main>;
   if (!isSupabaseConfigured)
     return <div className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
   if (user && recoveryMode) return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">

@@ -3,7 +3,9 @@
 import { fastingStartForDay } from '@/lib/diet-time';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
-import { notifyRecordsChanged, readStorageSnapshot, writeStorageBatch, RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
+import { captureStorageOwner, isStorageOwnerCurrent, readStorageSnapshot, updateStorageBatch, RECORDS_CHANGED_EVENT, CLOUD_SESSION_CHANGED_EVENT, type StorageOwnerToken } from '../data/storageTransaction';
+import { readJsonForUpdate } from '../data/recordStorage';
+import { applyFitnessEdits } from '../data/fitnessStorageUpdates';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import NextImage from 'next/image';
 import { DIGESTION_LABELS, normalizeDigestion, normalizeMealCheck, previousMeal, quickMealPreset, summarizeFreeDiet, type DigestionStatus, type MealCheck, type QuickMeal } from '../data/freeDietTools';
@@ -159,8 +161,8 @@ function readJson<T>(key: string, fallback: T, source?: Pick<Storage, 'getItem'>
   }
 }
 
-function writeJson<T>(key: string, value: T) {
-  window.localStorage.setItem(key, JSON.stringify(value));
+function storageFailureHint(error: unknown, fallback = '') {
+  return error instanceof Error && error.name.startsWith('Storage') ? error.message : fallback;
 }
 
 function readCurrentFastingStart(todayKey: string, source?: Pick<Storage, 'getItem'>) {
@@ -315,24 +317,41 @@ export default function DietView() {
   const inputSnapshot = JSON.stringify([mealLog, water, lunchCarb, dinnerCarb, lunchProtein, lastMealTime, socialMeal, dietStatus, fastingStatus, dietMemo, digestionStatus, lateSnack, afterWorkoutMeal, selfResponses]);
   const dirty = hydrated && savedInput !== null && (savedInput !== inputSnapshot || Object.keys(selfResponseEdits).length > 0 || Object.keys(legacyResponseEdits).length > 0);
   const dirtyRef = useRef(dirty);
-  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  const editorOwner = useRef<StorageOwnerToken | null>(null);
+  const commitPendingRef = useRef(false);
+  const [commitPending, setCommitPending] = useState(false);
+  const editorRevision = useRef(0);
+  useEffect(() => { editorRevision.current += 1; }, [inputSnapshot, selfResponseEdits, legacyResponseEdits]);
+  useEffect(() => { dirtyRef.current = dirty; });
+  const markEditorChanged = () => {
+    // React may defer the render/effect past a queued local commit completion.
+    // Fence that completion at the input event boundary, before state updates.
+    editorRevision.current += 1;
+    dirtyRef.current = true;
+  };
   useUnsavedChanges(dirty);
   useEffect(() => () => {
     if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
   }, [photoPreviewUrl]);
   useEffect(() => {
     const refresh = () => {
-      if (dirtyRef.current) { setMessage('다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.'); return; }
+      if (dirtyRef.current || commitPendingRef.current) { setMessage(current => current.includes('못했') || current.includes('이후 작성한 내용') ? current : '다른 기록이 갱신됐어요. 작성 중인 내용은 그대로 보존하고 있습니다.'); return; }
       setDataVersion(value => value + 1);
     };
     window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
+    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, refresh);
     window.addEventListener('storage', refresh);
-    return () => { window.removeEventListener(RECORDS_CHANGED_EVENT, refresh); window.removeEventListener('storage', refresh); };
+    return () => { window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, refresh); window.removeEventListener(RECORDS_CHANGED_EVENT, refresh); window.removeEventListener('storage', refresh); };
   }, []);
 
   useEffect(() => {
     let storage: ReturnType<typeof readStorageSnapshot>;
-    try { storage = readStorageSnapshot(window.localStorage); }
+    try {
+      const owner = editorOwner.current ?? captureStorageOwner();
+      storage = readStorageSnapshot(window.localStorage);
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new Error('계정이 변경되었습니다.');
+      editorOwner.current = owner;
+    }
     catch { setMessage('기록을 아직 읽지 못했어요. 원본과 작성 내용을 유지합니다. 다른 창의 저장 상태를 확인한 뒤 다시 시도해 주세요.'); return; }
     const existingDietStart = storage.getItem(DIET_START_DATE_KEY);
     const initialStart =
@@ -590,162 +609,232 @@ export default function DietView() {
     setMessage('');
   };
 
-  const applyTravelSchedule = () => {
+  const persistSetting = async (key: string, value: string, apply: () => void) => {
+    if (commitPendingRef.current) return;
+    commitPendingRef.current = true;
+    setCommitPending(true);
+    try {
+      const owner = editorOwner.current;
+      if (!owner) throw new Error("로그인 계정을 확인한 뒤 다시 저장해 주세요.");
+      await updateStorageBatch(window.localStorage, () => ({ [key]: value }), { owner });
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) return;
+      apply();
+    } catch (error) {
+      setMessage(`설정을 저장하지 못했어요. 기존 설정을 유지합니다. ${error instanceof Error ? error.message : ''}`);
+    } finally {
+      commitPendingRef.current = false;
+      setCommitPending(false);
+    }
+  };
+
+  const applyTravelSchedule = async () => {
+    if (commitPendingRef.current) return;
     const dates = getDateKeysInRange(travelStart, travelEnd);
     if (!dates.length) {
       setMessage('여행 종료일을 시작일 이후로 선택해주세요.');
       return;
     }
-    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
-    dates.forEach((date) => {
-      nextSocial[date] = 'travel';
-    });
-    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
-    catch { setMessage('여행 일정을 저장하지 못했어요. 선택한 날짜를 유지합니다. 저장 공간을 확인해 주세요.'); return; }
-    setSocialStore(nextSocial);
-    if (dates.includes(todayKey)) selectScheduleMode('travel');
-    setMessage(
-      dates.length === 31 && travelEnd > dates[dates.length - 1]
-        ? '여행 일정은 한 번에 최대 31일까지 등록할 수 있습니다.'
-        : `${formatScheduleDate(dates[0])}~${formatScheduleDate(dates[dates.length - 1])} 여행 일정을 저장했습니다.`,
-    );
-  };
-
-  const removePlannedSchedule = (date: string) => {
-    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
-    delete nextSocial[date];
-    try { writeJson(SOCIAL_MEAL_MODE_KEY, nextSocial); }
-    catch { setMessage('일정을 삭제하지 못했어요. 기존 일정을 유지합니다.'); return; }
-    setSocialStore(nextSocial);
-    if (date === todayKey) selectScheduleMode('none');
-    setMessage(`${formatScheduleDate(date)} 예외 일정을 삭제했습니다.`);
-  };
-
-  const saveDiet = () => {
-    const fastingHours = fastingStatus === '14h' ? 14 : fastingStatus === '12h' ? 12 : 0;
-    const latestDiet = readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store);
-    const previousToday = latestDiet[todayKey] || {};
-    const nextDiet: DietCompletedStore = {
-      ...latestDiet,
-      [todayKey]: {
-        ...previousToday,
-        dietStatus,
-        fastingRecordStatus: fastingStatus,
-        fastingHours,
-        fastingSuccess: fastingStatus === '14h',
-        fasting14h: fastingStatus === '14h',
-        meals: mealCompletion,
-        proteinTotal,
-        proteinDone: proteinTotal >= 100,
-        lunchProtein:
-          mealLog.lunchProteinChoice !== 'none' || lunchProtein.protein > 0,
-        noDinnerCarbs:
-          dinnerCarb.amountType === 'none' ||
-          (dinnerCarb.grams >= 50 && dinnerCarb.grams <= 80),
-        water2l: water >= 2000,
-        waterMl: water,
-        dinnerBefore1830: Boolean(lastMealTime) && lastMealTime <= '18:30',
-        lastMealTime,
-        socialMeal,
-        dietMemo: dietMemo.trim() || undefined,
-        digestionStatus: preserveUneditedDietResponse(previousToday.digestionStatus, digestionStatus, Boolean(legacyResponseEdits.digestionStatus)),
-        lateSnack: preserveUneditedDietResponse(previousToday.lateSnack, lateSnack, Boolean(legacyResponseEdits.lateSnack)),
-        afterWorkoutMeal: preserveUneditedDietResponse(previousToday.afterWorkoutMeal, afterWorkoutMeal, Boolean(legacyResponseEdits.afterWorkoutMeal)),
-        ...dietSelfResponsePatch(selfResponseEdits),
-      },
-    };
-    const nextMeals = {
-      ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore),
-      [todayKey]: { ...mealLog, lastMealTime },
-    };
-    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore), [todayKey]: water };
-    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore), [todayKey]: lunchCarb };
-    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore), [todayKey]: dinnerCarb };
-    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore), [todayKey]: lunchProtein };
-    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore), [todayKey]: lastMealTime };
-    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore), [todayKey]: socialMeal };
-
+    const revision = editorRevision.current;
+    commitPendingRef.current = true;
+    setCommitPending(true);
     try {
-      writeStorageBatch(window.localStorage, {
-        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
-        [PROTEIN_TOTAL_KEY]: JSON.stringify({ ...readJson<NumberStore>(PROTEIN_TOTAL_KEY, {}), [todayKey]: proteinTotal }),
-        [WATER_INTAKE_KEY]: JSON.stringify(nextWater), [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs),
-        [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs), [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins),
-        [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes), [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial),
-        [FASTING_START_TIME_KEY]: lastMealTime,
-      });
-    } catch { setMessage('기기에 저장하지 못했어요. 작성 내용은 남아 있습니다. 저장 공간을 확인한 뒤 다시 저장해 주세요.'); return; }
-    setStore(nextDiet);
-    setMealStore(nextMeals);
-    setWaterStore(nextWater);
-    setLunchCarbStore(nextLunchCarbs);
-    setDinnerCarbStore(nextDinnerCarbs);
-    setLunchProteinStore(nextLunchProteins);
-    setDinnerTimeStore(nextDinnerTimes);
-    setSocialStore(nextSocial);
-    setSelfResponseEdits({});
-    setLegacyResponseEdits({});
-    setSavedInput(inputSnapshot);
-    dirtyRef.current = false;
-    notifyRecordsChanged();
-    setMessage('오늘 식단 기록을 저장했습니다.');
+      const owner = editorOwner.current;
+      if (!owner) throw new Error("로그인 계정을 확인한 뒤 다시 저장해 주세요.");
+      let nextSocial: Record<string, SocialMealMode> = {};
+      await updateStorageBatch(window.localStorage, (snapshot) => {
+        nextSocial = { ...readJsonForUpdate<Record<string, SocialMealMode>>(snapshot, SOCIAL_MEAL_MODE_KEY, {}) };
+        dates.forEach(date => { nextSocial[date] = 'travel'; });
+        return { [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial) };
+      }, { owner });
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) return;
+      setSocialStore(nextSocial);
+      if (dates.includes(todayKey) && revision === editorRevision.current) selectScheduleMode('travel');
+      setMessage(
+        dates.length === 31 && travelEnd > dates[dates.length - 1]
+          ? '여행 일정은 한 번에 최대 31일까지 등록할 수 있습니다.'
+          : `${formatScheduleDate(dates[0])}~${formatScheduleDate(dates[dates.length - 1])} 여행 일정을 저장했습니다.`,
+      );
+    } catch (error) {
+      setMessage(`여행 일정을 저장하지 못했어요. 선택한 날짜를 유지합니다. ${storageFailureHint(error, '저장 공간을 확인해 주세요.')}`);
+    } finally {
+      commitPendingRef.current = false;
+      setCommitPending(false);
+    }
   };
 
-  const resetDiet = () => {
-    const nextDiet = { ...readJson<DietCompletedStore>(DIET_COMPLETED_DAYS_KEY, store) };
-    const nextMeals = { ...readJson<Record<string, DietMealLog>>(DIET_MEAL_LOG_KEY, mealStore) };
-    const nextWater = { ...readJson<NumberStore>(WATER_INTAKE_KEY, waterStore) };
-    const nextLunchCarbs = { ...readJson<Record<string, LunchCarbRecord>>(LUNCH_CARB_CHOICE_KEY, lunchCarbStore) };
-    const nextDinnerCarbs = { ...readJson<Record<string, DinnerCarbRecord>>(DINNER_CARB_CHOICE_KEY, dinnerCarbStore) };
-    const nextLunchProteins = { ...readJson<Record<string, LunchProteinRecord>>(LUNCH_PROTEIN_CHOICE_KEY, lunchProteinStore) };
-    const nextDinnerTimes = { ...readJson<StringStore>(DINNER_COMPLETED_TIME_KEY, dinnerTimeStore) };
-    const nextSocial = { ...readJson<Record<string, SocialMealMode>>(SOCIAL_MEAL_MODE_KEY, socialStore) };
-    const nextProteinTotals = readJson<NumberStore>(PROTEIN_TOTAL_KEY, {});
-
-    delete nextDiet[todayKey];
-    delete nextMeals[todayKey];
-    delete nextWater[todayKey];
-    delete nextLunchCarbs[todayKey];
-    delete nextDinnerCarbs[todayKey];
-    delete nextLunchProteins[todayKey];
-    delete nextDinnerTimes[todayKey];
-    delete nextSocial[todayKey];
-    delete nextProteinTotals[todayKey];
-
+  const removePlannedSchedule = async (date: string) => {
+    if (commitPendingRef.current) return;
+    const revision = editorRevision.current;
+    commitPendingRef.current = true;
+    setCommitPending(true);
     try {
-      writeStorageBatch(window.localStorage, {
-        [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
-        [PROTEIN_TOTAL_KEY]: JSON.stringify(nextProteinTotals), [WATER_INTAKE_KEY]: JSON.stringify(nextWater),
-        [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs), [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs),
-        [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins), [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes),
-        [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial), [FASTING_START_TIME_KEY]: null,
-      });
-    } catch { setMessage('초기화하지 못했어요. 기존 기록과 작성 내용을 유지합니다.'); return; }
-    setStore(nextDiet);
-    setMealStore(nextMeals);
-    setMealLog(DEFAULT_MEAL_LOG);
-    setWaterStore(nextWater);
-    setWater(0);
-    setLunchCarbStore(nextLunchCarbs);
-    setLunchCarb(EMPTY_LUNCH_CARB);
-    setDinnerCarbStore(nextDinnerCarbs);
-    setDinnerCarb(DEFAULT_DINNER_CARB_RECORD);
-    setLunchProteinStore(nextLunchProteins);
-    setLunchProtein(DEFAULT_LUNCH_PROTEIN_RECORD);
-    setDinnerTimeStore(nextDinnerTimes);
-    setSocialStore(nextSocial);
-    setSocialMeal('none');
-    setDietStatus('normal');
-    setFastingStatus('unrecorded');
-    setLastMealTime('');
-    setDietMemo('');
-    setDigestionStatus('unrecorded'); setLateSnack('unrecorded'); setAfterWorkoutMeal('unrecorded'); setQuickMeal(null);
-    setSelfResponses(readDietSelfResponses({})); setSelfResponseEdits({}); setLegacyResponseEdits({});
+      const owner = editorOwner.current;
+      if (!owner) throw new Error("로그인 계정을 확인한 뒤 다시 저장해 주세요.");
+      let nextSocial: Record<string, SocialMealMode> = {};
+      await updateStorageBatch(window.localStorage, (snapshot) => {
+        nextSocial = { ...readJsonForUpdate<Record<string, SocialMealMode>>(snapshot, SOCIAL_MEAL_MODE_KEY, {}) };
+        delete nextSocial[date];
+        return { [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial) };
+      }, { owner });
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) return;
+      setSocialStore(nextSocial);
+      if (date === todayKey && revision === editorRevision.current) selectScheduleMode('none');
+      setMessage(`${formatScheduleDate(date)} 예외 일정을 삭제했습니다.`);
+    } catch (error) {
+      setMessage(`일정을 삭제하지 못했어요. 기존 일정을 유지합니다.${storageFailureHint(error) ? ` ${storageFailureHint(error)}` : ''}`);
+    } finally {
+      commitPendingRef.current = false;
+      setCommitPending(false);
+    }
+  };
 
-    dirtyRef.current = false;
-    setSavedInput(null);
-    notifyRecordsChanged();
-    setMessage('오늘 식단 기록을 초기화했습니다.');
+  const saveDiet = async () => {
+    if (commitPendingRef.current) return;
+    const revision = editorRevision.current;
+    const savedSnapshot = inputSnapshot;
+    const baseline = savedInput?.startsWith('[') ? JSON.parse(savedInput) as unknown[] : null;
+    commitPendingRef.current = true;
+    setCommitPending(true);
+    try {
+      const owner = editorOwner.current;
+      if (!owner) throw new Error("로그인 계정을 확인한 뒤 다시 저장해 주세요.");
+      let publish = () => {};
+      await updateStorageBatch(window.localStorage, (snapshot) => {
+        const latestDiet = readJsonForUpdate<DietCompletedStore>(snapshot, DIET_COMPLETED_DAYS_KEY, {});
+        const previousToday = latestDiet[todayKey] || {};
+        const latestMeals = readJsonForUpdate<Record<string, DietMealLog>>(snapshot, DIET_MEAL_LOG_KEY, {});
+        const latestWater = readJsonForUpdate<NumberStore>(snapshot, WATER_INTAKE_KEY, {});
+        const latestLunchCarbs = readJsonForUpdate<Record<string, LunchCarbRecord>>(snapshot, LUNCH_CARB_CHOICE_KEY, {});
+        const latestDinnerCarbs = readJsonForUpdate<Record<string, DinnerCarbRecord>>(snapshot, DINNER_CARB_CHOICE_KEY, {});
+        const latestLunchProteins = readJsonForUpdate<Record<string, LunchProteinRecord>>(snapshot, LUNCH_PROTEIN_CHOICE_KEY, {});
+        const latestDinnerTimes = readJsonForUpdate<StringStore>(snapshot, DINNER_COMPLETED_TIME_KEY, {});
+        const latestSocial = readJsonForUpdate<Record<string, SocialMealMode>>(snapshot, SOCIAL_MEAL_MODE_KEY, {});
+        // Only replay fields edited since hydration/save. A peer may have saved
+        // a different field on this same day while our editor stayed dirty.
+        const edited = <T,>(index: number, latest: T, value: T): T => baseline
+          ? applyFitnessEdits(latest, baseline[index] as T, value) : value;
+        const committedMeal = edited(0, { ...DEFAULT_MEAL_LOG, ...latestMeals[todayKey] }, mealLog);
+        const committedWater = edited(1, latestWater[todayKey] ?? (Number(previousToday.waterMl) || 0), water);
+        const committedLunchCarb = edited(2, latestLunchCarbs[todayKey] ? normalizeLunchCarbRecord(latestLunchCarbs[todayKey]) : EMPTY_LUNCH_CARB, lunchCarb);
+        const committedDinnerCarb = edited(3, normalizeDinnerCarbRecord(latestDinnerCarbs[todayKey] || latestMeals[todayKey]?.dinnerCarb), dinnerCarb);
+        const committedLunchProtein = edited(4, normalizeLunchProteinRecord(latestLunchProteins[todayKey]), lunchProtein);
+        const committedLastMeal = edited(5, typeof previousToday.lastMealTime === 'string' ? previousToday.lastMealTime
+          : latestDinnerTimes[todayKey] || readCurrentFastingStart(todayKey, snapshot) || latestMeals[todayKey]?.lastMealTime || '', lastMealTime);
+        const committedSocial = edited(6, latestSocial[todayKey] || 'none', socialMeal);
+        const committedStatus = edited(7, previousToday.dietStatus ?? 'normal', dietStatus);
+        const committedFasting = edited(8, previousToday.fastingRecordStatus ?? (previousToday.fasting14h ? '14h' : 'unrecorded'), fastingStatus);
+        const committedMemo = edited(9, typeof previousToday.dietMemo === 'string' ? previousToday.dietMemo : '', dietMemo);
+        const committedProtein = calculateProteinTotal(committedMeal, committedLunchProtein.protein);
+        const fastingHours = committedFasting === '14h' ? 14 : committedFasting === '12h' ? 12 : 0;
+        const nextDiet: DietCompletedStore = {
+          ...latestDiet,
+          [todayKey]: {
+            ...previousToday,
+            dietStatus: committedStatus,
+            fastingRecordStatus: committedFasting,
+            fastingHours,
+            fastingSuccess: committedFasting === '14h',
+            fasting14h: committedFasting === '14h',
+            meals: getMealCompletion(committedMeal, committedLunchProtein.protein),
+            proteinTotal: committedProtein,
+            proteinDone: committedProtein >= 100,
+            lunchProtein: committedMeal.lunchProteinChoice !== 'none' || committedLunchProtein.protein > 0,
+            noDinnerCarbs: committedDinnerCarb.amountType === 'none' || (committedDinnerCarb.grams >= 50 && committedDinnerCarb.grams <= 80),
+            water2l: committedWater >= 2000,
+            waterMl: committedWater,
+            dinnerBefore1830: Boolean(committedLastMeal) && committedLastMeal <= '18:30',
+            lastMealTime: committedLastMeal,
+            socialMeal: committedSocial,
+            dietMemo: committedMemo.trim() || undefined,
+            digestionStatus: preserveUneditedDietResponse(previousToday.digestionStatus, digestionStatus, Boolean(legacyResponseEdits.digestionStatus)),
+            lateSnack: preserveUneditedDietResponse(previousToday.lateSnack, lateSnack, Boolean(legacyResponseEdits.lateSnack)),
+            afterWorkoutMeal: preserveUneditedDietResponse(previousToday.afterWorkoutMeal, afterWorkoutMeal, Boolean(legacyResponseEdits.afterWorkoutMeal)),
+            ...dietSelfResponsePatch(selfResponseEdits),
+          },
+        };
+        const nextMeals = { ...latestMeals, [todayKey]: { ...committedMeal, lastMealTime: committedLastMeal } };
+        const nextWater = { ...latestWater, [todayKey]: committedWater };
+        const nextLunchCarbs = { ...latestLunchCarbs, [todayKey]: committedLunchCarb };
+        const nextDinnerCarbs = { ...latestDinnerCarbs, [todayKey]: committedDinnerCarb };
+        const nextLunchProteins = { ...latestLunchProteins, [todayKey]: committedLunchProtein };
+        const nextDinnerTimes = { ...latestDinnerTimes, [todayKey]: committedLastMeal };
+        const nextSocial = { ...latestSocial, [todayKey]: committedSocial };
+        publish = () => {
+          setStore(nextDiet);
+          setMealStore(nextMeals);
+          setWaterStore(nextWater);
+          setLunchCarbStore(nextLunchCarbs);
+          setDinnerCarbStore(nextDinnerCarbs);
+          setLunchProteinStore(nextLunchProteins);
+          setDinnerTimeStore(nextDinnerTimes);
+          setSocialStore(nextSocial);
+        };
+        return {
+          [DIET_COMPLETED_DAYS_KEY]: JSON.stringify(nextDiet), [DIET_MEAL_LOG_KEY]: JSON.stringify(nextMeals),
+          [PROTEIN_TOTAL_KEY]: JSON.stringify({ ...readJsonForUpdate<NumberStore>(snapshot, PROTEIN_TOTAL_KEY, {}), [todayKey]: committedProtein }),
+          [WATER_INTAKE_KEY]: JSON.stringify(nextWater), [LUNCH_CARB_CHOICE_KEY]: JSON.stringify(nextLunchCarbs),
+          [DINNER_CARB_CHOICE_KEY]: JSON.stringify(nextDinnerCarbs), [LUNCH_PROTEIN_CHOICE_KEY]: JSON.stringify(nextLunchProteins),
+          [DINNER_COMPLETED_TIME_KEY]: JSON.stringify(nextDinnerTimes), [SOCIAL_MEAL_MODE_KEY]: JSON.stringify(nextSocial),
+          [FASTING_START_TIME_KEY]: committedLastMeal,
+        };
+      }, { owner });
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) return;
+      publish();
+      if (revision === editorRevision.current) {
+        setSelfResponseEdits({});
+        setLegacyResponseEdits({});
+        dirtyRef.current = false;
+        setDataVersion(value => value + 1);
+      }
+      setSavedInput(savedSnapshot);
+      setMessage(revision === editorRevision.current
+        ? '오늘 식단 기록을 저장했습니다.'
+        : '선택한 식단 기록을 저장했습니다. 이후 작성한 내용은 아직 저장되지 않았습니다.');
+    } catch (error) {
+      setMessage(`기기에 저장하지 못했어요. 작성 내용은 남아 있습니다. ${storageFailureHint(error, '저장 공간을 확인한 뒤 다시 저장해 주세요.')}`);
+    } finally {
+      commitPendingRef.current = false;
+      setCommitPending(false);
+    }
+  };
+
+  const resetDiet = async () => {
+    if (commitPendingRef.current) return;
+    const revision = editorRevision.current;
+    commitPendingRef.current = true;
+    setCommitPending(true);
+    try {
+      const owner = editorOwner.current;
+      if (!owner) throw new Error("로그인 계정을 확인한 뒤 다시 저장해 주세요.");
+      await updateStorageBatch(window.localStorage, (snapshot) => {
+        const changes: Record<string, string | null> = { [FASTING_START_TIME_KEY]: null };
+        for (const key of [DIET_COMPLETED_DAYS_KEY, DIET_MEAL_LOG_KEY, PROTEIN_TOTAL_KEY,
+          WATER_INTAKE_KEY, LUNCH_CARB_CHOICE_KEY, DINNER_CARB_CHOICE_KEY,
+          LUNCH_PROTEIN_CHOICE_KEY, DINNER_COMPLETED_TIME_KEY, SOCIAL_MEAL_MODE_KEY]) {
+          const value = { ...readJsonForUpdate<Record<string, unknown>>(snapshot, key, {}) };
+          delete value[todayKey];
+          changes[key] = JSON.stringify(value);
+        }
+        return changes;
+      }, { owner });
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) return;
+      if (revision === editorRevision.current) {
+        dirtyRef.current = false;
+        setSavedInput(null);
+        setQuickMeal(null);
+        setDataVersion(value => value + 1);
+        setMessage('오늘 식단 기록을 초기화했습니다.');
+      } else {
+        // A newer draft belongs to the editor, not to the reset's completion.
+        setSavedInput('__reset__');
+        setMessage('저장된 오늘 기록을 초기화했습니다. 이후 작성한 내용은 그대로 남아 있습니다.');
+      }
+    } catch (error) {
+      setMessage(`초기화하지 못했어요. 기존 기록과 작성 내용을 유지합니다.${storageFailureHint(error) ? ` ${storageFailureHint(error)}` : ''}`);
+    } finally {
+      commitPendingRef.current = false;
+      setCommitPending(false);
+    }
   };
 
   if (!hydrated) {
@@ -758,7 +847,10 @@ export default function DietView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4"
+      onChangeCapture={markEditorChanged}
+      onClickCapture={(event) => { if ((event.target as HTMLElement).closest('button')) markEditorChanged(); }}
+    >
       <section className="overflow-hidden rounded-3xl yeoni-summary p-5 text-white shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -857,7 +949,8 @@ export default function DietView() {
               </label>
               <button
                 type="button"
-                onClick={applyTravelSchedule}
+                disabled={commitPending}
+                onClick={() => void applyTravelSchedule()}
                 className="self-end rounded-xl bg-blue-700 px-4 py-2.5 text-[12px] font-bold text-white"
               >
                 여행 기간 적용
@@ -887,7 +980,8 @@ export default function DietView() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => removePlannedSchedule(date)}
+                    disabled={commitPending}
+                    onClick={() => void removePlannedSchedule(date)}
                     className="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] font-bold text-red-600"
                   >
                     삭제
@@ -900,7 +994,10 @@ export default function DietView() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr] lg:items-start">
-        <div className="space-y-4">
+        <div className="space-y-4"
+      onChangeCapture={markEditorChanged}
+      onClickCapture={(event) => { if ((event.target as HTMLElement).closest('button')) markEditorChanged(); }}
+    >
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -1607,14 +1704,16 @@ export default function DietView() {
           <div className="grid gap-2 sm:grid-cols-2">
             <button
               type="button"
-              onClick={saveDiet}
+              disabled={commitPending}
+              onClick={() => void saveDiet()}
               className="rounded-xl bg-[#534AB7] px-6 py-3 text-[14px] font-bold text-white"
             >
               오늘 식단 저장
             </button>
             <button
               type="button"
-              onClick={resetDiet}
+              disabled={commitPending}
+              onClick={() => void resetDiet()}
               className="rounded-xl bg-red-50 px-5 py-3 text-[14px] font-bold text-red-600"
             >
               오늘 기록 초기화
@@ -1635,20 +1734,16 @@ export default function DietView() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <button
             type="button"
-            onClick={() => {
-              setMode('auto');
-              window.localStorage.setItem(DIET_MODE_KEY, 'auto');
-            }}
+            disabled={commitPending}
+            onClick={() => void persistSetting(DIET_MODE_KEY, 'auto', () => setMode('auto'))}
             className={choiceButton(mode === 'auto')}
           >
             시작일 기준 자동
           </button>
           <button
             type="button"
-            onClick={() => {
-              setMode('manual');
-              window.localStorage.setItem(DIET_MODE_KEY, 'manual');
-            }}
+            disabled={commitPending}
+            onClick={() => void persistSetting(DIET_MODE_KEY, 'manual', () => setMode('manual'))}
             className={choiceButton(mode === 'manual')}
           >
             단계 직접 선택
@@ -1656,9 +1751,10 @@ export default function DietView() {
           <input
             type="date"
             value={startDate}
+            disabled={commitPending}
             onChange={(event) => {
-              setStartDate(event.target.value);
-              window.localStorage.setItem(DIET_START_DATE_KEY, event.target.value);
+              const value = event.target.value;
+              void persistSetting(DIET_START_DATE_KEY, value, () => setStartDate(value));
             }}
             className="rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
             aria-label="식단 시작일"
@@ -1666,9 +1762,10 @@ export default function DietView() {
           {mode === 'manual' && (
             <select
               value={manualPhase}
+              disabled={commitPending}
               onChange={(event) => {
-                setManualPhase(event.target.value as DietPhaseId);
-                window.localStorage.setItem(DIET_PHASE_KEY, event.target.value);
+                const value = event.target.value as DietPhaseId;
+                void persistSetting(DIET_PHASE_KEY, value, () => setManualPhase(value));
               }}
               className="rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
               aria-label="식단 단계"

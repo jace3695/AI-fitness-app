@@ -1,5 +1,10 @@
 'use client';
 
+import { readStorageSnapshot } from '../data/storageTransaction';
+import { captureFitnessEditorOwner, readFitnessValue, updateFitnessValues } from '../data/fitnessStorageUpdates';
+import { EMPTY_USER_WORKOUT_SETTINGS, USER_WORKOUT_SETTINGS_KEY } from '../data/userWorkoutSettings';
+import { WORKOUT_COMPLETED_DAYS_KEY } from '../data/workoutCompletion';
+import { DAILY_CONDITION_KEY } from '../data/recoveryMode';
 import { useState } from 'react';
 import { buildAdaptiveWorkoutReview, decideAdaptiveWorkoutReview } from '../data/workoutAdaptiveReview';
 import type { AdaptiveReviewInput, AdaptiveWorkoutReview } from '../data/workoutAdaptiveReview';
@@ -14,24 +19,28 @@ const ACTION_LABELS = { maintain: '유지', increase: '증가', replace: '교체
 
 interface Props {
   input: AdaptiveReviewInput;
-  onApply: (settings: UserWorkoutSettings) => void;
+  onApply: (settings: UserWorkoutSettings) => void | Promise<void>;
   onRefresh: () => void;
 }
 
 export default function AdaptiveWorkoutReviewCard({ input, onApply, onRefresh }: Props) {
   const review = buildAdaptiveWorkoutReview(input);
+  const [owner] = useState(captureFitnessEditorOwner);
   const [notice, setNotice] = useState('');
-  const confirm = (decision: 'applied' | 'kept', prepared: boolean) => {
+  const confirm = async (decision: 'applied' | 'kept', prepared: boolean) => {
     try {
-      const stores = readRecordStores();
-      const freshInput: AdaptiveReviewInput = {
-        settings: readUserWorkoutSettings(), workouts: stores.workouts, conditions: stores.conditions,
-        selectedPlanId: window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
-        today: getLocalDateKey(),
-      };
-      const next = decideAdaptiveWorkoutReview(freshInput, review.id, decision, new Date().toISOString(), prepared);
-      // The parent's callback persists before publishing the new React state.
-      onApply(next);
+      const next = await updateFitnessValues(snapshot => {
+        const freshInput: AdaptiveReviewInput = {
+          settings: readFitnessValue(snapshot, USER_WORKOUT_SETTINGS_KEY, EMPTY_USER_WORKOUT_SETTINGS),
+          workouts: readFitnessValue(snapshot, WORKOUT_COMPLETED_DAYS_KEY, {}),
+          conditions: readFitnessValue(snapshot, DAILY_CONDITION_KEY, {}),
+          selectedPlanId: snapshot.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID,
+          today: getLocalDateKey(),
+        };
+        const value = decideAdaptiveWorkoutReview(freshInput, review.id, decision, new Date().toISOString(), prepared);
+        return { changes: { [USER_WORKOUT_SETTINGS_KEY]: JSON.stringify(value) }, value };
+      }, owner);
+      await onApply(next);
       setNotice(decision === 'kept' || !review.change ? '현재 계획을 유지하기로 기록했습니다.' : '확인한 변경을 적용했습니다. 해당 요일의 운동 화면에서 확인할 수 있습니다.');
     } catch (error) {
       setNotice(error instanceof Error && /기록이나 계획|이미 확인|증상 확인|준비 조건/.test(error.message) ? error.message : '저장하지 못했습니다. 계획은 적용되지 않았습니다. 저장 공간을 확인한 뒤 다시 시도해 주세요.');
@@ -82,14 +91,14 @@ export default function AdaptiveWorkoutReviewCard({ input, onApply, onRefresh }:
   );
 }
 
-function ReviewConfirmation({ review, onConfirm }: { review: AdaptiveWorkoutReview; onConfirm: (decision: 'applied' | 'kept', prepared: boolean) => void }) {
+function ReviewConfirmation({ review, onConfirm }: { review: AdaptiveWorkoutReview; onConfirm: (decision: 'applied' | 'kept', prepared: boolean) => void | Promise<void> }) {
   const [expanded, setExpanded] = useState(false);
   const [prepared, setPrepared] = useState(false);
   const [saving, setSaving] = useState(false);
-  const confirm = (decision: 'applied' | 'kept') => {
+  const confirm = async (decision: 'applied' | 'kept') => {
     if (saving) return;
     setSaving(true);
-    try { onConfirm(decision, prepared); } finally { setSaving(false); }
+    try { await onConfirm(decision, prepared); } finally { setSaving(false); }
   };
   if (review.action === 'hold') return null;
   if (review.alreadyReviewed) return <p className="mt-3 text-xs font-bold text-gray-500">확인한 제안입니다. 새 기록을 남기면 다시 검토합니다.</p>;

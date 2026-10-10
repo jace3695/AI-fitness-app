@@ -2,11 +2,11 @@
 
 import { ChangeEvent, useRef, useState } from "react";
 import {
-  applyCloudState,
-  mergeExplicitCloudBackup,
+  restoreCloudBackup,
   readLocalCloudState,
   type CloudState,
 } from "../data/cloudSync";
+import { captureStorageOwner, type StorageOwnerToken } from "../data/storageTransaction";
 
 const BACKUP_VERSION = 1;
 const STORAGE_PREFIX = "ai-fitness-";
@@ -20,6 +20,7 @@ interface BackupFile {
 }
 
 interface PendingBackup {
+  owner: StorageOwnerToken;
   fileName: string;
   exportedAt: Date;
   state: CloudState;
@@ -29,7 +30,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function parseBackup(raw: string): Omit<PendingBackup, "fileName"> {
+function parseBackup(raw: string): Omit<PendingBackup, "fileName" | "owner"> {
   const parsed = JSON.parse(raw) as Partial<BackupFile>;
   if (
     parsed.app !== "AI-fitness-app" ||
@@ -57,39 +58,49 @@ export default function DataBackupPanel() {
   const [pending, setPending] = useState<PendingBackup | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [restoring, setRestoring] = useState(false);
+  const restorePending = useRef(false);
+  const selectionRevision = useRef(0);
 
   const downloadBackup = () => {
-    const exportedAt = new Date();
-    const backup: BackupFile = {
-      app: "AI-fitness-app",
-      version: BACKUP_VERSION,
-      exportedAt: exportedAt.toISOString(),
-      state: readLocalCloudState(),
-    };
-    const date = exportedAt.toLocaleDateString("sv-SE");
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {
-      type: "application/json",
-    });
-    if (blob.size > MAX_BACKUP_BYTES) {
+    try {
+      const exportedAt = new Date();
+      const backup: BackupFile = {
+        app: "AI-fitness-app",
+        version: BACKUP_VERSION,
+        exportedAt: exportedAt.toISOString(),
+        state: readLocalCloudState(),
+      };
+      const date = exportedAt.toLocaleDateString("sv-SE");
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json",
+      });
+      if (blob.size > MAX_BACKUP_BYTES) {
+        setMessage("");
+        setError("현재 JSON 복원 한도인 5MB를 넘어 백업 파일을 만들지 않았습니다. 원본 기록은 그대로 유지됩니다.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `ai-fitness-backup-${date}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setError("");
+      setMessage(`이 브라우저의 운동·식단 관련 기록 ${Object.keys(backup.state).length}개 항목으로 백업 파일을 만들었습니다.`);
+    } catch (reason) {
       setMessage("");
-      setError("현재 JSON 복원 한도인 5MB를 넘어 백업 파일을 만들지 않았습니다. 원본 기록은 그대로 유지됩니다.");
-      return;
+      setError(reason instanceof Error ? reason.message : "기록을 안전하게 읽지 못해 백업 파일을 만들지 않았습니다.");
     }
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `ai-fitness-backup-${date}.json`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    setError("");
-    setMessage(`이 브라우저의 운동·식단 관련 기록 ${Object.keys(backup.state).length}개 항목으로 백업 파일을 만들었습니다.`);
   };
 
   const selectBackup = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file || restorePending.current) return;
+    const revision = ++selectionRevision.current;
     setPending(null);
     setMessage("");
     setError("");
@@ -97,22 +108,41 @@ export default function DataBackupPanel() {
       if (file.size > MAX_BACKUP_BYTES) {
         throw new Error("백업 파일은 5MB 이하만 복원할 수 있습니다.");
       }
+      const owner = captureStorageOwner();
       const parsed = parseBackup(await file.text());
-      setPending({ fileName: file.name, ...parsed });
+      if (revision !== selectionRevision.current) return;
+      const current = captureStorageOwner();
+      if (owner.userId !== current.userId || owner.epoch !== current.epoch) throw new Error("계정이 변경되었습니다. 백업 파일을 다시 선택해 주세요.");
+      setPending({ owner, fileName: file.name, ...parsed });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "백업 파일을 읽지 못했습니다.");
+      if (revision === selectionRevision.current) setError(reason instanceof Error ? reason.message : "백업 파일을 읽지 못했습니다.");
     } finally {
-      event.target.value = "";
+      input.value = "";
     }
   };
 
-  const restoreBackup = () => {
-    if (!pending) return;
-    const merged = mergeExplicitCloudBackup(readLocalCloudState(), pending.state);
-    applyCloudState(merged);
-    setMessage(`백업 기록 ${Object.keys(pending.state).length}개 항목을 현재 기록과 합쳤습니다.`);
-    setPending(null);
-    window.setTimeout(() => window.location.reload(), 700);
+  const restoreBackup = async () => {
+    if (!pending || restorePending.current) return;
+    const selected = pending;
+    restorePending.current = true;
+    setRestoring(true);
+    setError("");
+    setMessage("");
+    try {
+      // The preview's owner remains authoritative through file I/O and lock
+      // queuing; the merge itself reads the latest records inside that lock.
+      await restoreCloudBackup(selected.state, selected.owner);
+      const current = captureStorageOwner();
+      if (current.userId !== selected.owner.userId || current.epoch !== selected.owner.epoch) return;
+      setMessage(`백업 기록 ${Object.keys(selected.state).length}개 항목을 현재 기록과 합쳤습니다.`);
+      setPending(null);
+      window.setTimeout(() => window.location.reload(), 700);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "복원을 완료하지 못했습니다. 기존 기록과 선택한 백업을 유지합니다.");
+    } finally {
+      restorePending.current = false;
+      setRestoring(false);
+    }
   };
 
   return (
@@ -135,6 +165,7 @@ export default function DataBackupPanel() {
         </button>
         <button
           type="button"
+          disabled={restoring}
           onClick={() => inputRef.current?.click()}
           className="rounded-xl bg-[#EEEDFE] px-3 py-2.5 text-[12px] font-bold text-[#3C3489]"
         >
@@ -159,13 +190,15 @@ export default function DataBackupPanel() {
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              onClick={restoreBackup}
+              disabled={restoring}
+              onClick={() => void restoreBackup()}
               className="flex-1 rounded-xl bg-amber-600 px-3 py-2 font-bold text-white"
             >
               확인 후 병합 복원
             </button>
             <button
               type="button"
+              disabled={restoring}
               onClick={() => setPending(null)}
               className="rounded-xl bg-white px-3 py-2 font-bold text-gray-600"
             >

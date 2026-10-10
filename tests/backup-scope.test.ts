@@ -13,6 +13,7 @@ function setup(state: Record<string, string>) {
   const modules = {
     'react/jsx-runtime': jsx,
     react: { useRef: () => ({ current: null }), useState: (initial: unknown) => [initial, (value: unknown) => changes.push(value)] },
+    '../data/storageTransaction': {},
     '../data/cloudSync': { readLocalCloudState: () => state, applyCloudState: (value: unknown) => writes.push(value), mergeExplicitCloudBackup: () => { throw new Error('Unexpected restore'); } },
   };
   const exports = {} as { default: () => Parameters<typeof renderToStaticMarkup>[0] };

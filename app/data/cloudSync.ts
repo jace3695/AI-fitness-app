@@ -1,12 +1,17 @@
 import { supabase } from "../lib/supabase.ts";
 import { respectRecordResets } from "./appRecordReset.ts";
-import { notifyRecordsChanged, readStorageSnapshot, recoverStorageTransaction, writeStorageBatch } from "./storageTransaction.ts";
+import { captureStorageOwner, completeStorageOwnerTransition, hasStorageTransaction, invalidateStorageOwner, isStorageOwnerCurrent,
+  readDesiredStorageOwner, readStorageSnapshot, StorageCorruptionError, StorageSessionChangedError, StorageSnapshotBusyError,
+  updateStorageBatch, STORAGE_OWNER_KEY, STORAGE_SESSION_KEY, STORAGE_READY_KEY,
+} from "./storageTransaction.ts";
+import type { StorageOwnerToken, StorageReader } from "./storageTransaction.ts";
+export { CLOUD_SESSION_CHANGED_EVENT } from "./storageTransaction.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
 const SYNC_BASE_PREFIX = "fitness-cloud-sync-base:";
-const SYNC_USER_KEY = "fitness-cloud-sync-user";
-const SYNC_EPOCH_KEY = "fitness-cloud-sync-epoch";
-export const CLOUD_SESSION_CHANGED_EVENT = "yeoni-cloud-session-changed";
+const SYNC_USER_KEY = STORAGE_OWNER_KEY;
+const SYNC_ACK_PREFIX = "fitness-cloud-sync-ack:";
+const SYNC_EPOCH_KEY = STORAGE_SESSION_KEY;
 
 export type CloudState = Record<string, unknown>;
 
@@ -69,9 +74,9 @@ function mergeValue(base: unknown, remote: unknown, local: unknown): unknown {
   return local;
 }
 
-export function readLocalCloudState(): CloudState {
-  if (typeof window === "undefined") return {};
-  const storage = readStorageSnapshot(window.localStorage);
+export function readLocalCloudState(source?: StorageReader): CloudState {
+  if (!source && typeof window === "undefined") return {};
+  const storage = source ?? readStorageSnapshot(window.localStorage);
   const keys = Array.from(
     { length: storage.length },
     (_, index) => storage.key(index),
@@ -87,45 +92,70 @@ export function readLocalCloudState(): CloudState {
   );
 }
 
-export function clearLocalCloudState() {
-  if (typeof window === "undefined") return;
-  const storage = window.localStorage;
-  recoverStorageTransaction(storage);
-  // Invalidate pending work before removing records. Logout is not a record
-  // deletion, and a late response must not recreate the old user's sync base.
-  storage.setItem(SYNC_EPOCH_KEY, String(Number(storage.getItem(SYNC_EPOCH_KEY) || 0) + 1));
-  window.dispatchEvent(new Event(CLOUD_SESSION_CHANGED_EVENT));
-  const keys = Array.from(
-    { length: storage.length },
-    (_, index) => storage.key(index),
-  ).filter((key): key is string => Boolean(key) && (
-    key!.startsWith(SYNCED_STORAGE_PREFIX) || key!.startsWith(SYNC_BASE_PREFIX) || key === SYNC_USER_KEY
-  ));
-  // Keep the records and their deletion baseline together, including recovery
-  // of an interrupted storage transaction. Unrelated browser data is untouched.
-  writeStorageBatch(storage, Object.fromEntries(keys.map(key => [key, null])));
-}
+type Preparation = { userId: string | null; epoch: string | null; promise: Promise<void> };
+const preparations = new WeakMap<object, Preparation>();
 
-export function prepareLocalCloudState(userId: string) {
-  if (typeof window === "undefined") return;
+function prepareOwner(userId: string | null): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
   const storage = window.localStorage;
-  const previousUser = storage.getItem(SYNC_USER_KEY);
-  if (previousUser && previousUser !== userId) clearLocalCloudState();
-  // Older versions left a baseline after logout without any ownership marker.
-  // An empty legacy cache cannot prove that the user deleted the remote data.
-  if (!previousUser && Object.keys(readLocalCloudState()).length === 0) {
-    storage.removeItem(`${SYNC_BASE_PREFIX}${userId}`);
+  const existing = preparations.get(storage);
+  const currentEpoch = storage.getItem(SYNC_EPOCH_KEY);
+  if (existing?.userId === userId && existing.epoch === currentEpoch) return existing.promise;
+  if (userId && isStorageOwnerCurrent(storage, { userId, epoch: currentEpoch }) && !hasStorageTransaction(storage)) return Promise.resolve();
+  // Repeated signed-out callbacks are idempotent; pending cleanup is shared above.
+  if (userId === null && currentEpoch !== null) {
+    try {
+      const snapshot = readStorageSnapshot(storage);
+      if (!snapshot.pending && snapshot.getItem(SYNC_USER_KEY) === null
+        && snapshot.getItem(STORAGE_READY_KEY) === JSON.stringify({ epoch: currentEpoch, userId: null })
+        && storage.getItem(SYNC_EPOCH_KEY) === currentEpoch) return Promise.resolve();
+    } catch { /* Fence the session before the guarded cleanup reports corruption. */ }
   }
-  storage.setItem(SYNC_USER_KEY, userId);
+  let owner: StorageOwnerToken;
+  try {
+    const desired = readDesiredStorageOwner(storage);
+    // Authenticated same-owner tabs join one immutable desired generation.
+    owner = desired?.userId === userId ? desired : invalidateStorageOwner(storage, userId);
+  } catch (error) { return Promise.reject(error); }
+  const promise = completeStorageOwnerTransition(storage, owner, snapshot => {
+    const previousUser = snapshot.getItem(SYNC_USER_KEY);
+    const changes: Record<string, string | null> = {};
+    if (userId === null || (previousUser !== null && previousUser !== userId)) {
+      for (let index = 0; index < snapshot.length; index++) {
+        const key = snapshot.key(index)!;
+        if (key.startsWith(SYNCED_STORAGE_PREFIX) || key.startsWith(SYNC_BASE_PREFIX) || key.startsWith(SYNC_ACK_PREFIX)) changes[key] = null;
+      }
+    } else if (!previousUser && Object.keys(readLocalCloudState(snapshot)).length === 0) {
+      // Empty unowned legacy caches cannot prove a remote deletion.
+      changes[`${SYNC_BASE_PREFIX}${userId}`] = null;
+      changes[`${SYNC_ACK_PREFIX}${userId}`] = null;
+    }
+    changes[SYNC_USER_KEY] = userId;
+    return changes;
+  }).catch(error => {
+    // Two initial documents can race before either publishes its first fence.
+    // Join the winning generation only if it still targets this authenticated owner.
+    const desired = readDesiredStorageOwner(storage);
+    if (error instanceof StorageSessionChangedError && desired?.userId === userId && desired.epoch !== owner.epoch) return prepareOwner(userId);
+    throw error;
+  });
+  const entry: Preparation = { userId, epoch: owner.epoch, promise };
+  preparations.set(storage, entry);
+  void promise.finally(() => { if (preparations.get(storage) === entry) preparations.delete(storage); }).catch(() => {});
+  return promise;
 }
 
+/** Fences old work synchronously, then waits for the shared short storage lock. */
+export function clearLocalCloudState(): Promise<void> { return prepareOwner(null); }
+export function prepareLocalCloudState(userId: string): Promise<void> {
+  if (!userId) return Promise.reject(new StorageSessionChangedError());
+  return prepareOwner(userId);
+}
 export function readCloudSyncEpoch() {
   return typeof window === "undefined" ? null : window.localStorage.getItem(SYNC_EPOCH_KEY);
 }
-
 export function isCurrentCloudSession(userId: string, epoch: string | null) {
-  return typeof window !== "undefined" && window.localStorage.getItem(SYNC_USER_KEY) === userId
-    && readCloudSyncEpoch() === epoch;
+  return typeof window !== "undefined" && isStorageOwnerCurrent(window.localStorage, { userId, epoch });
 }
 
 export function mergeCloudState(remote: CloudState, local: CloudState) {
@@ -159,27 +189,87 @@ export function mergeExplicitCloudBackup(current: CloudState, backup: CloudState
   return mergeCloudState(current, records);
 }
 
+function parseSyncBase(raw: string | null): CloudState | null {
+  if (raw === null) return null;
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!isPlainObject(value)) throw new StorageCorruptionError();
+    return value;
+  } catch { throw new StorageCorruptionError(); }
+}
 export function readSyncBase(userId: string): CloudState | null {
   if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(window.localStorage.getItem(`${SYNC_BASE_PREFIX}${userId}`) || "null") as CloudState | null;
-  } catch {
-    return null;
-  }
+  return parseSyncBase(readStorageSnapshot(window.localStorage).getItem(`${SYNC_BASE_PREFIX}${userId}`));
 }
-
-export function saveSyncBase(userId: string, state: CloudState) {
+export async function saveSyncBase(userId: string, state: CloudState): Promise<void> {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(`${SYNC_BASE_PREFIX}${userId}`, JSON.stringify(state));
+  const owner = captureStorageOwner();
+  if (owner.userId !== userId) throw new StorageSessionChangedError();
+  await updateStorageBatch(window.localStorage, () => ({
+    [`${SYNC_BASE_PREFIX}${userId}`]: JSON.stringify(state),
+    [`${SYNC_ACK_PREFIX}${userId}`]: crypto.randomUUID(),
+  }), { owner });
 }
-
-export function applyCloudState(state: CloudState) {
-  if (typeof window === "undefined") return;
+function cloudChanges(snapshot: StorageReader, state: CloudState): Record<string, string | null> {
   const changes: Record<string, string | null> = {};
-  for (const key of Object.keys(readLocalCloudState())) if (!(key in state)) changes[key] = null;
-  for (const [key, value] of Object.entries(state)) changes[key] = typeof value === "string" ? value : JSON.stringify(value);
-  writeStorageBatch(window.localStorage, changes);
-  notifyRecordsChanged();
+  for (const key of Object.keys(readLocalCloudState(snapshot))) if (!(key in state)) changes[key] = null;
+  for (const [key, value] of Object.entries(state)) {
+    if (!key.startsWith(SYNCED_STORAGE_PREFIX)) throw new StorageCorruptionError();
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    if (serialized === undefined) throw new StorageCorruptionError();
+    changes[key] = serialized;
+  }
+  return changes;
+}
+export async function applyCloudState(state: CloudState, owner?: StorageOwnerToken): Promise<void> {
+  if (typeof window === "undefined") return;
+  await updateStorageBatch(window.localStorage, snapshot => cloudChanges(snapshot, state), { owner });
+}
+export async function restoreCloudBackup(backup: CloudState, owner?: StorageOwnerToken): Promise<CloudState> {
+  if (typeof window === "undefined") throw new StorageSessionChangedError();
+  let result: CloudState = {};
+  await updateStorageBatch(window.localStorage, snapshot => {
+    result = mergeExplicitCloudBackup(readLocalCloudState(snapshot), backup);
+    return cloudChanges(snapshot, result);
+  }, { owner });
+  return result;
+}
+export interface CloudSyncRequest {
+  userId: string;
+  epoch: string | null;
+  local: CloudState;
+  base: CloudState | null;
+  acknowledgementToken: string | null;
+}
+export class CloudSyncAcknowledgementStaleError extends Error {
+  constructor() { super('다른 동기화가 먼저 완료되었습니다. 최신 기록으로 다시 동기화합니다.'); this.name = 'CloudSyncAcknowledgementStaleError'; }
+}
+export function readCloudSyncRequest(userId: string, epoch: string | null): CloudSyncRequest {
+  const owner = captureStorageOwner();
+  if (owner.userId !== userId || owner.epoch !== epoch) throw new StorageSessionChangedError();
+  const snapshot = readStorageSnapshot(window.localStorage);
+  if (snapshot.pending) throw new StorageSnapshotBusyError();
+  if (snapshot.getItem(SYNC_EPOCH_KEY) !== epoch || snapshot.getItem(SYNC_USER_KEY) !== userId || !isCurrentCloudSession(userId, epoch)) throw new StorageSessionChangedError();
+  return { userId, epoch, local: readLocalCloudState(snapshot), base: parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${userId}`)),
+    acknowledgementToken: snapshot.getItem(`${SYNC_ACK_PREFIX}${userId}`) };
+}
+/** Acknowledge the request, preserving fresh local edits, in one owner-guarded commit. */
+export async function commitCloudSyncResponse(request: CloudSyncRequest, acknowledgedState: CloudState): Promise<{ local: CloudState; pending: boolean }> {
+  let result = { local: {} as CloudState, pending: false };
+  await updateStorageBatch(window.localStorage, snapshot => {
+    if (snapshot.getItem(`${SYNC_ACK_PREFIX}${request.userId}`) !== request.acknowledgementToken) throw new CloudSyncAcknowledgementStaleError();
+    const latest = readLocalCloudState(snapshot);
+    const local = reconcileSyncResponse(request.local, acknowledgedState, latest);
+    result = { local, pending: stableState(local) !== stableState(acknowledgedState) };
+    if (stableState(latest) === stableState(local)
+      && stableState(parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`)) ?? {}) === stableState(acknowledgedState)
+      && snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`) !== null) return {};
+    return { ...cloudChanges(snapshot, local),
+      [`${SYNC_BASE_PREFIX}${request.userId}`]: JSON.stringify(acknowledgedState),
+      [`${SYNC_ACK_PREFIX}${request.userId}`]: crypto.randomUUID(),
+    };
+  }, { owner: { userId: request.userId, epoch: request.epoch } });
+  return result;
 }
 
 /** A remote response acknowledges sentState, not edits made while it was pending. */
