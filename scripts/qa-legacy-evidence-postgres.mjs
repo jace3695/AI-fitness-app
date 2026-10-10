@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, rememberSqlDenial, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
+import { DISPOSABLE_WRITE_FUNCTIONS, DISPOSABLE_ACTIVATION_SQL } from './legacy-evidence-activation-fixture.mjs';
 import { AUTH_OWNER_READY, authOwnerInvocation } from './legacy-evidence-auth-owner-fixture.mjs';
 export { CASES } from './legacy-evidence-ci-diagnostics.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -14,14 +15,7 @@ const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_l
 const ENROLLMENT_MIGRATION = 'supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql';
 // Explicit fixture-only release. Never written to the built app or environment.
 export const DISPOSABLE_EVIDENCE_RELEASE = Object.freeze({ resetProtocol: 'protocol-required', enrollmentEnabled: true, captureEnabled: true });
-export const DISPOSABLE_WRITE_FUNCTIONS = Object.freeze([
-  'public.get_language_legacy_evidence_context(uuid,jsonb,text,text,text)',
-  'language_legacy_evidence_private.get_context(uuid,jsonb,text,text,text)',
-  'public.enroll_language_legacy_evidence_v1(uuid,uuid,jsonb,text,text,text,text)',
-  'language_legacy_evidence_private.enroll_v1(uuid,uuid,jsonb,text,text,text,text)',
-  'public.append_language_legacy_evidence(uuid,uuid,text,uuid,text,jsonb,text[])',
-  'language_legacy_evidence_private.append_events(uuid,uuid,text,uuid,text,jsonb,text[])',
-]);
+export { DISPOSABLE_WRITE_FUNCTIONS } from './legacy-evidence-activation-fixture.mjs';
 const DEPENDENCIES = [
   'supabase/migrations/20260915034857_assistant_task_command_history.sql',
   'supabase/migrations/20260915052413_chatgpt_scoped_connection.sql',
@@ -30,6 +24,7 @@ const DEPENDENCIES = [
 ];
 export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...DEPENDENCIES,
   'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+  'scripts/legacy-evidence-activation-fixture.mjs', 'tests/legacy-evidence-activation-fixture.test.ts',
   'scripts/legacy-evidence-auth-owner-fixture.mjs', 'tests/legacy-evidence-auth-owner-fixture.test.ts',
   'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts',
   'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'app/lib/resetAppRecords.ts',
@@ -427,7 +422,10 @@ export async function runPostgresHarness(stack, diagnostics = createLegacyEviden
     // This privilege change is impossible without the verified disposable capability,
     // and happens only after both catalog and actual restricted-role denial checks.
     assertVerifiedStack(stack);
-    await a.query(`grant execute on function ${DISPOSABLE_WRITE_FUNCTIONS.join(',')} to authenticated;`);
+    await a.query(DISPOSABLE_ACTIVATION_SQL);
+    const activation = await a.scalar('select pg_temp.qa_activate();');
+    await a.query('drop function pg_temp.qa_activate();');
+    try { success(activation); } catch (error) { rememberSqlDenial(error, activation); throw error; }
     const activated = await observer.scalar(`select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('signature',f.signature,'auth',pg_catalog.has_function_privilege('authenticated',f.signature,'EXECUTE'),'anon',pg_catalog.has_function_privilege('anon',f.signature,'EXECUTE'),'service',pg_catalog.has_function_privilege('service_role',f.signature,'EXECUTE')) order by f.signature) from (values ${DISPOSABLE_WRITE_FUNCTIONS.map(value => `(${literal(value)})`).join(',')}) f(signature);`);
     assert.equal(activated.length, 6); for (const fn of activated) { assert.equal(fn.auth, true); assert.equal(fn.anon, false); assert.equal(fn.service, false); }
     report.disposableWriteActivation = { functions: [...DISPOSABLE_WRITE_FUNCTIONS], release: DISPOSABLE_EVIDENCE_RELEASE };

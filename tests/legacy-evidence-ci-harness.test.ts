@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import ts from 'typescript';
+import { DISPOSABLE_ACTIVATION_SQL } from '../scripts/legacy-evidence-activation-fixture.mjs';
 import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, provisionDisposableAuthUsage, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const config = 'project_id = "isolated_stack"\n[api]\nport = 54321\n[db]\nport = 54322\nmajor_version = 17\n[auth]\nenabled = true\n';
@@ -28,6 +29,10 @@ test('every direct psql query/scalar template terminates before its echo barrier
       if (ts.isStringLiteralLike(sql) || ts.isTemplateExpression(sql)) {
         const suffix = ts.isTemplateExpression(sql) ? sql.templateSpans.at(-1)!.literal.text : sql.text;
         assert.ok(suffix.trimEnd().endsWith(';'), 'direct psql command must terminate before its echo barrier'); checked++;
+      } else if (ts.isIdentifier(sql) && sql.text === 'DISPOSABLE_ACTIVATION_SQL') {
+        // This fixed imported command is executed by the restricted-session
+        // activation regression as well as checked at the psql boundary here.
+        assert.ok(DISPOSABLE_ACTIVATION_SQL.trimEnd().endsWith(';')); checked++;
       } else {
         // The only dynamic pass-through is scalar(sql) -> query(sql). call()
         // quotes dynamic RPC bodies inside its own terminated outer SELECT.
@@ -267,10 +272,12 @@ test('fixture opt-in is exact, private and after actual default-denial checks', 
   ]);
   const driver = readFileSync(new URL('../scripts/qa-legacy-evidence-postgres.mjs', import.meta.url), 'utf8');
   const denied = driver.indexOf("report.defaultWriteDenial = 'passed'");
-  const grant = driver.indexOf('await a.query(`grant execute on function');
+  const grant = driver.indexOf('await a.query(DISPOSABLE_ACTIVATION_SQL)');
   assert.ok(denied > 0 && grant > denied);
   assert.match(driver.slice(denied, grant), /assertVerifiedStack\(stack\)/);
-  assert.match(driver.slice(grant), /DISPOSABLE_WRITE_FUNCTIONS.join\(','\)/);
+  assert.match(driver.slice(grant), /const activation = await a.scalar\('select pg_temp.qa_activate\(\);'\)/);
+  assert.match(driver.slice(grant), /rememberSqlDenial\(error, activation\); throw error/);
+  assert.ok(driver.indexOf("await a.query('drop function pg_temp.qa_activate();')", grant) < driver.indexOf('const activated =', grant));
   assert.doesNotMatch(driver, /grant execute on all functions|grant all/);
   assert.ok(driver.includes('oldInitializerCannotRepair: true'));
   assert.ok(driver.includes('markerRollbackCannotRevive: true'));
@@ -285,6 +292,7 @@ test('fixture opt-in is exact, private and after actual default-denial checks', 
 test('candidate source digests cover additive migration and the exact release/reset/admission contract', () => {
   assert.deepEqual(SOURCE_INPUTS, [...SOURCE_INPUTS].sort()); assert.equal(new Set(SOURCE_INPUTS).size, SOURCE_INPUTS.length);
   for (const path of ['supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql',
+    'scripts/legacy-evidence-activation-fixture.mjs', 'tests/legacy-evidence-activation-fixture.test.ts',
     'scripts/legacy-evidence-auth-owner-fixture.mjs', 'tests/legacy-evidence-auth-owner-fixture.test.ts',
     'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
     'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-diagnostics.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',

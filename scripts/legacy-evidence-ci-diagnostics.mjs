@@ -51,6 +51,7 @@ const CODES = new Set([
   '42501', '57014', '55P03', '40P01', '23503', '23505', '42P01', '42883', 'PGRST106',
   'legacy_harness_refused', 'legacy_cleanup_failed', 'legacy_auth_mismatch',
   'legacy_auth_owner_fixture_failed',
+  'legacy_activation_identity', 'legacy_activation_authority', 'legacy_activation_baseline', 'legacy_activation_delta',
   'legacy_enrolled_generation_missing', 'legacy_enrollment_conflict', 'legacy_enrollment_integrity',
   'legacy_enrollment_stale', 'legacy_event_id_conflict', 'legacy_invalid_enrollment', 'legacy_invalid_event',
   'legacy_marker_conflict', 'legacy_predecessor_conflict', 'legacy_source_slot_conflict',
