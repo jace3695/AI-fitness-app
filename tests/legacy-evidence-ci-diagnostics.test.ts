@@ -228,7 +228,7 @@ test('complete gate markers leave late-failure capacity and longest denial stays
   // only emit running today. No real stack, HTTP call or subprocess is needed.
   for (const [phase, checkpoints] of Object.entries({
     preflight: ['arguments_and_stack', 'generated_files', 'status_and_config', 'docker_context', 'container_discovery', 'container_identity'],
-    postgres: ['execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts'],
+    postgres: ['auth_owner_fixture', 'execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts'],
     audit: ['schema', 'privileges', 'dependencies', 'restricted_roles', 'disposable_activation'],
   })) for (const checkpoint of checkpoints) { diagnostics.start(phase, checkpoint); diagnostics.passed(); }
   for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, true);

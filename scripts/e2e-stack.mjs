@@ -52,7 +52,7 @@ try {
     // Production migrations and additive Gate A default write denial are unchanged.
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + buildLegacyEvidenceInstallationFixture(
       readFileSync('supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql', 'utf8'),
-      readFileSync('supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql', 'utf8')));
+      readFileSync('supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql', 'utf8'), 'deferred-owner-stage'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916113939_assistant_growth_commands.sql', 'utf8'));
@@ -90,6 +90,10 @@ try {
       throw new Error('The disposable stack did not return the expected local credentials.');
     }
     writeFileSync('.e2e/stack-status.json', JSON.stringify(status), { mode: 0o600 });
+    // Default-denied seed alone is incomplete. The approved fixed owner process
+    // must finish and exit before app environment/readiness or ordinary tests.
+    const { verifyDisposableStack, provisionDisposableAuthUsage } = await import('./qa-legacy-evidence-postgres.mjs');
+    provisionDisposableAuthUsage(verifyDisposableStack());
     // The service-role key stays in the runner's ignored fixture file, never in
     // the Next/browser environment or uploaded reports. Public anon JWT only.
     console.log(`::add-mask::${status.ANON_KEY}`);

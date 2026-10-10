@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, rememberSqlDenial, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
+import { AUTH_OWNER_READY, authOwnerInvocation } from './legacy-evidence-auth-owner-fixture.mjs';
 export { CASES } from './legacy-evidence-ci-diagnostics.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
@@ -29,6 +30,7 @@ const DEPENDENCIES = [
 ];
 export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...DEPENDENCIES,
   'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+  'scripts/legacy-evidence-auth-owner-fixture.mjs', 'tests/legacy-evidence-auth-owner-fixture.test.ts',
   'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts',
   'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'app/lib/resetAppRecords.ts',
   'lib/language-legacy-evidence/local-store.ts', 'lib/language-legacy-evidence/store-admission-types.ts',
@@ -112,6 +114,22 @@ export function verifyDisposableStack(diagnostics = createLegacyEvidenceDiagnost
   const container = selectDatabaseContainer(JSON.parse(docker(['inspect', ...ids])), config);
   const stack = Object.freeze({ ...config, container, status: Object.freeze(status) });
   verifiedStacks.add(stack); return stack;
+}
+
+/** The sole privileged fixture process must exit before the launcher is ready.
+ * No credentials, role overrides, retries, fallback, raw output or error causes. */
+export function provisionDisposableAuthUsage(stack, diagnostics = createLegacyEvidenceDiagnostics()) {
+  assertVerifiedStack(stack);
+  diagnostics.start('postgres', 'auth_owner_fixture');
+  const invocation = authOwnerInvocation(stack.container.id);
+  try {
+    const output = execFileSync('docker', invocation.args, invocation.options);
+    if (output.trim() !== AUTH_OWNER_READY) throw new Error('unexpected owner fixture result');
+  } catch {
+    const error = Object.assign(new Error('disposable auth owner fixture failed'), { code: 'legacy_auth_owner_fixture_failed' });
+    diagnostics.failed(error); throw error;
+  }
+  diagnostics.passed();
 }
 
 export function loopbackFetch(fetchImpl, onRequest = () => {}) {

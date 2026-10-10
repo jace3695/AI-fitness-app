@@ -29,7 +29,7 @@ const authProtected = `select pg_catalog.jsonb_build_object(
 // grants below last for the disposable fixture's lifetime. No new authority is
 // acquired to issue them. PostgreSQL's preexisting creator-ADMIN
 // membership belongs to its bootstrap superuser; it must never be revoked.
-const openScope = `
+const openScope = authUsageMode => `
 -- BEGIN DISPOSABLE CI INSTALLER SCOPE
 create temporary table legacy_evidence_ci_install_scope on commit drop as
 select current_user::text installer, (${memberships}) memberships,
@@ -59,7 +59,9 @@ do $ci_install_scope$ declare saved record; target record; auth_owner oid; grant
       not pg_catalog.has_function_privilege(r.oid,'auth.uid()','EXECUTE'))) then
     raise exception 'disposable_auth_usage_unsupported_target' using errcode='42501';
   end if;
-  if exists(select 1 from pg_catalog.pg_roles r where rolname in (${ROLES}) and not pg_catalog.has_schema_privilege(r.oid,'auth','USAGE')) then
+  -- Deferred mode is an incomplete, default-write-denied installation. Only the
+  -- guarded launcher may finish it with the approved owner transaction.
+  if ${authUsageMode === 'deferred-owner-stage' ? 'false' : 'true'} and exists(select 1 from pg_catalog.pg_roles r where rolname in (${ROLES}) and not pg_catalog.has_schema_privilege(r.oid,'auth','USAGE')) then
     select nspowner into strict auth_owner from pg_catalog.pg_namespace where nspname='auth';
     if pg_catalog.pg_has_role(session_user,auth_owner,'SET') then
       grantor:=auth_owner;
@@ -141,17 +143,18 @@ function uniquePosition(sql, anchor) {
   return first;
 }
 
-function instrument(sql, anchor, afterAnchor = false) {
+function instrument(sql, anchor, afterAnchor, authUsageMode) {
   if (typeof sql !== 'string') throw new Error('disposable seed requires authored SQL');
   const begins = [...sql.matchAll(/^begin;$/gm)], commits = [...sql.matchAll(/^commit;$/gm)];
   if (begins.length !== 1 || commits.length !== 1 || sql.slice(commits[0].index + 7).trim()) throw new Error('disposable seed transaction boundaries changed');
   const at = uniquePosition(sql, anchor) + (afterAnchor ? anchor.length : 0);
   if (at < begins[0].index + 6 || at >= commits[0].index) throw new Error('disposable seed scope outside authored transaction');
-  return sql.slice(0, at) + openScope + sql.slice(at, commits[0].index) + closeScope + sql.slice(commits[0].index);
+  return sql.slice(0, at) + openScope(authUsageMode) + sql.slice(at, commits[0].index) + closeScope + sql.slice(commits[0].index);
 }
 
 /** Keeps every byte of both inactive migrations, inserting only bounded fixture SQL. */
-export function buildLegacyEvidenceInstallationFixture(ledgerSql, enrollmentSql) {
+export function buildLegacyEvidenceInstallationFixture(ledgerSql, enrollmentSql, authUsageMode = 'existing-authority') {
+  if (!['existing-authority', 'deferred-owner-stage'].includes(authUsageMode)) throw new Error('disposable seed auth usage mode unsupported');
   for (const [index, sql] of [ledgerSql, enrollmentSql].entries()) {
     if (typeof sql !== 'string' || createHash('sha256').update(sql).digest('hex') !== INPUT_DIGESTS[index]) {
       throw new Error('disposable seed authored input changed; review required');
@@ -161,6 +164,6 @@ export function buildLegacyEvidenceInstallationFixture(ledgerSql, enrollmentSql)
     uniquePosition(ledgerSql, `create role ${role} nologin nosuperuser nocreatedb nocreaterole noreplication nobypassrls noinherit;`);
   }
   uniquePosition(ledgerSql, 'create schema language_legacy_evidence_private;');
-  return instrument(ledgerSql, 'alter function language_legacy_evidence_private.get_context(uuid,jsonb,text,text,text) owner to language_legacy_evidence_executor;')
-    + '\n' + instrument(enrollmentSql, 'begin;\n', true);
+  return instrument(ledgerSql, 'alter function language_legacy_evidence_private.get_context(uuid,jsonb,text,text,text) owner to language_legacy_evidence_executor;', false, authUsageMode)
+    + '\n' + instrument(enrollmentSql, 'begin;\n', true, authUsageMode);
 }

@@ -31,13 +31,17 @@ test('disposable seed installs the actual ledger and additive enrollment once af
   }
   const guardedBuilder = "appendFileSync(`${workdir}/supabase/seed.sql`, '\\n' + buildLegacyEvidenceInstallationFixture(\n" +
     "      readFileSync('" + ledger + "', 'utf8'),\n" +
-    "      readFileSync('" + enrollment + "', 'utf8')));";
+    "      readFileSync('" + enrollment + "', 'utf8'), 'deferred-owner-stage'));";
   assert.equal(stack.split(guardedBuilder).length, 2);
   assert.ok(stack.indexOf("process.env.GITHUB_ACTIONS !== 'true'") < stack.indexOf(guardedBuilder));
   assert.ok(stack.indexOf("process.argv[2] === 'start'") < stack.indexOf(guardedBuilder));
   assert.match(stack, /import \{ buildLegacyEvidenceInstallationFixture \} from '\.\/legacy-evidence-installation-fixture\.mjs'/);
   assert.ok(stack.indexOf(enrollment) < stack.indexOf("run('start', '--exclude'"));
   assert.doesNotMatch(stack, /grant execute on function.*legacy_evidence|DISPOSABLE_EVIDENCE_RELEASE|enrollmentEnabled|captureEnabled/);
+  const owner = stack.indexOf('provisionDisposableAuthUsage(verifyDisposableStack())');
+  assert.ok(owner > stack.indexOf("writeFileSync('.e2e/stack-status.json'"));
+  assert.ok(owner < stack.indexOf('appendFileSync(process.env.GITHUB_ENV'));
+  assert.ok(owner < stack.indexOf("console.log('Isolated stack ready"));
 });
 
 test('post-stack CI step invokes the authored PostgreSQL and HTTP chain with native TypeScript loading', () => {

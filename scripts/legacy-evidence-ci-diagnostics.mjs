@@ -37,7 +37,7 @@ export const REFUSALS = Object.freeze({
 });
 const PHASE_CHECKPOINTS = Object.freeze({
   preflight: ['arguments_and_stack', 'generated_files', 'status_and_config', 'docker_context', 'container_discovery', 'container_identity'],
-  postgres: ['execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts'],
+  postgres: ['execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts', 'auth_owner_fixture'],
   audit: ['schema', 'privileges', 'dependencies', 'restricted_roles', 'disposable_activation'],
   scenario: ['execute'],
   http: ['execute'],
@@ -50,6 +50,7 @@ const CODES = new Set([
   'ENOENT', 'EACCES', 'EPERM', 'EPIPE', 'ECONNREFUSED', 'ETIMEDOUT',
   '42501', '57014', '55P03', '40P01', '23503', '23505', '42P01', '42883', 'PGRST106',
   'legacy_harness_refused', 'legacy_cleanup_failed', 'legacy_auth_mismatch',
+  'legacy_auth_owner_fixture_failed',
   'legacy_enrolled_generation_missing', 'legacy_enrollment_conflict', 'legacy_enrollment_integrity',
   'legacy_enrollment_stale', 'legacy_event_id_conflict', 'legacy_invalid_enrollment', 'legacy_invalid_event',
   'legacy_marker_conflict', 'legacy_predecessor_conflict', 'legacy_source_slot_conflict',

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import ts from 'typescript';
-import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
+import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, provisionDisposableAuthUsage, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const config = 'project_id = "isolated_stack"\n[api]\nport = 54321\n[db]\nport = 54322\nmajor_version = 17\n[auth]\nenabled = true\n';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_TEMP: '/tmp/synthetic-runner', GITHUB_RUN_ID: '123', GITHUB_JOB: 'isolated' };
@@ -249,6 +249,8 @@ test('fabricated or copied stack objects cannot spawn psql or create HTTP accoun
   await assert.rejects(runPostgresHarness(forged), /unverified disposable stack capability/);
   await assert.rejects(createSyntheticAccounts(forged, 1, async () => { fetchCalls++; return new Response('{}'); }), /unverified disposable stack capability/);
   await assert.rejects(runPostgresHarness({ ...forged }), /unverified disposable stack capability/);
+  assert.throws(() => provisionDisposableAuthUsage(forged), /unverified disposable stack capability/);
+  assert.throws(() => provisionDisposableAuthUsage({ ...forged }), /unverified disposable stack capability/);
   assert.equal(fetchCalls, 0);
 });
 
@@ -283,6 +285,7 @@ test('fixture opt-in is exact, private and after actual default-denial checks', 
 test('candidate source digests cover additive migration and the exact release/reset/admission contract', () => {
   assert.deepEqual(SOURCE_INPUTS, [...SOURCE_INPUTS].sort()); assert.equal(new Set(SOURCE_INPUTS).size, SOURCE_INPUTS.length);
   for (const path of ['supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql',
+    'scripts/legacy-evidence-auth-owner-fixture.mjs', 'tests/legacy-evidence-auth-owner-fixture.test.ts',
     'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
     'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-diagnostics.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
     'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts', 'app/lib/resetAppRecords.ts',
