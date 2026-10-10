@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page, Route, TestInfo } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { test, expect, login, originalLanguage, Traffic } from './fixture';
+import { test, expect, login, originalLanguage, Traffic, foregroundLivePage } from './fixture';
 import { RouteDrain } from './route-drain';
 import { parseLiveReport } from '../../lib/language-live/report-parser';
 import { LIVE_REPORT_FIELDS, type LiveLesson } from '../../lib/language-live/types';
@@ -265,11 +265,14 @@ test('Live independent sessions reject stale edits and retain both the current s
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } }); const traffic = new Traffic('Live-B'); await traffic.install(context);
   try {
     const second = await context.newPage(); await login(second, qa.account, '/language/live'); await ready(second); await openHistory(second, original.report.topic);
+    await foregroundLivePage(page);
     await workspace(page).getByRole('button', { name: '이 수업 수정하기', exact: true }).click();
-    await workspace(second).getByRole('button', { name: '이 수업 수정하기', exact: true }).click();
     await workspace(page).getByLabel('2. 수업 주제', { exact: true }).fill('합성 먼저 저장한 수정');
+    await foregroundLivePage(second);
+    await workspace(second).getByRole('button', { name: '이 수업 수정하기', exact: true }).click();
     await workspace(second).getByLabel('2. 수업 주제', { exact: true }).fill('합성 늦은 수정 초안');
-    await save(page, '내용 수정', 2); await reviewed(second).check();
+    await foregroundLivePage(page); await save(page, '내용 수정', 2);
+    await foregroundLivePage(second); await reviewed(second).check();
     await workspace(second).getByRole('button', { name: '확인하고 수정 이력 저장', exact: true }).click();
     await expect(workspace(second).getByRole('alert').filter({ hasText: '다른 곳에서 수업 기록이 바뀌었거나' })).toBeVisible();
     await expect(workspace(second).getByLabel('2. 수업 주제', { exact: true })).toHaveValue('합성 늦은 수정 초안');
@@ -294,9 +297,11 @@ test('Live two tabs recovering the same local draft keep separate edits and shar
     await second.goto('/language/live', { waitUntil: 'domcontentloaded' }); await ready(second);
     await workspace(second).getByText(/^이 계정의 기기 초안 \d+개$/).click();
     await workspace(second).getByRole('button', { name: /새 수업 초안/ }).first().click();
+    await foregroundLivePage(page);
     await workspace(page).getByLabel('2. 수업 주제', { exact: true }).fill('합성 원래 탭 수정');
-    await workspace(second).getByLabel('2. 수업 주제', { exact: true }).fill('합성 복구 탭 수정');
     await expect(workspace(page).getByLabel('2. 수업 주제', { exact: true })).toHaveValue('합성 원래 탭 수정');
+    await foregroundLivePage(second);
+    await workspace(second).getByLabel('2. 수업 주제', { exact: true }).fill('합성 복구 탭 수정');
     await expect(workspace(second).getByLabel('2. 수업 주제', { exact: true })).toHaveValue('합성 복구 탭 수정');
     const drafts = await page.evaluate(owner => Object.keys(localStorage).filter(key => key.startsWith(`yeoni-language-live:${owner}:draft:v1:`)).map(key => JSON.parse(localStorage.getItem(key)!)), qa.account.id);
     expect(drafts).toHaveLength(2);
@@ -305,6 +310,7 @@ test('Live two tabs recovering the same local draft keep separate edits and shar
     expect(drafts.map(draft => draft.report.topic).sort()).toEqual(['합성 복구 탭 수정', '합성 원래 탭 수정']);
     expect(await page.evaluate(key => localStorage.getItem(key), originalDraft.key)).not.toBe(originalDraft.encoded);
     await save(second);
+    await foregroundLivePage(page);
     await expect(workspace(page).getByLabel('2. 수업 주제', { exact: true })).toHaveValue('합성 원래 탭 수정');
     await reviewed(page).check();
     await workspace(page).getByRole('button', { name: '확인하고 서버에 저장', exact: true }).click();

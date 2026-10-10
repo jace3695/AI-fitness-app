@@ -21,9 +21,10 @@ type Action = { type: 'edit'; intent: ConversationEditIntent; editor?: Editor; d
   | { type: 'command'; intent: ConversationCommandIntent; context: LanguageRecordContext };
 type Deletion = { source: ConversationSnapshot; sessionId: string; label: string; intent: ConversationEditIntent };
 type Discard = { editor: Editor; scope: string | null };
+type CommandBoundary = 'none' | 'entered' | 'head-changed' | 'editor-changed' | 'saving-draft' | 'after-save-changed' | 'pre-capture-changed' | 'captured' | 'staged' | 'applied' | 'failed';
 type State = { discard: Discard | null; exposures: Map<string, Exposure>; source: ConversationSnapshot | null; scope: string | null; initialized: boolean; sessionId: string | null;
   editor: Editor | null; exposure: Exposure; action: Action | null; busy: boolean; uncertain: boolean; error: string | null;
-  deletion: Deletion | null; serial: number; missing: boolean };
+  deletion: Deletion | null; serial: number; missing: boolean; commandBoundary: CommandBoundary; commandKind: 'none' | 'append' | 'close' };
 const mergeExposure = (...values: Exposure[]): Exposure => Object.fromEntries((['example', 'reading', 'meaning', 'hint'] as const).map(key => [key, values.some(value => value[key] === 'shown') ? 'shown' : values.some(value => value[key] === 'unknown') ? 'unknown' : 'not-shown'])) as Exposure;
 const blankExposure = (): Exposure => ({ example: 'not-shown', reading: 'not-shown', meaning: 'not-shown', hint: 'not-shown' });
 const scopeOf = (source: ConversationSnapshot) => JSON.stringify([source.context.userId, source.context.epoch, source.observation.marker, source.envelope?.generationId ?? null]);
@@ -36,6 +37,13 @@ const message = (error: unknown) => {
   if (code === 'stale-source' || code === 'conflict' || code === 'pinned-draft') return '다른 저장이나 창에서 원본이 바뀌었어요. 입력을 보존했습니다. 저장 상태와 보류 입력을 확인해 주세요.';
   return '기기 저장을 확인하지 못했어요. 입력을 보존했습니다. 저장 다시 확인을 선택해 주세요.';
 };
+const changedBeforeActionMessage = '저장 확인 중 원본이나 입력이 바뀌었어요. 현재 입력을 보존했습니다. 다시 확인한 뒤 선택해 주세요.';
+// Fixed diagnostic categories only; raw storage errors and private record fields
+// must never be exposed through the diagnostic surface.
+const diagnosticErrorCode = (error: string | null) => !error ? 'none' : error === changedBeforeActionMessage ? 'changed-before-action'
+  : error === message({ code: 'capacity-exceeded' }) ? 'capacity-exceeded'
+    : error === message({ code: 'stale-source' }) ? 'source-conflict'
+      : error === message(null) ? 'storage-unconfirmed' : 'other-safe-error';
 const isUnknown = (error: unknown) => Boolean(error && typeof error === 'object' && 'outcome' in error && error.outcome === 'unknown');
 
 /** One UI importer of the registered facade. No storage, provider, notification
@@ -44,10 +52,10 @@ export function useConversationSession() {
   const access = useLanguageRecords(), live = useRef(access); live.current = access;
   const [, render] = useState(0), mounted = useRef(true);
   const state = useRef<State>({ discard: null, exposures: new Map(), source: null, scope: null, initialized: false, sessionId: null, editor: null,
-    exposure: blankExposure(), action: null, busy: false, uncertain: false, error: null, deletion: null, serial: 0, missing: false });
+    exposure: blankExposure(), action: null, busy: false, uncertain: false, error: null, deletion: null, serial: 0, missing: false, commandBoundary: 'none', commandKind: 'none' });
   const s = state.current;
   const update = () => { if (mounted.current) render(value => value + 1); };
-  const clear = () => { s.serial++; s.discard = null; s.exposures.clear(); s.source = null; s.scope = null; s.sessionId = null; s.editor = null; s.exposure = blankExposure(); s.action = null; s.busy = false; s.uncertain = false; s.deletion = null; s.error = null; s.missing = false; s.initialized = true; };
+  const clear = () => { s.serial++; s.discard = null; s.exposures.clear(); s.source = null; s.scope = null; s.sessionId = null; s.editor = null; s.exposure = blankExposure(); s.action = null; s.busy = false; s.uncertain = false; s.deletion = null; s.error = null; s.missing = false; s.commandBoundary = 'none'; s.commandKind = 'none'; s.initialized = true; };
   const selected = (source = s.source) => source?.envelope?.sessions.find(item => item.sessionId === s.sessionId) ?? null;
   const activeRef = (session: ConversationSession | null): StepRef | null => {
     if (!session || session.closed || !supportedSource(session.source)) return null;
@@ -134,8 +142,8 @@ export function useConversationSession() {
     if (s.missing && !allowMissingRecovery || s.serial !== renderSerial || s.scope !== renderScope || s.sessionId !== renderSessionId) throw new Error('missing-or-retired');
     return source;
   };
-  let available = false;
-  try { if (access.context && isLanguageRecordContextCurrent(access.context)) { acceptRead(readConversationSnapshot(access.context), true); available = true; } }
+  let available = false, contextCurrent = false;
+  try { if (access.context && isLanguageRecordContextCurrent(access.context)) { contextCurrent = true; acceptRead(readConversationSnapshot(access.context), true); available = true; } }
   catch { /* The fixed unavailable label never exposes raw storage/host errors. */ }
 
   const renderSerial = s.serial, renderScope = s.scope, renderSessionId = s.sessionId, renderSession = selected();
@@ -211,7 +219,7 @@ export function useConversationSession() {
   };
   const navigationSafeAt = (source: ConversationSnapshot) => !s.busy && !s.action && !s.uncertain && !s.missing
     && !pendingAt(selected(source)) && editorSavedAt(selected(source));
-  const changedBeforeAction = () => { s.error = '저장 확인 중 원본이나 입력이 바뀌었어요. 현재 입력을 보존했습니다. 다시 확인한 뒤 선택해 주세요.'; update(); return false; };
+  const changedBeforeAction = () => { s.error = changedBeforeActionMessage; update(); return false; };
   const save = async (): Promise<boolean> => {
     if (s.busy || s.action || s.deletion) return false;
     try {
@@ -288,38 +296,44 @@ export function useConversationSession() {
     s.exposure = s.editor ? { ...s.editor.exposure } : blankExposure();
   };
   const command = async (kind: 'append' | 'close'): Promise<boolean> => {
+    // Observe existing boundaries without adding work, retries, renders or authority.
+    s.commandKind = kind; s.commandBoundary = 'entered';
     if (s.busy || s.action || s.uncertain || s.deletion) return false;
     try {
       let source = read(), session = selected(source);
       if (!session || session.closed || !supportedSource(session.source) || pendingAt(session)) return false;
-      if (!exact(headView(session), headView(renderSession))) return changedBeforeAction();
+      if (!exact(headView(session), headView(renderSession))) { s.commandBoundary = 'head-changed'; return changedBeforeAction(); }
       const visible = editorView(s.editor), sessionId = session.sessionId, headRevision = session.headRevision, turnRefs = session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })), frozenSource = session.source, context = source.context;
-      if (!exact(visible, renderedEditor)) return changedBeforeAction();
+      if (!exact(visible, renderedEditor)) { s.commandBoundary = 'editor-changed'; return changedBeforeAction(); }
       if (kind === 'append' && (!s.editor?.input.trim() || !exact(s.editor.stepRef, activeRef(session)) || laneBlocked(session))) return false;
-      if (s.editor?.dirty && !await save()) return false;
-      if (live.current.context !== context || !exact(editorView(s.editor), visible)) return changedBeforeAction();
+      if (s.editor?.dirty) { s.commandBoundary = 'saving-draft'; if (!await save()) return false; }
+      if (live.current.context !== context || !exact(editorView(s.editor), visible)) { s.commandBoundary = 'after-save-changed'; return changedBeforeAction(); }
       source = read(); session = selected(source);
       // This read may itself detect a competing save. Recheck AFTER it and
       // before capture, including the visible head and all draft provenance.
       if (!session || session.closed || session.sessionId !== sessionId || session.headRevision !== headRevision
         || !exact(session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })), turnRefs)
         || !exact(session.source, frozenSource) || pendingAt(session) || !exact(editorView(s.editor), visible)
-        || !editorSavedAt(session) || kind === 'append' && !exact(s.editor?.stepRef, activeRef(session))) return changedBeforeAction();
+        || !editorSavedAt(session) || kind === 'append' && !exact(s.editor?.stepRef, activeRef(session))) { s.commandBoundary = 'pre-capture-changed'; return changedBeforeAction(); }
       const intent = kind === 'append' ? captureConversationAppend(source, session.sessionId, s.editor!.draftId) : captureConversationClose(source, session.sessionId);
+      s.commandBoundary = 'captured';
       const serial = s.serial, action: Action = { type: 'command', intent, context };
       s.action = action; s.busy = true; s.error = null; update();
       try {
         const staged = await stageConversationIntent(intent);
         if (!currentAfter(staged, serial, context)) { if (s.serial === serial) s.uncertain = true; return false; }
+        s.commandBoundary = 'staged';
         const applied = await applyConversationIntent(intent);
         if (!currentAfter(applied, serial, context)) { if (s.serial === serial) s.uncertain = true; return false; }
         if (applied.effect.kind !== 'applied') { s.uncertain = true; return false; }
         const fresh = readConversationSnapshot(context); acceptRead(fresh);
         reconcileAppliedEditor(intent.command, fresh);
+        s.commandBoundary = 'applied';
         s.action = null; s.uncertain = false; return true;
       } catch (error) {
         if (s.serial === serial) {
           const outcome = conversationIntentOutcome(intent);
+          s.commandBoundary = 'failed';
           s.error = message(error); s.uncertain = isUnknown(error) || outcome.stage === 'committed';
           if (outcome.stage === 'created' || outcome.stage === 'not-committed') s.action = null;
         }
@@ -496,7 +510,19 @@ export function useConversationSession() {
   const activeStep = session && activeStepRef ? getConversationStep(session.source, activeStepRef.stepId) : undefined;
   const editorStep = session && s.editor ? getConversationStep(session.source, s.editor.stepRef.stepId) : undefined;
   const canEdit = available && !s.missing && Boolean(session && !session.closed && supportedSource(session.source) && (s.editor || !isGuidedSource(session.source) && activeStepRef)) && !laneBlocked(session) && !(currentStepBlocked(session) && (!s.editor || exact(s.editor.stepRef, activeStepRef))) && !s.deletion && !s.discard && !(s.action?.type === 'edit' && (s.action.intent.kind === 'create' || s.action.intent.kind === 'delete')) && !(s.action?.type === 'command' && s.action.intent.command.kind === 'close');
-  return { available, identity: available ? s.scope : null, snapshot: available ? s.source : null, session,
+  // Derived state only. No input, IDs, source references, timestamps, or raw errors.
+  // Unavailable context hides all session/editor facts, just like the UI itself.
+  const diagnostics = {
+    status, available, busy: s.busy, contextCurrent,
+    errorCode: diagnosticErrorCode(s.error), commandKind: available ? s.commandKind : 'none', commandBoundary: available ? s.commandBoundary : 'none',
+    editorPresent: available && Boolean(s.editor), editorDirty: available && Boolean(s.editor?.dirty),
+    editorOnActiveStep: available && Boolean(s.editor && activeStepRef && exact(s.editor.stepRef, activeStepRef)),
+    stepIndex: progress?.activeStepIndex ?? null, submittedSteps: progress?.submittedStepCount ?? 0, totalSteps: progress?.totalStepCount ?? 0,
+    turnCount: session?.turns.length ?? 0, draftCount: session?.drafts.length ?? 0,
+    pendingKind: pendingOperation?.kind ?? (available && s.action?.type === 'edit' ? s.action.intent.kind : 'none'),
+    exposure: available && s.editor ? { ...s.editor.exposure } : blankExposure(), closedBoundary: Boolean(session?.closed),
+  };
+  return { diagnostics, available, identity: available ? s.scope : null, snapshot: available ? s.source : null, session,
     sessions: available ? s.source?.envelope?.sessions ?? [] : [], input: available ? s.editor?.input ?? '' : '', status,
     busy: s.busy, error: available ? s.error : '이 계정의 기기 저장 상태를 확인하고 있어요. 입력은 보존됩니다.', missing: s.missing,
     pendingOperation, deletion: available && s.deletion ? { sessionId: s.deletion.sessionId, label: s.deletion.label } : null,

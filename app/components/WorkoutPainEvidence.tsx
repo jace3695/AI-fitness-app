@@ -153,10 +153,10 @@ export default function WorkoutPainEvidence() {
           {guide ? <button type="button" className={buttonClass} aria-expanded={guideKey === pair.key}
             onClick={() => { if (revalidate()) setGuideKey(guideKey === pair.key ? null : pair.key); }}>{guideKey === pair.key ? '기존 가이드 닫기' : '기존 자세·중단 기준 보기'}</button>
             : <p>이 이름에 연결된 기존 가이드가 없어요.</p>}
-          {guide && guideKey === pair.key && <div className="mt-2" aria-label={`${pair.exercise} 기존 일반 가이드`}>
+          {guide && guideKey === pair.key && <section className="mt-2" aria-label={`${pair.exercise} 기존 일반 가이드`}>
             <p className="rounded-xl bg-gray-50 p-3">일반 가이드예요. 이 기록을 보고 안전한 대체 운동으로 판정한 내용은 아니에요. 위 안전 보류 안내가 있으면 그 안내를 먼저 확인해 주세요.</p>
             <ExerciseGuidePanel exercise={{ name: pair.exercise, details: [], guide }} />
-          </div>}
+          </section>}
         </article>;
       })}</div>
       {summary.sources.length > 0 && <><button type="button" className={`${buttonClass} mt-3`} aria-expanded={showAll}

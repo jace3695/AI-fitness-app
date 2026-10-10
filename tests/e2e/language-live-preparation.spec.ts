@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Page, Route } from '@playwright/test';
-import { test, expect, login, originalLanguage, Traffic } from './fixture';
+import { test, expect, login, originalLanguage, Traffic, foregroundLivePage } from './fixture';
 import { RouteDrain } from './route-drain';
 import { reauthenticateFixtureAccount, type FixtureAccount } from './fixture-account-auth';
 import { createLanguageLiveRepository } from '../../app/data/languageLiveRepository';
@@ -136,7 +136,9 @@ test('Live P3 two tabs preserve independent recovery and cancel/back/forward do 
   const second = await context.newPage();
   try {
     await second.goto('/language/live', { waitUntil: 'domcontentloaded' }); await open(second); await workspace(second).getByText(/^이 계정의 수업 준비 기기 초안 \d+개$/).click(); await workspace(second).getByRole('button', { name: /준비 초안 ·/ }).first().click();
-    await workspace(second).getByLabel('전달할 지시문 (직접 수정 가능)', { exact: true }).fill('B 탭 초안'); await expect(workspace(page).getByLabel('전달할 지시문 (직접 수정 가능)', { exact: true })).toHaveValue('A 탭 초안');
+    await workspace(second).getByLabel('전달할 지시문 (직접 수정 가능)', { exact: true }).fill('B 탭 초안');
+    await foregroundLivePage(page);
+    await expect(workspace(page).getByLabel('전달할 지시문 (직접 수정 가능)', { exact: true })).toHaveValue('A 탭 초안');
     const drafts = await page.evaluate(owner => Object.keys(localStorage).filter(key => key.startsWith(`yeoni-language-live:${owner}:preparation-draft:v1:`)).map(key => JSON.parse(localStorage.getItem(key)!)), qa.account.id); expect(drafts).toHaveLength(2); expect(new Set(drafts.map(draft => draft.draftId)).size).toBe(2);
     page.once('dialog', dialog => dialog.dismiss()); await page.getByRole('link', { name: '← 일본어 학습', exact: true }).click(); await expect(page).toHaveURL(/\/language\/live$/);
     page.on('dialog', dialog => dialog.accept()); await page.getByRole('link', { name: '← 일본어 학습', exact: true }).click(); await expect(page).toHaveURL(/\/language$/);

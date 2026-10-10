@@ -15,7 +15,7 @@ const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 function deferred() { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done; }); return { promise, resolve }; }
 function environment() {
   return { owner, storage: new Map<string, drafts.HandwritingRecord>(), sessions: new Map<string, unknown>(), resources: new Map<string, unknown>(), objects: new Map<string, Blob>(),
-    marker: null as string | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, terminalFail: false, terminalReadbackFail: false, failMarkerAfterTerminal: false,
+    marker: null as string | null, markerGate: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, terminalFail: false, terminalReadbackFail: false, failMarkerAfterTerminal: false,
     payloads: [] as drafts.FrozenHandwritingSave['session'][], calls: [] as string[], beforeRpc: null as (() => void) | null,
     afterRpc: null as (() => void) | null, blockWrite: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, localQueue: Promise.resolve() };
 }
@@ -54,7 +54,10 @@ function fixture(env = environment(), id = owner) {
       from(table: string) {
         const filters: Record<string, string> = {};
         const execute = async () => {
-          if (table === 'user_app_state') return { data: { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarker ? Error('marker offline') : null };
+          if (table === 'user_app_state') {
+            if (env.markerGate) { env.markerGate.arrived.resolve(); await env.markerGate.release.promise; }
+            return { data: { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarker ? Error('marker offline') : null };
+          }
           if (!filters.id) return { data: [...env.sessions.values()], error: env.progressFails ? Error('progress offline') : null };
           env.calls.push(`read:${table}`);
           return { data: (table === 'growth_sessions' ? env.sessions : env.resources).get(filters.id) ?? null, error: env.failReads ? Error('offline') : null };
@@ -135,11 +138,37 @@ test('shipping hook restores paper raw inputs and recovered lesson wins over lat
   assert.equal(restored.render().draft.minutes, '012'); assert.equal(restored.render().draft.reflection, '종이 복구'); assert.equal(restored.render().draft.lesson.id, before.lesson.id);
   assert.deepEqual(restored.render().draft.checks, [true, true]);
 });
+test('persisted reflection can precede the last debounced checkbox and is not a full reload checkpoint', async t => {
+  const qa = fixture(); t.after(qa.unmount); await qa.ready();
+  qa.render().change({ minutes: '12', reflection: '종이 복구', checks: [true, false] });
+  await qa.render().flush();
+  qa.render().change({ checks: [true, true] });
+  const partial = qa.env.storage.get(owner) as drafts.HandwritingDraft;
+  assert.equal(partial.reflection, '종이 복구');
+  assert.deepEqual(partial.checks, [true, false]);
+  assert.deepEqual(qa.render().draft.checks, [true, true]);
+  await qa.render().flush();
+  assert.deepEqual((qa.env.storage.get(owner) as drafts.HandwritingDraft).checks, [true, true]);
+});
 test('shipping hook restores exact pixels/evidence/undo without material fetch and never repaints with new source', async t => {
   const env = environment(), original = await seedScreen(env), qa = fixture(env); t.after(qa.unmount); const canvas = attachCanvas(qa); await qa.ready();
   assert.deepEqual(canvas.pixels(), original.raster!.pixels); assert.equal(qa.render().draft.strokes, 2); assert.equal(qa.render().sheetReady, true);
   qa.render().prepareSheet('not-needed', { ...original.worksheet!, sha256: 'b'.repeat(64) }); assert.deepEqual(canvas.pixels(), original.raster!.pixels);
   qa.render().undo(); await qa.render().flush(); assert.equal(qa.render().draft.strokes, 1); assert.equal(qa.render().draft.activeMs, 200); assert.deepEqual(canvas.pixels(), new Uint8ClampedArray(16));
+});
+test('restored course metadata does not imply the canvas has painted while the reset marker is pending', async t => {
+  const env = environment(), original = await seedScreen(env);
+  const gate = { arrived: deferred(), release: deferred() }; env.markerGate = gate;
+  const qa = fixture(env), canvas = attachCanvas(qa); t.after(qa.unmount); t.after(gate.release.resolve);
+  await gate.arrived.promise;
+  const recovering = qa.render();
+  assert.equal(recovering.draft.strokes, original.strokes);
+  assert.equal(recovering.ready, false);
+  assert.equal(recovering.sheetReady, false);
+  assert.notDeepEqual(canvas.pixels(), original.raster!.pixels);
+  gate.release.resolve(); await qa.ready();
+  assert.equal(qa.render().sheetReady, true);
+  assert.deepEqual(canvas.pixels(), original.raster!.pixels);
 });
 test('pending retry ignores failed materials/progress/routine, retains exact payload and double click commits once', async t => {
   const env = environment(), initial = await seedScreen(env, true); env.progressFails = true; const qa = fixture(env); t.after(qa.unmount); attachCanvas(qa); await qa.ready();

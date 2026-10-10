@@ -189,7 +189,7 @@ function LocalConversationPage() {
     }
   };
 
-  if (!flow.available || !settingsSnapshot) return <section role="status">
+  if (!flow.available || !settingsSnapshot) return <section role="status" data-conversation-diagnostic={JSON.stringify(flow.diagnostics)}>
     <h1>상황별 회화 연습</h1>
     <p>{flow.error || "계정과 학습 설정의 저장 상태를 확인하지 못했어요. 다시 확인해 주세요."}</p>
     <p>확인 중에는 대화 내용을 숨겨요. 저장되지 않은 입력의 복구는 보장하지 않아요.</p>
@@ -204,7 +204,7 @@ function LocalConversationPage() {
   const history = [...flow.sessions].sort((left, right) =>
     Date.parse(right.createdAt) - Date.parse(left.createdAt) || left.sessionId.localeCompare(right.sessionId));
 
-  return <section style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+  return <section data-conversation-diagnostic={JSON.stringify(flow.diagnostics)} style={{ minWidth: 0, overflowWrap: "anywhere" }}>
     <div className="page-header">
       <h1>상황별 회화 연습</h1>
       <p className="muted">고정 연습 예문 · 자유 문장은 평가하지 않아요</p>

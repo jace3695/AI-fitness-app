@@ -13,7 +13,7 @@ const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 function deferred() { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done; }); return { promise, resolve }; }
 function environment() {
   return { owner, storage: new Map<string, drafts.FreeRecord>(), sessions: new Map<string, unknown>(), resources: new Map<string, unknown>(), objects: new Map<string, Blob>(),
-    marker: null as string | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, terminalFail: false, terminalReadbackFail: false, activeReadbackFail: false, failMarkerAfterTerminal: false,
+    marker: null as string | null, markerGate: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, terminalFail: false, terminalReadbackFail: false, activeReadbackFail: false, failMarkerAfterTerminal: false,
     payloads: [] as drafts.FreeSave['session'][], calls: [] as string[], beforeRpc: null as (() => void) | null,
     afterRpc: null as (() => void) | null, blockWrite: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, localQueue: Promise.resolve() };
 }
@@ -52,7 +52,10 @@ function fixture(env = environment(), id = owner) {
       from(table: string) {
         const filters: Record<string, string> = {};
         const execute = async () => {
-          if (table === 'user_app_state') return { data: { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarker ? Error('marker offline') : null };
+          if (table === 'user_app_state') {
+            if (env.markerGate) { env.markerGate.arrived.resolve(); await env.markerGate.release.promise; }
+            return { data: { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarker ? Error('marker offline') : null };
+          }
           if (!filters.id) return { data: [...env.sessions.values()], error: env.progressFails ? Error('progress offline') : null };
           env.calls.push(`read:${table}`);
           return { data: (table === 'growth_sessions' ? env.sessions : env.resources).get(filters.id) ?? null, error: env.failReads ? Error('offline') : null };
@@ -120,6 +123,19 @@ async function seed(env: ReturnType<typeof environment>, pending = false) {
   env.storage.set(owner,d);return d;
 }
 async function restored(pending=false){const env=environment();const original=await seed(env,pending),qa=fixture(env),canvas=attachCanvas(qa);await qa.ready();return{env,original,qa,canvas};}
+test('restored free guide and ink render before the pending reset-marker lookup allows exact raster paint', async t => {
+  const env = environment(), original = await seed(env);
+  const gate = { arrived: deferred(), release: deferred() }; env.markerGate = gate;
+  const qa = fixture(env), canvas = attachCanvas(qa); t.after(qa.unmount); t.after(gate.release.resolve);
+  await gate.arrived.promise;
+  const recovering = qa.render();
+  assert.equal(recovering.draft.guideText, original.guideText);
+  assert.equal(recovering.draft.inkColor, original.inkColor);
+  assert.equal(recovering.ready, false);
+  assert.notDeepEqual(canvas.pixels(), original.frames[original.historyIndex].raster.pixels);
+  gate.release.resolve(); await qa.ready();
+  assert.deepEqual(canvas.pixels(), original.frames[original.historyIndex].raster.pixels);
+});
 test('free hook restores raster, guide, ink, exact evidence and undo/redo after reload',async t=>{
  const {env,original,qa,canvas}=await restored();t.after(qa.unmount);assert.deepEqual(canvas.pixels(),original.frames[1].raster.pixels);assert.equal(qa.render().draft.inkColor,'#abcdef');
  qa.render().restore(0);await qa.render().flush();assert.equal(drafts.freeEvidence(qa.render().draft).strokes,0);qa.unmount();const b=fixture(env),bc=attachCanvas(b);t.after(b.unmount);await b.ready();assert.equal(b.render().draft.historyIndex,0);assert.deepEqual(bc.pixels(),original.frames[0].raster.pixels);b.render().restore(1);await b.render().flush();assert.deepEqual(drafts.freeEvidence(b.render().draft),original.frames[1].evidence);

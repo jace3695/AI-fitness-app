@@ -50,6 +50,7 @@ for (const mode of ['active','manual','quick'] as const) for (const committed of
   const { routine, original } = await seed(qa.account); await open(page, qa.account);
   if (mode === 'manual') await enterManual(page, routine.id); if (mode === 'active') await start(page, routine.title);
   const drain = new RouteDrain(), requests: Record<string, unknown>[] = [], calls: string[] = [];
+  let phase: 'lost-response' | 'reload' | 'unknown-retry' | 'confirm-retry' | 'verify-row' | 'complete' = 'lost-response';
   let failPost = true, failRead = true;
   await page.route(pattern, route => drain.run(async () => {
     const request = route.request(), url = new URL(request.url());
@@ -68,19 +69,25 @@ for (const mode of ['active','manual','quick'] as const) for (const committed of
   try {
     await page.getByRole('button', { name: mode === 'active' ? '완료 저장' : mode === 'manual' ? '기록 저장' : `${routine.title} 빠른 완료`, exact: true }).click();
     await expect(recovery(page)).toContainText('저장 결과를 확인하지 못했어요'); await expect(retry(page)).toBeEnabled(); expect(requests).toHaveLength(1);
-    const frozen = (await draft(page, qa.account.id)).pending!; await page.reload(); await expect(retry(page)).toBeEnabled();
-    const mark = calls.length; await retry(page).click(); await expect(recovery(page)).toContainText('저장 결과를 확인하지 못했어요'); await expect(retry(page)).toBeEnabled();
+    const frozen = (await draft(page, qa.account.id)).pending!; phase = 'reload'; await page.reload(); await expect(retry(page)).toBeEnabled();
+    phase = 'unknown-retry'; const mark = calls.length; await retry(page).click(); await expect(recovery(page)).toContainText('저장 결과를 확인하지 못했어요'); await expect(retry(page)).toBeEnabled();
     expect(requests).toHaveLength(1); expect(calls.slice(mark)).toEqual(['GET', 'GET:retry:1', 'GET:retry:2', 'GET:retry:3']);
-    failRead = false; failPost = false; const confirmedMark = calls.length; await retry(page).click(); await expect(recovery(page)).toContainText('기록을 클라우드에서 확인했어요');
+    phase = 'confirm-retry'; failRead = false; failPost = false; const confirmedMark = calls.length; await retry(page).click(); await expect(recovery(page)).toContainText('기록을 클라우드에서 확인했어요');
     expect(calls.slice(confirmedMark)).toEqual(committed ? ['GET'] : ['GET', 'POST', 'GET']);
     expect(requests).toHaveLength(committed ? 1 : 2); if (!committed) expect(requests[1]).toEqual(requests[0]);
-    const rows = (await qa.account.client.from('growth_sessions').select('*').eq('routine_id', routine.id)).data!;
+    phase = 'verify-row'; const rows = (await qa.account.client.from('growth_sessions').select('*').eq('routine_id', routine.id)).data!;
     expect(rows).toHaveLength(2); expect(rows.find(row => row.id === original.id)).toEqual(original);
     const row = rows.find(row => row.id === frozen.payload.id)!;
     expect(routineRowMatches(row, frozen.payload)).toBe(true);
     const terminal = await draft(page, qa.account.id); expect(terminal.pending).toBeNull(); expect(terminal.lastConfirmed).toBe(frozen.payload.id);
     if (mode === 'quick') { await expect(page.getByText('시간 미기록 포함 · 비교 보류', { exact: true })).toHaveCount(2); expect(row.actual_minutes).toBe(0); expect(row.metrics.actualMinutesRecorded).toBe(false); }
-  } finally { await drain.wait(); await page.unroute(pattern); }
+    phase = 'complete';
+  } finally {
+    // Fixed enums and counts only. Preserve route/assertion failures while
+    // showing whether a transport rejection preceded or followed row checks.
+    console.log('QA_ROUTINE_RECOVERY_PHASE', JSON.stringify({ mode, committed, phase, posts: requests.length, calls: calls.length }));
+    await drain.wait(); await page.unroute(pattern);
+  }
 });
 test('newer manual edits survive a delayed save while pending delete and quick cancel remain blocked', async ({ page, qa }) => {
   const { routine } = await seed(qa.account); await open(page, qa.account); await enterManual(page, routine.id);
@@ -93,6 +100,10 @@ test('newer manual edits survive a delayed save while pending delete and quick c
     await page.getByRole('button', { name: '새로고침', exact: true }).click();
     await expect(page.getByRole('button', { name: '기록 삭제', exact: true }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: '기록 삭제', exact: true }).first()).toBeDisabled();
+    // Refresh moves the committed routine out of the priority list into this
+    // closed disclosure, even while its save response remains held.
+    await page.locator('summary').filter({ hasText: /^나머지 예정·완료 루틴 1개$/ }).click();
+    await expect(page.getByRole('button', { name: `${routine.title} 완료 취소`, exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: `${routine.title} 완료 취소`, exact: true })).toBeDisabled();
     release(); await expect(recovery(page)).toContainText('기록을 클라우드에서 확인했어요'); await page.reload();
     await expect(manualForm(page).getByPlaceholder('메모(선택)')).toHaveValue('더 새로운 입력'); await expect(page.getByLabel('실행 시간', { exact: true })).toHaveValue('23');

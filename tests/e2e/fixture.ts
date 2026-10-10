@@ -4,6 +4,7 @@ import { test as base, expect, type BrowserContext, type Page, type Route } from
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { RouteDrain } from './route-drain';
 import { failureLabel, observeNavigation, routeLabel } from './navigation-diagnostics';
+import { RouteContinueDiagnostics } from './route-continue-diagnostics';
 
 export { expect };
 export type State = Record<string, unknown>;
@@ -68,6 +69,7 @@ function deferred() {
 export class Traffic {
   entries: Entry[] = [];
   documentRoutes: { at: number; route: string; phase: string }[] = [];
+  continueFailures = new RouteContinueDiagnostics();
   blockedOrigins = new Set<string>();
   failReads = false;
   private next?: Hold;
@@ -103,7 +105,14 @@ export class Traffic {
         };
         note('continue-start');
         try { await route.continue(); note('continue-resolved'); }
-        catch (error) { note('continue-rejected'); throw error; }
+        catch (error) {
+          note('continue-rejected');
+          if (!document) {
+            const diagnostic = this.continueFailures.record(request, error);
+            if (diagnostic) console.log('QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(diagnostic));
+          }
+          throw error;
+        }
         return;
       }
       const started = Date.now();
@@ -234,7 +243,7 @@ export const test = base.extend<{ qa: Qa }>({
           commit: process.env.QA_HEAD_SHA, title: testInfo.title, project: testInfo.project.name,
           repeatEachIndex: testInfo.repeatEachIndex, status: testInfo.status,
           failures: testInfo.errors.map(error => failureLabel(error.message ?? '')),
-          navigation, documentRoutes: traffic.documentRoutes,
+          navigation, documentRoutes: traffic.documentRoutes, continueFailures: traffic.continueFailures,
         };
         navigationEvidence = JSON.stringify(evidence, null, 2);
         console.log('QA_NAVIGATION_FAILURE ' + JSON.stringify(evidence));
@@ -299,7 +308,7 @@ export const test = base.extend<{ qa: Qa }>({
       writeFileSync(`.e2e/evidence/${testInfo.project.name}-${testInfo.testId.replace(/[^a-zA-Z0-9_-]/g, '')}.json`, JSON.stringify({
         title: testInfo.title, syntheticAccountsRemoved: accounts.length, cleaned, originalKeys: Object.keys(original).length,
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
-        navigation, documentRoutes: traffic.documentRoutes,
+        navigation, documentRoutes: traffic.documentRoutes, continueFailures: traffic.continueFailures,
       }, null, 2));
       console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
         storageFilesRemoved,
@@ -320,6 +329,14 @@ export async function login(page: Page, account: Account, path = '/diet/settings
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 }
 export const synced = async (page: Page) => { await expect(page.getByText('서버 반영 완료', { exact: true })).toBeVisible(); };
+export async function foregroundLivePage(page: Page) {
+  // A background tab deliberately hides/inerts private language editors.
+  // Simulate returning to the tab; never bypass that privacy/lifecycle gate.
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+  await expect(page.getByText('학습 기록 · 서버 저장 확인', { exact: true })).toBeVisible();
+  await expect(page.locator('.live-workspace')).toBeVisible();
+}
 export const localState = (page: Page): Promise<State> => page.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter(key => key.startsWith('ai-fitness-')).map(key => {
   const value = localStorage.getItem(key)!; try { return [key, JSON.parse(value)]; } catch { return [key, value]; }
 })));
@@ -336,8 +353,10 @@ export async function saveMeal(page: Page, memo: string) {
   await page.getByLabel('메모', { exact: true }).fill(memo);
   await expect(page.getByLabel('메모', { exact: true })).toHaveValue(memo);
   await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
+  // An earlier success label can survive while this edit waits for the Web
+  // Lock. Prove this exact revision committed before accepting the label.
+  await expect.poll(async () => mealMemo(await localState(page)), { message: 'The form committed the intended memo locally' }).toBe(memo);
   await expect(page.getByText('오늘 식단 기록을 저장했습니다.', { exact: true })).toBeVisible();
-  expect(mealMemo(await localState(page)), 'The form saved the intended memo locally').toBe(memo);
 }
 export const mealMemo = (state: State) => (state['ai-fitness-diet-completed-days'] as Record<string, { dietMemo?: string }> | undefined)?.[today()]?.dietMemo;
 export async function mealSaved(page: Page, qa: Qa, memo: string) {

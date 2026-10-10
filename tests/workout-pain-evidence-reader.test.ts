@@ -192,6 +192,9 @@ test('shipping card opens the exact-date source with focus/scroll and revalidate
   ui.click('날짜별 전체 입력 근거 보기'); ui.click('2026-10-08 기록 보기');
   ui.click('날짜별 전체 입력 근거 접기'); assert.doesNotMatch(ui.text(), /2026-10-08 저장 기록 근거/);
   ui.click('기존 자세·중단 기준 보기'); assert.match(ui.text(), /SYNTHETIC EXISTING GUIDE/); assert.match(ui.text(), /안전한 대체 운동으로 판정한 내용은 아니에요/);
+  const guideRegion = nodes(ui.render()).find(node => node.props['aria-label'] === '버드독 기존 일반 가이드');
+  assert.ok(guideRegion, 'the existing guide has an accessible name');
+  assert.equal(guideRegion.type, 'section', 'the named guide is an implicit region, not an unlabelable generic div');
   ui.values.set(key, JSON.stringify({ '2026-09-20': rows['2026-09-20'] }));
   ui.click('2026-10-08 기록 보기'); assert.match(ui.text(), /기록이 바뀌었어요/); assert.doesNotMatch(ui.text(), /2026-10-08 저장 기록 근거|SYNTHETIC EXISTING GUIDE/);
   assert.deepEqual(ui.writes, []); ui.dispose(); assert.equal(ui.timers.size, 0);
@@ -210,6 +213,25 @@ test('shipping card clears private source/guide content across corruption, reset
   ui.win.emit(transactions.CLOUD_SESSION_CHANGED_EVENT); open(); ui.doc.visibilityState = 'hidden'; ui.doc.emit('visibilitychange');
   assert.doesNotMatch(ui.text(), /저장 기록 근거|SYNTHETIC EXISTING GUIDE/);
   ui.doc.visibilityState = 'visible'; ui.doc.emit('visibilitychange'); assert.doesNotMatch(ui.text(), /저장 기록 근거|SYNTHETIC EXISTING GUIDE/);
+  assert.deepEqual(ui.writes, []); ui.dispose();
+});
+
+for (const mutation of ['changed', 'deleted'] as const) test(`a captured source handler rejects silently ${mutation} bytes before any fresh render`, () => {
+  const ui = componentHarness();
+  ui.click('기존 자세·중단 기준 보기');
+  const anchor = nodes(ui.render()).find(node => node.type === 'a' && nodeText(node) === '2026-10-08 기록 보기');
+  assert.ok(anchor);
+  const activate = anchor.props.onClick as (event: unknown) => void;
+  const next: Record<string, unknown> = { ...rows, [today]: { workoutPainArea: '허리', workoutPainExercise: '오늘 전용' } };
+  if (mutation === 'deleted') delete next['2026-10-08'];
+  else next['2026-10-08'] = { ...rows['2026-10-08'], workoutPainArea: '어깨' };
+  ui.values.set(key, JSON.stringify(next));
+  // Invoke exactly the old render's callback. No watcher event, render or
+  // synthetic replacement handler gets an opportunity to hide the stale link.
+  activate({ preventDefault() {}, currentTarget: { focus() { throw Error('stale trigger focused'); } } });
+  assert.match(ui.text(), /기록이 바뀌었어요/);
+  assert.doesNotMatch(ui.text(), /2026-10-08 저장 기록 근거|SYNTHETIC EXISTING GUIDE|오늘 전용/);
+  assert.equal(ui.focus.length, 0); assert.equal(ui.scroll.length, 0);
   assert.deepEqual(ui.writes, []); ui.dispose();
 });
 

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page, Request, Route } from '@playwright/test';
 import { isAuthSessionMissingError, type SupabaseClient } from '@supabase/supabase-js';
-import { test, expect, login, synced, originalLanguage, Traffic } from './fixture';
+import { test, expect, login, synced, originalLanguage, Traffic, foregroundLivePage } from './fixture';
 import { RouteDrain } from './route-drain';
 import { reauthenticateFixtureAccount, type FixtureAccount } from './fixture-account-auth';
 import { createLanguageLiveRepository } from '../../app/data/languageLiveRepository';
@@ -231,7 +231,8 @@ test('Live P2 stale independent-session edits retain losing draft and do not sil
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } }), traffic = new Traffic('Live-learning-B'); await traffic.install(context);
   try {
     const second = await context.newPage(); await login(second, qa.account, '/language/live'); await openLearning(second); await begin(second, lesson);
-    await save(page, 1, 2); await review(second);
+    await foregroundLivePage(page); await save(page, 1, 2);
+    await foregroundLivePage(second); await review(second);
     await workspace(second).getByRole('button', { name: '확인한 복습 근거 서버에 저장', exact: true }).click();
     await expect(workspace(second).getByRole('alert').filter({ hasText: '다른 곳에서 수업 기록이 바뀌었거나' })).toBeVisible();
     await expect(workspace(second).getByLabel('전체 근거 목록의 저장·변경 이유', { exact: true })).toHaveValue('합성 보고서의 학습 근거를 직접 확인');
@@ -274,6 +275,7 @@ test('Live P2 two tabs recover private drafts and cancel/leave/back preserve unf
     await second.goto('/language/live', { waitUntil: 'domcontentloaded' }); await openLearning(second);
     await workspace(second).getByText(/^이 계정의 복습 기기 초안 \d+개$/).click(); await workspace(second).getByRole('button', { name: /복습 초안 ·/ }).first().click();
     await workspace(second).getByLabel('전체 근거 목록의 저장·변경 이유', { exact: true }).fill('복구한 탭의 별도 근거');
+    await foregroundLivePage(page);
     await expect(workspace(page).getByLabel('전체 근거 목록의 저장·변경 이유', { exact: true })).toHaveValue('원래 탭의 확인 중인 근거');
     const drafts = await page.evaluate(owner => Object.keys(localStorage).filter(key => key.startsWith(`yeoni-language-live:${owner}:learning-draft:v1:`)).map(key => JSON.parse(localStorage.getItem(key)!)), qa.account.id);
     expect(drafts).toHaveLength(2); expect(new Set(drafts.map(draft => draft.draftId)).size).toBe(2); expect(new Set(drafts.map(draft => draft.input.lessonId)).size).toBe(1);

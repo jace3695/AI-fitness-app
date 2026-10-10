@@ -210,6 +210,16 @@ test('quick completion explicitly records time unknown without target minutes or
   const qa = await ready(); await qa.render().save('quick', routine); const p = qa.env.payloads[0];
   assert.equal(p.actual_minutes, 0); assert.equal((p.metrics as Record<string, unknown>).actualMinutesRecorded, false); assert.equal(p.started_at, null); assert.equal(p.ended_at, null);
 });
+test('active stopped record retains exact time provenance alongside the reported stop reason', async () => {
+  const qa = await ready(); qa.render().start(routine); await flush();
+  qa.render().changeForm('active', { status: 'stopped', stopReason: 'tired' }); await flush();
+  await qa.render().save('active', routine);
+  assert.equal(qa.env.payloads.length, 1);
+  assert.deepEqual(qa.env.payloads[0].metrics, { recordMode: 'active', actualMinutesRecorded: true, stopReason: 'tired' });
+  assert.equal(qa.env.payloads[0].status, 'stopped');
+  assert.equal(qa.env.payloads[0].actual_minutes, 0);
+  assert.equal(qa.env.payloads[0].planned_minutes, routine.target_minutes);
+});
 test('zero elapsed is zero; reversed or over-one-day timers are not clamped into invented evidence', async () => {
   const qa = await ready(); qa.render().start(routine); await flush(); await qa.render().save('active', routine); assert.equal(qa.env.payloads[0].actual_minutes, 0);
   qa.render().start(routine); await flush(); qa.env.now -= 60000; await qa.render().save('active', routine); assert.equal(qa.env.payloads.length, 1); assert.match(qa.render().notice, /거꾸로/);

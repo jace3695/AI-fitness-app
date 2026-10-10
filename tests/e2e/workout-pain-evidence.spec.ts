@@ -92,10 +92,21 @@ test('stored-date pain input evidence opens exact sources and existing guides re
 test('pain evidence source activation rejects a silently changed or deleted source and never substitutes today', async ({ page, qa }) => {
   expect((await qa.account.client.from('user_app_state').update({ state: seededState() }).eq('user_id', qa.account.id)).error).toBeNull();
   await login(page, qa.account); await synced(page); await page.goto('/fitness');
-  const originalRaw = await page.evaluate(key => localStorage.getItem(key)!, key);
-  const changed = JSON.parse(originalRaw) as Record<string, unknown>; delete changed[offset(1)];
-  await changeLocal(page, JSON.stringify(changed), false);
-  await card(page).getByRole('link', { name: `${offset(1)} 기록 보기`, exact: true }).click();
+  const staleLink = card(page).getByRole('link', { name: `${offset(1)} 기록 보기`, exact: true });
+  await expect(staleLink).toBeVisible();
+  // Keep the already-rendered anchor and silently invalidate its source in the
+  // same browser task as activation. No watcher event or React rerender can
+  // replace its original handler first. Real keyboard activation is covered above.
+  const originalRaw = await staleLink.evaluate((link, { key, date }) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error('pain-source-fixture-missing');
+    const changed = JSON.parse(raw) as Record<string, unknown>;
+    if (!Object.hasOwn(changed, date)) throw new Error('pain-source-fixture-date-missing');
+    delete changed[date];
+    localStorage.setItem(key, JSON.stringify(changed));
+    (link as HTMLAnchorElement).click();
+    return raw;
+  }, { key, date: offset(1) });
   await expect(card(page)).toContainText('기록이 바뀌었어요. 최신 근거를 다시 확인해 주세요.');
   await expect(source(page)).toHaveCount(0); await expect(card(page)).not.toContainText('오늘 전용');
   await card(page).getByRole('button', { name: '날짜별 전체 입력 근거 보기', exact: true }).click();

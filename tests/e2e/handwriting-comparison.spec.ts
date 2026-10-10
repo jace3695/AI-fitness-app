@@ -177,8 +177,9 @@ for (const width of [320, 1024]) test(`saved comparison renders original verifie
   try {
     await open(page, 2); await selectReady(page, 0, course); await selectReady(page, 1, free, false);
     await assertOriginalImage(first(page), course); await assertOriginalImage(second(page), free);
-    await expect(selector(page, 1).locator(`option[value="${course.id}"]`)).toBeDisabled();
-    await expect(selector(page, 0).locator(`option[value="${free.id}"]`)).toBeDisabled();
+    // Assert the OPTION itself; toBeDisabled follows its wrapping label to the enabled SELECT in Playwright 1.63.
+    await expect(selector(page, 1).locator(`option[value="${course.id}"]`)).toHaveJSProperty('disabled', true);
+    await expect(selector(page, 0).locator(`option[value="${free.id}"]`)).toHaveJSProperty('disabled', true);
     await expect(first(page)).toContainText('저장한 수업 이름: 합성 저장 수업'); await expect(first(page)).toContainText('획 접촉 구간 시간: 0초');
     await expect(first(page)).toContainText('확인함 · 저장된 합성 점검 하나'); await expect(first(page).getByRole('checkbox')).toHaveCount(0);
     await expect(first(page)).not.toContainText('좌표 범위 너비'); await expect(second(page)).toContainText('미확인 (변화 없음 포함)');
@@ -303,7 +304,7 @@ test('different saves with identical bytes may pair but duplicate resource claim
     await selector(page, 0).selectOption(disputed.id);
     await expect(first(page).getByRole('status')).toHaveText('연습 이미지의 연결 또는 기록 형식을 확인할 수 없어요.');
     await expect(image(first(page))).toHaveCount(0);
-    await expect(selector(page, 1).locator(`option[value="${duplicateId}"]`)).toBeDisabled();
+    await expect(selector(page, 1).locator(`option[value="${duplicateId}"]`)).toHaveJSProperty('disabled', true);
     expect(traffic.downloads.length).toBe(count); expect(await snapshot(qa.account)).toEqual(before); traffic.assertReadOnly();
   } finally { traffic.stop(); }
 });
