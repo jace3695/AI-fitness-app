@@ -64,6 +64,7 @@ export const EXECUTOR_DEPENDENCIES = Object.freeze([
   'executor_canonical', 'executor_instant', 'executor_marker', 'executor_timezone_valid',
   'executor_assert_request', 'executor_context_json', 'executor_receipt', 'executor_validate_event', 'executor_check_read',
 ]);
+export const AUTH_INSTALLER_CAPABILITIES = Object.freeze(['installer_auth_owner_set', 'installer_auth_grant_option', 'installer_auth_direct_grant_option']);
 const SOURCES = ['qa-legacy-evidence-postgres.mjs', 'qa-legacy-evidence-http.mjs'].map(name => {
   const url = new URL(name, import.meta.url);
   return { name, prefixes: [url.href, fileURLToPath(url)] };
@@ -164,6 +165,10 @@ export function createLegacyEvidenceDiagnostics(writeLine = line => console.log(
     dependency(name, granted) {
       if (!EXECUTOR_DEPENDENCIES.includes(name) || typeof granted !== 'boolean') throw new Error('Invalid diagnostic enum');
       emit({ ...context('audit', 'dependencies'), dependency: name, granted }, 'observed');
+    },
+    capability(name, available) {
+      if (!AUTH_INSTALLER_CAPABILITIES.includes(name) || typeof available !== 'boolean') throw new Error('Invalid diagnostic enum');
+      emit({ ...context('audit', 'dependencies'), capability: name, available }, 'observed');
     },
     async run(phase, checkpoint, callback, caseName) {
       const entry = context(phase, checkpoint, caseName); current = entry; emit(entry, 'running');

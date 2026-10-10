@@ -6,7 +6,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, rememberSqlDenial, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
+import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, rememberSqlDenial, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
 export { CASES } from './legacy-evidence-ci-diagnostics.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
@@ -348,6 +348,15 @@ export async function runPostgresHarness(stack, diagnostics = createLegacyEviden
     for (const key of ['eventExecutorUpdate','eventExecutorDelete','generationExecutorUpdate','eventResetInsert','eventResetUpdate']) assert.equal(privilegeAudit[key], false);
     assert.equal(privilegeAudit.generationCounterUpdate, true); report.digests.installedPrivilegeAudit = sha(JSON.stringify(privilegeAudit));
     diagnostics.passed(); diagnostics.start('audit', 'dependencies');
+    const installerAuthCapabilities = await observer.scalar(`select pg_catalog.jsonb_build_object(
+      'installer_auth_owner_set',pg_catalog.pg_has_role(current_user,n.nspowner,'SET'),
+      'installer_auth_grant_option',pg_catalog.has_schema_privilege(current_user,n.oid,'USAGE WITH GRANT OPTION'),
+      'installer_auth_direct_grant_option',exists(select 1 from pg_catalog.aclexplode(n.nspacl) a
+        where a.grantee=current_user::regrole::oid and a.privilege_type='USAGE' and a.is_grantable)
+        and not pg_catalog.pg_has_role(current_user,n.nspowner,'USAGE')) from pg_catalog.pg_namespace n where n.nspname='auth';`);
+    assert.deepEqual(Object.keys(installerAuthCapabilities).sort(), [...AUTH_INSTALLER_CAPABILITIES].sort());
+    for (const name of AUTH_INSTALLER_CAPABILITIES) diagnostics.capability(name, installerAuthCapabilities[name]);
+    report.installerAuthCapabilities = installerAuthCapabilities;
     // GRANT can be ineffective when a restricted installer lacks grant option.
     // Check effective runtime dependencies, separately from app-facing denial.
     // Fixed keys prevent SQL-returned identities from entering diagnostics.

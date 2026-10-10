@@ -2,7 +2,7 @@
  * PostgreSQL 18.x; this is not acceptance of the disposable Supabase PG17 stack. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
+import { EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, createLegacyEvidenceDiagnostics } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { buildLegacyEvidenceInstallationFixture } from '../scripts/legacy-evidence-installation-fixture.mjs';
@@ -21,16 +21,25 @@ const membershipSql = `select coalesce(jsonb_agg(to_jsonb(m) order by m.oid),'[]
      or m.member in (select oid from pg_roles where rolname in ('${executor}','${resetExecutor}'))`;
 const cleanupAnchor = '\ndo $ci_install_scope$ declare saved record; target record; actual_memberships';
 
-test('separately owned auth dependencies distinguish an ineffective grant from the exact typed denial', async t => {
-  for (const grantOption of [false, true]) await t.test(`synthetic installer auth USAGE grant option ${grantOption}`, async () => {
+test('disposable auth USAGE uses only preexisting authority and restores exact scope state', async t => {
+  for (const authority of ['absent', 'owner-set', 'direct-option', 'inherited-only']) await t.test(authority, async () => {
     const db = new PGlite();
     const scalar = async <T>(sql: string) => Object.values((await db.query(sql)).rows[0] as Record<string, unknown>)[0] as T;
+    const snapshot = () => scalar(`select jsonb_build_object(
+      'identity',jsonb_build_array(current_user,session_user),
+      'memberships',(select jsonb_agg(to_jsonb(m) order by oid) from pg_auth_members m),
+      'roles',(select jsonb_agg(to_jsonb(r) order by oid) from pg_roles r),
+      'schemas',(select jsonb_agg(jsonb_build_object('oid',oid,'owner',nspowner,'acl',nspacl) order by oid) from pg_namespace where nspname in ('auth','public','language_legacy_evidence_private')),
+      'uid',(select jsonb_build_object('owner',proowner,'acl',proacl) from pg_proc where oid='auth.uid()'::regprocedure),
+      'authRelations',(select jsonb_agg(jsonb_build_object('oid',oid,'owner',relowner,'acl',relacl) order by oid) from pg_class where relnamespace='auth'::regnamespace),
+      'authColumns',(select jsonb_agg(jsonb_build_object('relation',a.attrelid,'number',a.attnum,'acl',a.attacl) order by a.attrelid,a.attnum)
+        from pg_attribute a join pg_class c on c.oid=a.attrelid where c.relnamespace='auth'::regnamespace and a.attnum>0))`);
     try {
-      // The independent auth owner is essential: owning auth as the installer
-      // would hide an ineffective GRANT. This is local synthetic setup only.
+      // Auth is independently owned; the installer stays NOSUPERUSER, and every
+      // usable authority below is established before installing either migration.
       await db.exec(`create role restricted_installer login nosuperuser createdb createrole noreplication bypassrls inherit;
         grant all on schema public to restricted_installer; grant create on database postgres to restricted_installer;
-        create role authenticated; create role anon; create role service_role; create role synthetic_auth_admin;
+        create role authenticated; create role anon; create role service_role; create role synthetic_auth_admin; create role auth_grant_holder;
         grant authenticated to restricted_installer with inherit false,set true;
         create schema auth;
         create table auth.users(id uuid primary key,banned_until timestamptz,deleted_at timestamptz,is_anonymous boolean default false);
@@ -41,40 +50,82 @@ test('separately owned auth dependencies distinguish an ineffective grant from t
         grant execute on function auth.uid(),auth.jwt() to authenticated,anon;
         grant usage on schema auth to synthetic_auth_admin; grant select,delete on auth.users to synthetic_auth_admin;
         alter schema auth owner to synthetic_auth_admin;
+        alter table auth.users owner to synthetic_auth_admin; alter table auth.sessions owner to synthetic_auth_admin;
         alter function auth.uid() owner to synthetic_auth_admin; alter function auth.jwt() owner to synthetic_auth_admin;
-        grant usage on schema auth to restricted_installer ${grantOption ? 'with grant option' : ''};
+        grant usage on schema auth to restricted_installer ${authority === 'direct-option' ? 'with grant option' : ''};
+        ${authority === 'owner-set' ? 'grant synthetic_auth_admin to restricted_installer with inherit false,set true;' : ''}
+        ${authority === 'inherited-only' ? 'grant usage on schema auth to auth_grant_holder with grant option; grant auth_grant_holder to restricted_installer with inherit true,set false;' : ''}
         grant all on all tables in schema auth to restricted_installer;
         set session authorization restricted_installer; set createrole_self_grant='';
         alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`);
       assert.equal(await scalar("select rolsuper from pg_roles where rolname=current_user"), false);
-      assert.equal(await scalar("select pg_has_role(current_user,'synthetic_auth_admin','MEMBER')"), false);
+      assert.equal(await scalar("select pg_has_role(current_user,'synthetic_auth_admin','SET')"), authority === 'owner-set');
       await db.exec(read('tests/e2e/schema.sql'));
       for (const name of ['20260915034857_assistant_task_command_history.sql', '20260915052413_chatgpt_scoped_connection.sql',
         '20260916043619_assistant_language_commands.sql', '20260916045546_language_history_reset_triggers.sql']) await db.exec(read(`supabase/migrations/${name}`));
-      await db.exec(generated);
+      const baseline = await snapshot(), openAnchor = '\n-- BEGIN DISPOSABLE CI INSTALLER SCOPE\n';
+      // Original authored GRANT already succeeds for a direct/inherited option.
+      // Remove its two grants in the test transaction to exercise the adapter's
+      // actual direct-grant branch or its conservative inherited-only refusal.
+      const forceMissing = authority === 'direct-option' || authority === 'inherited-only' ? `revoke usage on schema auth from ${executor},${resetExecutor};\n` : '';
+      const fixture = ledgerFixture.replace(openAnchor, '\n' + forceMissing + openAnchor);
+      if (authority === 'absent' || authority === 'inherited-only') {
+        await assert.rejects(db.exec(fixture), { code: '42501', message: 'disposable_auth_usage_authority_unavailable' });
+        await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+        assert.equal(await scalar(`select to_regrole('${executor}')`), null);
+        return;
+      }
+      // Prove both grants really occur before an injected error, then that a
+      // failed transaction restores identity, all memberships and every ACL.
+      await db.exec(fixture.slice(0, fixture.indexOf(cleanupAnchor)));
+      for (const role of [executor, resetExecutor]) assert.equal(await scalar(`select has_schema_privilege('${role}','auth','USAGE')`), true);
+      assert.equal(await scalar('select current_user=session_user'), true);
+      await assert.rejects(db.exec('select 1/0'), { code: '22012' });
+      await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      await assert.rejects(db.exec(fixture.replace("execute pg_catalog.format('set local role %I',saved.installer);",
+        "perform 1/0; execute pg_catalog.format('set local role %I',saved.installer);")), { code: '22012' });
+      await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      await assert.rejects(db.exec(fixture.replace(cleanupAnchor, "\nupdate pg_temp.legacy_evidence_ci_install_scope set auth_expected_acl='[]';" + cleanupAnchor)), { code: '42501', message: 'disposable_auth_usage_restoration_mismatch' });
+      await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      const asGrantor = (sql: string) => authority === 'owner-set' ? `set local role synthetic_auth_admin;${sql};set local role restricted_installer;` : sql + ';';
+      if (authority === 'owner-set') {
+        const columnGrant = asGrantor('grant select(id) on auth.users to authenticated');
+        await assert.rejects(db.exec(fixture.replace(cleanupAnchor, '\n' + columnGrant + cleanupAnchor)), { code: '42501', message: 'disposable_auth_usage_restoration_mismatch' });
+        await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      }
+      for (const forbidden of [...(authority === 'owner-set' ? [`grant create on schema auth to ${executor}`] : []), `grant usage on schema auth to ${executor} with grant option`]) {
+        await assert.rejects(db.exec(fixture.replace(openAnchor, '\n' + asGrantor(forbidden) + openAnchor)), { code: '42501', message: 'disposable_auth_usage_unsupported_target' });
+        await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      }
+      await assert.rejects(db.exec(fixture.replace(openAnchor, `\nalter role ${executor} login;` + openAnchor)), /disposable installer identity or executor attributes changed/);
+      await db.exec('rollback'); assert.deepEqual(await snapshot(), baseline);
+      // A pre-satisfied target retains its existing grant; only the other target
+      // is added. Neither target receives CREATE or grant option.
+      await db.exec(fixture.replace(openAnchor, '\n' + asGrantor(`grant usage on schema auth to ${executor}`) + openAnchor));
+      const grants = await scalar<Array<{ role: string; grantor: string; privilege: string; grantable: boolean }>>(`select jsonb_agg(jsonb_build_object('role',r.rolname,'grantor',g.rolname,'privilege',a.privilege_type,'grantable',a.is_grantable) order by r.rolname)
+        from pg_namespace n cross join lateral aclexplode(n.nspacl) a join pg_roles r on r.oid=a.grantee join pg_roles g on g.oid=a.grantor
+        where n.nspname='auth' and r.rolname in ('${executor}','${resetExecutor}')`);
+      assert.deepEqual(grants, [executor, resetExecutor].sort().map(role => ({ role, grantor: authority === 'owner-set' ? 'synthetic_auth_admin' : 'restricted_installer', privilege: 'USAGE', grantable: false })));
+      const afterLedger = await snapshot(); await db.exec(enrollmentFixture); assert.deepEqual(await snapshot(), afterLedger);
+      for (const field of ['uid', 'authRelations', 'authColumns']) assert.deepEqual((afterLedger as Record<string, unknown>)[field], (baseline as Record<string, unknown>)[field]);
       const driver = read('scripts/qa-legacy-evidence-postgres.mjs');
-      const begin = driver.indexOf('    const schema = await observer.scalar(');
-      const previousEnd = driver.indexOf("    diagnostics.passed(); diagnostics.start('audit', 'dependencies');", begin);
-      const end = driver.indexOf('    fixtures = await createSyntheticAccounts(', previousEnd);
-      assert.ok(begin >= 0 && previousEnd > begin && end > previousEnd);
+      const begin = driver.indexOf('    const schema = await observer.scalar('), end = driver.indexOf('    fixtures = await createSyntheticAccounts(', begin);
       const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-      const compileAudit = (until: number) => new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', driver.slice(begin, until));
-      const lines: string[] = [], diagnostics = createLegacyEvidenceDiagnostics((line: string) => lines.push(line));
-      const runAudit = (until: number) => compileAudit(until)({ scalar }, assert, { digests: {} }, () => 'synthetic', DISPOSABLE_WRITE_FUNCTIONS, diagnostics, EXECUTOR_DEPENDENCIES);
-      // Reproduce the old audit blind spot, then show the new audit fails before
-      // synthetic accounts or activation, with the actual missing booleans.
-      await runAudit(previousEnd);
-      if (grantOption) await runAudit(end);
-      else await assert.rejects(runAudit(end), { code: 'ERR_ASSERTION' });
-      const missing = lines.map(line => JSON.parse(line.slice('[legacy-evidence-ci] '.length)))
-        .filter(row => row.status === 'observed' && row.granted === false).map(row => row.dependency);
-      assert.deepEqual(missing, grantOption ? [] : ['executor_auth_usage', 'reset_auth_usage']);
+      const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', 'AUTH_INSTALLER_CAPABILITIES', driver.slice(begin, end));
+      const lines: string[] = [];
+      await audit({ scalar }, assert, { digests: {} }, () => 'synthetic', DISPOSABLE_WRITE_FUNCTIONS,
+        createLegacyEvidenceDiagnostics((line: string) => lines.push(line)), EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES);
+      const capabilities = lines.map(line => JSON.parse(line.slice('[legacy-evidence-ci] '.length))).filter(row => row.capability);
+      assert.deepEqual(capabilities.map(row => [row.capability, row.available]), [
+        ['installer_auth_owner_set', authority === 'owner-set'], ['installer_auth_grant_option', authority === 'direct-option'], ['installer_auth_direct_grant_option', authority === 'direct-option'],
+      ]);
       const wrapper = driver.match(/else await this\.query\(`(create function pg_temp\.qa_call[\s\S]*?)`\);/);
       assert.ok(wrapper); await db.exec(wrapper[1]);
       await db.exec("set role authenticated; set app.test_user='11111111-1111-4111-8111-111111111111';");
       const command = "select language_legacy_evidence_private.read_context('22222222-2222-4222-8222-222222222222'::uuid,null::uuid,'139c003cd7b99e71a62dae22bd49d63524329c292bea6f953a9d1811a4045c0c')";
       const result = (await db.query<{ result: unknown }>('select pg_temp.qa_call($1) result', [command])).rows[0].result;
-      assert.deepEqual(result, { ok: false, sqlstate: '42501', error: grantOption ? 'legacy_auth_mismatch' : 'sql_error' });
+      assert.deepEqual(result, { ok: false, sqlstate: '42501', error: 'legacy_auth_mismatch' });
+      for (const signature of DISPOSABLE_WRITE_FUNCTIONS) assert.equal(await scalar(`select has_function_privilege('authenticated','${signature}','EXECUTE')`), false);
     } finally { await db.close(); }
   });
 });
@@ -188,10 +239,10 @@ test('restricted installer reproduces failure, restores each transaction and pas
     const end = driver.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', driver.slice(begin, end));
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', 'AUTH_INSTALLER_CAPABILITIES', driver.slice(begin, end));
     const runAudit = async () => {
       const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean; nonSuperuserInstallerRoleAccess: boolean } } = { digests: {} };
-      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS, createLegacyEvidenceDiagnostics(() => {}), EXECUTOR_DEPENDENCIES);
+      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS, createLegacyEvidenceDiagnostics(() => {}), EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES);
       assert.equal(report.installationRoleAudit?.installerSuperuser, false);
       assert.equal(report.installationRoleAudit?.nonSuperuserInstallerRoleAccess, false);
     };

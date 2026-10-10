@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
-import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, DIAGNOSTIC_LINE_LIMIT, DIAGNOSTIC_CHARACTER_LIMIT, createLegacyEvidenceDiagnostics, diagnosticAssert, rememberSqlDenial, safeCode } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
+import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, DIAGNOSTIC_LINE_LIMIT, DIAGNOSTIC_CHARACTER_LIMIT, createLegacyEvidenceDiagnostics, diagnosticAssert, rememberSqlDenial, safeCode } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const capture = () => {
@@ -213,6 +213,11 @@ test('SQL classifications and dependency observations ignore secrets, accessors 
   for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, name !== 'executor_auth_usage');
   const observed = entries().filter(row => row.status === 'observed');
   assert.equal(observed.length, 17); assert.deepEqual(observed[0], { phase: 'audit', checkpoint: 'dependencies', dependency: 'executor_auth_usage', granted: false, status: 'observed' });
+  for (const name of AUTH_INSTALLER_CAPABILITIES) diagnostics.capability(name, name === 'installer_auth_owner_set');
+  const capabilities = entries().filter(row => row.capability);
+  assert.equal(capabilities.length, 3);
+  assert.deepEqual(capabilities[0], { phase: 'audit', checkpoint: 'dependencies', capability: 'installer_auth_owner_set', available: true, status: 'observed' });
+  for (const [name, value] of [['private_token', true], ['installer_auth_owner_set', hostile], ['installer_auth_owner_set', 'false']]) assert.throws(() => diagnostics.capability(name, value), /Invalid diagnostic enum/);
   for (const [name, value] of [['private_token', true], ['executor_auth_usage', hostile], ['executor_auth_usage', 'false']]) assert.throws(() => diagnostics.dependency(name, value), /Invalid diagnostic enum/);
   assert.equal(reads, 0);
 });
@@ -227,6 +232,7 @@ test('complete gate markers leave late-failure capacity and longest denial stays
     audit: ['schema', 'privileges', 'dependencies', 'restricted_roles', 'disposable_activation'],
   })) for (const checkpoint of checkpoints) { diagnostics.start(phase, checkpoint); diagnostics.passed(); }
   for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, true);
+  for (const name of AUTH_INSTALLER_CAPABILITIES) diagnostics.capability(name, true);
   for (const name of CASES) await diagnostics.run('scenario', 'execute', () => {}, name);
   await diagnostics.run('http', 'execute', () => { diagnostics.start('http', 'execute'); diagnostics.passed(); });
   await diagnostics.cleanup(['postgres_sessions', 'postgres_accounts', 'postgres_observer', 'http_repository', 'http_coordinator', 'http_owner', 'http_fixture', 'http_indexeddb', 'http_accounts'].map(checkpoint => ({ checkpoint, run() {} })));
