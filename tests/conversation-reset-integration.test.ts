@@ -13,10 +13,11 @@ import { installStorageLocks, preparedStorageSeed } from './helpers/storageProto
 import { languageFixture } from './helpers/languageFixture.ts';
 import { conversationLocalKey, readConversationPartition } from '../app/data/languageLocalParticipants.ts';
 import { createLanguageSyncCoordinator } from '../app/data/languageSyncCoordinator.ts';
-import { canonicalJson, freezeGuidedSource, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
+import { buildGuidedTurn, canonicalJson, freezeGuidedSource, sourceRef, type ConversationCommand, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { GUIDED_CONVERSATION_REMAINING } from '../data/guidedConversationCatalog.ts';
 import { planCreateSession } from '../lib/conversation-session/reducer.ts';
-import { emptySession, draft, save, stage, append, TIME } from '../lib/conversation-session/fixtures.test-support.ts';
+import { emptySession, draft, save, stage, append, commit, TIME } from '../lib/conversation-session/fixtures.test-support.ts';
 
 const owner = 'synthetic-conversation-reset-owner';
 const request = '11111111-1111-4111-8111-111111111111';
@@ -502,4 +503,94 @@ for (const catchUp of [false, true]) test(`G5 actual authenticated ${catchUp ? '
   assert.equal(after.enrollment.previousGenerationId, initial.generationId); assert.equal(after.enrollment.reason, catchUp ? 'observation-catch-up' : 'remote-reset');
   assert.equal(after.enrollment.observation?.marker, marker); assert.equal(f.storage.getItem(otherKey), other); assert.equal(f.writes, 0);
   if (catchUp) assert.deepEqual(boundary.projectLanguageBytes(f.storage), oldLegacy);
+});
+
+function addGuidedResetSession(current: ConversationEnvelope, script: { readonly scriptId: string; readonly scriptRevision: string }, sessionId: string, pending: boolean) {
+  const source = freezeGuidedSource(script.scriptId, script.scriptRevision)!;
+  const created = planCreateSession(current, current, { ...emptySession(sessionId), source });
+  assert.notEqual(created.status, 'blocked'); if (created.status === 'blocked') assert.fail();
+  const value = { ...draft(`${sessionId}-draft`, `PRIVATE_MIXED_RESET_${sessionId}`), source: sourceRef(source, source.content.steps[0].id) };
+  let next = save(created.envelope, value, sessionId);
+  const session = next.sessions.find(item => item.sessionId === sessionId)!;
+  const turn = buildGuidedTurn(session, value, { turnId: `${sessionId}-turn`, sequence: 1, predecessorTurnId: null, recordedAt: TIME }); assert.ok(turn);
+  const command: ConversationCommand = { kind: 'append', operationId: `${sessionId}-operation`, receiptId: `${sessionId}-receipt`, ownerId: current.ownerId, generationId: current.generationId, sessionId, expectedHeadRevision: 0, turn };
+  next = pending ? stage(next, command) : commit(next, command);
+  if (!pending) next = save(next, { ...value, draftId: `${sessionId}-retained`, input: `PRIVATE_UNSENT_${sessionId}` }, sessionId);
+  assert.ok(readConversationPartition(canonicalJson(next), current.ownerId)); return next;
+}
+function mixedCatalogueResetEnvelope(ownerId = owner, resetMarker = oldMarker) {
+  const pilot = addGuidedResetSession(populated(ownerId, resetMarker), GUIDED_CONVERSATION_PILOT[1], 'mixed-pilot', false);
+  const script = GUIDED_CONVERSATION_REMAINING.find(item => item.scriptId === 'guided-company-mechanical-design-intermediate')!;
+  return addGuidedResetSession(pilot, script, 'mixed-company', true);
+}
+
+test('catalogue matching authenticated observation preserves mixed legacy/pilot/new pending commands and drafts byte-for-byte', async t => {
+  const initial = mixedCatalogueResetEnvelope('a', marker), raw = canonicalJson(initial);
+  const f = await observationFixture(marker, raw, marker); t.after(f.dispose);
+  const other = canonicalJson(mixedCatalogueResetEnvelope(otherOwner)); f.values.set(otherKey, other);
+  await f.coordinator.start(); assert.equal(f.coordinator.getState().status, 'ready');
+  assert.equal(f.storage.getItem(conversationLocalKey('a')), raw); assert.equal(f.storage.getItem(otherKey), other);
+  assert.equal(partition(f.storage, 'a').schemaVersion, 2);
+  const before = f.coordinator.getState().context; assert.ok(before);
+  f.coordinator.pause(); await f.coordinator.resume(); assert.equal(f.coordinator.getState().status, 'ready');
+  assert.equal(f.storage.getItem(conversationLocalKey('a')), raw); assert.equal(f.writes, 0);
+  const sessions = partition(f.storage, 'a').sessions;
+  assert.deepEqual(sessions.map(session => session.source.scriptId), ['legacy-cafe', GUIDED_CONVERSATION_PILOT[1].scriptId, 'guided-company-mechanical-design-intermediate']);
+  assert.deepEqual(sessions.map(session => session.operations.filter(operation => operation.terminal === null).length), [1, 0, 1]);
+  assert.deepEqual(sessions.map(session => session.drafts.length), [1, 1, 1]);
+});
+
+for (const failureKey of [ownerKey, boundary.LANGUAGE_MARKER_KEY]) test(`catalogue actual explicit reset rollback retains all mixed source and pending bytes at ${failureKey}`, async t => {
+  const raw = canonicalJson(mixedCatalogueResetEnvelope()), other = canonicalJson(mixedCatalogueResetEnvelope(otherOwner));
+  const f = seeded({ [ownerKey]: raw, [otherKey]: other }); t.after(f.dispose);
+  let pending!: Record<string, string | null>;
+  f.onRpc(() => { pending = f.project(recordKeys); f.fail('set', failureKey); });
+  await assert.rejects(f.reset()); assert.equal(f.local.getItem(ownerKey), raw); assert.equal(f.local.getItem(otherKey), other);
+  assert.deepEqual(f.project(recordKeys), pending); assert.equal(partition(f.local).schemaVersion, 2);
+  f.onRpc(undefined); await f.reset(); const after = partition(f.local);
+  assert.equal(after.schemaVersion, 2); assert.equal(after.marker, marker); assert.deepEqual(after.sessions, []);
+  assert.equal(after.enrollment.kind, 'reset-replacement'); if (after.enrollment.kind !== 'reset-replacement') assert.fail();
+  assert.equal(after.enrollment.previousGenerationId, mixedCatalogueResetEnvelope().generationId);
+  assert.equal(after.enrollment.previousMarker, oldMarker); assert.equal(after.enrollment.reason, 'explicit-reset');
+  assert.equal(f.local.getItem(otherKey), other); assert.equal(f.rpcCalls, 1); assert.equal(f.getCalls, 1);
+});
+
+test('catalogue actual same-marker reset retry preserves post-reset new company pending input and v2 exactly', async t => {
+  const initial = mixedCatalogueResetEnvelope(), f = seeded({ [ownerKey]: canonicalJson(initial) }); t.after(f.dispose);
+  f.fail('set', resets.RECORD_RESET_STORAGE_EVENT); await assert.rejects(f.reset());
+  const after = partition(f.local); assert.equal(after.schemaVersion, 2); assert.deepEqual(after.sessions, []);
+  const script = GUIDED_CONVERSATION_REMAINING.find(item => item.scriptId === 'guided-company-development-intermediate')!;
+  const next = addGuidedResetSession(after, script, 'post-reset-new-company', true), raw = canonicalJson(next);
+  f.values.set(ownerKey, raw); await f.reset();
+  assert.equal(f.local.getItem(ownerKey), raw); assert.equal(partition(f.local).schemaVersion, 2);
+  assert.equal(partition(f.local).sessions[0].operations[0].terminal, null);
+  assert.equal(f.rpcCalls, 1); assert.equal(f.getCalls, 1);
+});
+
+for (const catchUp of [false, true]) test(`catalogue actual ${catchUp ? 'catch-up' : 'remote reset'} retires mixed pending sources atomically and preserves another owner`, async t => {
+  const initial = mixedCatalogueResetEnvelope('a'), raw = canonicalJson(initial);
+  const f = await observationFixture(catchUp ? marker : oldMarker, raw, marker); t.after(f.dispose);
+  const other = canonicalJson(mixedCatalogueResetEnvelope(otherOwner)); f.values.set(otherKey, other);
+  const legacy = boundary.projectLanguageBytes(f.storage);
+  const samples: Array<{ marker: string | null; raw: string | null }> = [], set = f.storage.setItem;
+  f.storage.setItem = (key, value) => { set(key, value); const view = transactions.readStorageSnapshot(f.storage); samples.push({ marker: view.getItem(boundary.LANGUAGE_MARKER_KEY), raw: view.getItem(conversationLocalKey('a')) }); };
+  await f.coordinator.start(); assert.equal(f.coordinator.getState().status, 'ready');
+  const after = partition(f.storage, 'a'); assert.equal(after.schemaVersion, 2); assert.deepEqual(after.sessions, []); assert.deepEqual(after.tombstones, []);
+  assert.equal(after.ownerId, 'a'); assert.equal(after.enrollment.kind, 'reset-replacement'); if (after.enrollment.kind !== 'reset-replacement') assert.fail();
+  assert.equal(after.enrollment.previousGenerationId, initial.generationId); assert.equal(after.enrollment.previousMarker, oldMarker);
+  assert.equal(after.enrollment.reason, catchUp ? 'observation-catch-up' : 'remote-reset');
+  assert.equal(after.enrollment.observation?.marker, marker); assert.equal(f.storage.getItem(otherKey), other); assert.equal(f.writes, 0);
+  assert.ok(samples.length > 0);
+  for (const sample of samples) assert.ok(sample.raw === raw || sample.raw === f.storage.getItem(conversationLocalKey('a')));
+  if (catchUp) assert.deepEqual(boundary.projectLanguageBytes(f.storage), legacy);
+  else for (const sample of samples) if (sample.marker === oldMarker) assert.equal(sample.raw, raw);
+});
+
+for (const mutation of ['future schema', 'unknown source layout'] as const) test(`catalogue mixed ${mutation} blocks reset observation before transport without normalization`, async t => {
+  const source = structuredClone(mixedCatalogueResetEnvelope('a', marker));
+  const malformed = mutation === 'future schema' ? { ...source, schemaVersion: 9 } : { ...source, sessions: source.sessions.map(session => session.sessionId === 'mixed-company' ? { ...session, source: { ...session.source, contentSource: { ...session.source.contentSource, module: 'unknown-catalogue.ts' } } } : session) };
+  const raw = canonicalJson(malformed), f = await observationFixture(marker, raw, marker); t.after(f.dispose); const before = new Map(f.values);
+  await f.coordinator.start(); assert.notEqual(f.coordinator.getState().status, 'ready'); assert.equal(f.coordinator.getState().context, undefined);
+  assert.equal(f.reads, 0); assert.equal(f.writes, 0); assert.equal(f.storage.getItem(conversationLocalKey('a')), raw); assert.deepEqual(f.values, before);
+  assert.doesNotMatch(JSON.stringify(f.states), /PRIVATE_MIXED_RESET|PRIVATE_UNSENT/);
 });

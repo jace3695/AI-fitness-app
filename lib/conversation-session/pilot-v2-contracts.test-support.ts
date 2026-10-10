@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { buildFreeConversation } from '../../data/freeConversation.ts';
 import { FREE_CONVERSATION_CATALOG_VERSION, FREE_CONVERSATION_SAMPLE_MATCH_POLICY, LEGACY_FREE_CONVERSATION_REVISION, findLegacyFreeConversationScript, matchFreeConversationSample } from '../../data/freeConversationCatalog.ts';
-import { GUIDED_RESPONSE_POLICY, GUIDED_SAMPLE_MATCH_POLICY, GUIDED_SUMMARY_POLICY_VERSION, GUIDED_TURN_POLICY } from '../../data/guidedConversationPilot.ts';
-import { GUIDED_CATALOGUE_RESPONSE_POLICY, findGuidedConversationRegistration, findKnownGuidedConversationRevision } from '../../data/guidedConversationCatalog.ts';
+import { GUIDED_CONVERSATION_CATALOG_VERSION, GUIDED_CONVERSATION_PILOT, GUIDED_RESPONSE_POLICY, GUIDED_SAMPLE_MATCH_POLICY, GUIDED_SUMMARY_POLICY_VERSION, GUIDED_TURN_POLICY, findGuidedConversationScript } from '../../data/guidedConversationPilot.ts';
 import { freezeRecord, timestampSchema as p1TimestampSchema } from '../conversation-review/contract.ts';
 import { SUMMARY_POLICY_VERSION } from '../conversation-review/summary.ts';
 
@@ -34,27 +33,18 @@ export const legacySourceSchema = z.strictObject({
 /** Guided snapshots carry the entire immutable authored revision, never a cursor. */
 export const guidedPhraseSchema = z.strictObject({ japanese: text, reading: text, koreanPronunciation: text, meaningKo: text });
 export const guidedStepSchema = z.strictObject({ id, titleKo: text, goalKo: text, prompt: guidedPhraseSchema, learnerExample: guidedPhraseSchema, fixedReply: guidedPhraseSchema, hintKo: text });
-const pilotGuidedContentSchema = z.strictObject({
+export const guidedContentSchema = z.strictObject({
   scriptId: id, scriptRevision: id, contextId: z.literal('convenience-store'), levelId: z.enum(['beginner', 'elementary', 'intermediate']), levelLabelKo: text, labelKo: text,
   situationKo: text, goalsKo: z.array(text).min(1).max(8), completionNoteKo: text, steps: z.array(guidedStepSchema).min(1).max(8),
   authorship: z.strictObject({ status: z.literal('locally-authored-unreviewed'), nativeSpeakerReview: z.literal('not-performed'), professionalReview: z.literal('not-performed') }),
   pronunciationNoteKo: text, turnPolicy: id, stepCount: z.number().int().min(1).max(8),
 });
-const catalogueContextSchema = z.enum(['restaurant', 'hotel', 'train', 'company-general', 'company-mechanical-design', 'company-development', 'company-quality']);
-const catalogueGuidedContentSchema = pilotGuidedContentSchema.extend({ contextId: catalogueContextSchema });
-export const guidedContentSchema = z.union([pilotGuidedContentSchema, catalogueGuidedContentSchema]);
-const pilotGuidedSourceSchema = z.strictObject({
+export const guidedSourceSchema = z.strictObject({
   sourceVersion: z.literal(1), catalogVersion: id, builderPolicy: id, matchPolicy: id, contextId: z.literal('convenience-store'), scriptId: id, scriptRevision: id,
   label: text, levelId: z.enum(['beginner', 'elementary', 'intermediate']), levelLabelKo: text,
   contentSource: z.strictObject({ kind: z.literal('authored-guided-conversation'), module: z.literal('data/guidedConversationPilot.ts'), exportName: z.literal('GUIDED_CONVERSATION_PILOT'), entryKey: id, revision: id }),
-  content: pilotGuidedContentSchema,
+  content: guidedContentSchema,
 });
-const catalogueGuidedSourceSchema = pilotGuidedSourceSchema.extend({
-  contextId: catalogueContextSchema,
-  contentSource: z.strictObject({ kind: z.literal('authored-guided-conversation'), module: z.literal('data/guidedConversationCatalog.ts'), exportName: z.literal('GUIDED_CONVERSATION_REMAINING'), entryKey: id, revision: id }),
-  content: catalogueGuidedContentSchema,
-});
-export const guidedSourceSchema = z.union([pilotGuidedSourceSchema, catalogueGuidedSourceSchema]);
 export const sourceSchema = z.union([legacySourceSchema, guidedSourceSchema]);
 export const draftSchema = z.strictObject({
   draftId: id, revision: counter.refine(value => value > 0), savedAt: timestampSchema, input: z.string().max(8000), source: ref,
@@ -174,8 +164,11 @@ export function freezeLegacySource(scriptId: string): LegacyConversationSource |
   return freezeRecord(legacySourceSchema.parse({ catalogVersion: FREE_CONVERSATION_CATALOG_VERSION, builderPolicy: RESPONSE_POLICY, matchPolicy: FREE_CONVERSATION_SAMPLE_MATCH_POLICY, contextId: script.contextId, scriptId: script.scriptId, scriptRevision: script.scriptRevision, stepId: script.steps[0].id, label: script.label, levelId: script.levelId, contentSource: script.contentSource, content: script.content }));
 }
 export function freezeGuidedSource(scriptId: string, scriptRevision: string): GuidedConversationSource | undefined {
-  const registration = findGuidedConversationRegistration(scriptId, scriptRevision);
-  return registration ? freezeRecord(guidedSourceSchema.parse(registration)) : undefined;
+  const script = findGuidedConversationScript(scriptId, scriptRevision);
+  if (!script) return undefined;
+  return freezeRecord(guidedSourceSchema.parse({ sourceVersion: 1, catalogVersion: GUIDED_CONVERSATION_CATALOG_VERSION, builderPolicy: GUIDED_RESPONSE_POLICY, matchPolicy: GUIDED_SAMPLE_MATCH_POLICY,
+    contextId: script.contextId, scriptId, scriptRevision, label: script.labelKo, levelId: script.levelId, levelLabelKo: script.levelLabelKo,
+    contentSource: { kind: 'authored-guided-conversation', module: 'data/guidedConversationPilot.ts', exportName: 'GUIDED_CONVERSATION_PILOT', entryKey: scriptId, revision: scriptRevision }, content: script }));
 }
 export function supportedSource(source: ConversationSource): boolean {
   const supported = isGuidedSource(source) ? freezeGuidedSource(source.scriptId, source.scriptRevision) : freezeLegacySource(source.scriptId);
@@ -230,18 +223,16 @@ function replayGuidedTurn(source: GuidedConversationSource, prefix: readonly Con
   const ordinal = prefix.length, step = source.content.steps[ordinal];
   if (!supportedSource(source) || !step || !draftSchema.safeParse(draft).success || !draft.input.trim()
     || !exact(draft.source, sourceRef(source, step.id)) || fields.sequence !== ordinal + 1 || fields.predecessorTurnId !== (prefix.at(-1)?.turnId ?? null)) return undefined;
-  const counterpart = source.builderPolicy === GUIDED_RESPONSE_POLICY ? '점원' : source.builderPolicy === GUIDED_CATALOGUE_RESPONSE_POLICY ? '상대방' : undefined;
-  if (!counterpart) return undefined;
   const normalize = (input: string) => input.normalize('NFKC').replace(/[\s。、！？?!]/g, '');
   const normalized = normalize(draft.input), matchedAgainst = normalized && normalized === normalize(step.learnerExample.japanese) ? 'example' : normalized && normalized === normalize(step.learnerExample.reading) ? 'reading' : null;
   const matched = matchedAgainst !== null;
   const parsed = guidedTurnSchema.safeParse({ ...fields, turnRevision: 1, draft,
     sampleMatch: { policyVersion: GUIDED_SAMPLE_MATCH_POLICY, matched, matchedAgainst, assessment: 'unavailable' },
-    emission: { kind: 'guided-fixed-emission', emissionVersion: 1, branch: matched ? 'script-response' : 'sample-fallback-with-response', stepId: step.id, builderPolicy: source.builderPolicy,
+    emission: { kind: 'guided-fixed-emission', emissionVersion: 1, branch: matched ? 'script-response' : 'sample-fallback-with-response', stepId: step.id, builderPolicy: GUIDED_RESPONSE_POLICY,
       progression: { policyVersion: GUIDED_TURN_POLICY, action: 'explicit-submit-and-continue', fromStepId: step.id, toStepId: source.content.steps[ordinal + 1]?.id ?? null },
       reply: step.fixedReply.japanese, replyReading: step.fixedReply.reading, replyKoreanPronunciation: step.fixedReply.koreanPronunciation, replyMeaningKo: step.fixedReply.meaningKo,
       exampleFallback: matched ? null : step.learnerExample, correction: '', correctionReading: '', correctionKoreanPronunciation: '',
-      explanation: `${matched ? '저장된 예문 또는 읽기와 문자열이 일치해요.' : '입력한 문장은 평가하지 않고 그대로 보관하며 참고 예문을 보여 드려요.'} ${counterpart} 응답은 미리 정해진 시연이며 입력 내용에 맞추어 바뀌지 않아요.`,
+      explanation: `${matched ? '저장된 예문 또는 읽기와 문자열이 일치해요.' : '입력한 문장은 평가하지 않고 그대로 보관하며 참고 예문을 보여 드려요.'} 점원 응답은 미리 정해진 시연이며 입력 내용에 맞추어 바뀌지 않아요.`,
       hintKo: step.hintKo, source: 'local', postAnswerHint: true } });
   return parsed.success ? freezeRecord(parsed.data) : undefined;
 }
@@ -344,7 +335,7 @@ function coherent(envelope: ConversationEnvelope): boolean {
   for (const session of envelope.sessions) {
     if (!add(sessionIds, session.sessionId) || session.headRevision !== session.turns.length + (session.closed ? 1 : 0) || session.stateRevision < session.headRevision || session.operations.filter(op => op.terminal === null).length > 1) return false;
     const guidedSource = isGuidedSource(session.source) ? session.source : undefined;
-    const knownGuidedRevision = guidedSource && findKnownGuidedConversationRevision(guidedSource.contentSource.module, guidedSource.contentSource.exportName, guidedSource.scriptRevision);
+    const knownGuidedRevision = guidedSource && GUIDED_CONVERSATION_PILOT.find(script => script.scriptRevision === guidedSource.scriptRevision);
     const pinnedSource = guidedSource ? (knownGuidedRevision ? freezeGuidedSource(knownGuidedRevision.scriptId, knownGuidedRevision.scriptRevision) : undefined) : freezeLegacySource(session.source.scriptId);
     // Known revision/policies cannot be used to launder fabricated authored text.
     if (pinnedSource && (guidedSource || session.source.scriptRevision === LEGACY_FREE_CONVERSATION_REVISION) && !exact(session.source, pinnedSource)) return false;

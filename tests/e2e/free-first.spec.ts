@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { CURRICULUM } from '../../data/curriculum';
 import { GUIDED_CONVERSATION_PILOT } from '../../data/guidedConversationPilot';
+import { findGuidedConversationCatalogScript } from '../../data/guidedConversationCatalog';
+import type { ConversationEnvelope } from '../../lib/conversation-session/contracts';
 import { logGuidedBoundary } from './guided-conversation-diagnostics';
 import { test, expect, login, synced, original, originalLanguage, assertOriginalPreserved, localState, today } from './fixture';
 
@@ -104,7 +106,7 @@ for (const script of GUIDED_CONVERSATION_PILOT) test(`guided ${script.levelId} s
   await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
   await page.getByLabel('상황', { exact: true }).selectOption('convenience-store');
   await page.getByLabel('수준', { exact: true }).selectOption(script.levelId);
-  await expect(page.getByText('수준별 연습 3/24개 이용 가능 · 나머지 21개는 참고 자료만 있음 · 대화 준비 중', { exact: true })).toBeVisible();
+  await expect(page.getByText('수준별 연습 24/24개 이용 가능', { exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: '위 보관 안내를 확인했어요.', exact: true }).check();
   await page.getByRole('button', { name: '새 대화 시작', exact: true }).click();
   const input = page.getByLabel('일본어 문장', { exact: true }), status = page.locator('[data-save-status]');
@@ -350,3 +352,121 @@ for (const [status, label] of [['abdominal_pain', '복통'], ['diarrhea', '설�
     await noOverflow(page);
   });
 }
+
+// Exactly three new source-pinned journeys. Discovery is not browser acceptance.
+for (const [scriptId, scriptRevision] of [
+  ['guided-restaurant-beginner', 'sha256:f536c29078f567a5cc5dde12754c4e8cd406197b4daf91ff4881536fd6a0c9d3'],
+  ['guided-train-elementary', 'sha256:ab4d4a40900eb5c232d2a3090843dbe198f8113854248349940c7f791d15c085'],
+  ['guided-company-mechanical-design-intermediate', 'sha256:e7122f518361da4322d717ce5f3873c1cd67a51a44a1b824a136a54b0ca47afa'],
+] as const) test(`${scriptId} preserves exact saved steps through reload and navigation, closes and reopens generic factual recap`, async ({ page, qa }) => {
+  const script = findGuidedConversationCatalogScript(scriptId, scriptRevision);
+  expect(script).toBeDefined(); if (!script) throw new Error('Missing pinned guided catalogue source');
+  const prohibited: string[] = [];
+  await page.route(/\/api\/(?:language\/(?:conversation|tts)|tts|claude)(?:\?.*)?$/, async route => {
+    if (route.request().method() === 'POST') { prohibited.push(route.request().url()); await route.abort(); return; }
+    await route.continue();
+  });
+  await page.addInitScript(() => {
+    const forbidden = () => {
+      sessionStorage.setItem('catalogue-audio-tripwire', String(Number(sessionStorage.getItem('catalogue-audio-tripwire') ?? 0) + 1));
+      throw new Error('Guided catalogue must remain text only');
+    };
+    HTMLMediaElement.prototype.play = async () => { forbidden(); };
+    if ('speechSynthesis' in window) window.speechSynthesis.speak = forbidden;
+  });
+  const partitionKey = `yeoni-conversation-local-v1:${encodeURIComponent(qa.account.id)}`;
+  const readRaw = () => page.evaluate(key => localStorage.getItem(key), partitionKey);
+  const readSession = async () => {
+    const raw = await readRaw(); expect(raw).not.toBeNull();
+    const envelope = JSON.parse(raw!) as ConversationEnvelope;
+    expect(envelope.schemaVersion).toBe(2); expect(envelope.ownerId).toBe(qa.account.id);
+    expect(envelope.sessions).toHaveLength(1); return envelope.sessions[0];
+  };
+  await page.setViewportSize({ width: 320, height: 844 }); await login(page, qa.account); await page.goto('/language/conversation');
+  expect(await readRaw()).toBeNull();
+  await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
+  await page.getByLabel('상황', { exact: true }).selectOption(script.contextId);
+  await page.getByLabel('수준', { exact: true }).selectOption(script.levelId);
+  const preview = page.getByRole('region', { name: '무료 회화 예문 미리보기', exact: true });
+  await expect(page.getByText('수준별 연습 24/24개 이용 가능', { exact: true })).toBeVisible();
+  await expect(preview).toContainText(`${script.labelKo} · ${script.levelLabelKo}`);
+  await expect(preview).toContainText(scriptRevision); await expect(preview).toContainText(`${script.steps.length}단계 · 텍스트 전용`);
+  await expect(preview).toContainText('상대방 응답은 입력에 맞춰 바뀌지 않는 정해진 시범');
+  await expect(preview).not.toContainText('점원'); expect(await readRaw()).toBeNull(); await noOverflow(page);
+  await page.getByRole('checkbox', { name: '위 보관 안내를 확인했어요.', exact: true }).check();
+  await page.getByRole('button', { name: '새 대화 시작', exact: true }).click();
+  const input = page.getByLabel('일본어 문장', { exact: true }), status = page.locator('[data-save-status]');
+  const active = page.getByRole('region', { name: '현재 연습 단계', exact: true });
+  const transcript = page.getByRole('region', { name: '이 대화에서 보낸 문장', exact: true });
+  await expect(active).toContainText('상대방 말'); await expect(active).not.toContainText('점원');
+  expect((await readSession()).source).toMatchObject({ scriptId, scriptRevision, contextId: script.contextId, levelId: script.levelId,
+    builderPolicy: 'guided-fixed-exchange-v2', catalogVersion: 'free-conversation-catalog-v3',
+    contentSource: { module: 'data/guidedConversationCatalog.ts', exportName: 'GUIDED_CONVERSATION_REMAINING' }, content: script });
+  for (const [i, step] of script.steps.entries()) {
+    await expect(page.getByRole('heading', { name: `${i + 1}. ${step.titleKo}`, exact: true })).toBeVisible();
+    await expect(active).toContainText(`전송한 단계 ${i}/${script.steps.length}`);
+    const text = i === 1 ? `합성 자유 문장 ${scriptId} ${i}` : step.learnerExample.japanese;
+    if (i === 0) {
+      await page.getByRole('button', { name: '힌트 보기', exact: true }).click();
+      await expect(active).toContainText(step.hintKo);
+      await page.getByRole('button', { name: '예문 넣기', exact: true }).click();
+    } else await input.fill(text);
+    await expect(input).toHaveValue(text);
+    await page.getByRole('button', { name: '입력 저장', exact: true }).click();
+    await expect(status).toHaveAttribute('data-save-status', 'saved');
+    const saved = await readSession(), savedDraft = saved.drafts.find(draft => draft.source.stepId === step.id)!;
+    expect(savedDraft.input).toBe(text); expect(savedDraft.source).toEqual({ scriptId, scriptRevision, stepId: step.id });
+    expect(savedDraft.origin).toEqual({ kind: i === 0 ? 'inserted-example' : 'typed', edited: false });
+    expect(savedDraft.exposure.hint).toBe(i === 0 ? 'shown' : 'not-shown');
+    if (i === 0) {
+      await page.reload(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
+      expect(await readSession()).toEqual(saved);
+      await page.goto('/language'); await page.goBack(); await expect(input).toHaveValue(text);
+      await page.goForward(); await expect(page).toHaveURL(/\/language$/);
+      await page.goBack(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
+      expect(await readSession()).toEqual(saved);
+    }
+    await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
+    await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
+    await expect(transcript).toContainText(step.fixedReply.japanese); await expect(transcript).toContainText('정해진 상대방 응답 · 평가하지 않음');
+    await expect(transcript).not.toContainText('점원');
+    const current = await readSession(), turn = current.turns[i];
+    expect(current.turns).toHaveLength(i + 1); expect(current.closed).toBeNull();
+    expect(turn.draft.source).toEqual({ scriptId, scriptRevision, stepId: step.id }); expect(turn.draft.input).toBe(text);
+    expect(turn.emission.reply).toBe(step.fixedReply.japanese); expect(turn.emission.correction).toBe('');
+    expect(turn.sampleMatch).toMatchObject({ matched: i !== 1, assessment: 'unavailable' });
+    expect('kind' in turn.emission && turn.emission.kind).toBe('guided-fixed-emission');
+    if ('kind' in turn.emission) expect(turn.emission.exampleFallback?.japanese ?? null).toBe(i === 1 ? step.learnerExample.japanese : null);
+    await expect(transcript).toContainText(turn.emission.explanation);
+    if (i === 1) { await expect(transcript).toContainText('참고 예문'); await expect(transcript).toContainText(step.learnerExample.japanese); }
+    await noOverflow(page);
+  }
+  if (scriptId === 'guided-company-mechanical-design-intermediate') {
+    expect(script.steps[2].learnerExample.japanese.length).toBe(51);
+    expect((await readSession()).turns[2].draft.input).toBe(script.steps[2].learnerExample.japanese);
+  }
+  await expect(page.getByText(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨 · 대화 종료로 기록을 마무리해 주세요.`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '예문 듣기', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '대화 종료', exact: true }).click();
+  const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
+  await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
+  await expect(recap).toContainText('평가한 문장 0개'); await expect(recap).toContainText('목표 달성을 판정한 결과는 아니에요');
+  await expect(recap).toContainText('정해진 상대방 시범'); await expect(recap).not.toContainText('점원');
+  const closed = await readSession(); expect(closed.closed).not.toBeNull();
+  for (const turn of closed.turns) await expect(recap).toContainText(turn.emission.explanation);
+  await page.getByRole('button', { name: '기록 보기', exact: true }).click();
+  await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
+  await page.getByLabel('상황', { exact: true }).selectOption('convenience-store');
+  await page.getByLabel('수준', { exact: true }).selectOption('beginner');
+  await expect(preview).toContainText('점원 응답은');
+  const history = page.getByRole('region', { name: '이 브라우저의 대화 기록', exact: true });
+  await expect(history).toContainText(scriptRevision);
+  await history.getByRole('button', { name: new RegExp(`${script.labelKo} .*종료 요약 보기$`) }).click();
+  await expect(recap).toContainText(script.levelLabelKo); await expect(recap).toContainText('정해진 상대방 응답'); await expect(recap).not.toContainText('점원');
+  await recap.getByText('저장된 예문과 확인 기준', { exact: true }).click();
+  await expect(recap).toContainText(scriptRevision); await expect(recap).toContainText('guided-fixed-exchange-v2');
+  expect(await readSession()).toEqual(closed); await noOverflow(page);
+  expect(prohibited).toEqual([]);
+  expect(await page.evaluate(() => Number(sessionStorage.getItem('catalogue-audio-tripwire') ?? 0))).toBe(0);
+  expect(await qa.read()).toEqual(original); expect(await qa.readLanguage()).toEqual(originalLanguage);
+});

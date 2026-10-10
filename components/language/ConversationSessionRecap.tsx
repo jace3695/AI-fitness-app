@@ -1,3 +1,4 @@
+import { guidedConversationRoleLabel } from "../../data/guidedConversationCatalog";
 import type { projectClosedConversationRecap } from "../../lib/conversation-session/recap";
 
 type Recap = ReturnType<typeof projectClosedConversationRecap>;
@@ -65,6 +66,7 @@ export function ConversationSessionRecap({ recap }: { recap: Recap }) {
 
 function GuidedRecap({ recap }: { recap: Extract<Recap, { sourceKind: 'guided' }> }) {
   const { source, closed } = recap.provenance;
+  const counterpartRole = guidedConversationRoleLabel(source.builderPolicy);
   const shown = (value: 'shown' | 'not-shown' | 'unknown') => value === 'shown' ? '표시됨' : value === 'not-shown' ? '표시 안 됨' : '확인 불가';
   const stepTitle = (id: string) => source.content.steps.find(step => step.id === id)?.titleKo ?? id;
   return <section className="card" aria-label="종료한 대화 요약" style={{ overflowWrap: 'anywhere' }}>
@@ -75,7 +77,7 @@ function GuidedRecap({ recap }: { recap: Extract<Recap, { sourceKind: 'guided' }
     {recap.progress.unsubmittedStepIds.length > 0 && <p>아직 전송하지 않은 단계: {recap.progress.unsubmittedStepIds.map(stepTitle).join(', ')}</p>}
     <p>보낸 문장 {recap.assessmentCoverage.committedTurns}개 · 보내지 않은 초안 {recap.unsentDraftCount}개</p>
     <p>종료: {recordedTime(closed.closedAt, closed.timeZone)} ({closed.timeZone})</p>
-    <p>응답은 입력에 맞춰 바뀌지 않는 정해진 점원 시범이에요. 아래 내용은 종료할 때 저장된 원본과 표시 기록이에요.</p>
+    <p>응답은 입력에 맞춰 바뀌지 않는 정해진 {counterpartRole} 시범이에요. 아래 내용은 종료할 때 저장된 원본과 표시 기록이에요.</p>
     <h3>입력한 표현과 표시 기록</h3>
     {recap.recordedTurns.length === 0 ? <p>보낸 문장이 없는 대화예요.</p> : <ol style={{ paddingInlineStart: 24 }}>
       {recap.recordedTurns.map(turn => <li key={turn.turnId} style={{ marginBottom: 18 }}>
@@ -83,7 +85,7 @@ function GuidedRecap({ recap }: { recap: Extract<Recap, { sourceKind: 'guided' }
         <p lang="ja" style={{ whiteSpace: 'pre-wrap' }}>{turn.input}</p>
         <p>{turn.origin.kind === 'inserted-example' ? turn.origin.edited ? '예문을 넣은 뒤 수정' : '예문 넣기 사용' : '입력란으로 입력'} · {turn.sampleMatch.matched ? turn.sampleMatch.matchedAgainst === 'reading' ? '읽는 법과 일치' : '예문과 일치' : '예문·읽는 법과 불일치'}</p>
         <p>보내기 전: 예문 {shown(turn.preAnswerExposure.example)} · 읽는 법 {shown(turn.preAnswerExposure.reading)} · 뜻 {shown(turn.preAnswerExposure.meaning)} · 힌트 {shown(turn.preAnswerExposure.hint)}</p>
-        <strong>정해진 점원 응답</strong><p lang="ja">{turn.emitted.reply}</p>
+        <strong>정해진 {counterpartRole} 응답</strong><p lang="ja">{turn.emitted.reply}</p>
         <p lang="ja">{turn.emitted.replyReading}</p><p>{turn.emitted.replyKoreanPronunciation}</p>
         {'kind' in turn.emitted && turn.emitted.kind === 'guided-fixed-emission' && <>
           <p>{turn.emitted.replyMeaningKo}</p>

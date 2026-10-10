@@ -1,3 +1,4 @@
+import { findGuidedConversationCatalogScript } from '../../data/guidedConversationCatalog.ts';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -196,20 +197,21 @@ test('revision lookup returns exact frozen retained content and never falls back
   }
 });
 
-test('exactly three of 24 cells bind authored revisions; 21 references remain unwritten and legacy stays separate', () => {
+test('all24 cells bind authored revisions while pilot content and legacy remain separate', () => {
   assert.equal(FREE_CONVERSATION_COVERAGE.length, 24);
   assert.equal(LEGACY_FREE_CONVERSATION_SCRIPTS.length, 5);
   const available = FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'available');
-  assert.equal(available.length, 3);
-  assert.deepEqual(available.map(cell => cell.id), ['convenience-store:beginner', 'convenience-store:elementary', 'convenience-store:intermediate']);
+  assert.equal(available.length, 24);
+  assert.deepEqual(available.slice(0, 3).map(cell => cell.id), ['convenience-store:beginner', 'convenience-store:elementary', 'convenience-store:intermediate']);
   for (const cell of FREE_CONVERSATION_COVERAGE) {
     if (cell.availability === 'available') {
-      const script = findGuidedConversationScript(cell.scriptId, cell.scriptRevision);
+      const script = findGuidedConversationCatalogScript(cell.scriptId, cell.scriptRevision);
       assert.ok(script);
       assert.equal(cell.contextId, script.contextId);
       assert.equal(cell.levelId, script.levelId);
       assert.equal(cell.contentReviewStatus, script.authorship.status);
-      assert.deepEqual(cell.references, []);
+      if (cell.contextId === 'convenience-store') assert.deepEqual(cell.references, []);
+      else assert.ok(cell.references.length > 0);
     } else {
       assert.equal(cell.availability, 'reference-only');
       assert.equal(cell.contentReviewStatus, 'not-authored');

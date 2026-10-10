@@ -1,5 +1,5 @@
 import { FREE_CONVERSATIONS } from './freeConversation.ts';
-import { GUIDED_CONVERSATION_PILOT } from './guidedConversationPilot.ts';
+import { findCurrentGuidedConversation } from './guidedConversationCatalog.ts';
 
 /** Retained legacy version; guided sources use their separately versioned catalog. */
 export const FREE_CONVERSATION_CATALOG_VERSION = 'free-conversation-catalog-v1';
@@ -80,7 +80,6 @@ type FreeConversationCoverageIdentity = Readonly<{
 }>;
 
 export type FreeConversationCoverageCell = FreeConversationCoverageIdentity & (Readonly<{
-  contextId: 'convenience-store';
   availability: 'available';
   scriptId: string;
   scriptRevision: string;
@@ -94,7 +93,7 @@ export type FreeConversationCoverageCell = FreeConversationCoverageIdentity & (R
 
 export const FREE_CONVERSATION_COVERAGE: readonly FreeConversationCoverageCell[] = immutable(
   FREE_CONVERSATION_CONTEXTS.flatMap(context => FREE_CONVERSATION_LEVELS.map((level): FreeConversationCoverageCell => {
-    const script = GUIDED_CONVERSATION_PILOT.find(script => script.contextId === context.id && script.levelId === level.id);
+    const script = findCurrentGuidedConversation(context.id, level.id)?.content;
     if (script) return {
       id: `${context.id}:${level.id}`,
       contextId: script.contextId,

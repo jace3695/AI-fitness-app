@@ -11,6 +11,7 @@ import { languageFixture } from './helpers/languageFixture.ts';
 import { conversationLocalKey, readConversationPartition } from '../app/data/languageLocalParticipants.ts';
 import { commitLanguageSyncResponse, readLanguageSyncRequest, planLanguageSync } from '../app/data/languageCloudSync.ts';
 import { createLanguageSyncCoordinator } from '../app/data/languageSyncCoordinator.ts';
+import { GUIDED_CONVERSATION_REMAINING } from '../data/guidedConversationCatalog.ts';
 import { canonicalJson, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
 import { base, emptySession, draft, save, commit, stage, append, getSession, TIME } from '../lib/conversation-session/fixtures.test-support.ts';
 
@@ -232,4 +233,61 @@ for (const index of [0, 1, 2]) test(`G5 guided level ${index} real hook keeps al
   assertNoPrivate(boundary.projectLanguageBytes(f.tab.transactions.readStorageSnapshot(f.tab.local))); assertNoPrivate(f.tab.cloud.readLocalCloudState());
   const backup = f.tab.mount('app/components/DataBackupPanel.tsx'); t.after(backup.dispose); backup.click('운동·식단 기록 백업');
   assert.equal(f.tab.downloads.length, 1); const exported = await f.tab.downloads[0].text(); assertNoPrivate(exported); assert.doesNotMatch(exported, /yeoni-conversation-local-v1|guided-fixed-emission|guided-convenience-store/);
+});
+
+for (const script of GUIDED_CONVERSATION_REMAINING) test(`catalogue privacy ${script.scriptId}: registered hook/facade pending, cancellation and recap never leave the owner partition`, async t => {
+  const { conversationSessionFixture } = await import('./helpers/conversationSessionFixture.ts');
+  const f = await conversationSessionFixture({}, { id: `privacy-${script.scriptId}`, owner: `synthetic-privacy-owner-${GUIDED_CONVERSATION_REMAINING.indexOf(script)}` }); t.after(f.dispose);
+  const h = f.mountHook(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
+  const canaries = { transcript: `${poison.transcript}_${script.contextId}`, staged: `${poison.staged}_${script.contextId}`, draft: `${poison.draft}_${script.contextId}` };
+  const excludes = (value: unknown) => {
+    assertNoPrivate(value); const raw = JSON.stringify(value);
+    for (const canary of [...Object.values(canaries), script.scriptId, script.scriptRevision]) assert.ok(!raw.includes(canary), `Catalogue private value escaped: ${canary}`);
+    assert.doesNotMatch(raw, /yeoni-conversation-local-v1|guided-fixed-emission/);
+  };
+  const serverBefore = JSON.stringify(f.remoteState()), key = f.participants.conversationLocalKey(f.lease.userId);
+  assert.equal(f.tab.local.getItem(key), null);
+  assert.equal(await h.current.start(Object.assign(Object.create(null), { kind: 'guided', scriptId: script.scriptId, scriptRevision: script.scriptRevision })), true);
+  const id = h.current.session!.sessionId;
+  h.current.typeInput(canaries.transcript); await h.view.settle(); assert.equal(await h.current.send(), true);
+  const turn = f.snapshot().envelope!.sessions.find(session => session.sessionId === id)!.turns[0];
+  assert.equal(turn.draft.input, canaries.transcript); assert.ok('kind' in turn.emission);
+  assert.equal(turn.emission.branch, 'sample-fallback-with-response'); assert.equal(turn.emission.reply, script.steps[0].fixedReply.japanese);
+  assert.equal(turn.emission.builderPolicy, 'guided-fixed-exchange-v2'); assert.equal(turn.emission.exampleFallback?.japanese, script.steps[0].learnerExample.japanese);
+  h.current.typeInput(canaries.staged); await h.view.settle();
+  const saved = f.snapshot().envelope!.sessions.find(session => session.sessionId === id)!.drafts[0]; assert.equal(saved.input, canaries.staged);
+  const intent = f.facade.captureConversationAppend(f.snapshot(), id, saved.draftId); await f.facade.stageConversationIntent(intent); await h.view.settle();
+  assert.equal(f.facade.reconcileConversationOperation(f.snapshot(), id, intent.command.operationId).status, 'pending');
+  const pendingRaw = f.tab.local.getItem(key)!; assert.ok(pendingRaw.includes(canaries.staged)); assert.ok(pendingRaw.includes(canaries.transcript));
+  f.pause(); await f.resume(); await h.view.settle(); assert.equal(f.tab.local.getItem(key), pendingRaw);
+  assert.equal(f.facade.reconcileConversationOperation(f.snapshot(), id, intent.command.operationId).status, 'pending');
+  assert.equal(await h.current.cancelPending(), true); await h.view.settle();
+  assert.equal(f.facade.reconcileConversationOperation(f.snapshot(), id, intent.command.operationId).status, 'cancelled');
+  h.current.typeInput(canaries.draft); await h.view.settle(); assert.equal(await h.current.end(), true);
+  const raw = f.tab.local.getItem(key)!; assert.ok(raw.includes(canaries.transcript)); assert.ok(raw.includes(canaries.staged)); assert.ok(raw.includes(canaries.draft));
+  assert.ok(raw.includes(script.scriptId)); assert.ok(raw.includes(script.scriptRevision)); assert.ok(raw.includes('sample-fallback-with-response'));
+  await f.refresh(); await h.view.settle();
+  assert.equal(JSON.stringify(f.remoteState()), serverBefore); excludes(f.calls); excludes(f.notices); excludes(f.diagnostics); assert.equal(f.audio.length, 0);
+  const boundary = f.tab.loadModule('app/data/languageStorageBoundary.ts') as typeof import('../app/data/languageStorageBoundary.ts');
+  excludes(boundary.projectLanguageBytes(f.tab.transactions.readStorageSnapshot(f.tab.local))); excludes(f.tab.cloud.readLocalCloudState());
+  const backup = f.tab.mount('app/components/DataBackupPanel.tsx'); t.after(backup.dispose); backup.click('운동·식단 기록 백업');
+  assert.equal(f.tab.downloads.length, 1); excludes(await f.tab.downloads[0].text()); excludes(f.notices); excludes(f.diagnostics);
+  assert.equal(f.tab.local.getItem(key), raw);
+});
+
+for (const script of GUIDED_CONVERSATION_REMAINING.filter(item => item.levelId === 'beginner')) test(`catalogue privacy ${script.contextId}: unknown-write UI and prepared before-image keep new source/input canaries local`, async t => {
+  const { conversationSessionFixture } = await import('./helpers/conversationSessionFixture.ts');
+  const f = await conversationSessionFixture({}, { id: `unknown-${script.contextId}` }); t.after(f.dispose);
+  const h = f.mountHook(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
+  assert.equal(await h.current.start(Object.assign(Object.create(null), { kind: 'guided', scriptId: script.scriptId, scriptRevision: script.scriptRevision })), true);
+  h.current.typeInput(`${poison.draft}_${script.contextId}`); await h.view.settle();
+  const key = f.participants.conversationLocalKey(f.lease.userId), before = f.tab.local.getItem(key), set = f.tab.local.setItem;
+  f.tab.local.setItem = (name, value) => { if (name === key || name === STORAGE_PROTOCOL_KEY && value.includes('"state":"committed"')) throw new Error(`${privateRaw}_${script.scriptId}`); set(name, value); };
+  t.after(() => { f.tab.local.setItem = set; }); h.current.typeInput(`${poison.staged}_${script.contextId}`); await h.view.settle();
+  assert.equal(h.current.status, 'unavailable'); assertNoPrivate(h.current.error); assertNoPrivate(f.calls); assertNoPrivate(f.notices); assertNoPrivate(f.diagnostics);
+  assert.doesNotMatch(JSON.stringify([h.current.error, f.calls, f.notices, f.diagnostics]), new RegExp(script.scriptId));
+  const snapshot = f.tab.transactions.readStorageSnapshot(f.tab.local); assert.equal(snapshot.pending, true); assert.equal(snapshot.getItem(key), before);
+  assertNoPrivate(f.tab.cloud.readLocalCloudState()); assertNoPrivate(f.tab.cloud.readLocalCloudState(snapshot)); assert.equal(f.audio.length, 0);
+  const backup = f.tab.mount('app/components/DataBackupPanel.tsx'); t.after(backup.dispose); backup.click('운동·식단 기록 백업');
+  assert.equal(f.tab.downloads.length, 1); const raw = await f.tab.downloads[0].text(); assertNoPrivate(raw); assert.ok(!raw.includes(script.scriptId)); assert.ok(!raw.includes(script.scriptRevision));
 });

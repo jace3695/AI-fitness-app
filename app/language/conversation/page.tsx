@@ -31,8 +31,8 @@ type ChatMessage =
 const SITUATIONS: Situation[] = ["카페", "여행", "일상", "업무", "친구"];
 import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
 import { languageSettingsProjectionError, loadJapaneseAppSettings } from "@/app/data/languageSettingsMutations";
-import { LEGACY_FREE_CONVERSATION_SCRIPTS, FREE_CONVERSATION_CONTEXTS, FREE_CONVERSATION_LEVELS, findFreeConversationCoverage } from "@/data/freeConversationCatalog";
-import { findGuidedConversationScript } from "@/data/guidedConversationPilot";
+import { LEGACY_FREE_CONVERSATION_SCRIPTS, FREE_CONVERSATION_CONTEXTS, FREE_CONVERSATION_LEVELS, FREE_CONVERSATION_COVERAGE, findFreeConversationCoverage } from "@/data/freeConversationCatalog";
+import { findGuidedConversationRegistration, guidedConversationRoleLabel } from "@/data/guidedConversationCatalog";
 import { useConversationSession } from "@/components/language/useConversationSession";
 import { ConversationSessionRecap } from "@/components/language/ConversationSessionRecap";
 import { projectClosedConversationRecap } from "@/lib/conversation-session/recap";
@@ -82,7 +82,12 @@ function LocalConversationPage() {
   const selectedScriptId = previewScriptId;
   const preview = LEGACY_FREE_CONVERSATION_SCRIPTS.find(script => script.scriptId === selectedScriptId);
   const cell = findFreeConversationCoverage(contextId, levelId);
-  const guidedPreview = cell?.availability === 'available' ? findGuidedConversationScript(cell.scriptId, cell.scriptRevision) : undefined;
+  const guidedRegistration = cell?.availability === 'available' ? findGuidedConversationRegistration(cell.scriptId, cell.scriptRevision) : undefined;
+  const guidedPreview = guidedRegistration?.content;
+  const previewRole = guidedConversationRoleLabel(guidedRegistration?.builderPolicy ?? '');
+  const sessionRole = guidedConversationRoleLabel(session?.source.builderPolicy ?? '');
+  const availableCount = FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'available').length;
+  const remainingCount = FREE_CONVERSATION_COVERAGE.length - availableCount;
   const selection = practiceKind === 'legacy' ? selectedScriptId : guidedPreview ? { kind: 'guided' as const, scriptId: guidedPreview.scriptId, scriptRevision: guidedPreview.scriptRevision } : null;
   const content = session ? ('japanese' in session.source.content ? session.source.content : null) : preview?.content;
   const activeStep = flow.activeStep;
@@ -224,7 +229,7 @@ function LocalConversationPage() {
     </section>
 
     <section className="card" aria-label="새 대화 선택" style={{ marginBottom: 14 }}>
-      <p>수준별 연습 3/24개 이용 가능 · 나머지 21개는 참고 자료만 있음 · 대화 준비 중</p>
+      <p>수준별 연습 {availableCount}/{FREE_CONVERSATION_COVERAGE.length}개 이용 가능{remainingCount > 0 && ` · 나머지 ${remainingCount}개는 대화 준비 중`}</p>
       <p>기존 다섯 예문은 수준 미지정이며 위 24개와 별개예요.</p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
         <button type="button" className="btn" aria-pressed={practiceKind === 'guided'} disabled={flow.busy} onClick={() => void changeSelection(() => setPracticeKind('guided'))}>수준별 연습 선택</button>
@@ -284,8 +289,9 @@ function LocalConversationPage() {
         <h2>{guidedPreview.labelKo} · {guidedPreview.levelLabelKo}</h2>
         <p>{guidedPreview.situationKo}</p>
         <p>{guidedPreview.steps.length}단계 · 텍스트 전용 · 직접 작성한 고정 연습</p>
-        <p>보내고 다음 단계로는 입력을 평가하지 않고 한 단계씩 진행해요. 점원 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 마지막 전송 뒤에도 대화 종료는 직접 선택해요.</p>
+        <p>보내고 다음 단계로는 입력을 평가하지 않고 한 단계씩 진행해요. {previewRole} 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 마지막 전송 뒤에도 대화 종료는 직접 선택해요.</p>
         <p>{guidedPreview.completionNoteKo}</p>
+        <p>예문 버전: {guidedPreview.scriptRevision}</p>
         <p>현지 화자·전문가 검토 전의 직접 작성한 연습이에요. 수준 표시는 JLPT·CEFR 인증이 아니에요.</p>
       </> : <p>참고 자료만 있음 · 대화 준비 중</p> : <>
         <h2>{preview?.label} 예문 미리보기</h2>
@@ -336,12 +342,12 @@ function LocalConversationPage() {
         {flow.guided ? <section className="card" aria-label="현재 연습 단계" style={{ marginBottom: 14 }}>
           <p>직접 작성한 고정 연습 · {'levelLabelKo' in session.source ? session.source.levelLabelKo : ''} · 텍스트 전용</p>
           <p>전송한 단계 {flow.progress?.submittedStepCount}/{flow.progress?.totalStepCount} · 입력은 평가하지 않아요.</p>
-          <p>점원 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 전송하면 문자열 일치 여부와 관계없이 한 단계 진행해요.</p>
+          <p>{sessionRole} 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 전송하면 문자열 일치 여부와 관계없이 한 단계 진행해요.</p>
           {'steps' in session.source.content && <><p>{session.source.content.situationKo}</p><p className="muted">{session.source.content.pronunciationNoteKo}</p></>}
           {activeStep ? <>
             <h3>{(flow.progress?.activeStepIndex ?? 0) + 1}. {activeStep.titleKo}</h3>
             <p>{activeStep.goalKo}</p>
-            {activeStep.prompt && <div><strong>점원 말</strong><p lang="ja">{activeStep.prompt.japanese}</p><p>{activeStep.prompt.meaningKo}</p></div>}
+            {activeStep.prompt && <div><strong>{sessionRole} 말</strong><p lang="ja">{activeStep.prompt.japanese}</p><p>{activeStep.prompt.meaningKo}</p></div>}
             <strong>연습 예문</strong>
             <p lang="ja">{activeStep.learnerExample.japanese}</p>
             {settings.showReading && <p lang="ja">{activeStep.learnerExample.reading}</p>}
@@ -376,7 +382,7 @@ function LocalConversationPage() {
                 <p lang="ja" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{turn.draft.input}</p>
               </div>
               <div style={{ border: "1px solid #d6e9d6", borderRadius: 10, background: "#f5faf5", padding: 12 }}>
-                <strong>{'kind' in turn.emission ? '정해진 점원 응답 · 평가하지 않음' : '고정 연습 예문 · 평가하지 않음'}</strong>
+                <strong>{'kind' in turn.emission ? `정해진 ${sessionRole} 응답 · 평가하지 않음` : '고정 연습 예문 · 평가하지 않음'}</strong>
                 <p lang="ja">{turn.emission.reply}</p>
                 {settings.showReading && <p lang="ja">{turn.emission.replyReading}</p>}
                 {settings.showKoreanPronunciation && <p className="muted">{turn.emission.replyKoreanPronunciation}</p>}

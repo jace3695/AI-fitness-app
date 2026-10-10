@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { conversationSessionFixture } from './helpers/conversationSessionFixture.ts';
-import { nodes, tick, type UiNode } from './helpers/storage-ui-fixture.ts';
+import { nodes, textOf, tick, type UiNode } from './helpers/storage-ui-fixture.ts';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { FREE_CONVERSATION_COVERAGE } from '../data/freeConversationCatalog.ts';
+import { findGuidedConversationRegistration, findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
 import { STORAGE_PROTOCOL_KEY } from '../app/data/storageTransaction.ts';
 import type { ConversationDraft } from '../lib/conversation-session/contracts.ts';
 
@@ -10,7 +12,7 @@ type Fixture = Awaited<ReturnType<typeof conversationSessionFixture>>;
 type Hook = ReturnType<typeof import('../components/language/useConversationSession.ts')['useConversationSession']>;
 async function fixture(t: TestContext) { const f = await conversationSessionFixture(); t.after(f.dispose); return f; }
 function hook(f: Fixture) { return f.mountHook<Hook>(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession()); }
-const selection = (script: typeof GUIDED_CONVERSATION_PILOT[number]) => Object.assign(Object.create(null) as { kind: 'guided'; scriptId: string; scriptRevision: string }, { kind: 'guided' as const, scriptId: script.scriptId, scriptRevision: script.scriptRevision });
+const selection = (script: { scriptId: string; scriptRevision: string }) => Object.assign(Object.create(null) as { kind: 'guided'; scriptId: string; scriptRevision: string }, { kind: 'guided' as const, scriptId: script.scriptId, scriptRevision: script.scriptRevision });
 async function started(t: TestContext, index = 0) { const f = await fixture(t), h = hook(f), script = GUIDED_CONVERSATION_PILOT[index]; assert.equal(await h.current.start(selection(script)), true); await h.view.settle(); return { f, h, script }; }
 async function type(h: ReturnType<typeof hook>, input: string) { h.current.typeInput(input); await h.view.settle(); }
 function session(f: Fixture, id?: string) { const value = f.snapshot().envelope!.sessions.find(item => !id || item.sessionId === id); assert.ok(value); return value; }
@@ -64,7 +66,7 @@ for (const [index, script] of GUIDED_CONVERSATION_PILOT.entries()) {
   });
 
   test(`guided ${script.levelId}: actual shipping selection, DOM exposure, IME-safe submit, final close and factual history`, async t => {
-    const f = await fixture(t), page = f.mountPage(); assert.match(page.text(), /3\/24/); assert.equal(f.snapshot().envelope, null);
+    const f = await fixture(t), page = f.mountPage(); assert.match(page.text(), /24\/24/); assert.equal(f.snapshot().envelope, null);
     await selectPage(page, index); assert.match(page.text(), new RegExp(script.levelLabelKo)); assert.match(page.text(), /텍스트 전용/);
     assert.equal(nodes(page.render()).some(value => value.type === 'button' && String(value.props.children).includes('예문 듣기')), false);
     for (let ordinal = 0; ordinal < script.steps.length; ordinal++) {
@@ -137,11 +139,42 @@ test('guided final submit preserves newer final-step input as unsent and still r
   assert.equal(await h.current.end(), true); assert.equal(json(session(f).drafts), json([final])); const result = recap(f); assert.ok('sourceKind' in result); if ('sourceKind' in result) { assert.equal(result.progress.coverage, 'all-steps-submitted'); assert.equal(result.unsentDraftCount, 1); }
 });
 
-test('guided unavailable 21 cells never enroll, substitute legacy, or call audio', async t => {
-  const f = await fixture(t), page = f.mountPage(); page.click('수준별 연습 선택'); await page.settle();
-  for (const context of ['restaurant', 'hotel', 'train', 'company-general', 'company-mechanical-design', 'company-development', 'company-quality']) for (const level of ['beginner', 'elementary', 'intermediate']) {
+for (const existingLegacy of [false, true]) test(`guided all 24 exact previews leave ${existingLegacy ? 'existing v1 bytes' : 'absent storage'} unenrolled and unchanged`, async t => {
+  const f = await fixture(t);
+  if (existingLegacy) { const h = hook(f); assert.equal(await h.current.start('legacy-daily'), true); assert.equal(await h.current.leave(), true); h.view.dispose(); }
+  const page = f.mountPage(); await page.settle();
+  const before = [...f.browser.values], writes = f.browser.writes.length;
+  const checkbox = nodes(page.render()).find(value => value.type === 'input' && value.props.type === 'checkbox')!;
+  (checkbox.props.onChange as (event: unknown) => void)({ target: { checked: true } });
+  page.click('수준별 연습 선택'); await page.settle();
+  assert.equal(FREE_CONVERSATION_COVERAGE.length, 24);
+  for (const cell of FREE_CONVERSATION_COVERAGE) {
+    assert.equal(cell.availability, 'available'); assert.ok(cell.scriptId && cell.scriptRevision);
+    const registration = findGuidedConversationRegistration(cell.scriptId, cell.scriptRevision); assert.ok(registration);
+    const script = registration.content;
+    change(node(page, 'conversation-context'), cell.contextId); await page.settle();
+    change(node(page, 'conversation-level'), cell.levelId); await page.settle();
+    const preview = region(page, '무료 회화 예문 미리보기');
+    assert.ok(preview.includes(`${script.labelKo} · ${script.levelLabelKo}`));
+    assert.ok(preview.includes(`예문 버전: ${script.scriptRevision}`)); assert.ok(preview.includes(`${script.steps.length}단계`));
+    assert.ok(preview.includes(`${registration.builderPolicy === 'guided-fixed-exchange-v1' ? '점원' : '상대방'} 응답은`));
+    assert.equal(page.button('새 대화 시작').props.disabled, false); assert.doesNotMatch(page.text(), /대화 준비 중/);
+    assert.deepEqual([...f.browser.values], before); assert.equal(f.browser.writes.length, writes);
+  }
+  assert.match(page.text(), /수준별 연습 24\/24개 이용 가능/);
+  assert.equal(f.snapshot().envelope?.schemaVersion ?? null, existingLegacy ? 1 : null); assert.equal(f.audio.length, 0);
+});
+
+test('guided unknown context and level have no preview, source, fallback, enrollment or audio', async t => {
+  const f = await fixture(t), page = f.mountPage(); await page.settle();
+  const checkbox = nodes(page.render()).find(value => value.type === 'input' && value.props.type === 'checkbox')!;
+  (checkbox.props.onChange as (event: unknown) => void)({ target: { checked: true } });
+  page.click('수준별 연습 선택'); await page.settle(); const before = [...f.browser.values], writes = f.browser.writes.length;
+  for (const [context, level] of [['unknown', 'beginner'], ['restaurant', 'unknown'], ['__proto__', 'intermediate'], ['constructor', 'beginner'], ['company-general', 'toString']]) {
     change(node(page, 'conversation-context'), context); await page.settle(); change(node(page, 'conversation-level'), level); await page.settle();
-    assert.equal(page.button('새 대화 시작').props.disabled, true); assert.match(page.text(), /대화 준비 중/); assert.equal(f.snapshot().envelope, null);
+    assert.equal(page.button('새 대화 시작').props.disabled, true); assert.match(page.text(), /대화 준비 중/);
+    assert.doesNotMatch(region(page, '무료 회화 예문 미리보기'), /예문 버전:|기존 다섯 상황|정해진 시범/);
+    assert.equal(f.snapshot().envelope, null); assert.deepEqual([...f.browser.values], before); assert.equal(f.browser.writes.length, writes);
   }
   assert.equal(f.audio.length, 0);
 });
@@ -276,4 +309,135 @@ test('guided peer-consumed editor waits for explicit displayed current-step open
   assert.equal(h.current.input, ''); assert.equal(h.current.editorStepRef, null); assert.equal(h.current.activeStep?.id, script.steps[1].id); assert.equal(h.current.canEdit, false);
   h.current.typeInput('PRIVATE_UNOPENED_B'); assert.equal(h.current.input, ''); assert.equal(session(f).drafts.length, 0);
   assert.equal(await h.current.openCurrentStep(), true); await type(h, 'PRIVATE_OPENED_B'); assert.equal(session(f).drafts[0].source.stepId, script.steps[1].id);
+});
+
+// Exact accepted sources, independent of whichever revision is current later.
+const representativeSources = [
+  ['guided-restaurant-beginner', 'sha256:f536c29078f567a5cc5dde12754c4e8cd406197b4daf91ff4881536fd6a0c9d3'],
+  ['guided-train-elementary', 'sha256:ab4d4a40900eb5c232d2a3090843dbe198f8113854248349940c7f791d15c085'],
+  ['guided-company-mechanical-design-intermediate', 'sha256:e7122f518361da4322d717ce5f3873c1cd67a51a44a1b824a136a54b0ca47afa'],
+] as const;
+function region(page: ReturnType<Fixture['mountPage']>, label: string) {
+  const found = nodes(page.render()).find(value => value.props['aria-label'] === label); assert.ok(found, `Missing ${label}`); return textOf(found);
+}
+function requiredScript(id: string, revision: string) { const script = findGuidedConversationCatalogScript(id, revision); assert.ok(script); return script; }
+async function chooseScript(page: ReturnType<Fixture['mountPage']>, script: { contextId: string; levelId: string }) {
+  page.click('수준별 연습 선택'); await page.settle();
+  change(node(page, 'conversation-context'), script.contextId); await page.settle();
+  change(node(page, 'conversation-level'), script.levelId); await page.settle();
+}
+async function startScript(page: ReturnType<Fixture['mountPage']>, script: { contextId: string; levelId: string }) {
+  await chooseScript(page, script);
+  const checkbox = nodes(page.render()).find(value => value.type === 'input' && value.props.type === 'checkbox')!;
+  (checkbox.props.onChange as (event: unknown) => void)({ target: { checked: true } });
+  page.click('새 대화 시작'); await page.settle();
+}
+
+for (const [scriptId, revision] of representativeSources) test(`catalogue shipping page ${scriptId}: exact saved source, help, fixed responses, explicit close and source-bound reopen`, async t => {
+  const script = requiredScript(scriptId, revision), f = await fixture(t); let page = f.mountPage();
+  await startScript(page, script); const id = session(f).sessionId;
+  assert.equal(session(f).source.scriptId, scriptId); assert.equal(session(f).source.scriptRevision, revision);
+  assert.equal(session(f).source.builderPolicy, 'guided-fixed-exchange-v2');
+  assert.match(region(page, '현재 연습 단계'), /상대방 응답은/); assert.doesNotMatch(region(page, '현재 연습 단계'), /점원/);
+  for (const [ordinal, step] of script.steps.entries()) {
+    assert.ok(region(page, '현재 연습 단계').includes(step.titleKo));
+    assert.match(region(page, '현재 연습 단계'), /상대방 말/);
+    const arbitrary = `  PRIVATE_CATALOGUE_${scriptId}_${ordinal} 日本語 👩🏽‍💻\t  `;
+    if (ordinal === 0) { page.click('힌트 보기'); page.click('예문 넣기'); }
+    else change(node(page, 'conversation-input'), ordinal === 1 ? arbitrary : step.learnerExample.japanese);
+    await page.settle(); page.click('입력 저장'); await page.settle();
+    const draft = session(f).drafts.find(item => item.source.stepId === step.id)!;
+    assert.ok(draft); assert.equal(draft.source.scriptId, scriptId); assert.equal(draft.source.scriptRevision, revision);
+    assert.equal(draft.exposure.hint, ordinal === 0 ? 'shown' : 'not-shown');
+    const saved = json(session(f));
+    if (ordinal === 0) {
+      page.dispose(); page = f.mountPage(); await page.settle();
+      assert.equal(node(page, 'conversation-input').props.value, step.learnerExample.japanese);
+      assert.equal(json(session(f)), saved); assert.equal(session(f).drafts[0].origin.kind, 'inserted-example');
+    }
+    const send = page.button(ordinal === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로').props.onClick as () => void;
+    send(); send(); await page.settle();
+    const turn = session(f).turns[ordinal]; assert.equal(session(f).turns.length, ordinal + 1);
+    assert.equal(turn.draft.source.stepId, step.id); assert.equal(turn.draft.source.scriptId, scriptId);
+    assert.equal(turn.draft.input, ordinal === 1 ? arbitrary : step.learnerExample.japanese);
+    assert.equal(turn.emission.reply, step.fixedReply.japanese); assert.equal(turn.emission.correction, '');
+    assert.equal(turn.sampleMatch.assessment, 'unavailable'); assert.equal(session(f).closed, null);
+    assert.ok('kind' in turn.emission); if ('kind' in turn.emission) assert.equal(turn.emission.exampleFallback?.japanese ?? null, ordinal === 1 ? step.learnerExample.japanese : null);
+    assert.ok(region(page, '이 대화에서 보낸 문장').includes(turn.emission.explanation));
+    assert.match(region(page, '이 대화에서 보낸 문장'), /정해진 상대방 응답/); assert.doesNotMatch(region(page, '이 대화에서 보낸 문장'), /점원/);
+  }
+  assert.equal(page.button('보내고 다음 단계로').props.disabled, true);
+  assert.equal(node(page, 'conversation-input').props.disabled, true);
+  assert.match(page.text(), new RegExp(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨`));
+  page.click('대화 종료'); await page.settle(); const closed = json(session(f));
+  assert.ok(session(f).closed); assert.match(region(page, '종료한 대화 요약'), /평가한 문장 0개/);
+  assert.match(region(page, '종료한 대화 요약'), /정해진 상대방 시범/); assert.doesNotMatch(region(page, '종료한 대화 요약'), /점원/);
+  for (const turn of session(f).turns) assert.ok(region(page, '종료한 대화 요약').includes(turn.emission.explanation));
+  page.click('기록 보기'); await page.settle(); await chooseScript(page, GUIDED_CONVERSATION_PILOT[0]);
+  assert.match(region(page, '무료 회화 예문 미리보기'), /점원 응답은/);
+  assert.ok(region(page, '이 브라우저의 대화 기록').includes(revision));
+  page.click(`${script.labelKo} 종료 요약 보기`); await page.settle();
+  assert.equal(session(f, id).source.scriptRevision, revision); assert.equal(json(session(f, id)), closed);
+  assert.match(region(page, '종료한 대화 요약'), /정해진 상대방 응답/); assert.doesNotMatch(region(page, '종료한 대화 요약'), /점원/);
+  assert.equal(f.audio.length, 0); assert.equal(json(f.calls).includes('PRIVATE_CATALOGUE_'), false);
+  assert.equal(json(f.notices).includes('PRIVATE_CATALOGUE_'), false); assert.equal(json(f.diagnostics).includes('PRIVATE_CATALOGUE_'), false);
+});
+
+for (const context of ['company-general', 'company-mechanical-design', 'company-development', 'company-quality']) test(`catalogue ${context}: preview, prompt, transcript and partial recap use frozen generic counterpart`, async t => {
+  const cell = FREE_CONVERSATION_COVERAGE.find(item => item.contextId === context && item.levelId === 'beginner')!;
+  assert.ok(cell.scriptId && cell.scriptRevision); const script = requiredScript(cell.scriptId, cell.scriptRevision), f = await fixture(t), page = f.mountPage();
+  await chooseScript(page, script); assert.match(region(page, '무료 회화 예문 미리보기'), /상대방 응답은/); assert.doesNotMatch(region(page, '무료 회화 예문 미리보기'), /점원/);
+  await startScript(page, script); assert.match(region(page, '현재 연습 단계'), /상대방 말/); assert.doesNotMatch(region(page, '현재 연습 단계'), /점원/);
+  page.click('예문 넣기'); await page.settle(); page.click('보내고 다음 단계로'); await page.settle();
+  assert.match(region(page, '이 대화에서 보낸 문장'), /정해진 상대방 응답/); assert.doesNotMatch(region(page, '이 대화에서 보낸 문장'), /점원/);
+  page.click('대화 종료'); await page.settle(); const closed = json(session(f));
+  assert.match(region(page, '종료한 대화 요약'), /일부 단계만 전송/); assert.match(region(page, '종료한 대화 요약'), /정해진 상대방 응답/);
+  assert.doesNotMatch(region(page, '종료한 대화 요약'), /점원/); const projected = recap(f); assert.ok('sourceKind' in projected); if ('sourceKind' in projected) assert.equal(projected.assessmentCoverage.assessedTurns, 0);
+  page.click('기록 보기'); await page.settle(); await chooseScript(page, GUIDED_CONVERSATION_PILOT[0]);
+  page.click(`${script.labelKo} 종료 요약 보기`); await page.settle(); assert.equal(json(session(f)), closed);
+  assert.match(region(page, '종료한 대화 요약'), /정해진 상대방 응답/); assert.doesNotMatch(region(page, '종료한 대화 요약'), /점원/);
+});
+
+test('catalogue selecting company does not relabel reopened pilot active turns or saved recap explanations', async t => {
+  const script = GUIDED_CONVERSATION_PILOT[0], f = await fixture(t), page = f.mountPage(); await selectPage(page);
+  page.click('예문 넣기'); await page.settle(); page.click('보내고 다음 단계로'); await page.settle();
+  const explanation = session(f).turns[0].emission.explanation, before = json(session(f)); assert.match(explanation, /점원/);
+  page.click('기록 보기'); await page.settle(); await chooseScript(page, { contextId: 'company-quality', levelId: 'beginner' });
+  assert.match(region(page, '무료 회화 예문 미리보기'), /상대방 응답은/);
+  page.click(`${script.labelKo} 대화 이어가기`); await page.settle(); assert.equal(json(session(f)), before);
+  assert.match(region(page, '현재 연습 단계'), /점원 말/); assert.doesNotMatch(region(page, '현재 연습 단계'), /상대방/);
+  assert.match(region(page, '이 대화에서 보낸 문장'), /정해진 점원 응답/); assert.ok(region(page, '이 대화에서 보낸 문장').includes(explanation));
+  page.click('대화 종료'); await page.settle(); const closed = json(session(f));
+  page.click('기록 보기'); await page.settle(); page.click(`${script.labelKo} 종료 요약 보기`); await page.settle();
+  assert.equal(json(session(f)), closed); assert.match(region(page, '종료한 대화 요약'), /정해진 점원 응답/);
+  assert.doesNotMatch(region(page, '종료한 대화 요약'), /상대방/); assert.ok(region(page, '종료한 대화 요약').includes(explanation));
+});
+
+test('catalogue same-level cross-context stale editor and exposure cannot become the new first step', async t => {
+  const restaurant = requiredScript(...representativeSources[0]);
+  const companyCell = FREE_CONVERSATION_COVERAGE.find(cell => cell.contextId === 'company-quality' && cell.levelId === 'beginner')!;
+  assert.ok(companyCell.scriptId && companyCell.scriptRevision); const company = requiredScript(companyCell.scriptId, companyCell.scriptRevision);
+  const f = await fixture(t), h = hook(f); assert.equal(await h.current.start(selection(restaurant)), true); await h.view.settle();
+  await type(h, 'PRIVATE_RESTAURANT_FIRST'); const oldId = h.current.session!.sessionId, oldRef = h.current.editorStepRef!, stale = h.current;
+  assert.equal(await h.current.start(selection(company)), true); await h.view.settle();
+  assert.equal(h.current.progress?.activeStepIndex, 0); assert.equal(restaurant.levelId, company.levelId);
+  assert.notEqual(h.current.activeStepRef?.scriptId, oldRef.scriptId); assert.notEqual(h.current.activeStepRef?.stepId, oldRef.stepId);
+  const previous = json(session(f, oldId)), current = json(h.current.session);
+  stale.typeInput('PRIVATE_STALE_CONTEXT'); stale.insertExample(); stale.observeExposure({ hint: 'shown', example: 'shown' }, oldRef);
+  assert.equal(await stale.send(), false); await h.view.settle(); assert.equal(h.current.input, '');
+  assert.equal(json(session(f, oldId)), previous); assert.equal(json(h.current.session), current);
+  await type(h, 'PRIVATE_COMPANY_FIRST'); const own = h.current.session!.drafts[0];
+  assert.equal(own.source.scriptId, company.scriptId); assert.equal(own.source.stepId, company.steps[0].id); assert.equal(own.exposure.hint, 'not-shown');
+});
+
+test('catalogue delayed same-level cross-context creation remains on the original saved input after selection changes', async t => {
+  const restaurant = requiredScript(...representativeSources[0]);
+  const companyCell = FREE_CONVERSATION_COVERAGE.find(cell => cell.contextId === 'company-general' && cell.levelId === 'beginner')!;
+  assert.ok(companyCell.scriptId && companyCell.scriptRevision); const company = requiredScript(companyCell.scriptId, companyCell.scriptRevision);
+  const f = await fixture(t), h = hook(f); assert.equal(await h.current.start(selection(restaurant)), true); await type(h, 'PRIVATE_RESTAURANT_RETAIN');
+  const previousId = h.current.session!.sessionId, previous = json(h.current.session), release = f.browser.holdLock(); let current = true;
+  const creating = h.current.start(selection(company), () => current); await tick(); current = false; release();
+  assert.equal(await creating, false); await h.view.settle(); assert.equal(h.current.session!.sessionId, previousId);
+  assert.equal(h.current.input, 'PRIVATE_RESTAURANT_RETAIN'); assert.equal(h.current.editorStepRef?.scriptId, restaurant.scriptId);
+  assert.equal(json(session(f, previousId)), previous);
 });

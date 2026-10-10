@@ -35,28 +35,21 @@ test('catalog declares precisely the requested eight stable contexts and three l
   ]);
 });
 
-test('24 cells expose only three convenience-store pilot scripts, with no implicit fallback', () => {
+test('24 cells expose exact retained guided sources, with no implicit fallback', () => {
   assert.equal(FREE_CONVERSATION_COVERAGE.length, 24);
   assert.equal(new Set(FREE_CONVERSATION_COVERAGE.map(cell => cell.id)).size, 24);
-  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'available').length, 3);
-  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'reference-only').length, 21);
+  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'available').length, 24);
+  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.availability === 'reference-only').length, 0);
   for (const context of FREE_CONVERSATION_CONTEXTS) {
     for (const level of FREE_CONVERSATION_LEVELS) {
       const cell = findFreeConversationCoverage(context.id, level.id);
       assert.ok(cell);
       assert.equal(cell.id, `${context.id}:${level.id}`);
-      if (context.id === 'convenience-store') {
-        assert.equal(cell.availability, 'available');
-        assert.equal(cell.scriptId, `guided-convenience-store-${level.id}`);
-        assert.ok(cell.scriptRevision);
-        assert.match(cell.scriptRevision, /^sha256:[a-f0-9]{64}$/);
-        assert.equal(cell.contentReviewStatus, 'locally-authored-unreviewed');
-      } else {
-        assert.equal(cell.scriptId, null);
-        assert.equal(cell.scriptRevision, null);
-        assert.equal(cell.contentReviewStatus, 'not-authored');
-        assert.equal(cell.availability, 'reference-only');
-      }
+      assert.equal(cell.availability, 'available');
+      assert.equal(cell.scriptId, `guided-${context.id}-${level.id}`);
+      assert.ok(cell.scriptRevision);
+      assert.match(cell.scriptRevision, /^sha256:[a-f0-9]{64}$/);
+      assert.equal(cell.contentReviewStatus, 'locally-authored-unreviewed');
       assert.equal(findLegacyFreeConversationScript(context.id, LEGACY_FREE_CONVERSATION_REVISION), undefined);
     }
   }

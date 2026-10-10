@@ -36,7 +36,7 @@ test('strict in-memory inputs reject symbols, hidden owner data, custom prototyp
 
 test('known source revision pins all authored fields and actual builder branches', () => {
   assert.equal(LEGACY_FREE_CONVERSATION_SCRIPTS.length, 5); assert.equal(FREE_CONVERSATION_COVERAGE.length, 24);
-  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.scriptId === null).length, 21);
+  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.scriptId === null).length, 0);
   for (const script of LEGACY_FREE_CONVERSATION_SCRIPTS) {
     const source = freezeLegacySource(script.scriptId)!; assert.equal(source.levelId, 'unlevelled');
     for (const input of [script.content.japanese, script.content.reading, 'synthetic unmatched']) {
