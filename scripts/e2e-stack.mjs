@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { buildLegacyEvidenceInstallationFixture } from './legacy-evidence-installation-fixture.mjs';
 
 // No login/link/db-push, hosted URL, project credentials, or personal backups.
 if (process.env.GITHUB_ACTIONS !== 'true' || !process.env.RUNNER_TEMP) {
@@ -46,9 +47,12 @@ try {
     // Disposable fixture cleanup only; production migration grants stay unchanged.
     appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches,public.language_live_preparations to service_role;\n');
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
-    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql', 'utf8'));
-    // Additive Gate A remains write-disabled; only the verified CI driver may opt in.
-    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql', 'utf8'));
+    // Supabase's postgres installer is not a superuser. The disposable adapter
+    // restores temporary ownership-installation privileges before EACH COMMIT.
+    // Production migrations and additive Gate A default write denial are unchanged.
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + buildLegacyEvidenceInstallationFixture(
+      readFileSync('supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql', 'utf8'),
+      readFileSync('supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql', 'utf8')));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916113939_assistant_growth_commands.sql', 'utf8'));

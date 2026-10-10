@@ -29,7 +29,13 @@ test('disposable seed installs the actual ledger and additive enrollment once af
     assert.equal(migrations.filter(path => path === dependency).length, 1);
     assert.ok(migrations.indexOf(dependency) < migrations.indexOf(ledger), `${dependency} must precede the ledger`);
   }
-  assert.ok(stack.includes("appendFileSync(`${workdir}/supabase/seed.sql`, '\\n' + readFileSync('" + ledger + "', 'utf8'));"));
+  const guardedBuilder = "appendFileSync(`${workdir}/supabase/seed.sql`, '\\n' + buildLegacyEvidenceInstallationFixture(\n" +
+    "      readFileSync('" + ledger + "', 'utf8'),\n" +
+    "      readFileSync('" + enrollment + "', 'utf8')));";
+  assert.equal(stack.split(guardedBuilder).length, 2);
+  assert.ok(stack.indexOf("process.env.GITHUB_ACTIONS !== 'true'") < stack.indexOf(guardedBuilder));
+  assert.ok(stack.indexOf("process.argv[2] === 'start'") < stack.indexOf(guardedBuilder));
+  assert.match(stack, /import \{ buildLegacyEvidenceInstallationFixture \} from '\.\/legacy-evidence-installation-fixture\.mjs'/);
   assert.ok(stack.indexOf(enrollment) < stack.indexOf("run('start', '--exclude'"));
   assert.doesNotMatch(stack, /grant execute on function.*legacy_evidence|DISPOSABLE_EVIDENCE_RELEASE|enrollmentEnabled|captureEnabled/);
 });

@@ -90,9 +90,10 @@ test('authored catalog audit executes against actual migration in PGlite, withou
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
     const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', source.slice(begin, end));
-    const report = { digests: {} };
+    const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean } } = { digests: {} };
     await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS);
     assert.ok('installedPrivilegeAudit' in report.digests);
+    assert.equal(report.installationRoleAudit?.installerSuperuser, true);
     // The same catalog audit must reject even one accidentally re-enabled route.
     for (const signature of DISPOSABLE_WRITE_FUNCTIONS) {
       await fixture.db.exec(`grant execute on function ${signature} to authenticated`);
@@ -157,7 +158,8 @@ test('fixture opt-in is exact, private and after actual default-denial checks', 
 test('candidate source digests cover additive migration and the exact release/reset/admission contract', () => {
   assert.deepEqual(SOURCE_INPUTS, [...SOURCE_INPUTS].sort()); assert.equal(new Set(SOURCE_INPUTS).size, SOURCE_INPUTS.length);
   for (const path of ['supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql',
-    'scripts/e2e-stack.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+    'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+    'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
     'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts', 'app/lib/resetAppRecords.ts',
     'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'lib/language-legacy-evidence/local-store.ts',
     'lib/language-legacy-evidence/store-admission-types.ts', 'lib/language-legacy-evidence/receipt-proof.ts',
