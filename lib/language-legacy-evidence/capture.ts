@@ -26,7 +26,7 @@ const checkpointSchema = z.object({ version: z.literal(1), ownerId: uuid, genera
 }).strict();
 const expectationSchema = z.object({ checkpointRevision: integer, predecessor: predecessorSchema, canonical: z.string() }).strict().nullable();
 const actionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.enum(['hint', 'reveal', 'interruption']) }).strict(),
+  z.object({ kind: z.enum(['hint', 'reveal', 'interruption', 'provenance_loss']) }).strict(),
   z.object({ kind: z.literal('visibility'), visibility: visibilitySchema }).strict(),
   z.object({ kind: z.literal('retry'), occurredAt: instantSchema }).strict(),
   z.object({ kind: z.literal('audio_requested'), requestId: uuid, sourceSlotKey: z.string(), episodeId: uuid, promptMatchesTask: flag }).strict(),
@@ -121,6 +121,16 @@ export function prepareCheckpointTransition(current: CaptureCheckpoint, action: 
     case 'visibility':
       cp.textVisibility = visibilitySchema.parse(action.visibility);
       cp.answerPreviouslyRevealed = stickyExposure(cp.answerPreviouslyRevealed, exposureFor(cp.presentation.taskFormat, cp.textVisibility)); break;
+    case 'provenance_loss':
+      cp.hintUsed = stickyExposure(cp.hintUsed, null);
+      cp.answerPreviouslyRevealed = stickyExposure(cp.answerPreviouslyRevealed, null);
+      cp.textVisibility = { targetText: stickyExposure(cp.textVisibility.targetText, null),
+        reading: stickyExposure(cp.textVisibility.reading, null), meaning: stickyExposure(cp.textVisibility.meaning, null),
+        choices: stickyExposure(cp.textVisibility.choices, null) };
+      // Preserve the old interruption's audio shape and timing semantics.
+      // Provenance loss alone additionally removes unsupported clean claims.
+      cp.timingContinuity = 'unknown';
+      cp.audio = { status: 'unknown', ...(cp.audio.requestId ? { requestId: cp.audio.requestId } : {}), promptMatchesTask: null }; break;
     case 'interruption':
       cp.timingContinuity = 'unknown';
       cp.audio = { status: 'unknown', ...(cp.audio.requestId ? { requestId: cp.audio.requestId } : {}), promptMatchesTask: null }; break;

@@ -13,10 +13,10 @@ type Hub = Record<string, unknown> & {
 };
 type Request = Hub & { result: unknown; error: DOMException | null; readyState: IDBRequestReadyState };
 type Row = { key: Key; value: unknown };
-type IndexSchema = { name: string; keyPath: KeyPath; unique: boolean };
-type StoreState = { keyPath: KeyPath | null; indexes: Map<string, IndexSchema>; rows: Map<string, Row> };
+type IndexSchema = { name: string; keyPath: KeyPath; unique: boolean; multiEntry: boolean };
+type StoreState = { keyPath: KeyPath | null; autoIncrement: boolean; indexes: Map<string, IndexSchema>; rows: Map<string, Row> };
 type DatabaseState = { name: string; version: number; stores: Map<string, StoreState>; connections: Set<Connection> };
-type Connection = { db: Hub; closed: boolean; state: DatabaseState };
+type Connection = { db: Hub; closePending: boolean; pendingTransactions: number; state: DatabaseState; upgrade: Hub | null };
 type Operation = { request: Request; run(): unknown };
 type WriteKind = 'add' | 'put' | 'delete' | 'clear';
 type StoreCommitLoss = { storeName: string; operation: WriteKind; error: DOMException; consumed: number; committedStores: string[] };
@@ -131,6 +131,8 @@ export function createDeterministicIDBAdapter() {
   let nextReadFailure: DOMException | null = null, nextLostCommit: DOMException | null = null;
   let nextStoreCommitLoss: StoreCommitLoss | null = null;
   let blockedOpens = 0, pendingOpens = 0;
+  type PendingOpen = { blockedOn: DatabaseState | null; run(): Promise<boolean> };
+  const openQueues = new Map<string, PendingOpen[]>();
   const beforeTransactions = new Map<'readonly' | 'readwrite', () => void>();
   let afterWriteCommit: (() => void) | undefined;
 
@@ -148,20 +150,21 @@ export function createDeterministicIDBAdapter() {
     if (!store) throw Error(`Unknown test object store: ${storeName}`);
     return store;
   }
-  function transaction(connection: Connection, requested: string | string[], mode: IDBTransactionMode = 'readonly') {
-    if (connection.closed) throw failure('InvalidStateError', 'The database connection is closed.');
-    if (mode !== 'readonly' && mode !== 'readwrite') throw failure('TypeError', 'Unsupported transaction mode.');
+  function createTransaction(connection: Connection, requested: string | string[], mode: IDBTransactionMode, publishUpgrade?: () => void) {
+    if (connection.closePending) throw failure('InvalidStateError', 'The database connection is closing or closed.');
+    if (mode !== 'readonly' && mode !== 'readwrite' && !(mode === 'versionchange' && publishUpgrade)) throw failure('TypeError', 'Unsupported transaction mode.');
     const scope = typeof requested === 'string' ? [requested] : [...requested];
-    if (!scope.length) throw failure('InvalidAccessError');
+    if (!scope.length && mode !== 'versionchange') throw failure('InvalidAccessError');
     for (const name of scope) if (!connection.state.stores.has(name)) throw failure('NotFoundError', name);
-    const tx = { ...hub(), db: connection.db, mode, error: null as DOMException | null };
+    const tx: Hub & { error: DOMException | null } = { ...hub(), db: connection.db, mode, error: null };
     const operations: Operation[] = [], snapshots = new Map<string, Map<string, Row>>(), stores = new Map<string, Hub>();
     const writes: { storeName: string; operation: WriteKind }[] = [];
-    const injectedAbort = nextAbort; nextAbort = null;
+    const injectedAbort = mode === 'versionchange' ? null : nextAbort;
+    if (mode !== 'versionchange') nextAbort = null;
     const injectedLostCommit = mode === 'readwrite' ? nextLostCommit : null;
     if (mode === 'readwrite') nextLostCommit = null;
-    const beforeTransaction = beforeTransactions.get(mode);
-    beforeTransactions.delete(mode);
+    const beforeTransaction = mode === 'versionchange' ? undefined : beforeTransactions.get(mode);
+    if (mode !== 'versionchange') beforeTransactions.delete(mode);
     let active = true, abortReason: DOMException | null = null;
     function assertActive() { if (!active || abortReason) throw failure('TransactionInactiveError'); }
     function enqueue(source: Hub, run: () => unknown): Request {
@@ -188,7 +191,7 @@ export function createDeterministicIDBAdapter() {
       const rows = () => snapshots.get(name)!;
       const sorted = () => [...rows().values()].sort((a, b) => compareKeys(a.key, b.key));
       const store: Hub = {
-        ...hub(), name, keyPath: schema.keyPath, transaction: tx,
+        ...hub(), name, keyPath: clone(schema.keyPath), autoIncrement: schema.autoIncrement, transaction: tx,
         indexNames: names(() => [...schema.indexes.keys()].sort()),
         get(key: Key) {
           const token = keyToken(key);
@@ -257,10 +260,25 @@ export function createDeterministicIDBAdapter() {
           return enqueue(store, () => write(name, 'delete', () => { rows().delete(token); return undefined; }));
         },
         clear() { assertWritable(); return enqueue(store, () => write(name, 'clear', () => { rows().clear(); return undefined; })); },
+        createIndex(indexName: string, keyPath: KeyPath, options?: IDBIndexParameters) {
+          assertActive();
+          if (mode !== 'versionchange') throw failure('InvalidStateError');
+          if (schema.indexes.has(indexName)) throw failure('ConstraintError');
+          if (options?.multiEntry) throw failure('NotSupportedError', 'The adapter does not implement multiEntry indexes.');
+          schema.indexes.set(indexName, { name: indexName, keyPath: clone(keyPath), unique: options?.unique ?? false, multiEntry: false });
+          // Index validation is queued just like requests. Any failure rolls back
+          // the complete upgrade rather than publishing a partial schema.
+          enqueue(store, () => {
+            for (const [key, row] of rows()) checkUnique(schema, rows(), key, row.value);
+            return undefined;
+          });
+          return (store.index as (name: string) => Hub)(indexName);
+        },
         index(indexName: string) {
+          assertActive();
           const definition = schema.indexes.get(indexName);
           if (!definition) throw failure('NotFoundError', indexName);
-          const index: Hub = { ...hub(), ...definition, objectStore: store };
+          const index: Hub = { ...hub(), ...clone(definition), objectStore: store };
           function matches(query?: Key | null) {
             const token = query == null ? undefined : keyToken(query);
             return sorted().filter(row => {
@@ -274,7 +292,7 @@ export function createDeterministicIDBAdapter() {
           return index;
         },
       };
-      function assertWritable() { assertActive(); if (mode !== 'readwrite') throw failure('ReadOnlyError'); }
+      function assertWritable() { assertActive(); if (mode === 'readonly') throw failure('ReadOnlyError'); }
       function put(value: unknown, suppliedKey: Key | undefined, add: boolean): Request {
         assertWritable();
         const frozen = clone(value);
@@ -294,8 +312,14 @@ export function createDeterministicIDBAdapter() {
     Object.assign(tx, {
       objectStore, objectStoreNames: names(() => [...new Set(scope)].sort()),
       abort() { assertActive(); abortReason = failure('AbortError', 'The test transaction was explicitly aborted.'); },
+      _assertActive: assertActive,
+      _addStore(name: string) {
+        assertActive(); if (mode !== 'versionchange') throw failure('InvalidStateError');
+        scope.push(name); snapshots.set(name, new Map()); return objectStore(name);
+      },
+      _abort(error: DOMException) { if (active && !abortReason) abortReason = error; },
     });
-    tail = tail.then(async () => {
+    const run = async (): Promise<DOMException | null> => {
       let completed = 0;
       let matchedCommitLoss: DOMException | null = null;
       try {
@@ -321,8 +345,11 @@ export function createDeterministicIDBAdapter() {
         // Requests added by request success callbacks participate in this same
         // snapshot and finish before the completion event or atomic commit.
         if (!abortReason && injectedAbort) abortReason = injectedAbort;
-        if (!abortReason && mode === 'readwrite') {
+        if (!abortReason && mode !== 'readonly') {
           for (const name of scope) connection.state.stores.get(name)!.rows = snapshots.get(name)!;
+          publishUpgrade?.();
+        }
+        if (!abortReason && mode === 'readwrite') {
           // All evidence transactions have the same broad store scope. Match an
           // actual successful mutation and consume only after atomic publication,
           // so another facade's unrelated transaction cannot steal this fault.
@@ -357,44 +384,64 @@ export function createDeterministicIDBAdapter() {
       } else {
         try { emit(tx, 'complete'); } catch { /* A completion handler cannot undo commit. */ }
       }
+      connection.pendingTransactions--;
+      finishClose(connection);
+      return abortReason;
+    };
+    // A connection is close-pending as soon as close() is requested, but its
+    // already-created transactions must drain before an upgrade can snapshot it.
+    connection.pendingTransactions++;
+    return { tx, run };
+  }
+  function transaction(connection: Connection, requested: string | string[], mode: IDBTransactionMode = 'readonly') {
+    const pending = createTransaction(connection, requested, mode);
+    tail = tail.then(async () => { await pending.run(); });
+    return pending.tx;
+  }
+  function scheduleOpen(name: string, pending: PendingOpen) {
+    pendingOpens++;
+    tail = tail.then(async () => {
+      try {
+        if (await pending.run()) {
+          const queue = openQueues.get(name)!;
+          queue.shift();
+          if (queue.length) scheduleOpen(name, queue[0]);
+          else openQueues.delete(name);
+        }
+      } finally { pendingOpens--; }
     });
-    return tx;
+  }
+  function finishClose(connection: Connection) {
+    if (!connection.closePending || connection.pendingTransactions) return;
+    const state = connection.state;
+    state.connections.delete(connection);
+    const pending = openQueues.get(state.name)?.[0];
+    if (!state.connections.size && pending?.blockedOn === state) {
+      pending.blockedOn = null;
+      scheduleOpen(state.name, pending);
+    }
   }
   function connect(state: DatabaseState): Connection {
-    const connection: Connection = { db: hub(), closed: false, state };
-    let upgrading = false;
+    const connection: Connection = { db: hub(), closePending: false, pendingTransactions: 0, state, upgrade: null };
     Object.assign(connection.db, {
       name: state.name, get version() { return state.version; },
       objectStoreNames: names(() => [...state.stores.keys()].sort()),
-      close() { connection.closed = true; state.connections.delete(connection); },
-      transaction: (scope: string | string[], mode?: IDBTransactionMode) => transaction(connection, scope, mode),
-      _setUpgrading(value: boolean) { upgrading = value; },
+      close() {
+        if (connection.closePending) return;
+        connection.closePending = true;
+        finishClose(connection);
+      },
+      transaction: (scope: string | string[], mode?: IDBTransactionMode) => {
+        if (connection.upgrade) throw failure('InvalidStateError', 'The connection has an active versionchange transaction.');
+        return transaction(connection, scope, mode);
+      },
       createObjectStore(name: string, options?: IDBObjectStoreParameters) {
-        if (!upgrading) throw failure('InvalidStateError');
+        if (!connection.upgrade) throw failure('InvalidStateError');
+        (connection.upgrade._assertActive as () => void)();
         if (state.stores.has(name)) throw failure('ConstraintError');
         if (options?.autoIncrement) throw failure('NotSupportedError', 'The adapter does not implement key generators.');
-        const store: StoreState = { keyPath: options?.keyPath ?? null, indexes: new Map(), rows: new Map() };
-        state.stores.set(name, store);
-        return {
-          name, keyPath: store.keyPath, indexNames: names(() => [...store.indexes.keys()].sort()),
-          // Minimal versionchange write support. Upgrade operates on a cloned
-          // schema/row snapshot; a synchronous failure never publishes it.
-          put(value: unknown, key: Key) {
-            if (!upgrading) throw failure('InvalidStateError');
-            if (nextQuota) { const error = nextQuota; nextQuota = null; throw error; }
-            const token = keyToken(key); checkUnique(store, store.rows, token, value);
-            store.rows.set(token, { key: clone(key), value: clone(value) });
-            const req = request(null, null); req.result = key; req.readyState = 'done'; return req;
-          },
-          createIndex(indexName: string, keyPath: KeyPath, options?: IDBIndexParameters) {
-            if (!upgrading) throw failure('InvalidStateError');
-            if (store.indexes.has(indexName)) throw failure('ConstraintError');
-            if (options?.multiEntry) throw failure('NotSupportedError', 'The adapter does not implement multiEntry indexes.');
-            const index = { name: indexName, keyPath: clone(keyPath), unique: options?.unique ?? false };
-            store.indexes.set(indexName, index);
-            return index;
-          },
-        };
+        state.stores.set(name, { keyPath: clone(options?.keyPath ?? null), autoIncrement: false, indexes: new Map(), rows: new Map() });
+        return (connection.upgrade._addStore as (name: string) => Hub)(name);
       },
     });
     state.connections.add(connection);
@@ -405,38 +452,53 @@ export function createDeterministicIDBAdapter() {
       const req = request(null, null);
       const blocked = blockedOpens > 0;
       if (blocked) blockedOpens--;
-      pendingOpens++;
-      queueMicrotask(() => {
+      // Serialize opening/upgrading with queued transactions and other opens.
+      // A real blocked head stays in its database's FIFO without occupying the
+      // runnable tail. Its last blocker closing schedules that same request.
+      const pending: PendingOpen = { blockedOn: null, run: async () => {
         let connection: Connection | undefined;
         try {
-          if (blocked) { emit(req, 'blocked', { oldVersion: databases.get(name)?.version ?? 0, newVersion: version ?? 1 }); return; }
+          if (blocked) { emit(req, 'blocked', { oldVersion: databases.get(name)?.version ?? 0, newVersion: version ?? 1 }); return true; }
           const previous = databases.get(name), desired = version ?? previous?.version ?? 1;
           if (!Number.isInteger(desired) || desired < 1) throw failure('TypeError', 'Version must be a positive integer.');
           if (previous && desired < previous.version) throw failure('VersionError');
           const upgrade = !previous || desired > previous.version;
           if (previous && upgrade) {
-            for (const open of [...previous.connections]) emit(open.db, 'versionchange', { oldVersion: previous.version, newVersion: desired });
-            if (previous.connections.size) { emit(req, 'blocked', { oldVersion: previous.version, newVersion: desired }); return; }
+            for (const open of [...previous.connections]) {
+              if (!open.closePending) emit(open.db, 'versionchange', { oldVersion: previous.version, newVersion: desired });
+            }
+            if (previous.connections.size) {
+              pending.blockedOn = previous;
+              emit(req, 'blocked', { oldVersion: previous.version, newVersion: desired });
+              return false;
+            }
           }
+          // Existing rows and the schema share one private upgrade snapshot.
           const state = upgrade ? { name, version: desired, stores: clone(previous?.stores ?? new Map<string, StoreState>()), connections: new Set<Connection>() } : previous!;
           connection = connect(state); req.result = connection.db;
           if (upgrade) {
-            let aborted = false;
-            req.transaction = { abort() { aborted = true; } };
-            (connection.db._setUpgrading as (value: boolean) => void)(true);
-            emit(req, 'upgradeneeded', { oldVersion: previous?.version ?? 0, newVersion: desired });
-            (connection.db._setUpgrading as (value: boolean) => void)(false);
-            if (aborted) throw failure('AbortError', 'Versionchange transaction aborted.');
-            databases.set(name, state);
-            req.transaction = null;
+            const pending = createTransaction(connection, [...state.stores.keys()], 'versionchange', () => { databases.set(name, state); });
+            connection.upgrade = pending.tx; req.transaction = pending.tx;
+            try { emit(req, 'upgradeneeded', { oldVersion: previous?.version ?? 0, newVersion: desired }); }
+            catch (error) {
+              (pending.tx._abort as (reason: DOMException) => void)(failure('AbortError', String(error)));
+            }
+            const abortReason = await pending.run();
+            connection.upgrade = null; req.transaction = null;
+            if (abortReason) throw abortReason;
           }
           req.readyState = 'done'; emit(req, 'success');
         } catch (error) {
-          if (connection) { connection.closed = true; connection.state.connections.delete(connection); }
+          if (connection) { connection.closePending = true; connection.upgrade = null; connection.state.connections.delete(connection); }
+          req.transaction = null;
           req.error = error instanceof DOMException ? error : failure('AbortError', String(error)); req.readyState = 'done';
           emit(req, 'error');
-        } finally { pendingOpens--; }
-      });
+        }
+        return true;
+      } };
+      const queue = openQueues.get(name) ?? [];
+      openQueues.set(name, queue); queue.push(pending);
+      if (queue.length === 1) scheduleOpen(name, pending);
       return req;
     },
     cmp(left: Key, right: Key) { keyToken(left); keyToken(right); return compareKeys(left, right); },
@@ -457,10 +519,13 @@ export function createDeterministicIDBAdapter() {
     },
     beforeNextTransaction(mode: 'readonly' | 'readwrite', callback: () => void) { beforeTransactions.set(mode, callback); },
     afterNextWriteCommit(callback: () => void) { afterWriteCommit = callback; },
+    /** Synthetic terminal blocked notification; unlike a real blocker, it never resumes. */
     blockNextOpen() { blockedOpens++; },
     versionchange(databaseName?: string, newVersion: number | null = null) {
       const state = lookup(databaseName);
-      for (const connection of [...state.connections]) emit(connection.db, 'versionchange', { oldVersion: state.version, newVersion });
+      for (const connection of [...state.connections]) {
+        if (!connection.closePending) emit(connection.db, 'versionchange', { oldVersion: state.version, newVersion });
+      }
     },
     connectionCount(databaseName?: string) { return lookup(databaseName).connections.size; },
     inspect(storeName: string, key: Key, databaseName?: string): unknown { return clone(lookupStore(storeName, databaseName).rows.get(keyToken(key))?.value); },
@@ -477,6 +542,7 @@ export function createDeterministicIDBAdapter() {
     },
     async idle() {
       // Opens can enqueue transactions, and completion handlers can open again.
+      // Parked blocked opens are not runnable work and do not keep idle pending.
       do { await later(); const pending = tail; await pending; if (pending === tail && pendingOpens === 0) return; } while (true);
     },
   };

@@ -2,7 +2,7 @@ import { canonicalEvidence, makeSourceSlotKey } from './validation.ts';
 import { canonicalSha256, decodeFrozenEvidence, immutableCopy, verifyFrozenEvidence } from './canonical-hash.ts';
 import { parseCheckpoint, verifyPreparedCapture } from './capture.ts';
 import { LocalEvidenceError, MAX_EVENT_BYTES, type CaptureCheckpoint, type DeliveryMetadata, type FrozenBatch, type FrozenEvidence,
-  type AuthenticatedReceiptReadback, type BatchDelivery, type LocalCommitResult, type LocalEvidenceContext, type LocalFence, type PreparedCapture } from './persistence-types.ts';
+  type Immutable, type AuthenticatedReceiptReadback, type BatchDelivery, type LocalCommitResult, type LocalEvidenceContext, type LocalFence, type PreparedCapture } from './persistence-types.ts';
 import { decodeBatchDelivery, decodeDeliveryMetadata, decodeFrozenBatch, verifyFrozenBatch } from './outbox.ts';
 import { assertAuthenticatedContext, assertAuthenticatedPrefix, assertAuthenticatedReceiptReadback, assertAuthenticatedAdmissionStatus,
   assertAuthenticatedFirstAdmission, assertAuthenticatedResetEvidenceState, type AuthenticatedAdmissionStatusProof,
@@ -12,9 +12,15 @@ import { checkedAdmissionValue, enrollmentIntentRowSchema, frozenEnrollmentInten
   storeIncarnationSchema, type AdmissionSnapshot, type EnrollmentIntentRow, type FrozenEnrollmentIntent,
   type LocalGenerationAdmission, type StoreIncarnation } from './store-admission-types.ts';
 
+import { REVIEW_STORES, REVIEW_LIMITS, accountReviewRows, parseReviewRun, parseReviewExposure, parseReviewRowFence,
+  parseReviewJournal, reviewRowIdentity, reviewRunKey, reviewRowFenceKey, reviewExposureKey, reviewJournalKey,
+  reviewManagedSlot, reviewTransitionRows, verifyReviewTransition, type PreparedReviewTransition,
+  type ReviewRun, type ReviewExposure, type ReviewRowFence, type ReviewJournalPayload, type ReviewAccountingRow,
+  type ReviewScope, type ReviewRows, type ReviewRunImmutable } from './review-capture.ts';
+
 export const LOCAL_EVIDENCE_DATABASE = 'yeoni-legacy-language-evidence-v1';
-export const LOCAL_EVIDENCE_DATABASE_VERSION = 3;
-const SCOPED_STORES = ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes', 'admissions'] as const;
+export const LOCAL_EVIDENCE_DATABASE_VERSION = 4;
+const SCOPED_STORES = [...REVIEW_STORES, 'events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes', 'admissions'] as const;
 const STORES = [...SCOPED_STORES, 'incarnations', 'enrollmentIntents'] as const;
 type StoreName = typeof STORES[number];
 type ScopedStoreName = typeof SCOPED_STORES[number];
@@ -74,11 +80,15 @@ function checkedCacheRow(input: unknown, prefix: boolean): CachedEvidenceContext
 }
 
 /** Destructive cleanup never trusts wrapper scope without the immutable key/body. */
-function cleanupIdentity(name: ScopedStoreName, key: IDBValidKey, input: unknown): ScopedRow {
+function cleanupIdentity(name: ScopedStoreName, key: IDBValidKey, input: unknown, incarnationId?: string): ScopedRow {
   try {
     const row = input as ScopedRow & Record<string, unknown>;
     if (!row || typeof row.ownerId !== 'string' || typeof row.generationId !== 'string' || typeof key !== 'string') throw Error();
     let expectedKey: string;
+    if ((REVIEW_STORES as readonly string[]).includes(name)) {
+      const scope = reviewRowIdentity(name as typeof REVIEW_STORES[number], key, input);
+      if (incarnationId && scope.incarnationId !== incarnationId) throw Error(); return scope;
+    }
     if (name === 'events') {
       const value = row.value as FrozenEvidence; decodeFrozenEvidence(value);
       if (value.ownerId !== row.ownerId || value.generationId !== row.generationId || row.semanticKey !== JSON.stringify([row.ownerId, row.generationId, value.sourceSlotKey, value.sequence])) throw Error();
@@ -131,30 +141,68 @@ function storageError(error: unknown, fallback: 'storage_abort' | 'storage_read_
   return new LocalEvidenceError(fallback);
 }
 type Connection = { db: IDBDatabase; versionChanged: boolean; transactions: Set<IDBTransaction> };
+const VERSION_STORES: Record<number, readonly string[]> = {
+  0: [], 1: ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings'],
+  2: ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes'],
+  3: ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes', 'admissions', 'incarnations', 'enrollmentIntents'],
+  4: STORES,
+};
+function validateLayout(db: IDBDatabase, tx: IDBTransaction | null, version: number): void {
+  const expected = VERSION_STORES[version];
+  if (!expected || [...db.objectStoreNames].sort().join(',') !== [...expected].sort().join(',')) throw new LocalEvidenceError('corrupt_record');
+  for (const name of expected) {
+    const store = tx!.objectStore(name), indexName = name === 'events' ? 'semanticKey' : name === 'checkpoints' ? 'episodeKey' : name === 'reviewRuns' ? 'managedSlot' : null;
+    if (store.keyPath !== null || store.autoIncrement !== false || [...store.indexNames].sort().join(',') !== (indexName ?? '')) throw new LocalEvidenceError('corrupt_record');
+    if (indexName) { const index = store.index(indexName);
+      if (index.keyPath !== indexName || !index.unique || index.multiEntry !== false) throw new LocalEvidenceError('corrupt_record'); }
+  }
+}
 function openDatabase(factory: IDBFactory | undefined): Promise<Connection> {
   if (!factory) return Promise.reject(new LocalEvidenceError('idb_unavailable'));
   return new Promise((resolve, reject) => {
     let failed = false;
     let request: IDBOpenDBRequest;
     try { request = factory.open(LOCAL_EVIDENCE_DATABASE, LOCAL_EVIDENCE_DATABASE_VERSION); } catch (error) { reject(storageError(error)); return; }
+    const abort = (error: unknown) => { failed = true; try { request.transaction?.abort(); } catch { /* already aborted */ } reject(storageError(error)); };
     request.onupgradeneeded = event => {
+      // A blocked open remains pending in real IndexedDB. If it later unblocks,
+      // our already-rejected request must not publish a surprise upgrade.
+      if (failed) { try { request.transaction?.abort(); } catch { /* already aborted */ } return; }
       try {
-        // This is the shared opener, including cache-only and reset opens. Birth
-        // uncertainty commits in the versionchange transaction before any caller
-        // can write a context/cache/event and conceal an empty or upgraded store.
-        if (request.result.objectStoreNames.contains('incarnations')) throw new LocalEvidenceError('corrupt_record');
+        const tx = request.transaction!; validateLayout(request.result, tx, event.oldVersion);
+        if (event.oldVersion === 3) {
+          // Validate, but never rewrite, prior incarnation/admission/intent bytes.
+          const birth = tx.objectStore('incarnations').get(INCARNATION_KEY);
+          birth.onsuccess = () => { try {
+            const incarnation = checkedAdmissionValue(storeIncarnationSchema, birth.result);
+            for (const name of ['incarnations', 'admissions', 'enrollmentIntents'] as const) {
+              const read = tx.objectStore(name).openCursor();
+              read.onsuccess = () => { try {
+                const cursor = read.result; if (!cursor) return;
+                if (name === 'incarnations') {
+                  if (cursor.primaryKey !== INCARNATION_KEY || !same(checkedAdmissionValue(storeIncarnationSchema, cursor.value), incarnation)) throw new LocalEvidenceError('corrupt_record');
+                } else if (name === 'admissions') {
+                  const row = checkedAdmissionValue(localGenerationAdmissionSchema, cursor.value);
+                  if (cursor.primaryKey !== scopeKey(row) || row.incarnationId !== incarnation.incarnationId || incarnation.continuity !== 'verified') throw new LocalEvidenceError('corrupt_record');
+                } else {
+                  const row = checkedAdmissionValue(enrollmentIntentRowSchema, cursor.value);
+                  if (cursor.primaryKey !== row.ownerId || row.incarnationId !== incarnation.incarnationId) throw new LocalEvidenceError('corrupt_record');
+                }
+                cursor.continue();
+              } catch (error) { abort(error); } };
+            }
+          } catch (error) { abort(error); } };
+        }
         for (const name of STORES) {
           if (request.result.objectStoreNames.contains(name)) continue;
           const store = request.result.createObjectStore(name);
           if (name === 'events') store.createIndex('semanticKey', 'semanticKey', { unique: true });
           if (name === 'checkpoints') store.createIndex('episodeKey', 'episodeKey', { unique: true });
+          if (name === 'reviewRuns') store.createIndex('managedSlot', 'managedSlot', { unique: true });
           if (name === 'incarnations') store.put({ version: 1, incarnationId: crypto.randomUUID(),
             origin: event.oldVersion === 0 ? 'created' : 'unproven_upgrade', continuity: 'unknown' } satisfies StoreIncarnation, INCARNATION_KEY);
         }
-      } catch (error) {
-        failed = true; try { request.transaction?.abort(); } catch { /* Upgrade already aborted. */ }
-        reject(storageError(error));
-      }
+      } catch (error) { abort(error); }
     };
     request.onblocked = () => { failed = true; reject(new LocalEvidenceError('idb_blocked')); };
     request.onerror = () => { failed = true; reject(storageError(request.error)); };
@@ -223,7 +271,9 @@ export class LocalEvidenceStore {
       const result = await new Promise<T>((resolve, reject) => {
         if (connection.versionChanged) { reject(new LocalEvidenceError('idb_version_changed')); return; }
         let tx: IDBTransaction;
-        try { tx = connection.db.transaction([...STORES], mode); } catch (error) { reject(storageError(error)); return; }
+        try {
+          if ([...connection.db.objectStoreNames].sort().join(',') !== [...STORES].sort().join(',')) throw new LocalEvidenceError('corrupt_record');
+          tx = connection.db.transaction([...STORES], mode); validateLayout(connection.db, tx, 4); } catch (error) { reject(storageError(error)); return; }
         connection.transactions.add(tx);
         let result: T, failure: unknown;
         const fail = (error: unknown) => { failure = error; try { tx.abort(); } catch { reject(storageError(error)); } };
@@ -308,7 +358,7 @@ export class LocalEvidenceStore {
           const request = tx.objectStore(name).openCursor();
           request.onsuccess = () => guarded(() => {
             const cursor = request.result; if (!cursor) { finish(); return; }
-            const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+            const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value, incarnation.incarnationId);
             if (scope.ownerId === intent.ownerId) throw new LocalEvidenceError('unsupported_history');
             cursor.continue();
           });
@@ -367,7 +417,7 @@ export class LocalEvidenceStore {
             request.onsuccess = () => guarded(() => {
               const cursor = request.result;
               if (cursor) {
-                const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+                const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value, incarnation.incarnationId);
                 if (scope.ownerId === intent.ownerId) throw new LocalEvidenceError('unsupported_history');
                 cursor.continue(); return;
               }
@@ -422,7 +472,8 @@ export class LocalEvidenceStore {
     return immutableCopy(row.value);
   }
   private async readCommit(value: PreparedCapture): Promise<CaptureCheckpoint | null> {
-    const rows = await this.transaction<{ commit?: CommitRow; event?: EventRow; checkpoint?: CheckpointRow; delivery?: DeliveryMetadata }>(value.fence, 'readonly', (tx, done) => {
+    const rows = await this.transaction<{ commit?: CommitRow; event?: EventRow; checkpoint?: CheckpointRow; delivery?: DeliveryMetadata }>(value.fence, 'readonly', (tx, done, fail) => {
+      this.rejectManagedSlot(tx, value, fail, () => {});
       const result: { commit?: CommitRow; event?: EventRow; checkpoint?: CheckpointRow; delivery?: DeliveryMetadata } = {}; done(result);
       const commit = tx.objectStore('commits').get(commitKey(value)); commit.onsuccess = () => { result.commit = commit.result; };
       const cp = value.checkpoint;
@@ -483,28 +534,25 @@ export class LocalEvidenceStore {
       };
     });
   }
-  /** Uncertain writes are read first. Retries always use the same frozen transition and IDs. */
-  async commit(input: PreparedCapture): Promise<LocalCommitResult> {
-    const value = immutableCopy(input); await verifyPreparedCapture(value); this.fence(value.fence);
-    const previouslyCommitted = await this.readCommit(value);
-    if (previouslyCommitted) return { status: 'local_committed', delivery: 'pending', replay: true, checkpoint: immutableCopy(previouslyCommitted) };
-    let writeFailure: unknown;
-    try {
-      await this.transaction<void>(value.fence, 'readwrite', (tx, done, fail) => {
+  private rejectManagedSlot(tx: IDBTransaction, value: PreparedCapture, fail: (error: unknown) => void, next: () => void): void {
+    const read = tx.objectStore('reviewRuns').index('managedSlot').get(reviewManagedSlot(value.checkpoint));
+    read.onsuccess = () => { try { this.fence(value.fence); if (read.result !== undefined) throw new LocalEvidenceError('managed_review_slot'); next(); } catch (error) { fail(error); } };
+  }
+  private writeCaptureInTransaction(tx: IDBTransaction, value: PreparedCapture, done: () => void, fail: (error: unknown) => void, authority: LocalFence = value.fence): void {
         const commits = tx.objectStore('commits'), request = commits.get(commitKey(value));
         request.onsuccess = () => {
           try {
-            this.fence(value.fence);
+            this.fence(authority);
             const committed = request.result as CommitRow | undefined;
             if (committed) { if (committed.canonical !== canonicalEvidence(value)) throw new LocalEvidenceError('event_conflict'); done(); return; }
             const cp = value.checkpoint, checkpoints = tx.objectStore('checkpoints');
             const key = checkpointStorageKey(cp.ownerId, cp.generationId, cp.sourceSlotKey), read = checkpoints.get(key);
             read.onsuccess = () => {
               try {
-                this.fence(value.fence);
+                this.fence(authority);
                 const row = read.result as CheckpointRow | undefined;
                 const write = () => {
-                  this.fence(value.fence);
+                  this.fence(authority);
                   if (value.mutation.kind === 'checkpoint' && value.mutation.action.kind === 'audio_requested') {
                     const action = value.mutation.action;
                     tx.objectStore('audioBindings').add({ ownerId: cp.ownerId, generationId: cp.generationId,
@@ -546,6 +594,17 @@ export class LocalEvidenceStore {
             };
           } catch (error) { fail(error); }
         };
+
+  }
+  /** Uncertain writes are read first. Retries always use the same frozen transition and IDs. */
+  async commit(input: PreparedCapture): Promise<LocalCommitResult> {
+    const value = immutableCopy(input); await verifyPreparedCapture(value); this.fence(value.fence);
+    const previouslyCommitted = await this.readCommit(value);
+    if (previouslyCommitted) return { status: 'local_committed', delivery: 'pending', replay: true, checkpoint: immutableCopy(previouslyCommitted) };
+    let writeFailure: unknown;
+    try {
+      await this.transaction<void>(value.fence, 'readwrite', (tx, done, fail) => {
+        this.rejectManagedSlot(tx, value, fail, () => this.writeCaptureInTransaction(tx, value, done, fail));
       });
     } catch (error) { writeFailure = error; }
     // Even a reported completion is not success until exact independent readback.
@@ -558,6 +617,298 @@ export class LocalEvidenceStore {
     }
     if (writeFailure) throw storageError(writeFailure);
     throw new LocalEvidenceError('commit_unconfirmed');
+  }
+  private requireReviewAdmission(fence: LocalFence, scope?: ReviewScope): void {
+    this.fence(fence);
+    const admission = this.writerAdmission;
+    if (!admission || this.admissionLost || admission.ownerId !== fence.ownerId || admission.generationId !== fence.generationId ||
+      scope && (scope.ownerId !== admission.ownerId || scope.generationId !== admission.generationId || scope.incarnationId !== admission.incarnationId)) throw new LocalEvidenceError('stale_context');
+  }
+  private reviewCursorRows(tx: IDBTransaction, ownerId: string, fail: (error: unknown) => void, done: (rows: ReviewAccountingRow[]) => void): void {
+    const rows: ReviewAccountingRow[] = []; let remaining = REVIEW_STORES.length, bytes = 0;
+    const maxRows = REVIEW_LIMITS.runs * 2 + REVIEW_LIMITS.exposures + REVIEW_LIMITS.journals;
+    for (const store of REVIEW_STORES) {
+      const read = tx.objectStore(store).openCursor();
+      read.onsuccess = () => { try {
+        const cursor = read.result;
+        if (!cursor) { if (--remaining === 0) done(rows); return; }
+        const scope = reviewRowIdentity(store, cursor.primaryKey, cursor.value);
+        if (scope.incarnationId !== this.writerAdmission?.incarnationId) throw new LocalEvidenceError('corrupt_record');
+        if (scope.ownerId === ownerId) {
+          bytes += new TextEncoder().encode(canonicalEvidence(cursor.value)).byteLength;
+          if (rows.length >= maxRows || bytes > REVIEW_LIMITS.ownerBytes) throw new LocalEvidenceError('review_capacity');
+          rows.push({ store, key: cursor.primaryKey, value: cursor.value });
+        }
+        cursor.continue();
+      } catch (error) { fail(error); } };
+    }
+  }
+  /** Reads a bounded complete owner graph, including immutable dependencies. */
+  private async readReviewGraph(fence: LocalFence): Promise<{ rows: ReviewAccountingRow[]; captures: Map<string, PreparedCapture> }> {
+    this.requireReviewAdmission(fence);
+    const data = await this.transaction<{ rows: ReviewAccountingRow[]; commits: Map<string, CommitRow>; events: Map<string, EventRow>; checkpoints: Map<string, CheckpointRow>; deliveries: Map<string, DeliveryMetadata> }>(fence, 'readonly', (tx, done, fail) => {
+      this.reviewCursorRows(tx, fence.ownerId, fail, rows => { try {
+        this.requireReviewAdmission(fence); accountReviewRows(rows, fence.ownerId);
+        const result = { rows, commits: new Map<string, CommitRow>(), events: new Map<string, EventRow>(), checkpoints: new Map<string, CheckpointRow>(), deliveries: new Map<string, DeliveryMetadata>() }; done(result);
+        const requested = new Set<string>(), events = new Set<string>();
+        const readEvent = (ownerId: string, eventId: string) => {
+          const key = eventStorageKey(ownerId, eventId); if (events.has(key)) return; events.add(key);
+          const read = tx.objectStore('events').get(key); read.onsuccess = () => { if (read.result !== undefined) result.events.set(key, read.result); };
+          const delivery = tx.objectStore('delivery').get(key); delivery.onsuccess = () => { if (delivery.result !== undefined) result.deliveries.set(key, delivery.result); };
+        };
+        const readCapture = (scope: ReviewScope, transitionId: string) => {
+          const key = JSON.stringify([scope.ownerId, scope.generationId, transitionId]); if (requested.has(key)) return; requested.add(key);
+          const read = tx.objectStore('commits').get(key); read.onsuccess = () => { try {
+            if (read.result === undefined) return; result.commits.set(key, read.result);
+            const capture = JSON.parse((read.result as CommitRow).canonical) as PreparedCapture;
+            if (!capture?.checkpoint?.predecessor || !capture.checkpoint.presentation) throw new LocalEvidenceError('corrupt_record');
+            readEvent(scope.ownerId, capture.checkpoint.predecessor.eventId); readEvent(scope.ownerId, capture.checkpoint.presentation.eventId);
+          } catch (error) { fail(error); } };
+        };
+        for (const row of rows) {
+          if (row.store === 'reviewTransitions') {
+            const { payload } = parseReviewJournal(row.value);
+            for (const ref of [payload.captureRef, payload.before.runState?.checkpoint, payload.after.runState.checkpoint]) if (ref) readCapture(payload.scope, ref.transitionId);
+            for (const ref of [payload.before.runState?.lastHandoff, payload.after.runState.lastHandoff, payload.after.runState.retirement?.handoff]) if (ref) readCapture(payload.scope, ref.transitionId);
+          } else if (row.store === 'reviewRuns' && (row.value as ReviewRun).kind === 'run') {
+            const run = parseReviewRun(row.value), key = checkpointStorageKey(run.ownerId, run.generationId, run.immutable.sourceSlotKey);
+            const read = tx.objectStore('checkpoints').get(key); read.onsuccess = () => { if (read.result !== undefined) result.checkpoints.set(key, read.result); };
+          }
+        }
+      } catch (error) { fail(error); } });
+    });
+    this.requireReviewAdmission(fence);
+    const captures = new Map<string, PreparedCapture>();
+    for (const [key, row] of data.commits) {
+      const capture = JSON.parse(row.canonical) as PreparedCapture; await verifyPreparedCapture(capture); this.requireReviewAdmission(fence);
+      if (row.canonical !== canonicalEvidence(capture) || key !== commitKey(capture) || row.ownerId !== capture.fence.ownerId || row.generationId !== capture.fence.generationId) throw new LocalEvidenceError('corrupt_record');
+      for (const ref of [capture.checkpoint.predecessor, { eventId: capture.checkpoint.presentation.eventId, payloadHash: null }]) {
+        const eventKey = eventStorageKey(row.ownerId, ref.eventId), eventRow = data.events.get(eventKey), metadata = data.deliveries.get(eventKey);
+        if (!eventRow || !metadata) throw new LocalEvidenceError('corrupt_record');
+        const event = await verifyFrozenEvidence(eventRow.value); this.requireReviewAdmission(fence); const delivery = decodeDeliveryMetadata(metadata);
+        if (eventRow.ownerId !== row.ownerId || eventRow.generationId !== row.generationId || eventRow.value.ownerId !== row.ownerId || event.generationId !== row.generationId ||
+          event.sourceSlotKey !== capture.checkpoint.sourceSlotKey || event.episodeId !== capture.checkpoint.episodeId || event.eventId !== ref.eventId ||
+          ref.payloadHash === null && !same(event, capture.checkpoint.presentation) ||
+          eventRow.semanticKey !== JSON.stringify([row.ownerId, row.generationId, event.sourceSlotKey, event.sequence]) || ref.payloadHash && eventRow.value.payloadHash !== ref.payloadHash ||
+          delivery.eventId !== event.eventId || delivery.ownerId !== row.ownerId || delivery.generationId !== row.generationId || delivery.payloadHash !== eventRow.value.payloadHash) throw new LocalEvidenceError('corrupt_record');
+        if (delivery.status === 'quarantined') throw new LocalEvidenceError('quarantined');
+        if (delivery.status === 'acknowledged') await this.readDelivery(fence, delivery.eventId);
+      }
+      if (capture.event && !same(data.events.get(eventStorageKey(row.ownerId, capture.event.eventId))?.value, capture.event)) throw new LocalEvidenceError('corrupt_record');
+      captures.set(key, capture);
+    }
+    const runs = new Map(data.rows.filter(r => r.store === 'reviewRuns' && (r.value as ReviewRun).kind === 'run').map(r => [String(r.key), parseReviewRun(r.value)]));
+    const journals = new Map(data.rows.filter(r => r.store === 'reviewTransitions').map(r => [String(r.key), parseReviewJournal(r.value)]));
+    type State = NonNullable<ReviewJournalPayload['before'][keyof ReviewJournalPayload['before']]>;
+    const histories = new Map<string, Map<number, { before: State | null; after: State }>>();
+    const entityKey = (store: 'reviewRuns' | 'itemExposures', key: IDBValidKey) => canonicalEvidence([store, key]);
+    const retainHistory = (store: 'reviewRuns' | 'itemExposures', key: string, before: State | null, after: State | null) => {
+      if (!after) { if (before) throw new LocalEvidenceError('corrupt_record'); return; }
+      const identity = entityKey(store, key), history = histories.get(identity) ?? new Map<number, { before: State | null; after: State }>();
+      if (history.has(after.revision)) throw new LocalEvidenceError('corrupt_record');
+      history.set(after.revision, { before, after }); histories.set(identity, history);
+    };
+    const priorJournal = (scope: ReviewScope, transitionId: string) => {
+      const found = journals.get(reviewJournalKey(scope, transitionId)); if (!found) throw new LocalEvidenceError('corrupt_record'); return found.payload;
+    };
+    for (const { row, payload } of journals.values()) {
+      const run = runs.get(payload.immutableSourceRef.runKey); if (!run || run.immutable.runId !== payload.runId || !same({ ownerId: run.ownerId, generationId: run.generationId, incarnationId: run.incarnationId }, payload.scope)) throw new LocalEvidenceError('corrupt_record');
+      const capture = payload.captureRef ? captures.get(JSON.stringify([row.ownerId, row.generationId, payload.captureRef.transitionId])) : null;
+      if (payload.captureRef && !capture) throw new LocalEvidenceError('corrupt_record');
+      await verifyReviewTransition({ version: 1, fence: capture?.fence ?? { ownerId: fence.ownerId, generationId: fence.generationId, ownerEpoch: fence.ownerEpoch }, immutable: run.immutable, journal: row, capture: capture ?? null }); this.requireReviewAdmission(fence);
+      retainHistory('reviewRuns', reviewRunKey(run.immutable), payload.before.runState, payload.after.runState);
+      retainHistory('reviewRuns', reviewRowFenceKey(run.immutable), payload.before.rowFence, payload.after.rowFence);
+      retainHistory('itemExposures', reviewExposureKey({ ...run.immutable, ...run.immutable.identity }), payload.before.exposure, payload.after.exposure);
+      for (const [kind, before] of [['runState', payload.before.runState], ['exposure', payload.before.exposure], ['rowFence', payload.before.rowFence]] as const) {
+        if (!before) continue;
+        const prior = priorJournal(payload.scope, before.latestTransitionId);
+        if (!same(prior.after[kind], before) || kind === 'runState' && prior.runId !== payload.runId || kind === 'rowFence' && runs.get(prior.immutableSourceRef.runKey)?.immutable.rowKey !== run.immutable.rowKey) throw new LocalEvidenceError('corrupt_record');
+      }
+      for (const ref of [payload.captureRef, payload.before.runState?.checkpoint, payload.after.runState.checkpoint]) {
+        if (!ref) continue; const linked = captures.get(JSON.stringify([row.ownerId, row.generationId, ref.transitionId]));
+        if (!linked || await canonicalSha256(canonicalEvidence(linked)) !== ref.canonicalSha256 || linked.checkpoint.checkpointRevision !== ref.checkpointRevision ||
+          linked.checkpoint.sourceSlotKey !== ref.sourceSlotKey || !same(linked.checkpoint.predecessor, ref.predecessor) || (linked.event?.eventId ?? null) !== ref.eventId || (linked.event?.payloadHash ?? null) !== ref.payloadHash) throw new LocalEvidenceError('corrupt_record');
+      }
+      if (capture?.expected && payload.before.runState?.checkpoint) {
+        const prior = captures.get(JSON.stringify([row.ownerId, row.generationId, payload.before.runState.checkpoint.transitionId]));
+        if (!prior || capture.expected.canonical !== canonicalEvidence(prior.checkpoint)) throw new LocalEvidenceError('corrupt_record');
+      }
+      for (const ref of [payload.before.runState?.lastHandoff, payload.after.runState.lastHandoff, payload.after.runState.retirement?.handoff]) {
+        if (!ref) continue; const handoff = captures.get(JSON.stringify([row.ownerId, row.generationId, ref.transitionId]))?.checkpoint.handoff;
+        if (!handoff || handoff.eventId !== ref.eventId || handoff.draftToken !== ref.draftToken) throw new LocalEvidenceError('corrupt_record');
+      }
+    }
+    // A pointer to any valid old journal is not a current-state proof. Every
+    // retained entity must have one contiguous, unforked history from creation,
+    // and its stored mutable row must equal that history's unique terminal tip.
+    const currentStates = new Map<string, State>();
+    const rowFences = new Map<string, ReviewRowFence>();
+    for (const entry of data.rows) {
+      if (entry.store === 'itemExposures') currentStates.set(entityKey(entry.store, entry.key), parseReviewExposure(entry.value));
+      else if (entry.store === 'reviewRuns') {
+        if ((entry.value as ReviewRun).kind === 'run') currentStates.set(entityKey(entry.store, entry.key), parseReviewRun(entry.value).state);
+        else { const row = parseReviewRowFence(entry.value); rowFences.set(String(entry.key), row); currentStates.set(entityKey(entry.store, entry.key), row.state); }
+      }
+    }
+    if (currentStates.size !== histories.size) throw new LocalEvidenceError('corrupt_record');
+    for (const [identity, history] of histories) {
+      let previous: State | null = null;
+      for (let revision = 1; revision <= history.size; revision++) {
+        const step = history.get(revision);
+        if (!step || !same(step.before, previous)) throw new LocalEvidenceError('corrupt_record');
+        previous = step.after;
+      }
+      if (!currentStates.has(identity) || !same(currentStates.get(identity), previous)) throw new LocalEvidenceError('corrupt_record');
+    }
+    // Accounting checks pointer -> live run. Check the reverse as well, and
+    // bind both sides of an outstanding retirement to its exact claimant.
+    for (const run of runs.values()) {
+      const row = rowFences.get(reviewRowFenceKey(run.immutable));
+      if (!row || row.state.pointers.some(p => p.runId === run.immutable.runId && p.slot === run.immutable.slot) !== (run.state.lifecycle !== 'closed')) throw new LocalEvidenceError('corrupt_record');
+      const claim = row.state.retirement?.runId === run.immutable.runId ? row.state.retirement : null;
+      if (run.state.lifecycle === 'retiring') {
+        if (!run.state.retirement || run.state.retirement.outcome || !same(claim, { runId: run.immutable.runId, retirementId: run.state.retirement.retirementId, kind: run.state.retirement.kind }) ||
+          run.state.action?.kind !== 'retirement' || run.state.action.rootActionId !== run.state.retirement.retirementId) throw new LocalEvidenceError('corrupt_record');
+      } else if (claim) throw new LocalEvidenceError('corrupt_record');
+    }
+    for (const entry of data.rows) {
+      if (entry.store === 'reviewRuns' && (entry.value as ReviewRun).kind === 'run') {
+        const run = parseReviewRun(entry.value), latest = priorJournal(run, run.state.latestTransitionId);
+        if (latest.runId !== run.immutable.runId || !same(latest.after.runState, run.state)) throw new LocalEvidenceError('corrupt_record');
+        const cp = data.checkpoints.get(checkpointStorageKey(run.ownerId, run.generationId, run.immutable.sourceSlotKey));
+        if (run.state.checkpoint) {
+          const committed = captures.get(JSON.stringify([run.ownerId, run.generationId, run.state.checkpoint.transitionId]));
+          if (!committed || !cp || cp.ownerId !== run.ownerId || cp.generationId !== run.generationId || cp.latestTransitionId !== committed.transitionId || !same(cp.value, committed.checkpoint) || cp.episodeKey !== episodeKey(committed.checkpoint)) throw new LocalEvidenceError('corrupt_record');
+        } else if (cp) throw new LocalEvidenceError('corrupt_record');
+      } else if (entry.store === 'reviewRuns') {
+        const row = parseReviewRowFence(entry.value), latest = priorJournal(row, row.state.latestTransitionId);
+        if (runs.get(latest.immutableSourceRef.runKey)?.immutable.rowKey !== row.rowKey || !same(latest.after.rowFence, row.state)) throw new LocalEvidenceError('corrupt_record');
+      } else if (entry.store === 'itemExposures') {
+        const row = parseReviewExposure(entry.value); if (!same(priorJournal(row, row.latestTransitionId).after.exposure, row)) throw new LocalEvidenceError('corrupt_record');
+      }
+    }
+    this.requireReviewAdmission(fence); return { rows: data.rows, captures };
+  }
+  async readReviewTransition(input: PreparedReviewTransition, currentFence: LocalFence = input.fence): Promise<{ status: 'local_committed'; run: Immutable<ReviewRun>; transition: Immutable<ReviewJournalPayload> } | null> {
+    const prepared = immutableCopy(input), payload = await verifyReviewTransition(prepared); this.requireReviewAdmission(currentFence, payload.scope);
+    const graph = await this.readReviewGraph(currentFence), found = graph.rows.find(r => r.store === 'reviewTransitions' && r.key === reviewJournalKey(payload.scope, payload.transitionId));
+    if (!found) return null;
+    if (!same(found.value, prepared.journal)) throw new LocalEvidenceError('event_conflict');
+    if (prepared.capture) {
+      const capture = graph.captures.get(commitKey(prepared.capture)); if (!capture || canonicalEvidence(capture) !== canonicalEvidence(prepared.capture)) throw new LocalEvidenceError('event_conflict');
+    }
+    const run = graph.rows.find(r => r.store === 'reviewRuns' && r.key === reviewRunKey(prepared.immutable));
+    if (!run || !same(parseReviewRun(run.value).immutable, prepared.immutable)) throw new LocalEvidenceError('corrupt_record');
+    return { status: 'local_committed', run: immutableCopy(parseReviewRun(run.value)), transition: immutableCopy(payload) };
+  }
+  async readReviewState(fence: LocalFence, query: ReviewScope & { rowKey: string; itemId: string; contentRevision: number }): Promise<Immutable<{ rowFence: ReviewRowFence | null; exposure: ReviewExposure | null }>> {
+    this.requireReviewAdmission(fence, query); const graph = await this.readReviewGraph(fence);
+    const row = graph.rows.find(r => r.store === 'reviewRuns' && r.key === reviewRowFenceKey(query));
+    const exposure = graph.rows.find(r => r.store === 'itemExposures' && r.key === reviewExposureKey(query));
+    return immutableCopy({ rowFence: row ? parseReviewRowFence(row.value) : null, exposure: exposure ? parseReviewExposure(exposure.value) : null });
+  }
+  async findReviewRun(fence: LocalFence, query: { scope: ReviewScope; rowKey: string; slot: string; originalSource: ReviewRunImmutable['originalSource']; mode: ReviewRunImmutable['mode'] }): Promise<Immutable<ReviewRows> | null> {
+    this.requireReviewAdmission(fence, query.scope); const graph = await this.readReviewGraph(fence);
+    const rowEntry = graph.rows.find(r => r.store === 'reviewRuns' && r.key === reviewRowFenceKey({ ...query.scope, rowKey: query.rowKey })); if (!rowEntry) return null;
+    const rowFence = parseReviewRowFence(rowEntry.value); if (rowFence.state.retirement) throw new LocalEvidenceError('review_conflict');
+    const active = graph.rows.filter(r => r.store === 'reviewRuns' && (r.value as ReviewRun).kind === 'run').map(r => parseReviewRun(r.value))
+      .filter(r => r.ownerId === query.scope.ownerId && r.generationId === query.scope.generationId && r.incarnationId === query.scope.incarnationId && rowFence.state.pointers.some(p => p.runId === r.immutable.runId));
+    if (active.some(r => !same(r.immutable.originalSource, query.originalSource))) throw new LocalEvidenceError('review_conflict');
+    const run = active.find(r => r.immutable.slot === query.slot); if (!run) return null;
+    if (run.immutable.mode !== query.mode) throw new LocalEvidenceError('review_conflict');
+    const exposureEntry = graph.rows.find(r => r.store === 'itemExposures' && r.key === reviewExposureKey({ ...query.scope, ...run.immutable.identity }));
+    if (!exposureEntry) throw new LocalEvidenceError('corrupt_record');
+    return immutableCopy({ run, rowFence, exposure: parseReviewExposure(exposureEntry.value) });
+  }
+  /** Durable same-slot find-or-create; a losing candidate is never called committed. */
+  async findOrAcquireReviewRun(input: PreparedReviewTransition, currentFence: LocalFence = input.fence): Promise<Immutable<ReviewRows>> {
+    const value = immutableCopy(input), payload = await verifyReviewTransition(value);
+    if (payload.operation.kind !== 'acquire') throw new LocalEvidenceError('invalid_input');
+    this.requireReviewAdmission(currentFence, payload.scope);
+    const query = { scope: payload.scope, rowKey: value.immutable.rowKey, slot: value.immutable.slot, originalSource: value.immutable.originalSource, mode: value.immutable.mode };
+    const prior = await this.findReviewRun(currentFence, query); if (prior) return prior;
+    try { await this.commitReviewTransition(value, currentFence); }
+    catch (error) {
+      if (!(error instanceof LocalEvidenceError) || error.code !== 'review_conflict') throw error;
+      const winner = await this.findReviewRun(currentFence, query); if (winner) return winner; throw error;
+    }
+    const committed = await this.findReviewRun(currentFence, query); if (!committed) throw new LocalEvidenceError('commit_unconfirmed'); return committed;
+  }
+  /** One all-stores transaction, followed by exact independent historical proof. */
+  async commitReviewTransition(input: PreparedReviewTransition, currentFence: LocalFence = input.fence): Promise<{ status: 'local_committed'; replay: boolean; run: Immutable<ReviewRun>; transition: Immutable<ReviewJournalPayload> }> {
+    const prepared = immutableCopy(input), payload = await verifyReviewTransition(prepared); this.requireReviewAdmission(currentFence, payload.scope);
+    const existing = await this.readReviewTransition(prepared, currentFence); if (existing) return { ...existing, replay: true };
+    const verifiedGraph = await this.readReviewGraph(currentFence);
+    let writeFailure: unknown;
+    try {
+      await this.transaction<void>(currentFence, 'readwrite', (tx, done, fail) => {
+        this.requireReviewAdmission(currentFence, payload.scope);
+        this.reviewCursorRows(tx, prepared.fence.ownerId, fail, rows => { try {
+          this.requireReviewAdmission(currentFence, payload.scope); accountReviewRows(rows, prepared.fence.ownerId);
+          const key = reviewJournalKey(payload.scope, payload.transitionId), replay = rows.find(r => r.store === 'reviewTransitions' && r.key === key);
+          if (replay) { if (!same(replay.value, prepared.journal)) throw new LocalEvidenceError('event_conflict'); done(); return; }
+          if (!same(rows, verifiedGraph.rows)) throw new LocalEvidenceError('review_conflict');
+          if (!payload.before.runState?.action && rows.some(r => r.store === 'reviewTransitions' && parseReviewJournal(r.value).payload.actionId === payload.actionId)) throw new LocalEvidenceError('review_conflict');
+          const next = reviewTransitionRows(prepared), runKey = reviewRunKey(prepared.immutable), rowKey = reviewRowFenceKey({ ...payload.scope, rowKey: prepared.immutable.rowKey }),
+            exposureKey = reviewExposureKey({ ...payload.scope, ...prepared.immutable.identity });
+          const persistedRun = rows.find(r => r.store === 'reviewRuns' && r.key === runKey), persistedFence = rows.find(r => r.store === 'reviewRuns' && r.key === rowKey), persistedExposure = rows.find(r => r.store === 'itemExposures' && r.key === exposureKey);
+          const oldRun = persistedRun ? parseReviewRun(persistedRun.value) : null;
+          if (oldRun && !same(oldRun.immutable, prepared.immutable) || !same(oldRun?.state ?? null, payload.before.runState) ||
+            !same(persistedFence ? parseReviewRowFence(persistedFence.value).state : null, payload.before.rowFence) || !same(persistedExposure?.value ?? null, payload.before.exposure)) throw new LocalEvidenceError('review_conflict');
+          // Stable row identity fences source replacement across both formats.
+          if (persistedFence) for (const pointer of parseReviewRowFence(persistedFence.value).state.pointers) {
+            const sibling = rows.find(r => r.store === 'reviewRuns' && (r.value as ReviewRun).kind === 'run' && (r.value as ReviewRun).immutable.runId === pointer.runId && (r.value as ReviewRun).generationId === payload.scope.generationId && (r.value as ReviewRun).incarnationId === payload.scope.incarnationId);
+            if (!sibling || !same(parseReviewRun(sibling.value).immutable.originalSource, prepared.immutable.originalSource)) throw new LocalEvidenceError('review_conflict');
+          }
+          const replacements: ReviewAccountingRow[] = [{ store: 'reviewRuns', key: runKey, value: next.run }, { store: 'reviewRuns', key: rowKey, value: next.rowFence },
+            ...(next.exposure ? [{ store: 'itemExposures' as const, key: exposureKey, value: next.exposure }] : []), { store: 'reviewTransitions', key, value: prepared.journal }];
+          accountReviewRows([...rows.filter(r => !replacements.some(n => n.store === r.store && n.key === r.key)), ...replacements], prepared.fence.ownerId);
+          const write = () => {
+            this.requireReviewAdmission(currentFence, payload.scope);
+            const dependencies = new Set([payload.before.runState?.checkpoint?.transitionId, payload.before.runState?.lastHandoff?.transitionId].filter((id): id is string => Boolean(id)));
+            let remaining = dependencies.size + (payload.before.runState?.checkpoint ? 1 : 0) + (prepared.capture ? 1 : 0);
+            const persist = () => {
+              this.requireReviewAdmission(currentFence, payload.scope);
+              for (const row of replacements) tx.objectStore(row.store).put(row.value, row.key);
+              if (prepared.capture) this.writeCaptureInTransaction(tx, prepared.capture, done, fail, currentFence); else done();
+            };
+            const ready = () => { if (--remaining === 0) persist(); };
+            if (!remaining) { persist(); return; }
+            for (const id of dependencies) {
+              const key = JSON.stringify([payload.scope.ownerId, payload.scope.generationId, id]), expected = verifiedGraph.captures.get(key);
+              const read = tx.objectStore('commits').get(key); read.onsuccess = () => { try {
+                if (!expected || !read.result || !same(read.result, { ownerId: payload.scope.ownerId, generationId: payload.scope.generationId, canonical: canonicalEvidence(expected) })) throw new LocalEvidenceError('corrupt_record');
+                ready();
+              } catch (error) { fail(error); } };
+            }
+            if (payload.before.runState?.checkpoint) {
+              const ref = payload.before.runState.checkpoint, expected = verifiedGraph.captures.get(JSON.stringify([payload.scope.ownerId, payload.scope.generationId, ref.transitionId]));
+              const read = tx.objectStore('checkpoints').get(checkpointStorageKey(payload.scope.ownerId, payload.scope.generationId, prepared.immutable.sourceSlotKey));
+              read.onsuccess = () => { try {
+                if (!expected || !read.result || !same(read.result, { ownerId: payload.scope.ownerId, generationId: payload.scope.generationId, episodeKey: episodeKey(expected.checkpoint), latestTransitionId: ref.transitionId, value: expected.checkpoint })) throw new LocalEvidenceError('checkpoint_conflict');
+                ready();
+              } catch (error) { fail(error); } };
+            }
+            if (prepared.capture) {
+              const read = tx.objectStore('commits').get(commitKey(prepared.capture)); read.onsuccess = () => { try {
+                // An underlying commit without its atomic review journal is
+                // corruption, never permission to adopt an old capture.
+                if (read.result !== undefined) throw new LocalEvidenceError('corrupt_record'); ready();
+              } catch (error) { fail(error); } };
+            }
+          };
+          if (!oldRun) {
+            let remaining = 2;
+            const occupied = (value: unknown) => { if (value !== undefined) { fail(new LocalEvidenceError('managed_review_slot')); return; } if (--remaining === 0) write(); };
+            const cp = tx.objectStore('checkpoints').get(checkpointStorageKey(prepared.fence.ownerId, prepared.fence.generationId, prepared.immutable.sourceSlotKey)); cp.onsuccess = () => occupied(cp.result);
+            const event = tx.objectStore('events').index('semanticKey').get(JSON.stringify([prepared.fence.ownerId, prepared.fence.generationId, prepared.immutable.sourceSlotKey, 0])); event.onsuccess = () => occupied(event.result);
+          } else write();
+        } catch (error) { fail(error); } });
+      });
+    } catch (error) { writeFailure = error; }
+    try { const readback = await this.readReviewTransition(prepared, currentFence); if (readback) return { ...readback, replay: Boolean(writeFailure) }; }
+    catch (error) { if (error instanceof LocalEvidenceError && ['stale_context', 'corrupt_record', 'event_conflict', 'review_conflict', 'review_capacity'].includes(error.code)) throw error; throw new LocalEvidenceError('commit_unconfirmed'); }
+    if (writeFailure) throw storageError(writeFailure); throw new LocalEvidenceError('commit_unconfirmed');
   }
   /** Immutable batch intent is saved before any future remote attempt. No upload occurs here. */
   async putBatch(fence: LocalFence, input: FrozenBatch): Promise<void> {
@@ -1031,7 +1382,7 @@ export class LocalEvidenceStore {
         const request = tx.objectStore(name).openCursor();
         request.onsuccess = () => guarded(() => {
           const cursor = request.result; if (!cursor) { finish(); return; }
-          const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+          const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value, incarnation.incarnationId);
           candidates.push({ name, key: cursor.primaryKey, scope });
           if (name === 'events') { const event = (cursor.value as EventRow).value; events.set(eventStorageKey(event.ownerId, event.eventId), event); }
           if (name === 'delivery') delivery.push(cursor.value as DeliveryMetadata);

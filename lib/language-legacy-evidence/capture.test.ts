@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { prepareAnswer, prepareCheckpointTransition, preparePresentation, verifyPreparedCapture } from './capture.ts';
 import { decodeFrozenEvidence } from './canonical-hash.ts';
+import { canonicalEvidence, makeSourceSlotKey } from './validation.ts';
 import { answer, localContext, presentation } from './local-test-fixtures.ts';
-import { at, catalogue, episode, id, listeningTask, typedTask } from './test-fixtures.ts';
+import { at, catalogue, episode, id, listeningTask, typedTask, uuid } from './test-fixtures.ts';
 
 test('actual presentation and answer are contiguous, immutable and contain no raw compatibility answer', async () => {
   const start = await presentation(), submitted = await answer(start.checkpoint);
@@ -115,4 +117,91 @@ test('a new presentation cannot introduce a borrowed audio request outside the b
   event.audio = { status: 'unknown', promptMatchesTask: null };
   const initial = await preparePresentation({ transitionId: id(), event, actualVisible: true, history: 'new_session', timingObserved: true }, localContext(), catalogue);
   assert.equal(initial.checkpoint.audio.requestId, undefined);
+});
+
+test('explicit provenance loss makes false and unknown help/reveal/visibility unknown while retaining every true', async () => {
+  for (const hintUsed of [false, null, true]) for (const answerPreviouslyRevealed of [false, null, true]) {
+    const event = episode(0, { presentationOnly: true })[0];
+    event.hintUsed = hintUsed; event.answerPreviouslyRevealed = answerPreviouslyRevealed;
+    event.textVisibility = { targetText: false, reading: null, meaning: true, choices: false };
+    const start = await preparePresentation({ transitionId: id(), event, actualVisible: true, history: 'new_session', timingObserved: true }, localContext(), catalogue);
+    const lost = prepareCheckpointTransition(start.checkpoint, { kind: 'provenance_loss' }, localContext(), id());
+    assert.equal(lost.event, null);
+    assert.equal(lost.checkpoint.hintUsed, hintUsed === true ? true : null);
+    assert.equal(lost.checkpoint.answerPreviouslyRevealed, answerPreviouslyRevealed === true ? true : null);
+    assert.deepEqual(lost.checkpoint.textVisibility, { targetText: null, reading: null, meaning: true, choices: null });
+    assert.equal(lost.checkpoint.timingContinuity, 'unknown');
+    assert.deepEqual(lost.checkpoint.audio, { status: 'unknown', promptMatchesTask: null });
+    assert.equal(lost.checkpoint.nextSequence, start.checkpoint.nextSequence);
+    assert.deepEqual(lost.checkpoint.predecessor, start.checkpoint.predecessor);
+    assert.deepEqual(lost.checkpoint.presentation, start.checkpoint.presentation);
+    assert.equal(lost.expected!.canonical, canonicalEvidence(start.checkpoint));
+    assert.equal(lost.checkpoint.lastOccurredAt, start.checkpoint.lastOccurredAt);
+    assert.equal(lost.checkpoint.attemptStartedAt, start.checkpoint.attemptStartedAt);
+    await verifyPreparedCapture(lost);
+    const response = decodeFrozenEvidence((await answer(lost.checkpoint)).event!);
+    assert.equal(response.hintUsed, hintUsed === true ? true : null);
+    assert.equal(response.answerPreviouslyRevealed, answerPreviouslyRevealed === true ? true : null);
+    assert.equal(response.responseMs, null); assert.equal(response.timingComplete, false);
+    const repeated = prepareCheckpointTransition(lost.checkpoint, { kind: 'provenance_loss' }, localContext(), id());
+    await verifyPreparedCapture(repeated);
+    assert.deepEqual({ ...repeated.checkpoint, checkpointRevision: lost.checkpoint.checkpointRevision }, lost.checkpoint);
+  }
+});
+
+test('provenance loss preserves bound audio identity and immutable answer handoffs without enabling another answer', async () => {
+  const start = await presentation(), requestId = id();
+  const requested = prepareCheckpointTransition(start.checkpoint, { kind: 'audio_requested', requestId,
+    sourceSlotKey: start.checkpoint.sourceSlotKey, episodeId: start.checkpoint.episodeId, promptMatchesTask: true }, localContext(), id());
+  const lost = prepareCheckpointTransition(requested.checkpoint, { kind: 'provenance_loss' }, localContext(), id());
+  assert.deepEqual(lost.checkpoint.audio, { status: 'unknown', requestId, promptMatchesTask: null });
+  await verifyPreparedCapture(lost);
+  const submitted = await answer(lost.checkpoint);
+  const afterAnswer = prepareCheckpointTransition(submitted.checkpoint, { kind: 'provenance_loss' }, localContext(), id());
+  assert.equal(afterAnswer.checkpoint.answerPreviouslyRevealed, true);
+  assert.equal(afterAnswer.checkpoint.answerReady, false);
+  assert.deepEqual(afterAnswer.checkpoint.handoff, submitted.checkpoint.handoff);
+  assert.deepEqual(afterAnswer.checkpoint.predecessor, submitted.checkpoint.predecessor);
+  await verifyPreparedCapture(afterAnswer);
+  await assert.rejects(answer(afterAnswer.checkpoint), /invalid_input/);
+  assert.throws(() => prepareCheckpointTransition(afterAnswer.checkpoint, { kind: 'retry', occurredAt: at(0, 1100) }, localContext(), id()), /compatibility_pending/);
+});
+
+test('provenance-loss verifier rejects incomplete demotion, false promotion and extra action fields', async () => {
+  const start = await presentation(), lost = prepareCheckpointTransition(start.checkpoint, { kind: 'provenance_loss' }, localContext(), id());
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint, hintUsed: false } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint, answerPreviouslyRevealed: false } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint,
+    textVisibility: { ...lost.checkpoint.textVisibility, targetText: false } } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint,
+    textVisibility: { ...lost.checkpoint.textVisibility, meaning: null } } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint, timingContinuity: 'continuous' } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, checkpoint: { ...lost.checkpoint, audio: start.checkpoint.audio } }), /corrupt_record/);
+  await assert.rejects(verifyPreparedCapture({ ...lost, mutation: { kind: 'checkpoint',
+    action: { kind: 'provenance_loss', reason: 'unrecognized' } } } as typeof lost), /corrupt_record/);
+});
+
+test('old v1 presentation, interruption and answer bytes and verifier behavior stay unchanged', async () => {
+  const event = episode(0, { presentationOnly: true })[0];
+  event.eventId = uuid(701); event.episodeId = uuid(702);
+  event.sourceSlotKey = makeSourceSlotKey(localContext().ownerId, event);
+  const start = await preparePresentation({ transitionId: uuid(703), event, actualVisible: true,
+    history: 'new_session', timingObserved: true }, localContext(), catalogue);
+  const interrupted = prepareCheckpointTransition(start.checkpoint, { kind: 'interruption' }, localContext(), uuid(704));
+  assert.equal(interrupted.checkpoint.hintUsed, false);
+  assert.equal(interrupted.checkpoint.answerPreviouslyRevealed, false);
+  assert.deepEqual(interrupted.checkpoint.textVisibility, start.checkpoint.textVisibility);
+  const submitted = await prepareAnswer(interrupted.checkpoint, { transitionId: uuid(705), eventId: uuid(706),
+    occurredAt: at(0, 1000), recordTimezone: 'Asia/Seoul', correct: true, responseMs: 500,
+    handoff: { draftToken: 'v1-golden', answer: '合成入力だけ', observation: { responseMs: 123.5, neededHelp: false, modality: 'meaning' } } }, localContext(), catalogue);
+  // These complete PreparedCapture digests were verified against the unmodified
+  // pre-B1 capture implementation, including the old interruption reducer.
+  const expected = ['fb412ea0f41f117044af1179b066b99f05a941824f4064019b3c0239b1544df9',
+    'd16cd1f87a10b592f575dee058ead35542b15756447f4317a9c393746a30ab80',
+    '9457251b783bf6237a1bacdfe3370ae5a528b6ddf4faf1eafc2571fcf0b26d90'];
+  for (const [index, value] of [start, interrupted, submitted].entries()) {
+    assert.equal(createHash('sha256').update(canonicalEvidence(value)).digest('hex'), expected[index]);
+    await verifyPreparedCapture(value);
+    await verifyPreparedCapture(JSON.parse(canonicalEvidence(value)));
+  }
 });

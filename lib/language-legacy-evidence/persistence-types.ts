@@ -14,7 +14,8 @@ export type LocalFence = Pick<LocalEvidenceContext, 'ownerId' | 'generationId' |
 export type LocalFailureCode = 'invalid_input' | 'unsupported_history' | 'unsupported_source' | 'stale_context' |
   'idb_unavailable' | 'idb_blocked' | 'idb_version_changed' | 'crypto_unavailable' | 'storage_quota' | 'storage_abort' |
   'storage_read_failed' | 'commit_unconfirmed' | 'checkpoint_conflict' | 'event_conflict' |
-  'corrupt_record' | 'quarantined' | 'batch_limit' | 'compatibility_pending';
+  'corrupt_record' | 'quarantined' | 'batch_limit' | 'compatibility_pending' |
+  'review_conflict' | 'review_capacity' | 'review_unavailable' | 'managed_review_slot';
 export class LocalEvidenceError extends Error {
   readonly code: LocalFailureCode;
   constructor(code: LocalFailureCode) { super(code); this.name = 'LocalEvidenceError'; this.code = code; }
@@ -46,7 +47,7 @@ export type CheckpointExpectation = {
   checkpointRevision: number; predecessor: Exclude<Predecessor, null>; canonical: string;
 } | null;
 export type CheckpointAction =
-  | { kind: 'hint' | 'reveal' | 'interruption' }
+  | { kind: 'hint' | 'reveal' | 'interruption' | 'provenance_loss' }
   | { kind: 'visibility'; visibility: TextVisibility }
   | { kind: 'retry'; occurredAt: string }
   | { kind: 'audio_requested'; requestId: string; sourceSlotKey: string; episodeId: string; promptMatchesTask: boolean | null }

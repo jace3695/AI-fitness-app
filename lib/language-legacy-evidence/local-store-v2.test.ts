@@ -239,3 +239,18 @@ test('persisted prefixes reject excessive row counts and cumulative canonical by
   await assert.rejects(qa.store.readCachedPrefix(start.fence), /corrupt_record/);
   assert.equal(hashes, 0, 'Both persisted-prefix budgets fail before crypto starts');
 });
+
+test('corrupt run, row fence, exposure and review journal abort stale-generation cleanup before any deletion', async t => {
+  for (const variant of ['run', 'row_fence', 'exposure', 'journal']) await t.test(variant, async () => {
+    const qa = harness(), start = await presentation(); await qa.store.commit(start);
+    const name = variant === 'exposure' ? 'itemExposures' : variant === 'journal' ? 'reviewTransitions' : 'reviewRuns';
+    qa.adapter.seed(name, JSON.stringify(['forged-scope', uuid(9900)]), {
+      version: 1, kind: variant, ownerId: start.fence.ownerId, generationId: start.fence.generationId, incarnationId: uuid(9901),
+    });
+    const names = [...originalStores, 'receipts', 'contexts', 'prefixes', 'admissions', 'incarnations', 'enrollmentIntents', 'reviewRuns', 'itemExposures', 'reviewTransitions'];
+    const before = JSON.stringify(names.map(name => [name, qa.adapter.entries(name)]));
+    const fresh = { ...localContext(), generationId: uuid(9902) }; qa.state.current = fresh;
+    await assert.rejects(qa.store.cleanupStaleGenerations(fresh), /corrupt_record/);
+    assert.equal(JSON.stringify(names.map(name => [name, qa.adapter.entries(name)])), before);
+  });
+});

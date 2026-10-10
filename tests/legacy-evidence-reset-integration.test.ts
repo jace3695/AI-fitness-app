@@ -19,7 +19,10 @@ import { loadLegacyEvidenceRepository } from './helpers/legacyEvidenceRepository
 import { createDeterministicIDBAdapter } from '../lib/language-legacy-evidence/idb-test-adapter.ts';
 import { LEGACY_EVIDENCE_CATALOGUE } from '../lib/language-legacy-evidence/catalogue.ts';
 import { preparePresentation } from '../lib/language-legacy-evidence/capture.ts';
+import { prepareReviewTransition, reviewTransitionRows, reviewRunKey, reviewRowFenceKey, reviewExposureKey, reviewJournalKey,
+  type ReviewAccountingRow, type ReviewRunImmutable } from '../lib/language-legacy-evidence/review-capture.ts';
 import { makeSourceSlotKey } from '../lib/language-legacy-evidence/validation.ts';
+import type { LocalFence } from '../lib/language-legacy-evidence/persistence-types.ts';
 import type { EvidenceEvent } from '../lib/language-legacy-evidence/types.ts';
 import type { LanguageLegacyEvidenceRepository } from '../app/data/languageLegacyEvidenceRepository.ts';
 import type { LanguageLegacyEvidenceRelease } from '../app/data/languageLegacyEvidenceRelease.ts';
@@ -100,6 +103,45 @@ async function present(repo: LanguageLegacyEvidenceRepository) {
   return event;
 }
 const fence = (f: Awaited<ReturnType<typeof fixture>>) => boundary.parseLanguageResetFence(f.local.storage.getItem(boundary.LANGUAGE_RESET_FENCE_KEY))!;
+type ResetFixture = Awaited<ReturnType<typeof fixture>>;
+/** Synthetic persisted history, prepared by the real pure verifier. Acquisition
+ * has no observed surface, checkpoint, presentation, answer or proof shortcut. */
+async function seedReviewHistory(f: ResetFixture, scope: LocalFence = f.repo!.context()) {
+  const task = LEGACY_EVIDENCE_CATALOGUE.find(value => value.legacyQuestionId === 'f01:2')!;
+  const identity = { itemId: task.itemId, contentRevision: task.contentRevision, taskId: task.taskId,
+    lessonId: task.lessonId, legacyQuestionId: task.legacyQuestionId!, taskFormat: 'meaning_choice' as const, gradingVersion: 'legacy-choice-v1' };
+  const episodeId = randomUUID(), transitionId = randomUUID();
+  const rowBytes = `{ "id": ${JSON.stringify(identity.legacyQuestionId)}, "syntheticHistory": true }`;
+  const immutable: ReviewRunImmutable = { ownerId: scope.ownerId, generationId: scope.generationId,
+    incarnationId: (f.idb.inspect('incarnations', 'store') as { incarnationId: string }).incarnationId,
+    runId: randomUUID(), episodeId, rowKey: identity.legacyQuestionId,
+    slot: JSON.stringify([identity.taskId, identity.contentRevision, identity.taskFormat]),
+    sourceSlotKey: makeSourceSlotKey(scope.ownerId, { ...identity, generationId: scope.generationId, episodeId, source: 'course_review' }),
+    identity, mode: 'reader', initialDraftToken: randomUUID(),
+    originalSource: { key: 'japaneseCurriculumReviewV1', arrayBytes: `[\n${rowBytes}\n]`, rowIndex: 0, rowBytes } };
+  const prepared = await prepareReviewTransition({ fence: scope, immutable, transitionId, actionId: randomUUID(),
+    before: { runState: null, exposure: null, rowFence: null }, operation: { kind: 'acquire', observationId: randomUUID() } });
+  const rows = reviewTransitionRows(prepared);
+  assert.equal(prepared.capture, null); assert.equal(rows.run.state.checkpoint, null);
+  assert.equal(rows.run.state.phase, 'unpresented'); assert.equal(rows.exposure?.coverage, 'unknown');
+  assert.equal(rows.exposure?.answer, null); assert.equal(rows.exposure?.pending.length, 1);
+  const records: ReviewAccountingRow[] = [
+    { store: 'reviewRuns', key: reviewRunKey(immutable), value: rows.run },
+    { store: 'reviewRuns', key: reviewRowFenceKey(immutable), value: rows.rowFence },
+    { store: 'itemExposures', key: reviewExposureKey({ ...immutable, ...identity }), value: rows.exposure },
+    { store: 'reviewTransitions', key: reviewJournalKey(immutable, transitionId), value: prepared.journal },
+  ];
+  for (const record of records) f.idb.seed(record.store, record.key, record.value);
+  return records;
+}
+const reviewSnapshot = (f: ResetFixture) => ({ reviewRuns: f.idb.entries('reviewRuns'), itemExposures: f.idb.entries('itemExposures'), reviewTransitions: f.idb.entries('reviewTransitions') });
+function assertReviewHistory(f: ResetFixture, records: readonly ReviewAccountingRow[]) {
+  const byKey = (a: [IDBValidKey, unknown], b: [IDBValidKey, unknown]) => String(a[0]).localeCompare(String(b[0]));
+  for (const store of ['reviewRuns', 'itemExposures', 'reviewTransitions'] as const) {
+    const expected = records.filter(record => record.store === store).map(record => [record.key, record.value] as [IDBValidKey, unknown]);
+    assert.deepEqual(f.idb.entries(store).sort(byKey), expected.sort(byKey), store);
+  }
+}
 
 test('default inactive source reset succeeds without new schema, status, IDB or evidence completion claim', async t => {
   const f = await fixture(t, { inactive: true }); const request = randomUUID();
@@ -131,15 +173,37 @@ test('enrolled reset erases stale evidence only and atomically carries intact ad
   assert.notEqual(admission.generationId, old.generationId); assert.equal(admission.kind, 'reset_carry');
   await f.coordinator.refresh(); const current = await f.acquire(); assert.equal(current.localContinuity(), 'verified'); await present(current);
 });
+test('registered reset removes stale review runs, fences, exposures and journals while retaining current generation and other owner exactly', async t => {
+  const f = await fixture(t, { enroll: true }), scope = f.repo!.context();
+  await seedReviewHistory(f, scope);
+  await seedReviewHistory(f, { ...scope, generationId: randomUUID() });
+  const other = await seedReviewHistory(f, { ...scope, ownerId: randomUUID() });
+  let current: ReviewAccountingRow[] = [], reads = 0;
+  f.hooks(undefined, async (name, _args, result) => {
+    if (name === 'read_language_legacy_evidence_status' && ++reads === 1) {
+      const generationId = (result as { currentContext: { generationId: string } }).currentContext.generationId;
+      assert.notEqual(generationId, scope.generationId);
+      // Models retained current-generation history before the registered cleanup
+      // transaction. Pure fixture preparation confers no writer admission.
+      current = await seedReviewHistory(f, { ...scope, generationId });
+    }
+    return result;
+  });
+  await f.reset(); assert.equal(reads, 2); assert.equal(fence(f).evidenceCleanup?.status, 'verified');
+  assert.equal(current.length, 4); assertReviewHistory(f, [...other, ...current]);
+  for (const store of ['events', 'checkpoints', 'commits', 'delivery']) assert.equal(f.idb.entries(store).length, 0, store);
+});
 test('completed same-request retry fences first and retains current-generation work and admission', async t => {
   const f = await fixture(t, { enroll: true }); const request = randomUUID(); await present(f.repo!); await f.reset(request);
   await f.coordinator.refresh(); const current = await f.acquire(); const fresh = await present(current);
+  const review = await seedReviewHistory(f, current.context());
   const events = f.idb.entries('events'), admissions = f.idb.entries('admissions'); let observed = false;
   f.hooks(name => { if (name === 'read_language_legacy_evidence_status') {
     observed = true; assert.equal(fence(f).state, 'completed'); assert.equal(fence(f).evidenceCleanup?.status, 'pending');
     assert.ok(resetFence.readPendingLanguageReset(f.owner)); assert.throws(() => current.context(), /stale_authority/);
   } });
   await f.reset(request); assert.ok(observed); assert.deepEqual(f.idb.entries('events'), events); assert.deepEqual(f.idb.entries('admissions'), admissions);
+  assertReviewHistory(f, review);
   assert.equal((f.idb.entries('events')[0][1] as { generationId: string }).generationId, fresh.generationId);
   assert.equal(f.calls.filter(value => value.name === 'reset_my_app_records').length, 1);
 });
@@ -174,6 +238,8 @@ test('enrollment under unchanged reset marker invalidates skip-IDB proof and sam
 });
 for (const fault of ['abort', 'quota', 'blocked'] as const) test(`IDB ${fault} leaves cleanup pending and preserved evidence for exact retry`, async t => {
   const f = await fixture(t, { enroll: true }); await present(f.repo!); const request = randomUUID(); const events = f.idb.entries('events');
+  await seedReviewHistory(f); const other = await seedReviewHistory(f, { ...f.repo!.context(), ownerId: randomUUID() });
+  const review = reviewSnapshot(f);
   f.hooks(undefined, (name, _args, result) => {
     if (name === 'reset_my_app_records') {
       if (fault === 'abort') f.idb.abortNextTransaction(); else if (fault === 'quota') f.idb.quotaNextWrite(); else f.idb.blockNextOpen();
@@ -181,7 +247,22 @@ for (const fault of ['abort', 'quota', 'blocked'] as const) test(`IDB ${fault} l
     return result;
   });
   await assert.rejects(f.reset(request)); assert.equal(fence(f).evidenceCleanup?.status, 'pending'); assert.deepEqual(f.idb.entries('events'), events);
+  assert.deepEqual(reviewSnapshot(f), review); assert.equal(f.sessions.size, 0);
   f.hooks(); await f.reset(request); assert.equal(fence(f).state, 'completed'); assert.equal(f.idb.entries('events').length, 0);
+  assertReviewHistory(f, other); assert.equal(f.calls.filter(value => value.name === 'reset_my_app_records').length, 1);
+});
+for (const [index, kind] of ['run', 'row_fence', 'exposure', 'journal'].entries()) test(`registered reset rejects ${kind} key/body mismatch before deleting any scoped review history`, async t => {
+  const f = await fixture(t, { enroll: true }), request = randomUUID();
+  const stale = await seedReviewHistory(f), other = await seedReviewHistory(f, { ...f.repo!.context(), ownerId: randomUUID() });
+  // Both bodies are independently valid; only the stored key/body relationship
+  // is wrong. A serialized wrapper owner cannot authorize deletion or skipping.
+  const original = stale[index]; f.idb.seed(original.store, original.key, other[index].value);
+  const before = reviewSnapshot(f), admissions = f.idb.entries('admissions');
+  await assert.rejects(f.reset(request)); assert.equal(fence(f).evidenceCleanup?.status, 'pending'); assert.equal(f.sessions.size, 0);
+  assert.deepEqual(reviewSnapshot(f), before); assert.deepEqual(f.idb.entries('admissions'), admissions);
+  f.idb.seed(original.store, original.key, original.value);
+  await f.reset(request); assert.equal(fence(f).evidenceCleanup?.status, 'verified'); assertReviewHistory(f, other);
+  assert.equal(f.calls.filter(value => value.name === 'reset_my_app_records').length, 1);
 });
 test('copied context/authority and serialized verified flag cannot complete reset cleanup', async t => {
   const f = await fixture(t); const request = randomUUID(); let context = await resetFence.establishLanguageReset(resetFence.captureLanguageReset(request, f.owner));
@@ -207,14 +288,19 @@ test('same-marker generation disappearance after cleanup cannot be mistaken for 
 });
 test('cleanup committed with lost response is independently verified before reset completion', async t => {
   const f = await fixture(t, { enroll: true }); await present(f.repo!);
+  await seedReviewHistory(f); const other = await seedReviewHistory(f, { ...f.repo!.context(), ownerId: randomUUID() });
   f.hooks(undefined, (name, _args, result) => { if (name === 'reset_my_app_records') f.idb.loseNextCommitResponse(); return result; });
   await f.reset(); assert.equal(f.idb.entries('events').length, 0); assert.equal(fence(f).evidenceCleanup?.status, 'verified');
+  assertReviewHistory(f, other);
 });
 test('cleanup readback loss keeps pending after commit and exact retry preserves carried continuity', async t => {
   const f = await fixture(t, { enroll: true }); await present(f.repo!); const request = randomUUID();
+  await seedReviewHistory(f); const other = await seedReviewHistory(f, { ...f.repo!.context(), ownerId: randomUUID() });
   f.hooks(undefined, (name, _args, result) => { if (name === 'reset_my_app_records') f.idb.afterNextWriteCommit(() => f.idb.failNextRead()); return result; });
   await assert.rejects(f.reset(request)); assert.equal(fence(f).evidenceCleanup?.status, 'pending'); assert.equal(f.idb.entries('events').length, 0);
+  assertReviewHistory(f, other);
   const carried = f.idb.entries('admissions'); f.hooks(); await f.reset(request); assert.deepEqual(f.idb.entries('admissions'), carried);
+  assertReviewHistory(f, other); assert.equal(fence(f).evidenceCleanup?.status, 'verified');
 });
 for (const at of ['initial-status', 'cleanup-transaction', 'final-status'] as const) test(`same-owner epoch replacement at ${at} revokes reset evidence authority`, async t => {
   const f = await fixture(t, { enroll: true }); await present(f.repo!); let reads = 0;
