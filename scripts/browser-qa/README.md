@@ -87,12 +87,33 @@ limits before updating the two expectations. Then run
 `node scripts/browser-qa/check-human-preview.mjs motion` and the same command
 with `speech`, using the matching `YEONI_PREVIEW_ROOT`.
 
-`tests/human-preview-digest.test.ts` exercises the production checker with an
+`tests/human-preview-build.test.ts` is a mandatory part of `npm test`. It runs both
+actual current exporters and the unchanged production digest checker in fresh
+temporary directories, then removes their outputs. This catches changed direct
+or transitive inputs before publication; it does not use a synthetic digest or
+silently accept a missing exporter dependency. Each subprocess is bounded to 30
+seconds, and neither application credentials nor build-path overrides are passed
+to it. Install the existing pinned dependency before the full local suite:
+
+```sh
+npm --prefix scripts/browser-qa ci --ignore-scripts
+npm test
+```
+
+The nested package contains only esbuild and its platform binaries. No browser
+installation, application server, provider call, TTS generation or network access
+is needed by the test. CI jobs that run `npm test` install this pinned package
+first. A hash mismatch requires the source/behavior review described above;
+neither the test nor exporter writes the expectation file.
+
+`tests/human-preview-digest.test.ts` separately exercises the production checker with an
 isolated synthetic HTML/digest fixture. It rejects altered markup, JavaScript,
 CSS, image/audio bytes, trailing bytes, malformed/missing expectations and absent
 files; it also confirms that mismatches cannot rewrite the input or expectation.
-It is included in `npm test` and does not build or start a browser. Source review,
+Both tests are included in `npm test`; neither starts a browser. Source review,
 build-digest checks, synthetic hook tests and actual Chromium/WebKit behavior
 remain separate evidence. A refreshed digest does not certify browser or device
 acceptance. The 2026-10-10 attribution and denied-save preference regression are
 recorded in `docs/yeoni-general-validation/human-preview-digest-review-20261010.json`.
+The later cleanup-fence transitive change and real-export regression are recorded
+in `docs/yeoni-general-validation/human-preview-transitive-review-20261010.json`.

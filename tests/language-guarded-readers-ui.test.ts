@@ -71,6 +71,47 @@ test('R13 independent device appearance survives language fallback invalidation'
   assert.match(view.text(), /"visible":false,"motion":"home"/);
 });
 
+for (const choice of ['borrowed', 'saved-device', 'denied-save'] as const) {
+  test(`human-preview preference fallback honors evidence cleanup fences with ${choice} settings`, async t => {
+    const f = await readerFixture(t);
+    const legacy = '{"showCompanion":false,"homeCompanionMotion":false}';
+    f.tab.local.setItem('integratedLearningSettingsV1', legacy);
+    const saved = choice === 'saved-device' ? '{"visible":false,"motion":"home"}' : null;
+    if (saved) f.tab.local.setItem('yeoniAppearanceSettingsV1', saved);
+    const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+    const view = f.tab.mount('', {}, () => ({ type: 'span', props: { children: JSON.stringify(preferences.useYeoniPreferences()) } }));
+    t.after(view.dispose); await view.settle();
+    if (choice === 'denied-save') {
+      f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+      assert.throws(() => preferences.updateYeoniPreferences({ motion: 'off' }), /synthetic quota refusal/);
+    }
+    const requestId = '11111111-1111-4111-8111-111111111111';
+    const marker = `2026-10-10T04:00:00Z|${requestId}`;
+    const fence = { version: 1, owner: 'synthetic-owner-a', requestId, expectedMarker: null, state: 'completed', marker };
+    f.tab.local.setItem('languageRecordResetV1', marker);
+    const available = choice === 'saved-device' ? '{"visible":false,"motion":"home"}' : '{"visible":false,"motion":"off"}';
+    const blocked = choice === 'saved-device' ? available : choice === 'denied-save'
+      ? '{"visible":true,"motion":"off"}' : '{"visible":true,"motion":"reactions"}';
+    for (const [evidenceCleanup, ready] of [
+      [{ version: 1, status: 'pending' }, false], [null, false], [[], false],
+      [{ version: 2, status: 'verified' }, false], [{ version: 1, status: 'invalid' }, false],
+      [{ version: 1, status: 'verified', forged: true }, false],
+      [{ version: 1, status: 'verified' }, true], [undefined, true],
+    ] as const) {
+      f.tab.local.setItem('language-reset-fence-v1', JSON.stringify({ ...fence, evidenceCleanup }));
+      const expected = ready ? available : blocked;
+      const writes = f.browser.writes.length;
+      for (const type of ['focus', 'pageshow', 'yeoni-records-changed', 'ai-yeoni-record-reset', 'yeoni-cloud-session-changed', 'storage']) {
+        f.tab.dispatch({ type, key: 'language-reset-fence-v1' });
+        assert.equal(view.text(), expected, `${choice}: ${JSON.stringify(evidenceCleanup)} on ${type}`);
+      }
+      assert.equal(f.browser.writes.length, writes, 'Reading the fallback cannot write storage or run evidence cleanup');
+      assert.equal(f.tab.local.getItem('integratedLearningSettingsV1'), legacy);
+      assert.equal(f.tab.local.getItem('yeoniAppearanceSettingsV1'), saved);
+    }
+  });
+}
+
 for (const phase of ['prepared', 'switched', 'reset', 'accepted-reset'] as const) test(`R14 shipping progress ${phase} never displays unscoped confusingKana and preserves its exact bytes`, async t => {
   const f = await languageWriterFixture({ wrongKanaChars: '["う"]' }); t.after(f.dispose);
   const legacy = ' [ "あ", {"char":"い"} ] ';
