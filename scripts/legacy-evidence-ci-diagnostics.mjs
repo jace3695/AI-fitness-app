@@ -38,7 +38,7 @@ export const REFUSALS = Object.freeze({
 const PHASE_CHECKPOINTS = Object.freeze({
   preflight: ['arguments_and_stack', 'generated_files', 'status_and_config', 'docker_context', 'container_discovery', 'container_identity'],
   postgres: ['execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts'],
-  audit: ['schema', 'privileges', 'restricted_roles', 'disposable_activation'],
+  audit: ['schema', 'privileges', 'dependencies', 'restricted_roles', 'disposable_activation'],
   scenario: ['execute'],
   http: ['execute'],
   cleanup: ['postgres_sessions', 'postgres_accounts', 'postgres_observer', 'http_repository', 'http_coordinator', 'http_owner', 'http_fixture', 'http_indexeddb', 'http_accounts'],
@@ -56,6 +56,14 @@ const CODES = new Set([
   'legacy_stale_generation', 'legacy_state_not_ready', 'legacy_unsupported_manifest', 'legacy_unsupported_protocol',
 ]);
 const REFUSAL_CODES = new Set(Object.values(REFUSALS));
+const SQLSTATES = new Set(['42501', '57014', '55P03', '40P01', '23503', '23505', '42P01', '42883', 'P0001']);
+const SQL_ERRORS = new Set(['sql_error', ...[...CODES].filter(code => code.startsWith('legacy_'))]);
+export const EXECUTOR_DEPENDENCIES = Object.freeze([
+  'executor_auth_usage', 'executor_public_usage', 'executor_private_usage', 'executor_auth_uid',
+  'reset_auth_usage', 'reset_public_usage', 'reset_private_usage', 'reset_auth_uid',
+  'executor_canonical', 'executor_instant', 'executor_marker', 'executor_timezone_valid',
+  'executor_assert_request', 'executor_context_json', 'executor_receipt', 'executor_validate_event', 'executor_check_read',
+]);
 const SOURCES = ['qa-legacy-evidence-postgres.mjs', 'qa-legacy-evidence-http.mjs'].map(name => {
   const url = new URL(name, import.meta.url);
   return { name, prefixes: [url.href, fileURLToPath(url)] };
@@ -65,6 +73,7 @@ export const DIAGNOSTIC_CHARACTER_LIMIT = 512;
 
 // Never invoke payload getters, toJSON, coercions, causes or custom inspection.
 const assertionLocations = new WeakMap();
+const sqlDenials = new WeakMap();
 function ownValue(object, key) {
   if ((typeof object !== 'object' && typeof object !== 'function') || object === null || types.isProxy(object)) return undefined;
   try { return Object.getOwnPropertyDescriptor(object, key)?.value; } catch { return undefined; }
@@ -72,6 +81,16 @@ function ownValue(object, key) {
 export function safeCode(error) {
   const code = ownValue(error, 'code');
   return typeof code === 'string' && CODES.has(code) ? code : 'harness_error';
+}
+// The failed assertion remains the original error. Never copy its SQL payload,
+// SQLERRM, query, identity or even an arbitrary five-character SQLSTATE.
+export function rememberSqlDenial(error, result) {
+  if (error === null || (typeof error !== 'object' && typeof error !== 'function') || types.isProxy(error)) return;
+  const state = ownValue(result, 'sqlstate'), code = ownValue(result, 'error');
+  sqlDenials.set(error, {
+    sqlstate: typeof state === 'string' && SQLSTATES.has(state) ? state : 'unknown_sqlstate',
+    error: typeof code === 'string' && SQL_ERRORS.has(code) ? code : 'unknown_error',
+  });
 }
 function sourceLocation(error) {
   if (error !== null && (typeof error === 'object' || typeof error === 'function')) return assertionLocations.get(error);
@@ -122,6 +141,8 @@ export function createLegacyEvidenceDiagnostics(writeLine = line => console.log(
       const refusal = ownValue(error, 'refusal');
       if (typeof refusal === 'string' && REFUSAL_CODES.has(refusal)) payload.refusal = refusal;
       const sources = sourceLocation(error); if (sources) payload.sources = sources;
+      const denial = error !== null && (typeof error === 'object' || typeof error === 'function') ? sqlDenials.get(error) : undefined;
+      if (denial) payload.denial = denial;
     }
     // All serialized values above are enums or a bounded source coordinate.
     const line = lines === DIAGNOSTIC_LINE_LIMIT - 1 ? '[legacy-evidence-ci] diagnostics_limit_reached' : `[legacy-evidence-ci] ${JSON.stringify(payload)}`;
@@ -140,6 +161,10 @@ export function createLegacyEvidenceDiagnostics(writeLine = line => console.log(
     start(phase, checkpoint, caseName) { current = context(phase, checkpoint, caseName); emit(current, 'running'); },
     passed() { emit(current, 'passed'); },
     failed(error) { fail(current, error); },
+    dependency(name, granted) {
+      if (!EXECUTOR_DEPENDENCIES.includes(name) || typeof granted !== 'boolean') throw new Error('Invalid diagnostic enum');
+      emit({ ...context('audit', 'dependencies'), dependency: name, granted }, 'observed');
+    },
     async run(phase, checkpoint, callback, caseName) {
       const entry = context(phase, checkpoint, caseName); current = entry; emit(entry, 'running');
       try { const result = await callback(); emit(entry, 'passed'); return result; }

@@ -6,7 +6,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { CASES, REFUSALS, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
+import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, rememberSqlDenial, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
 export { CASES } from './legacy-evidence-ci-diagnostics.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
@@ -214,7 +214,13 @@ class PsqlSession {
   }
 }
 function success(result) { assert.equal(result.ok, true, 'SQL RPC failed'); return result.value; }
-function denied(result, codes) { assert.equal(result.ok, false, 'expected SQL denial'); assert.ok(codes.includes(result.error) || codes.includes(result.sqlstate), 'wrong typed SQL denial'); return result.error === 'sql_error' ? result.sqlstate : result.error; }
+function denied(result, codes) {
+  try {
+    assert.equal(result.ok, false, 'expected SQL denial');
+    assert.ok(codes.includes(result.error) || codes.includes(result.sqlstate), 'wrong typed SQL denial');
+  } catch (error) { rememberSqlDenial(error, result); throw error; }
+  return result.error === 'sql_error' ? result.sqlstate : result.error;
+}
 
 async function waitForBlock(observer, waiter, blocker, proof, requireAdvisory = false) {
   const started = performance.now();
@@ -338,6 +344,32 @@ export async function runPostgresHarness(stack, diagnostics = createLegacyEviden
     assert.equal(privilegeAudit.resetMetadataPolicy, 1);
     for (const key of ['eventExecutorUpdate','eventExecutorDelete','generationExecutorUpdate','eventResetInsert','eventResetUpdate']) assert.equal(privilegeAudit[key], false);
     assert.equal(privilegeAudit.generationCounterUpdate, true); report.digests.installedPrivilegeAudit = sha(JSON.stringify(privilegeAudit));
+    diagnostics.passed(); diagnostics.start('audit', 'dependencies');
+    // GRANT can be ineffective when a restricted installer lacks grant option.
+    // Check effective runtime dependencies, separately from app-facing denial.
+    // Fixed keys prevent SQL-returned identities from entering diagnostics.
+    const dependencyAudit = await observer.scalar(`select pg_catalog.jsonb_build_object(
+      'executor_auth_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_executor','auth','USAGE'),
+      'executor_public_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_executor','public','USAGE'),
+      'executor_private_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_executor','language_legacy_evidence_private','USAGE'),
+      'executor_auth_uid',pg_catalog.has_function_privilege('language_legacy_evidence_executor','auth.uid()','EXECUTE'),
+      'reset_auth_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_reset_executor','auth','USAGE'),
+      'reset_public_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_reset_executor','public','USAGE'),
+      'reset_private_usage',pg_catalog.has_schema_privilege('language_legacy_evidence_reset_executor','language_legacy_evidence_private','USAGE'),
+      'reset_auth_uid',pg_catalog.has_function_privilege('language_legacy_evidence_reset_executor','auth.uid()','EXECUTE'),
+      'executor_canonical',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.canonical(jsonb)','EXECUTE'),
+      'executor_instant',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.instant(timestamptz)','EXECUTE'),
+      'executor_marker',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.marker(jsonb)','EXECUTE'),
+      'executor_timezone_valid',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.timezone_valid(text)','EXECUTE'),
+      'executor_assert_request',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.assert_request(uuid,text)','EXECUTE'),
+      'executor_context_json',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.context_json(public.language_legacy_evidence_generations,timestamptz)','EXECUTE'),
+      'executor_receipt',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.receipt(public.language_legacy_evidence_events)','EXECUTE'),
+      'executor_validate_event',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.validate_event(text,uuid,public.language_legacy_evidence_generations,timestamptz,text)','EXECUTE'),
+      'executor_check_read',pg_catalog.has_function_privilege('language_legacy_evidence_executor','language_legacy_evidence_private.check_read(jsonb,uuid)','EXECUTE'))`);
+    assert.deepEqual(Object.keys(dependencyAudit).sort(), [...EXECUTOR_DEPENDENCIES].sort());
+    for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, dependencyAudit[name]);
+    for (const name of EXECUTOR_DEPENDENCIES) assert.equal(dependencyAudit[name], true);
+    report.executorDependencyAudit = dependencyAudit;
     diagnostics.passed(); diagnostics.start('postgres', 'synthetic_accounts');
     fixtures = await createSyntheticAccounts(stack, 16); const accounts = fixtures.accounts; let next = 0;
     const fresh = async (initialize = true) => { const owner = accounts[next++].id, request = randomUUID(); const context = initialize ? success(await transaction(a, owner, enroll(owner, request))).currentContext : null; return { owner, context, request }; };

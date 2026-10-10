@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
-import { CASES, REFUSALS, DIAGNOSTIC_LINE_LIMIT, DIAGNOSTIC_CHARACTER_LIMIT, createLegacyEvidenceDiagnostics, diagnosticAssert, safeCode } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
+import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, DIAGNOSTIC_LINE_LIMIT, DIAGNOSTIC_CHARACTER_LIMIT, createLegacyEvidenceDiagnostics, diagnosticAssert, rememberSqlDenial, safeCode } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const capture = () => {
@@ -181,4 +181,61 @@ test('assertion facade preserves every used built-in assertion and async rejecti
   const original = new Error('predicate failure');
   assert.throws(() => diagnosticAssert.throws(() => { throw new Error('expected'); }, () => { throw original; }), error => error === original);
   await assert.rejects(diagnosticAssert.rejects(Promise.reject(new Error('expected')), () => { throw original; }), error => error === original);
+});
+
+test('actual denial assertion retains exact expectations and carries only closed SQL classifications', () => {
+  const source = readFileSync(new URL('../scripts/qa-legacy-evidence-postgres.mjs', import.meta.url), 'utf8');
+  const body = source.slice(source.indexOf('function denied('), source.indexOf('\nasync function waitForBlock('));
+  const denied = compileFunction(body + '\nreturn denied;', ['assert', 'rememberSqlDenial'], { filename: driver })(diagnosticAssert, rememberSqlDenial);
+  assert.equal(denied({ ok: false, error: 'legacy_auth_mismatch', sqlstate: '42501' }, ['legacy_auth_mismatch']), 'legacy_auth_mismatch');
+  const { diagnostics, entries } = capture(); diagnostics.start('audit', 'restricted_roles');
+  let original: unknown;
+  try { denied({ ok: false, error: 'sql_error', sqlstate: '42501' }, ['legacy_auth_mismatch']); }
+  catch (error) { original = error; diagnostics.failed(error); }
+  assert.ok(original); assert.equal((original as { code: string }).code, 'ERR_ASSERTION');
+  assert.deepEqual(entries().at(-1).denial, { sqlstate: '42501', error: 'sql_error' });
+  assert.equal(entries().at(-1).sources.length, 1);
+  assert.throws(() => denied({ ok: true, error: 'legacy_auth_mismatch', sqlstate: '42501' }, ['legacy_auth_mismatch']), { code: 'ERR_ASSERTION' });
+  const supplied = new Error('original assertion');
+  const throwing = compileFunction(body + '\nreturn denied;', ['assert', 'rememberSqlDenial'], { filename: driver })({ equal() { throw supplied; } }, rememberSqlDenial);
+  assert.throws(() => throwing({}, []), error => error === supplied);
+});
+
+test('SQL classifications and dependency observations ignore secrets, accessors and proxies', () => {
+  const { diagnostics, entries, lines } = capture(); let reads = 0;
+  const hostile = Object.defineProperties({}, Object.fromEntries(['sqlstate', 'error', 'toJSON'].map(key => [key, { get() { reads++; throw new Error('private'); } }])));
+  for (const result of [hostile, new Proxy({}, { getOwnPropertyDescriptor() { reads++; throw new Error('private'); } }),
+    { sqlstate: 'TOKEN', error: 'legacy_private_token', toJSON() { reads++; } }, { sqlstate: { toString() { reads++; } }, error: 123 }]) {
+    const error = new Error('private'); rememberSqlDenial(error, result); diagnostics.failed(error);
+    assert.deepEqual(entries().at(-1).denial, { sqlstate: 'unknown_sqlstate', error: 'unknown_error' });
+  }
+  assert.equal(reads, 0); assert.equal(lines.join('\n').includes('private'), false);
+  for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, name !== 'executor_auth_usage');
+  const observed = entries().filter(row => row.status === 'observed');
+  assert.equal(observed.length, 17); assert.deepEqual(observed[0], { phase: 'audit', checkpoint: 'dependencies', dependency: 'executor_auth_usage', granted: false, status: 'observed' });
+  for (const [name, value] of [['private_token', true], ['executor_auth_usage', hostile], ['executor_auth_usage', 'false']]) assert.throws(() => diagnostics.dependency(name, value), /Invalid diagnostic enum/);
+  assert.equal(reads, 0);
+});
+
+test('complete gate markers leave late-failure capacity and longest denial stays within the original bounds', async () => {
+  const { diagnostics, lines } = capture();
+  // Conservative full path: include a passed marker even at milestones that
+  // only emit running today. No real stack, HTTP call or subprocess is needed.
+  for (const [phase, checkpoints] of Object.entries({
+    preflight: ['arguments_and_stack', 'generated_files', 'status_and_config', 'docker_context', 'container_discovery', 'container_identity'],
+    postgres: ['execute', 'imports', 'source_digests', 'sessions', 'synthetic_accounts'],
+    audit: ['schema', 'privileges', 'dependencies', 'restricted_roles', 'disposable_activation'],
+  })) for (const checkpoint of checkpoints) { diagnostics.start(phase, checkpoint); diagnostics.passed(); }
+  for (const name of EXECUTOR_DEPENDENCIES) diagnostics.dependency(name, true);
+  for (const name of CASES) await diagnostics.run('scenario', 'execute', () => {}, name);
+  await diagnostics.run('http', 'execute', () => { diagnostics.start('http', 'execute'); diagnostics.passed(); });
+  await diagnostics.cleanup(['postgres_sessions', 'postgres_accounts', 'postgres_observer', 'http_repository', 'http_coordinator', 'http_owner', 'http_fixture', 'http_indexeddb', 'http_accounts'].map(checkpoint => ({ checkpoint, run() {} })));
+  await diagnostics.run('report', 'write', () => {}); diagnostics.start('gate', 'complete'); diagnostics.passed();
+  let invoke = compileFunction('assertion.equal(1, 2);', ['assertion'], { filename: driver }).bind(null, diagnosticAssert);
+  for (let i = 0; i < 3; i++) invoke = compileFunction('return next();', ['next'], { filename: driver }).bind(null, invoke);
+  diagnostics.start('scenario', 'execute', CASES[3]);
+  try { invoke(); } catch (error) { rememberSqlDenial(error, { sqlstate: 'P0001', error: 'legacy_enrolled_generation_missing' }); diagnostics.failed(error); }
+  assert.ok(lines.length < DIAGNOSTIC_LINE_LIMIT - 10);
+  assert.ok(lines.every(line => line.length <= DIAGNOSTIC_CHARACTER_LIMIT));
+  assert.equal(JSON.parse(lines.at(-1)!.slice('[legacy-evidence-ci] '.length)).denial.error, 'legacy_enrolled_generation_missing');
 });

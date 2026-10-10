@@ -2,6 +2,7 @@
  * PostgreSQL 18.x; this is not acceptance of the disposable Supabase PG17 stack. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { buildLegacyEvidenceInstallationFixture } from '../scripts/legacy-evidence-installation-fixture.mjs';
@@ -19,6 +20,64 @@ const membershipSql = `select coalesce(jsonb_agg(to_jsonb(m) order by m.oid),'[]
   where m.roleid in (select oid from pg_roles where rolname in ('${executor}','${resetExecutor}'))
      or m.member in (select oid from pg_roles where rolname in ('${executor}','${resetExecutor}'))`;
 const cleanupAnchor = '\ndo $ci_install_scope$ declare saved record; target record; actual_memberships';
+
+test('separately owned auth dependencies distinguish an ineffective grant from the exact typed denial', async t => {
+  for (const grantOption of [false, true]) await t.test(`synthetic installer auth USAGE grant option ${grantOption}`, async () => {
+    const db = new PGlite();
+    const scalar = async <T>(sql: string) => Object.values((await db.query(sql)).rows[0] as Record<string, unknown>)[0] as T;
+    try {
+      // The independent auth owner is essential: owning auth as the installer
+      // would hide an ineffective GRANT. This is local synthetic setup only.
+      await db.exec(`create role restricted_installer login nosuperuser createdb createrole noreplication bypassrls inherit;
+        grant all on schema public to restricted_installer; grant create on database postgres to restricted_installer;
+        create role authenticated; create role anon; create role service_role; create role synthetic_auth_admin;
+        grant authenticated to restricted_installer with inherit false,set true;
+        create schema auth;
+        create table auth.users(id uuid primary key,banned_until timestamptz,deleted_at timestamptz,is_anonymous boolean default false);
+        create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,not_after timestamptz);
+        create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('app.test_user',true),'')::uuid $$;
+        create function auth.jwt() returns jsonb language sql stable as $$ select '{}'::jsonb $$;
+        grant usage on schema auth,public to authenticated,anon;
+        grant execute on function auth.uid(),auth.jwt() to authenticated,anon;
+        grant usage on schema auth to synthetic_auth_admin; grant select,delete on auth.users to synthetic_auth_admin;
+        alter schema auth owner to synthetic_auth_admin;
+        alter function auth.uid() owner to synthetic_auth_admin; alter function auth.jwt() owner to synthetic_auth_admin;
+        grant usage on schema auth to restricted_installer ${grantOption ? 'with grant option' : ''};
+        grant all on all tables in schema auth to restricted_installer;
+        set session authorization restricted_installer; set createrole_self_grant='';
+        alter default privileges in schema public grant all on tables to anon,authenticated,service_role;`);
+      assert.equal(await scalar("select rolsuper from pg_roles where rolname=current_user"), false);
+      assert.equal(await scalar("select pg_has_role(current_user,'synthetic_auth_admin','MEMBER')"), false);
+      await db.exec(read('tests/e2e/schema.sql'));
+      for (const name of ['20260915034857_assistant_task_command_history.sql', '20260915052413_chatgpt_scoped_connection.sql',
+        '20260916043619_assistant_language_commands.sql', '20260916045546_language_history_reset_triggers.sql']) await db.exec(read(`supabase/migrations/${name}`));
+      await db.exec(generated);
+      const driver = read('scripts/qa-legacy-evidence-postgres.mjs');
+      const begin = driver.indexOf('    const schema = await observer.scalar(');
+      const previousEnd = driver.indexOf("    diagnostics.passed(); diagnostics.start('audit', 'dependencies');", begin);
+      const end = driver.indexOf('    fixtures = await createSyntheticAccounts(', previousEnd);
+      assert.ok(begin >= 0 && previousEnd > begin && end > previousEnd);
+      const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+      const compileAudit = (until: number) => new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', driver.slice(begin, until));
+      const lines: string[] = [], diagnostics = createLegacyEvidenceDiagnostics((line: string) => lines.push(line));
+      const runAudit = (until: number) => compileAudit(until)({ scalar }, assert, { digests: {} }, () => 'synthetic', DISPOSABLE_WRITE_FUNCTIONS, diagnostics, EXECUTOR_DEPENDENCIES);
+      // Reproduce the old audit blind spot, then show the new audit fails before
+      // synthetic accounts or activation, with the actual missing booleans.
+      await runAudit(previousEnd);
+      if (grantOption) await runAudit(end);
+      else await assert.rejects(runAudit(end), { code: 'ERR_ASSERTION' });
+      const missing = lines.map(line => JSON.parse(line.slice('[legacy-evidence-ci] '.length)))
+        .filter(row => row.status === 'observed' && row.granted === false).map(row => row.dependency);
+      assert.deepEqual(missing, grantOption ? [] : ['executor_auth_usage', 'reset_auth_usage']);
+      const wrapper = driver.match(/else await this\.query\(`(create function pg_temp\.qa_call[\s\S]*?)`\);/);
+      assert.ok(wrapper); await db.exec(wrapper[1]);
+      await db.exec("set role authenticated; set app.test_user='11111111-1111-4111-8111-111111111111';");
+      const command = "select language_legacy_evidence_private.read_context('22222222-2222-4222-8222-222222222222'::uuid,null::uuid,'139c003cd7b99e71a62dae22bd49d63524329c292bea6f953a9d1811a4045c0c')";
+      const result = (await db.query<{ result: unknown }>('select pg_temp.qa_call($1) result', [command])).rows[0].result;
+      assert.deepEqual(result, { ok: false, sqlstate: '42501', error: grantOption ? 'legacy_auth_mismatch' : 'sql_error' });
+    } finally { await db.close(); }
+  });
+});
 
 test('disposable adapter preserves authored bytes and refuses changed transaction/DDL anchors', () => {
   const restored = generated
@@ -129,10 +188,10 @@ test('restricted installer reproduces failure, restores each transaction and pas
     const end = driver.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', driver.slice(begin, end));
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', driver.slice(begin, end));
     const runAudit = async () => {
       const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean; nonSuperuserInstallerRoleAccess: boolean } } = { digests: {} };
-      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS, { start() {}, passed() {} });
+      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS, createLegacyEvidenceDiagnostics(() => {}), EXECUTOR_DEPENDENCIES);
       assert.equal(report.installationRoleAudit?.installerSuperuser, false);
       assert.equal(report.installationRoleAudit?.nonSuperuserInstallerRoleAccess, false);
     };

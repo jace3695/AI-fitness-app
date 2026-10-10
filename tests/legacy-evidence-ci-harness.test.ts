@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { EXECUTOR_DEPENDENCIES, createLegacyEvidenceDiagnostics } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
 import { readFileSync } from 'node:fs';
 import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
@@ -89,10 +90,10 @@ test('authored catalog audit executes against actual migration in PGlite, withou
     const begin = source.indexOf('    const schema = await observer.scalar('), end = source.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', source.slice(begin, end));
-    const diagnostics = { start() {}, passed() {} };
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', 'EXECUTOR_DEPENDENCIES', source.slice(begin, end));
+    const diagnostics = createLegacyEvidenceDiagnostics(() => {});
     const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean } } = { digests: {} };
-    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics);
+    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics, EXECUTOR_DEPENDENCIES);
     assert.ok('installedPrivilegeAudit' in report.digests);
     assert.equal(report.installationRoleAudit?.installerSuperuser, true);
     // The same catalog audit must reject even one accidentally re-enabled route.
@@ -100,8 +101,41 @@ test('authored catalog audit executes against actual migration in PGlite, withou
       await fixture.db.exec(`grant execute on function ${signature} to authenticated`);
       await assert.rejects(audit({ async scalar(sql: string) {
         const result = await fixture.db.query(sql); return Object.values(result.rows[0] as Record<string, unknown>)[0];
-      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics));
+      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics, EXECUTOR_DEPENDENCIES));
       await fixture.db.exec(`revoke execute on function ${signature} from authenticated`);
+    }
+
+    // Each effective dependency is independently necessary. Revoke inside a
+    // synthetic transaction, observe the exact fixed false marker, then roll back.
+    const dependencies = [
+      ...['executor', 'reset'].flatMap(name => {
+        const role = name === 'executor' ? 'language_legacy_evidence_executor' : 'language_legacy_evidence_reset_executor';
+        return [
+          ...['auth', 'public', 'private'].map(schema => [`${name}_${schema}_usage`, `revoke usage on schema ${schema === 'private' ? 'language_legacy_evidence_private' : schema} from public,${role}`]),
+          [`${name}_auth_uid`, `revoke execute on function auth.uid() from public,${role}`],
+        ];
+      }),
+      ...['canonical(jsonb)', 'instant(timestamptz)', 'marker(jsonb)', 'timezone_valid(text)', 'assert_request(uuid,text)',
+        'context_json(public.language_legacy_evidence_generations,timestamptz)', 'receipt(public.language_legacy_evidence_events)',
+        'validate_event(text,uuid,public.language_legacy_evidence_generations,timestamptz,text)', 'check_read(jsonb,uuid)']
+        .map(signature => [`executor_${signature.split('(')[0]}`, `revoke execute on function language_legacy_evidence_private.${signature} from public,language_legacy_evidence_executor`]),
+    ];
+    assert.deepEqual(dependencies.map(([name]) => name).sort(), [...EXECUTOR_DEPENDENCIES].sort());
+    for (const [name, mutation] of dependencies) {
+      const lines: string[] = [], observed = createLegacyEvidenceDiagnostics((line: string) => lines.push(line));
+      await fixture.db.exec('begin;' + mutation);
+      try {
+        await assert.rejects(audit({ async scalar(sql: string) { return Object.values((await fixture.db.query(sql)).rows[0] as Record<string, unknown>)[0]; } },
+          assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, observed, EXECUTOR_DEPENDENCIES), { code: 'ERR_ASSERTION' });
+        const markers = lines.map(line => JSON.parse(line.slice('[legacy-evidence-ci] '.length))).filter(row => row.status === 'observed');
+        assert.deepEqual(markers.map(row => row.dependency).sort(), [...EXECUTOR_DEPENDENCIES].sort());
+        assert.equal(markers.find(row => row.dependency === name)?.granted, false, name);
+      } finally { await fixture.db.exec('rollback'); }
+    }
+    for (const invalid of [{}, Object.fromEntries([...EXECUTOR_DEPENDENCIES, 'unexpected'].map(name => [name, true]))]) {
+      await assert.rejects(audit({ async scalar(sql: string) {
+        return sql.includes("'executor_auth_usage'") ? invalid : Object.values((await fixture.db.query(sql)).rows[0] as Record<string, unknown>)[0];
+      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics, EXECUTOR_DEPENDENCIES), { code: 'ERR_ASSERTION' });
     }
 
     // Execute only the authored error-boundary SQL on this synthetic connection.
