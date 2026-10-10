@@ -1,5 +1,4 @@
 /** Inactive CI gate. Never imported for its side effects and never a *.test.ts. */
-import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
@@ -7,12 +6,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export const CASES = Object.freeze([
-  'old_direct_writer_vs_append', 'append_then_reset', 'reset_then_stale_append',
-  'concurrent_same_slot_and_distinct_slots', 'enrollment_vs_reset_both_orders',
-  'state_delete_reinsert_vs_append', 'assistant_and_connector_dependencies',
-  'rollback_allocation', 'account_and_state_cascade', 'request_bound_enrollment_replay', 'competing_enrollment_nonce',
-]);
+import { CASES, REFUSALS, createLegacyEvidenceDiagnostics, diagnosticAssert as assert, safeCode } from './legacy-evidence-ci-diagnostics.mjs';
+export { CASES } from './legacy-evidence-ci-diagnostics.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
 const ENROLLMENT_MIGRATION = 'supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql';
@@ -33,7 +28,7 @@ const DEPENDENCIES = [
   'supabase/migrations/20260916045546_language_history_reset_triggers.sql',
 ];
 export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...DEPENDENCIES,
-  'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+  'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
   'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts',
   'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'app/lib/resetAppRecords.ts',
   'lib/language-legacy-evidence/local-store.ts', 'lib/language-legacy-evidence/store-admission-types.ts',
@@ -49,15 +44,14 @@ export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...
   'lib/language-legacy-evidence/study-policy.ts', 'lib/language-legacy-evidence/catalogue.ts',
   'lib/language-legacy-evidence/identity-manifest.ts', 'lib/language-legacy-evidence/idb-test-adapter.ts',
   'tests/helpers/languageFixture.ts', 'tests/helpers/storageProtocol.ts', 'tests/e2e/schema.sql',
-  'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
+  'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-diagnostics.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
   'package.json', 'package-lock.json',
 ].sort());
 const API = 'http://127.0.0.1:54321';
 const verifiedStacks = new WeakSet();
 const assertVerifiedStack = stack => { if (!stack || !verifiedStacks.has(stack)) refuse('unverified disposable stack capability'); };
 const sha = value => createHash('sha256').update(value).digest('hex');
-const refuse = message => { throw new Error(`legacy-evidence-harness-refused: ${message}`); };
-const safeCode = error => /^(?:legacy_[a-z_]+|[0-9A-Z]{5})$/.test(error?.code ?? '') ? error.code : 'harness_assertion_failed';
+const refuse = message => { throw Object.assign(new Error(`legacy-evidence-harness-refused: ${message}`), { code: 'legacy_harness_refused', refusal: Object.hasOwn(REFUSALS, message) ? REFUSALS[message] : undefined }); };
 const scalar = (text, expression) => { const matches = [...text.matchAll(expression)]; if (matches.length !== 1) refuse('ambiguous generated config'); return matches[0][1]; };
 
 /** Pure preflight; safe refusal tests must not spawn Docker or contact HTTP. */
@@ -97,19 +91,24 @@ export function selectDatabaseContainer(inspections, config) {
 }
 
 /** Only generated ignored runner files are accepted; no URL/key CLI arguments. */
-export function verifyDisposableStack() {
+export function verifyDisposableStack(diagnostics = createLegacyEvidenceDiagnostics()) {
   const root = ROOT, env = process.env;
   if (env.GITHUB_ACTIONS !== 'true' || !env.RUNNER_TEMP?.trim()) refuse('disposable GitHub Actions runner required');
+  diagnostics.start('preflight', 'generated_files');
   const configPath = resolve(root, '.e2e/stack/supabase/config.toml'), statusPath = resolve(root, '.e2e/stack-status.json');
   if (!existsSync(configPath) || !existsSync(statusPath) || !statSync(configPath).isFile() || !statSync(statusPath).isFile()) refuse('generated stack files absent');
   if (realpathSync(configPath) !== configPath || realpathSync(statusPath) !== statusPath || (statSync(statusPath).mode & 0o077) !== 0) refuse('unsafe generated stack file');
+  diagnostics.start('preflight', 'status_and_config');
   const status = JSON.parse(readFileSync(statusPath, 'utf8'));
   const config = validateEnvironment(env, readFileSync(configPath, 'utf8'), status, root);
   const docker = args => execFileSync('docker', ['--context', 'default', ...args], { encoding: 'utf8', timeout: 15_000, maxBuffer: 4 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  diagnostics.start('preflight', 'docker_context');
   const endpoints = JSON.parse(docker(['context', 'inspect', 'default']));
   if (endpoints.length !== 1 || endpoints[0]?.Endpoints?.docker?.Host !== 'unix:///var/run/docker.sock') refuse('nonlocal Docker context');
+  diagnostics.start('preflight', 'container_discovery');
   const ids = docker(['ps', '--no-trunc', '--filter', `label=com.supabase.cli.project=${config.projectId}`, '--format', '{{.ID}}']).trim().split('\n').filter(Boolean);
   if (!ids.length || ids.some(id => !/^[0-9a-f]{64}$/.test(id))) refuse('invalid container discovery');
+  diagnostics.start('preflight', 'container_identity');
   const container = selectDatabaseContainer(JSON.parse(docker(['inspect', ...ids])), config);
   const stack = Object.freeze({ ...config, container, status: Object.freeze(status) });
   verifiedStacks.add(stack); return stack;
@@ -228,12 +227,14 @@ async function waitForBlock(observer, waiter, blocker, proof, requireAdvisory = 
   throw new Error('required backend blocking relationship not observed');
 }
 
-export async function runPostgresHarness(stack) {
+export async function runPostgresHarness(stack, diagnostics = createLegacyEvidenceDiagnostics()) {
   assertVerifiedStack(stack);
+  diagnostics.start('postgres', 'imports');
   const manifest = await import('../lib/language-legacy-evidence/identity-manifest.ts');
   const { LEGACY_EVIDENCE_CATALOGUE } = await import('../lib/language-legacy-evidence/catalogue.ts');
   const { makeSourceSlotKey, canonicalEvidence } = await import('../lib/language-legacy-evidence/validation.ts');
   const protocol = manifest.LEGACY_EVIDENCE_SERVER_PROTOCOL, digest = manifest.LEGACY_EVIDENCE_MANIFEST_DIGEST;
+  diagnostics.start('postgres', 'source_digests');
   const report = { schemaVersion: 2, kind: 'real-disposable-postgres', status: 'running', cases: CASES.map(name => ({ name, status: 'unrun' })), waits: [], backends: [],
     digests: { sourceScope: 'Selected authored SQL, codec, authority, reset and fixture sources; not a full checkout or installed dependency tree digest.', manifest: digest, sources: Object.fromEntries(SOURCE_INPUTS.map(path => [path, sha(readFileSync(resolve(ROOT, path)))])) }, limitations: ['Synthetic JWT claims in psql; Auth checked separately over HTTP.', 'Fake IndexedDB is not browser persistence.', 'Inactive source harness; no hosted or capture acceptance.'] };
   const a = new PsqlSession(stack.container, 'legacy_evidence_qa_a'), b = new PsqlSession(stack.container, 'legacy_evidence_qa_b'), observer = new PsqlSession(stack.container, 'legacy_evidence_qa_observer');
@@ -258,10 +259,19 @@ export async function runPostgresHarness(stack) {
   const transaction = async (session, owner, command) => { await session.begin(owner); try { const result = await session.call(command); await session.commit(); return result; } catch (error) { await session.rollback(); throw error; } };
   const state = async owner => observer.scalar(`select pg_catalog.jsonb_build_object('generation',(select generation_id from public.language_legacy_evidence_generations where owner_id=${uuid(owner)}),'highWater',coalesce((select last_server_sequence from public.language_legacy_evidence_generations where owner_id=${uuid(owner)}),0),'sequences',coalesce((select pg_catalog.jsonb_agg(server_sequence order by server_sequence) from public.language_legacy_evidence_events where owner_id=${uuid(owner)}),'[]'::jsonb),'settings',(select state->>'japaneseAppSettings' from public.language_user_state where user_id=${uuid(owner)}),'marker',(select pg_catalog.jsonb_build_object('present',state?'languageRecordResetV1','value',state->'languageRecordResetV1') from public.language_user_state where user_id=${uuid(owner)}));`);
   const gapFree = value => { assert.deepEqual(value.sequences, Array.from({ length: value.highWater }, (_, i) => i + 1)); };
-  async function run(name, callback) { const row = report.cases.find(value => value.name === name); row.status = 'running'; const start = performance.now(); try { row.assertions = await callback(); row.status = 'passed'; } catch (error) { row.status = 'failed'; row.failureCode = safeCode(error); throw error; } finally { row.durationMs = Math.ceil(performance.now() - start); await Promise.all([a.rollback().catch(() => {}), b.rollback().catch(() => {})]); } }
+  async function run(name, callback) {
+    return diagnostics.run('scenario', 'execute', async () => {
+      const row = report.cases.find(value => value.name === name); row.status = 'running'; const start = performance.now();
+      try { row.assertions = await callback(); row.status = 'passed'; }
+      catch (error) { row.status = 'failed'; row.failureCode = safeCode(error); throw error; }
+      finally { row.durationMs = Math.ceil(performance.now() - start); await Promise.all([a.rollback().catch(() => {}), b.rollback().catch(() => {})]); }
+    }, name);
+  }
   try {
+    diagnostics.start('postgres', 'sessions');
     await Promise.all([a.start(), b.start(), observer.start(true)]);
     report.backends = [a.pid, b.pid, observer.pid]; assert.equal(new Set(report.backends).size, 3);
+    diagnostics.passed(); diagnostics.start('audit', 'schema');
     const schema = await observer.scalar(`select pg_catalog.jsonb_build_object('tables',(select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events','language_legacy_evidence_enrollments') and c.relrowsecurity),'roles',(select count(*) from pg_catalog.pg_roles where rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') and not rolcanlogin and not rolsuper and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls and not rolinherit),'memberships',(select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('role',r.rolname,'member',member.rolname,'grantor',grantor.rolname,'admin',m.admin_option,'inherit',m.inherit_option,'set',m.set_option,'trustedCreatorAdmin',r.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') and m.member=current_user::regrole::oid and current_user=session_user and not member.rolsuper and member.rolcreaterole and member.rolname not in ('anon','authenticated','service_role') and m.admin_option and not m.inherit_option and not m.set_option and m.grantor=10 and grantor.rolsuper and exists(select 1 from pg_catalog.pg_namespace n where n.nspname='language_legacy_evidence_private' and n.nspowner=m.member)) order by m.oid),'[]'::jsonb) from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid=m.roleid join pg_catalog.pg_roles member on member.oid=m.member join pg_catalog.pg_roles grantor on grantor.oid=m.grantor where r.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') or member.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor')),
       'applicationRoleAccess',exists(select 1 from (values ('anon'),('authenticated'),('service_role')) app(role) cross join pg_catalog.pg_roles r where r.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') and (pg_catalog.pg_has_role(app.role,r.oid,'MEMBER') or pg_catalog.pg_has_role(app.role,r.oid,'SET') or pg_catalog.pg_has_role(app.role,r.oid,'USAGE'))),
       'installerSuperuser',(select rolsuper from pg_catalog.pg_roles where rolname=current_user),
@@ -279,6 +289,7 @@ export async function runPostgresHarness(stack) {
     report.digests.installedMembershipAudit = sha(JSON.stringify(schema.memberships));
     for (const name of ['assistant_language_history_language_reset', 'chatgpt_reset_language', 'language_legacy_evidence_marker_reset']) assert.ok(schema.triggers.some(text => text.includes(name) && text.includes('AFTER UPDATE OF state') && !text.includes('DELETE')));
     assert.ok(schema.functions?.length); report.digests.installedFunctions = sha(JSON.stringify(schema.functions)); report.digests.installedTriggers = sha(JSON.stringify(schema.triggers));
+    diagnostics.passed(); diagnostics.start('audit', 'privileges');
     const privilegeAudit = await observer.scalar(`select pg_catalog.jsonb_build_object(
       'tables',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',c.relname,'forced',c.relforcerowsecurity,'owner',r.rolname,'applicationAccess',exists(select 1 from (values ('anon'),('authenticated'),('service_role')) app(role) cross join (values ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(privilege) where pg_catalog.has_table_privilege(app.role,c.oid,p.privilege) or (case when p.privilege in ('SELECT','INSERT','UPDATE','REFERENCES') then pg_catalog.has_any_column_privilege(app.role,c.oid,p.privilege) else false end)))) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace join pg_catalog.pg_roles r on r.oid=c.relowner where n.nspname='public' and c.relname like 'language_legacy_evidence_%' and c.relkind='r'),
       'privateSchema',(select pg_catalog.jsonb_build_object('authUsage',pg_catalog.has_schema_privilege('authenticated',oid,'USAGE'),'authCreate',pg_catalog.has_schema_privilege('authenticated',oid,'CREATE'),'anonUsage',pg_catalog.has_schema_privilege('anon',oid,'USAGE'),'anonCreate',pg_catalog.has_schema_privilege('anon',oid,'CREATE'),'serviceCreate',pg_catalog.has_schema_privilege('service_role',oid,'CREATE'),'serviceUsage',pg_catalog.has_schema_privilege('service_role',oid,'USAGE')) from pg_catalog.pg_namespace where nspname='language_legacy_evidence_private'),
@@ -327,9 +338,11 @@ export async function runPostgresHarness(stack) {
     assert.equal(privilegeAudit.resetMetadataPolicy, 1);
     for (const key of ['eventExecutorUpdate','eventExecutorDelete','generationExecutorUpdate','eventResetInsert','eventResetUpdate']) assert.equal(privilegeAudit[key], false);
     assert.equal(privilegeAudit.generationCounterUpdate, true); report.digests.installedPrivilegeAudit = sha(JSON.stringify(privilegeAudit));
+    diagnostics.passed(); diagnostics.start('postgres', 'synthetic_accounts');
     fixtures = await createSyntheticAccounts(stack, 16); const accounts = fixtures.accounts; let next = 0;
     const fresh = async (initialize = true) => { const owner = accounts[next++].id, request = randomUUID(); const context = initialize ? success(await transaction(a, owner, enroll(owner, request))).currentContext : null; return { owner, context, request }; };
     // Actual restricted-role smoke checks, including Supabase's real default ACLs.
+    diagnostics.passed(); diagnostics.start('audit', 'restricted_roles');
     const securityOwner = accounts[0].id;
     await a.begin(securityOwner);
     for (const table of ['language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events','language_legacy_evidence_enrollments']) {
@@ -348,6 +361,7 @@ export async function runPostgresHarness(stack) {
     denied(await a.call(`select language_legacy_evidence_private.read_context(${uuid(accounts[1].id)},null::uuid,${literal(digest)})`), ['legacy_auth_mismatch']);
     await a.commit(); report.restrictedRoleDenials = 'passed';
     report.defaultWriteDenial = 'passed';
+    diagnostics.passed(); diagnostics.start('audit', 'disposable_activation');
     // This privilege change is impossible without the verified disposable capability,
     // and happens only after both catalog and actual restricted-role denial checks.
     assertVerifiedStack(stack);
@@ -355,6 +369,7 @@ export async function runPostgresHarness(stack) {
     const activated = await observer.scalar(`select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('signature',f.signature,'auth',pg_catalog.has_function_privilege('authenticated',f.signature,'EXECUTE'),'anon',pg_catalog.has_function_privilege('anon',f.signature,'EXECUTE'),'service',pg_catalog.has_function_privilege('service_role',f.signature,'EXECUTE')) order by f.signature) from (values ${DISPOSABLE_WRITE_FUNCTIONS.map(value => `(${literal(value)})`).join(',')}) f(signature);`);
     assert.equal(activated.length, 6); for (const fn of activated) { assert.equal(fn.auth, true); assert.equal(fn.anon, false); assert.equal(fn.service, false); }
     report.disposableWriteActivation = { functions: [...DISPOSABLE_WRITE_FUNCTIONS], release: DISPOSABLE_EVIDENCE_RELEASE };
+    diagnostics.passed();
     await run(CASES[0], async () => {
       const { owner, context } = await fresh(), batch = makeBatch(owner, context);
       await a.begin(owner); await a.query(`select 1 from public.language_user_state where user_id=${uuid(owner)} for update;`);
@@ -469,27 +484,40 @@ export async function runPostgresHarness(stack) {
       return { firstNonceImmutable: true, competingNonceNotFirstAdmission: true, singleGeneration: true };
     });
     report.status = 'passed'; return report;
-  } catch (error) { report.status = 'failed'; report.failureCode = safeCode(error); error.sanitizedReport = report; throw error; }
+  } catch (error) { diagnostics.failed(error); report.status = 'failed'; report.failureCode = safeCode(error); error.sanitizedReport = report; throw error; }
   finally {
-    await Promise.all([a.close(), b.close()]);
     try {
-      if (fixtures) await fixtures.cleanup();
+      await diagnostics.cleanup([
+        { checkpoint: 'postgres_sessions', run: async () => { const results = await Promise.allSettled([a.close(), b.close()]); const failed = results.find(result => result.status === 'rejected'); if (failed) throw failed.reason; } },
+        { checkpoint: 'postgres_accounts', run: async () => { if (fixtures) await fixtures.cleanup(); } },
+        { checkpoint: 'postgres_observer', run: () => observer.close() },
+      ]);
       report.cleanup = 'passed';
     } catch (error) {
       report.cleanup = 'failed'; report.status = 'failed'; report.failureCode = 'legacy_cleanup_failed'; error.sanitizedReport = report; throw error;
-    } finally { await observer.close(); }
+    }
   }
 }
 
 export async function main() {
-  if (process.argv.length > 2) refuse('no runtime arguments accepted');
-  const stack = verifyDisposableStack(); let report;
+  const diagnostics = createLegacyEvidenceDiagnostics(); let report, stack;
   try {
-    report = await runPostgresHarness(stack);
-    const { runHttpHarness } = await import('./qa-legacy-evidence-http.mjs');
-    report.http = await runHttpHarness(); assert.equal(report.http.status, 'passed');
-  } catch (error) { report = error.sanitizedReport ?? report ?? { schemaVersion: 2, status: 'failed', cases: CASES.map(name => ({ name, status: 'unrun' })) }; report.status = 'failed'; report.failureCode = safeCode(error); if (error.httpReport) report.http = error.httpReport; throw error; }
-  finally { if (report) { mkdirSync(resolve(ROOT, '.e2e/evidence'), { recursive: true }); writeFileSync(resolve(ROOT, '.e2e/evidence/legacy-evidence-postgres.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 }); } }
+    diagnostics.start('preflight', 'arguments_and_stack');
+    if (process.argv.length > 2) refuse('no runtime arguments accepted');
+    stack = verifyDisposableStack(diagnostics); diagnostics.passed();
+    report = await diagnostics.run('postgres', 'execute', () => runPostgresHarness(stack, diagnostics));
+    await diagnostics.run('http', 'execute', async () => {
+      const { runHttpHarness } = await import('./qa-legacy-evidence-http.mjs');
+      report.http = await runHttpHarness(diagnostics); assert.equal(report.http.status, 'passed');
+    });
+  } catch (error) { diagnostics.failed(error); if (!stack) throw error; report = error.sanitizedReport ?? report ?? { schemaVersion: 2, status: 'failed', cases: CASES.map(name => ({ name, status: 'unrun' })) }; report.status = 'failed'; report.failureCode = safeCode(error); if (error.httpReport) report.http = error.httpReport; throw error; }
+  finally {
+    if (report) await diagnostics.run('report', 'write', () => {
+      mkdirSync(resolve(ROOT, '.e2e/evidence'), { recursive: true });
+      writeFileSync(resolve(ROOT, '.e2e/evidence/legacy-evidence-postgres.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
+    });
+  }
+  diagnostics.start('gate', 'complete'); diagnostics.passed();
   console.log('Disposable PostgreSQL race and local HTTP repository checks passed; browser durability remains unrun.');
 }
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) main().catch(() => { console.error('Legacy evidence CI gate failed. Inspect the sanitized case summary; no request bodies or credentials are logged.'); process.exitCode = 1; });
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) main().catch(() => { console.error('Legacy evidence CI gate failed. Inspect the sanitized phase diagnostics and case summary; no request bodies or credentials are logged.'); process.exitCode = 1; });

@@ -51,7 +51,8 @@ test('post-stack CI step invokes the authored PostgreSQL and HTTP chain with nat
   assert.match(workflow, /node-version: '24\.19\.0'/);
   const driver = source('scripts/qa-legacy-evidence-postgres.mjs');
   const main = driver.slice(driver.indexOf('export async function main()'));
-  assert.match(main, /report = await runPostgresHarness\(stack\);\s+const \{ runHttpHarness \} = await import\('\.\/qa-legacy-evidence-http\.mjs'\);\s+report\.http = await runHttpHarness\(\); assert\.equal\(report\.http\.status, 'passed'\)/);
+  assert.match(main, /report = await diagnostics\.run\('postgres', 'execute', \(\) => runPostgresHarness\(stack, diagnostics\)\)/);
+  assert.match(main, /await diagnostics\.run\('http', 'execute', async \(\) => \{\s+const \{ runHttpHarness \} = await import\('\.\/qa-legacy-evidence-http\.mjs'\);\s+report\.http = await runHttpHarness\(diagnostics\); assert\.equal\(report\.http\.status, 'passed'\)/);
   assert.match(main, /\.e2e\/evidence\/legacy-evidence-postgres\.json/);
 });
 

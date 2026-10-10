@@ -1,11 +1,11 @@
 /** Real local Auth/PostgREST with the production repository/coordinator/store.
  * Explicit CI entry point only. This filename MUST NOT become *.test.ts. */
-import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
+import { createLegacyEvidenceDiagnostics, diagnosticAssert as assert } from './legacy-evidence-ci-diagnostics.mjs';
 import { verifyDisposableStack, createSyntheticAccounts, loopbackFetch, DISPOSABLE_EVIDENCE_RELEASE } from './qa-legacy-evidence-postgres.mjs';
 
 const RAW_ANSWER = 'LOCAL_ONLY_LEGACY_EVIDENCE_HTTP_SENTINEL_合成回答';
@@ -36,9 +36,10 @@ async function loadResetAppRecords(client, release, repository, window) {
   return { ...api, fence: () => boundary.parseLanguageResetFence(window.localStorage.getItem(boundary.LANGUAGE_RESET_FENCE_KEY)) };
 }
 
-export async function runHttpHarness() {
+export async function runHttpHarness(diagnostics = createLegacyEvidenceDiagnostics()) {
   // Independent preflight, even if invoked as a module from the race gate.
-  const stack = verifyDisposableStack();
+  const stack = verifyDisposableStack(diagnostics);
+  diagnostics.start('http', 'execute');
   const [{ loadLegacyEvidenceRepository }, { languageFixture }, { verifyAuthenticatedStorageOwner, revokeAuthenticatedStorageOwner },
     { prepareLocalCloudState }, { createLanguageSyncCoordinator }, { createDeterministicIDBAdapter }, { preparePresentation, prepareAnswer },
     { freezeBatch }, { makeSourceSlotKey }, { LEGACY_EVIDENCE_CATALOGUE }, manifest, { createClient }] = await Promise.all([
@@ -243,14 +244,19 @@ export async function runHttpHarness() {
     report.checks.rawAnswerRemainsLocal = 'passed'; report.checks.onlyVerifiedLoopbackRequests = 'passed';
     report.rpcCounts = Object.fromEntries([...new Set(trace)].sort().map(name => [name, trace.filter(value => value === name).length]));
     report.status = 'passed'; return report;
-  } catch (error) { report.status = 'failed'; error.httpReport = report; throw error; }
+  } catch (error) { diagnostics.failed(error); report.status = 'failed'; error.httpReport = report; throw error; }
   finally {
-    repository?.close(); coordinator?.dispose(); if (lease) revokeAuthenticatedStorageOwner(lease); fixture?.restore();
-    if (previousIdb) Object.defineProperty(globalThis, 'indexedDB', previousIdb); else Reflect.deleteProperty(globalThis, 'indexedDB');
-    if (fixtures) await fixtures.cleanup();
+    await diagnostics.cleanup([
+      { checkpoint: 'http_repository', run: () => repository?.close() },
+      { checkpoint: 'http_coordinator', run: () => coordinator?.dispose() },
+      { checkpoint: 'http_owner', run: () => { if (lease) revokeAuthenticatedStorageOwner(lease); } },
+      { checkpoint: 'http_fixture', run: () => fixture?.restore() },
+      { checkpoint: 'http_indexeddb', run: () => { if (previousIdb) Object.defineProperty(globalThis, 'indexedDB', previousIdb); else Reflect.deleteProperty(globalThis, 'indexedDB'); } },
+      { checkpoint: 'http_accounts', run: async () => { if (fixtures) await fixtures.cleanup(); } },
+    ]);
   }
 }
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   if (process.argv.length > 2) { console.error('The CI HTTP runner accepts no arguments.'); process.exitCode = 1; }
-  else runHttpHarness().then(() => console.log('Real local HTTP repository checks passed; fake IndexedDB only.')).catch(() => { console.error('Legacy evidence HTTP gate failed; no credentials or request bodies are logged.'); process.exitCode = 1; });
+  else { const diagnostics = createLegacyEvidenceDiagnostics(); diagnostics.run('http', 'execute', () => runHttpHarness(diagnostics)).then(() => console.log('Real local HTTP repository checks passed; fake IndexedDB only.')).catch(() => { console.error('Legacy evidence HTTP gate failed; no credentials or request bodies are logged.'); process.exitCode = 1; }); }
 }

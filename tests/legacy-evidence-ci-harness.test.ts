@@ -74,7 +74,7 @@ test('inactive source contains all eleven bounded schedules and independent HTTP
   assert.match(source, /sameMarkerPreserved: true/); assert.match(source, /fixtures.deleteAccount/);
   assert.match(discovery, /endsWith\('\.test\.ts'\)/);
   assert.doesNotMatch(source + http, /supabase\s+(?:login|link|db\s+push)|https:\/\//);
-  assert.match(http, /const stack = verifyDisposableStack\(\)/);
+  assert.match(http, /const stack = verifyDisposableStack\(diagnostics\)/);
   assert.match(http, /loadLegacyEvidenceRepository\(client, DISPOSABLE_EVIDENCE_RELEASE\)/);
   assert.match(http, /createLanguageSyncCoordinator/); assert.match(http, /await response\.json\(\)/);
   assert.match(http, /dropReadAfterAppend/); assert.match(http, /await coordinator\.resume\(\)/);
@@ -89,9 +89,10 @@ test('authored catalog audit executes against actual migration in PGlite, withou
     const begin = source.indexOf('    const schema = await observer.scalar('), end = source.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', source.slice(begin, end));
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', source.slice(begin, end));
+    const diagnostics = { start() {}, passed() {} };
     const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean } } = { digests: {} };
-    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS);
+    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics);
     assert.ok('installedPrivilegeAudit' in report.digests);
     assert.equal(report.installationRoleAudit?.installerSuperuser, true);
     // The same catalog audit must reject even one accidentally re-enabled route.
@@ -99,7 +100,7 @@ test('authored catalog audit executes against actual migration in PGlite, withou
       await fixture.db.exec(`grant execute on function ${signature} to authenticated`);
       await assert.rejects(audit({ async scalar(sql: string) {
         const result = await fixture.db.query(sql); return Object.values(result.rows[0] as Record<string, unknown>)[0];
-      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS));
+      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS, diagnostics));
       await fixture.db.exec(`revoke execute on function ${signature} from authenticated`);
     }
 
@@ -158,8 +159,8 @@ test('fixture opt-in is exact, private and after actual default-denial checks', 
 test('candidate source digests cover additive migration and the exact release/reset/admission contract', () => {
   assert.deepEqual(SOURCE_INPUTS, [...SOURCE_INPUTS].sort()); assert.equal(new Set(SOURCE_INPUTS).size, SOURCE_INPUTS.length);
   for (const path of ['supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql',
-    'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
-    'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
+    'scripts/e2e-stack.mjs', 'scripts/legacy-evidence-ci-diagnostics.mjs', 'scripts/legacy-evidence-installation-fixture.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+    'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-diagnostics.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
     'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts', 'app/lib/resetAppRecords.ts',
     'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'lib/language-legacy-evidence/local-store.ts',
     'lib/language-legacy-evidence/store-admission-types.ts', 'lib/language-legacy-evidence/receipt-proof.ts',

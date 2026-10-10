@@ -129,10 +129,10 @@ test('restricted installer reproduces failure, restores each transaction and pas
     const end = driver.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', driver.slice(begin, end));
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', 'diagnostics', driver.slice(begin, end));
     const runAudit = async () => {
       const report: { digests: Record<string, unknown>; installationRoleAudit?: { installerSuperuser: boolean; nonSuperuserInstallerRoleAccess: boolean } } = { digests: {} };
-      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS);
+      await audit({ scalar }, assert, report, () => 'synthetic-restricted-audit', DISPOSABLE_WRITE_FUNCTIONS, { start() {}, passed() {} });
       assert.equal(report.installationRoleAudit?.installerSuperuser, false);
       assert.equal(report.installationRoleAudit?.nonSuperuserInstallerRoleAccess, false);
     };
