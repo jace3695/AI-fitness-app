@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
 import { projectStateDiagnostic, stateDiagnosticCollector } from '../scripts/qa-state-diagnostics.mjs';
 
 const prefixes = ['QA_GUIDED_BOUNDARY', 'QA_STORAGE_PROTOCOL_STATE', 'QA_HANDWRITING_RECOVERY_STATE', 'QA_HANDWRITING_SAVE_BOUNDARY', 'QA_OWNER_SWITCH_STATE'];
@@ -77,14 +79,26 @@ test('actual runner forwards the projected string and never allowlists raw state
 
 test('state diagnostic output is bounded and both browser projects fit the current journey budget', () => {
   const collector = stateDiagnosticCollector();
-  // Reserve four steps per journey (the current maximum is three). Per
-  // project: three pilot journeys at six checkpoints, three catalogue at seven, plus
-  // five close/reload/final checkpoints, plus two catalogue readback checkpoints. Both fit 512.
-  const guidedRows = 2 * (3 * (4 * 6 + 5) + 3 * (4 * 7 + 7));
-  assert.equal(guidedRows, 384);
+  // Read the actual pinned catalogue selection, so an added journey/step makes
+  // this budget test recalculate rather than silently dropping later WebKit facts.
+  const source = readFileSync(new URL('./e2e/free-first.spec.ts', import.meta.url), 'utf8');
+  const pinned = [...source.matchAll(/\['(guided-[^']+)', '(sha256:[a-f0-9]+)'\]/g)].map(([, id, revision]) => {
+    const script = findGuidedConversationCatalogScript(id, revision); assert.ok(script); return script;
+  });
+  const journeys = [...GUIDED_CONVERSATION_PILOT, ...pinned];
+  assert.equal(journeys.length, 6);
+  const stepCount = journeys.reduce((total, script) => total + script.steps.length, 0);
+  assert.equal(stepCount, 16);
+  // Seven normal rows/step plus two readback rows for each original draft and
+  // append. Five close/reload/final rows plus four for the staged-close route.
+  const rowsPerProject = stepCount * (7 + 2 + 2) + journeys.length * (5 + 4);
+  const guidedRows = 2 * rowsPerProject;
+  assert.equal(guidedRows, 460); assert.ok(guidedRows <= 512);
   for (let i = 0; i < guidedRows; i++) {
-    const line = collector.ingest('QA_GUIDED_BOUNDARY ' + JSON.stringify({ phase: 'save-clicked', status: 'saved', step: 10000, totalSteps: 10000 }));
-    assert.ok(line); assert.ok(line.length <= 4096);
+    const phase = i === guidedRows - 1 ? 'finished' : 'before-recovery';
+    const line = collector.ingest('QA_GUIDED_BOUNDARY ' + JSON.stringify({ phase, status: 'uncertain', step: 10000, totalSteps: 10000 }));
+    assert.ok(line, 'Every row including the final WebKit failure/final checkpoint must survive'); assert.ok(line.length <= 4096);
+    if (i === guidedRows - 1) assert.equal(JSON.parse(line.slice('QA_GUIDED_BOUNDARY '.length)).phase, 'finished');
   }
   for (const prefix of prefixes) {
     const result = projectStateDiagnostic(`${prefix} {}`);
@@ -103,8 +117,8 @@ test('owner-switch forwarding preserves only fixed phases and identity compariso
 });
 
 
-test('guided read-only recovery phases survive the bounded state projection', () => {
-  for (const phase of ['before-recovery', 'recovered']) {
+test('guided recovery and explicit abandonment phases survive the bounded state projection', () => {
+  for (const phase of ['before-recovery', 'recovered', 'pending-close-confirmed', 'close-abandoned', 'replacement-close-clicked']) {
     assert.equal(read('QA_GUIDED_BOUNDARY', { phase }).phase, phase);
   }
 });
