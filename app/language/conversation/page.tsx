@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RubySegment } from "@/data/sentences";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 import { FREE_MODE } from "@/lib/free-mode";
-import { FREE_CONVERSATIONS } from "@/data/freeConversation";
+import { buildFreeConversation, FREE_CONVERSATIONS } from "@/data/freeConversation";
 import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
@@ -59,6 +59,7 @@ export default function ConversationPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
+  const lastFreeSendMessages = useRef<ChatMessage[] | null>(null);
   const audioRequest = useRef<AbortController | null>(null);
   useEffect(() => () => audioRequest.current?.abort(), []);
 
@@ -89,6 +90,32 @@ export default function ConversationPage() {
     const text = input.trim();
     if (!text) return; // 빈 입력 전송 방지
     if (loading) return; // 로딩 중 중복 전송 방지
+
+    if (FREE_MODE) {
+      // Ignore repeated sends from the same render until the new messages commit.
+      if (lastFreeSendMessages.current === messages) return;
+      try {
+        const practice = buildFreeConversation(situation, text);
+        const practiceMsg: ChatMessage = {
+          role: "assistant",
+          reply: practice.reply,
+          replyReading: practice.replyReading,
+          replyKoreanPronunciation: practice.replyKoreanPronunciation,
+          correction: practice.correction,
+          correctionReading: practice.correctionReading,
+          correctionKoreanPronunciation: practice.correctionKoreanPronunciation,
+          explanation: practice.explanation,
+          originalUserText: text,
+        };
+        lastFreeSendMessages.current = messages;
+        setMessages([...messages, { role: "user", text }, practiceMsg]);
+        setInput("");
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "알 수 없는 오류");
+      }
+      return;
+    }
 
     // 사용자 메시지 먼저 화면에 추가
     const userMsg: ChatMessage = { role: "user", text };
@@ -365,7 +392,7 @@ export default function ConversationPage() {
                         marginBottom: "6px",
                       }}
                     >
-                        {FREE_MODE ? "연습 예문" : "AI"}
+                        {FREE_MODE ? "고정 연습 예문 · 평가하지 않음" : "AI"}
                     </div>
 
                     {/* 1) AI 답변 */}

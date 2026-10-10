@@ -5,7 +5,16 @@ import { test, expect, login, synced, original, originalLanguage, assertOriginal
 const daysAgo = (days: number) => { const date = new Date(`${today()}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - days); return date.toISOString().slice(0, 10); };
 const noOverflow = async (page: Parameters<typeof synced>[0]) => { await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); };
 
-test('free mode keeps paid routes blocked and provides a clearly labelled conversation exercise', async ({ page, qa }) => {
+test('free mode keeps paid routes blocked and handles sample and arbitrary conversation input without a POST', async ({ page, qa }) => {
+  let conversationPosts = 0;
+  await page.route(/\/api\/language\/conversation(?:\?.*)?$/, async route => {
+    if (route.request().method() === 'POST') {
+      conversationPosts++;
+      await route.abort();
+      return;
+    }
+    await route.continue();
+  });
   for (const endpoint of ['/api/tts', '/api/language/tts', '/api/claude']) {
     const anonymous = await page.request.post(endpoint, { data: { text: '합성 검증' } });
     expect(anonymous.status()).toBe(401);
@@ -22,6 +31,15 @@ test('free mode keeps paid routes blocked and provides a clearly labelled conver
   await page.getByRole('button', { name: '전송', exact: true }).click();
   await expect(page.getByText('ホットとアイス、どちらになさいますか？', { exact: true })).toBeVisible();
   await expect(page.getByText(/연습 문장과 일치해요/)).toBeVisible();
+  expect(conversationPosts).toBe(0);
+  const alternative = '합성 자유 입력: 예문과 다른 응답';
+  await page.getByPlaceholder('일본어로 입력하세요', { exact: true }).fill(alternative);
+  await page.getByRole('button', { name: '전송', exact: true }).click();
+  await expect(page.getByText(alternative, { exact: true })).toBeVisible();
+  await expect(page.getByText(/자유 문장의 자동 교정은 보류 중이에요/)).toBeVisible();
+  await expect(page.getByText('고정 연습 예문 · 평가하지 않음', { exact: true })).toHaveCount(2);
+  await expect(page.getByRole('button', { name: '🔊 교정 듣기', exact: true })).toHaveCount(0);
+  expect(conversationPosts).toBe(0);
   await noOverflow(page);
   expect(await qa.read()).toEqual(original);
 });
