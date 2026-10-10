@@ -1,3 +1,5 @@
+import { canonicalJson, exact, freezeRecord, observationSchema, validateEnvelope, type ConversationEnvelope, type Observation } from '../../lib/conversation-session/contracts.ts';
+import { allocateConversationResetReplacement, ConversationLocalError, conversationLocalKey, planLanguageLocalParticipants, readConversationPartition } from './languageLocalParticipants.ts';
 import { mergeCloudStateFromBase, stableState } from './cloudSync.ts';
 import { APP_RECORD_KEYS } from './appRecordReset.ts';
 import { assertAuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
@@ -50,6 +52,7 @@ export function readLanguageSyncRequest(lease: AuthenticatedStorageOwner, lifecy
   assertLifecycle(lease, lifecycle, storage);
   const snapshot = readStorageSnapshot(storage), boundary = readLanguageBoundary(snapshot, lease);
   if (boundary.status !== 'ready') throw new LanguageBoundaryError(boundary.reason);
+  readConversationPartition(snapshot.getItem(conversationLocalKey(lease.userId)), lease.userId);
   const baseRaw = snapshot.getItem(languageSyncBaseKey(lease.userId));
   const base = readLanguageSyncBase(baseRaw);
   assertLifecycle(lease, lifecycle, storage);
@@ -63,6 +66,7 @@ export function readLanguageSyncRequest(lease: AuthenticatedStorageOwner, lifecy
 function assertSnapshot(request: LanguageSyncRequest, snapshot: StorageSnapshot, mode: 'dispatch' | 'ack') {
   const context = requireRequest(request);
   const boundary = readLanguageBoundary(snapshot, context.lease);
+  readConversationPartition(snapshot.getItem(conversationLocalKey(request.userId)), request.userId);
   if (boundary.status !== 'ready' || snapshot.pending
     || snapshot.getItem(LANGUAGE_BINDING_KEY) !== request.bindingRaw || snapshot.getItem(STORAGE_READY_KEY) !== request.readyRaw
     || snapshot.getItem(LANGUAGE_MARKER_KEY) !== request.markerRaw || snapshot.getItem(LANGUAGE_RESET_FENCE_KEY) !== request.resetFenceRaw
@@ -113,11 +117,11 @@ export function planLanguageSync(request: LanguageSyncRequest, remote: Record<st
   return { kind: stableState(wire) === stableState(remote) ? 'observe' : 'write', wire };
 }
 export interface LanguageRecordContext { readonly userId: string; readonly epoch: string | null; readonly signal: AbortSignal }
-type RecordContextPrivate = RequestPrivate & { writes: number; bindingRaw: string; markerRaw: string | null; resetFenceRaw: string | null; ackRaw: string; readyRaw: string };
+type RecordContextPrivate = RequestPrivate & { observation: Observation | null; writes: number; bindingRaw: string; markerRaw: string | null; resetFenceRaw: string | null; ackRaw: string; readyRaw: string };
 const recordContexts = new WeakMap<LanguageRecordContext, RecordContextPrivate>();
-function mintRecordContext(context: RequestPrivate, snapshot: StorageSnapshot): LanguageRecordContext {
+function mintRecordContext(context: RequestPrivate, snapshot: StorageSnapshot, observation: Observation | null): LanguageRecordContext {
   const value = Object.freeze({ userId: context.lease.userId, epoch: context.lease.epoch, signal: context.lifecycle.signal });
-  recordContexts.set(value, { ...context, writes: lifecycles.get(context.lifecycle)!.writes,
+  recordContexts.set(value, { ...context, observation, writes: lifecycles.get(context.lifecycle)!.writes,
     bindingRaw: snapshot.getItem(LANGUAGE_BINDING_KEY)!, markerRaw: snapshot.getItem(LANGUAGE_MARKER_KEY), resetFenceRaw: snapshot.getItem(LANGUAGE_RESET_FENCE_KEY),
     ackRaw: snapshot.getItem(languageSyncAckKey(context.lease.userId))!, readyRaw: snapshot.getItem(STORAGE_READY_KEY)! });
   return value;
@@ -133,15 +137,48 @@ function assertRecordContext(context: LanguageRecordContext, snapshot?: StorageS
   return entry;
 }
 export function isLanguageRecordContextCurrent(context: LanguageRecordContext): boolean { try { assertRecordContext(context); return true; } catch { return false; } }
-export interface LanguageCommitResult { local: LanguageBytes; pending: boolean; context: LanguageRecordContext; reset: boolean; generation: string | null }
-async function commitResponse(request: LanguageSyncRequest, observedWire: Record<string, unknown>, mode: 'normal' | 'bootstrap-base' | 'reset'): Promise<LanguageCommitResult> {
+/** Only the reviewed coordinator imports this capture function. Raw commit callers
+ * do not gain conversation authority. Registration binds the actual received wire
+ * to the original request/lifecycle; local commits never advance this timestamp. */
+export interface LanguageRemoteObservation { readonly requestId: string }
+const remoteObservations = new WeakMap<LanguageRemoteObservation, { request: LanguageSyncRequest; wire: string; observation: Observation }>();
+export function captureLanguageRemoteObservation(request: LanguageSyncRequest, wire: Record<string, unknown>): LanguageRemoteObservation {
+  const receivedAt = new Date().toISOString();
+  const entry = requireRequest(request);
+  assertSnapshot(request, readStorageSnapshot(entry.storage), 'ack');
+  const marker = parseLanguageMarker(Object.hasOwn(wire, LANGUAGE_MARKER_KEY) ? wire[LANGUAGE_MARKER_KEY] : undefined);
+  if (marker.kind === 'invalid') throw new ConversationLocalError('marker-conflict');
+  let epochId: string;
+  try { epochId = JSON.parse(request.epoch!).id; } catch { throw new ConversationLocalError('stale-authority'); }
+  const checked = observationSchema.safeParse({ kind: 'authenticated-remote-observation-received', requestId: request.id,
+    ownerId: request.userId, ownerEpochId: epochId, lifecycleId: entry.lifecycle.id,
+    marker: marker.kind === 'valid' ? marker.raw : null, receivedAt });
+  if (!checked.success) throw new ConversationLocalError('stale-authority');
+  const receipt = Object.freeze({ requestId: request.id });
+  remoteObservations.set(receipt, { request, wire: stableState(validateLanguageWire(wire)), observation: freezeRecord(checked.data) });
+  return receipt;
+}
+function observationFor(request: LanguageSyncRequest, wire: Record<string, unknown>, receipt?: LanguageRemoteObservation): Observation | null {
+  if (!receipt) return null;
+  const entry = remoteObservations.get(receipt);
+  if (!entry || entry.request !== request || entry.wire !== stableState(wire)) throw new ConversationLocalError('stale-authority');
+  requireRequest(request); return entry.observation;
+}
+export interface LanguageCommitResult { local: LanguageBytes; pending: boolean; context: LanguageRecordContext; reset: boolean; conversationReset: boolean; generation: string | null }
+async function commitResponse(request: LanguageSyncRequest, observedWire: Record<string, unknown>, mode: 'normal' | 'bootstrap-base' | 'reset', observationReceipt?: LanguageRemoteObservation): Promise<LanguageCommitResult> {
   const context = requireRequest(request), wire = freezeWire(observedWire), known = projectLanguageWire(wire as Record<string, unknown>);
   if ((compareLanguageReset(request, wire as Record<string, unknown>) === 'newer') !== (mode === 'reset')) throw new LanguageBoundaryError();
+  const observation = observationFor(request, wire as Record<string, unknown>, observationReceipt);
+  const replacement = allocateConversationResetReplacement();
+  let participantReset = false;
   let local: LanguageBytes = {};
   const nextAck = crypto.randomUUID();
   const binding = JSON.stringify({ ...request.binding, provenance: 'verified' });
   await updateStorageBatch(context.storage, snapshot => {
     assertSnapshot(request, snapshot, 'ack');
+    const participantChanges = planLanguageLocalParticipants(snapshot, { ownerId: request.userId, marker: known[LANGUAGE_MARKER_KEY] ?? null,
+      reason: mode === 'reset' ? 'remote-reset' : 'observation-catch-up', ...(observation ? { observation } : {}), replacement });
+    participantReset = Object.keys(participantChanges).length > 0;
     const latest = projectLanguageBytes(snapshot), changes: Record<string, string | null> = {};
     for (const key of LANGUAGE_STORAGE_KEYS) {
       const oldResetRecord = mode === 'reset' && (APP_RECORD_KEYS.language.includes(key) || key === LANGUAGE_MARKER_KEY);
@@ -149,7 +186,7 @@ async function commitResponse(request: LanguageSyncRequest, observedWire: Record
       changes[key] = (keepLatest ? latest[key] : known[key]) ?? null;
     }
     local = Object.freeze(Object.fromEntries(LANGUAGE_STORAGE_KEYS.flatMap(key => changes[key] === null ? [] : [[key, changes[key]]]))) as LanguageBytes;
-    return { ...changes, [languageSyncBaseKey(request.userId)]: JSON.stringify(wire), [languageSyncAckKey(request.userId)]: nextAck,
+    return { ...changes, ...participantChanges, [languageSyncBaseKey(request.userId)]: JSON.stringify(wire), [languageSyncAckKey(request.userId)]: nextAck,
       [LANGUAGE_BINDING_KEY]: binding,
       // A newer authenticated remote marker supersedes a completed older local receipt.
       ...(mode === 'reset' ? { [LANGUAGE_RESET_FENCE_KEY]: null } : {}) };
@@ -158,15 +195,15 @@ async function commitResponse(request: LanguageSyncRequest, observedWire: Record
   const snapshot = readStorageSnapshot(context.storage);
   if (snapshot.getItem(languageSyncAckKey(request.userId)) !== nextAck || snapshot.getItem(LANGUAGE_BINDING_KEY) !== binding
     || snapshot.getItem(LANGUAGE_MARKER_KEY) !== (known[LANGUAGE_MARKER_KEY] ?? null)) throw new LanguageRequestStaleError();
-  const recordContext = mintRecordContext(context, snapshot); assertRecordContext(recordContext);
+  const recordContext = mintRecordContext(context, snapshot, observation); assertRecordContext(recordContext);
   local = projectLanguageBytes(snapshot);
-  return { local, pending: !sameLanguageBytes(local, known), context: recordContext, reset: mode === 'reset', generation: snapshot.generation };
+  return { local, pending: !sameLanguageBytes(local, known), context: recordContext, reset: mode === 'reset', conversationReset: participantReset, generation: snapshot.generation };
 }
-export function commitLanguageSyncResponse(request: LanguageSyncRequest, observedWire: Record<string, unknown>, options: { preserveLocal?: boolean } = {}) {
-  return commitResponse(request, observedWire, options.preserveLocal ? 'bootstrap-base' : 'normal');
+export function commitLanguageSyncResponse(request: LanguageSyncRequest, observedWire: Record<string, unknown>, options: { preserveLocal?: boolean; observation?: LanguageRemoteObservation } = {}) {
+  return commitResponse(request, observedWire, options.preserveLocal ? 'bootstrap-base' : 'normal', options.observation);
 }
-export function commitLanguageRemoteReset(request: LanguageSyncRequest, observedRemote: Record<string, unknown>) {
-  const context = requireRequest(request); revokeLanguageRecordContexts(context.lifecycle); return commitResponse(request, observedRemote, 'reset');
+export function commitLanguageRemoteReset(request: LanguageSyncRequest, observedRemote: Record<string, unknown>, observation?: LanguageRemoteObservation) {
+  const context = requireRequest(request); revokeLanguageRecordContexts(context.lifecycle); return commitResponse(request, observedRemote, 'reset', observation);
 }
 export interface LanguageDraftRevision { readonly generation: string | null }
 export interface LanguageRecordSnapshot { readonly context: LanguageRecordContext; readonly records: LanguageBytes; readonly generation: string | null; readonly revision: LanguageDraftRevision }
@@ -230,3 +267,62 @@ export async function updateLanguageRecords(context: LanguageRecordContext, tran
   if (receipt.ownerCurrent && !receipt.notificationError) { try { source = readLanguageRecordSnapshot(context); } catch { /* Durable commit; UI authority retired. */ } }
   return { generation: receipt.snapshot.generation, records: source?.records ?? committedRecords, committedRecords, acknowledged: source !== null, source };
 }
+
+/** Fixed conversation-only capability. No arbitrary keys, raw storage or caller
+ * observation timestamps leave this module. Only the reviewed facade imports it. */
+export interface LanguageConversationSnapshot {
+  readonly context: LanguageRecordContext; readonly envelope: ConversationEnvelope | null;
+  readonly observation: Observation; readonly generation: string | null;
+}
+const conversationSnapshots = new WeakSet<LanguageConversationSnapshot>();
+function conversationContext(context: LanguageRecordContext, snapshot?: StorageSnapshot): RecordContextPrivate & { observation: Observation } {
+  const entry = assertRecordContext(context, snapshot);
+  if (!entry.observation || entry.observation.marker !== entry.markerRaw) throw new ConversationLocalError('stale-authority');
+  return entry as RecordContextPrivate & { observation: Observation };
+}
+function localFailure(error: unknown): ConversationLocalError {
+  if (error instanceof ConversationLocalError) return error;
+  if (error instanceof StorageWriteAttemptError && error.originalError instanceof ConversationLocalError) return new ConversationLocalError(error.originalError.code, error.outcome);
+  return new ConversationLocalError(error instanceof StorageWriteAttemptError && error.outcome === 'unknown' ? 'storage-unknown' : 'storage-unavailable', error instanceof StorageWriteAttemptError ? error.outcome : 'not-committed');
+}
+function readConversation(context: LanguageRecordContext): LanguageConversationSnapshot {
+  try {
+    const entry = conversationContext(context), snapshot = readStorageSnapshot(entry.storage); conversationContext(context, snapshot);
+    if (snapshot.pending) throw new ConversationLocalError('stale-authority');
+    const envelope = readConversationPartition(snapshot.getItem(conversationLocalKey(context.userId)), context.userId);
+    if (envelope && envelope.marker !== entry.markerRaw) throw new ConversationLocalError('marker-conflict');
+    const result = Object.freeze({ context, envelope, observation: entry.observation, generation: snapshot.generation });
+    conversationSnapshots.add(result); return result;
+  } catch (error) { throw localFailure(error); }
+}
+function assertConversationSource(source: LanguageConversationSnapshot, context: LanguageRecordContext): void {
+  try {
+    if (!conversationSnapshots.has(source)) throw new ConversationLocalError('stale-authority');
+    assertSameRecordOrigin(source.context, context); conversationContext(context);
+  } catch { throw new ConversationLocalError('stale-authority'); }
+}
+export const languageConversationCapability = Object.freeze({
+  read: readConversation,
+  assertSource: assertConversationSource,
+  async update(context: LanguageRecordContext, source: LanguageConversationSnapshot, transform: (fresh: ConversationEnvelope | null) => ConversationEnvelope) {
+    try {
+      assertConversationSource(source, context);
+      const entry = conversationContext(context), key = conversationLocalKey(context.userId);
+      const receipt = await updateStorageBatchWithReceipt(entry.storage, snapshot => {
+        conversationContext(context, snapshot); assertConversationSource(source, context);
+        const current = readConversationPartition(snapshot.getItem(key), context.userId);
+        if (current && current.marker !== entry.markerRaw) throw new ConversationLocalError('marker-conflict');
+        const next = transform(current);
+        const checked = validateEnvelope(next);
+        if (checked.status !== 'valid' || checked.envelope.ownerId !== context.userId || checked.envelope.marker !== entry.markerRaw) throw new ConversationLocalError('invalid-partition');
+        if (current ? checked.envelope.generationId !== current.generationId || !exact(checked.envelope.enrollment, current.enrollment)
+          : checked.envelope.enrollment.kind !== 'explicit-enrollment' || !exact(checked.envelope.enrollment.observation, entry.observation)) throw new ConversationLocalError('stale-authority');
+        return { [key]: canonicalJson(checked.envelope) };
+      }, { owner: entry.lease });
+      const committed = readConversationPartition(receipt.snapshot.getItem(key), context.userId)!;
+      let current: LanguageConversationSnapshot | null = null;
+      if (receipt.ownerCurrent && !receipt.notificationError) { try { current = readConversation(context); } catch { /* Durable after-image is not renewed authority. */ } }
+      return Object.freeze({ committed, acknowledged: current !== null, source: current, generation: receipt.snapshot.generation });
+    } catch (error) { throw localFailure(error); }
+  },
+});

@@ -7,7 +7,7 @@ import { append, commit, save, started } from './fixtures.test-support.ts';
 const root = new URL('../../', import.meta.url).pathname;
 function files(directory: string): string[] { return readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(join(directory, entry.name)) : [join(directory, entry.name)]); }
 
-test('inactive foundation has no production importer, storage capability, provider, A2 or clock/ID read', () => {
+test('pure foundation has no storage/provider/A2/clock authority; P2-B imports stay in the fixed three-file seam', () => {
   for (const name of ['contracts.ts', 'reducer.ts', 'recap.ts']) {
     const source = readFileSync(new URL(name, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /\b(?:localStorage|sessionStorage|indexedDB|fetch|WebSocket|Date\.now|Math\.random|randomUUID|setInterval|setTimeout)\s*[.(]/);
@@ -15,6 +15,7 @@ test('inactive foundation has no production importer, storage capability, provid
   }
   for (const file of ['app', 'components', 'data', 'hooks', 'services', 'utils'].flatMap(dir => files(join(root, dir)))) {
     if (!/\.[cm]?[jt]sx?$/.test(file) || file.endsWith('.test.ts')) continue;
+    if (['app/data/languageLocalParticipants.ts', 'app/data/languageCloudSync.ts', 'app/data/conversationLocalRecords.ts'].some(path => file === join(root, path))) continue;
     assert.doesNotMatch(readFileSync(file, 'utf8'), /(?:import|export)[^;]*conversation-session\//, file);
   }
 });

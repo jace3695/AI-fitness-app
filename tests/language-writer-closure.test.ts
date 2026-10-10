@@ -73,6 +73,8 @@ test('only the central domain runner invokes the adapter business writer; marker
 
 const REVIEWED_STORAGE_AUTHORITY = new Set([
   'app/data/languageCloudSync.ts', 'app/data/languageStorageBoundary.ts', 'app/data/languageResetFence.ts',
+  // P2-B singleton consumes only fresh exact-owner snapshot bytes, never arbitrary storage.
+  'app/data/languageLocalParticipants.ts',
   'app/data/storageTransaction.ts', 'app/data/cloudSync.ts', 'app/lib/resetAppRecords.ts', 'app/components/RecordResetPanel.tsx',
   // These retained nonlanguage capabilities use independent, fixed namespaces.
   'components/useYeoniPreferences.ts', 'lib/syncQaTrace.ts', 'app/budget/lib/pending-save.ts',
@@ -187,6 +189,7 @@ test('global raw storage capability inventory cannot silently grow or change out
 
 const REVIEWED_IMPORTERS = new Set([...REVIEWED_STORAGE_AUTHORITY,...routes,...components,...helpers,...domains,
   'app/data/languageRecordMutations.ts','app/data/languageRecordDocuments.ts','app/data/languageRecordIdentity.ts',
+  'app/data/conversationLocalRecords.ts',
   'components/language/LanguageRecordsProvider.tsx','components/language/useLanguageRecordSnapshot.ts','components/language/useLanguageMutationAction.ts',
 ]);
 function capabilityImporters(files: readonly string[]): Set<string> {
@@ -232,4 +235,45 @@ test('additive inner operation receipts do not change established remote summary
   const now = new Date('2026-10-09T12:00:00Z');
   assert.deepEqual(buildFreeAdviceContext('language', {languageState:extended}, now), buildFreeAdviceContext('language',{languageState:base},now));
   assert.deepEqual(buildLanguageDailyStatus(extended,'2026-10-09'), buildLanguageDailyStatus(base,'2026-10-09'));
+});
+
+
+const CONVERSATION_CAPABILITY_PATHS: Record<string, readonly string[]> = {
+  captureLanguageRemoteObservation: ['app/data/languageCloudSync.ts','app/data/languageSyncCoordinator.ts'],
+  languageConversationCapability: ['app/data/languageCloudSync.ts','app/data/conversationLocalRecords.ts'],
+  planLanguageLocalParticipants: ['app/data/languageLocalParticipants.ts','app/data/languageCloudSync.ts','app/data/languageResetFence.ts'],
+};
+function assertConversationCapability(path: string, source: ts.SourceFile) {
+  walk(source, node => {
+    const name = ts.isIdentifier(node) ? node.text : ts.isElementAccessExpression(node) ? constantString(node.argumentExpression, path) : undefined;
+    if (name && Object.hasOwn(CONVERSATION_CAPABILITY_PATHS, name)) assert.ok(CONVERSATION_CAPABILITY_PATHS[name].includes(path), `${path}: unauthorized conversation capability ${name}`);
+    let specifier: ts.Expression | undefined;
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier) specifier = node.moduleSpecifier;
+    if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === 'require')) specifier = node.arguments[0];
+    if (!specifier) return;
+    const moduleName = constantString(specifier,path); if (!moduleName) return;
+    if (/conversationLocalRecords(?:\.ts)?$/.test(moduleName)) assert.fail(`${path}: P2-C production facade activation is not approved`);
+    if (/languageLocalParticipants(?:\.ts)?$/.test(moduleName)) {
+      assert.ok(['app/data/languageCloudSync.ts','app/data/languageResetFence.ts','app/data/conversationLocalRecords.ts','app/data/languageSyncCoordinator.ts'].includes(path));
+      assert.ok(ts.isImportDeclaration(node) && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings), 'No namespace, dynamic or reexport capability route');
+    }
+    if (/languageCloudSync(?:\.ts)?$/.test(moduleName)) assert.ok(ts.isImportDeclaration(node) && (!node.importClause?.namedBindings || ts.isNamedImports(node.importClause.namedBindings)), 'No namespace, dynamic or reexport adapter route');
+  });
+}
+test('conversation authority has exactly one coordinator capture path and one facade writer; UI stays inactive', () => {
+  const files = ['app','components','utils','hooks','lib','services','data'].flatMap(productionFiles);
+  for (const path of files) assertConversationCapability(path, parsed(path));
+});
+test('conversation guard rejects namespace, reexport, dynamic and computed-string capability escape routes', () => {
+  for (const [index, text] of [
+    "import * as adapter from '../app/data/languageCloudSync.ts'; adapter['languageConversationCapability'].read(context);",
+    "export { languageConversationCapability as writable } from '../app/data/languageCloudSync.ts';",
+    "const participant = await import('../app/data/languageLocalParticipants.ts'); participant['plan' + 'LanguageLocalParticipants'](source, target);",
+    "const key = 'language' + 'ConversationCapability'; hidden[key].read(context);",
+    "import { readConversationSnapshot } from '../app/data/conversationLocalRecords.ts';",
+  ].entries()) {
+    const path = `tests/synthetic-conversation-capability-${index}.ts`;
+    const source = ts.createSourceFile(path,text,ts.ScriptTarget.Latest,true); parsedSources.set(path, source);
+    assert.throws(() => assertConversationCapability(path, source)); parsedSources.delete(path);
+  }
 });

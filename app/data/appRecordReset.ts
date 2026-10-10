@@ -26,7 +26,7 @@ export const APP_RECORD_KEYS: Record<RecordResetApp, readonly string[]> = {
 export const APP_RESET_INFO: Record<RecordResetApp, { label: string; href: string; removes: string; keeps: string }> = {
   fitness: { label: "운동", href: "/fitness/settings", removes: "운동·세트·철봉 진도·직접 기록한 운동 시각, 체중·체성분, 컨디션·메모, AI 운동 분석과 선택 이력", keeps: "운동표·운동 설정·체중 목표·알림, 식단 기록" },
   diet: { label: "식단", href: "/diet/settings", removes: "식사·단백질·물·공복 기록, 외식·증상 체크", keeps: "식단 단계·시작일·공복 방식, 운동·체중 기록" },
-  language: { label: "일본어", href: "/language/settings", removes: "가나·수업 진도와 점수, 진행 중 수업, 오답·복습·학습 달력, 저장한 단어·문장", keeps: "교재·예문, 학습 시간·음성·캐릭터 설정" },
+  language: { label: "일본어", href: "/language/settings", removes: "가나·수업 진도와 점수, 진행 중 수업, 오답·복습·학습 달력, 저장한 단어·문장, 이 기기에 저장된 일본어 대화·초안·요약", keeps: "교재·예문, 학습 시간·음성·캐릭터 설정" },
   growth: { label: "자기계발", href: "/growth/settings", removes: "루틴 실행·타자·손글씨 연습 기록, 주간 코칭 이력", keeps: "만든 루틴·목표, 자료함의 파일과 작품, 운동·일본어 원본 기록" },
   assistant: { label: "AI 연이", href: "/assistant/settings", removes: "대화, 저장한 기억, 할 일·회신 대기·프로젝트와 앱에 등록한 일정", keeps: "Google 캘린더의 원본 일정과 연결, 알림 설정, 다른 앱 기록, AI 사용량·요금 한도" },
   budget: { label: "가계부", href: "/budget", removes: "전체 기간의 지출·수입·저축 내역", keeps: "월별·분류별 예산, 반복지출 설정, 통화·계정·보안 설정" },

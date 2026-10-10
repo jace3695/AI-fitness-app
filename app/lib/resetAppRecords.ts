@@ -93,9 +93,11 @@ async function performLanguageReset(captured: LanguageResetContext): Promise<Res
       if (mayHaveDispatched) error.message += " 초기화 요청이 서버에 전달되었을 수 있으니 원래 계정에서 같은 요청 결과를 확인해 주세요.";
       throw error;
     }
-    if (receipt) throw new Error(`클라우드 초기화는 완료됐지만 이 기기의 정리를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요. ${error instanceof Error ? error.message : ''}`);
-    if (mayHaveDispatched) throw new Error(`초기화 요청의 서버 처리 결과가 아직 확인되지 않았어요. 기록을 보존했으니 같은 요청으로 다시 확인해 주세요. ${error instanceof Error ? error.message : ''}`);
-    throw error;
+    if (error instanceof LanguageBoundaryError) throw error;
+    if (receipt) throw new Error('클라우드 초기화는 완료됐지만 이 기기의 정리를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요. 손상되거나 지원하지 않는 기기 기록은 별도 복구가 필요합니다.');
+    if (mayHaveDispatched) throw new Error('초기화 요청의 서버 처리 결과가 아직 확인되지 않았어요. 기록을 보존했으니 같은 요청으로 다시 확인해 주세요.');
+    if (error instanceof LanguageBoundaryError) throw error;
+    throw new Error('학습 초기화를 진행하지 못했습니다. 기기 기록은 보존했습니다.');
   }
 }
 

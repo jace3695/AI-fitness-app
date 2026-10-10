@@ -191,7 +191,7 @@ for (const mode of ['event', 'session']) test(`R07 ${mode} publication failure r
 test('R08 unknown RPC response leaves durable uncertainty after DOM running flag clears, with the exact request available to a later panel', async t => {
   const b = fixture(); t.after(b.dispose); resets.setRecordResetRunning(true);
   b.onRpc(() => { b.remote({ [boundary.LANGUAGE_MARKER_KEY]: marker }); throw new Error('synthetic lost response'); });
-  await assert.rejects(b.reset(), /lost response/); resets.setRecordResetRunning(false);
+  await assert.rejects(b.reset(), error => error instanceof Error && /서버 처리 결과가 아직 확인되지/.test(error.message) && !/lost response/.test(error.message)); resets.setRecordResetRunning(false);
   assert.equal(resets.isRecordResetRunning(), false); assert.deepEqual(resetFence.readPendingLanguageReset(owner), { requestId: request, state: 'uncertain' });
   const token = transactions.captureStorageOwner(); assert.equal(boundary.readLanguageBoundary(transactions.readStorageSnapshot(b.local), token).status, 'unavailable');
   assert.equal(b.rpcCalls, 1); b.onRpc(undefined); await b.reset(); assert.equal(b.rpcCalls, 1); assert.equal(b.getCalls, 1);

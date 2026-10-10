@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 import ts from 'typescript';
 import type * as Cloud from '../../app/data/cloudSync.ts';
 import type * as Transactions from '../../app/data/storageTransaction.ts';
@@ -14,6 +15,7 @@ type AuthListener = (event: string, session: { user: AuthUser } | null) => void;
 export const FIXTURE_OWNER = 'synthetic-owner-a';
 export const RECORD_KEY = 'ai-fitness-diet-completed-days';
 const LOCK_NAME = 'yeoni-shared-local-storage-v2';
+const nativeRequire = createRequire(import.meta.url);
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const sourceCache = new Map<string, string>();
 export const tick = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -156,20 +158,25 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     const absolute = resolve(root, path);
     if (absolute in modules) return modules[absolute] as Record<string, unknown>;
     if (moduleCache.has(absolute)) return moduleCache.get(absolute)!;
-    if (!sourceCache.has(absolute)) sourceCache.set(absolute, ts.transpileModule(readFileSync(absolute, 'utf8'), {
+    if (!sourceCache.has(absolute)) sourceCache.set(absolute, absolute.endsWith('.cjs') ? readFileSync(absolute, 'utf8') : ts.transpileModule(readFileSync(absolute, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText);
     const exports: Record<string, unknown> = {};
     moduleCache.set(absolute, exports);
-    vm.runInContext(`(function(exports, require) { ${sourceCache.get(absolute)}\n})`, context)(exports, (name: string) => {
+    const cjs = { exports };
+    vm.runInContext(`(function(exports, require, module) { ${sourceCache.get(absolute)}\n})`, context)(exports, (name: string) => {
       if (name in modules) return modules[name];
+      // Execute the installed validator in each tab's realm so strict prototype
+      // checks and runtime WeakMap identities are genuine, not host-realm stubs.
+      if (name === 'zod') return load(nativeRequire.resolve('zod'));
       assert.ok(name.startsWith('.') || name.startsWith('@/'), `Unexpected dependency ${name} from ${path}`);
       const dependency = name.startsWith('@/') ? resolve(root, name.slice(2)) : resolve(dirname(absolute), name);
-      const candidates = /\.tsx?$/.test(dependency) ? [dependency] : [`${dependency}.ts`, `${dependency}.tsx`];
+      const candidates = /\.(?:tsx?|cjs)$/.test(dependency) ? [dependency] : [`${dependency}.ts`, `${dependency}.tsx`];
       const found = candidates.find(candidate => candidate in modules || existsSync(candidate)) ?? candidates[0];
       return load(found);
-    });
-    return exports;
+    }, cjs);
+    moduleCache.set(absolute, cjs.exports);
+    return cjs.exports;
   }
   const transactions = load('app/data/storageTransaction.ts') as typeof Transactions;
   const cloud = load('app/data/cloudSync.ts') as typeof Cloud;

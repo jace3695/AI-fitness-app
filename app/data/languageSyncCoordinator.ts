@@ -1,10 +1,11 @@
+import { ConversationLocalError } from './languageLocalParticipants.ts';
 import type { AuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
 import { assertAuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
 import type { TransactionStorage } from './storageTransaction.ts';
 import { readStorageSnapshot, STORAGE_GENERATION_KEY, STORAGE_JOURNAL_KEY, STORAGE_OWNER_KEY, STORAGE_PROTOCOL_KEY, STORAGE_READY_KEY, STORAGE_SESSION_KEY } from './storageTransaction.ts';
 import { stableState } from './cloudSync.ts';
 import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS, LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, projectLanguageBytes, projectLanguageWire, sameLanguageBytes } from './languageStorageBoundary.ts';
-import { assertLanguageSyncDispatchCurrent, commitLanguageRemoteReset, commitLanguageSyncResponse, createLanguageSyncLifecycle,
+import { captureLanguageRemoteObservation, assertLanguageSyncDispatchCurrent, commitLanguageRemoteReset, commitLanguageSyncResponse, createLanguageSyncLifecycle,
   isLanguageRecordContextCurrent, isLanguageSyncRequestCurrent, LanguageRequestStaleError, planLanguageSync, readLanguageSyncRequest, revokeLanguageRecordContexts } from './languageCloudSync.ts';
 import type { LanguageRecordContext, LanguageSyncLifecycle } from './languageCloudSync.ts';
 export type LanguageCoordinatorState = { status: 'checking' | 'ready' | 'pending' | 'paused' | 'blocked' | 'error' | 'uncertain'; message: string; initialized: boolean; context?: LanguageRecordContext; reset?: boolean };
@@ -55,6 +56,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
         check(operation);
         const remote = await transport.read(lease.userId, operation.signal);
         check(operation);
+        let observation = remote ? captureLanguageRemoteObservation(request, remote.state) : undefined;
         if (!isLanguageSyncRequestCurrent(request, 'dispatch')) {
           request = readLanguageSyncRequest(lease, operation, storage);
           // A new snapshot starts a new read-first calculation, never changes an already named payload.
@@ -76,14 +78,15 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
           if (!accepted) { dispatched = false; continue; }
           const readback = await transport.read(lease.userId, operation.signal);
           check(operation);
+          observation = readback ? captureLanguageRemoteObservation(request, readback.state) : undefined;
           if (!readback || stableState(readback.state) !== stableState(observed)) throw new Error('저장 후 서버 학습 기록을 일치하는 내용으로 확인하지 못했습니다. 기기 원본은 보존했습니다.');
           observed = readback.state;
         }
         check(operation);
         if (!isLanguageSyncRequestCurrent(request, 'ack')) throw new LanguageRequestStaleError();
         committing = true;
-        const result = plan.kind === 'reset' ? await commitLanguageRemoteReset(request, observed)
-          : await commitLanguageSyncResponse(request, observed, { preserveLocal: plan.kind === 'bootstrap-base' });
+        const result = plan.kind === 'reset' ? await commitLanguageRemoteReset(request, observed, observation)
+          : await commitLanguageSyncResponse(request, observed, { preserveLocal: plan.kind === 'bootstrap-base', observation });
         check(operation);
         committing = false;
         if (!isLanguageRecordContextCurrent(result.context)) throw new LanguageRequestStaleError();
@@ -97,9 +100,9 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
     } catch (error) {
       if (!current(operation)) return;
       revokeLanguageRecordContexts(operation);
-      const message = error instanceof Error ? error.message : '학습 기록을 확인하지 못했습니다. 원본을 보존했습니다.';
+      const message = error instanceof ConversationLocalError ? '기기의 일본어 대화 기록을 확인할 수 없어 학습 기록 저장을 멈췄습니다. 원본은 보존했습니다. 손상되거나 지원하지 않는 기록은 별도 복구가 필요합니다.' : error instanceof LanguageBoundaryError || error instanceof LanguageRequestStaleError ? error.message : '학습 기록을 확인하지 못했습니다. 원본을 보존했습니다.';
       if (dispatched) publish({ status: 'uncertain', message: `${message} 서버 반영 여부는 다음 연결에서 먼저 조회합니다.` });
-      else if (error instanceof LanguageBoundaryError) publish({ status: 'blocked', message });
+      else if (error instanceof LanguageBoundaryError || error instanceof ConversationLocalError) publish({ status: 'blocked', message });
       else if (error instanceof LanguageRequestStaleError) { publish({ status: 'checking', message }); schedule(); }
       else publish({ status: 'error', message });
     } finally {

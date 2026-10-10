@@ -83,7 +83,8 @@ for (const boundary of ['hidden', 'pagehide', 'unmount'] as const) test(`R11 shi
 
 test('R12 shipping cold GET error never mounts raw language editors', async t => {
   const f = await languageFixture(t); f.failRead(); const view = f.mount(); await view.settle();
-  assert.match(view.text(), /synthetic language GET unavailable/);
+  assert.match(view.text(), /학습 기록을 확인하지 못했습니다/);
+  assert.doesNotMatch(view.text(), /synthetic language GET unavailable/);
   assert.equal(editorContainer(view.render()), undefined);
   assert.ok(view.button('다시 연결하기'));
 });
@@ -240,4 +241,68 @@ test('A01/R11 cross-tab participating record/protocol events retain an already-s
   assert.equal(f.tab.local.getItem('savedWords'), '["newer participating edit"]');
   assert.match(view.text(), /서버 반영 대기/);
   assert.equal(editorContainer(view.render())?.props.hidden, false);
+});
+
+
+test('P2B shipping SDK GET binds exact receipt time/owner/epoch/lifecycle and local create/close preserves it', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-10T02:00:00.000Z').getTime() });
+  const f = await languageFixture(t), held = f.holdRead(), view = f.mount(); await view.settle();
+  t.mock.timers.tick(10_000);
+  held.resolve({ data: { state: {}, updated_at: 'synthetic-response' }, error: null }); await view.settle();
+  const context = (editorContainer(view.render())?.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const facade = f.tab.loadModule('app/data/conversationLocalRecords.ts') as typeof import('../app/data/conversationLocalRecords.ts');
+  const source = facade.readConversationSnapshot(context), observed = source.observation;
+  assert.equal(observed.receivedAt, '2026-10-10T02:00:10.000Z'); assert.equal(observed.ownerId, f.lease.userId);
+  assert.equal(observed.ownerEpochId, JSON.parse(f.lease.epoch!).id); assert.ok(observed.requestId); assert.ok(observed.lifecycleId);
+  assert.equal(source.envelope, null);
+  t.mock.timers.tick(60_000);
+  const created = await facade.runConversationEdit(facade.captureConversationSession(source, 'legacy-cafe', 'UTC'));
+  assert.equal(created.acknowledged, true);
+  const close = facade.captureConversationClose(facade.readConversationSnapshot(context), created.effect.sessionId);
+  await facade.stageConversationIntent(close); await facade.applyConversationIntent(close);
+  const closed = facade.readConversationSnapshot(context).envelope!.sessions[0].closed!;
+  assert.equal(closed.observation.receivedAt, observed.receivedAt); assert.equal(closed.observation.requestId, observed.requestId);
+  assert.equal(closed.closedAt, '2026-10-10T02:01:10.000Z');
+  f.tab.dispatch({ type: 'focus' }); await view.settle();
+  const nextContext = (editorContainer(view.render())?.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const next = facade.readConversationSnapshot(nextContext);
+  assert.equal(next.observation.receivedAt, '2026-10-10T02:01:10.000Z'); assert.notEqual(next.observation.requestId, observed.requestId);
+  assert.equal(next.envelope!.sessions[0].closed!.observation.requestId, observed.requestId);
+});
+
+test('P2B shipping ordinary participant catch-up keeps the unrelated dirty legacy editor mounted', async t => {
+  const f = await languageFixture(t);
+  const marker = '2026-10-09T12:00:00.000Z|11111111-1111-4111-8111-111111111111';
+  f.setRemote({ languageRecordResetV1: marker }); const view = f.mount(); await view.settle();
+  const original = editorContainer(view.render()); assert.ok(original); const key = original.key;
+  const contracts = f.tab.loadModule('lib/conversation-session/contracts.ts') as typeof import('../lib/conversation-session/contracts.ts');
+  const participants = f.tab.loadModule('app/data/languageLocalParticipants.ts') as typeof import('../app/data/languageLocalParticipants.ts');
+  const raw = contracts.canonicalJson({ schemaVersion: 1, ownerId: f.lease.userId, generationId: 'older-conversation-generation', marker: null,
+    enrollment: { kind: 'explicit-enrollment', enrollmentId: 'old-enrollment', createdAt: '2026-10-08T01:00:00.000Z', observation: {
+      kind: 'authenticated-remote-observation-received', requestId: 'old-read', ownerId: f.lease.userId, ownerEpochId: 'old-epoch', lifecycleId: 'old-life', marker: null, receivedAt: '2026-10-08T01:00:00.000Z',
+    } }, sessions: [], tombstones: [] });
+  f.tab.local.setItem(participants.conversationLocalKey(f.lease.userId), raw);
+  f.tab.dispatch({ type: 'focus' }); await view.settle();
+  const current = editorContainer(view.render()); assert.equal(current?.key, key); assert.equal(current?.props.hidden, false);
+  assert.equal((current?.props.children as UiNode).props.children, editor);
+  const replaced = JSON.parse(f.tab.local.getItem(participants.conversationLocalKey(f.lease.userId))!);
+  assert.equal(replaced.enrollment.reason, 'observation-catch-up'); assert.equal(replaced.marker, marker);
+  assert.notEqual(replaced.generationId, 'older-conversation-generation');
+});
+
+test('P2B shipping SDK write/readback uses the readback receive time and preserves exact marker provenance', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-10T03:00:00.000Z').getTime() });
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const facade = f.tab.loadModule('app/data/conversationLocalRecords.ts') as typeof import('../app/data/conversationLocalRecords.ts');
+  const originalContext = (editorContainer(view.render())?.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const original = facade.readConversationSnapshot(originalContext).observation;
+  f.tab.local.setItem('savedWords', '["synthetic pending legacy edit"]');
+  const held = f.holdReadback(); t.mock.timers.tick(1_000); f.tab.dispatch({ type: 'focus' }); await view.settle();
+  assert.equal(f.calls.at(-1)?.kind, 'read'); assert.equal(f.calls.filter(call => call.kind === 'update').length, 1);
+  t.mock.timers.tick(30_000); held.resolve({ data: { state: { savedWords: '["synthetic pending legacy edit"]' }, updated_at: 'exact-readback' }, error: null }); await view.settle();
+  const nextContext = (editorContainer(view.render())?.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const next = facade.readConversationSnapshot(nextContext).observation;
+  assert.equal(next.receivedAt, '2026-10-10T03:00:31.000Z'); assert.notEqual(next.requestId, original.requestId);
+  assert.equal(next.marker, null); assert.equal(next.lifecycleId, original.lifecycleId); assert.equal(next.ownerEpochId, original.ownerEpochId);
+  assert.throws(() => facade.readConversationSnapshot(originalContext));
 });

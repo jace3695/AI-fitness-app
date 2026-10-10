@@ -1,3 +1,4 @@
+import { allocateConversationResetReplacement, ConversationLocalError, planLanguageLocalParticipants } from './languageLocalParticipants.ts';
 import { APP_RECORD_KEYS } from './appRecordReset.ts';
 import {
   LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY,
@@ -7,7 +8,7 @@ import {
 } from './languageStorageBoundary.ts';
 import {
   captureStorageOwner, isStorageOwnerCurrent, readStorageSnapshot, STORAGE_OWNER_KEY,
-  STORAGE_READY_KEY, STORAGE_SESSION_KEY, StorageSessionChangedError, updateStorageBatch,
+  STORAGE_READY_KEY, STORAGE_SESSION_KEY, StorageSessionChangedError, updateStorageBatch, updateStorageBatchWithReceipt, StorageWriteAttemptError,
   type StorageOwnerToken, type StorageSnapshot,
 } from './storageTransaction.ts';
 
@@ -75,11 +76,12 @@ export async function establishLanguageReset(context: LanguageResetContext): Pro
     expectedMarker: context.marker, state: 'pending',
   };
   const fenceRaw = continuing ? context.fenceRaw! : JSON.stringify(fence);
+  const acknowledgement = crypto.randomUUID();
   await updateStorageBatch(window.localStorage, (snapshot): Record<string, string | null> => {
     assertSnapshot(context, snapshot);
     return continuing ? {} : {
       [LANGUAGE_RESET_FENCE_KEY]: fenceRaw,
-      [languageSyncAckKey(context.owner.userId)]: crypto.randomUUID(),
+      [languageSyncAckKey(context.owner.userId)]: acknowledgement,
     };
   }, { owner: context.owner });
   const next = Object.freeze({ ...context, fence, fenceRaw });
@@ -96,31 +98,57 @@ export async function markLanguageResetUncertain(context: LanguageResetContext) 
   }, { owner: context.owner });
 }
 
+export class LanguageResetAcknowledgementError extends Error {
+  readonly committed = true;
+  constructor() { super('학습 초기화의 기기 정리는 저장됐지만 알림을 마치지 못했습니다. 같은 요청으로 다시 확인해 주세요.'); this.name = 'LanguageResetAcknowledgementError'; }
+}
+
 export async function completeLanguageReset(context: LanguageResetContext, marker: string): Promise<LanguageResetContext> {
   const parsed = parseLanguageMarker(marker);
   if (parsed.kind !== 'valid' || parsed.requestId !== context.requestId || !context.fence) throw new LanguageBoundaryError();
+  const replacement = allocateConversationResetReplacement(), acknowledgement = crypto.randomUUID();
+  const target = Object.freeze({ ownerId: context.owner.userId, marker, reason: 'explicit-reset' as const, replacement });
+  const fence: LanguageResetFence = { ...context.fence, state: 'completed', marker };
+  const fenceRaw = JSON.stringify(fence);
+  const completed = Object.freeze({ ...context, marker, fence, fenceRaw });
+  const verifyCompleted = () => {
+    assertLanguageResetCurrent(completed);
+    // Matching completion permits only a verified same-marker receipt/enrollment.
+    // Missing or stale participant proof cannot become another destructive sweep.
+    if (Object.keys(planLanguageLocalParticipants(readStorageSnapshot(window.localStorage), target)).length) throw new ConversationLocalError('marker-conflict');
+    assertLanguageResetCurrent(completed);
+  };
   if (context.fence.state === 'completed') {
-    assertLanguageResetCurrent(context);
     if (context.fence.marker !== marker) throw new LanguageBoundaryError();
-    return context; // Receipt retry must preserve records created after cleanup.
+    verifyCompleted(); return completed;
   }
   if (context.fence.expectedMarker === marker) {
     throw new LanguageBoundaryError('이전 초기화의 기기 정리 완료 여부를 확인할 수 없습니다. 남은 기록을 보존했으며 별도 복구가 필요합니다.');
   }
-  const fence: LanguageResetFence = { ...context.fence, state: 'completed', marker };
-  const fenceRaw = JSON.stringify(fence);
-  await updateStorageBatch(window.localStorage, snapshot => {
-    assertSnapshot(context, snapshot);
-    return {
-      ...Object.fromEntries(APP_RECORD_KEYS.language.map(key => [key, null])),
-      [LANGUAGE_MARKER_KEY]: marker,
-      [languageSyncBaseKey(context.owner.userId)]: null,
-      [languageSyncAckKey(context.owner.userId)]: crypto.randomUUID(),
-      [LANGUAGE_RESET_FENCE_KEY]: fenceRaw,
-    };
-  }, { owner: context.owner });
-  const completed = Object.freeze({ ...context, marker, fence, fenceRaw });
-  assertLanguageResetCurrent(completed);
+  let notificationFailed = false;
+  try {
+    const receipt = await updateStorageBatchWithReceipt(window.localStorage, snapshot => {
+      assertSnapshot(context, snapshot);
+      const participantChanges = planLanguageLocalParticipants(snapshot, target);
+      return {
+        ...Object.fromEntries(APP_RECORD_KEYS.language.map(key => [key, null])), ...participantChanges,
+        [LANGUAGE_MARKER_KEY]: marker,
+        [languageSyncBaseKey(context.owner.userId)]: null,
+        [languageSyncAckKey(context.owner.userId)]: acknowledgement,
+        [LANGUAGE_RESET_FENCE_KEY]: fenceRaw,
+      };
+    }, { owner: context.owner });
+    notificationFailed = Boolean(receipt.notificationError);
+  } catch (error) {
+    // Some hosts mutate then throw. Recognize exact durable completion first;
+    // never replace a proven completed fence with pending/uncertain state.
+    try { verifyCompleted(); return completed; } catch { /* Keep original outcome. */ }
+    if (error instanceof StorageSessionChangedError || error instanceof ConversationLocalError) throw error;
+    if (error instanceof StorageWriteAttemptError && (error.originalError instanceof ConversationLocalError || error.originalError instanceof StorageSessionChangedError)) throw error.originalError;
+    throw new ConversationLocalError(error instanceof StorageWriteAttemptError && error.outcome === 'unknown' ? 'storage-unknown' : 'storage-unavailable', error instanceof StorageWriteAttemptError ? error.outcome : 'not-committed');
+  }
+  verifyCompleted();
+  if (notificationFailed) throw new LanguageResetAcknowledgementError();
   return completed;
 }
 

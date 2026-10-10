@@ -4,7 +4,7 @@ import { FREE_CONVERSATION_CATALOG_VERSION, FREE_CONVERSATION_SAMPLE_MATCH_POLIC
 import { freezeRecord, timestampSchema as p1TimestampSchema } from '../conversation-review/contract.ts';
 import { SUMMARY_POLICY_VERSION } from '../conversation-review/summary.ts';
 
-/** Inactive P2-A data contracts. Nothing here grants owner or write authority. */
+/** Pure conversation data contracts. Nothing here grants owner or write authority. */
 export const CONVERSATION_LIMITS = Object.freeze({ envelopeCodeUnits: 262_144, sessions: 25, totalTurns: 500, sessionTurns: 200, inputCodeUnits: 8000, draftLanes: 2 });
 export const RESPONSE_POLICY = 'legacy-fixed-response-v1';
 export const SESSION_SCHEMA_VERSION = 1;
@@ -63,7 +63,15 @@ export const sessionSchema = z.strictObject({
 export const deletionSchema = z.strictObject({ deletionId: id, tombstoneId: id, ownerId: id, generationId: id, sessionId: id, expectedStateRevision: counter, deletedAt: timestampSchema });
 export const envelopeSchema = z.strictObject({
   schemaVersion: z.literal(1), ownerId: id, generationId: id, marker,
-  enrollment: z.strictObject({ kind: z.literal('explicit-enrollment'), enrollmentId: id, createdAt: timestampSchema }),
+  enrollment: z.discriminatedUnion('kind', [
+    // Optional only for compatibility with inactive pure fixtures. The production
+    // participant requires a causally bound observation before preserving this form.
+    z.strictObject({ kind: z.literal('explicit-enrollment'), enrollmentId: id, createdAt: timestampSchema, observation: observationSchema.optional() }),
+    z.strictObject({ kind: z.literal('reset-replacement'), enrollmentId: id, createdAt: timestampSchema,
+      ownerId: id, generationId: id, previousGenerationId: id, previousMarker: marker, marker: markerSchema.unwrap(),
+      reason: z.enum(['explicit-reset', 'remote-reset', 'observation-catch-up']), requestId: id,
+      observation: observationSchema.optional() }),
+  ]),
   sessions: z.array(sessionSchema).max(25), tombstones: z.array(deletionSchema).max(2000),
 });
 export type ConversationSource = z.infer<typeof sourceSchema>;
@@ -167,6 +175,14 @@ export function capacityUsage(envelope: ConversationEnvelope) {
 }
 
 function coherent(envelope: ConversationEnvelope): boolean {
+  const enrollment = envelope.enrollment;
+  if (enrollment.observation && (enrollment.observation.ownerId !== envelope.ownerId || enrollment.observation.marker !== envelope.marker)) return false;
+  if (enrollment.kind === 'reset-replacement') {
+    if (enrollment.ownerId !== envelope.ownerId || enrollment.generationId !== envelope.generationId || enrollment.previousGenerationId === envelope.generationId
+      || enrollment.marker !== envelope.marker || enrollment.requestId !== enrollment.marker.split('|')[1]
+      || (enrollment.reason !== 'explicit-reset' && !enrollment.observation)) return false;
+    if (enrollment.previousMarker !== null && Date.parse(enrollment.previousMarker.split('|')[0]) >= Date.parse(enrollment.marker.split('|')[0])) return false;
+  }
   const draftOwners = new Map<string, string>(), draftVersions = new Map<string, string>();
   const sessionIds = new Set<string>(), operationIds = new Set<string>(), turnIds = new Set<string>(), resultIds = new Set<string>(), resolutionIds = new Set<string>(), commandResultIds = new Set<string>(), deletionIds = new Set<string>(), draftIds = new Set<string>();
   const add = (set: Set<string>, value: string) => { if (set.has(value)) return false; set.add(value); return true; };
