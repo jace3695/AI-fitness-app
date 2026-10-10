@@ -14,8 +14,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
 const routes = ['page', 'learn/page', 'review/page', 'progress/page', 'settings/page', 'kana/page', 'words/page', 'sentences/page', 'grammar/page', 'calendar/page', 'speaking/page', 'conversation/page'].map(path => `app/language/${path}.tsx`);
 const helpers = ['utils/curriculumProgress.ts', 'utils/dailyRoutineProgress.ts', 'utils/integratedLearningSettings.ts', 'utils/learningSession.ts'];
-const components = [...['FocusedLesson', 'KanaStarter', 'LearningWelcome', 'CourseReviewQuestion'].map(name => `components/language/${name}.tsx`), 'components/language/useConversationSession.ts'];
-const domains = ['Course', 'Daily', 'Legacy', 'Review', 'Settings'].map(name => `app/data/language${name}Mutations.ts`);
+const components = [...['FocusedLesson', 'KanaStarter', 'LearningWelcome', 'CourseReviewQuestion', 'CapturedCourseReviewQuestion'].map(name => `components/language/${name}.tsx`), 'components/language/useConversationSession.ts'];
+const domains = [...['Course', 'Daily', 'Legacy', 'Review', 'Settings'].map(name => `app/data/language${name}Mutations.ts`), 'app/data/languageLegacyReviewCapture.ts'];
 const removed = new Set(['saveCurriculumProgress', 'saveIntegratedLearningSettings', 'saveTodayRoutineCompletedIds', 'markTodayRoutineCompleted', 'saveToStorage']);
 function tree(path: string) { return ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS); }
 function walk(node: ts.Node, visit: (node: ts.Node) => void) { visit(node); node.forEachChild(child => walk(child, visit)); }

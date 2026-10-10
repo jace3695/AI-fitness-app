@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { GRAMMAR_LESSONS, GRAMMAR_PROGRESS_KEY, type GrammarProgressItem } from "@/data/grammar";
 import type { RubySegment as WordRubySegment } from "@/data/words";
@@ -9,6 +10,10 @@ import { CURRICULUM_REVIEW_KEY, type CurriculumReviewItem } from "@/utils/curric
 import { summarizeReviewMastery } from "@/utils/learningReview";
 import { reviewFocus, type ReviewTrack } from "@/utils/reviewFocus";
 import CourseReviewQuestion from "@/components/language/CourseReviewQuestion";
+import CapturedCourseReviewQuestion from "@/components/language/CapturedCourseReviewQuestion";
+import { capturedReviewAvailable, resolveCapturedReviewSurface } from "@/app/data/languageLegacyReviewCapture";
+import { loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
 import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
 import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
 import { languageRowSource, type LanguageRowHandle } from "@/app/data/languageRecordIdentity";
@@ -170,6 +175,18 @@ function parseKanaReviewItem(item: WrongItem): {
 }
 
 export default function ReviewPage() {
+  return <Suspense fallback={<section><p role="status">복습 화면을 확인하고 있어요.</p></section>}><ReviewPageContent /></Suspense>;
+}
+
+function ReviewPageContent() {
+  // Next preserves page state across query navigation. Read its current search
+  // boundary on every render; a prerendered fallback never contains targets.
+  const query = useSearchParams();
+  const entry = query ? { capture: query.get("capture") === "course-review", row: query.get("row") ?? "" } : null;
+  const [dismissedRow, setDismissedRow] = useState<string | null>(null);
+  const [captureSelection, setCaptureSelection] = useState<{ handle: LanguageRowHandle; mode: "starter" | "reader" } | null>(null);
+  const [capturePinned, setCapturePinned] = useState(false);
+  const captureKind = useRef<"schedule" | "delete-group">("schedule");
   const [activeReviewTab, setActiveReviewTab] = useState<ReviewTab>("all");
   const source = useLanguageRecordSnapshot();
   const { context, snapshot, records } = source;
@@ -200,10 +217,10 @@ export default function ReviewPage() {
   const projectionError = Object.values(projections).find(value => value.error)?.error || reviewed.error;
   const courseSaveError = scheduleAction.error || actions.error || replay.error;
   useEffect(() => {
-    if (replayStarted.current || !context || !snapshot) return;
+    if (entry?.capture !== false || capturePinned || replayStarted.current || !context || !snapshot) return;
     replayStarted.current = true;
     void replay.submit({ kind: "reconcile-completion" });
-  }, [context, snapshot, replay]);
+  }, [context, snapshot, replay, entry?.capture, capturePinned]);
   const kanaReviewCount = new Set([...wrongKana.map(item => typeof item === "string" ? item : typeof item.char === "string" ? item.char : ""), ...wrongKanaChars].filter(Boolean)).size;
   const deleteWithHandle = (payload: ReviewMutationPayload, handle: LanguageRowHandle) => actions.submit(payload, () => { if (pinnedCourse?.handle.viewId === handle.viewId) setPinnedCourse(null); }, languageRowSource(handle));
   const handleDeleteWord = (word: Word) => { const row = projections.words.rows.find(row => row.value === word); if (row) void deleteWithHandle({ kind: "delete-group", key: WORDS_KEY, handle: row.handle }, row.handle); };
@@ -248,6 +265,30 @@ export default function ReviewPage() {
     const row = projections.course.rows.find(row => row.value === item); return row ? [{ item, handle: row.handle }] : [];
   });
 
+
+  if (!entry) return <section><p role="status">복습 화면을 확인하고 있어요.</p></section>;
+  if (entry.capture || capturePinned) {
+    if (!capturedReviewAvailable()) return <section aria-label="기록형 과정 복습"><p role="status">기록형 과정 복습은 아직 활성화되지 않았어요.</p><Link href="/language/review">기존 복습으로 가기</Link></section>;
+    const settings = loadIntegratedLearningSettings(records.integratedLearningSettingsV1);
+    const settingsError = languageSettingsProjectionError({ integratedLearningSettingsV1: records.integratedLearningSettingsV1 });
+    const choices = settingsError ? [] : projections.course.rows.flatMap((row, index) => {
+      try { const checked = resolveCapturedReviewSurface(row.handle, settings.learnerMode, source);
+        return [{ handle: row.handle, id: checked.identity.legacyQuestionId, label: `복습 항목 ${index + 1} · ${checked.identity.taskFormat === "typed_answer" ? "일본어 입력" : "뜻 고르기"}` }];
+      } catch { return []; }
+    });
+    const selected = captureSelection ?? choices.filter(choice => choice.id === entry.row && entry.row !== dismissedRow).map(choice => ({ handle: choice.handle, mode: settings.learnerMode }))[0];
+    return <section aria-label="기록형 과정 복습">
+      {!selected && <><h2>기록형 과정 복습</h2><p>문제를 고른 뒤 시작을 눌러 주세요.</p>
+        {choices.map(choice => <button type="button" key={choice.handle.viewId} disabled={!snapshot || capturePinned} onClick={() => setCaptureSelection({ handle: choice.handle, mode: settings.learnerMode })}>{choice.label}</button>)}
+        {!choices.length && <p role="status">현재 지원하는 과정 문제가 없거나 원본 확인이 필요해요.</p>}<Link href="/language/review">기존 복습으로 가기</Link></>}
+      {selected && <div hidden={!snapshot || !context || languageRowSource(selected.handle).context.userId !== context.userId} inert={!snapshot || !context || languageRowSource(selected.handle).context.userId !== context.userId}><CapturedCourseReviewQuestion key={selected.handle.viewId} handle={selected.handle} mode={selected.mode} source={source}
+        onPin={() => { setCaptureSelection(selected); setCapturePinned(true); }} onClosed={() => { setCapturePinned(false); setCaptureSelection(null); setDismissedRow(entry.row); }}
+        actions={{ submit: (payload, publish, original) => {
+          captureKind.current = payload.kind === "schedule" ? "schedule" : "delete-group";
+          return (payload.kind === "schedule" ? scheduleAction : actions).submit(payload, publish, original);
+        }, retry: () => (captureKind.current === "schedule" ? scheduleAction : actions).retry() }} /></div>}
+    </section>;
+  }
 
   return (
     <section>

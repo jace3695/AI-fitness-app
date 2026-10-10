@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 const root = resolve(import.meta.dirname, '..');
 const repository = 'app/data/languageLegacyEvidenceRepository.ts';
+const reviewAdapter = 'app/data/languageLegacyReviewCapture.ts';
 const bridge = 'app/data/languageCloudSync.ts';
 const registry = 'lib/language-legacy-evidence/receipt-proof.ts';
 const store = 'lib/language-legacy-evidence/local-store.ts';
@@ -60,9 +61,10 @@ function inspect(path: string, source: string) {
       if (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly || ts.isExportDeclaration(node) && node.isTypeOnly) return;
       const name = node.moduleSpecifier.text;
       if (/languageLegacyEvidenceRepository(?:\.ts)?$/.test(name)) {
-        assert.equal(path, 'app/lib/resetAppRecords.ts', `${path}: evidence consumer outside reviewed reset bridge`);
-        assert.ok(ts.isImportDeclaration(node) && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings));
-        for (const binding of node.importClause.namedBindings.elements) assert.equal((binding.propertyName ?? binding.name).text, 'cleanupLanguageLegacyEvidenceForReset');
+        const expected = path === reviewAdapter ? 'acquireLanguageLegacyEvidenceRepository' : path === 'app/lib/resetAppRecords.ts' ? 'cleanupLanguageLegacyEvidenceForReset' : null;
+        assert.ok(expected, `${path}: evidence consumer outside reviewed bridges`);
+        assert.ok(ts.isImportDeclaration(node) && !node.importClause?.name && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings));
+        for (const binding of node.importClause.namedBindings.elements) if (!binding.isTypeOnly) assert.equal((binding.propertyName ?? binding.name).text, expected);
       }
       if (/language-legacy-evidence\/local-store(?:\.ts)?$/.test(name)) {
         assert.equal(path, repository, `${path}: unreviewed evidence store import`);
@@ -87,7 +89,7 @@ function inspect(path: string, source: string) {
   };
   walk(ast);
 }
-test('inactive capture and reset-only repository bridge preserve narrow registered proof producer closure', () => {
+test('inactive capture adapter and reset bridge preserve narrow registered proof producer closure', () => {
   for (const path of ['app', 'components', 'utils', 'hooks', 'lib', 'services', 'public', 'data'].flatMap(files)) inspect(path, readFileSync(resolve(root, path), 'utf8'));
   const source = readFileSync(resolve(root, repository), 'utf8');
   assert.match(source, /import \{ createClient \} from '\.\.\/\.\.\/lib\/supabase\.ts'/);
@@ -113,4 +115,24 @@ test('source closure rejects copied authority import aliases, namespace, reexpor
     `const key = 'LocalEvidence' + 'Store'; const hidden = registry[key];`,
     `import { loadLegacyEvidenceRepository } from '../tests/helpers/legacyEvidenceRepositoryHarness.ts';`,
   ]) assert.throws(() => inspect('app/data/unreviewed.ts', source));
+});
+
+
+test('approved adapter path gains only its named factory, never extra authority routes', () => {
+  inspect(reviewAdapter, `import { acquireLanguageLegacyEvidenceRepository, type LanguageLegacyEvidenceRepository } from './languageLegacyEvidenceRepository.ts';`);
+  for (const source of [
+    `import hidden from './languageLegacyEvidenceRepository.ts';`,
+    `import * as hidden from './languageLegacyEvidenceRepository.ts';`,
+    `import { cleanupLanguageLegacyEvidenceForReset } from './languageLegacyEvidenceRepository.ts';`,
+    `export { acquireLanguageLegacyEvidenceRepository } from './languageLegacyEvidenceRepository.ts';`,
+    `const hidden = import('./languageLegacyEvidenceRepository.ts');`,
+    `const route = './languageLegacy' + 'EvidenceRepository.ts'; const hidden = require(route);`,
+    `import { LocalEvidenceStore } from '../../lib/language-legacy-evidence/local-store.ts';`,
+    `import { registerAuthenticatedContext } from '../../lib/language-legacy-evidence/receipt-proof.ts';`,
+    `import { languageLegacyEvidenceCapability } from './languageCloudSync.ts';`,
+    `import { loadLegacyEvidenceRepository } from '../../tests/helpers/legacyEvidenceRepositoryHarness.ts';`,
+  ]) assert.throws(() => inspect(reviewAdapter, source));
+  for (const path of ['components/language/CapturedCourseReviewQuestion.tsx', 'app/language/review/page.tsx']) {
+    assert.throws(() => inspect(path, `import { acquireLanguageLegacyEvidenceRepository } from '@/app/data/languageLegacyEvidenceRepository';`));
+  }
 });

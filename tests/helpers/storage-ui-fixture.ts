@@ -162,6 +162,7 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     if (absolute in modules) return modules[absolute] as Record<string, unknown>;
     if (moduleCache.has(absolute)) return moduleCache.get(absolute)!;
     if (!sourceCache.has(absolute)) sourceCache.set(absolute, absolute.endsWith('.cjs') ? readFileSync(absolute, 'utf8') : ts.transpileModule(readFileSync(absolute, 'utf8'), {
+      fileName: absolute,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
     }).outputText);
     const exports: Record<string, unknown> = {};
@@ -188,6 +189,7 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     let cursor = 0, changed = false, disposed = false;
     const react = {
       Fragment: Symbol.for('fixture-fragment'),
+      Suspense: Symbol.for('fixture-suspense'),
       useId() { return `synthetic-${id}-${cursor++}`; },
       createContext(value: unknown) { return { Provider: Symbol('provider'), value }; },
       useContext(context: { value: unknown }) { return context.value; },
@@ -232,7 +234,16 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
       do {
         assert.ok(rounds++ < 25, 'Synthetic hooks did not settle');
         Object.assign(modules.react ??= {}, react);
-        changed = false; cursor = 0; result = component(props); history.push(result);
+        changed = false; cursor = 0; result = component(props);
+        // Only ReviewPage's root boundary executes its one actual child. Other
+        // pages/overrides keep their prior opaque tree (including LearnPage).
+        // This models no suspension, nested reconciliation or browser DOM.
+        if (path === 'app/language/review/page.tsx' && !componentOverride && result && result.type === react.Suspense) {
+          const child = result.props.children as UiNode;
+          assert.ok(child && !Array.isArray(child) && typeof child.type === 'function', 'Expected one actual root Suspense child');
+          result = (child.type as (props: Record<string, unknown>) => UiNode)(child.props);
+        }
+        history.push(result);
         effects.splice(0).forEach(effect => effect());
       } while (changed);
       return result;
@@ -260,6 +271,8 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     setOnline(value: boolean) { navigator.onLine = value; },
     failStorageAccess() { Object.defineProperty(win, 'localStorage', { configurable: true, get() { throw new Error('synthetic SecurityError'); } }); },
     setVisibility(value: string) { doc.visibilityState = value; win.dispatchEvent({ type: 'visibilitychange' }); },
+    setLocationSearch(search: string) { win.location.search = search; },
+    locationSearch() { return win.location.search; },
     pollIntervals() { for (const callback of [...intervals.values()]) callback(); },
     loadModule: load,
     setModule(path: string, value: unknown) { modules[path.startsWith('.') || /\.tsx?$/.test(path) ? resolve(root, path) : path] = value; },

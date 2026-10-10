@@ -2,6 +2,21 @@ import type { EvidenceReference } from "../lib/language-legacy-evidence/types.ts
 
 export type CourseTrack = "foundation" | "work" | "travel";
 
+/** Local authored render contract, never part of a catalogue or persisted record. */
+export type GeneratedReviewSurface = Readonly<{
+  origin: "generated-word-meaning" | "generated-word-input";
+  wordIndex: number;
+  targetText: string;
+  reading: string;
+  question: Readonly<{
+    prompt: string;
+    choices: readonly string[];
+    answer: number;
+    explanation: string;
+    kind: "input" | undefined;
+  }>;
+}>;
+
 export type LessonQuiz = {
   prompt: string;
   choices: string[];
@@ -9,6 +24,7 @@ export type LessonQuiz = {
   explanation: string;
   kind?: "choice" | "listening" | "input";
   evidenceRef?: EvidenceReference;
+  readonly generatedReviewSurface?: GeneratedReviewSurface;
 };
 
 export type CurriculumLesson = {
@@ -489,13 +505,33 @@ const CORE_CURRICULUM: CurriculumLesson[] = [
   }),
 ];
 
+const withGeneratedReviewSurface = (
+  quiz: LessonQuiz & { kind?: "input" },
+  origin: GeneratedReviewSurface["origin"],
+  wordIndex: number,
+  word: CurriculumLesson["words"][number],
+): LessonQuiz => {
+  const surface: GeneratedReviewSurface = Object.freeze({
+    origin, wordIndex, targetText: word.japanese, reading: word.reading,
+    question: Object.freeze({
+      prompt: quiz.prompt, choices: Object.freeze([...quiz.choices]), answer: quiz.answer,
+      explanation: quiz.explanation, kind: quiz.kind,
+    }),
+  });
+  // Ordinary spread/JSON/structuredClone must retain their exact legacy bytes and
+  // must not give retained or copied rows the authored object's local metadata.
+  return Object.defineProperty(quiz, "generatedReviewSurface", {
+    value: surface, enumerable: false, writable: false, configurable: false,
+  });
+};
+
 const expandLessonQuiz = (item: CurriculumLesson): CurriculumLesson => {
   const wordQuestions = item.words.flatMap((word, index, words) => {
     const distractor1 = words[(index + 1) % words.length];
     const distractor2 = words[(index + 2) % words.length];
     return [
-      { evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:meaning` }, prompt: `‘${word.japanese}(${word.reading})’의 뜻은?`, choices: [word.meaning, distractor1.meaning, distractor2.meaning], answer: 0, explanation: `${word.japanese}(${word.reading})는 ‘${word.meaning}’라는 뜻이에요.` },
-      { evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:input` }, kind: "input" as const, prompt: `‘${word.meaning}’를 일본어로 입력하세요.`, choices: [word.japanese], answer: 0, explanation: `정답은 ${word.japanese}(${word.reading})예요.` },
+      withGeneratedReviewSurface({ evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:meaning` }, prompt: `‘${word.japanese}(${word.reading})’의 뜻은?`, choices: [word.meaning, distractor1.meaning, distractor2.meaning], answer: 0, explanation: `${word.japanese}(${word.reading})는 ‘${word.meaning}’라는 뜻이에요.` }, "generated-word-meaning", index, word),
+      withGeneratedReviewSurface({ evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:input` }, kind: "input" as const, prompt: `‘${word.meaning}’를 일본어로 입력하세요.`, choices: [word.japanese], answer: 0, explanation: `정답은 ${word.japanese}(${word.reading})예요.` }, "generated-word-input", index, word),
     ];
   });
   // Core questions have their own authored identity unless explicitly linked above.
