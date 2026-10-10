@@ -59,6 +59,8 @@ async function storageDiagnostic(page: Page, phase: StoragePhase, tab: 'first' |
         hungerYes: hunger?.value === 'yes', hungerNo: hunger?.value === 'no',
         saveVisible: visible(save), saveDisabled: save?.disabled ?? null,
         recordPresent: Boolean(stored), savedHungerYes: stored?.hunger === 'yes', savedHungerNo: stored?.hunger === 'no',
+        savedHunger: stored?.hunger === undefined ? 'absent' : stored.hunger === 'yes' ? 'yes' : stored.hunger === 'no' ? 'no' : stored.hunger === 'unrecorded' ? 'unrecorded' : 'other',
+        savedWater: stored?.waterMl === undefined ? 'absent' : stored.waterMl === 0 ? 'zero' : stored.waterMl === 500 ? '500' : 'other',
         savedWater500: stored?.waterMl === 500, waterStore500: JSON.parse(localStorage.getItem(water) ?? '{}')?.[day] === 500,
         legacyPresent: localStorage.getItem(legacy) !== null,
         protocolState: !journal ? 'absent' : journal.state === 'prepared' ? 'prepared' : journal.state === 'committed' ? 'committed' : 'other',

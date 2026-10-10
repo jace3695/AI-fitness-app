@@ -3,7 +3,7 @@ import { CURRICULUM } from '../../data/curriculum';
 import { GUIDED_CONVERSATION_PILOT } from '../../data/guidedConversationPilot';
 import { findGuidedConversationCatalogScript } from '../../data/guidedConversationCatalog';
 import type { ConversationEnvelope } from '../../lib/conversation-session/contracts';
-import { logGuidedBoundary } from './guided-conversation-diagnostics';
+import { logGuidedBoundary, readGuidedDiagnostic } from './guided-conversation-diagnostics';
 import { test, expect, login, synced, original, originalLanguage, assertOriginalPreserved, localState, today } from './fixture';
 
 const daysAgo = (days: number) => { const date = new Date(`${today()}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - days); return date.toISOString().slice(0, 10); };
@@ -402,71 +402,93 @@ for (const [scriptId, scriptRevision] of [
   expect((await readSession()).source).toMatchObject({ scriptId, scriptRevision, contextId: script.contextId, levelId: script.levelId,
     builderPolicy: 'guided-fixed-exchange-v2', catalogVersion: 'free-conversation-catalog-v3',
     contentSource: { module: 'data/guidedConversationCatalog.ts', exportName: 'GUIDED_CONVERSATION_REMAINING' }, content: script });
-  for (const [i, step] of script.steps.entries()) {
-    await expect(page.getByRole('heading', { name: `${i + 1}. ${step.titleKo}`, exact: true })).toBeVisible();
-    await expect(active).toContainText(`전송한 단계 ${i}/${script.steps.length}`);
-    const text = i === 1 ? `합성 자유 문장 ${scriptId} ${i}` : step.learnerExample.japanese;
-    if (i === 0) {
-      await page.getByRole('button', { name: '힌트 보기', exact: true }).click();
-      await expect(active).toContainText(step.hintKo);
-      await page.getByRole('button', { name: '예문 넣기', exact: true }).click();
-    } else await input.fill(text);
-    await expect(input).toHaveValue(text);
-    await page.getByRole('button', { name: '입력 저장', exact: true }).click();
-    await expect(status).toHaveAttribute('data-save-status', 'saved');
-    const saved = await readSession(), savedDraft = saved.drafts.find(draft => draft.source.stepId === step.id)!;
-    expect(savedDraft.input).toBe(text); expect(savedDraft.source).toEqual({ scriptId, scriptRevision, stepId: step.id });
-    expect(savedDraft.origin).toEqual({ kind: i === 0 ? 'inserted-example' : 'typed', edited: false });
-    expect(savedDraft.exposure.hint).toBe(i === 0 ? 'shown' : 'not-shown');
-    if (i === 0) {
-      await page.reload(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
-      expect(await readSession()).toEqual(saved);
-      await page.goto('/language'); await page.goBack(); await expect(input).toHaveValue(text);
-      await page.goForward(); await expect(page).toHaveURL(/\/language$/);
-      await page.goBack(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
-      expect(await readSession()).toEqual(saved);
+  let diagnosticStep = 0;
+  try {
+    for (const [i, step] of script.steps.entries()) {
+      diagnosticStep = i;
+      await expect(page.getByRole('heading', { name: `${i + 1}. ${step.titleKo}`, exact: true })).toBeVisible();
+      await expect(active).toContainText(`전송한 단계 ${i}/${script.steps.length}`);
+      await logGuidedBoundary(page, script.levelId, i, 'step-visible');
+      // A visible heading does not prove the passive DOM observer has recorded
+      // this step's assistance yet. Establish that read-only precondition before
+      // typing; later observations must still keep an in-flight save unsaved.
+      await expect.poll(() => readGuidedDiagnostic(page)).toMatchObject({
+        stepIndex: i, editorOnActiveStep: true, exposure: { example: 'shown', meaning: 'shown' },
+      });
+      await logGuidedBoundary(page, script.levelId, i, 'exposure-ready');
+      const text = i === 1 ? `합성 자유 문장 ${scriptId} ${i}` : step.learnerExample.japanese;
+      if (i === 0) {
+        await page.getByRole('button', { name: '힌트 보기', exact: true }).click();
+        await expect(active).toContainText(step.hintKo);
+        await expect.poll(() => readGuidedDiagnostic(page)).toMatchObject({ stepIndex: i, exposure: { hint: 'shown' } });
+        await page.getByRole('button', { name: '예문 넣기', exact: true }).click();
+      } else await input.fill(text);
+      await expect(input).toHaveValue(text);
+      await logGuidedBoundary(page, script.levelId, i, 'input-filled');
+      await page.getByRole('button', { name: '입력 저장', exact: true }).click();
+      await logGuidedBoundary(page, script.levelId, i, 'save-clicked');
+      await expect(status).toHaveAttribute('data-save-status', 'saved');
+      await logGuidedBoundary(page, script.levelId, i, 'saved');
+      const saved = await readSession(), savedDraft = saved.drafts.find(draft => draft.source.stepId === step.id)!;
+      expect(savedDraft.input).toBe(text); expect(savedDraft.source).toEqual({ scriptId, scriptRevision, stepId: step.id });
+      expect(savedDraft.origin).toEqual({ kind: i === 0 ? 'inserted-example' : 'typed', edited: false });
+      expect(savedDraft.exposure.hint).toBe(i === 0 ? 'shown' : 'not-shown');
+      if (i === 0) {
+        await page.reload(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
+        expect(await readSession()).toEqual(saved);
+        await page.goto('/language'); await page.goBack(); await expect(input).toHaveValue(text);
+        await page.goForward(); await expect(page).toHaveURL(/\/language$/);
+        await page.goBack(); await expect(input).toHaveValue(text); await expect(status).toHaveAttribute('data-save-status', 'saved');
+        expect(await readSession()).toEqual(saved);
+        await logGuidedBoundary(page, script.levelId, i, 'reloaded');
+      }
+      await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
+      await logGuidedBoundary(page, script.levelId, i, 'send-clicked');
+      await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
+      await expect(transcript).toContainText(step.fixedReply.japanese); await expect(transcript).toContainText('정해진 상대방 응답 · 평가하지 않음');
+      await expect(transcript).not.toContainText('점원');
+      await logGuidedBoundary(page, script.levelId, i, 'sent');
+      const current = await readSession(), turn = current.turns[i];
+      expect(current.turns).toHaveLength(i + 1); expect(current.closed).toBeNull();
+      expect(turn.draft.source).toEqual({ scriptId, scriptRevision, stepId: step.id }); expect(turn.draft.input).toBe(text);
+      expect(turn.emission.reply).toBe(step.fixedReply.japanese); expect(turn.emission.correction).toBe('');
+      expect(turn.sampleMatch).toMatchObject({ matched: i !== 1, assessment: 'unavailable' });
+      expect('kind' in turn.emission && turn.emission.kind).toBe('guided-fixed-emission');
+      if ('kind' in turn.emission) expect(turn.emission.exampleFallback?.japanese ?? null).toBe(i === 1 ? step.learnerExample.japanese : null);
+      await expect(transcript).toContainText(turn.emission.explanation);
+      if (i === 1) { await expect(transcript).toContainText('참고 예문'); await expect(transcript).toContainText(step.learnerExample.japanese); }
+      await noOverflow(page);
     }
-    await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
-    await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
-    await expect(transcript).toContainText(step.fixedReply.japanese); await expect(transcript).toContainText('정해진 상대방 응답 · 평가하지 않음');
-    await expect(transcript).not.toContainText('점원');
-    const current = await readSession(), turn = current.turns[i];
-    expect(current.turns).toHaveLength(i + 1); expect(current.closed).toBeNull();
-    expect(turn.draft.source).toEqual({ scriptId, scriptRevision, stepId: step.id }); expect(turn.draft.input).toBe(text);
-    expect(turn.emission.reply).toBe(step.fixedReply.japanese); expect(turn.emission.correction).toBe('');
-    expect(turn.sampleMatch).toMatchObject({ matched: i !== 1, assessment: 'unavailable' });
-    expect('kind' in turn.emission && turn.emission.kind).toBe('guided-fixed-emission');
-    if ('kind' in turn.emission) expect(turn.emission.exampleFallback?.japanese ?? null).toBe(i === 1 ? step.learnerExample.japanese : null);
-    await expect(transcript).toContainText(turn.emission.explanation);
-    if (i === 1) { await expect(transcript).toContainText('참고 예문'); await expect(transcript).toContainText(step.learnerExample.japanese); }
-    await noOverflow(page);
-  }
-  if (scriptId === 'guided-company-mechanical-design-intermediate') {
-    expect(script.steps[2].learnerExample.japanese.length).toBe(51);
-    expect((await readSession()).turns[2].draft.input).toBe(script.steps[2].learnerExample.japanese);
-  }
-  await expect(page.getByText(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨 · 대화 종료로 기록을 마무리해 주세요.`, { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '예문 듣기', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '대화 종료', exact: true }).click();
-  const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
-  await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
-  await expect(recap).toContainText('평가한 문장 0개'); await expect(recap).toContainText('목표 달성을 판정한 결과는 아니에요');
-  await expect(recap).toContainText('정해진 상대방 시범'); await expect(recap).not.toContainText('점원');
-  const closed = await readSession(); expect(closed.closed).not.toBeNull();
-  for (const turn of closed.turns) await expect(recap).toContainText(turn.emission.explanation);
-  await page.getByRole('button', { name: '기록 보기', exact: true }).click();
-  await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
-  await page.getByLabel('상황', { exact: true }).selectOption('convenience-store');
-  await page.getByLabel('수준', { exact: true }).selectOption('beginner');
-  await expect(preview).toContainText('점원 응답은');
-  const history = page.getByRole('region', { name: '이 브라우저의 대화 기록', exact: true });
-  await expect(history).toContainText(scriptRevision);
-  await history.getByRole('button', { name: new RegExp(`${script.labelKo} .*종료 요약 보기$`) }).click();
-  await expect(recap).toContainText(script.levelLabelKo); await expect(recap).toContainText('정해진 상대방 응답'); await expect(recap).not.toContainText('점원');
-  await recap.getByText('저장된 예문과 확인 기준', { exact: true }).click();
-  await expect(recap).toContainText(scriptRevision); await expect(recap).toContainText('guided-fixed-exchange-v2');
-  expect(await readSession()).toEqual(closed); await noOverflow(page);
-  expect(prohibited).toEqual([]);
-  expect(await page.evaluate(() => Number(sessionStorage.getItem('catalogue-audio-tripwire') ?? 0))).toBe(0);
-  expect(await qa.read()).toEqual(original); expect(await qa.readLanguage()).toEqual(originalLanguage);
+    if (scriptId === 'guided-company-mechanical-design-intermediate') {
+      expect(script.steps[2].learnerExample.japanese.length).toBe(51);
+      expect((await readSession()).turns[2].draft.input).toBe(script.steps[2].learnerExample.japanese);
+    }
+    await expect(page.getByText(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨 · 대화 종료로 기록을 마무리해 주세요.`, { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '예문 듣기', exact: true })).toHaveCount(0);
+    await logGuidedBoundary(page, script.levelId, diagnosticStep, 'before-close');
+    await page.getByRole('button', { name: '대화 종료', exact: true }).click();
+    await logGuidedBoundary(page, script.levelId, diagnosticStep, 'close-clicked');
+    const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
+    await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
+    await expect(recap).toContainText('평가한 문장 0개'); await expect(recap).toContainText('목표 달성을 판정한 결과는 아니에요');
+    await expect(recap).toContainText('정해진 상대방 시범'); await expect(recap).not.toContainText('점원');
+    const closed = await readSession(); expect(closed.closed).not.toBeNull();
+    await logGuidedBoundary(page, script.levelId, diagnosticStep, 'closed');
+    for (const turn of closed.turns) await expect(recap).toContainText(turn.emission.explanation);
+    await page.getByRole('button', { name: '기록 보기', exact: true }).click();
+    await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
+    await page.getByLabel('상황', { exact: true }).selectOption('convenience-store');
+    await page.getByLabel('수준', { exact: true }).selectOption('beginner');
+    await expect(preview).toContainText('점원 응답은');
+    const history = page.getByRole('region', { name: '이 브라우저의 대화 기록', exact: true });
+    await expect(history).toContainText(scriptRevision);
+    await history.getByRole('button', { name: new RegExp(`${script.labelKo} .*종료 요약 보기$`) }).click();
+    await expect(recap).toContainText(script.levelLabelKo); await expect(recap).toContainText('정해진 상대방 응답'); await expect(recap).not.toContainText('점원');
+    await recap.getByText('저장된 예문과 확인 기준', { exact: true }).click();
+    await expect(recap).toContainText(scriptRevision); await expect(recap).toContainText('guided-fixed-exchange-v2');
+    expect(await readSession()).toEqual(closed); await noOverflow(page);
+    expect(prohibited).toEqual([]);
+    expect(await page.evaluate(() => Number(sessionStorage.getItem('catalogue-audio-tripwire') ?? 0))).toBe(0);
+    expect(await qa.read()).toEqual(original); expect(await qa.readLanguage()).toEqual(originalLanguage);
+  } finally { await logGuidedBoundary(page, script.levelId, diagnosticStep, 'finished'); }
 });

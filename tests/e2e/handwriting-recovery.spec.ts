@@ -3,14 +3,19 @@ import type { Page } from '@playwright/test';
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { drawVisibleCanvasStroke } from './handwriting-canvas';
+import { logHandwritingSaveBoundary, observeHandwritingSaveBoundary } from './handwriting-save-diagnostics';
 import type { HandwritingDraft, HandwritingTombstone } from '../../lib/handwriting-draft';
 const rpc = '**/rest/v1/rpc/save_handwriting_attempt';
 const canvas = (page: Page) => page.getByLabel('수업 손글씨 연습장');
 const minutes = (page: Page) => page.getByLabel('실제로 연습한 시간 (분)');
 const reflection = (page: Page) => page.getByLabel('다음에 신경 쓸 점 (선택)');
 const retry = (page: Page) => page.getByRole('button', { name: '같은 기록 다시 확인', exact: true });
+test.beforeEach(async ({ page }) => { await page.addInitScript(observeHandwritingSaveBoundary); });
 test.afterEach(async ({ page, qa }, info) => {
-  if (info.status === info.expectedStatus || page.isClosed()) return;
+  if (info.status === info.expectedStatus) return;
+  // Collect the native-call boundary before any IDB read that could itself fail.
+  await logHandwritingSaveBoundary(page);
+  if (page.isClosed()) return;
   // Allowlisted booleans only: never emit the draft, worksheet bytes, user IDs,
   // reflected text, account credentials, or blob URLs into CI diagnostics.
   try {

@@ -15,7 +15,7 @@ const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 function deferred() { let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done; }); return { promise, resolve }; }
 function environment() {
   return { owner, storage: new Map<string, drafts.HandwritingRecord>(), sessions: new Map<string, unknown>(), resources: new Map<string, unknown>(), objects: new Map<string, Blob>(),
-    marker: null as string | null, markerGate: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, terminalFail: false, terminalReadbackFail: false, failMarkerAfterTerminal: false,
+    marker: null as string | null, markerGate: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, failMarker: false, failReads: false, progressFails: false, failCommit: false, missingRpc: false, quota: false, rejectPendingBlob: false, terminalFail: false, terminalReadbackFail: false, failMarkerAfterTerminal: false,
     payloads: [] as drafts.FrozenHandwritingSave['session'][], calls: [] as string[], beforeRpc: null as (() => void) | null,
     afterRpc: null as (() => void) | null, blockWrite: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null, localQueue: Promise.resolve() };
 }
@@ -32,6 +32,7 @@ function fixture(env = environment(), id = owner) {
       const run = env.localQueue.then(async () => {
         if (env.blockWrite) { env.blockWrite.arrived.resolve(); await env.blockWrite.release.promise; }
         if (env.quota || env.terminalFail && record.state !== 'active') throw Error('quota');
+        if (env.rejectPendingBlob && record.state === 'active' && record.pending?.png instanceof Blob) throw new DOMException('Synthetic Blob storage rejection', 'UnknownError');
         const local = env.storage.get(record.owner);
         if (expected ? local?.revision !== expected.revision || local.attemptId !== expected.attemptId : !!local) throw Error('handwriting_draft_changed');
         env.storage.set(record.owner, structuredClone(next));
@@ -189,6 +190,18 @@ test('quota retains latest visible input and old checkpoint; recovery retry prec
   qa.env.quota = true; qa.render().change({ reflection: '기기 미저장 입력' }); await assert.rejects(qa.render().flush());
   assert.deepEqual(qa.env.storage.get(owner), old); assert.equal(qa.render().draft.reflection, '기기 미저장 입력'); await qa.render().save(routine); assert.equal(qa.env.sessions.size, 0);
   qa.env.quota = false; await qa.render().flush(); await qa.render().save(routine); assert.equal(qa.render().saved, true);
+});
+test('source-only Blob-rejecting checkpoint preserves screen and old durable bytes without any upload or RPC', async t => {
+  const env = environment(); await seedScreen(env); env.rejectPendingBlob = true;
+  const qa = fixture(env); t.after(qa.unmount); const canvas = attachCanvas(qa); await qa.ready();
+  const before = structuredClone(env.storage.get(owner)), pixels = new Uint8ClampedArray(canvas.pixels());
+  const saving = qa.render().save(routine); await canvas.waitForBlob(saving);
+  canvas.finishBlob(new Blob(['synthetic PNG'], { type: 'image/png' })); await saving;
+  assert.equal(qa.render().storageError, true); assert.equal(qa.render().saving, false); assert.equal(qa.render().saved, false);
+  assert.ok(qa.render().draft.pending?.png, 'The visible frozen request survives the failed durable checkpoint');
+  assert.deepEqual(env.storage.get(owner), { ...before!, revision: (before?.revision ?? 0) + 1 });
+  assert.deepEqual(canvas.pixels(), pixels); assert.equal(env.objects.size, 0); assert.equal(env.sessions.size, 0); assert.equal(env.payloads.length, 0);
+  await qa.render().save(routine); assert.equal(env.objects.size, 0); assert.equal(env.payloads.length, 0);
 });
 test('two tabs fail stale checkpoint atomically, preserve visible input and refuse cloud save', async t => {
   const env = environment(), a = fixture(env), b = fixture(env); t.after(a.unmount); t.after(b.unmount); await a.ready(); await b.ready();

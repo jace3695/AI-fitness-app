@@ -25,7 +25,7 @@ export async function job(screen = false): Promise<FrozenHandwritingSave> {
 }
 // A deterministic event/transaction adapter exercises shipping IDB code. It is
 // deliberately not evidence about any browser engine's durability or eviction.
-function idbAdapter() {
+function idbAdapter(rejectBlobs = false) {
   const values = new Map<string, unknown>(); let tail = Promise.resolve(), quota = false;
   const factory = { open() {
     const request: Record<string, unknown> = {};
@@ -34,7 +34,11 @@ function idbAdapter() {
       const snapshot = new Map<string, unknown>();
       const store = {
         get(key: string) { const req: Record<string, unknown> = {}; operations.push(() => { req.result = structuredClone(snapshot.get(key)); (req.onsuccess as () => void)?.(); }); return req; },
-        put(value: unknown, key: string) { if (quota) { aborted = true; tx.error = Error('quota'); return; } snapshot.set(key, structuredClone(value)); },
+        put(value: unknown, key: string) {
+          if (quota) { aborted = true; tx.error = Error('quota'); return; }
+          if (rejectBlobs && (value as HandwritingDraft)?.pending?.png instanceof Blob) { aborted = true; tx.error = new DOMException('Synthetic Blob storage rejection', 'UnknownError'); return; }
+          snapshot.set(key, structuredClone(value));
+        },
       };
       tx.objectStore = () => store; tx.abort = () => { aborted = true; };
       tail = tail.then(() => new Promise<void>(resolve => setImmediate(() => {
@@ -82,6 +86,14 @@ test('IDB atomic two-tab CAS permits only one writer; stale terminal cleanup can
   assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
   await assert.rejects(writeHandwritingRecord(terminalHandwritingRecord(original, 'confirmed'), handwritingVersion(first), adapter.factory), /changed/);
   const latest = await readHandwritingRecord(owner, adapter.factory); assert.equal(latest?.state, 'active'); assert.equal(latest?.revision, 2);
+});
+test('source-only Blob rejection in the shipping IDB transaction preserves the prior whole checkpoint', async () => {
+  const adapter = idbAdapter(true), original = await draft(true);
+  const first = await writeHandwritingRecord(original, null, adapter.factory);
+  const pending = { ...first, pending: await job(true) } as HandwritingDraft;
+  await assert.rejects(writeHandwritingRecord(pending, handwritingVersion(first), adapter.factory), /handwriting_checkpoint_failed/);
+  assert.deepEqual(await readHandwritingRecord(owner, adapter.factory), first);
+  assert.equal((await readHandwritingRecord(owner, adapter.factory) as HandwritingDraft).pending, null);
 });
 test('tombstone revisions prevent absent-present ABA and quota preserves previous whole checkpoint', async () => {
   const adapter = idbAdapter(), original = await draft(true);

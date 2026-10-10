@@ -137,9 +137,16 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
     : state.status === 'pending' ? '학습 기록 · 기기 저장, 서버 반영 대기'
       : needsAttention ? '학습 기록 · 동기화 확인 필요' : '학습 기록 · 상태 확인 중…';
   const retry = () => { void coordinatorRef.current?.resume(); };
+  // Peer acknowledgements revoke this tab's context. Do not automatically
+  // acknowledge them back: every acknowledgement would pause the peer again.
+  // A deliberate visible-tab action rechecks ownership and the server instead.
+  const retryPaused = () => {
+    if (document.visibilityState === 'visible' && lease?.isCurrent() && !lease.signal.aborted && !isRecordResetRunning()) retry();
+  };
+  const canResumePaused = state.initialized && state.status === 'paused' && !pendingReset && !isRecordResetRunning();
   return <>
     {state.initialized && <div key={editorGeneration} hidden={!editable} inert={!editable} aria-hidden={!editable}><LanguageRecordsProvider context={editable ? state.context! : null} refresh={retry}>{children}</LanguageRecordsProvider></div>}
-    {!editable && <section style={{ padding: 24 }} aria-live="polite"><p>{state.message || '이 계정의 학습 기록을 준비하고 있어요.'}</p>{needsAttention && <button type="button" className="btn" onClick={retry}>다시 연결하기</button>}</section>}
+    {!editable && <section style={{ padding: 24 }} aria-live="polite"><p>{state.message || '이 계정의 학습 기록을 준비하고 있어요.'}</p>{needsAttention && <button type="button" className="btn" onClick={retry}>다시 연결하기</button>}{canResumePaused && <button type="button" className="btn" onClick={retryPaused}>학습 기록 다시 확인</button>}</section>}
     {!editable && pendingReset && <RecordResetPanel app="language" />}
     <div role={needsAttention ? 'alert' : 'status'} className={`yeoni-sync-notice fixed z-[95] flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold shadow-md ring-1 backdrop-blur ${needsAttention ? 'bg-red-50/95 text-red-700 ring-red-200' : state.status === 'ready' ? 'bg-emerald-50/95 text-emerald-700 ring-emerald-200' : 'bg-amber-50/95 text-amber-700 ring-amber-200'}`}>
       <span>{label}</span>{needsAttention && <button type="button" onClick={retry} className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-red-700 shadow-sm">다시 시도</button>}

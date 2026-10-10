@@ -115,11 +115,19 @@ test('two tabs preserve newer raw input and a stale tab cannot create a second r
   const { routine } = await seed(qa.account); await open(page, qa.account); await enterManual(page, routine.id);
   await expect.poll(async () => (await draft(page, qa.account.id)).manual.memo).toBe('합성 메모');
   const second = await context.newPage(); await second.goto('/growth'); await expect(manualForm(second)).toBeVisible();
+  await expect(manualForm(second).getByPlaceholder('메모(선택)')).toHaveValue('합성 메모');
+  // Recovered raw fields appear before the reset-marker GET/checkpoint finish.
+  // Establish an initialized stale editor, rather than racing its initial load.
+  await expect(second.getByRole('button', { name: '기록 저장', exact: true })).toBeEnabled();
+  const recovered = await checkpoint(second, qa.account.id);
+  expect(recovered).toBe(await checkpoint(page, qa.account.id));
   await manualForm(page).getByPlaceholder('메모(선택)').fill('새 탭보다 최신 입력');
+  await expect.poll(async () => (await draft(page, qa.account.id)).manual.memo).toBe('새 탭보다 최신 입력');
   await expect(recovery(second)).toContainText('다른 창의 입력'); await expect(second.getByRole('button', { name: '기록 저장', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '기록 저장', exact: true }).click(); await expect(recovery(page)).toContainText('기록을 클라우드에서 확인했어요');
   await second.getByRole('button', { name: '기기 임시 저장 다시 시도', exact: true }).click();
-  expect((await qa.account.client.from('growth_sessions').select('id').eq('routine_id', routine.id).eq('session_date', today())).data).toHaveLength(1); await second.close();
+  const rows = (await qa.account.client.from('growth_sessions').select('id,memo,actual_minutes').eq('routine_id', routine.id).eq('session_date', today())).data!;
+  expect(rows).toHaveLength(1); expect(rows[0]).toMatchObject({ memo: '새 탭보다 최신 입력', actual_minutes: 17 }); await second.close();
 });
 test('different-device reset between marker check and save RPC rejects stale routine replay', async ({ page, qa }) => {
   const { routine } = await seed(qa.account); await open(page, qa.account); await enterManual(page, routine.id);

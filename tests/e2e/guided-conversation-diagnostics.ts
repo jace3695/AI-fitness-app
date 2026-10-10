@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-type Phase = 'step-visible' | 'input-filled' | 'save-clicked' | 'saved' | 'reloaded' | 'send-clicked' | 'sent' | 'before-close' | 'close-clicked' | 'closed' | 'finished';
+type Phase = 'step-visible' | 'exposure-ready' | 'input-filled' | 'save-clicked' | 'saved' | 'reloaded' | 'send-clicked' | 'sent' | 'before-close' | 'close-clicked' | 'closed' | 'finished';
 export function sanitizeGuidedDiagnostic(value: unknown) {
   const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const choice = (key: string, allowed: readonly string[]) => typeof data[key] === 'string' && allowed.includes(data[key] as string) ? data[key] : 'unknown';
@@ -22,14 +22,19 @@ export function sanitizeGuidedDiagnostic(value: unknown) {
   };
 }
 
+/** Read only committed fixed diagnostics, never editor text or storage bytes. */
+export async function readGuidedDiagnostic(page: Page) {
+  const raw = await page.locator('[data-conversation-diagnostic]').evaluateAll(elements => {
+    if (elements.length !== 1) return null;
+    try { return JSON.parse(elements[0].getAttribute('data-conversation-diagnostic') ?? 'null'); } catch { return null; }
+  });
+  return { surface: raw ? 'present' : 'missing', ...sanitizeGuidedDiagnostic(raw) };
+}
+
 /** Bounded facts only; do not collect text, identities, storage or raw exceptions. */
 export async function logGuidedBoundary(page: Page, level: 'beginner' | 'elementary' | 'intermediate', step: number, phase: Phase) {
   try {
-    const raw = await page.locator('[data-conversation-diagnostic]').evaluateAll(elements => {
-      if (elements.length !== 1) return null;
-      try { return JSON.parse(elements[0].getAttribute('data-conversation-diagnostic') ?? 'null'); } catch { return null; }
-    });
-    console.info('QA_GUIDED_BOUNDARY', JSON.stringify({ level, step, phase, surface: raw ? 'present' : 'missing', ...sanitizeGuidedDiagnostic(raw) }));
+    console.info('QA_GUIDED_BOUNDARY', JSON.stringify({ level, step, phase, ...await readGuidedDiagnostic(page) }));
   } catch {
     // Diagnostic collection must not replace the original assertion failure.
     console.info('QA_GUIDED_BOUNDARY', JSON.stringify({ level, step, phase, surface: 'unavailable' }));

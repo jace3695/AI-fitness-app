@@ -68,20 +68,59 @@ test('saveMeal does not accept the success label if the intended local commit ne
   assert.equal(harness.operations.includes('success-visible'), false);
 });
 
-test('returning to Live foregrounds the page and waits for visibility and real ready UI', async () => {
+function foregroundHarness(initial: 'ready' | 'paused' | 'blocked') {
   const operations: string[] = [];
+  let state = initial;
+  const paused = {
+    async isVisible() { operations.push('paused-visible'); return state === 'paused'; },
+    async click() { assert.equal(state, 'paused'); operations.push('reconnect'); state = 'ready'; },
+  };
+  const ready = { or(other: unknown) { assert.equal(other, paused); return 'ready-or-paused'; } };
   const page = {
     async bringToFront() { operations.push('foreground'); },
     async evaluate() { operations.push('visibility'); return 'visible'; },
-    getByText(text: string, options: { exact: boolean }) { assert.equal(text, '학습 기록 · 서버 저장 확인'); assert.equal(options.exact, true); return 'ready'; },
+    getByText(text: string, options: { exact: boolean }) { assert.equal(text, '학습 기록 · 서버 저장 확인'); assert.equal(options.exact, true); return ready; },
+    getByRole(role: string, options: { name: string; exact: boolean }) { assert.equal(role, 'button'); assert.equal(options.name, '학습 기록 다시 확인'); assert.equal(options.exact, true); return paused; },
     locator(selector: string) { assert.equal(selector, '.live-workspace'); return 'workspace'; },
   };
-  const expect = Object.assign((target: string) => ({ async toBeVisible() { operations.push(target); } }), {
+  const expect = Object.assign((target: unknown) => ({ async toBeVisible() {
+    if (target === 'ready-or-paused') { assert.notEqual(state, 'blocked', 'No allowed paused recovery is present'); operations.push('ready-or-paused'); }
+    else { assert.equal(state, 'ready'); operations.push(target === ready ? 'ready' : String(target)); }
+  } }), {
     poll(read: () => Promise<string>) { return { async toBe(value: string) { assert.equal(value, 'visible'); assert.equal(await read(), value); } }; },
   });
-  const foreground = fixtureFunction<(page: unknown) => Promise<void>>('foregroundLivePage', { expect });
-  await foreground(page);
-  assert.deepEqual(operations, ['foreground', 'visibility', 'ready', 'workspace']);
+  const messages: string[] = [];
+  const foreground = fixtureFunction<(page: unknown) => Promise<void>>('foregroundLivePage', { expect, console: { log(message: string) { messages.push(message); } } });
+  return { run: () => foreground(page), operations, messages };
+}
+
+test('returning to already-ready Live is a no-op beyond foreground and readiness checks', async () => {
+  const f = foregroundHarness('ready'); await f.run();
+  assert.deepEqual(f.operations, ['foreground', 'visibility', 'ready-or-paused', 'paused-visible', 'ready', 'workspace']);
+  assert.deepEqual(f.messages, ['QA_LIVE_FOREGROUND {"recovery":"already-ready"}']);
+});
+
+test('returning to paused Live uses only the explicit visible recovery and then requires actual ready UI', async () => {
+  const f = foregroundHarness('paused'); await f.run();
+  assert.deepEqual(f.operations, ['foreground', 'visibility', 'ready-or-paused', 'paused-visible', 'reconnect', 'ready', 'workspace']);
+  assert.deepEqual(f.messages, ['QA_LIVE_FOREGROUND {"recovery":"explicit-paused"}']);
+});
+
+test('Live foreground fixture never retries unrelated blocked error or uncertain states', async () => {
+  const f = foregroundHarness('blocked'); await assert.rejects(f.run(), /No allowed paused recovery/);
+  assert.equal(f.operations.includes('reconnect'), false); assert.equal(f.operations.includes('workspace'), false);
+  assert.deepEqual(f.messages, []);
+});
+
+test('routine peer fixture establishes hydrated save readiness before making its source draft stale', () => {
+  const source = readFileSync(new URL('./e2e/routine-record-recovery.spec.ts', import.meta.url), 'utf8');
+  const scenario = source.slice(source.indexOf("test('two tabs preserve newer raw input"), source.indexOf("test('different-device reset"));
+  assert.ok(scenario.indexOf("toHaveValue('합성 메모')") < scenario.indexOf('toBeEnabled()'));
+  assert.ok(scenario.indexOf('toBeEnabled()') < scenario.indexOf(".fill('새 탭보다 최신 입력')"));
+  assert.match(scenario, /expect\(recovered\)\.toBe\(await checkpoint\(page, qa\.account\.id\)\)/);
+  assert.match(scenario, /toContainText\('다른 창의 입력'\)/); assert.match(scenario, /toBeDisabled\(\)/);
+  assert.match(scenario, /expect\(rows\)\.toHaveLength\(1\)/);
+  assert.match(scenario, /toMatchObject\(\{ memo: '새 탭보다 최신 입력', actual_minutes: 17 \}\)/);
 });
 
 function request(patch: Record<string, unknown> = {}): Request {
@@ -150,7 +189,8 @@ test('storage lifecycle diagnostics expose fixed states and comparison booleans 
   assert.equal(result.authGate, 'editor'); assert.equal(result.editor, 'hydrated');
   assert.equal(result.hungerVisible, true); assert.equal(result.savedHungerYes, true);
   assert.equal(result.savedHungerNo, false); assert.equal(result.savedWater500, true); assert.equal(result.waterStore500, true);
+  assert.equal(result.savedHunger, 'yes'); assert.equal(result.savedWater, '500');
   assert.equal(result.protocolState, 'committed'); assert.equal(result.legacyPresent, true);
-  const labels = new Set(['first-edit', 'first', 'visible', 'editor', 'hydrated', 'committed']);
+  const labels = new Set(['first-edit', 'first', 'visible', 'editor', 'hydrated', 'committed', 'yes', '500']);
   assert.ok(Object.values(result).every(value => typeof value === 'boolean' || value === null || typeof value === 'string' && labels.has(value)));
 });

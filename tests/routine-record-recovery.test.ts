@@ -16,7 +16,8 @@ function environment() {
     payloads: [] as Record<string, unknown>[], rpcRequests: [] as Record<string, unknown>[],
     resetRunning: false, lostResponse: false, noLocks: false, authCallbacks: new Set<Function>(), failTerminalReadback: false, schemaMissing: false, beforeRpc: null as (() => void) | null,
     marker: null as string | null, failMarkerReads: false, failReads: false, failWrites: false, quota: false, removeFails: false,
-    calls: [] as string[], hold: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null };
+    calls: [] as string[], markerReadHold: null as ReturnType<typeof deferred> | null,
+    hold: null as { arrived: ReturnType<typeof deferred>; release: ReturnType<typeof deferred> } | null };
 }
 
 // Execute the shipping hook at synthetic auth/storage/PostgREST boundaries. These
@@ -49,7 +50,11 @@ function fixture(env = environment(), id = owner) {
       from(table: string) {
         const filters: Record<string, string> = {};
         const execute = async () => {
-          if (table === 'user_app_state') return { data: env.failMarkerReads ? null : { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarkerReads ? Error('offline marker') : null };
+          if (table === 'user_app_state') {
+            const held = env.markerReadHold; env.markerReadHold = null;
+            if (held) await held.promise;
+            return { data: env.failMarkerReads ? null : { state: { 'ai-fitness-record-reset-growth': env.marker } }, error: env.failMarkerReads ? Error('offline marker') : null };
+          }
           assert.equal(table, 'growth_sessions');
           env.calls.push(`read:${filters.id}`);
           const row = env.rows.get(filters.id);
@@ -151,6 +156,35 @@ test('same-origin stale tab cannot mint second attempt or overwrite newer input/
   manual(second, { memo: 'stale' }); await flush(); assert.equal(second.render().storageError, true);
   await qa.render().save('manual', routine); const terminal = qa.env.storage.get(drafts.routineDraftKey(owner));
   await second.render().retryCheckpoint(); assert.equal(qa.env.storage.get(drafts.routineDraftKey(owner)), terminal); assert.equal(qa.env.rows.size, 1);
+});
+
+test('a recovered visible form is not ready until its reset read and initial checkpoint finish', async () => {
+  const first = await ready(); manual(first); await flush();
+  const hold = deferred(); first.env.markerReadHold = hold;
+  const second = fixture(first.env); await flush(); await flush();
+  assert.equal(second.render().draft.manual.open, true, 'The raw recovered form is already visible');
+  assert.equal(second.render().draft.manual.memo, '합성 메모');
+  assert.equal(second.render().ready, false); assert.equal(second.render().blocked, true);
+  manual(first, { memo: 'newer while peer is loading' }); await flush();
+  const newest = first.env.storage.get(drafts.routineDraftKey(owner));
+  second.emit('storage', { key: drafts.routineDraftKey(owner), newValue: newest });
+  assert.match(second.render().notice, /다른 창의 입력/);
+  hold.resolve(); await flush(); await flush();
+  assert.equal(second.render().loadError, true); assert.equal(second.render().ready, false);
+  assert.match(second.render().notice, /다시 불러와/, 'A later initialization failure replaces the transient conflict notice');
+  assert.equal(first.env.storage.get(drafts.routineDraftKey(owner)), newest); assert.equal(first.env.rows.size, 0);
+});
+
+test('an initialized peer retains the cross-tab conflict and cannot replay over the newer input or confirmed row', async () => {
+  const first = await ready(); manual(first); await flush(); const second = await ready(first.env);
+  assert.equal(second.render().ready, true); assert.equal(second.render().blocked, false);
+  manual(first, { memo: 'newer after peer is ready' }); await flush();
+  second.emit('storage', { key: drafts.routineDraftKey(owner), newValue: first.env.storage.get(drafts.routineDraftKey(owner)) });
+  await flush(); assert.match(second.render().notice, /다른 창의 입력/); assert.equal(second.render().blocked, true);
+  await first.render().save('manual', routine); const terminal = first.env.storage.get(drafts.routineDraftKey(owner));
+  await second.render().save('manual', routine); await second.render().retryCheckpoint();
+  assert.equal(first.env.storage.get(drafts.routineDraftKey(owner)), terminal);
+  assert.equal(first.env.rows.size, 1); assert.equal([...first.env.rows.values()][0].memo, 'newer after peer is ready');
 });
 test('a server-confirmed but unverified local terminal write blocks mutation until reload', async () => {
   const qa = await ready(); manual(qa); await flush(); qa.env.failTerminalReadback = true; await qa.render().save('manual', routine);

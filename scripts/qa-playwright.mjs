@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { stateDiagnosticCollector } from './qa-state-diagnostics.mjs';
 import { nativeLabel } from './qa-native-labels.mjs';
 import { observeNetworkLibraries } from './qa-browser-environment.mjs';
 import { drawingProtocolBoundary, drawingProtocolEnabled, observeDrawingProtocol } from './qa-drawing-protocol.mjs';
@@ -8,6 +9,7 @@ import { drawingProtocolBoundary, drawingProtocolEnabled, observeDrawingProtocol
 if (process.env.YEONI_E2E !== '1' || process.env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:54321') throw new Error('Non-isolated verification refused');
 mkdirSync('.e2e/evidence', { recursive: true });
 const native = [];
+const stateDiagnostics = stateDiagnosticCollector();
 const nativeCounts = {};
 const invocation = `${Date.now()}-${process.pid}`;
 const protocol = drawingProtocolEnabled(process.env) ? observeDrawingProtocol() : null;
@@ -47,6 +49,8 @@ const capture = stream => {
       native.push({ at: Date.now(), label });
       if (label !== 'other-native') console.log('QA_NATIVE ' + JSON.stringify({ at: Date.now(), label }));
     }
+    const stateDiagnostic = stateDiagnostics.ingest(line);
+    if (stateDiagnostic) console.log(stateDiagnostic);
     if (/^(?:QA_CLEANUP |QA_CLEANUP_PHASE |QA_NAVIGATION_FAILURE |QA_FAILURE_LOCATION |QA_RUNNER_FAILURE |(?:passed|failed|timedOut|skipped): )/.test(line)) console.log(line);
     // Discard all other raw output. Test summaries
     // and fixture evidence are already saved separately by the safe reporter.
@@ -57,6 +61,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => child.kill(
 child.on('error', () => { console.error('Verification process could not start'); process.exitCode = 1; });
 child.on('close', code => {
   saveProtocol('runner-exit');
+  writeFileSync(`.e2e/evidence/state-diagnostics-${invocation}.json`, JSON.stringify({ commit: process.env.QA_HEAD_SHA, ...stateDiagnostics.snapshot() }, null, 2));
   clearInterval(libraryTimer);
   libraries.sample();
   const loaded = libraries.snapshot();

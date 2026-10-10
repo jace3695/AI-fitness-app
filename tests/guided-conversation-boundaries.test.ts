@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { conversationSessionFixture } from './helpers/conversationSessionFixture.ts';
 import { tick } from './helpers/storage-ui-fixture.ts';
+import { findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
 import { sanitizeGuidedDiagnostic } from './e2e/guided-conversation-diagnostics.ts';
 
 type Hook = ReturnType<typeof import('../components/language/useConversationSession.ts')['useConversationSession']>;
-async function started(t: TestContext) {
+async function started(t: TestContext, script: { scriptId: string; scriptRevision: string } = GUIDED_CONVERSATION_PILOT[1]) {
   const f = await conversationSessionFixture(); t.after(f.dispose);
   const h = f.mountHook<Hook>(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
-  const script = GUIDED_CONVERSATION_PILOT[1];
   const selection = Object.assign(Object.create(null), { kind: 'guided', scriptId: script.scriptId, scriptRevision: script.scriptRevision });
   assert.equal(await h.current.start(selection), true); await h.view.settle();
   const session = () => f.snapshot().envelope!.sessions[0];
@@ -42,6 +42,29 @@ test('guided delayed exposure during a draft acknowledgement remains dirty until
   assert.equal(session().drafts[0].exposure.meaning, 'shown');
   assert.equal(await h.current.send(), true); await h.view.settle();
   assert.equal(session().turns.length, 1); assert.equal(h.current.input, '');
+});
+
+test('catalogue observed assistance before typing makes the first saved draft exact without a retry', async t => {
+  const script = findGuidedConversationCatalogScript('guided-company-mechanical-design-intermediate', 'sha256:e7122f518361da4322d717ce5f3873c1cd67a51a44a1b824a136a54b0ca47afa');
+  assert.ok(script);
+  const { f, h, session } = await started(t, script);
+  let draftWrites = 0;
+  const run = f.facade.runConversationEdit;
+  Object.assign(f.facade, { runConversationEdit(intent: Parameters<typeof run>[0]) {
+    if (intent.kind === 'draft') draftWrites++;
+    return run(intent);
+  } });
+  h.current.observeExposure({ example: 'shown', meaning: 'shown', hint: 'shown' }, h.current.activeStepRef!);
+  await h.view.settle();
+  assert.equal(h.current.diagnostics.exposure.example, 'shown'); assert.equal(h.current.diagnostics.exposure.meaning, 'shown');
+  assert.equal(h.current.diagnostics.exposure.hint, 'shown'); assert.equal(h.current.diagnostics.editorOnActiveStep, true);
+  h.current.insertExample(); await h.view.settle();
+  assert.equal(await h.current.save(), true); await h.view.settle();
+  assert.equal(h.current.status, 'saved'); assert.equal(draftWrites, 1);
+  assert.equal(session().drafts[0].input, script.steps[0].learnerExample.japanese);
+  assert.equal(session().drafts[0].exposure.example, 'shown'); assert.equal(session().drafts[0].exposure.meaning, 'shown');
+  assert.equal(session().drafts[0].exposure.hint, 'shown'); assert.equal(session().drafts[0].origin.kind, 'inserted-example');
+  assert.equal(session().turns.length, 0); assert.equal(session().operations.length, 0);
 });
 
 test('guided new exposure during an explicit save cannot silently acknowledge the newer editor', async t => {

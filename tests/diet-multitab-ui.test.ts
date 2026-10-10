@@ -202,6 +202,28 @@ test('queued diet save reads latest stores and preserves a newer unsaved editor 
   assert.equal(a.value('diet-hunger'), 'no');
 });
 
+test('two shipping diet editors merge frozen same-day hunger and water while retaining a newer unsaved response', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
+  const b = tab(shared, 'B'); t.after(b.dispose); await b.ready();
+  a.change('diet-hunger', 'yes'); await b.click('+500mL');
+  assert.equal(a.value('diet-hunger'), 'yes'); assert.match(textOf(b.render()), /500mL/);
+  const release = shared.holdLock();
+  await a.click('오늘 식단 저장'); await b.click('오늘 식단 저장');
+  assert.equal(shared.read()[day], undefined, 'Both saves remain queued behind the same lock');
+  a.change('diet-hunger', 'no');
+  release(); await tick(); a.render(); b.render();
+  assert.equal(shared.read()[day].hunger, 'yes', 'The frozen first response is retained after the peer save');
+  assert.equal(shared.read()[day].waterMl, 500, 'The independent peer water edit survives');
+  assert.equal(a.value('diet-hunger'), 'no', 'The newer input is still visible and unsaved');
+  assert.match(textOf(a.render()), /이후 작성한 내용은 아직 저장되지 않았습니다/);
+  await a.click('오늘 식단 저장');
+  assert.equal(shared.read()[day].hunger, 'no'); assert.equal(shared.read()[day].waterMl, 500);
+  await a.sync(); await b.sync();
+  const committed = (shared.remote.state[key] as Record<string, Record<string, unknown>>)[day];
+  assert.equal(committed.hunger, 'no'); assert.equal(committed.waterMl, 500);
+  assert.deepEqual(shared.read()['2001-01-02'], original[key]['2001-01-02']);
+});
+
 test('an old mounted diet editor cannot adopt a newly ready different owner at save time', async t => {
   const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();
   a.change('diet-hunger', 'yes');

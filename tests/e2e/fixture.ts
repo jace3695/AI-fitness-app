@@ -334,7 +334,16 @@ export async function foregroundLivePage(page: Page) {
   // Simulate returning to the tab; never bypass that privacy/lifecycle gate.
   await page.bringToFront();
   await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
-  await expect(page.getByText('학습 기록 · 서버 저장 확인', { exact: true })).toBeVisible();
+  const ready = page.getByText('학습 기록 · 서버 저장 확인', { exact: true });
+  const paused = page.getByRole('button', { name: '학습 기록 다시 확인', exact: true });
+  // Foregrounding alone is not a sync acknowledgement. If the peer paused this
+  // tab, use only its visible, warm-paused recovery action; never turn a
+  // blocked/error/reset state into an automatic fixture retry.
+  await expect(ready.or(paused)).toBeVisible();
+  const reconnect = await paused.isVisible();
+  console.log('QA_LIVE_FOREGROUND ' + JSON.stringify({ recovery: reconnect ? 'explicit-paused' : 'already-ready' }));
+  if (reconnect) await paused.click();
+  await expect(ready).toBeVisible();
   await expect(page.locator('.live-workspace')).toBeVisible();
 }
 export const localState = (page: Page): Promise<State> => page.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter(key => key.startsWith('ai-fitness-')).map(key => {

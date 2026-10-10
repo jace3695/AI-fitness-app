@@ -9,8 +9,8 @@ const editor: UiNode = { type: 'textarea', props: { 'data-language-editor': true
 type Row = { state: Record<string, unknown>; updated_at: string };
 type SdkResult = { data: Row | { updated_at: string } | null; error: Error | null };
 
-async function languageFixture(t: TestContext) {
-  const browser = storageBrowser(), tab = storageTab(browser, 'language'); t.after(tab.dispose);
+async function languageFixture(t: TestContext, browser = storageBrowser(), name = 'language') {
+  const tab = storageTab(browser, name); t.after(tab.dispose);
   const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
   const lease = nodes(gate.render()).find(node => node.props.lease)?.props.lease as AuthenticatedStorageOwner;
   assert.ok(lease?.isCurrent());
@@ -67,6 +67,88 @@ async function languageFixture(t: TestContext) {
   };
 }
 const editorContainer = (tree: UiNode) => nodes(tree).find(node => node.type === 'div' && (node.props.children as UiNode | undefined)?.props?.children === editor);
+
+test('same-origin peer acknowledgement pauses private drafts and explicit reconnect verifies fresh authority without a refresh loop', async t => {
+  const first = await languageFixture(t), a = first.mount(); await a.settle();
+  const original = editorContainer(a.render())!;
+  const oldContext = (original.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const adapter = first.tab.loadModule('app/data/languageCloudSync.ts') as typeof import('../app/data/languageCloudSync.ts');
+  const second = await languageFixture(t, first.browser, 'peer'), b = second.mount(); await b.settle(); await a.settle();
+  assert.equal(first.lease.isCurrent(), true, 'The peer did not change the authenticated owner');
+  assert.equal(adapter.isLanguageRecordContextCurrent(oldContext), false, 'A peer acknowledgement retires the old write capability');
+  const paused = editorContainer(a.render())!;
+  assert.equal(paused.key, original.key); assert.equal((paused.props.children as UiNode).props.children, editor);
+  assert.equal(paused.props.hidden, true); assert.equal(paused.props.inert, true);
+  assert.equal((paused.props.children as UiNode).props.context, null);
+  assert.equal(editorContainer(b.render())?.props.hidden, false);
+  assert.equal(first.tab.pendingTimers, 0); assert.equal(second.tab.pendingTimers, 0, 'Peer acknowledgements must not trigger an automatic ping-pong');
+  const authReads = first.tab.authReads.length, reads = first.calls.filter(call => call.kind === 'read').length;
+  const held = first.holdRead();
+  a.click('학습 기록 다시 확인'); await a.settle();
+  assert.ok(first.tab.authReads.length > authReads); assert.equal(first.calls.filter(call => call.kind === 'read').length, reads + 1);
+  assert.equal(editorContainer(a.render())?.props.hidden, true, 'Explicit retry stays private until fresh server confirmation');
+  held.resolve({ data: { state: {}, updated_at: 'fresh-peer-recovery' }, error: null }); await a.settle(); await b.settle();
+  assert.equal(editorContainer(a.render())?.props.hidden, false); assert.equal(editorContainer(a.render())?.key, original.key);
+  assert.match(a.text(), /학습 기록 · 서버 저장 확인/);
+  assert.equal(editorContainer(b.render())?.props.hidden, true);
+  assert.equal(first.tab.pendingTimers, 0); assert.equal(second.tab.pendingTimers, 0);
+  assert.equal(first.calls.filter(call => call.kind !== 'read').length, 0); assert.equal(second.calls.filter(call => call.kind !== 'read').length, 0);
+});
+
+for (const failure of ['auth', 'read'] as const) test(`warm paused reconnect ${failure} failure preserves private draft without reporting ready`, async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const original = editorContainer(view.render())!;
+  f.tab.dispatch({ type: 'pagehide' });
+  if (failure === 'auth') f.tab.setAuthError(new Error('synthetic unavailable owner verification'));
+  else f.failRead();
+  const reads = f.calls.length;
+  view.click('학습 기록 다시 확인'); await view.settle();
+  const retained = editorContainer(view.render())!;
+  assert.equal(retained.key, original.key); assert.equal((retained.props.children as UiNode).props.children, editor);
+  assert.equal(retained.props.hidden, true); assert.equal(retained.props.inert, true);
+  assert.equal((retained.props.children as UiNode).props.context, null);
+  assert.doesNotMatch(view.text(), /서버 저장 확인|학습 기록 다시 확인/);
+  if (failure === 'auth') assert.equal(f.calls.length, reads, 'Failed fresh owner verification cannot dispatch a record read');
+});
+
+test('warm paused recovery cannot start from a hidden document or reuse an owner revoked during authentication', async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  f.tab.setVisibility('hidden'); const reads = f.calls.length, authReads = f.tab.authReads.length;
+  view.click('학습 기록 다시 확인'); await view.settle();
+  assert.equal(f.calls.length, reads); assert.equal(f.tab.authReads.length, authReads);
+  f.tab.setVisibility('visible'); await view.settle();
+  f.tab.dispatch({ type: 'pagehide' });
+  const held = f.tab.holdNextAuth(), before = f.calls.length;
+  view.click('학습 기록 다시 확인'); await view.settle();
+  f.tab.emitAuth('SIGNED_IN', 'synthetic-other-owner');
+  assert.equal(f.lease.signal.aborted, true);
+  held.resolve({ data: { user: { id: FIXTURE_OWNER, email: 'a@example.test' } }, error: null }); await view.settle();
+  assert.equal(f.calls.length, before); assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.doesNotMatch(view.text(), /서버 저장 확인/);
+});
+
+test('an incomplete reset is never presented as ordinary warm-paused recovery', async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  f.tab.local.setItem('language-reset-fence-v1', JSON.stringify({ version: 1, owner: f.lease.userId,
+    requestId: '11111111-1111-4111-8111-111111111111', expectedMarker: null, state: 'pending' }));
+  const reads = f.calls.length; f.tab.dispatch({ type: 'pagehide' }); await view.settle();
+  assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.doesNotMatch(view.text(), /학습 기록 다시 확인|서버 저장 확인/);
+  assert.ok(nodes(view.render()).some(node => node.props.app === 'language'));
+  assert.equal(f.calls.length, reads);
+});
+
+for (const boundary of ['hidden', 'unmount'] as const) test(`warm paused reconnect ${boundary} retires its held read without exposing a late result`, async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  f.tab.dispatch({ type: 'pagehide' }); const held = f.holdRead();
+  view.click('학습 기록 다시 확인'); await view.settle();
+  const signal = f.calls.at(-1)!.signal!; assert.equal(signal.aborted, false);
+  if (boundary === 'hidden') f.tab.setVisibility('hidden'); else view.dispose();
+  assert.equal(signal.aborted, true);
+  held.resolve({ data: { state: { savedWords: '["late private result"]' }, updated_at: 'late' }, error: null }); await view.settle();
+  assert.equal(f.tab.local.getItem('savedWords'), null); assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.doesNotMatch(view.text(), /서버 저장 확인/);
+});
 
 for (const boundary of ['hidden', 'pagehide', 'unmount'] as const) test(`R11 shipping LanguageCloudSync ${boundary} aborts a cold pending GET and cannot initialize from its late reply`, async t => {
   const f = await languageFixture(t), hold = f.holdRead(), view = f.mount(); await view.settle();
