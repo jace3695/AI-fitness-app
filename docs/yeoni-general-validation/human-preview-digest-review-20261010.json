@@ -1,0 +1,201 @@
+{
+  "recordedAtUtc": "2026-10-10T03:29:00Z",
+  "scope": "Source-reviewed digest refresh and explicit denied-save preference lifecycle regression. Not current browser acceptance.",
+  "failedCi": {
+    "commit": "36ef7cd69dce5b506b1fce1e8f04995135939497",
+    "motionJob": 114118401513,
+    "speechJob": 114118401560,
+    "failure": "Strict complete-HTML SHA-256 assertion before browser assertions in check-human-preview.mjs:10",
+    "actual": {
+      "motion": "ba7f2d3999b4f6716bd9b86454f178fbc924925e1a4a804f91b336890b90dd18",
+      "speech": "e68b1261caff515ca75719f4e112a9b1bf93feefa749b73f8275e4c39fafabf7"
+    }
+  },
+  "localBaseCommit": "3ae85299d258747c6c766d7e1042cac0a2c8e46c",
+  "reviewedReferenceCommit": "b602d97c87f8e625805759d26ec5c9247c578430",
+  "rootCause": {
+    "sourceCommit": "a055e11b82c0bf6deb691c63694be600daf0b822",
+    "directInput": "components/useYeoniPreferences.ts",
+    "addedTransitiveInputs": [
+      "app/data/appRecordReset.ts",
+      "app/data/languageStorageBoundary.ts",
+      "app/data/storageTransaction.ts"
+    ],
+    "behavior": "Legacy appearance fallback now requires current language ownership and reset metadata. Focus, pageshow, storage, session, records and reset events invalidate the cached fallback; final unsubscribe drops borrowed values.",
+    "attributionProof": "Unmodified local base exports reproduced both failed CI hashes. Isolated esbuild onLoad replacement of only useYeoniPreferences.ts with b602d97 source reproduced both old reviewed complete-HTML digests exactly, using the current installed dependencies and all other current files. No checkout source was reverted.",
+    "originalBundleIncreaseBytesEach": 8545,
+    "dependencies": {
+      "node": "24.19.0",
+      "esbuild": "0.28.2",
+      "react": "19.2.4",
+      "react-dom": "19.2.4",
+      "scheduler": "0.27.0",
+      "bundledPackageVersionsAndLockIntegritiesUnchangedFromReference": true,
+      "otherRootDependencyUpdatesAffectTheseBundles": false
+    }
+  },
+  "fixedRegression": {
+    "failure": "After a denied preference save, lifecycle refresh restored older persisted motion=home/visible=true and undid the explicit in-tab stop/hide. Final unsubscribe also discarded the failed explicit choice.",
+    "beforeFix": {
+      "targetedReaderTests": 20,
+      "passed": 13,
+      "failed": 7
+    },
+    "fix": "Keep only explicitly changed unsaved device fields, overlay them on fresh guarded reads and default remount state, and clear them only after successful persistence. Persist/clear before notifying subscribers so an older update cannot overwrite or retire a newer callback choice. Never retain unchosen borrowed fallback fields.",
+    "sourceSha256": "1f9d35cd7b3a424bc4ffd8f5564a4214de81297bde2febe98413439f2545a196",
+    "browserRegressionAdded": "Denied stop survives focus/pageshow/records/reset/session/storage events; denied hide survives focus/pageshow and stage remount; no animation frames and saved bytes remain unchanged.",
+    "browserRegressionExecuted": false
+  },
+  "previewBuilds": {
+    "motion": {
+      "previousReviewedSha256": "079da724b6998b951af8003bfb778fd45d5eea8a2b0c72f14b881c8d849cabe6",
+      "fixedSha256": "46713c1bd5541dedbfe1ae45b697961d6aa12a3555cc5cb053631999326f43b1",
+      "fixedHtmlBytes": 4641395,
+      "fixedJsBytes": 231920,
+      "cssUnchanged": true,
+      "embeddedImageMapUnchanged": true,
+      "cssSha256": "5a0a3d74ab0a20367be07a534d2b102db3f37939db31d20b5509f367cc79d5d6",
+      "embeddedImageMapSha256": "088ecdc20417b13672108dafcff7a478dad74825d90c54864ddcd40e43c1508b",
+      "sourceInputs": [
+        "app/data/appRecordReset.ts",
+        "app/data/languageStorageBoundary.ts",
+        "app/data/storageTransaction.ts",
+        "components/useYeoniPreferences.ts",
+        "components/yeoni/HumanAnimationStage.tsx",
+        "components/yeoni/human-animation.module.css",
+        "components/yeoni/useCharacterStage.ts",
+        "lib/yeoni/character-controller.ts",
+        "lib/yeoni/character-expression.ts",
+        "lib/yeoni/character-stage.ts",
+        "lib/yeoni/human-art.ts",
+        "lib/yeoni/human-renderer.ts",
+        "lib/yeoni/human-warp.ts",
+        "lib/yeoni/japanese-phones.ts",
+        "lib/yeoni/korean-mfa-phones.ts",
+        "lib/yeoni/lip-sync.ts",
+        "lib/yeoni/mouth-morph.ts",
+        "lib/yeoni/mouth-motion.ts",
+        "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "node_modules/react-dom/cjs/react-dom.production.js",
+        "node_modules/react-dom/client.js",
+        "node_modules/react-dom/index.js",
+        "node_modules/react/cjs/react-jsx-runtime.production.js",
+        "node_modules/react/cjs/react.production.js",
+        "node_modules/react/index.js",
+        "node_modules/react/jsx-runtime.js",
+        "node_modules/scheduler/cjs/scheduler.production.js",
+        "node_modules/scheduler/index.js",
+        "public/yeoni/human/rig-v4/manifest.json",
+        "scripts/yeoni-human-motion/browser.tsx",
+        "scripts/yeoni-poc/lab.css",
+        "utils/yeoniPreferences.ts"
+      ]
+    },
+    "speech": {
+      "previousReviewedSha256": "37ac74072057bc9bb8d297f9afa72446e648ee78047fd9be57c5651cac6440dc",
+      "fixedSha256": "098240dfee139c28643238904dba9f5d2902c883c83363b8f447fb345f5734ca",
+      "fixedHtmlBytes": 7638911,
+      "fixedJsBytes": 282967,
+      "cssUnchanged": true,
+      "embeddedImageMapUnchanged": true,
+      "cssSha256": "2c3cab56fee4ef72bb0780bc74dbe12b90513245acc7ce740aead830db7c0245",
+      "embeddedImageMapSha256": "3c9cd192dc9dafc3f77ccda0d05e70487cdf18120db950f6feb8d289fe37a47e",
+      "sourceInputs": [
+        "app/data/appRecordReset.ts",
+        "app/data/languageStorageBoundary.ts",
+        "app/data/storageTransaction.ts",
+        "components/useYeoniPreferences.ts",
+        "components/yeoni/HumanAnimationStage.tsx",
+        "components/yeoni/human-animation.module.css",
+        "components/yeoni/useCharacterStage.ts",
+        "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+        "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json",
+        "lib/yeoni/character-controller.ts",
+        "lib/yeoni/character-expression.ts",
+        "lib/yeoni/character-stage.ts",
+        "lib/yeoni/human-art.ts",
+        "lib/yeoni/human-renderer.ts",
+        "lib/yeoni/human-warp.ts",
+        "lib/yeoni/japanese-phones.ts",
+        "lib/yeoni/korean-mfa-phones.ts",
+        "lib/yeoni/lip-sync-player.ts",
+        "lib/yeoni/lip-sync.ts",
+        "lib/yeoni/mouth-morph.ts",
+        "lib/yeoni/mouth-motion.ts",
+        "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "node_modules/react-dom/cjs/react-dom.production.js",
+        "node_modules/react-dom/client.js",
+        "node_modules/react-dom/index.js",
+        "node_modules/react/cjs/react-jsx-runtime.production.js",
+        "node_modules/react/cjs/react.production.js",
+        "node_modules/react/index.js",
+        "node_modules/react/jsx-runtime.js",
+        "node_modules/scheduler/cjs/scheduler.production.js",
+        "node_modules/scheduler/index.js",
+        "public/yeoni/human/rig-v4/manifest.json",
+        "scripts/yeoni-human-speech/HumanMouthPalette.tsx",
+        "scripts/yeoni-human-speech/browser.tsx",
+        "scripts/yeoni-human-speech/speech.css",
+        "scripts/yeoni-poc/lab.css",
+        "scripts/yeoni-speech-poc/ListeningReview.tsx",
+        "scripts/yeoni-speech-poc/SpeechLab.tsx",
+        "scripts/yeoni-speech-poc/fixture.ts",
+        "scripts/yeoni-speech-poc/real-fixture.ts",
+        "scripts/yeoni-speech-poc/review-playback.ts",
+        "scripts/yeoni-speech-poc/speech.css",
+        "utils/yeoniPreferences.ts"
+      ]
+    }
+  },
+  "checks": [
+    {
+      "name": "Preference parser, shipping guarded-reader/lifecycle fixture and production digest CLI regression",
+      "command": "node --experimental-strip-types --test app/data/yeoniPreferences.test.ts tests/language-guarded-readers-ui.test.ts tests/human-preview-digest.test.ts",
+      "passed": 28,
+      "failed": 0
+    },
+    {
+      "name": "Language ownership boundary and Yeoni controller/renderer/policy unit regressions",
+      "command": "node --experimental-strip-types --test app/data/languageStorageBoundary.test.ts lib/yeoni/*.test.ts",
+      "passed": 90,
+      "failed": 0
+    },
+    {
+      "name": "Changed TypeScript ESLint",
+      "result": "passed"
+    },
+    {
+      "name": "TypeScript noEmit, incremental false",
+      "result": "passed"
+    },
+    {
+      "name": "Human motion browser script syntax",
+      "command": "node --check scripts/yeoni-human-motion/check-flow.mjs",
+      "result": "passed"
+    },
+    {
+      "name": "Two complete exports per kind in separate disposable directories",
+      "result": "byte-identical"
+    },
+    {
+      "name": "Old-hook-only reconstruction on current dependencies",
+      "result": "both historical expected hashes reproduced exactly"
+    },
+    {
+      "name": "Independent actual-module adversarial review",
+      "result": "9/9 passed; includes newer callback success/failure, account switch, write-then-throw uncertainty, reset/binding/storage failure, cross-tab refresh and successful retry"
+    }
+  ],
+  "preservedFiles": {
+    "docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html": "ba24011448863bd5ad6b6eaa9f41d66399b7c0966de9880377393981b38f94b5",
+    "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html": "46e6123f71888899b5e45ce66c129a68e98d0f05348585345643c2b961ae2f4a",
+    "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+    "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049"
+  },
+  "guardPolicy": "The checker is unchanged and still requires exact complete-HTML SHA-256. Regression tests reject changes to markup, CSS, JavaScript, embedded image/audio and trailing bytes; malformed/missing expectations/files also fail. No automatic digest update or assertion relaxation.",
+  "limits": [
+    "No browser was launched or retried because browser launch was denied (EPERM). Chromium/WebKit transport, lifecycle, pixel comparison and physical-device checks are unrun for this fix.",
+    "No new TTS, alignment, provider/network call, review video, hosted-data change, dependency installation, commit, push, CI cancellation or rerun.",
+    "The full CI on 36ef7cd must reach its terminal result and required cleanup before any later publication; this artifact does not claim that run passed."
+  ]
+}

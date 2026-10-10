@@ -117,3 +117,100 @@ test('R13 an unsubscribed preference cache cannot expose an old language fallbac
   const second = f.tab.mount('', {}, renderPreference); t.after(second.dispose); await second.settle();
   for (const tree of second.history) assert.doesNotMatch(String(tree.props.children), /"visible":false/);
 });
+
+for (const event of ['focus', 'pageshow', 'yeoni-records-changed', 'ai-yeoni-record-reset', 'yeoni-cloud-session-changed', 'storage']) {
+  test(`explicit denied-save stop/hide survives ${event} without changing stored bytes`, async t => {
+    const f = await readerFixture(t);
+    const saved = '{"visible":true,"motion":"home"}';
+    f.tab.local.setItem('yeoniAppearanceSettingsV1', saved);
+    const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+    const view = f.tab.mount('', {}, () => ({ type: 'span', props: { children: JSON.stringify(preferences.useYeoniPreferences()) } }));
+    t.after(view.dispose); await view.settle();
+    f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+    assert.throws(() => preferences.updateYeoniPreferences({ visible: false, motion: 'off' }), /synthetic quota refusal/);
+    assert.match(view.text(), /"visible":false,"motion":"off"/);
+    f.tab.dispatch({ type: event, key: 'unrelated-record' });
+    assert.match(view.text(), /"visible":false,"motion":"off"/);
+    assert.equal(f.tab.local.getItem('yeoniAppearanceSettingsV1'), saved);
+  });
+}
+
+test('only failed explicit fields survive language invalidation and an unsubscribed remount', async t => {
+  const f = await readerFixture(t);
+  f.tab.local.setItem('integratedLearningSettingsV1', '{"showCompanion":false}');
+  const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+  const renderPreference = () => ({ type: 'span', props: { children: JSON.stringify(preferences.useYeoniPreferences()) } });
+  const first = f.tab.mount('', {}, renderPreference); await first.settle();
+  assert.match(first.text(), /"visible":false,"motion":"reactions"/);
+  f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+  assert.throws(() => preferences.updateYeoniPreferences({ motion: 'off' }), /synthetic quota refusal/);
+  first.dispose();
+  f.tab.local.setItem('language-storage-binding-v1', '{malformed');
+  const second = f.tab.mount('', {}, renderPreference); t.after(second.dispose); await second.settle();
+  assert.match(second.text(), /"visible":true,"motion":"off"/);
+  for (const tree of second.history) {
+    assert.doesNotMatch(String(tree.props.children), /"visible":false/, 'Unchosen borrowed visibility cannot survive remount');
+    assert.match(String(tree.props.children), /"motion":"off"/, 'The explicit unsaved stop cannot be lost on first render');
+  }
+  assert.equal(f.tab.local.getItem('yeoniAppearanceSettingsV1'), null);
+});
+
+test('a successful retry retires failed device overrides so later saved preferences can refresh', async t => {
+  const f = await readerFixture(t);
+  f.tab.local.setItem('yeoniAppearanceSettingsV1', '{"visible":true,"motion":"home"}');
+  const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+  const view = f.tab.mount('', {}, () => ({ type: 'span', props: { children: JSON.stringify(preferences.useYeoniPreferences()) } }));
+  t.after(view.dispose); await view.settle();
+  f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+  assert.throws(() => preferences.updateYeoniPreferences({ visible: false, motion: 'off' }), /synthetic quota refusal/);
+  preferences.updateYeoniPreferences({ visible: true });
+  assert.equal(f.tab.local.getItem('yeoniAppearanceSettingsV1'), '{"visible":true,"motion":"off"}');
+  f.tab.local.setItem('yeoniAppearanceSettingsV1', '{"visible":true,"motion":"home"}');
+  f.tab.dispatch({ type: 'storage', key: 'yeoniAppearanceSettingsV1' });
+  assert.match(view.text(), /"visible":true,"motion":"home"/);
+});
+
+test('consecutive failed explicit fields survive storage-access loss without borrowing other values', async t => {
+  const f = await readerFixture(t);
+  const legacy = '{"showCompanion":false}';
+  f.tab.local.setItem('integratedLearningSettingsV1', legacy);
+  const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+  const view = f.tab.mount('', {}, () => ({ type: 'span', props: { children: JSON.stringify(preferences.useYeoniPreferences()) } }));
+  t.after(view.dispose); await view.settle();
+  f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+  assert.throws(() => preferences.updateYeoniPreferences({ motion: 'off' }), /synthetic quota refusal/);
+  f.tab.failStorageAccess(); f.tab.dispatch({ type: 'focus' });
+  assert.match(view.text(), /"visible":true,"motion":"off"/, 'Storage failure must discard borrowed visibility while keeping the explicit stop');
+  f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+  assert.throws(() => preferences.updateYeoniPreferences({ visible: false }), /synthetic quota refusal/);
+  f.tab.dispatch({ type: 'pageshow' });
+  assert.match(view.text(), /"visible":false,"motion":"off"/, 'The later failed partial change must retain the earlier explicit field');
+  assert.equal(f.tab.local.getItem('yeoniAppearanceSettingsV1'), null);
+  assert.equal(f.tab.local.getItem('integratedLearningSettingsV1'), legacy);
+});
+
+for (const denied of [false, true]) test(`a newer subscriber choice wins when its persistence ${denied ? 'fails' : 'succeeds'}`, async t => {
+  const f = await readerFixture(t);
+  f.tab.local.setItem('yeoniAppearanceSettingsV1', '{"visible":true,"motion":"reactions"}');
+  type Preference = ReturnType<typeof import('../components/useYeoniPreferences.ts')['useYeoniPreferences']>;
+  let subscribe!: (listener: () => void) => () => void;
+  let snapshot!: () => Preference;
+  f.tab.setModule('react', { useSyncExternalStore(sub: typeof subscribe, get: typeof snapshot) { subscribe = sub; snapshot = get; return get(); } });
+  const preferences = f.tab.loadModule('components/useYeoniPreferences.ts') as typeof import('../components/useYeoniPreferences.ts');
+  preferences.useYeoniPreferences();
+  t.after(subscribe(() => {}));
+  let once = true;
+  t.after(subscribe(() => {
+    if (!once) return;
+    once = false;
+    if (denied) {
+      f.browser.rejectNextWrite('yeoniAppearanceSettingsV1');
+      assert.throws(() => preferences.updateYeoniPreferences({ motion: 'off' }), /synthetic quota refusal/);
+    } else preferences.updateYeoniPreferences({ motion: 'off' });
+  }));
+  preferences.updateYeoniPreferences({ motion: 'home' });
+  assert.equal(snapshot().motion, 'off');
+  assert.equal(JSON.parse(f.tab.local.getItem('yeoniAppearanceSettingsV1')!).motion, denied ? 'home' : 'off');
+  f.tab.dispatch({ type: 'focus' });
+  assert.equal(snapshot().motion, 'off', 'An older write cannot overwrite or retire a newer explicit choice');
+});

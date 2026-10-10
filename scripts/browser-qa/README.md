@@ -62,3 +62,37 @@ The committed synthetic capture can be audited without starting a browser:
 ```sh
 node scripts/browser-qa/audit.mjs scripts/browser-qa/evidence/2026-09-09.json
 ```
+
+## Reviewed human-preview digests
+
+`human-preview-sha256.json` pins each complete current offline HTML, including
+inline JavaScript, CSS, artwork and the speech preview's saved MP3. A mismatch
+fails before the browser checks. It is not permission to copy the actual hash
+into the expectation: first identify the changed source and bundled dependencies,
+review the behavior, and fix any regressions. Keep the historical PHASE 8/9 HTML
+and accepted videos unchanged.
+
+The preference hook is shared by both human previews. Its guarded language
+fallback also bundles `app/data/languageStorageBoundary.ts`,
+`app/data/storageTransaction.ts` and `app/data/appRecordReset.ts`; the animation
+workflow watches those transitive inputs. A storage-only change can therefore
+legitimately require a reviewed preview update.
+
+Use the pinned dependencies to export each preview into two separate disposable
+`YEONI_PREVIEW_ROOT` directories with `scripts/yeoni-human-motion/export.mjs` and
+`scripts/yeoni-human-speech/export.mjs`. Compare complete file bytes, review the
+changed input graph, and check unchanged assets/audio against their source.
+Record attribution, reproducibility, regression results and remaining browser
+limits before updating the two expectations. Then run
+`node scripts/browser-qa/check-human-preview.mjs motion` and the same command
+with `speech`, using the matching `YEONI_PREVIEW_ROOT`.
+
+`tests/human-preview-digest.test.ts` exercises the production checker with an
+isolated synthetic HTML/digest fixture. It rejects altered markup, JavaScript,
+CSS, image/audio bytes, trailing bytes, malformed/missing expectations and absent
+files; it also confirms that mismatches cannot rewrite the input or expectation.
+It is included in `npm test` and does not build or start a browser. Source review,
+build-digest checks, synthetic hook tests and actual Chromium/WebKit behavior
+remain separate evidence. A refreshed digest does not certify browser or device
+acceptance. The 2026-10-10 attribution and denied-save preference regression are
+recorded in `docs/yeoni-general-validation/human-preview-digest-review-20261010.json`.
