@@ -37,10 +37,11 @@ function FreeWorkspace({ owner, isOwnerActive }: { owner: string; isOwnerActive:
   async function navigate(event: MouseEvent<HTMLAnchorElement>) {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault(); if (saving) return;
-    try { if (practice.ready && !saved && !practice.invalidated) await practice.flush(); router.push('/growth/handwriting'); } catch { /* Preserve the screen when checkpointing fails. */ }
+    const href = event.currentTarget.getAttribute('href'); if (!href) return;
+    try { if (practice.ready && !saved && !practice.invalidated) await practice.flush(); router.push(href); } catch { /* Preserve the screen when checkpointing fails. */ }
   }
   return <main className="min-h-dvh bg-yeoni-bg pb-10 text-[#242231]">
-    <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="손글씨 연습" subtitle="iPad와 Apple Pencil로 간단하게" /><Link onClick={navigate} href="/growth/handwriting" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">단계별 수업</Link></div></header>
+    <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="손글씨 연습" subtitle="iPad와 Apple Pencil로 간단하게" /><nav className="flex flex-wrap gap-2"><Link onClick={navigate} href="/growth/handwriting" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">단계별 수업</Link><Link onClick={navigate} href="/growth/handwriting/compare" className="min-h-11 rounded-xl bg-gray-100 px-3 py-3 text-xs font-bold text-gray-600">저장한 손글씨 비교</Link></nav></div></header>
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>한 글자씩 천천히 써봐요. 끝나면 오늘의 손글씨를 남겨 주세요.</AppCompanion>
       <section className="rounded-[30px] bg-white p-4 shadow-sm sm:p-6">
