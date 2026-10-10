@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     # The complete suite includes all authored drawing lessons in both engines.
     # Keep every regression check while allowing the growing suite to finish.
-    timeout-minutes: 105
+    timeout-minutes: 210
     env:
       CI: 'true'
       QA_SOUP_VARIANT: fixed

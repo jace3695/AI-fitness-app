@@ -4,11 +4,11 @@ import { assertAuthenticatedStorageOwner } from './authenticatedStorageOwner.ts'
 import type { TransactionStorage } from './storageTransaction.ts';
 import { readStorageSnapshot, STORAGE_GENERATION_KEY, STORAGE_JOURNAL_KEY, STORAGE_OWNER_KEY, STORAGE_PROTOCOL_KEY, STORAGE_READY_KEY, STORAGE_SESSION_KEY } from './storageTransaction.ts';
 import { stableState } from './cloudSync.ts';
-import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS, LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, projectLanguageBytes, projectLanguageWire, sameLanguageBytes } from './languageStorageBoundary.ts';
+import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS, LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, projectLanguageBytes, projectLanguageWire, sameLanguageBytes, type LanguageBytes } from './languageStorageBoundary.ts';
 import { captureLanguageRemoteObservation, assertLanguageSyncDispatchCurrent, commitLanguageRemoteReset, commitLanguageSyncResponse, createLanguageSyncLifecycle,
   isLanguageRecordContextCurrent, isLanguageSyncRequestCurrent, LanguageRequestStaleError, planLanguageSync, readLanguageSyncRequest, revokeLanguageRecordContexts } from './languageCloudSync.ts';
 import type { LanguageRecordContext, LanguageSyncLifecycle } from './languageCloudSync.ts';
-export type LanguageCoordinatorState = { status: 'checking' | 'ready' | 'pending' | 'paused' | 'blocked' | 'error' | 'uncertain'; message: string; initialized: boolean; context?: LanguageRecordContext; reset?: boolean };
+export type LanguageCoordinatorState = { status: 'checking' | 'ready' | 'syncing' | 'pending' | 'paused' | 'blocked' | 'error' | 'uncertain'; message: string; initialized: boolean; context?: LanguageRecordContext; reset?: boolean };
 export interface LanguageSyncTransport {
   read(userId: string, signal: AbortSignal): Promise<{ state: Record<string, unknown>; updatedAt: string } | null>;
   insert(userId: string, state: Record<string, unknown>, signal: AbortSignal): Promise<boolean>;
@@ -20,6 +20,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
   let state: LanguageCoordinatorState = { status: 'checking', message: '', initialized: false };
   let lifecycle: LanguageSyncLifecycle | null = null, running: Promise<void> | null = null;
   let disposed = false, dispatched = false, committing = false, changed = false, explicitRefresh = false;
+  let dispatchedLocal: LanguageBytes | null = null;
   let lastObserved: string | null = null, followUp: ReturnType<typeof setTimeout> | undefined;
   const publish = (next: Omit<LanguageCoordinatorState, 'initialized'> & { initialized?: boolean }) => {
     if (disposed) return; state = { ...next, initialized: next.initialized ?? state.initialized }; onState(state);
@@ -44,7 +45,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
   };
   function pause(reason = '학습 기록을 다시 확인할 때까지 잠시 멈췄습니다.') {
     if (disposed) return;
-    const uncertain = dispatched;
+    const uncertain = dispatched; dispatchedLocal = null;
     lifecycle?.revoke(); lifecycle = null; clearTimeout(followUp); changed = false; explicitRefresh = false;
     publish({ status: uncertain ? 'uncertain' : 'paused', message: uncertain ? '서버 요청의 결과를 아직 확인하지 못했습니다. 기기 기록을 보존하고 다음 연결에서 먼저 조회합니다.' : reason });
   }
@@ -54,6 +55,9 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
     let successful = false;
     try {
       check(operation);
+      // Keep only the registered warm capability; auth/read checks still gate
+      // the editor, and a resumed lifecycle cannot reuse its revoked context.
+      const editingContext = state.context;
       publish({ status: 'checking', message: '' });
       const verified = await transport.verifyOwner(lease.userId, operation.signal);
       check(operation); if (!verified) throw new LanguageBoundaryError('로그인 상태를 확인하지 못했습니다. 학습 기록은 보존했습니다.');
@@ -75,13 +79,19 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
           await assertLanguageSyncDispatchCurrent(request);
           check(operation);
           if (!isLanguageSyncRequestCurrent(request, 'dispatch')) throw new LanguageRequestStaleError();
-          dispatched = true;
+          dispatched = true; dispatchedLocal = request.local;
           // There is deliberately no awaited work between the guard and exact send.
-          const accepted = plan.kind === 'insert'
-            ? await transport.insert(lease.userId, observed, operation.signal)
-            : await transport.update(lease.userId, observed, remote!.updatedAt, operation.signal);
+          const publication = plan.kind === 'insert'
+            ? transport.insert(lease.userId, observed, operation.signal)
+            : transport.update(lease.userId, observed, remote!.updatedAt, operation.signal);
+          // Exact guarded dispatch has started. Local edits may continue under
+          // the same valid capability, but neither PATCH nor readback is ready.
+          if (current(operation) && editingContext && isLanguageRecordContextCurrent(editingContext)) {
+            publish({ status: 'syncing', message: '', context: editingContext });
+          }
+          const accepted = await publication;
           check(operation);
-          if (!accepted) { dispatched = false; continue; }
+          if (!accepted) { dispatched = false; dispatchedLocal = null; publish({ status: 'checking', message: '' }); continue; }
           const readback = await transport.read(lease.userId, operation.signal);
           check(operation);
           observation = readback ? captureLanguageRemoteObservation(request, readback.state) : undefined;
@@ -97,7 +107,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
         committing = false;
         if (!isLanguageRecordContextCurrent(result.context)) throw new LanguageRequestStaleError();
         const pending = !sameLanguageBytes(projectLanguageBytes(readStorageSnapshot(storage)), projectLanguageWire(observed));
-        dispatched = false; lastObserved = fingerprint(); successful = true;
+        dispatched = false; dispatchedLocal = null; lastObserved = fingerprint(); successful = true;
         publish({ status: pending ? 'pending' : 'ready', message: '', initialized: true, context: result.context, reset: result.reset });
         if (pending) schedule();
         return;
@@ -114,7 +124,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
     } finally {
       if (current(operation)) {
         committing = false;
-        dispatched = false;
+        dispatched = false; dispatchedLocal = null;
         if (explicitRefresh) { explicitRefresh = false; schedule(); }
         else if (changed && successful) { changed = false; try { if (fingerprint() !== lastObserved) schedule(); } catch { pause(); } }
       }
@@ -131,7 +141,7 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
   }
   function resume(): Promise<void> {
     if (disposed) return Promise.resolve();
-    lifecycle?.revoke(); clearTimeout(followUp); changed = false; explicitRefresh = false; dispatched = false;
+    lifecycle?.revoke(); clearTimeout(followUp); changed = false; explicitRefresh = false; dispatched = false; dispatchedLocal = null;
     const operation = createLanguageSyncLifecycle(); lifecycle = operation;
     // Old unresolved HTTP is retired; it cannot block or overwrite this new operation.
     const promise = run(operation); running = promise;
@@ -146,8 +156,20 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
     if (key !== 'records' && key !== STORAGE_PROTOCOL_KEY && key !== STORAGE_GENERATION_KEY && !(LANGUAGE_STORAGE_KEYS as readonly string[]).includes(key)) return;
     if (committing) { changed = true; return; }
     try {
-      if (fingerprint() === lastObserved) return;
-      if (running) { changed = true; return; }
+      const observed = fingerprint();
+      if (running) {
+        if (observed !== lastObserved) changed = true;
+        const context = state.context;
+        if (dispatchedLocal && context && isLanguageRecordContextCurrent(context)
+          && !sameLanguageBytes(projectLanguageBytes(readStorageSnapshot(storage)), dispatchedLocal)) {
+          // A new edit may equal the prior acknowledgement but still differ
+          // from the exact payload currently in flight.
+          changed = true;
+          publish({ status: 'pending', message: '', context });
+        }
+        return;
+      }
+      if (observed === lastObserved) return;
       if (lifecycle?.isCurrent()) { const context = state.context; publish({ status: context && isLanguageRecordContextCurrent(context) ? 'pending' : 'checking', message: '', context }); schedule(); }
     } catch { pause('기기 기록을 읽지 못했습니다. 원본은 보존했습니다.'); }
   }

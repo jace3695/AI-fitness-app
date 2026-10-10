@@ -68,6 +68,148 @@ async function languageFixture(t: TestContext, browser = storageBrowser(), name 
 }
 const editorContainer = (tree: UiNode) => nodes(tree).find(node => node.type === 'div' && (node.props.children as UiNode | undefined)?.props?.children === editor);
 
+for (const newerGoal of [3, 5]) test(`warm language settings PATCH retains verified editing, queues goal ${newerGoal}, and confirms only exact readback`, async t => {
+  const f = await languageFixture(t);
+  const integrated = '{"dailyMinutes":10,"unknown":90071992547409933333}';
+  f.setRemote({ learningSettings: '{"dailyGoalCount":5}', integratedLearningSettingsV1: integrated });
+  const view = f.mount(); await view.settle();
+  const container = editorContainer(view.render())!;
+  const context = (container.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const language = f.tab.loadModule('app/data/languageCloudSync.ts') as typeof import('../app/data/languageCloudSync.ts');
+  const settings = f.tab.loadModule('app/data/languageSettingsMutations.ts') as typeof import('../app/data/languageSettingsMutations.ts');
+  const saveGoal = async (current: typeof context, dailyGoalCount: number) => {
+    const source = language.readLanguageRecordSnapshot(current);
+    const receipt = await settings.runLanguageSettingsMutation(settings.createLearningSettingsMutation(current, source, Object.assign(Object.create(null), { dailyGoalCount })), current);
+    assert.equal(receipt.acknowledged, true);
+    await view.settle();
+  };
+  await saveGoal(context, 4);
+  assert.match(view.text(), /학습 기록 · 기기 저장, 서버 반영 대기/);
+  const heldWrite = f.holdWrite(), heldReadback = f.holdReadback();
+  f.tab.flushTimers(); await view.settle();
+  assert.equal(f.calls.at(-1)!.kind, 'update');
+  assert.match(view.text(), /학습 기록 · 서버 반영 중…/);
+  assert.equal(editorContainer(view.render())?.props.hidden, false);
+  assert.equal(editorContainer(view.render())?.props.inert, false);
+  assert.equal((editorContainer(view.render())!.props.children as UiNode).props.context, context);
+  assert.equal(editorContainer(view.render())?.key, container.key);
+  assert.doesNotMatch(view.text(), /학습 기록 · 서버 저장 확인/);
+  // Reobserving the sent bytes is not a newer edit and must not change the label.
+  f.tab.dispatch({ type: f.tab.transactions.RECORDS_CHANGED_EVENT }); await view.settle();
+  assert.match(view.text(), /학습 기록 · 서버 반영 중…/);
+  await saveGoal(context, newerGoal);
+  assert.match(view.text(), /학습 기록 · 기기 저장, 서버 반영 대기/);
+  assert.equal(editorContainer(view.render())?.props.hidden, false);
+  assert.equal(f.tab.pendingTimers, 0, 'A newer edit does not dispatch a parallel request');
+  assert.equal(f.calls.filter(call => call.kind === 'update').length, 1);
+  assert.equal(f.remoteState()?.learningSettings, '{"dailyGoalCount":4}');
+  const acknowledgement = f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`);
+  heldWrite.resolve({ data: { updated_at: 'synthetic-2' }, error: null }); await view.settle();
+  assert.equal(f.calls.at(-1)!.kind, 'read');
+  assert.equal(f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`), acknowledgement);
+  assert.doesNotMatch(view.text(), /학습 기록 · 서버 저장 확인/);
+  heldReadback.resolve({ data: { state: f.remoteState()!, updated_at: 'synthetic-2' }, error: null }); await view.settle();
+  assert.equal(f.tab.local.getItem('learningSettings'), JSON.stringify({ dailyGoalCount: newerGoal }));
+  assert.equal(f.tab.local.getItem('integratedLearningSettingsV1'), integrated);
+  assert.match(view.text(), /학습 기록 · 기기 저장, 서버 반영 대기/);
+  assert.equal(f.tab.pendingTimers, 1);
+  f.tab.flushTimers(); await view.settle();
+  assert.equal(f.remoteState()?.learningSettings, JSON.stringify({ dailyGoalCount: newerGoal }));
+  assert.equal(f.remoteState()?.integratedLearningSettingsV1, integrated);
+  assert.equal(f.calls.filter(call => call.kind === 'update').length, 2);
+  assert.match(view.text(), /학습 기록 · 서버 저장 확인/);
+  assert.equal(f.tab.pendingTimers, 0);
+});
+
+for (const phase of ['auth', 'read', 'retry'] as const) test(`warm settings ${phase} verification never exposes old editing authority`, async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const original = editorContainer(view.render())!;
+  f.tab.local.setItem('learningSettings', '{"dailyGoalCount":4}');
+  const held = phase === 'auth' ? f.tab.holdNextAuth() : f.holdRead();
+  if (phase === 'retry') { f.tab.dispatch({ type: 'pagehide' }); view.click('학습 기록 다시 확인'); }
+  else f.tab.dispatch({ type: 'focus' });
+  await view.settle();
+  const gated = editorContainer(view.render())!;
+  assert.equal(gated.key, original.key); assert.equal(gated.props.hidden, true); assert.equal(gated.props.inert, true);
+  assert.equal((gated.props.children as UiNode).props.context, null);
+  assert.doesNotMatch(view.text(), /서버 반영 중|서버 저장 확인/);
+  assert.equal(f.calls.filter(call => call.kind !== 'read').length, 0);
+  // Cleanup retires the unresolved validation without manufacturing a result.
+  view.dispose();
+  if (phase === 'auth') (held as ReturnType<typeof f.tab.holdNextAuth>).resolve({ data: { user: { id: FIXTURE_OWNER, email: 'a@example.test' } }, error: null });
+  else (held as ReturnType<typeof f.holdRead>).resolve({ data: { state: {}, updated_at: 'late-verification' }, error: null });
+  await view.settle();
+  assert.equal(f.calls.filter(call => call.kind !== 'read').length, 0);
+});
+
+for (const boundary of ['signout', 'owner-change', 'reset', 'clear'] as const) test(`warm settings PATCH ${boundary} revokes editing and rejects its late acknowledgement`, async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const language = f.tab.loadModule('app/data/languageCloudSync.ts') as typeof import('../app/data/languageCloudSync.ts');
+  const context = (editorContainer(view.render())!.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  f.tab.local.setItem('learningSettings', '{"dailyGoalCount":4}');
+  const hold = f.holdWrite(); f.tab.dispatch({ type: 'focus' }); await view.settle();
+  assert.match(view.text(), /서버 반영 중…/); assert.equal(editorContainer(view.render())?.props.hidden, false);
+  const request = f.calls.at(-1)!;
+  if (boundary === 'signout') f.tab.emitAuth('SIGNED_OUT', null);
+  else if (boundary === 'owner-change') f.tab.emitAuth('SIGNED_IN', 'synthetic-other-owner');
+  else if (boundary === 'reset') {
+    f.tab.local.setItem('language-reset-fence-v1', JSON.stringify({ version: 1, owner: f.lease.userId,
+      requestId: '11111111-1111-4111-8111-111111111111', expectedMarker: null, state: 'pending' }));
+    f.tab.dispatch({ type: 'storage', key: 'language-reset-fence-v1' });
+  } else f.tab.dispatch({ type: 'storage', key: null });
+  assert.equal(request.signal?.aborted, true); assert.equal(language.isLanguageRecordContextCurrent(context), false);
+  assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.equal((editorContainer(view.render())!.props.children as UiNode).props.context, null);
+  const ack = f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`);
+  const calls = f.calls.length;
+  hold.resolve({ data: { updated_at: 'late-write' }, error: null }); await view.settle();
+  assert.equal(f.calls.length, calls, 'Retired PATCH must not start readback');
+  assert.equal(f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`), ack);
+  assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.doesNotMatch(view.text(), /서버 반영 중|서버 저장 확인/);
+});
+
+for (const failure of ['rejected-write', 'lost-response', 'mismatched-readback'] as const) test(`warm settings ${failure} gates the editor and never acknowledges the outstanding write`, async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const context = (editorContainer(view.render())!.props.children as UiNode).props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  const language = f.tab.loadModule('app/data/languageCloudSync.ts') as typeof import('../app/data/languageCloudSync.ts');
+  f.tab.local.setItem('learningSettings', '{"dailyGoalCount":4}');
+  const hold = failure === 'mismatched-readback' ? f.holdReadback() : f.holdWrite();
+  f.tab.dispatch({ type: 'focus' }); await view.settle();
+  assert.equal(editorContainer(view.render())?.props.hidden, false); assert.match(view.text(), /서버 반영 중…/);
+  const ack = f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`);
+  if (failure === 'lost-response') hold.reject(new Error('synthetic transport loss'));
+  else if (failure === 'rejected-write') hold.resolve({ data: null, error: new Error('synthetic 412 precondition rejected') });
+  else hold.resolve({ data: { state: { learningSettings: '{"dailyGoalCount":2}' }, updated_at: 'competitor' }, error: null });
+  await view.settle();
+  assert.equal(editorContainer(view.render())?.props.hidden, true); assert.equal(language.isLanguageRecordContextCurrent(context), false);
+  assert.equal(f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`), ack);
+  assert.equal(f.tab.local.getItem('learningSettings'), '{"dailyGoalCount":4}');
+  assert.doesNotMatch(view.text(), /서버 반영 중|서버 저장 확인/);
+  assert.match(view.text(), /서버 반영 여부는 다음 연결에서 먼저 조회/);
+});
+
+test('warm settings conditional miss hides editing before the next GET and accepts a remote reset only as a new generation', async t => {
+  const f = await languageFixture(t), view = f.mount(); await view.settle();
+  const original = editorContainer(view.render())!;
+  f.tab.local.setItem('savedWords', '["pre-reset local edit"]');
+  const heldWrite = f.holdWrite(), heldRead = f.holdReadback();
+  f.tab.dispatch({ type: 'focus' }); await view.settle();
+  assert.equal(editorContainer(view.render())?.props.hidden, false);
+  heldWrite.resolve({ data: null, error: null }); await view.settle();
+  assert.equal(f.calls.at(-1)!.kind, 'read');
+  assert.equal(editorContainer(view.render())?.props.hidden, true);
+  assert.equal((editorContainer(view.render())!.props.children as UiNode).props.context, null);
+  assert.doesNotMatch(view.text(), /서버 반영 중|서버 저장 확인/);
+  const marker = '2026-10-11T00:00:00.000Z|11111111-1111-4111-8111-111111111111';
+  heldRead.resolve({ data: { state: { languageRecordResetV1: marker }, updated_at: 'remote-reset' }, error: null }); await view.settle();
+  assert.equal(f.tab.local.getItem('savedWords'), null); assert.equal(f.tab.local.getItem('languageRecordResetV1'), marker);
+  assert.notEqual(editorContainer(view.render())?.key, original.key);
+  assert.equal(editorContainer(view.render())?.props.hidden, false);
+  assert.equal(f.calls.filter(call => call.kind === 'update').length, 1);
+  assert.match(view.text(), /서버 저장 확인/);
+});
+
 test('same-origin peer acknowledgement pauses private drafts and explicit reconnect verifies fresh authority without a refresh loop', async t => {
   const first = await languageFixture(t), a = first.mount(); await a.settle();
   const original = editorContainer(a.render())!;
@@ -286,6 +428,8 @@ for (const phase of ['insert', 'update', 'readback'] as const) for (const bounda
   const oldAck = f.tab.local.getItem(`language-cloud-sync-ack:${f.lease.userId}`);
   const oldBase = f.tab.local.getItem(`language-cloud-sync-base:${f.lease.userId}`);
   assert.equal(request.signal?.aborted, false);
+  if (phase === 'insert') { assert.equal(editorContainer(view.render()), undefined); assert.doesNotMatch(view.text(), /서버 반영 중|서버 저장 확인/); }
+  else { assert.equal(editorContainer(view.render())?.props.hidden, false); assert.match(view.text(), /서버 반영 중…/); }
   if (boundary === 'hidden') f.tab.setVisibility('hidden');
   else if (boundary === 'pagehide') f.tab.dispatch({ type: 'pagehide' });
   else view.dispose();

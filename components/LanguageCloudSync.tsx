@@ -3,17 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '../app/lib/supabase.ts';
 import { useAuthenticatedStorageOwner } from '../app/components/AuthenticatedStorageOwner.tsx';
-import { isLanguageRecordContextCurrent, type LanguageRecordContext } from '../app/data/languageCloudSync.ts';
+import { isLanguageRecordContextCurrent } from '../app/data/languageCloudSync.ts';
 import { readPendingLanguageReset } from '../app/data/languageResetFence.ts';
 import { LanguageRecordsProvider } from './language/LanguageRecordsProvider.tsx';
 import RecordResetPanel from '../app/components/RecordResetPanel.tsx';
-import { createLanguageSyncCoordinator } from '../app/data/languageSyncCoordinator.ts';
+import { createLanguageSyncCoordinator, type LanguageCoordinatorState } from '../app/data/languageSyncCoordinator.ts';
 import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS } from '../app/data/languageStorageBoundary.ts';
 import { CLOUD_RECORDS_REFRESH_EVENT, CLOUD_SESSION_CHANGED_EVENT, RECORDS_CHANGED_EVENT, STORAGE_JOURNAL_KEY, STORAGE_OWNER_KEY, STORAGE_READY_KEY, STORAGE_SESSION_KEY } from '../app/data/storageTransaction.ts';
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_STORAGE_EVENT } from '../app/data/appRecordReset.ts';
 
 type Coordinator = ReturnType<typeof createLanguageSyncCoordinator>;
-type SyncState = { status: 'checking' | 'ready' | 'pending' | 'paused' | 'blocked' | 'error' | 'uncertain'; message: string; initialized: boolean; context?: LanguageRecordContext; reset?: boolean };
+type SyncState = LanguageCoordinatorState;
 const INITIAL: SyncState = { status: 'checking', message: '', initialized: false };
 const CONTROL_KEYS = new Set([STORAGE_OWNER_KEY, STORAGE_SESSION_KEY, STORAGE_READY_KEY, STORAGE_JOURNAL_KEY, LANGUAGE_BINDING_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_MARKER_KEY, RECORD_RESET_STORAGE_EVENT]);
 const isControl = (key: string | null) => key === null || CONTROL_KEYS.has(key) || key.startsWith('language-cloud-sync-base:') || key.startsWith('language-cloud-sync-ack:');
@@ -131,11 +131,12 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
     else coordinator.pause('다시 열면 학습 기록을 확인합니다.');
     return () => { active = false; cleanup(); if (coordinatorRef.current === coordinator) coordinatorRef.current = null; };
   }, [lease]);
-  const editable = state.initialized && Boolean(state.context && isLanguageRecordContextCurrent(state.context)) && (state.status === 'ready' || state.status === 'pending');
+  const editable = state.initialized && Boolean(state.context && isLanguageRecordContextCurrent(state.context)) && (state.status === 'ready' || state.status === 'syncing' || state.status === 'pending');
   const needsAttention = ['error', 'blocked', 'uncertain'].includes(state.status);
   const label = state.status === 'ready' ? '학습 기록 · 서버 저장 확인'
-    : state.status === 'pending' ? '학습 기록 · 기기 저장, 서버 반영 대기'
-      : needsAttention ? '학습 기록 · 동기화 확인 필요' : '학습 기록 · 상태 확인 중…';
+    : state.status === 'syncing' ? '학습 기록 · 서버 반영 중…'
+      : state.status === 'pending' ? '학습 기록 · 기기 저장, 서버 반영 대기'
+        : needsAttention ? '학습 기록 · 동기화 확인 필요' : '학습 기록 · 상태 확인 중…';
   const retry = () => { void coordinatorRef.current?.resume(); };
   // Peer acknowledgements revoke this tab's context. Do not automatically
   // acknowledge them back: every acknowledgement would pause the peer again.
