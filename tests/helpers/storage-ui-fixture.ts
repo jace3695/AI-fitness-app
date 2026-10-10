@@ -99,12 +99,14 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
   const pinReads: { userId: string; signal?: AbortSignal }[] = [];
   const downloads: Blob[] = [];
   let nextTimer = 0, reloads = 0, currentUser = initialUser;
+  let confirmResult = false; const confirmPrompts: string[] = [];
   let authError: Error | null = null;
   const navigator: { locks?: typeof browser.locks; onLine: boolean } = { locks: browser.locks, onLine: true };
   const sessionValues = new Map<string, string>();
   const session = { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => { sessionValues.set(key, value); }, removeItem: (key: string) => { sessionValues.delete(key); } };
   const win = {
     localStorage: local, sessionStorage: session,
+    confirm(message: string) { confirmPrompts.push(message); return confirmResult; },
     location: { search: '', reload() { reloads++; }, assign() {} },
     history: { replaceState() {} },
     addEventListener(name: string, listener: (event: UiEvent) => void) {
@@ -242,7 +244,8 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     render(); return view;
   }
   return {
-    local, session, cloud, transactions, mount, pinReads, downloads, authReads,
+    local, session, cloud, transactions, mount, pinReads, downloads, authReads, confirmPrompts,
+    setConfirm(value: boolean) { confirmResult = value; },
     dispatch: win.dispatchEvent,
     setOnline(value: boolean) { navigator.onLine = value; },
     failStorageAccess() { Object.defineProperty(win, 'localStorage', { configurable: true, get() { throw new Error('synthetic SecurityError'); } }); },

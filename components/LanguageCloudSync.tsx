@@ -5,6 +5,7 @@ import { supabase } from '../app/lib/supabase.ts';
 import { useAuthenticatedStorageOwner } from '../app/components/AuthenticatedStorageOwner.tsx';
 import { isLanguageRecordContextCurrent, type LanguageRecordContext } from '../app/data/languageCloudSync.ts';
 import { readPendingLanguageReset } from '../app/data/languageResetFence.ts';
+import { LanguageRecordsProvider } from './language/LanguageRecordsProvider.tsx';
 import RecordResetPanel from '../app/components/RecordResetPanel.tsx';
 import { createLanguageSyncCoordinator } from '../app/data/languageSyncCoordinator.ts';
 import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS } from '../app/data/languageStorageBoundary.ts';
@@ -137,7 +138,7 @@ export default function LanguageCloudSync({ children }: { children?: ReactNode }
       : needsAttention ? '학습 기록 · 동기화 확인 필요' : '학습 기록 · 상태 확인 중…';
   const retry = () => { void coordinatorRef.current?.resume(); };
   return <>
-    {state.initialized && <div key={editorGeneration} hidden={!editable} inert={!editable} aria-hidden={!editable}>{children}</div>}
+    {state.initialized && <div key={editorGeneration} hidden={!editable} inert={!editable} aria-hidden={!editable}><LanguageRecordsProvider context={editable ? state.context! : null} refresh={retry}>{children}</LanguageRecordsProvider></div>}
     {!editable && <section style={{ padding: 24 }} aria-live="polite"><p>{state.message || '이 계정의 학습 기록을 준비하고 있어요.'}</p>{needsAttention && <button type="button" className="btn" onClick={retry}>다시 연결하기</button>}</section>}
     {!editable && pendingReset && <RecordResetPanel app="language" />}
     <div role={needsAttention ? 'alert' : 'status'} className={`yeoni-sync-notice fixed z-[95] flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold shadow-md ring-1 backdrop-blur ${needsAttention ? 'bg-red-50/95 text-red-700 ring-red-200' : state.status === 'ready' ? 'bg-emerald-50/95 text-emerald-700 ring-emerald-200' : 'bg-amber-50/95 text-amber-700 ring-amber-200'}`}>

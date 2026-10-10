@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { planLegacyMutation, projectLegacyRows } from "@/app/data/languageLegacyMutations";
 import { FREE_MODE } from "@/lib/free-mode";
 import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
@@ -1345,34 +1348,6 @@ function getKanaType(char: string): "hiragana" | "katakana" {
   return code >= 0x30a0 && code <= 0x30ff ? "katakana" : "hiragana";
 }
 
-function saveWrongKana(
-  char: string,
-  romaji: string,
-  type: "hiragana" | "katakana",
-  mode: "quiz" | "confusing"
-) {
-  try {
-    const raw = localStorage.getItem("wrongKana");
-    const existing: Array<{
-      char: string;
-      romaji: string;
-      type: "hiragana" | "katakana";
-      mode: "quiz" | "confusing";
-      createdAt: string;
-    }> = raw ? JSON.parse(raw) : [];
-
-    const isDuplicate = existing.some(
-      (item) => item.char === char && item.mode === mode
-    );
-    if (isDuplicate) return;
-
-    existing.push({ char, romaji, type, mode, createdAt: new Date().toISOString() });
-    localStorage.setItem("wrongKana", JSON.stringify(existing));
-  } catch {
-    // JSON 파싱 실패 또는 localStorage 접근 불가 시 무시
-  }
-}
-
 function getConfusingQuizQuestion(pairIdx?: number): ConfusingQuizItem {
   const idx = pairIdx !== undefined ? pairIdx : Math.floor(Math.random() * confusingPairs.length);
   const pair = confusingPairs[idx];
@@ -1425,6 +1400,14 @@ function uniqueKanaItems(items: KanaItem[]): KanaItem[] {
 }
 
 export default function KanaPage() {
+  const source = useLanguageRecordSnapshot();
+  const settingsError = languageSettingsProjectionError({ japaneseAppSettings: source.records.japaneseAppSettings });
+  const mutation = useLanguageMutationAction(source, planLegacyMutation);
+  const hasPendingMutation = mutation.isPending;
+  const answered = useRef(false), confusingAnswered = useRef(false);
+  const blocked = mutation.pending || !source.context;
+  const wrongProjection = projectLegacyRows<{ char: string }>(source.records.wrongKana, (item): item is { char: string } => !!item && typeof item === 'object' && typeof (item as { char?: unknown }).char === 'string');
+  const wrongKanaChars = new Set(wrongProjection.value.map(item => item.char));
   const [tab, setTab] = useState<"hiragana" | "katakana">("hiragana");
   const [mode, setMode] = useState<"learn" | "quiz" | "confusing" | "writing" | "audit">("learn");
 
@@ -1435,7 +1418,6 @@ export default function KanaPage() {
   const [selectedKanaGroupIds, setSelectedKanaGroupIds] = useState<string[]>(["a"]);
   const [auditScope, setAuditScope] = useState<"base" | "dakuon" | "youon" | "special" | "all">("base");
   const [openConcept, setOpenConcept] = useState<string | null>(null);
-  const [wrongKanaChars, setWrongKanaChars] = useState<Set<string>>(new Set());
 
   const availableGroups = useMemo(() => groupDefs.map((group) => ({
     ...group,
@@ -1522,8 +1504,8 @@ export default function KanaPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(APP_SETTINGS_KEY);
-      if (!raw) return;
+      const raw = source.records[APP_SETTINGS_KEY];
+      if (!raw || languageSettingsProjectionError({ japaneseAppSettings: raw })) { setSettings(DEFAULT_SETTINGS); return; }
 
       const parsed = JSON.parse(raw) as AppSettings;
       const sectionSettings = {
@@ -1539,16 +1521,7 @@ export default function KanaPage() {
     } catch {
       setSettings(DEFAULT_SETTINGS);
     }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("wrongKana");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Array<{ char: string }>;
-      setWrongKanaChars(new Set(parsed.map((item) => item.char)));
-    } catch {}
-  }, []);
+  }, [source.records]);
 
   // 쓰기 연습 모드 상태
   const [writingSubMode, setWritingSubMode] = useState<"trace" | "quiz">("trace");
@@ -1590,13 +1563,17 @@ export default function KanaPage() {
 
   const loadNextQuestion = useCallback(
     (currentData: KanaItem[]) => {
+      if (hasPendingMutation()) return;
+      answered.current = false;
       const source = getQuizEligibleItems(currentData);
       setQuiz(getQuizQuestion(source.length > 0 ? source : getQuizEligibleItems(allData)));
       setSelected(null);
     },
-    [allData]
+    [allData, hasPendingMutation]
   );
   const toggleKanaGroup = (groupId: string) => {
+    if (blocked || mutation.isPending()) return;
+    answered.current = false;
     setSelectedKanaGroupIds((prev) => {
       if (groupId === "all") return ["all"];
       const withoutAll = prev.filter((id) => id !== "all");
@@ -1610,6 +1587,8 @@ export default function KanaPage() {
   };
 
   const handleTabChange = (newTab: "hiragana" | "katakana") => {
+    if (blocked || mutation.isPending()) return;
+    answered.current = false; confusingAnswered.current = false;
     setTab(newTab);
     setSelectedKanaGroupIds(["all"]);
     const newData = newTab === "hiragana" ? hiragana : katakana;
@@ -1627,6 +1606,8 @@ export default function KanaPage() {
   };
 
   const handleModeChange = (newMode: "learn" | "quiz" | "confusing" | "writing" | "audit") => {
+    if (blocked || mutation.isPending()) return;
+    answered.current = false; confusingAnswered.current = false;
     setMode(newMode);
     if (newMode === "quiz") {
       setSelected(null);
@@ -1924,40 +1905,31 @@ export default function KanaPage() {
   };
 
   const handleChoice = (choice: string) => {
-    if (selected !== null) return;
+    if (selected !== null || answered.current || blocked || mutation.isPending()) return;
+    answered.current = true;
     setSelected(choice);
     const isCorrect = choice === quiz.question.roman;
-    setScore((prev) => {
-      const nextTotal = prev.total + 1;
-      if (nextTotal >= 5) {
-        markTodayRoutineCompleted("kana");
-      }
-      return {
-        correct: prev.correct + (isCorrect ? 1 : 0),
-        total: nextTotal,
-      };
-    });
-    if (!isCorrect) {
-      saveWrongKana(quiz.question.char, quiz.question.roman, tab, "quiz");
-      setWrongKanaChars((prev) => new Set(prev).add(quiz.question.char));
-    }
+    const nextScore = { correct: score.correct + (isCorrect ? 1 : 0), total: score.total + 1 };
+    if (isCorrect && nextScore.total < 5) { setScore(nextScore); return; }
+    void mutation.submit({ kind: 'answer',
+      ...(!isCorrect ? { wrong: { key: 'wrongKana' as const, row: { char: quiz.question.char, romaji: quiz.question.roman, type: tab, mode: 'quiz' } } } : {}),
+      ...(nextScore.total >= 5 ? { routine: 'kana' as const } : {}),
+    }, () => setScore(nextScore));
   };
 
   const handleConfusingChoice = (choice: string) => {
-    if (confusingSelected !== null) return;
+    if (confusingSelected !== null || confusingAnswered.current || blocked || mutation.isPending()) return;
+    confusingAnswered.current = true;
     setConfusingSelected(choice);
     const isCorrect = choice === confusingQuiz.question.roman;
-    setConfusingScore((prev) => ({
-      correct: prev.correct + (isCorrect ? 1 : 0),
-      total: prev.total + 1,
-    }));
-    if (!isCorrect) {
-      const type = getKanaType(confusingQuiz.question.char);
-      saveWrongKana(confusingQuiz.question.char, confusingQuiz.question.roman, type, "confusing");
-    }
+    const nextScore = { correct: confusingScore.correct + (isCorrect ? 1 : 0), total: confusingScore.total + 1 };
+    if (isCorrect) { setConfusingScore(nextScore); return; }
+    void mutation.submit({ kind: 'answer', wrong: { key: 'wrongKana', row: { char: confusingQuiz.question.char, romaji: confusingQuiz.question.roman, type: getKanaType(confusingQuiz.question.char), mode: 'confusing' } } }, () => setConfusingScore(nextScore));
   };
 
   const loadNextConfusingQuestion = () => {
+    if (blocked || mutation.isPending()) return;
+    confusingAnswered.current = false;
     setConfusingQuiz(getConfusingQuizQuestion());
     setConfusingSelected(null);
   };
@@ -2041,6 +2013,9 @@ export default function KanaPage() {
 
   return (
     <>
+    {(mutation.error || source.error || settingsError || wrongProjection.error) && <p role="alert">{mutation.error || source.error || settingsError || wrongProjection.error}</p>}
+    {mutation.pending && <div role="status">선택한 답을 보존하고 있어요. <button disabled={mutation.busy} onClick={() => void mutation.retry()}>저장 다시 확인</button> {mutation.canResubmit && <button disabled={mutation.busy} onClick={() => void mutation.resubmit()}>최신 상태에서 새로 저장</button>} <button disabled={mutation.busy} onClick={() => { if (mutation.discard()) { setSelected(null); setConfusingSelected(null); answered.current = false; confusingAnswered.current = false; } }}>보류한 입력 버리기</button></div>}
+    <fieldset disabled={blocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
     {audioError ? <p role="alert" className="mb-3 text-sm text-amber-800">{audioError}</p> : null}
     <div style={{ padding: "1.25rem 0 2.25rem", maxWidth: "72rem", margin: "0 auto" }}>
       <div style={{ marginBottom: "1rem", border: "1px solid #dbeafe", background: "linear-gradient(180deg, #f8fbff 0%, #ffffff 100%)", borderRadius: "16px", padding: "1rem 1.1rem", boxShadow: "0 8px 24px rgba(59,130,246,0.08)" }}>
@@ -2900,9 +2875,11 @@ export default function KanaPage() {
             </button>
             <button
               onClick={() => {
+                if (blocked || mutation.isPending()) return;
                 setConfusingView("quiz");
                 setConfusingSelected(null);
                 setConfusingScore({ correct: 0, total: 0 });
+                confusingAnswered.current = false;
                 setConfusingQuiz(getConfusingQuizQuestion());
               }}
               style={{
@@ -3141,6 +3118,7 @@ export default function KanaPage() {
         </div>
       )}
     </div>
+    </fieldset>
     </>
   );
 }

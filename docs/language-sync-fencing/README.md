@@ -2,6 +2,8 @@
 
 Local implementation, 2026-10-09. This is a bounded participating-client change. It does not establish namespace-wide safety, hosted installation, browser acceptance, or permission to publish/deploy.
 
+The later current-source writer migration is documented separately in [Participating language source-writer closure](../language-writer-migration/README.md), including its current acceptance status. The original slice and validation history below remain historical evidence, not the current writer inventory.
+
 ## Scope and authority
 
 The shared owner transition now composes language preparation inside its existing short Web Lock and before-image transaction. AuthGate and the root CloudSyncPanel use that same transition; AuthGate has no second raw language cleanup. A successful current `getUser`, completed shared owner readiness, and the PIN gate precede exposure of a runtime-only registered lease. Stored owner strings, copied lease objects, and A2 freshness fixtures cannot manufacture that lease.
@@ -39,11 +41,11 @@ Same-document record events and raw read-only polling wake local work without tr
 
 The calendar removes unavailable language facts immediately, including while other reads await. The companion preference fallback drops unavailable language-derived cached preferences but retains its independent device setting. Unscoped `confusingKana` is no longer displayed; its bytes remain untouched and it was not added to upload/reset lists. Guarded `wrongKanaChars` stays supported.
 
-## Future write API, not a writer migration
+## Original slice: future write API, before writer migration
 
 `updateLanguageRecords` requires a registered coordinator-issued post-observation record context and validates it inside the short transaction. The transform receives fresh exact selected strings, rejects metadata/reset keys and async transforms, and retains caller data on failure. `captureLanguageDraftRevision` supplies an opaque selected-byte plus global-generation CAS for React replacement drafts. Unrelated participating writes may conservatively invalidate these draft revisions.
 
-No course, lesson, review, settings, kana, words, sentences, grammar or daily writer was migrated in this slice. Known nonparticipants include:
+No course, lesson, review, settings, kana, words, sentences, grammar or daily writer was migrated in this original slice. At that checkpoint, known nonparticipants included:
 
 - `utils/curriculumProgress.ts`, `utils/dailyRoutineProgress.ts`, `utils/integratedLearningSettings.ts`
 - `components/language/FocusedLesson.tsx`, `KanaStarter.tsx`, `LearningWelcome.tsx`
@@ -125,7 +127,7 @@ Not run here: browser, private records, real auth/provider calls, network endpoi
 
 ## Remaining limits
 
-A raw writer can race a lock, fail to advance generation, write A→B→A, partially complete an action or repopulate after reset. A wrapper or polling cannot certify raw-writer quiescence. Complete writer migration and old-client policy are still required before namespace-wide claims.
+A raw writer can race a lock, fail to advance generation, write A→B→A, partially complete an action or repopulate after reset. A wrapper or polling cannot certify raw-writer quiescence. See the later writer-migration document for current-source closure; old-client policy and cross-device protocol limits still prevent namespace-wide claims.
 
 The current language `updated_at` CAS is weaker than exact expected-content/server-revision CAS. Timestamps are client supplied and may collide/repeat. Readback detects some mismatches but cannot undo an already overwritten competitor. Abort cannot recall an already dispatched request. Local reset receipts are not an immutable server generation ledger. Warm offline continuity cannot know an unseen server reset. These remain explicit later protocol and acceptance gates.
 

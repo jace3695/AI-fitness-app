@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getLocalDateKey } from "@/utils/dateKey";
 import LiveCalendarOverlay, { LiveCalendarBadges } from "@/components/language/live/LiveCalendarOverlay";
 import { useLiveOverview } from "@/components/language/live/useLiveOverview";
 
-const DAILY_LEARNING_HISTORY_STORAGE_KEY = "dailyLearningHistory";
-const LEARNING_SETTINGS_STORAGE_KEY = "learningSettings";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { projectLanguageValue } from "@/app/data/languageRecordDocuments";
 const DEFAULT_DAILY_GOAL_COUNT = 5;
 
 type DailyLearningHistoryItem = {
@@ -127,59 +127,12 @@ export default function CalendarPage() {
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDateKey, setSelectedDateKey] = useState(toDateKey(today));
 
-  const [history, setHistory] = useState<DailyLearningHistoryStorage>({});
-  const [dailyGoalCount, setDailyGoalCount] = useState(DEFAULT_DAILY_GOAL_COUNT);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const loadHistory = () => {
-      try {
-        const raw = window.localStorage.getItem(DAILY_LEARNING_HISTORY_STORAGE_KEY);
-        if (!raw) {
-          setHistory({});
-          return;
-        }
-        const parsed: unknown = JSON.parse(raw);
-        setHistory(typeof parsed === "object" && parsed !== null ? (parsed as DailyLearningHistoryStorage) : {});
-      } catch {
-        setHistory({});
-      }
-    };
-
-    const loadLearningSettings = () => {
-      try {
-        const raw = window.localStorage.getItem(LEARNING_SETTINGS_STORAGE_KEY);
-        if (!raw) {
-          setDailyGoalCount(DEFAULT_DAILY_GOAL_COUNT);
-          return;
-        }
-
-        const parsed: unknown = JSON.parse(raw);
-        const dailyGoal =
-          typeof parsed === "object" && parsed !== null
-            ? (parsed as LearningSettings).dailyGoalCount
-            : undefined;
-        setDailyGoalCount(getSafeDailyGoalCount(dailyGoal));
-      } catch {
-        setDailyGoalCount(DEFAULT_DAILY_GOAL_COUNT);
-      }
-    };
-
-    loadHistory();
-    loadLearningSettings();
-    window.addEventListener("storage", loadHistory);
-    window.addEventListener("storage", loadLearningSettings);
-    window.addEventListener("focus", loadHistory);
-    window.addEventListener("focus", loadLearningSettings);
-
-    return () => {
-      window.removeEventListener("storage", loadHistory);
-      window.removeEventListener("storage", loadLearningSettings);
-      window.removeEventListener("focus", loadHistory);
-      window.removeEventListener("focus", loadLearningSettings);
-    };
-  }, []);
+  const { records, snapshot, error } = useLanguageRecordSnapshot();
+  const historyProjection = useMemo(() => projectLanguageValue<DailyLearningHistoryStorage>(records.dailyLearningHistory, {}), [records.dailyLearningHistory]);
+  const history = useMemo(() => historyProjection.value && typeof historyProjection.value === "object" && !Array.isArray(historyProjection.value) ? historyProjection.value : {}, [historyProjection.value]);
+  const goalsProjection = projectLanguageValue<LearningSettings>(records.learningSettings, {});
+  const dailyGoalCount = getSafeDailyGoalCount(goalsProjection.value?.dailyGoalCount);
+  const projectionError = historyProjection.error || goalsProjection.error || !historyProjection.value || Array.isArray(historyProjection.value) || typeof historyProjection.value !== "object" || !goalsProjection.value || Array.isArray(goalsProjection.value) || typeof goalsProjection.value !== "object";
 
   const calendarDays = useMemo(() => getMonthDays(viewDate), [viewDate]);
   const monthStats = useMemo(() => {
@@ -238,8 +191,11 @@ export default function CalendarPage() {
     { label: "전체 완료율", value: `${todayOverallRate}%`, tone: "#fb7185" },
   ];
 
+  if (!snapshot) return <section role="status">{error || "학습 기록의 저장 상태를 확인하고 있어요."}</section>;
+
   return (
     <section style={{ display: "grid", gap: "14px" }}>
+      {projectionError && <p role="alert">일부 학습 기록을 읽지 못했어요. 원본은 보존했어요.</p>}
       <div className="page-header card" style={{ marginBottom: 0 }}>
         <h1 style={{ marginBottom: "6px" }}>학습 달력</h1>
         <p className="muted" style={{ margin: 0 }}>

@@ -2,7 +2,7 @@ import { mergeCloudStateFromBase, stableState } from './cloudSync.ts';
 import { APP_RECORD_KEYS } from './appRecordReset.ts';
 import { assertAuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
 import type { AuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
-import { isStorageOwnerCurrent, readStorageSnapshot, STORAGE_READY_KEY, updateStorageBatch } from './storageTransaction.ts';
+import { isStorageOwnerCurrent, readStorageSnapshot, STORAGE_READY_KEY, StorageWriteAttemptError, updateStorageBatch, updateStorageBatchWithReceipt } from './storageTransaction.ts';
 import type { StorageSnapshot, TransactionStorage } from './storageTransaction.ts';
 import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS,
   LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, parseLanguageMarker, projectLanguageBytes,
@@ -169,15 +169,51 @@ export function commitLanguageRemoteReset(request: LanguageSyncRequest, observed
   const context = requireRequest(request); revokeLanguageRecordContexts(context.lifecycle); return commitResponse(request, observedRemote, 'reset');
 }
 export interface LanguageDraftRevision { readonly generation: string | null }
+export interface LanguageRecordSnapshot { readonly context: LanguageRecordContext; readonly records: LanguageBytes; readonly generation: string | null; readonly revision: LanguageDraftRevision }
 const revisions = new WeakMap<LanguageDraftRevision, { context: LanguageRecordContext; values: LanguageBytes; keys: readonly LanguageStorageKey[] }>();
-export function captureLanguageDraftRevision(context: LanguageRecordContext, keys: readonly LanguageStorageKey[]): LanguageDraftRevision {
-  const entry = assertRecordContext(context), snapshot = readStorageSnapshot(entry.storage); assertRecordContext(context, snapshot);
+const recordSnapshots = new WeakSet<LanguageRecordSnapshot>();
+const BUSINESS_KEYS = LANGUAGE_STORAGE_KEYS.filter(key => key !== LANGUAGE_MARKER_KEY);
+function makeRecordSnapshot(context: LanguageRecordContext, snapshot: StorageSnapshot, keys: readonly LanguageStorageKey[]): LanguageRecordSnapshot {
   if (keys.some(key => key === LANGUAGE_MARKER_KEY || !LANGUAGE_STORAGE_KEYS.includes(key))) throw new LanguageBoundaryError();
-  const revision = Object.freeze({ generation: snapshot.generation }); revisions.set(revision, { context, values: projectLanguageBytes(snapshot), keys: [...keys] }); return revision;
+  const records = Object.freeze(projectLanguageBytes(snapshot));
+  const revision = Object.freeze({ generation: snapshot.generation });
+  revisions.set(revision, { context, values: records, keys: [...keys] });
+  const result = Object.freeze({ context, records, generation: snapshot.generation, revision }); recordSnapshots.add(result); return result;
 }
-export async function updateLanguageRecords(context: LanguageRecordContext, transform: (fresh: LanguageBytes) => Partial<Record<LanguageStorageKey, string | null>>, options: { expectedDraft?: LanguageDraftRevision } = {}): Promise<{ generation: string | null; records: LanguageBytes }> {
-  const entry = assertRecordContext(context);
-  await updateStorageBatch(entry.storage, snapshot => {
+export function readLanguageRecordSnapshot(context: LanguageRecordContext, keys: readonly LanguageStorageKey[] = BUSINESS_KEYS): LanguageRecordSnapshot {
+  const entry = assertRecordContext(context), snapshot = readStorageSnapshot(entry.storage); assertRecordContext(context, snapshot);
+  if (snapshot.pending) throw new LanguageRequestStaleError();
+  return makeRecordSnapshot(context, snapshot, keys);
+}
+function assertSameRecordOrigin(oldContext: LanguageRecordContext, context: LanguageRecordContext): void {
+  const old = recordContexts.get(oldContext), current = assertRecordContext(context);
+  if (!old || old.storage !== current.storage || oldContext.userId !== context.userId || oldContext.epoch !== context.epoch
+    || old.bindingRaw !== current.bindingRaw || old.markerRaw !== current.markerRaw || old.resetFenceRaw !== current.resetFenceRaw
+    || old.readyRaw !== current.readyRaw) throw new LanguageRequestStaleError();
+}
+/** A source may be retained through acknowledgement rotation, never owner/reset ABA. */
+export function assertLanguageRecordSource(source: LanguageRecordSnapshot, context: LanguageRecordContext): void {
+  if (!recordSnapshots.has(source) || revisions.get(source.revision)?.context !== source.context) throw new LanguageRequestStaleError();
+  assertSameRecordOrigin(source.context, context);
+}
+export function captureLanguageDraftRevision(context: LanguageRecordContext, keys: readonly LanguageStorageKey[]): LanguageDraftRevision {
+  return readLanguageRecordSnapshot(context, keys).revision;
+}
+export function rebaseLanguageDraftRevision(oldRevision: LanguageDraftRevision, newContext: LanguageRecordContext): LanguageDraftRevision {
+  const old = revisions.get(oldRevision); if (!old) throw new LanguageRequestStaleError();
+  assertSameRecordOrigin(old.context, newContext);
+  const next = readLanguageRecordSnapshot(newContext, old.keys);
+  if (old.keys.some(key => old.values[key] !== next.records[key])) throw new LanguageRequestStaleError();
+  return next.revision;
+}
+export interface LanguageRecordWriteResult {
+  readonly generation: string | null; readonly records: LanguageBytes; readonly committedRecords: LanguageBytes;
+  readonly acknowledged: boolean; readonly source: LanguageRecordSnapshot | null;
+}
+export async function updateLanguageRecords(context: LanguageRecordContext, transform: (fresh: LanguageBytes) => Partial<Record<LanguageStorageKey, string | null>>, options: { expectedDraft?: LanguageDraftRevision } = {}): Promise<LanguageRecordWriteResult> {
+  let entry: RecordContextPrivate;
+  try { entry = assertRecordContext(context); } catch (error) { throw new StorageWriteAttemptError(error, 'not-committed'); }
+  const receipt = await updateStorageBatchWithReceipt(entry.storage, snapshot => {
     assertRecordContext(context, snapshot);
     if (options.expectedDraft) {
       const revision = revisions.get(options.expectedDraft);
@@ -189,6 +225,8 @@ export async function updateLanguageRecords(context: LanguageRecordContext, tran
       || Object.entries(changes).some(([key, value]) => key === LANGUAGE_MARKER_KEY || !(LANGUAGE_STORAGE_KEYS as readonly string[]).includes(key) || !(value === null || typeof value === 'string'))) throw new LanguageBoundaryError();
     return changes as Record<string, string | null>;
   }, { owner: entry.lease });
-  assertRecordContext(context); const snapshot = readStorageSnapshot(entry.storage);
-  return { generation: snapshot.generation, records: projectLanguageBytes(snapshot) };
+  const committedRecords = Object.freeze(projectLanguageBytes(receipt.snapshot));
+  let source: LanguageRecordSnapshot | null = null;
+  if (receipt.ownerCurrent && !receipt.notificationError) { try { source = readLanguageRecordSnapshot(context); } catch { /* Durable commit; UI authority retired. */ } }
+  return { generation: receipt.snapshot.generation, records: source?.records ?? committedRecords, committedRecords, acknowledged: source !== null, source };
 }

@@ -29,31 +29,14 @@ type ChatMessage =
     };
 
 const SITUATIONS: Situation[] = ["카페", "여행", "일상", "업무", "친구"];
-const APP_SETTINGS_KEY = "japaneseAppSettings";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { languageSettingsProjectionError, loadJapaneseAppSettings } from "@/app/data/languageSettingsMutations";
 
-type AppSettings = {
-  ttsRate: number;
-  repeatCount: number;
-  repeatDelayMs: number;
-  showKoreanPronunciation: boolean;
-  showReading: boolean;
-};
-type SettingsPayload = Partial<AppSettings> & {
-  sections?: {
-    conversation?: Partial<AppSettings>;
-  };
-};
-
-const DEFAULT_SETTINGS: AppSettings = {
-  ttsRate: 1,
-  repeatCount: 1,
-  repeatDelayMs: 500,
-  showKoreanPronunciation: true,
-  showReading: true,
-};
 export default function ConversationPage() {
   const [situation, setSituation] = useState<Situation>("일상");
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const { records, snapshot, error: recordError } = useLanguageRecordSnapshot();
+  const settingsError = languageSettingsProjectionError({ japaneseAppSettings: records.japaneseAppSettings });
+  const settings = loadJapaneseAppSettings(records.japaneseAppSettings).sections.conversation;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,28 +46,7 @@ export default function ConversationPage() {
   const audioRequest = useRef<AbortController | null>(null);
   useEffect(() => () => audioRequest.current?.abort(), []);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(APP_SETTINGS_KEY);
-      if (!raw) return;
 
-      const parsed = JSON.parse(raw) as SettingsPayload;
-      const sectionSettings = {
-        ...DEFAULT_SETTINGS,
-        ...parsed,
-        ...(parsed.sections?.conversation ?? {}),
-      };
-      setSettings({
-        ttsRate: sectionSettings.ttsRate,
-        repeatCount: sectionSettings.repeatCount,
-        repeatDelayMs: sectionSettings.repeatDelayMs,
-        showKoreanPronunciation: sectionSettings.showKoreanPronunciation,
-        showReading: sectionSettings.showReading,
-      });
-    } catch {
-      setSettings(DEFAULT_SETTINGS);
-    }
-  }, []);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -233,8 +195,11 @@ export default function ConversationPage() {
     borderTop: "1px solid #dce8dc",
   };
 
+  if (!snapshot) return <section role="status">{recordError || "학습 기록의 저장 상태를 확인하고 있어요."}</section>;
+
   return (
     <section>
+      {settingsError && <p role="alert">{settingsError}</p>}
       <div className="page-header">
         <h1>{FREE_MODE ? "상황별 회화 연습" : "AI 회화"}</h1>
         <p className="muted" style={{ margin: 0 }}>

@@ -66,7 +66,7 @@ async function languageFixture(t: TestContext) {
     failRead() { readError = new Error('synthetic language GET unavailable'); },
   };
 }
-const editorContainer = (tree: UiNode) => nodes(tree).find(node => node.type === 'div' && node.props.children === editor);
+const editorContainer = (tree: UiNode) => nodes(tree).find(node => node.type === 'div' && (node.props.children as UiNode | undefined)?.props?.children === editor);
 
 for (const boundary of ['hidden', 'pagehide', 'unmount'] as const) test(`R11 shipping LanguageCloudSync ${boundary} aborts a cold pending GET and cannot initialize from its late reply`, async t => {
   const f = await languageFixture(t), hold = f.holdRead(), view = f.mount(); await view.settle();
@@ -127,9 +127,13 @@ test('R11/R12 BFCache resume verifies a fresh context and a late pre-hide GET ca
 test('R11 warm resume failure preserves mounted draft but gates interaction, never reporting old ready state', async t => {
   const f = await languageFixture(t), view = f.mount(); await view.settle();
   const container = editorContainer(view.render()); assert.equal(container?.props.hidden, false);
+  const adapter = f.tab.loadModule('app/data/languageCloudSync.ts') as typeof import('../app/data/languageCloudSync.ts');
+  const context = (container?.props.children as UiNode)?.props.context as import('../app/data/languageCloudSync.ts').LanguageRecordContext;
+  assert.ok(adapter.isLanguageRecordContextCurrent(context), 'Provider receives the exact registered coordinator context');
   f.failRead(); f.tab.dispatch({ type: 'online' }); await view.settle();
   const blocked = editorContainer(view.render());
-  assert.equal(blocked?.key, container?.key); assert.equal(blocked?.props.children, editor);
+  assert.equal(blocked?.key, container?.key); assert.equal((blocked?.props.children as UiNode)?.props.children, editor);
+  assert.equal((blocked?.props.children as UiNode)?.props.context, null, 'Retained drafts receive no write capability while paused');
   assert.equal(blocked?.props.hidden, true); assert.equal(blocked?.props.inert, true);
   assert.doesNotMatch(view.text(), /서버 저장 확인/);
 });

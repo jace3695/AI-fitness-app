@@ -159,7 +159,9 @@ export function invalidateStorageOwner(storage: TransactionStorage, userId: stri
   return { userId, epoch };
 }
 function markCommitted(storage: TransactionStorage) {
-  storage.setItem(STORAGE_PROTOCOL_KEY, JSON.stringify({ version: 2, state: 'committed', generation: crypto.randomUUID() } satisfies Protocol));
+  const generation = crypto.randomUUID();
+  storage.setItem(STORAGE_PROTOCOL_KEY, JSON.stringify({ version: 2, state: 'committed', generation } satisfies Protocol));
+  return generation;
 }
 /** Only called while owning STORAGE_LOCK_NAME. An old v1 writer never owned it. */
 function recoverLocked(storage: TransactionStorage) {
@@ -172,29 +174,51 @@ function recoverLocked(storage: TransactionStorage) {
   markCommitted(storage);
   notifyRecordsChanged();
 }
-function commitLocked(storage: TransactionStorage, changes: Changes, owner: StorageOwnerToken, preparing: boolean) {
+type StorageAttempt = { outcome: 'not-committed' | 'unknown' | 'committed' };
+export class StorageWriteAttemptError extends Error {
+  readonly outcome: 'not-committed' | 'unknown';
+  readonly originalError: unknown;
+  constructor(error: unknown, outcome: 'not-committed' | 'unknown') { super(error instanceof Error ? error.message : String(error)); this.name = 'StorageWriteAttemptError'; this.originalError = error; this.outcome = outcome; }
+}
+function commitLocked(storage: TransactionStorage, changes: Changes, owner: StorageOwnerToken, preparing: boolean, attempt?: StorageAttempt) {
   validateChanges(changes);
   if (!preparing && (Object.hasOwn(changes, STORAGE_OWNER_KEY) || Object.hasOwn(changes, STORAGE_READY_KEY))) throw new StorageCorruptionError();
   assertOwner(storage, owner, preparing);
   const effective = Object.fromEntries(Object.entries(changes).filter(([key, value]) => storage.getItem(key) !== value));
-  if (!Object.keys(effective).length) return false;
+  if (!Object.keys(effective).length) return { changed: false, generation: readStorageGeneration(storage) };
+  let committedGeneration: string | null = null;
   const before = Object.fromEntries(Object.keys(effective).map(key => [key, storage.getItem(key)]));
   const protocol: Protocol = { version: 2, state: 'prepared', generation: readStorageGeneration(storage) ?? crypto.randomUUID(), transactionId: crypto.randomUUID(), before };
   storage.setItem(STORAGE_PROTOCOL_KEY, JSON.stringify(protocol));
+  if (attempt) attempt.outcome = 'unknown';
   try {
     for (const [key, value] of Object.entries(effective)) {
       if (value === null) storage.removeItem(key); else storage.setItem(key, value);
     }
     assertOwner(storage, owner, preparing);
-    markCommitted(storage);
+    committedGeneration = markCommitted(storage);
+    if (attempt) attempt.outcome = 'committed';
   } catch (error) {
     // Never restore the synchronous owner fence. A failed rollback retains v2.
-    try { recoverLocked(storage); } catch (recoveryError) { throw new AggregateError([error, recoveryError], '기록 저장과 복구를 마치지 못했습니다. 복구 정보를 보존했습니다.'); }
+    try {
+      recoverLocked(storage);
+      // A host could write the committed marker and then throw. Recovery sees
+      // committed state in that case and does not roll it back. Only an exact
+      // restored before-image proves this attempt never remained committed.
+      if (attempt) {
+        const restored = readStorageSnapshot(storage);
+        if (!restored.pending && Object.entries(before).every(([key, value]) => restored.getItem(key) === value)) attempt.outcome = 'not-committed';
+      }
+    } catch (recoveryError) { throw new AggregateError([error, recoveryError], '기록 저장과 복구를 마치지 못했습니다. 복구 정보를 보존했습니다.'); }
     throw error;
   }
-  return Object.keys(effective).some(key => !key.startsWith('fitness-cloud-sync-'));
+  return { changed: Object.keys(effective).some(key => !key.startsWith('fitness-cloud-sync-')), generation: committedGeneration };
 }
-function updateWithOwner(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, owner: StorageOwnerToken, preparing: boolean): Promise<void> {
+/** Immutable application-record after-image and durable marker generation. Like
+ * readStorageSnapshot, reserved journal/protocol/generation keys are omitted.
+ * This is not a fresh raw-control/owner snapshot or renewed read authority. */
+export interface StorageCommitReceipt { readonly snapshot: StorageSnapshot; readonly ownerCurrent: boolean; readonly notificationError?: unknown }
+function updateWithOwnerReceipt(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, owner: StorageOwnerToken, preparing: boolean, attempt?: StorageAttempt): Promise<StorageCommitReceipt> {
   if (insideTransform.has(storage)) throw new Error('A storage transform cannot acquire a nested storage lock.');
   const locks = requireStorageLocks();
   return locks.request(STORAGE_LOCK_NAME, { mode: 'exclusive' }, () => {
@@ -208,12 +232,37 @@ function updateWithOwner(storage: TransactionStorage, transform: (snapshot: Stor
       changes = transform(snapshot);
       if (changes && typeof (changes as unknown as { then?: unknown }).then === 'function') throw new Error('Storage transforms must be synchronous; never hold the lock over network work.');
     } finally { insideTransform.delete(storage); }
-    if (commitLocked(storage, changes, owner, preparing)) notifyRecordsChanged();
-  }).then(() => {
-    // The commit may be durable, but a newer owner must not receive its UI success.
-    // Rejection here preserves the caller's editor; it does not undo the commit.
+    const committed = commitLocked(storage, changes, owner, preparing, attempt);
+    if (attempt) attempt.outcome = 'committed';
+    // The exact after-image derives from the checked before-image and successful
+    // writes. Never add a fallible storage reread after the durable marker.
+    const values = new Map<string, string>();
+    for (let index = 0; index < snapshot.length; index++) { const key = snapshot.key(index); if (key !== null) { const value = snapshot.getItem(key); if (value !== null) values.set(key, value); } }
+    for (const [key, value] of Object.entries(changes)) { if (value === null) values.delete(key); else values.set(key, value); }
+    const keys = [...values.keys()];
+    const snapshotAfterCommit: StorageSnapshot = Object.freeze({ generation: committed.generation, pending: false, length: keys.length, key: (index: number) => keys[index] ?? null, getItem: (key: string) => values.get(key) ?? null });
+    let ownerCurrent = true;
+    try { assertOwner(storage, owner, preparing); } catch { ownerCurrent = false; }
+    let notificationError: unknown;
+    if (committed.changed) { try { notifyRecordsChanged(); } catch (error) { notificationError = error; } }
+    return Object.freeze({ snapshot: snapshotAfterCommit, ownerCurrent, notificationError });
+  });
+}
+function updateWithOwner(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, owner: StorageOwnerToken, preparing: boolean): Promise<void> {
+  return updateWithOwnerReceipt(storage, transform, owner, preparing).then(receipt => {
+    if (receipt.notificationError) throw receipt.notificationError;
+    // Existing API deliberately suppresses UI success after owner revocation.
     assertOwner(storage, owner, preparing);
   });
+}
+/** Explicit durable receipt API. A false ownerCurrent is not a rollback. */
+export async function updateStorageBatchWithReceipt(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, options: StorageWriteOptions = {}): Promise<StorageCommitReceipt> {
+  const attempt: StorageAttempt = { outcome: 'not-committed' };
+  try {
+    const owner = options.owner ?? captureStorageOwner(storage);
+    const receipt = await updateWithOwnerReceipt(storage, transform, owner, false, attempt);
+    return { snapshot: receipt.snapshot, ownerCurrent: receipt.ownerCurrent && isStorageOwnerCurrent(storage, owner), notificationError: receipt.notificationError };
+  } catch (error) { throw new StorageWriteAttemptError(error, attempt.outcome === 'not-committed' ? 'not-committed' : 'unknown'); }
 }
 /** Capture before queueing; compute replacements only from the fresh locked snapshot. */
 export function updateStorageBatch(storage: TransactionStorage, transform: (snapshot: StorageSnapshot) => Changes, options: StorageWriteOptions = {}): Promise<void> {
@@ -245,8 +294,10 @@ let notificationQueued = false;
 export function notifyRecordsChanged() {
   if (typeof window === 'undefined' || notificationQueued) return;
   notificationQueued = true;
-  queueMicrotask(() => {
-    notificationQueued = false;
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(RECORDS_CHANGED_EVENT));
-  });
+  try {
+    queueMicrotask(() => {
+      notificationQueued = false;
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') window.dispatchEvent(new Event(RECORDS_CHANGED_EVENT));
+    });
+  } catch (error) { notificationQueued = false; throw error; }
 }

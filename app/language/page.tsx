@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { getLocalDateKey } from "@/utils/dateKey";
-import {
-  getTodayRoutineCompletedIds,
-  saveTodayRoutineCompletedIds,
-} from "@/utils/dailyRoutineProgress";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { planRoutineChange, projectRoutineDay, type RoutineId } from "@/app/data/languageDailyMutations";
+import { projectLegacyRows } from "@/app/data/languageLegacyMutations";
 import LearningWelcome from "@/components/language/LearningWelcome";
 import YeoniAdviceEntry from "@/components/YeoniAdviceEntry";
 import LiveOverview from "@/components/language/live/LiveOverview";
@@ -106,93 +106,30 @@ const practicalPractice: RoutineItem[] = [
   },
 ];
 
-type RecommendationState = {
-  hasGrammarWrong: boolean;
-  hasReviewItems: boolean;
-};
-
-const getArrayLength = (value: unknown) => (Array.isArray(value) ? value.length : 0);
-const getSafeCompletedIds = (value: unknown) => {
-  if (!Array.isArray(value)) return [];
-  return todayRoutine
-    .map((item) => item.id)
-    .filter((id) => value.includes(id));
-};
-
 export default function HomePage() {
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
-  const [recommendation, setRecommendation] = useState<RecommendationState>({
-    hasGrammarWrong: false,
-    hasReviewItems: false,
-  });
+  const source = useLanguageRecordSnapshot(['dailyRoutineProgress', 'dailyLearningHistory']);
   const todayKey = useMemo(() => getLocalDateKey(), []);
-  const [hasLoadedRoutine, setHasLoadedRoutine] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const todayCompletedIds = getTodayRoutineCompletedIds(todayKey);
-      setCompletedIds(getSafeCompletedIds(todayCompletedIds));
-
-      const grammarProgressRaw = window.localStorage.getItem("grammarProgress");
-      const wrongKanaRaw = window.localStorage.getItem("wrongKana");
-      const wrongKanaCharsRaw = window.localStorage.getItem("wrongKanaChars");
-      const wrongWordsRaw = window.localStorage.getItem("wrongWords");
-      const wrongSentencesRaw = window.localStorage.getItem("wrongSentences");
-      const savedWordsRaw = window.localStorage.getItem("savedWords");
-      const savedSentencesRaw = window.localStorage.getItem("savedSentences");
-
-      const grammarProgress = grammarProgressRaw ? (JSON.parse(grammarProgressRaw) as unknown) : null;
-      const wrongKana = wrongKanaRaw ? (JSON.parse(wrongKanaRaw) as unknown) : null;
-      const wrongKanaChars = wrongKanaCharsRaw ? (JSON.parse(wrongKanaCharsRaw) as unknown) : null;
-      const wrongWords = wrongWordsRaw ? (JSON.parse(wrongWordsRaw) as unknown) : null;
-      const wrongSentences = wrongSentencesRaw ? (JSON.parse(wrongSentencesRaw) as unknown) : null;
-      const savedWords = savedWordsRaw ? (JSON.parse(savedWordsRaw) as unknown) : null;
-      const savedSentences = savedSentencesRaw ? (JSON.parse(savedSentencesRaw) as unknown) : null;
-
-      const grammarItems = Array.isArray(grammarProgress) ? grammarProgress : [];
-      const hasGrammarWrong = grammarItems.some((item) => {
-        if (typeof item !== "object" || item === null) return false;
-        const wrongCount = "wrongCount" in item ? (item as { wrongCount?: unknown }).wrongCount : 0;
-        const lastResult = "lastResult" in item ? (item as { lastResult?: unknown }).lastResult : "";
-        return (typeof wrongCount === "number" && wrongCount > 0) || lastResult === "wrong";
-      });
-
-      const reviewCount =
-        getArrayLength(wrongKana) +
-        getArrayLength(wrongKanaChars) +
-        getArrayLength(wrongWords) +
-        getArrayLength(wrongSentences) +
-        getArrayLength(savedWords) +
-        getArrayLength(savedSentences);
-
-      setRecommendation({
-        hasGrammarWrong,
-        hasReviewItems: hasGrammarWrong || reviewCount > 0,
-      });
-
-    } catch {
-      setCompletedIds([]);
-      setRecommendation({ hasGrammarWrong: false, hasReviewItems: false });
-    } finally {
-      setHasLoadedRoutine(true);
-    }
-  }, [todayKey]);
-
+  const mutation = useLanguageMutationAction(source, planRoutineChange, { strictSource: true, date: todayKey });
+  const dailyProjection = projectRoutineDay(source.records, todayKey);
+  const completedIds = dailyProjection.completedIds;
+  const grammar = projectLegacyRows<{ lessonId: string; wrongCount: number; lastResult?: string }>(source.records.grammarProgress, (item): item is { lessonId: string; wrongCount: number; lastResult?: string } => !!item && typeof item === 'object' && typeof (item as { lessonId?: unknown }).lessonId === 'string' && typeof (item as { wrongCount?: unknown }).wrongCount === 'number');
+  const hasGrammarWrong = grammar.value.some(item => item.wrongCount > 0 || item.lastResult === 'wrong');
+  const recommendations = (['wrongKana', 'wrongKanaChars', 'wrongWords', 'wrongSentences', 'savedWords', 'savedSentences'] as const).map(key => projectLegacyRows<unknown>(source.records[key], (item): item is unknown => key === 'wrongKanaChars' ? typeof item === 'string' : !!item && typeof item === 'object' && typeof (item as Record<string, unknown>)[key === 'wrongKana' ? 'char' : key.endsWith('Words') ? 'word' : 'japanese'] === 'string'));
+  const reviewCount = recommendations.reduce((total, projection) => total + projection.value.length, 0);
+  const readError = dailyProjection.error || grammar.error || recommendations.find(projection => projection.error)?.error;
+  const recommendation = { hasGrammarWrong, hasReviewItems: hasGrammarWrong || reviewCount > 0 };
+  const hasLoadedRoutine = !!source.snapshot && !!source.context;
   const completedCount = completedIds.length;
   const toggleCompleted = (id: string) => {
-    if (!hasLoadedRoutine) return;
-    const next = completedIds.includes(id) ? completedIds.filter(completedId => completedId !== id) : [...completedIds, id];
-    setCompletedIds(next);
-    // Opening the page or an advice preview must not create an empty learning
-    // day or rewrite its timestamp. Persist only the user's completion action.
-    saveTodayRoutineCompletedIds(todayKey, next, todayRoutine.length);
+    if (!hasLoadedRoutine || mutation.pending) return;
+    void mutation.submit({ id: id as RoutineId, mode: 'toggle' });
   };
 
   return (
     <section className="home-page">
       <div className="home-container">
+        {(mutation.error || source.error || readError) && <p role="alert">{mutation.error || source.error || readError}</p>}
+        {mutation.pending && <div role="status">완료 변경을 확인하고 있어요. <button disabled={mutation.busy} onClick={() => void mutation.retry()}>저장 다시 확인</button> {mutation.canResubmit && <button disabled={mutation.busy} onClick={() => void mutation.resubmit()}>최신 상태에서 새로 저장</button>} <button disabled={mutation.busy} onClick={() => mutation.discard()}>보류한 변경 버리기</button></div>}
         <LearningWelcome />
         <YeoniAdviceEntry scope="language" />
         <LiveOverview />
@@ -224,7 +161,7 @@ export default function HomePage() {
                   <Link href={item.href}>{item.cta}</Link>
                   <button
                     type="button"
-                    disabled={!hasLoadedRoutine}
+                    disabled={!hasLoadedRoutine || mutation.pending}
                     onClick={() => toggleCompleted(item.id)}
                   >
                     {isCompleted ? "완료 취소" : "직접 완료"}

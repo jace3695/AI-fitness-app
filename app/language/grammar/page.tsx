@@ -1,14 +1,15 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   GRAMMAR_LESSONS,
-  GRAMMAR_PROGRESS_KEY,
   type GrammarCategory,
   type GrammarLesson,
   type GrammarProgressItem,
 } from "@/data/grammar";
-import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { planLegacyMutation, projectLegacyRows, verifyLegacyMutation } from "@/app/data/languageLegacyMutations";
 import { speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 
 type GrammarFilter = "전체" | GrammarCategory;
@@ -19,86 +20,32 @@ function normalizeChoice(choice: string | { text: string; reading?: string; ruby
 }
 
 export default function GrammarPage() {
+  const source = useLanguageRecordSnapshot();
+  const mutation = useLanguageMutationAction(source, planLegacyMutation, { verify: verifyLegacyMutation });
+  const answering = useRef(new Set<string>());
+  const blocked = mutation.pending || !source.context;
+  const progressProjection = projectLegacyRows<GrammarProgressItem>(source.records.grammarProgress, (item): item is GrammarProgressItem => !!item && typeof item === 'object' && typeof (item as GrammarProgressItem).lessonId === 'string' && ['correctCount', 'wrongCount'].every(field => typeof (item as Record<string, unknown>)[field] === 'number' && Number.isSafeInteger((item as Record<string, unknown>)[field]) && ((item as Record<string, number>)[field] >= 0)));
+  const grammarProgress = progressProjection.value;
+  const [pendingLesson, setPendingLesson] = useState<string | null>(null);
   const [filter, setFilter] = useState<GrammarFilter>("전체");
   const [levelFilter, setLevelFilter] = useState<GrammarLesson["level"] | "all">("beginner");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-  const [grammarProgress, setGrammarProgress] = useState<GrammarProgressItem[]>([]);
-
-
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(GRAMMAR_PROGRESS_KEY);
-      if (!raw) {
-        setGrammarProgress([]);
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setGrammarProgress([]);
-        return;
-      }
-      setGrammarProgress(parsed as GrammarProgressItem[]);
-    } catch {
-      setGrammarProgress([]);
-    }
-  }, []);
-
-  const saveGrammarProgress = (next: GrammarProgressItem[]) => {
-    setGrammarProgress(next);
-    try {
-      localStorage.setItem(GRAMMAR_PROGRESS_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
-
   const visibleLessons = useMemo(
     () => GRAMMAR_LESSONS.filter((lesson) => (filter === "전체" || lesson.category === filter) && (levelFilter === "all" || lesson.level === levelFilter)),
     [filter, levelFilter],
   );
 
   const handleSelectAnswer = (lesson: GrammarLesson, choice: string) => {
-    if (selectedAnswers[lesson.id]) {
-      return;
-    }
-
+    if (selectedAnswers[lesson.id] || answering.current.has(lesson.id) || blocked || mutation.isPending()) return;
+    answering.current.add(lesson.id);
     setSelectedAnswers((prev) => ({ ...prev, [lesson.id]: choice }));
-
-    const isCorrect = choice === lesson.quiz.answer;
-    const now = new Date().toISOString();
-    const existing = grammarProgress.find((item) => item.lessonId === lesson.id);
-    const nextItem: GrammarProgressItem = existing
-      ? {
-          ...existing,
-          title: lesson.title,
-          category: lesson.category,
-          pattern: lesson.pattern,
-          correctCount: existing.correctCount + (isCorrect ? 1 : 0),
-          wrongCount: existing.wrongCount + (isCorrect ? 0 : 1),
-          lastAnsweredAt: now,
-          lastResult: isCorrect ? "correct" : "wrong",
-        }
-      : {
-          lessonId: lesson.id,
-          title: lesson.title,
-          category: lesson.category,
-          pattern: lesson.pattern,
-          correctCount: isCorrect ? 1 : 0,
-          wrongCount: isCorrect ? 0 : 1,
-          lastAnsweredAt: now,
-          lastResult: isCorrect ? "correct" : "wrong",
-        };
-
-    const nextProgress = existing
-      ? grammarProgress.map((item) => (item.lessonId === lesson.id ? nextItem : item))
-      : [...grammarProgress, nextItem];
-
-    saveGrammarProgress(nextProgress);
-    markTodayRoutineCompleted("grammar");
+    setPendingLesson(lesson.id);
+    void mutation.submit({ kind: 'grammar-answer', lesson: { lessonId: lesson.id, title: lesson.title, category: lesson.category, pattern: lesson.pattern }, correct: choice === lesson.quiz.answer }, () => setPendingLesson(null));
   };
 
   const resetLessonQuiz = (lessonId: string) => {
+    if (blocked || mutation.isPending()) return;
+    answering.current.delete(lessonId);
     setSelectedAnswers((prev) => {
       const next = { ...prev };
       delete next[lessonId];
@@ -117,6 +64,10 @@ export default function GrammarPage() {
 
   return (
     <section>
+      {(mutation.error || source.error || progressProjection.error) && <p role="alert">{mutation.error || source.error || progressProjection.error}</p>}
+      {mutation.pending && <div role="status">선택한 답을 보존하고 있어요. <button disabled={mutation.busy} onClick={() => void mutation.retry()}>저장 다시 확인</button> {mutation.canResubmit && <button disabled={mutation.busy} onClick={() => void mutation.resubmit()}>최신 상태에서 새로 저장</button>} <button disabled={mutation.busy} onClick={() => { if (mutation.discard() && pendingLesson) { answering.current.delete(pendingLesson); setSelectedAnswers(previous => { const next = { ...previous }; delete next[pendingLesson]; return next; }); setPendingLesson(null); } }}>보류한 입력 버리기</button></div>}
+      <fieldset disabled={blocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+
       <div
         style={{
           marginBottom: "20px",
@@ -339,6 +290,7 @@ export default function GrammarPage() {
           );
         })}
       </div>
+      </fieldset>
     </section>
   );
 }

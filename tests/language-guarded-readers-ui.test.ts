@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { deferred, nodes, storageBrowser, storageTab, type UiNode } from './helpers/storage-ui-fixture.ts';
 import type { AuthenticatedStorageOwner } from '../app/data/authenticatedStorageOwner.ts';
+import { languageWriterFixture } from './helpers/languageWriterFixture.ts';
 
 async function readerFixture(t: TestContext) {
   const browser = storageBrowser(), tab = storageTab(browser, 'reader'); t.after(tab.dispose);
@@ -70,13 +71,19 @@ test('R13 independent device appearance survives language fallback invalidation'
   assert.match(view.text(), /"visible":false,"motion":"home"/);
 });
 
-for (const phase of ['prepared', 'switched', 'reset'] as const) test(`R14 shipping progress ${phase} never displays unscoped confusingKana and preserves its exact bytes`, async t => {
-  const f = await readerFixture(t);
+for (const phase of ['prepared', 'switched', 'reset', 'accepted-reset'] as const) test(`R14 shipping progress ${phase} never displays unscoped confusingKana and preserves its exact bytes`, async t => {
+  const f = await languageWriterFixture({ wrongKanaChars: '["う"]' }); t.after(f.dispose);
   const legacy = ' [ "あ", {"char":"い"} ] ';
+  const resetMarker = '2026-10-09T12:00:00.000Z|11111111-1111-4111-8111-111111111111';
   f.tab.local.setItem('confusingKana', legacy);
   if (phase === 'switched') await f.tab.cloud.prepareLocalCloudState('synthetic-owner-b');
-  if (phase === 'reset') f.tab.local.setItem('languageRecordResetV1', '2026-10-09T12:00:00.000Z|11111111-1111-4111-8111-111111111111');
-  f.tab.local.setItem('wrongKanaChars', '["う"]');
+  if (phase === 'reset') f.tab.local.setItem('languageRecordResetV1', resetMarker);
+  if (phase === 'accepted-reset') {
+    const lifecycle = f.language.createLanguageSyncLifecycle(); t.after(() => lifecycle.revoke());
+    const request = f.language.readLanguageSyncRequest(f.lease, lifecycle, f.tab.local);
+    const accepted = await f.language.commitLanguageRemoteReset(request, { languageRecordResetV1: resetMarker, wrongKanaChars: '["う"]' });
+    f.tab.setModule('components/language/LanguageRecordsProvider.tsx', { useLanguageRecords: () => ({ context: accepted.context, refresh() {} }) });
+  }
   f.tab.setModule('next/link', { default: 'a' });
   // Small static curriculum fixtures keep this handler test independent of catalogue loading.
   f.tab.setModule('data/words.ts', { WORDS: [] });
@@ -85,7 +92,10 @@ for (const phase of ['prepared', 'switched', 'reset'] as const) test(`R14 shippi
   f.tab.setModule('data/curriculum.ts', { CURRICULUM: [], TRACKS: { foundation: { title: '기초' }, work: { title: '업무' }, travel: { title: '여행' } } });
   const view = f.tab.mount('app/language/progress/page.tsx'); t.after(view.dispose); await view.settle();
   assert.doesNotMatch(view.text(), /헷갈림 [23]개/, 'The two legacy characters must not enter any summary');
-  if (phase === 'switched') assert.match(view.text(), /학습 요약가나0단어/, 'Blocked attribution cannot display selected bytes either');
+  if (phase === 'switched' || phase === 'reset') {
+    assert.match(view.text(), /학습 기록을 다시 확인해 주세요/, 'Retired authority requires a newly accepted coordinator context');
+    assert.doesNotMatch(view.text(), /학습 요약/, 'Blocked attribution cannot display selected bytes either');
+  }
   else {
     assert.match(view.text(), /학습 요약가나1단어/);
     assert.match(view.text(), /기본 46자전체 46자 · 오답 0개 · 헷갈림 1개/, 'The guarded selected wrongKanaChars contribution remains');
