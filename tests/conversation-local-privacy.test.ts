@@ -184,3 +184,35 @@ for (const mode of ['corrupt parser', 'host read', 'host replacement'] as const)
   await coordinator.start(); assert.notEqual(coordinator.getState().status, 'ready'); assertNoPrivate(states);
   assert.equal(calls, mode === 'host replacement' ? 1 : 0);
 });
+
+test('P2C shipping hook input/send/close and SDK wakeups never export conversation text, drafts, namespace or event payload', async t => {
+  const { conversationSessionFixture } = await import('./helpers/conversationSessionFixture.ts');
+  const f = await conversationSessionFixture(); t.after(f.dispose);
+  const h = f.mountHook(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
+  assert.equal(await h.current.start('legacy-cafe'), true);
+  h.current.typeInput(poison.transcript); await h.view.settle(); assert.equal(await h.current.send(), true);
+  h.current.typeInput(poison.draft); await h.view.settle(); assert.equal(await h.current.end(), true);
+  const key = f.participants.conversationLocalKey(f.lease.userId), raw = f.tab.local.getItem(key)!;
+  assert.ok(raw.includes(poison.transcript)); assert.ok(raw.includes(poison.draft));
+  await f.refresh(); await h.view.settle(); assertNoPrivate(f.calls); assertNoPrivate(f.notices); assertNoPrivate(f.diagnostics);
+  assert.doesNotMatch(JSON.stringify(f.calls), /yeoni-conversation-local-v1/); assert.equal(f.audio.length, 0);
+  const boundary = f.tab.loadModule('app/data/languageStorageBoundary.ts') as typeof import('../app/data/languageStorageBoundary.ts');
+  assertNoPrivate(boundary.projectLanguageBytes(f.tab.transactions.readStorageSnapshot(f.tab.local)));
+  assertNoPrivate(f.tab.cloud.readLocalCloudState());
+  const backup = f.tab.mount('app/components/DataBackupPanel.tsx'); t.after(backup.dispose); backup.click('운동·식단 기록 백업');
+  assert.equal(f.tab.downloads.length, 1); assertNoPrivate(await f.tab.downloads[0].text()); assert.doesNotMatch(await f.tab.downloads[0].text(), /yeoni-conversation-local-v1/);
+});
+
+test('P2C shipping unknown-write UI diagnostics and prepared bytes keep poison text device-local', async t => {
+  const { conversationSessionFixture } = await import('./helpers/conversationSessionFixture.ts');
+  const f = await conversationSessionFixture(); t.after(f.dispose);
+  const h = f.mountHook(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
+  await h.current.start('legacy-cafe'); h.current.typeInput(poison.draft); await h.view.settle();
+  const key = f.participants.conversationLocalKey(f.lease.userId), set = f.tab.local.setItem;
+  f.tab.local.setItem = (name, value) => { if (name === key || name === STORAGE_PROTOCOL_KEY && value.includes('"state":"committed"')) throw new Error(privateRaw); set(name, value); };
+  t.after(() => { f.tab.local.setItem = set; }); h.current.typeInput(poison.staged); await h.view.settle();
+  assert.equal(h.current.status, 'unavailable'); assertNoPrivate(h.current.error); assertNoPrivate(f.calls); assertNoPrivate(f.notices); assertNoPrivate(f.diagnostics);
+  assertNoPrivate(f.tab.cloud.readLocalCloudState());
+  const protocol = f.tab.transactions.readStorageSnapshot(f.tab.local); assert.equal(protocol.pending, true);
+  assert.ok(protocol.getItem(key)?.includes(poison.draft)); assertNoPrivate(f.tab.cloud.readLocalCloudState(protocol));
+});

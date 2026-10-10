@@ -14,7 +14,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path: string) => readFileSync(resolve(ROOT, path), 'utf8');
 const routes = ['page', 'learn/page', 'review/page', 'progress/page', 'settings/page', 'kana/page', 'words/page', 'sentences/page', 'grammar/page', 'calendar/page', 'speaking/page', 'conversation/page'].map(path => `app/language/${path}.tsx`);
 const helpers = ['utils/curriculumProgress.ts', 'utils/dailyRoutineProgress.ts', 'utils/integratedLearningSettings.ts', 'utils/learningSession.ts'];
-const components = ['FocusedLesson', 'KanaStarter', 'LearningWelcome', 'CourseReviewQuestion'].map(name => `components/language/${name}.tsx`);
+const components = [...['FocusedLesson', 'KanaStarter', 'LearningWelcome', 'CourseReviewQuestion'].map(name => `components/language/${name}.tsx`), 'components/language/useConversationSession.ts'];
 const domains = ['Course', 'Daily', 'Legacy', 'Review', 'Settings'].map(name => `app/data/language${name}Mutations.ts`);
 const removed = new Set(['saveCurriculumProgress', 'saveIntegratedLearningSettings', 'saveTodayRoutineCompletedIds', 'markTodayRoutineCompleted', 'saveToStorage']);
 function tree(path: string) { return ts.createSourceFile(path, read(path), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS); }
@@ -252,7 +252,10 @@ function assertConversationCapability(path: string, source: ts.SourceFile) {
     if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === 'require')) specifier = node.arguments[0];
     if (!specifier) return;
     const moduleName = constantString(specifier,path); if (!moduleName) return;
-    if (/conversationLocalRecords(?:\.ts)?$/.test(moduleName)) assert.fail(`${path}: P2-C production facade activation is not approved`);
+    if (/conversationLocalRecords(?:\.ts)?$/.test(moduleName)) {
+      assert.equal(path, 'components/language/useConversationSession.ts', `${path}: only the reviewed conversation hook may import the registered facade`);
+      assert.ok(ts.isImportDeclaration(node) && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings), 'No namespace, dynamic or reexport conversation facade route');
+    }
     if (/languageLocalParticipants(?:\.ts)?$/.test(moduleName)) {
       assert.ok(['app/data/languageCloudSync.ts','app/data/languageResetFence.ts','app/data/conversationLocalRecords.ts','app/data/languageSyncCoordinator.ts'].includes(path));
       assert.ok(ts.isImportDeclaration(node) && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings), 'No namespace, dynamic or reexport capability route');
@@ -260,7 +263,7 @@ function assertConversationCapability(path: string, source: ts.SourceFile) {
     if (/languageCloudSync(?:\.ts)?$/.test(moduleName)) assert.ok(ts.isImportDeclaration(node) && (!node.importClause?.namedBindings || ts.isNamedImports(node.importClause.namedBindings)), 'No namespace, dynamic or reexport adapter route');
   });
 }
-test('conversation authority has exactly one coordinator capture path and one facade writer; UI stays inactive', () => {
+test('conversation authority has exactly one coordinator capture path, facade writer and reviewed UI hook importer', () => {
   const files = ['app','components','utils','hooks','lib','services','data'].flatMap(productionFiles);
   for (const path of files) assertConversationCapability(path, parsed(path));
 });
@@ -275,5 +278,21 @@ test('conversation guard rejects namespace, reexport, dynamic and computed-strin
     const path = `tests/synthetic-conversation-capability-${index}.ts`;
     const source = ts.createSourceFile(path,text,ts.ScriptTarget.Latest,true); parsedSources.set(path, source);
     assert.throws(() => assertConversationCapability(path, source)); parsedSources.delete(path);
+  }
+});
+
+test('the reviewed conversation hook cannot widen its named static facade import to another capability route', () => {
+  const path = 'components/language/useConversationSession.ts';
+  for (const text of [
+    "import * as facade from '../../app/data/conversationLocalRecords.ts';",
+    "export { readConversationSnapshot } from '../../app/data/conversationLocalRecords.ts';",
+    "const facade = await import('../../app/data/conversationLocalRecords.ts');",
+    "const route = '../../app/data/' + 'conversationLocalRecords.ts'; const facade = require(route);",
+    "import { languageConversationCapability } from '../../app/data/languageCloudSync.ts';",
+  ]) {
+    const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true), saved = parsedSources.get(path);
+    parsedSources.set(path, source);
+    assert.throws(() => assertConversationCapability(path, source));
+    if (saved) parsedSources.set(path, saved); else parsedSources.delete(path);
   }
 });

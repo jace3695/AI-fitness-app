@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { languageWriterFixture } from './helpers/languageWriterFixture.ts';
+import { conversationSessionFixture } from './helpers/conversationSessionFixture.ts';
 import { nodes, textOf } from './helpers/storage-ui-fixture.ts';
 import type { LanguageBytes } from '../app/data/languageStorageBoundary.ts';
 
@@ -37,17 +38,19 @@ test('W4 shipping speaking source refresh changes audio settings and saved quest
   view.click('🔊 정답 듣기'); await view.settle(); assert.equal(f.audio[1].options.rate, 0.6); assert.equal(f.audio[1].options.repeatCount, 3);
   f.pause(); view.render(); assert.doesNotMatch(view.text(), /SYNTHETIC PRIVATE SENTENCE/); assert.equal(f.tab.local.getItem('savedSentences'), saved);
 });
-test('W4 shipping conversation uses snapshot settings and preserves typed draft across pause/resume', async t => {
-  const f = await fixture(t, { japaneseAppSettings: '{"ttsRate":0.7,"sections":{"conversation":{"repeatCount":2,"showReading":false}}}' });
-  const before = f.browser.writes.length, view = f.tab.mount('app/language/conversation/page.tsx'); t.after(view.dispose); await view.settle();
-  const input = nodes(view.render()).find(node => node.type === 'input'); assert.ok(input);
-  (input.props.onChange as (event: unknown) => void)({ target: { value: 'synthetic unsent input' } }); view.render();
+test('W4/P2C shipping conversation uses registered snapshot settings and retains its local draft across pause/resume', async t => {
+  const f = await conversationSessionFixture({ japaneseAppSettings: '{"ttsRate":0.7,"sections":{"conversation":{"repeatCount":2,"showReading":false}}}' }); t.after(f.dispose);
+  const view = f.mountPage(); await view.settle(); assert.equal(f.snapshot().envelope, null);
+  const consent = nodes(view.render()).find(node => node.type === 'input' && node.props.type === 'checkbox'); assert.ok(consent);
+  (consent.props.onChange as (event: unknown) => void)({ target: { checked: true } }); view.render();
+  view.click('새 대화 시작'); await view.settle();
+  const input = nodes(view.render()).find(node => node.props.id === 'conversation-input'); assert.ok(input);
+  (input.props.onChange as (event: unknown) => void)({ target: { value: 'synthetic unsent input' } }); await view.settle();
   view.click('예문 듣기'); await view.settle(); assert.equal(f.audio[0].options.rate, 0.7); assert.equal(f.audio[0].options.repeatCount, 2);
-  assert.equal(f.browser.writes.length, before);
   await f.language.updateLanguageRecords(f.context, () => ({ japaneseAppSettings: '{"sections":{"conversation":{"ttsRate":1.2,"repeatCount":3}}}' })); await view.settle();
   view.click('예문 듣기'); await view.settle(); assert.equal(f.audio[1].options.rate, 1.2);
-  f.pause(); view.render(); assert.doesNotMatch(view.text(), /예문 듣기/);
-  await f.resume(); await view.settle(); assert.equal(nodes(view.render()).find(node => node.type === 'input')?.props.value, 'synthetic unsent input');
+  f.pause(); view.render(); assert.doesNotMatch(view.text(), /예문 듣기|synthetic unsent input/);
+  await f.resume(); await view.settle(); assert.equal(nodes(view.render()).find(node => node.props.id === 'conversation-input')?.props.value, 'synthetic unsent input');
 });
 test('W4 shipping malformed reader documents preserve exact bytes without normalization on mount', async t => {
   const f = await fixture(t, { dailyLearningHistory: '{broken', learningSettings: 'null', japaneseAppSettings: '{broken', savedSentences: 'null' });
