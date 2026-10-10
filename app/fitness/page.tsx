@@ -60,6 +60,7 @@ import AppModuleNav from "../components/AppModuleNav";
 import FitnessAiCoachPanel from "../components/FitnessAiCoachPanel";
 import YeoniAdviceEntry from "@/components/YeoniAdviceEntry";
 import WorkoutEvidence from "../components/WorkoutEvidence";
+import WorkoutPainEvidence from "../components/WorkoutPainEvidence";
 import AdaptiveWorkoutReviewCard from "../components/AdaptiveWorkoutReviewCard";
 import DailyWorkoutEditor from "../components/DailyWorkoutEditor";
 import {
@@ -789,6 +790,7 @@ function FitnessApp() {
               onRefresh={refreshWorkoutReview}
             />
             <WorkoutEvidence workouts={completedStore} conditions={conditionRecords} today={todayKey} onRecords={()=>handleTabChange("record")} />
+            <WorkoutPainEvidence />
 
             <section className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
               <div className="min-h-20 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
