@@ -46,6 +46,7 @@ try {
     // Disposable fixture cleanup only; production migration grants stay unchanged.
     appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches,public.language_live_preparations to service_role;\n');
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916113939_assistant_growth_commands.sql', 'utf8'));

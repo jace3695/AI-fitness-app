@@ -58,6 +58,8 @@ jobs:
           echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
       - name: Start disposable database and auth
         run: node scripts/e2e-stack.mjs start
+      - name: Verify legacy evidence PostgreSQL races and HTTP roundtrip
+        run: node --experimental-strip-types scripts/qa-legacy-evidence-postgres.mjs
       - name: Build the isolated production app
         run: npm run build
       - name: Verify handoff data safety and Live learning in both browsers

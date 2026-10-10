@@ -72,13 +72,15 @@ Measured checks: the independent final source review ran 151/151 focused and adv
 
 No assertion, retry limit or existing test was weakened to obtain a pass. The schema and transport fixture deliberately distinguish synthetic observations/authentication from production learner facts.
 
-## Authored but unrun next gate
+## Wired but unrun CI gate
 
 `scripts/qa-legacy-evidence-postgres.mjs` and `scripts/qa-legacy-evidence-http.mjs` are explicit CI-only entry points, outside `.test.ts` discovery. Their pure refusal tests and authored catalog audit run locally; the real drivers were not launched.
 
 The race driver verifies actual GitHub-runner state, generated loopback stack configuration/status and the exact local Docker socket/container/project/image before registering its private execution capability. Fabricated/copy-shaped stack objects cannot call its process/network entry points. Two persistent psql participant processes and a third read-only observer use backend PIDs and observed `pg_blocking_pids` barriers for all nine schedules, including both corrected initialization/reset orders. It records sanitized case outcomes/digests and cleans up disposable users/sessions. The HTTP scenario signs in through real local Auth, invokes the actual public RPCs through the same repository, and exercises committed-response loss/restart/reset with fake IDB.
 
-Neither the explicit seed list nor the workflow was changed. After independent source/security review and authorization of the exact later commit/run, the remaining CI integration is one migration seed entry and one named harness step in the existing isolated workflow, preserving its cleanup and artifact allowlist.
+The disposable seed now includes `20261010025109_language_legacy_evidence_ledger.sql` after the existing reset, assistant-language, connector and corrected language-history-trigger dependencies. Immediately after stack startup, the named `Verify legacy evidence PostgreSQL races and HTTP roundtrip` workflow step runs `node --experimental-strip-types scripts/qa-legacy-evidence-postgres.mjs`. Its existing `main()` executes the PostgreSQL cases and then imports/runs the actual HTTP driver, so a separate HTTP invocation would duplicate the scenario. The workflow's pinned Node 24 supports the native TypeScript imports and existing test-only singleton loader without another dependency or loader.
+
+This wiring preserves all existing checks, exact-head checkout, runner-generated loopback credentials, unconditional stack cleanup and artifact allowlist. The existing combined sanitized report, `.e2e/evidence/legacy-evidence-postgres.json`, already matches the allowlisted JSON pattern; no stack status, keys, SQL bodies or raw answers are added to uploads. Source-contract validation does not execute either driver. The exact later reviewed commit still needs its separately authorized publication/run and measured CI result, after the preceding run reaches terminal cleanup.
 
 Still unrun: real independent PostgreSQL locking, actual local Auth/PostgREST HTTP, browser IndexedDB upgrade/durability/multi-tab scheduling, authenticated learner capture/save/reload/offline flows, device acceptance and hosted installation. Passing synthetic tests cannot close those gates. A2.2 visible capture, shared evidence views and the same-item listening/typing exercise remain separate work.
 
