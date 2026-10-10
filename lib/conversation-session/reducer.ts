@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { appliedSession, cancelledSession, canonicalJson, commandSchema, deletionSchema, draftSchema, exact, freezeRecord, isPlainJson, resolutionSchema, sessionSchema, sourceRef, supportedSource, validateEnvelope, type ConversationCommand, type ConversationDeletion, type ConversationDraft, type ConversationEnvelope, type ConversationResolution, type ConversationSession, type FailureCode } from './contracts.ts';
+import { appliedSession, buildGuidedTurn, cancelledSession, canonicalJson, commandSchema, deletionSchema, draftSchema, exact, freezeRecord, isGuidedSource, isPlainJson, resolutionSchema, sessionSchema, sourceRef, supportedSource, validateEnvelope, type ConversationCommand, type ConversationDeletion, type ConversationDraft, type ConversationEnvelope, type ConversationResolution, type ConversationSession, type FailureCode } from './contracts.ts';
 
 /** Pure plans only. A plan or replay is NOT a write, durable receipt, current UI
  * acknowledgement, owner authentication, or proof of an unknown outcome. */
@@ -51,7 +51,7 @@ export function planCreateSession(raw: unknown, source: Pick<ConversationEnvelop
   if (existing) return exact(existing, session) ? freezeRecord({ status: 'replay', envelope, effect: { kind: 'session-created', sessionId: session.sessionId } }) : blocked('conflict');
   if (!supportedSource(session.source)) return blocked('unsupported-source');
   if (session.stateRevision || session.headRevision || session.turns.length || session.drafts.length || session.operations.length || session.closed) return blocked('invalid-data');
-  return finish({ ...envelope, sessions: [...envelope.sessions, session] }, { kind: 'session-created', sessionId: session.sessionId });
+  return finish({ ...envelope, schemaVersion: isGuidedSource(session.source) ? 2 : envelope.schemaVersion, sessions: [...envelope.sessions, session] }, { kind: 'session-created', sessionId: session.sessionId });
 }
 
 /** An unresolved append pins its exact lane. Later input may explicitly save to a
@@ -65,11 +65,23 @@ export function planSaveDraft(raw: unknown, source: SessionSource, rawDraft: unk
   if (!session || !sameSource(envelope, session, source)) return blocked('stale-source');
   if (session.closed) return blocked('closed');
   if (!supportedSource(session.source)) return blocked('unsupported-source');
-  if (!exact(draft.source, sourceRef(session.source))) return blocked('conflict');
+  const guided = isGuidedSource(session.source);
+  if (isGuidedSource(session.source)) {
+    const stepIndex = session.source.content.steps.findIndex(step => step.id === draft.source.stepId);
+    if (stepIndex < 0 || stepIndex > session.turns.length || !exact(draft.source, sourceRef(session.source, draft.source.stepId))) return blocked('conflict');
+  } else if (!exact(draft.source, sourceRef(session.source))) return blocked('conflict');
+  // A consumed lane is not forgotten identity. Pin guided source references and
+  // revision succession across turns, all commands and cancelled recoveries.
+  const retained = guided ? [
+    ...session.drafts, ...session.turns.map(turn => turn.draft),
+    ...session.operations.flatMap(op => op.command.kind === 'append' ? [op.command.turn.draft] : []),
+    ...session.operations.flatMap(op => op.terminal?.kind === 'cancelled' && op.terminal.recoveredDraft ? [op.terminal.recoveredDraft] : []),
+  ].filter(item => item.draftId === draft.draftId) : [];
+  if (retained.some(item => !exact(item.source, draft.source))) return blocked('conflict');
   const previous = session.drafts.find(item => item.draftId === draft.draftId);
   if (previous && exact(previous, draft)) return freezeRecord({ status: 'replay', envelope, effect: { kind: 'draft-saved', sessionId: session.sessionId, resultId: draft.draftId } });
   if (session.operations.some(op => op.terminal === null && op.command.kind === 'append' && op.command.turn.draft.draftId === draft.draftId)) return blocked('pinned-draft');
-  if (draft.revision !== (previous?.revision ?? 0) + 1) return blocked('conflict');
+  if (draft.revision !== (guided ? Math.max(0, ...retained.map(item => item.revision)) : previous?.revision ?? 0) + 1) return blocked('conflict');
   if (!previous && session.drafts.length >= 2) return blocked('capacity-exceeded');
   return finish(replace(envelope, { ...session, stateRevision: session.stateRevision + 1, drafts: previous ? session.drafts.map(item => item.draftId === draft.draftId ? draft : item) : [...session.drafts, draft] }), { kind: 'draft-saved', sessionId: session.sessionId, resultId: draft.draftId });
 }
@@ -88,7 +100,9 @@ export function planStage(raw: unknown, source: SessionSource, rawCommand: unkno
   if (!supportedSource(session.source)) return blocked('unsupported-source');
   if (session.operations.some(op => op.terminal === null)) return blocked('pending-operation');
   if (command.expectedHeadRevision !== session.headRevision) return blocked('conflict');
+  if (isGuidedSource(session.source) && (session.operations.length >= 2000 || session.stateRevision > Number.MAX_SAFE_INTEGER - 3)) return blocked('capacity-exceeded');
   if (command.kind === 'append' && !session.drafts.some(draft => exact(draft, command.turn.draft))) return blocked('conflict');
+  if (command.kind === 'append' && isGuidedSource(session.source) && !exact(command.turn, buildGuidedTurn(session, command.turn.draft, command.turn))) return blocked('conflict');
   return finish(replace(envelope, { ...session, stateRevision: session.stateRevision + 1, operations: [...session.operations, { command, terminal: null }] }), { kind: 'staged', sessionId: session.sessionId, operationId: command.operationId });
 }
 

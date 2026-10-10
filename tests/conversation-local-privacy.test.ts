@@ -216,3 +216,20 @@ test('P2C shipping unknown-write UI diagnostics and prepared bytes keep poison t
   const protocol = f.tab.transactions.readStorageSnapshot(f.tab.local); assert.equal(protocol.pending, true);
   assert.ok(protocol.getItem(key)?.includes(poison.draft)); assertNoPrivate(f.tab.cloud.readLocalCloudState(protocol));
 });
+
+for (const index of [0, 1, 2]) test(`G5 guided level ${index} real hook keeps all input/fallback/drafts out of provider, backup and notices`, async t => {
+  const { GUIDED_CONVERSATION_PILOT } = await import('../data/guidedConversationPilot.ts');
+  const { conversationSessionFixture } = await import('./helpers/conversationSessionFixture.ts');
+  const f = await conversationSessionFixture(); t.after(f.dispose); const script = GUIDED_CONVERSATION_PILOT[index];
+  const h = f.mountHook(() => (f.tab.loadModule('components/language/useConversationSession.ts') as typeof import('../components/language/useConversationSession.ts')).useConversationSession());
+  assert.equal(await h.current.start(Object.assign(Object.create(null), { kind: 'guided', scriptId: script.scriptId, scriptRevision: script.scriptRevision })), true);
+  h.current.typeInput(poison.transcript); await h.view.settle(); assert.equal(await h.current.send(), true);
+  h.current.typeInput(poison.draft); await h.view.settle(); assert.equal(await h.current.end(), true);
+  const key = f.participants.conversationLocalKey(f.lease.userId), raw = f.tab.local.getItem(key)!;
+  assert.ok(raw.includes(poison.transcript)); assert.ok(raw.includes(poison.draft)); assert.ok(raw.includes('sample-fallback-with-response'));
+  await f.refresh(); await h.view.settle(); assertNoPrivate(f.calls); assertNoPrivate(f.notices); assertNoPrivate(f.diagnostics); assert.equal(f.audio.length, 0);
+  const boundary = f.tab.loadModule('app/data/languageStorageBoundary.ts') as typeof import('../app/data/languageStorageBoundary.ts');
+  assertNoPrivate(boundary.projectLanguageBytes(f.tab.transactions.readStorageSnapshot(f.tab.local))); assertNoPrivate(f.tab.cloud.readLocalCloudState());
+  const backup = f.tab.mount('app/components/DataBackupPanel.tsx'); t.after(backup.dispose); backup.click('운동·식단 기록 백업');
+  assert.equal(f.tab.downloads.length, 1); const exported = await f.tab.downloads[0].text(); assertNoPrivate(exported); assert.doesNotMatch(exported, /yeoni-conversation-local-v1|guided-fixed-emission|guided-convenience-store/);
+});

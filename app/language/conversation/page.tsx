@@ -31,7 +31,8 @@ type ChatMessage =
 const SITUATIONS: Situation[] = ["카페", "여행", "일상", "업무", "친구"];
 import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
 import { languageSettingsProjectionError, loadJapaneseAppSettings } from "@/app/data/languageSettingsMutations";
-import { LEGACY_FREE_CONVERSATION_SCRIPTS } from "@/data/freeConversationCatalog";
+import { LEGACY_FREE_CONVERSATION_SCRIPTS, FREE_CONVERSATION_CONTEXTS, FREE_CONVERSATION_LEVELS, findFreeConversationCoverage } from "@/data/freeConversationCatalog";
+import { findGuidedConversationScript } from "@/data/guidedConversationPilot";
 import { useConversationSession } from "@/components/language/useConversationSession";
 import { ConversationSessionRecap } from "@/components/language/ConversationSessionRecap";
 import { projectClosedConversationRecap } from "@/lib/conversation-session/recap";
@@ -66,6 +67,11 @@ function LocalConversationPage() {
   const settings = loadJapaneseAppSettings(records.japaneseAppSettings).sections.conversation;
   const settingsError = languageSettingsProjectionError({ japaneseAppSettings: records.japaneseAppSettings });
   const [previewScriptId, setPreviewScriptId] = useState("legacy-daily");
+  const [practiceKind, setPracticeKind] = useState<'guided' | 'legacy'>('legacy');
+  const [contextId, setContextId] = useState('convenience-store');
+  const [levelId, setLevelId] = useState('beginner');
+  const [hintTarget, setHintTarget] = useState<string | null>(null);
+  const selectionSerial = useRef(0);
   const [acceptedIdentity, setAcceptedIdentity] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
@@ -73,9 +79,15 @@ function LocalConversationPage() {
   const audioView = useRef<{ identity: string | null; sessionId: string | null; revision: number | null } | null>(null);
   const composing = useRef(false);
   const session = flow.session;
-  const selectedScriptId = session?.source.scriptId ?? previewScriptId;
+  const selectedScriptId = previewScriptId;
   const preview = LEGACY_FREE_CONVERSATION_SCRIPTS.find(script => script.scriptId === selectedScriptId);
-  const content = session?.source.content ?? preview?.content;
+  const cell = findFreeConversationCoverage(contextId, levelId);
+  const guidedPreview = cell?.availability === 'available' ? findGuidedConversationScript(cell.scriptId, cell.scriptRevision) : undefined;
+  const selection = practiceKind === 'legacy' ? selectedScriptId : guidedPreview ? { kind: 'guided' as const, scriptId: guidedPreview.scriptId, scriptRevision: guidedPreview.scriptRevision } : null;
+  const content = session ? ('japanese' in session.source.content ? session.source.content : null) : preview?.content;
+  const activeStep = flow.activeStep;
+  const currentHintTarget = flow.activeStepRef ? JSON.stringify([flow.identity, session?.sessionId, flow.activeStepRef]) : null;
+  const hintVisible = currentHintTarget !== null && hintTarget === currentHintTarget;
   const editable = flow.available && Boolean(settingsSnapshot) && flow.canEdit && !session?.closed;
   const accepted = flow.available && flow.identity !== null && acceptedIdentity === flow.identity;
 
@@ -114,21 +126,37 @@ function LocalConversationPage() {
 
   useEffect(() => { composing.current = false; }, [flow.identity, session?.sessionId]);
 
-  // Observe only after the corresponding visible elements have committed.
-  // No exposure is inferred from an emitted payload or a click alone.
+  // Each observation follows this committed DOM and its exact rendered head.
+  // Transcript fallback/help belongs to the answered step, never the next one.
   useEffect(() => {
-    if (!editable || !session || document.visibilityState !== "visible") return;
-    observeExposure({ example: "shown", meaning: "shown", ...(settings.showReading ? { reading: "shown" as const } : {}),
+    if (!flow.available || !settingsSnapshot || !session || session.closed || flow.unsupported || document.visibilityState !== "visible") return;
+    if (flow.guided) {
+      if (activeStep && flow.activeStepRef) observeExposure({ example: "shown", meaning: "shown",
+        ...(settings.showReading || settings.showKoreanPronunciation ? { reading: "shown" as const } : {}),
+        ...(hintVisible ? { hint: "shown" as const } : {}) }, flow.activeStepRef);
+      for (const turn of session.turns) if ('kind' in turn.emission && turn.emission.kind === 'guided-fixed-emission') {
+        observeExposure({ hint: 'shown', ...(turn.emission.exampleFallback ? { example: 'shown', meaning: 'shown',
+          ...(settings.showReading || settings.showKoreanPronunciation ? { reading: 'shown' as const } : {}) } : {}) }, turn.draft.source);
+      }
+    } else if (editable) observeExposure({ example: "shown", meaning: "shown", ...(settings.showReading || settings.showKoreanPronunciation ? { reading: "shown" as const } : {}),
       ...(session.turns.length ? { hint: "shown" as const } : {}) });
-  }, [editable, session, settings.showReading, observeExposure]);
+  }, [settingsSnapshot, flow.available, flow.guided, flow.unsupported, flow.activeStepRef, activeStep, hintVisible, editable, session, settings.showReading, settings.showKoreanPronunciation, observeExposure]);
 
-  const handleSituationChange = async (scriptId: string) => {
+  const changeSelection = async (change: () => void) => {
+    const serial = ++selectionSerial.current;
     stopAudio();
-    if (await flow.leave()) setPreviewScriptId(scriptId);
+    if (await flow.leave() && serial === selectionSerial.current) change();
+  };
+  const handleSituationChange = (scriptId: string) => changeSelection(() => setPreviewScriptId(scriptId));
+  const handleStart = () => {
+    if (!accepted || flow.busy || !selection) return;
+    stopAudio();
+    const serial = selectionSerial.current;
+    void flow.start(selection, () => selectionSerial.current === serial);
   };
 
   const handleSend = () => {
-    if (composing.current || !editable || flow.busy || !flow.input.trim() || flow.input.length > 8000) return;
+    if (composing.current || !editable || !flow.canSend || flow.busy || !flow.input.trim() || flow.input.length > 8000) return;
     stopAudio();
     void flow.send();
   };
@@ -142,7 +170,7 @@ function LocalConversationPage() {
   const handleExampleAudio = async () => {
     // Only the currently editable fixed example is audible. Saved turns,
     // recovery drafts, history and closed recap have no audio actions.
-    if (!editable || !session || !content || playingAudioKey || audioRequest.current || document.visibilityState !== "visible" || !flow.checkCurrent()) return;
+    if (flow.guided || !editable || !session || !content || playingAudioKey || audioRequest.current || document.visibilityState !== "visible" || !flow.checkCurrent()) return;
     const currentView = audioView.current;
     if (!currentView || currentView.identity !== flow.identity || currentView.sessionId !== session.sessionId || currentView.revision !== session.stateRevision) return;
     const request = new AbortController();
@@ -195,14 +223,34 @@ function LocalConversationPage() {
       </label>
     </section>
 
-    <div className="card" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
-      <label htmlFor="conversation-situation">상황</label>
-      <select id="conversation-situation" value={selectedScriptId} disabled={flow.busy} onChange={event => void handleSituationChange(event.target.value)}>
-        {LEGACY_FREE_CONVERSATION_SCRIPTS.map(script => <option key={script.scriptId} value={script.scriptId}>{script.label}</option>)}
-      </select>
-      <button type="button" className="btn" disabled={!accepted || flow.busy} onClick={() => { if (!accepted || flow.busy) return; stopAudio(); void flow.start(selectedScriptId); }}>새 대화 시작</button>
-      <button type="button" className="btn" disabled={flow.busy || !session} onClick={() => { stopAudio(); void flow.leave(); }}>기록 보기</button>
-    </div>
+    <section className="card" aria-label="새 대화 선택" style={{ marginBottom: 14 }}>
+      <p>수준별 연습 3/24개 이용 가능 · 나머지 21개는 참고 자료만 있음 · 대화 준비 중</p>
+      <p>기존 다섯 예문은 수준 미지정이며 위 24개와 별개예요.</p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <button type="button" className="btn" aria-pressed={practiceKind === 'guided'} disabled={flow.busy} onClick={() => void changeSelection(() => setPracticeKind('guided'))}>수준별 연습 선택</button>
+        <button type="button" className="btn" aria-pressed={practiceKind === 'legacy'} disabled={flow.busy} onClick={() => void changeSelection(() => setPracticeKind('legacy'))}>기존 예문 선택</button>
+      </div>
+      {practiceKind === 'guided' ? <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <label htmlFor="conversation-context">상황</label>
+        <select id="conversation-context" value={contextId} disabled={flow.busy} onChange={event => { const value = event.target.value; void changeSelection(() => setContextId(value)); }}>
+          {FREE_CONVERSATION_CONTEXTS.map(context => <option key={context.id} value={context.id}>{context.label}</option>)}
+        </select>
+        <label htmlFor="conversation-level">수준</label>
+        <select id="conversation-level" value={levelId} disabled={flow.busy} onChange={event => { const value = event.target.value; void changeSelection(() => setLevelId(value)); }}>
+          {FREE_CONVERSATION_LEVELS.map(level => <option key={level.id} value={level.id}>{level.label}</option>)}
+        </select>
+        {!guidedPreview && <p role="status">참고 자료만 있음 · 대화 준비 중. 이 상황과 수준의 대화는 아직 시작할 수 없어요.</p>}
+      </div> : <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <label htmlFor="conversation-situation">기존 예문 · 수준 미지정</label>
+        <select id="conversation-situation" value={selectedScriptId} disabled={flow.busy} onChange={event => void handleSituationChange(event.target.value)}>
+          {LEGACY_FREE_CONVERSATION_SCRIPTS.map(script => <option key={script.scriptId} value={script.scriptId}>{script.label}</option>)}
+        </select>
+      </div>}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+        <button type="button" className="btn" disabled={!accepted || flow.busy || !selection} onClick={handleStart}>새 대화 시작</button>
+        <button type="button" className="btn" disabled={flow.busy || !session} onClick={() => { stopAudio(); void flow.leave(); }}>기록 보기</button>
+      </div>
+    </section>
 
     <p role="status" aria-live="polite" data-save-status={flow.status}>{localStatusText[flow.status]}</p>
     {flow.error && <p role="alert">{flow.error}</p>}
@@ -224,7 +272,7 @@ function LocalConversationPage() {
     {(flow.status === "unsaved" || retainedInput) && flow.status !== "uncertain" && !flow.busy && !pending && <button type="button" className="btn" style={{ marginBottom: 14 }} onClick={() => { stopAudio(); flow.requestDiscardInput(); }}>저장되지 않은 입력 버리기</button>}
     {flow.discardingInput && <section className="card" role="alertdialog" aria-modal="false" aria-labelledby="discard-input-title" aria-describedby="discard-input-description" style={{ marginBottom: 14 }}>
       <h3 id="discard-input-title">저장되지 않은 입력을 버릴까요?</h3>
-      <p id="discard-input-description">화면에만 남아 있는 입력을 버려요. 편집 가능한 저장된 초안이 확인되면 그것을 표시하고, 그렇지 않으면 입력을 비워요. 지금의 미저장 입력은 복구할 수 없어요. 저장된 대화 기록은 삭제하지 않아요.</p>
+      <p id="discard-input-description">{flow.guided ? '화면에만 남아 있는 입력과 미저장 편집을 버리고 입력란을 비워요. 저장된 초안은 아래 목록에 그대로 보관하며 직접 다시 열 수 있어요.' : '화면에만 남아 있는 입력을 버려요. 편집 가능한 저장된 초안이 확인되면 그것을 표시하고, 그렇지 않으면 입력을 비워요.'} 지금의 미저장 입력은 복구할 수 없어요. 저장된 대화 기록은 삭제하지 않아요.</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button type="button" className="btn btn-danger" disabled={flow.busy} onClick={() => { stopAudio(); flow.confirmDiscardInput(); }}>현재 미저장 입력 버리기</button>
         <button type="button" className="btn" disabled={flow.busy} onClick={flow.cancelDiscardInput}>입력 유지</button>
@@ -232,9 +280,18 @@ function LocalConversationPage() {
     </section>}
 
     {!session && <section className="card" aria-label="무료 회화 예문 미리보기" style={{ marginBottom: 14 }}>
-      <h2>{preview?.label} 예문 미리보기</h2>
-      <p>기존 다섯 상황의 고정 예문이에요. 수준별 학습 과정은 아니에요.</p>
-      {content && <><p lang="ja">{content.japanese}</p><p>{content.meaning}</p></>}
+      {practiceKind === 'guided' ? guidedPreview ? <>
+        <h2>{guidedPreview.labelKo} · {guidedPreview.levelLabelKo}</h2>
+        <p>{guidedPreview.situationKo}</p>
+        <p>{guidedPreview.steps.length}단계 · 텍스트 전용 · 직접 작성한 고정 연습</p>
+        <p>보내고 다음 단계로는 입력을 평가하지 않고 한 단계씩 진행해요. 점원 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 마지막 전송 뒤에도 대화 종료는 직접 선택해요.</p>
+        <p>{guidedPreview.completionNoteKo}</p>
+        <p>현지 화자·전문가 검토 전의 직접 작성한 연습이에요. 수준 표시는 JLPT·CEFR 인증이 아니에요.</p>
+      </> : <p>참고 자료만 있음 · 대화 준비 중</p> : <>
+        <h2>{preview?.label} 예문 미리보기</h2>
+        <p>기존 다섯 상황의 고정 예문이에요. 수준별 학습 과정은 아니에요.</p>
+        {content && <><p lang="ja">{content.japanese}</p><p>{content.meaning}</p></>}
+      </>}
       <p>저장 안내를 확인하고 ‘새 대화 시작’을 누르면 입력할 수 있어요.</p>
     </section>}
 
@@ -260,8 +317,10 @@ function LocalConversationPage() {
         <p>잘 쓴 표현: 평가하지 않음 · 고칠 표현: 평가하지 않음</p>
         <p>예문 버전: {session.source.scriptRevision}</p>
         <p>응답 기준: {session.source.builderPolicy}</p>
-        <p lang="ja">{session.source.content.japanese}</p>
-        <p>{session.source.content.meaning}</p>
+        {'japanese' in session.source.content ? <><p lang="ja">{session.source.content.japanese}</p><p>{session.source.content.meaning}</p></> : <>
+          <p>{session.source.levelId} · {session.source.content.situationKo}</p>
+          {session.source.content.steps.map(step => <div key={step.id}><strong>{step.titleKo}</strong><p lang="ja">{step.learnerExample.japanese}</p><p>{step.learnerExample.meaningKo}</p></div>)}
+        </>}
         {session.turns.length === 0 ? <p>이 원본에 저장된 전송 문장은 없어요.</p> : <ol style={{ paddingInlineStart: 24 }}>
           {session.turns.map(turn => <li key={turn.turnId} style={{ marginBottom: 16 }}>
             <strong>입력한 문장</strong>
@@ -273,8 +332,29 @@ function LocalConversationPage() {
             <p>{turn.emission.explanation}</p>
           </li>)}
         </ol>}
-      </section> : recap ? <ConversationSessionRecap recap={recap} /> : !session.closed && content ? <>
-        <section className="card" aria-label="무료 회화 예문" style={{ marginBottom: 14 }}>
+      </section> : recap ? <ConversationSessionRecap recap={recap} /> : !session.closed ? <>
+        {flow.guided ? <section className="card" aria-label="현재 연습 단계" style={{ marginBottom: 14 }}>
+          <p>직접 작성한 고정 연습 · {'levelLabelKo' in session.source ? session.source.levelLabelKo : ''} · 텍스트 전용</p>
+          <p>전송한 단계 {flow.progress?.submittedStepCount}/{flow.progress?.totalStepCount} · 입력은 평가하지 않아요.</p>
+          <p>점원 응답은 입력에 맞춰 바뀌지 않는 정해진 시범이에요. 전송하면 문자열 일치 여부와 관계없이 한 단계 진행해요.</p>
+          {'steps' in session.source.content && <><p>{session.source.content.situationKo}</p><p className="muted">{session.source.content.pronunciationNoteKo}</p></>}
+          {activeStep ? <>
+            <h3>{(flow.progress?.activeStepIndex ?? 0) + 1}. {activeStep.titleKo}</h3>
+            <p>{activeStep.goalKo}</p>
+            {activeStep.prompt && <div><strong>점원 말</strong><p lang="ja">{activeStep.prompt.japanese}</p><p>{activeStep.prompt.meaningKo}</p></div>}
+            <strong>연습 예문</strong>
+            <p lang="ja">{activeStep.learnerExample.japanese}</p>
+            {settings.showReading && <p lang="ja">{activeStep.learnerExample.reading}</p>}
+            {settings.showKoreanPronunciation && <p className="muted">{activeStep.learnerExample.koreanPronunciation}</p>}
+            <p>{activeStep.learnerExample.meaningKo}</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="btn" disabled={!editable || !flow.canSend || flow.busy} onClick={flow.insertExample}>예문 넣기</button>
+              <button type="button" className="btn" aria-expanded={hintVisible} onClick={() => setHintTarget(hintVisible ? null : currentHintTarget)}>{hintVisible ? '힌트 숨기기' : '힌트 보기'}</button>
+            </div>
+            {hintVisible && <p>{activeStep.hintKo}</p>}
+          </> : <p role="status">연습 단계 {flow.progress?.submittedStepCount}/{flow.progress?.totalStepCount} 전송됨 · 대화 종료로 기록을 마무리해 주세요.</p>}
+          {flow.currentStepBlocked && <p role="alert">이전 단계의 초안 두 개가 저장되어 있어 다음 단계의 입력을 저장할 수 없어요. 초안을 그대로 보관하고 대화를 종료한 뒤 새 대화를 시작할 수 있어요. 새 대화는 첫 단계부터 시작하며 저장 한도가 적용돼요.</p>}
+        </section> : content && <section className="card" aria-label="무료 회화 예문" style={{ marginBottom: 14 }}>
           <strong>{content.meaning}</strong>
           <p lang="ja">{content.japanese}</p>
           {settings.showReading && <p lang="ja">{content.reading}</p>}
@@ -285,7 +365,7 @@ function LocalConversationPage() {
             {playingAudioKey && <button type="button" className="btn" onClick={stopAudio}>재생 중지</button>}
           </div>
           {audioError && <p role="alert">{audioError}</p>}
-        </section>
+        </section>}
 
         <section aria-label="이 대화에서 보낸 문장" style={{ border: "1px solid #dce8dc", borderRadius: 10, padding: 12, marginBottom: 14 }}>
           <h3>보낸 문장 {session.turns.length}개</h3>
@@ -296,29 +376,44 @@ function LocalConversationPage() {
                 <p lang="ja" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{turn.draft.input}</p>
               </div>
               <div style={{ border: "1px solid #d6e9d6", borderRadius: 10, background: "#f5faf5", padding: 12 }}>
-                <strong>고정 연습 예문 · 평가하지 않음</strong>
+                <strong>{'kind' in turn.emission ? '정해진 점원 응답 · 평가하지 않음' : '고정 연습 예문 · 평가하지 않음'}</strong>
                 <p lang="ja">{turn.emission.reply}</p>
                 {settings.showReading && <p lang="ja">{turn.emission.replyReading}</p>}
                 {settings.showKoreanPronunciation && <p className="muted">{turn.emission.replyKoreanPronunciation}</p>}
+                {'kind' in turn.emission && turn.emission.kind === 'guided-fixed-emission' && <>
+                  <p>{turn.emission.replyMeaningKo}</p>
+                  {turn.emission.exampleFallback && <div><strong>참고 예문</strong><p lang="ja">{turn.emission.exampleFallback.japanese}</p>
+                    {settings.showReading && <p lang="ja">{turn.emission.exampleFallback.reading}</p>}
+                    {settings.showKoreanPronunciation && <p>{turn.emission.exampleFallback.koreanPronunciation}</p>}
+                    <p>{turn.emission.exampleFallback.meaningKo}</p></div>}
+                  <p>{turn.emission.hintKo}</p>
+                </>}
                 <p>{turn.emission.explanation}</p>
               </div>
             </li>)}
           </ol>}
         </section>
 
-        <label htmlFor="conversation-input">일본어 문장</label>
+        {flow.guided && flow.olderStepInput && <section className="card" aria-label="이전 단계의 보내지 않은 초안">
+          <h3>이전 단계의 보내지 않은 초안 · {flow.editorStep?.titleKo ?? flow.editorStepRef?.stepId}</h3>
+          <p>아래 입력은 이 단계의 초안으로 보존돼요. 현재 단계의 문장으로 바뀌거나 다시 전송되지 않아요.</p>
+          {activeStep && <button type="button" className="btn" disabled={flow.busy || flow.currentStepBlocked || Boolean(pending)} onClick={() => void flow.openCurrentStep()}>저장하고 현재 단계 열기</button>}
+        </section>}
+        {flow.guided && !flow.editorStepRef && activeStep && <button type="button" className="btn" disabled={flow.busy || flow.currentStepBlocked || Boolean(pending)} onClick={() => void flow.openCurrentStep()}>현재 단계 열기</button>}
+        {flow.laneBlocked && flow.input && <p role="alert">화면의 미저장 입력을 보존했어요. 두 저장 초안을 바꾸지 않으므로 이 입력을 저장할 수 없어요. 직접 보관한 뒤 미저장 입력을 버릴지 확인해야 종료할 수 있어요.</p>}
+        <label htmlFor="conversation-input">{flow.olderStepInput ? '이전 단계 초안 입력' : '일본어 문장'}</label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
           <input id="conversation-input" type="text" value={flow.input} disabled={!editable} aria-describedby="conversation-input-help"
             onChange={event => flow.typeInput(event.target.value)} onKeyDown={handleKeyDown}
             onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
             placeholder="일본어로 입력하세요" style={{ flex: "1 1 200px", minWidth: 0 }} />
-          <button type="button" className="btn" disabled={!editable || flow.busy || !flow.input.trim() || overLimit || Boolean(pending)} onClick={handleSend}>전송</button>
+          <button type="button" className="btn" disabled={!editable || !flow.canSend || flow.busy || !flow.input.trim() || overLimit || Boolean(pending)} onClick={handleSend}>{flow.guided ? flow.progress?.activeStepIndex === (flow.progress?.totalStepCount ?? 0) - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로' : '전송'}</button>
         </div>
-        <p id="conversation-input-help" className="muted">최대 8,000자(UTF-16 단위). 한도를 넘긴 입력도 지우지 않고 그대로 남겨요.</p>
+        <p id="conversation-input-help" className="muted">최대 8,000자(UTF-16 단위). 한도를 넘긴 입력도 지우지 않고 그대로 남겨요.{flow.guided && " Enter도 위 전송 버튼과 같이 보내고 다음 단계로 진행해요. 한글·일본어 조합 중 Enter는 전송하지 않아요."}</p>
         {overLimit && <p role="alert">8,000자 한도를 넘겨 저장하거나 전송할 수 없어요. 입력은 그대로 남아 있으니 직접 줄여 주세요.</p>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           <button type="button" className="btn" disabled={!editable || flow.busy || overLimit} onClick={() => void flow.save()}>입력 저장</button>
-          <button type="button" className="btn" disabled={!editable || flow.busy || overLimit || Boolean(pending)} onClick={() => { stopAudio(); void flow.end(); }}>대화 끝내기</button>
+          <button type="button" className="btn" disabled={!flow.canClose || overLimit} onClick={() => { stopAudio(); void flow.end(); }}>{flow.guided ? flow.currentStepBlocked ? '현재 기록으로 대화 종료' : '대화 종료' : '대화 끝내기'}</button>
         </div>
         <p className="muted">대화를 끝내면 보낸 문장만 종료 요약에 포함해요. 남은 입력은 보내지 않은 초안으로 따로 보관해요.</p>
       </> : <p role="status">종료한 대화의 저장 기준을 확인하지 못했어요.</p>}
@@ -327,7 +422,7 @@ function LocalConversationPage() {
         <h3>보내지 않은 초안</h3>
         <p className="muted">저장된 초안은 보낸 문장이 아니에요. 보류 전송에 묶인 초안은 결과 확인이나 취소 후 편집할 수 있어요.</p>
         {session.drafts.filter(draft => draft.input.trim()).map((draft, index) => <div key={draft.draftId} style={{ borderTop: "1px solid #ddd", paddingBlock: 10 }}>
-          <strong>초안 {index + 1}</strong>
+          <strong>초안 {index + 1}{'steps' in session.source.content && ` · ${session.source.content.steps.find(step => step.id === draft.source.stepId)?.titleKo ?? draft.source.stepId} · ${draft.source.stepId === flow.progress?.activeStepId ? '현재 단계의 보내지 않은 초안' : '이전 단계의 보내지 않은 초안'}`}</strong>
           <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{draft.input}</p>
           {!session.closed && !flow.unsupported && <button type="button" className="btn" disabled={flow.busy} onClick={() => { stopAudio(); void flow.selectDraft(draft.draftId); }}>이 초안 열기</button>}
         </div>)}
@@ -341,7 +436,9 @@ function LocalConversationPage() {
           const unsent = item.drafts.filter(draft => draft.input.trim()).length;
           const unresolved = item.operations.some(operation => operation.terminal === null);
           return <li key={item.sessionId} style={{ borderTop: "1px solid #ddd", paddingBlock: 12 }}>
-            <strong>{item.source.label} · {item.closed ? "종료됨" : "진행 중"}</strong>
+            <strong>{item.source.label} · {'levelLabelKo' in item.source ? `${item.source.levelLabelKo} · 직접 작성한 고정 연습` : '기존 고정 예문 · 수준 미지정'} · {item.closed ? "종료됨" : "진행 중"}</strong>
+            {'steps' in item.source.content && <p>전송한 단계 {item.turns.length}/{item.source.content.steps.length}</p>}
+            <p className="muted">예문 버전: {item.source.scriptRevision}</p>
             <p>{sessionTime(item.createdAt, item.timeZone)} ({item.timeZone}) · 보낸 문장 {item.turns.length}개 · 보내지 않은 초안 {unsent}개</p>
             {unresolved && <p>저장 확인 필요 · 보류 중인 작업이 있어요.</p>}
             <button type="button" className="btn" aria-label={`${item.source.label} ${sessionTime(item.createdAt, item.timeZone)} ${item.closed ? "종료 요약 보기" : "대화 이어가기"}`} disabled={flow.busy} onClick={() => { stopAudio(); void flow.open(item.sessionId); }}>{item.source.label} {item.closed ? "종료 요약 보기" : "대화 이어가기"}</button>

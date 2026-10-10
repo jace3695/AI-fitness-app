@@ -1,4 +1,4 @@
-import { buildFrozenTurn, canonicalJson, commandSchema, exact, freezeLegacySource, freezeRecord, isPlainJson, SUMMARY_POLICY_VERSION,
+import { buildFrozenTurn, buildGuidedTurn, freezeGuidedSource, isGuidedSource, GUIDED_SUMMARY_POLICY_VERSION, canonicalJson, commandSchema, exact, freezeLegacySource, freezeRecord, isPlainJson, SUMMARY_POLICY_VERSION,
   type ConversationCommand, type ConversationDraft, type ConversationEnvelope, type ConversationSession } from '../../lib/conversation-session/contracts.ts';
 import { planApply, planCreateSession, planDeleteSession, planResolve, planSaveDraft, planStage, sessionSource, type PlanResult, type SessionSource } from '../../lib/conversation-session/reducer.ts';
 import { languageConversationCapability, type LanguageConversationSnapshot, type LanguageRecordContext } from './languageCloudSync.ts';
@@ -33,19 +33,26 @@ function captureEdit(source: ConversationSnapshot, kind: ConversationEditIntent[
   validSource(source); const expected = planned(plan(source.envelope));
   const intent = Object.freeze({ id: crypto.randomUUID(), kind }); edits.set(intent, { source, plan, expected, attempt: { state: 'created' } }); return intent;
 }
-/** Only an explicit new-session command enrolls an absent owner partition. */
-function captureConversationSessionImpl(source: ConversationSnapshot, scriptId: string, timeZone: string): ConversationEditIntent {
+export type ConversationSelection = string | Readonly<{ kind: 'guided'; scriptId: string; scriptRevision: string }>;
+/** Only an explicit new-session command enrolls or upgrades an owner partition. */
+function captureConversationSessionImpl(source: ConversationSnapshot, selection: ConversationSelection, timeZone: string): ConversationEditIntent {
   validSource(source);
-  const selected = freezeLegacySource(scriptId); if (!selected) return fail();
+  const selected = typeof selection === 'string' ? freezeLegacySource(selection)
+    : isPlainJson(selection) && exact(Object.keys(selection).sort(), ['kind', 'scriptId', 'scriptRevision']) && selection.kind === 'guided'
+      ? freezeGuidedSource(selection.scriptId, selection.scriptRevision) : undefined;
+  if (!selected) return fail();
   const now = new Date().toISOString();
-  const base: ConversationEnvelope = source.envelope ?? freezeRecord({ schemaVersion: 1, ownerId: source.context.userId,
+  const base: ConversationEnvelope = source.envelope ?? freezeRecord({ schemaVersion: isGuidedSource(selected) ? 2 : 1, ownerId: source.context.userId,
     generationId: crypto.randomUUID(), marker: source.observation.marker,
     enrollment: { kind: 'explicit-enrollment', enrollmentId: crypto.randomUUID(), createdAt: now, observation: source.observation }, sessions: [], tombstones: [] });
   const session: ConversationSession = freezeRecord({ sessionId: crypto.randomUUID(), createdAt: now, timeZone, source: selected,
     stateRevision: 0, headRevision: 0, drafts: [], turns: [], operations: [], closed: null });
   return captureEdit(source, 'create', fresh => {
     if (fresh && fresh.generationId !== base.generationId || !fresh && source.envelope) return { status: 'blocked', code: 'stale-source' };
-    return planCreateSession(fresh ?? base, base, session);
+    // Upgrade and append together against the fresh locked envelope. Never issue
+    // a migration-only write, reconstruct an older partition, or change its identity.
+    const current = fresh ?? base;
+    return planCreateSession(isGuidedSource(selected) ? { ...current, schemaVersion: 2 } : current, base, session);
   });
 }
 function captureConversationDraftImpl(source: ConversationSnapshot, sessionId: string, draft: ConversationDraft): ConversationEditIntent {
@@ -65,8 +72,9 @@ function captureCommand(source: ConversationSnapshot, token: SessionSource, raw:
 function captureConversationAppendImpl(source: ConversationSnapshot, sessionId: string, draftId: string): ConversationCommandIntent {
   const { envelope, session, token } = sessionAt(source, sessionId), draft = session.drafts.find(item => item.draftId === draftId);
   if (!draft) return fail();
-  const turn = buildFrozenTurn(session.source, draft, { turnId: crypto.randomUUID(), sequence: session.turns.length + 1,
-    predecessorTurnId: session.turns.at(-1)?.turnId ?? null, recordedAt: new Date().toISOString() });
+  const fields = { turnId: crypto.randomUUID(), sequence: session.turns.length + 1,
+    predecessorTurnId: session.turns.at(-1)?.turnId ?? null, recordedAt: new Date().toISOString() };
+  const turn = isGuidedSource(session.source) ? buildGuidedTurn(session, draft, fields) : buildFrozenTurn(session.source, draft, fields);
   if (!turn) return fail();
   return captureCommand(source, token, { kind: 'append', operationId: crypto.randomUUID(), receiptId: crypto.randomUUID(), ownerId: envelope.ownerId,
     generationId: envelope.generationId, sessionId, expectedHeadRevision: session.headRevision, turn });
@@ -75,7 +83,7 @@ function captureConversationCloseImpl(source: ConversationSnapshot, sessionId: s
   const { envelope, session, token } = sessionAt(source, sessionId);
   return captureCommand(source, token, { kind: 'close', operationId: crypto.randomUUID(), receiptId: crypto.randomUUID(), ownerId: envelope.ownerId,
     generationId: envelope.generationId, sessionId, expectedHeadRevision: session.headRevision,
-    boundary: { boundaryId: crypto.randomUUID(), summaryPolicyVersion: SUMMARY_POLICY_VERSION,
+    boundary: { boundaryId: crypto.randomUUID(), summaryPolicyVersion: isGuidedSource(session.source) ? GUIDED_SUMMARY_POLICY_VERSION : SUMMARY_POLICY_VERSION,
       turnRefs: session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })),
       closedAt: new Date().toISOString(), timeZone: session.timeZone, observation: source.observation } });
 }

@@ -10,12 +10,14 @@ import { readConversationSnapshot, captureConversationSession, captureConversati
   type ConversationWriteResult } from '../../app/data/conversationLocalRecords.ts';
 import { CLOUD_SESSION_CHANGED_EVENT, RECORDS_CHANGED_EVENT } from '../../app/data/storageTransaction.ts';
 import { RECORD_RESET_EVENT } from '../../app/data/appRecordReset.ts';
-import { CONVERSATION_LIMITS, exact, sourceRef, supportedSource, type ConversationDraft, type ConversationSession } from '../../lib/conversation-session/contracts.ts';
+import { CONVERSATION_LIMITS, exact, sourceRef, supportedSource, isGuidedSource, getConversationStep, getConversationProgress, type ConversationDraft, type ConversationSession, type ConversationCommand } from '../../lib/conversation-session/contracts.ts';
 
 type Exposure = ConversationDraft['exposure'];
+type StepRef = ConversationDraft['source'];
+type Selection = string | { kind: 'guided'; scriptId: string; scriptRevision: string };
 type Editor = { input: string; version: number; draftId: string; origin: ConversationDraft['origin']; exposure: Exposure;
-  expected: ConversationDraft | null; dirty: boolean };
-type Action = { type: 'edit'; intent: ConversationEditIntent; editor?: Editor; draft?: ConversationDraft; context: LanguageRecordContext }
+  stepRef: StepRef; expected: ConversationDraft | null; dirty: boolean };
+type Action = { type: 'edit'; intent: ConversationEditIntent; editor?: Editor; draft?: ConversationDraft; selectionCurrent?: () => boolean; context: LanguageRecordContext }
   | { type: 'command'; intent: ConversationCommandIntent; context: LanguageRecordContext };
 type Deletion = { source: ConversationSnapshot; sessionId: string; label: string; intent: ConversationEditIntent };
 type Discard = { editor: Editor; scope: string | null };
@@ -26,8 +28,8 @@ const mergeExposure = (...values: Exposure[]): Exposure => Object.fromEntries(([
 const blankExposure = (): Exposure => ({ example: 'not-shown', reading: 'not-shown', meaning: 'not-shown', hint: 'not-shown' });
 const scopeOf = (source: ConversationSnapshot) => JSON.stringify([source.context.userId, source.context.epoch, source.observation.marker, source.envelope?.generationId ?? null]);
 const pendingAt = (session?: ConversationSession | null) => session?.operations.find(operation => !operation.terminal)?.command ?? null;
-const blankEditor = (exposure: Exposure): Editor => ({ input: '', version: 0, draftId: crypto.randomUUID(), origin: { kind: 'typed', edited: false }, exposure: { ...exposure }, expected: null, dirty: false });
-const fromDraft = (draft: ConversationDraft): Editor => ({ input: draft.input, version: 0, draftId: draft.draftId, origin: { ...draft.origin }, exposure: { ...draft.exposure }, expected: draft, dirty: false });
+const blankEditor = (exposure: Exposure, stepRef: StepRef): Editor => ({ stepRef: { ...stepRef }, input: '', version: 0, draftId: crypto.randomUUID(), origin: { kind: 'typed', edited: false }, exposure: { ...exposure }, expected: null, dirty: false });
+const fromDraft = (draft: ConversationDraft): Editor => ({ stepRef: { ...draft.source }, input: draft.input, version: 0, draftId: draft.draftId, origin: { ...draft.origin }, exposure: { ...draft.exposure }, expected: draft, dirty: false });
 const message = (error: unknown) => {
   const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
   if (code === 'capacity-exceeded') return '이 브라우저의 대화 저장 한도에 도달했어요. 입력을 보존했습니다. 필요한 대화를 확인한 뒤 직접 삭제해 주세요.';
@@ -47,16 +49,44 @@ export function useConversationSession() {
   const update = () => { if (mounted.current) render(value => value + 1); };
   const clear = () => { s.serial++; s.discard = null; s.exposures.clear(); s.source = null; s.scope = null; s.sessionId = null; s.editor = null; s.exposure = blankExposure(); s.action = null; s.busy = false; s.uncertain = false; s.deletion = null; s.error = null; s.missing = false; s.initialized = true; };
   const selected = (source = s.source) => source?.envelope?.sessions.find(item => item.sessionId === s.sessionId) ?? null;
-  const choose = (session: ConversationSession | null) => {
-    if (s.sessionId) s.exposures.set(s.sessionId, { ...s.exposure });
-    s.sessionId = session?.sessionId ?? null; s.exposure = session ? mergeExposure(blankExposure(), s.exposures.get(session.sessionId) ?? blankExposure(), ...session.drafts.map(draft => draft.exposure), ...session.turns.map(turn => turn.draft.exposure)) : blankExposure(); s.deletion = null; s.discard = null; s.missing = false;
-    const pending = pendingAt(session), pinned = pending?.kind === 'append' ? pending.turn.draft.draftId : null;
-    const draft = session?.drafts.find(item => item.draftId !== pinned) ?? session?.drafts[0];
-    s.editor = session && !session.closed && supportedSource(session.source) ? draft ? fromDraft(draft) : blankEditor(s.exposure) : null;
-    // Restored exposure is historical. Newly displayed facts are added only by the page effect.
-    if (s.editor) { s.exposure = mergeExposure(s.exposure, s.editor.exposure); s.editor.exposure = { ...s.exposure }; if (s.editor.expected && !exact(s.editor.expected.exposure, s.exposure)) s.editor.dirty = true; }
+  const activeRef = (session: ConversationSession | null): StepRef | null => {
+    if (!session || session.closed || !supportedSource(session.source)) return null;
+    const stepId = getConversationProgress(session)?.activeStepId;
+    return stepId ? sourceRef(session.source, stepId) : null;
   };
-  const acceptRead = (source: ConversationSnapshot) => {
+  const exposureKey = (session: ConversationSession, ref: StepRef) => JSON.stringify([s.scope, session.sessionId, ref.scriptId, ref.scriptRevision, ref.stepId]);
+  const exposureAt = (session: ConversationSession, ref: StepRef): Exposure => mergeExposure(blankExposure(),
+    s.exposures.get(exposureKey(session, ref)) ?? blankExposure(),
+    ...session.drafts.filter(draft => exact(draft.source, ref)).map(draft => draft.exposure),
+    ...session.turns.filter(turn => exact(turn.draft.source, ref)).map(turn => turn.draft.exposure));
+  const rememberEditor = (session = selected()) => {
+    if (session && s.editor) s.exposures.set(exposureKey(session, s.editor.stepRef), { ...s.editor.exposure });
+  };
+  const newCurrentEditor = (session: ConversationSession): Editor | null => {
+    const ref = activeRef(session);
+    return ref ? blankEditor(exposureAt(session, ref), ref) : null;
+  };
+  const laneBlocked = (session: ConversationSession | null, editor = s.editor) => Boolean(session && isGuidedSource(session.source)
+    && editor && !session.drafts.some(draft => draft.draftId === editor.draftId) && session.drafts.length >= CONVERSATION_LIMITS.draftLanes);
+  const currentStepBlocked = (session: ConversationSession | null) => {
+    const ref = activeRef(session);
+    return Boolean(session && isGuidedSource(session.source) && ref && session.drafts.length >= CONVERSATION_LIMITS.draftLanes
+      && !session.drafts.some(draft => exact(draft.source, ref)));
+  };
+  const laneMessage = '이전 단계의 초안 두 개가 저장되어 있어 다음 단계의 입력을 저장할 수 없어요. 초안을 그대로 보관하고 대화를 종료한 뒤 새 대화를 시작할 수 있어요.';
+  const choose = (session: ConversationSession | null) => {
+    rememberEditor();
+    s.sessionId = session?.sessionId ?? null; s.deletion = null; s.discard = null; s.missing = false;
+    const pending = pendingAt(session), pinned = pending?.kind === 'append' ? pending.turn.draft.draftId : null;
+    const ref = activeRef(session);
+    const draft = session?.drafts.find(item => item.draftId !== pinned && ref && exact(item.source, ref))
+      ?? session?.drafts.find(item => item.draftId !== pinned) ?? session?.drafts[0];
+    s.editor = session && !session.closed && supportedSource(session.source) ? draft ? fromDraft(draft) : newCurrentEditor(session) : null;
+    s.exposure = s.editor && session ? exposureAt(session, s.editor.stepRef) : blankExposure();
+    // Restored observations are scoped to this immutable editor step only.
+    if (s.editor) { s.editor.exposure = { ...s.exposure }; if (s.editor.expected && !exact(s.editor.expected.exposure, s.exposure)) s.editor.dirty = true; }
+  };
+  const acceptRead = (source: ConversationSnapshot, reconcilePeer = false) => {
     const scope = scopeOf(source);
     if (s.scope !== null && s.scope !== scope) {
       const enrolling = s.action?.type === 'edit' && s.action.intent.kind === 'create' && !s.source?.envelope
@@ -80,8 +110,15 @@ export function useConversationSession() {
     s.missing = Boolean(s.sessionId && !selected(source));
     if (s.missing) { s.deletion = null; if (s.editor) s.editor.dirty = true; }
     const editor = s.editor, currentSession = selected(source);
-    if (editor?.expected && currentSession && !s.busy && !s.action && !exact(currentSession.drafts.find(item => item.draftId === editor.draftId) ?? null, editor.expected)) {
-      editor.dirty = true; s.error = '다른 창에서 이 입력의 원본이 바뀌었어요. 현재 입력을 보존했으며 자동으로 덮어쓰지 않습니다.';
+    const consumed = Boolean(editor?.expected && currentSession && isGuidedSource(currentSession.source) && !editor.dirty
+      && !currentSession.drafts.some(draft => draft.draftId === editor.draftId)
+      && currentSession.turns.some(turn => exact(turn.draft, editor.expected)));
+    if (consumed && reconcilePeer && !s.busy && !s.action) {
+      // A peer's new head is displayed before the learner explicitly opens it.
+      rememberEditor(currentSession); s.editor = null;
+    }
+    if (!consumed && s.editor?.expected && currentSession && !s.busy && !s.action && !exact(currentSession.drafts.find(item => item.draftId === s.editor!.draftId) ?? null, s.editor.expected)) {
+      s.editor.dirty = true; s.error = '다른 창에서 이 입력의 원본이 바뀌었어요. 현재 입력을 보존했으며 자동으로 덮어쓰지 않습니다.';
     }
     if (currentSession?.closed && s.editor && !s.editor.dirty) s.editor = null;
     if (s.deletion) {
@@ -98,10 +135,11 @@ export function useConversationSession() {
     return source;
   };
   let available = false;
-  try { if (access.context && isLanguageRecordContextCurrent(access.context)) { acceptRead(readConversationSnapshot(access.context)); available = true; } }
+  try { if (access.context && isLanguageRecordContextCurrent(access.context)) { acceptRead(readConversationSnapshot(access.context), true); available = true; } }
   catch { /* The fixed unavailable label never exposes raw storage/host errors. */ }
 
   const renderSerial = s.serial, renderScope = s.scope, renderSessionId = s.sessionId, renderSession = selected();
+  const renderedEditor = s.editor ? { draftId: s.editor.draftId, version: s.editor.version, input: s.editor.input, origin: { ...s.editor.origin }, exposure: { ...s.editor.exposure }, stepRef: { ...s.editor.stepRef } } : null;
   const bound = () => Boolean(mounted.current && s.serial === renderSerial && s.scope === renderScope && s.sessionId === renderSessionId && access.context && live.current.context === access.context && isLanguageRecordContextCurrent(access.context));
 
   useEffect(() => {
@@ -142,11 +180,11 @@ export function useConversationSession() {
     s.source = result.source; s.scope = scopeOf(result.source); return true;
   };
   const finishDraft = (draft: ConversationDraft, editor: Editor) => {
-    if (s.editor?.draftId !== draft.draftId) return;
+    if (s.editor?.draftId !== draft.draftId || !exact(s.editor.stepRef, draft.source) || !exact(editor.stepRef, draft.source)) return;
     // Only our exact predecessor may advance this lane's expected dependency.
     s.editor = { ...s.editor, expected: draft, dirty: s.editor.version !== editor.version };
   };
-  const runEdit = async (intent: ConversationEditIntent, context: LanguageRecordContext, detail: { editor?: Editor; draft?: ConversationDraft } = {}) => {
+  const runEdit = async (intent: ConversationEditIntent, context: LanguageRecordContext, detail: { editor?: Editor; draft?: ConversationDraft; selectionCurrent?: () => boolean } = {}) => {
     if (s.busy || s.action) return false;
     const action: Action = { type: 'edit', intent, context, ...detail }, serial = s.serial;
     s.action = action; s.busy = true; s.error = null; update();
@@ -162,14 +200,14 @@ export function useConversationSession() {
     } finally { if (s.serial === serial) { s.busy = false; update(); } }
   };
   const headView = (session: ConversationSession | null) => session ? { sessionId: session.sessionId, headRevision: session.headRevision, source: session.source, closed: session.closed, pending: pendingAt(session), turnRefs: session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })) } : null;
-  const editorView = (editor: Editor | null) => editor ? { draftId: editor.draftId, version: editor.version, input: editor.input, origin: { ...editor.origin }, exposure: { ...editor.exposure } } : null;
+  const editorView = (editor: Editor | null) => editor ? { draftId: editor.draftId, version: editor.version, input: editor.input, origin: { ...editor.origin }, exposure: { ...editor.exposure }, stepRef: { ...editor.stepRef } } : null;
   const editorSavedAt = (session: ConversationSession | null) => {
     const editor = s.editor;
     if (!editor) return true;
     if (!session || editor.dirty) return false;
     const actual = session.drafts.find(item => item.draftId === editor.draftId) ?? null;
     return exact(actual, editor.expected) && (actual ? actual.input === editor.input && exact(actual.origin, editor.origin)
-      && exact(actual.exposure, editor.exposure) && exact(actual.source, sourceRef(session.source)) : editor.input === '');
+      && exact(actual.exposure, editor.exposure) && exact(actual.source, editor.stepRef) : editor.input === '');
   };
   const navigationSafeAt = (source: ConversationSnapshot) => !s.busy && !s.action && !s.uncertain && !s.missing
     && !pendingAt(selected(source)) && editorSavedAt(selected(source));
@@ -180,14 +218,15 @@ export function useConversationSession() {
       const source = read(), session = selected(source), editor = s.editor;
       if (!session || session.closed || !supportedSource(session.source) || !editor) return false;
       if (!editor.dirty) return true;
+      if (laneBlocked(session, editor)) { s.error = `${laneMessage} 화면의 미저장 입력은 그대로 보존했어요. 종료하려면 이 입력을 직접 보관하고 버릴지 확인해 주세요.`; update(); return false; }
       if (editor.input.length > CONVERSATION_LIMITS.inputCodeUnits) { s.error = '입력은 8,000자까지 저장할 수 있어요. 입력을 자르지 않고 보존했습니다.'; update(); return false; }
       const actual = session.drafts.find(item => item.draftId === editor.draftId) ?? null;
       if (!exact(actual, editor.expected)) { s.error = '다른 창에서 이 입력이 바뀌었어요. 현재 입력을 보존했으며 원본을 덮어쓰지 않았습니다.'; update(); return false; }
       const pending = pendingAt(session);
       if (pending?.kind === 'append' && pending.turn.draft.draftId === editor.draftId) return false;
-      const frozenEditor = { ...editor, origin: { ...editor.origin }, exposure: { ...editor.exposure } };
+      const frozenEditor = { ...editor, stepRef: { ...editor.stepRef }, origin: { ...editor.origin }, exposure: { ...editor.exposure } };
       const draft: ConversationDraft = { draftId: editor.draftId, revision: (actual?.revision ?? 0) + 1, savedAt: new Date().toISOString(),
-        input: editor.input, source: sourceRef(session.source), origin: { ...editor.origin }, exposure: { ...editor.exposure } };
+        input: editor.input, source: { ...editor.stepRef }, origin: { ...editor.origin }, exposure: { ...editor.exposure } };
       const intent = captureConversationDraft(source, session.sessionId, draft);
       const result = await runEdit(intent, source.context, { editor: frozenEditor, draft });
       if (!result) return false;
@@ -211,14 +250,19 @@ export function useConversationSession() {
     try {
       const source = read(), session = selected(source);
       if (!session || session.closed || !supportedSource(session.source) || s.deletion || s.discard || s.action?.type === 'edit' && (s.action.intent.kind === 'create' || s.action.intent.kind === 'delete') || s.action?.type === 'command' && s.action.intent.command.kind === 'close') return;
-      let editor = s.editor ?? blankEditor(s.exposure);
+      if (!exact(headView(session), headView(renderSession)) || !exact(editorView(s.editor), renderedEditor)) return;
+      if (isGuidedSource(session.source) && !s.editor) return;
+      let editor = s.editor ?? newCurrentEditor(session);
+      if (!editor || laneBlocked(session, editor)) return;
       const pending = pendingAt(session) ?? (s.action?.type === 'command' ? s.action.intent.command : null);
       if (pending?.kind === 'append' && editor.draftId === pending.turn.draft.draftId) {
         // Never replace an occupied other lane implicitly. When both persisted
         // lanes are occupied this new in-memory lane remains unsaved at the cap.
-        editor = blankEditor(s.exposure);
+        editor = blankEditor(exposureAt(session, editor.stepRef), editor.stepRef);
       }
+      s.exposure = mergeExposure(exposureAt(session, editor.stepRef), editor.exposure);
       if (inserted) s.exposure = { ...s.exposure, example: 'shown' };
+      s.exposures.set(exposureKey(session, editor.stepRef), { ...s.exposure });
       const origin: ConversationDraft['origin'] = inserted ? { kind: 'inserted-example', edited: false }
         : editor.origin.kind === 'inserted-example' ? { kind: 'inserted-example', edited: editor.origin.edited || input !== editor.input } : { kind: 'typed', edited: false };
       s.editor = { ...editor, input, origin, version: editor.version + 1, dirty: true, exposure: { ...s.exposure, ...(inserted ? { example: 'shown' as const } : {}) } };
@@ -228,6 +272,21 @@ export function useConversationSession() {
       if (!s.busy && !s.action && !s.uncertain) void save();
     } catch { /* A stale event handler cannot write or revive a retired editor. */ }
   };
+  const reconcileAppliedEditor = (operation: ConversationCommand, source: ConversationSnapshot) => {
+    const session = selected(source);
+    const stored = session?.operations.find(item => item.command.operationId === operation.operationId);
+    if (!session || !stored || stored.terminal?.kind !== 'applied' || !exact(stored.command, operation)) return;
+    if (operation.kind === 'close') { if (!s.editor?.dirty) s.editor = null; return; }
+    const editor = s.editor;
+    if (!editor || editor.draftId !== operation.turn.draft.draftId || editor.dirty
+      || !exact(editor.stepRef, operation.turn.draft.source) || editor.input !== operation.turn.draft.input
+      || !exact(editor.origin, operation.turn.draft.origin) || !exact(editor.exposure, operation.turn.draft.exposure)) return;
+    rememberEditor(session);
+    // Only our exact immediate winning head may open its next editor. If a peer
+    // has progressed again, wait for an explicit open of the now-visible task.
+    s.editor = session.headRevision === operation.expectedHeadRevision + 1 && !pendingAt(session) ? newCurrentEditor(session) : null;
+    s.exposure = s.editor ? { ...s.editor.exposure } : blankExposure();
+  };
   const command = async (kind: 'append' | 'close'): Promise<boolean> => {
     if (s.busy || s.action || s.uncertain || s.deletion) return false;
     try {
@@ -235,7 +294,8 @@ export function useConversationSession() {
       if (!session || session.closed || !supportedSource(session.source) || pendingAt(session)) return false;
       if (!exact(headView(session), headView(renderSession))) return changedBeforeAction();
       const visible = editorView(s.editor), sessionId = session.sessionId, headRevision = session.headRevision, turnRefs = session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })), frozenSource = session.source, context = source.context;
-      if (kind === 'append' && !s.editor?.input.trim()) return false;
+      if (!exact(visible, renderedEditor)) return changedBeforeAction();
+      if (kind === 'append' && (!s.editor?.input.trim() || !exact(s.editor.stepRef, activeRef(session)) || laneBlocked(session))) return false;
       if (s.editor?.dirty && !await save()) return false;
       if (live.current.context !== context || !exact(editorView(s.editor), visible)) return changedBeforeAction();
       source = read(); session = selected(source);
@@ -244,7 +304,7 @@ export function useConversationSession() {
       if (!session || session.closed || session.sessionId !== sessionId || session.headRevision !== headRevision
         || !exact(session.turns.map(turn => ({ turnId: turn.turnId, turnRevision: turn.turnRevision })), turnRefs)
         || !exact(session.source, frozenSource) || pendingAt(session) || !exact(editorView(s.editor), visible)
-        || !editorSavedAt(session)) return changedBeforeAction();
+        || !editorSavedAt(session) || kind === 'append' && !exact(s.editor?.stepRef, activeRef(session))) return changedBeforeAction();
       const intent = kind === 'append' ? captureConversationAppend(source, session.sessionId, s.editor!.draftId) : captureConversationClose(source, session.sessionId);
       const serial = s.serial, action: Action = { type: 'command', intent, context };
       s.action = action; s.busy = true; s.error = null; update();
@@ -254,8 +314,8 @@ export function useConversationSession() {
         const applied = await applyConversationIntent(intent);
         if (!currentAfter(applied, serial, context)) { if (s.serial === serial) s.uncertain = true; return false; }
         if (applied.effect.kind !== 'applied') { s.uncertain = true; return false; }
-        if (intent.command.kind === 'append' && s.editor?.draftId === intent.command.turn.draft.draftId) s.editor = blankEditor(s.exposure);
-        if (kind === 'close') s.editor = null;
+        const fresh = readConversationSnapshot(context); acceptRead(fresh);
+        reconcileAppliedEditor(intent.command, fresh);
         s.action = null; s.uncertain = false; return true;
       } catch (error) {
         if (s.serial === serial) {
@@ -267,12 +327,12 @@ export function useConversationSession() {
       } finally { if (s.serial === serial) { s.busy = false; update(); } }
     } catch (error) { s.error = message(error); update(); return false; }
   };
-  const start = async (scriptId: string): Promise<boolean> => {
-    if (!await preserve() || s.editor?.dirty || !bound()) return false;
+  const start = async (selection: Selection, selectionCurrent: () => boolean = () => true): Promise<boolean> => {
+    if (!selectionCurrent() || !await preserve() || s.editor?.dirty || !bound() || !selectionCurrent()) return false;
     try {
       const source = read(); if (!navigationSafeAt(source) || !exact(headView(selected(source)), headView(renderSession))) return changedBeforeAction();
-      const intent = captureConversationSession(source, scriptId, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'), serial = s.serial;
-      const result = await runEdit(intent, source.context);
+      const intent = captureConversationSession(source, selection, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'), serial = s.serial;
+      const result = await runEdit(intent, source.context, { selectionCurrent });
       if (!result) return false;
       // Creation may enroll a new generation, so this exact original-context
       // read intentionally does not reuse the pre-enrollment render scope.
@@ -282,6 +342,7 @@ export function useConversationSession() {
         || !editorSavedAt(selected(fresh)) || !exact(headView(selected(fresh)), headView(renderSession))) return changedBeforeAction();
       const created = fresh.envelope.sessions.find(item => item.sessionId === result.effect.sessionId);
       if (!created || !exact(created, result.committed.sessions.find(item => item.sessionId === result.effect.sessionId))) return changedBeforeAction();
+      if (!selectionCurrent()) return changedBeforeAction();
       choose(created); update(); return true;
     } catch (error) { s.error = message(error); update(); return false; }
   };
@@ -304,7 +365,7 @@ export function useConversationSession() {
         if (action.draft && action.editor) finishDraft(action.draft, action.editor);
         s.action = null; s.uncertain = false; s.error = null;
         if (action.intent.kind === 'create') {
-          if (s.sessionId === null && s.editor === null) choose(result.source.envelope?.sessions.find(item => item.sessionId === result.effect.sessionId) ?? null);
+          if (s.sessionId === null && s.editor === null && (!action.selectionCurrent || action.selectionCurrent())) choose(result.source.envelope?.sessions.find(item => item.sessionId === result.effect.sessionId) ?? null);
           else {
             // Creation proof does not prove that the previous visible editor
             // can be left. Recovery acknowledges creation without navigating.
@@ -315,8 +376,7 @@ export function useConversationSession() {
         if (action.intent.kind === 'delete') choose(null);
         if (action.intent.kind === 'cancel' && result.effect.kind === 'applied') {
           const operation = selected(result.source)?.operations.find(item => item.command.operationId === result.effect.operationId)?.command;
-          if (operation?.kind === 'append' && s.editor?.draftId === operation.turn.draft.draftId) s.editor = blankEditor(s.exposure);
-          if (operation?.kind === 'close') s.editor = null;
+          if (operation) { const fresh = readConversationSnapshot(source.context); acceptRead(fresh); reconcileAppliedEditor(operation, fresh); }
         }
         update(); return true;
       }
@@ -325,8 +385,8 @@ export function useConversationSession() {
       const observed = reconcileConversationOperation(source, operation.sessionId, operation.operationId);
       if ('command' in observed && !exact(observed.command, operation)) return false;
       if (observed.status === 'applied' || observed.status === 'cancelled') {
-        if (observed.status === 'applied' && operation.kind === 'append' && s.editor?.draftId === operation.turn.draft.draftId) s.editor = blankEditor(s.exposure);
-        if (observed.status === 'applied' && operation.kind === 'close') s.editor = null;
+        const fresh = readConversationSnapshot(source.context); acceptRead(fresh);
+        if (observed.status === 'applied') reconcileAppliedEditor(operation, fresh);
         s.action = null; s.uncertain = false; s.error = null; acceptRead(readConversationSnapshot(source.context)); update(); return true;
       }
       s.error = observed.status === 'pending' ? '저장 요청이 보류되어 있어요. 취소하면 전송하지 않은 입력으로 남습니다.' : '완료 여부를 확인하지 못했어요. 원래 요청을 자동으로 다시 실행하지 않습니다.';
@@ -346,8 +406,7 @@ export function useConversationSession() {
       const result = await runEdit(intent, source.context);
       if (!result) { if (!s.action) s.action = original; return false; }
       if (result.effect.kind === 'applied') {
-        if (operation.kind === 'append' && s.editor?.draftId === operation.turn.draft.draftId) s.editor = blankEditor(s.exposure);
-        if (operation.kind === 'close') s.editor = null;
+        const fresh = readConversationSnapshot(source.context); acceptRead(fresh); reconcileAppliedEditor(operation, fresh);
       }
       s.uncertain = false; s.error = null; update(); return true;
     } catch (error) { s.error = message(error); update(); return false; }
@@ -371,7 +430,7 @@ export function useConversationSession() {
   const selectDraft = async (draftId: string) => {
     if (s.busy || s.action || s.editor?.dirty && !await save() || s.editor?.dirty || !bound()) return false;
     try { const source = read(), session = selected(source); if (!editorSavedAt(session) || !exact(headView(session), headView(renderSession))) return changedBeforeAction(); const draft = session?.drafts.find(item => item.draftId === draftId);
-      if (!draft || session?.closed || !session || !supportedSource(session.source)) return false; s.exposure = mergeExposure(s.exposure, draft.exposure); s.editor = fromDraft(draft); s.editor.exposure = { ...s.exposure }; s.editor.dirty = !exact(s.editor.exposure, draft.exposure); update(); return true; }
+      if (!draft || session?.closed || !session || !supportedSource(session.source)) return false; rememberEditor(session); s.exposure = exposureAt(session, draft.source); s.editor = fromDraft(draft); s.editor.exposure = { ...s.exposure }; s.editor.dirty = !exact(s.editor.exposure, draft.exposure); update(); return true; }
     catch { return false; }
   };
   const requestDiscardInput = () => {
@@ -382,22 +441,61 @@ export function useConversationSession() {
     const discard = s.discard;
     if (!discard || s.busy || s.action || s.uncertain || discard.editor !== s.editor || discard.scope !== s.scope) return false;
     try { const source = read(true); if (s.editor !== discard.editor || s.scope !== discard.scope) return false;
-      choose(selected(source)); s.error = null; update(); return true; } catch { return false; }
+      const session = selected(source);
+      if (session && isGuidedSource(session.source)) {
+        // Discard only the reviewed in-memory editor. Keep every saved lane and
+        // sticky DOM observation, but do not immediately reopen an older lane
+        // whose newly displayed assistance would need another capacity-limited save.
+        rememberEditor(session); s.editor = null; s.exposure = blankExposure(); s.discard = null;
+      } else choose(session);
+      s.error = null; update(); return true; } catch { return false; }
   };
-  const observeExposure = (facts: Partial<Exposure>) => {
+  const openCurrentStep = async () => {
+    if (!await preserve() || s.editor?.dirty || !bound()) return false;
+    try {
+      const source = read(), session = selected(source), ref = activeRef(session);
+      if (!session || !ref || !navigationSafeAt(source) || !exact(headView(session), headView(renderSession))) return changedBeforeAction();
+      if (currentStepBlocked(session)) { s.error = laneMessage; update(); return false; }
+      rememberEditor(session);
+      const draft = session.drafts.find(item => exact(item.source, ref));
+      s.editor = draft ? fromDraft(draft) : newCurrentEditor(session);
+      s.exposure = exposureAt(session, ref);
+      if (s.editor) { s.editor.exposure = { ...s.exposure }; s.editor.dirty = !!draft && !exact(draft.exposure, s.exposure); }
+      s.error = null; update(); return true;
+    } catch (error) { s.error = message(error); update(); return false; }
+  };
+  const observeExposure = (facts: Partial<Exposure>, explicitRef?: StepRef) => {
     if (document.visibilityState !== 'visible') return;
     try {
-      read(); if (!selected() || selected()?.closed) return;
+      const session = selected(read());
+      if (!session || session.closed || !supportedSource(session.source) || !exact(headView(session), headView(renderSession))) return;
+      // Guided observers must name the actual DOM target, including transcript
+      // fallback/help. A session-wide callback cannot manufacture step evidence.
+      const ref = explicitRef ?? (!isGuidedSource(session.source) ? sourceRef(session.source) : null);
+      if (!ref || !exact(ref, sourceRef(session.source, ref.stepId)) || !getConversationStep(session.source, ref.stepId)) return;
+      if (isGuidedSource(session.source) && ref.stepId !== getConversationProgress(session)?.activeStepId
+        && !renderSession?.turns.some(turn => exact(turn.draft.source, ref))) return;
+      const exposure = exposureAt(session, ref);
       let changed = false;
       for (const key of ['example', 'reading', 'meaning', 'hint'] as const) {
-        // Exposure is sticky. A hidden setting cannot erase earlier display.
-        if (facts[key] === 'shown' && s.exposure[key] !== 'shown') { s.exposure[key] = 'shown'; changed = true; }
+        if (facts[key] === 'shown' && exposure[key] !== 'shown') { exposure[key] = 'shown'; changed = true; }
       }
-      if (changed && s.editor) { s.editor = { ...s.editor, version: s.editor.version + 1, exposure: { ...s.exposure } }; if (s.editor.input) s.editor.dirty = true; update(); }
+      if (!changed) return;
+      s.exposures.set(exposureKey(session, ref), exposure);
+      if (s.editor && exact(s.editor.stepRef, ref) && !(s.editor.expected && !session.drafts.some(draft => draft.draftId === s.editor!.draftId)
+        && session.turns.some(turn => exact(turn.draft, s.editor!.expected)))) {
+        s.exposure = { ...exposure }; s.editor = { ...s.editor, version: s.editor.version + 1, exposure: { ...exposure } };
+        if (s.editor.input) s.editor.dirty = true;
+      }
+      update();
     } catch { /* Retired/unrendered surfaces do not add exposure facts. */ }
   };
   const session = available ? selected() : null, pendingOperation = available ? pendingAt(session) ?? (s.action?.type === 'command' ? s.action.intent.command : null) : null;
   const status: 'unavailable' | 'idle' | 'unsaved' | 'saving' | 'pending' | 'uncertain' | 'saved' = !available ? 'unavailable' : s.busy ? 'saving' : s.uncertain ? 'uncertain' : pendingOperation ? 'pending' : s.editor?.dirty ? 'unsaved' : session ? 'saved' : 'idle';
+  const progress = session ? getConversationProgress(session) : undefined, activeStepRef = activeRef(session);
+  const activeStep = session && activeStepRef ? getConversationStep(session.source, activeStepRef.stepId) : undefined;
+  const editorStep = session && s.editor ? getConversationStep(session.source, s.editor.stepRef.stepId) : undefined;
+  const canEdit = available && !s.missing && Boolean(session && !session.closed && supportedSource(session.source) && (s.editor || !isGuidedSource(session.source) && activeStepRef)) && !laneBlocked(session) && !(currentStepBlocked(session) && (!s.editor || exact(s.editor.stepRef, activeStepRef))) && !s.deletion && !s.discard && !(s.action?.type === 'edit' && (s.action.intent.kind === 'create' || s.action.intent.kind === 'delete')) && !(s.action?.type === 'command' && s.action.intent.command.kind === 'close');
   return { available, identity: available ? s.scope : null, snapshot: available ? s.source : null, session,
     sessions: available ? s.source?.envelope?.sessions ?? [] : [], input: available ? s.editor?.input ?? '' : '', status,
     busy: s.busy, error: available ? s.error : '이 계정의 기기 저장 상태를 확인하고 있어요. 입력은 보존됩니다.', missing: s.missing,
@@ -407,10 +505,24 @@ export function useConversationSession() {
     checkCurrent: () => { if (!bound()) return false; try { read(); return bound(); } catch { return false; } },
     requestDiscardInput: () => { if (bound()) requestDiscardInput(); }, cancelDiscardInput: () => { if (bound()) { s.discard = null; update(); } },
     confirmDiscardInput: () => bound() ? confirmDiscardInput() : false,
-    canEdit: available && !s.missing && Boolean(session && !session.closed && supportedSource(session.source)) && !s.deletion && !s.discard && !(s.action?.type === 'edit' && (s.action.intent.kind === 'create' || s.action.intent.kind === 'delete')) && !(s.action?.type === 'command' && s.action.intent.command.kind === 'close'),
-    observeExposure: (facts: Partial<Exposure>) => { if (bound()) observeExposure(facts); }, typeInput: (value: string) => { if (bound()) type(value); }, insertExample: () => { if (!bound()) return; try { const session = selected(read()); if (session) type(session.source.content.japanese, true); } catch {} },
+    guided: Boolean(session && isGuidedSource(session.source)), progress, activeStep, activeStepRef,
+    editorStepRef: available && s.editor ? { ...s.editor.stepRef } : null, editorStep,
+    olderStepInput: Boolean(session && isGuidedSource(session.source) && s.editor && !exact(s.editor.stepRef, activeStepRef)),
+    currentStepBlocked: currentStepBlocked(session), laneBlocked: laneBlocked(session),
+    canEdit, canSend: canEdit && Boolean(s.editor && exact(s.editor.stepRef, activeStepRef)) && !pendingOperation,
+    canClose: available && !s.missing && Boolean(session && !session.closed && supportedSource(session.source)) && !s.busy && !s.action && !s.uncertain && !s.deletion && !s.discard && !pendingOperation,
+    observeExposure: (facts: Partial<Exposure>, ref?: StepRef) => { if (bound()) observeExposure(facts, ref); },
+    typeInput: (value: string) => { if (bound()) type(value); },
+    insertExample: () => { if (!bound()) return; try {
+      const session = selected(read());
+      if (!session || !exact(headView(session), headView(renderSession)) || !exact(editorView(s.editor), renderedEditor)) return;
+      const ref = activeRef(session);
+      if (!ref || s.editor && !exact(s.editor.stepRef, ref)) return;
+      const step = getConversationStep(session.source, ref.stepId); if (step) type(step.learnerExample.japanese, true);
+    } catch {} },
+    openCurrentStep: () => bound() ? openCurrentStep() : Promise.resolve(false),
     save: () => bound() ? save() : Promise.resolve(false), send: () => bound() ? command('append') : Promise.resolve(false), end: () => bound() ? command('close') : Promise.resolve(false),
-    start: (scriptId: string) => bound() ? start(scriptId) : Promise.resolve(false), open: (sessionId: string) => bound() ? open(sessionId) : Promise.resolve(false),
+    start: (selection: Selection, selectionCurrent?: () => boolean) => bound() ? start(selection, selectionCurrent) : Promise.resolve(false), open: (sessionId: string) => bound() ? open(sessionId) : Promise.resolve(false),
     leave: () => bound() ? leave() : Promise.resolve(false), recover: () => bound() ? recover() : Promise.resolve(false), cancelPending: () => bound() ? cancelPending() : Promise.resolve(false),
     requestDelete: () => { if (bound()) requestDelete(); }, cancelDelete: () => { if (bound()) { s.deletion = null; update(); } },
     confirmDelete: () => bound() ? confirmDelete() : Promise.resolve(false), selectDraft: (draftId: string) => bound() ? selectDraft(draftId) : Promise.resolve(false) };

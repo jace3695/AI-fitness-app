@@ -49,7 +49,7 @@ export function planLanguageLocalParticipants(snapshot: Pick<StorageSnapshot, 'g
   if (marker.kind !== 'valid' || previous.kind === 'invalid' || previous.kind === 'valid' && marker.time <= previous.time) throw new ConversationLocalError('marker-conflict');
   if (target.reason !== 'explicit-reset' && !target.observation) throw new ConversationLocalError('stale-authority');
   const replacement: ConversationEnvelope = {
-    schemaVersion: 1, ownerId: target.ownerId, generationId: target.replacement.generationId, marker: target.marker,
+    schemaVersion: current.schemaVersion, ownerId: target.ownerId, generationId: target.replacement.generationId, marker: target.marker,
     enrollment: { kind: 'reset-replacement', enrollmentId: target.replacement.enrollmentId, createdAt: target.replacement.createdAt,
       ownerId: target.ownerId, generationId: target.replacement.generationId, previousGenerationId: current.generationId,
       previousMarker: current.marker, marker: marker.raw, reason: target.reason, requestId: marker.requestId,

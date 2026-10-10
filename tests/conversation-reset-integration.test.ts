@@ -13,7 +13,9 @@ import { installStorageLocks, preparedStorageSeed } from './helpers/storageProto
 import { languageFixture } from './helpers/languageFixture.ts';
 import { conversationLocalKey, readConversationPartition } from '../app/data/languageLocalParticipants.ts';
 import { createLanguageSyncCoordinator } from '../app/data/languageSyncCoordinator.ts';
-import { canonicalJson, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
+import { canonicalJson, freezeGuidedSource, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
+import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { planCreateSession } from '../lib/conversation-session/reducer.ts';
 import { emptySession, draft, save, stage, append, TIME } from '../lib/conversation-session/fixtures.test-support.ts';
 
 const owner = 'synthetic-conversation-reset-owner';
@@ -246,7 +248,7 @@ test('P2B rollback failure preserves a durable prepared before-image and never p
 
 const corruptCases: Array<[string, () => string]> = [
   ['malformed', () => '{PRIVATE_SYNTHETIC_BAD_JSON'],
-  ['unsupported version', () => canonicalJson({ ...populated(), schemaVersion: 2 })],
+  ['unsupported version', () => canonicalJson({ ...populated(), schemaVersion: 3 })],
   ['noncanonical whitespace', () => ` ${canonicalJson(populated())}`],
   ['duplicate member', () => canonicalJson(populated()).replace('"schemaVersion":1', '"schemaVersion":1,"schemaVersion":1')],
   ['wrong owner', () => canonicalJson(populated(otherOwner))],
@@ -471,4 +473,31 @@ test('P2B known corrupt participant with dirty legacy records blocks before any 
   assert.notEqual(f.coordinator.getState().status, 'ready'); assert.equal(f.coordinator.getState().context, undefined);
   assert.equal(f.reads, 0); assert.equal(f.writes, 0); assert.deepEqual(f.values, before);
   assert.doesNotMatch(JSON.stringify(f.states), /PRIVATE_SYNTHETIC_PREFLIGHT_CORRUPTION/);
+});
+
+function guidedResetEnvelope(ownerId = owner, resetMarker = oldMarker) {
+  const current = populated(ownerId, resetMarker), script = GUIDED_CONVERSATION_PILOT[2];
+  const result = planCreateSession(current, current, { ...emptySession('guided-reset-session'), source: freezeGuidedSource(script.scriptId, script.scriptRevision)! });
+  assert.notEqual(result.status, 'blocked'); if (result.status === 'blocked') assert.fail(); return result.envelope;
+}
+test('G5 actual explicit reset atomically preserves v2 and same-marker retry preserves new post-reset guided session', async t => {
+  const initial = guidedResetEnvelope(), f = seeded({ [ownerKey]: canonicalJson(initial) }); t.after(f.dispose);
+  f.fail('set', resets.RECORD_RESET_STORAGE_EVENT); await assert.rejects(f.reset());
+  const after = partition(f.local); assert.equal(after.schemaVersion, 2); assert.deepEqual(after.sessions, []);
+  assert.equal(after.enrollment.kind, 'reset-replacement'); if (after.enrollment.kind !== 'reset-replacement') assert.fail();
+  assert.equal(after.enrollment.previousGenerationId, initial.generationId); assert.equal(after.enrollment.reason, 'explicit-reset');
+  const script = GUIDED_CONVERSATION_PILOT[0], next = planCreateSession(after, after, { ...emptySession('post-reset-guided'), source: freezeGuidedSource(script.scriptId, script.scriptRevision)! });
+  assert.notEqual(next.status, 'blocked'); if (next.status === 'blocked') assert.fail();
+  const raw = canonicalJson(next.envelope); f.values.set(ownerKey, raw); await f.reset();
+  assert.equal(f.local.getItem(ownerKey), raw); assert.equal(f.rpcCalls, 1); assert.equal(f.getCalls, 1);
+});
+for (const catchUp of [false, true]) test(`G5 actual authenticated ${catchUp ? 'catch-up' : 'remote reset'} retains v2 empty replacement`, async t => {
+  const initial = guidedResetEnvelope('a'), raw = canonicalJson(initial), f = await observationFixture(catchUp ? marker : oldMarker, raw, marker); t.after(f.dispose);
+  const oldLegacy = boundary.projectLanguageBytes(f.storage), other = f.storage.getItem(otherKey);
+  await f.coordinator.start(); assert.equal(f.coordinator.getState().status, 'ready');
+  const after = partition(f.storage, 'a'); assert.equal(after.schemaVersion, 2); assert.deepEqual(after.sessions, []); assert.deepEqual(after.tombstones, []);
+  assert.equal(after.enrollment.kind, 'reset-replacement'); if (after.enrollment.kind !== 'reset-replacement') assert.fail();
+  assert.equal(after.enrollment.previousGenerationId, initial.generationId); assert.equal(after.enrollment.reason, catchUp ? 'observation-catch-up' : 'remote-reset');
+  assert.equal(after.enrollment.observation?.marker, marker); assert.equal(f.storage.getItem(otherKey), other); assert.equal(f.writes, 0);
+  if (catchUp) assert.deepEqual(boundary.projectLanguageBytes(f.storage), oldLegacy);
 });

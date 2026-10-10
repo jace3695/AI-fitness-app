@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildFreeConversation } from '../../data/freeConversation.ts';
 import { LEGACY_FREE_CONVERSATION_SCRIPTS, FREE_CONVERSATION_COVERAGE } from '../../data/freeConversationCatalog.ts';
-import { buildFrozenTurn, canonicalJson, capacityUsage, CONVERSATION_LIMITS, draftSchema, encodeEnvelope, envelopeSchema, freezeLegacySource, isPlainJson, parseEnvelope, sessionSchema, validateEnvelope } from './contracts.ts';
+import { buildFrozenTurn, canonicalJson, capacityUsage, CONVERSATION_LIMITS, draftSchema, encodeEnvelope, envelopeSchema, freezeLegacySource, isGuidedSource, isPlainJson, parseEnvelope, sessionSchema, validateEnvelope } from './contracts.ts';
 import { append, base, commit, draft, fillBudget, getSession, save, SOURCE, stage, started } from './fixtures.test-support.ts';
 
 test('canonical encoding roundtrips exact whitespace, Unicode and lone surrogates without mutation', () => {
@@ -17,7 +17,7 @@ test('canonical encoding roundtrips exact whitespace, Unicode and lone surrogate
 
 test('ambiguous, duplicated, unknown and noncanonical JSON are blocked with fixed codes only', () => {
   const good = canonicalJson(base());
-  for (const raw of [good.replace('"ownerId":"owner-a"', '"ownerId":"owner-hidden","ownerId":"owner-a"'), good.replace('"ownerId":"owner-a"', '"ownerId":"owner-a","ownerId":"owner-a"'), good.replace('"ownerId":', '"\\u006fwnerId":"hidden","ownerId":'), ` ${good}`, good.replace('"schemaVersion":1', '"schemaVersion":2'), good.replace('"sessions":[]', '"sessions":[],"secret":"poison-canary"'), '{broken-poison']) {
+  for (const raw of [good.replace('"ownerId":"owner-a"', '"ownerId":"owner-hidden","ownerId":"owner-a"'), good.replace('"ownerId":"owner-a"', '"ownerId":"owner-a","ownerId":"owner-a"'), good.replace('"ownerId":', '"\\u006fwnerId":"hidden","ownerId":'), ` ${good}`, good.replace('"schemaVersion":1', '"schemaVersion":3'), good.replace('"sessions":[]', '"sessions":[],"secret":"poison-canary"'), '{broken-poison']) {
     const original = raw, result = parseEnvelope(raw); assert.equal(result.status, 'blocked'); assert.equal(raw, original); assert.equal(JSON.stringify(result).includes('poison'), false);
   }
   assert.equal(parseEnvelope('x'.repeat(CONVERSATION_LIMITS.envelopeCodeUnits + 1)).status, 'blocked');
@@ -36,7 +36,7 @@ test('strict in-memory inputs reject symbols, hidden owner data, custom prototyp
 
 test('known source revision pins all authored fields and actual builder branches', () => {
   assert.equal(LEGACY_FREE_CONVERSATION_SCRIPTS.length, 5); assert.equal(FREE_CONVERSATION_COVERAGE.length, 24);
-  assert.ok(FREE_CONVERSATION_COVERAGE.every(cell => cell.scriptId === null));
+  assert.equal(FREE_CONVERSATION_COVERAGE.filter(cell => cell.scriptId === null).length, 21);
   for (const script of LEGACY_FREE_CONVERSATION_SCRIPTS) {
     const source = freezeLegacySource(script.scriptId)!; assert.equal(source.levelId, 'unlevelled');
     for (const input of [script.content.japanese, script.content.reading, 'synthetic unmatched']) {
@@ -47,7 +47,7 @@ test('known source revision pins all authored fields and actual builder branches
       assert.equal(branch, t.sampleMatch.matched ? 'script-response' : 'sample-fallback');
     }
   }
-  const e = structuredClone(started()); e.sessions[0].source.content.meaning = 'fabricated'; assert.equal(validateEnvelope(e).status, 'blocked');
+  const e = structuredClone(started()); assert.ok(!isGuidedSource(e.sessions[0].source)); e.sessions[0].source.content.meaning = 'fabricated'; assert.equal(validateEnvelope(e).status, 'blocked');
 });
 
 test('empty drafts survive while blank turns and oversized input reject; exact 8000-unit input remains intact', () => {

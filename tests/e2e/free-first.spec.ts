@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { CURRICULUM } from '../../data/curriculum';
+import { GUIDED_CONVERSATION_PILOT } from '../../data/guidedConversationPilot';
 import { test, expect, login, synced, original, originalLanguage, assertOriginalPreserved, localState, today } from './fixture';
 
 const daysAgo = (days: number) => { const date = new Date(`${today()}T12:00:00Z`); date.setUTCDate(date.getUTCDate() - days); return date.toISOString().slice(0, 10); };
@@ -30,8 +31,8 @@ test('free mode keeps paid routes blocked and handles sample and arbitrary conve
   const start = page.getByRole('button', { name: '새 대화 시작', exact: true });
   await expect(start).toBeDisabled();
   await expect(page.getByLabel('일본어 문장', { exact: true })).toHaveCount(0);
-  await page.getByLabel('상황', { exact: true }).selectOption('legacy-cafe');
-  await expect(page.getByLabel('상황', { exact: true })).toHaveValue('legacy-cafe');
+  await page.getByLabel('기존 예문 · 수준 미지정', { exact: true }).selectOption('legacy-cafe');
+  await expect(page.getByLabel('기존 예문 · 수준 미지정', { exact: true })).toHaveValue('legacy-cafe');
   await page.getByRole('checkbox', { name: '위 보관 안내를 확인했어요.', exact: true }).check();
   await start.click();
   await expect(page.getByRole('heading', { name: '카페 · 진행 중', exact: true })).toBeVisible();
@@ -82,6 +83,54 @@ test('free mode keeps paid routes blocked and handles sample and arbitrary conve
   await noOverflow(page);
   expect(await qa.read()).toEqual(original);
   expect(await qa.readLanguage()).toEqual(originalLanguage);
+});
+
+// Authored discovery only until the separately authorized real-browser gate.
+// No guided provider/audio action is used, and any attempted request is aborted.
+for (const script of GUIDED_CONVERSATION_PILOT) test(`guided ${script.levelId} stores every explicit step, closes and reopens factual recap without POST or audio`, async ({ page, qa }) => {
+  const prohibited: string[] = [];
+  await page.route(/\/api\/(?:language\/(?:conversation|tts)|tts|claude)(?:\?.*)?$/, async route => {
+    if (route.request().method() === 'POST') { prohibited.push(route.request().url()); await route.abort(); return; }
+    await route.continue();
+  });
+  await page.addInitScript(() => {
+    const forbidden = () => { (window as unknown as { __guidedAudioCalls: number }).__guidedAudioCalls++; throw new Error('Guided pilot must remain text only'); };
+    (window as unknown as { __guidedAudioCalls: number }).__guidedAudioCalls = 0;
+    HTMLMediaElement.prototype.play = async () => { forbidden(); };
+    if ('speechSynthesis' in window) window.speechSynthesis.speak = forbidden;
+  });
+  await page.setViewportSize({ width: 320, height: 844 }); await login(page, qa.account); await page.goto('/language/conversation');
+  await page.getByRole('button', { name: '수준별 연습 선택', exact: true }).click();
+  await page.getByLabel('상황', { exact: true }).selectOption('convenience-store');
+  await page.getByLabel('수준', { exact: true }).selectOption(script.levelId);
+  await expect(page.getByText('수준별 연습 3/24개 이용 가능 · 나머지 21개는 참고 자료만 있음 · 대화 준비 중', { exact: true })).toBeVisible();
+  await page.getByRole('checkbox', { name: '위 보관 안내를 확인했어요.', exact: true }).check();
+  await page.getByRole('button', { name: '새 대화 시작', exact: true }).click();
+  const input = page.getByLabel('일본어 문장', { exact: true }), status = page.locator('[data-save-status]');
+  for (let i = 0; i < script.steps.length; i++) {
+    const step = script.steps[i];
+    await expect(page.getByRole('heading', { name: `${i + 1}. ${step.titleKo}`, exact: true })).toBeVisible();
+    const text = i ? `합성 자유 문장 ${script.levelId} ${i}` : step.learnerExample.japanese;
+    await input.fill(text); await page.getByRole('button', { name: '입력 저장', exact: true }).click();
+    await expect(status).toHaveAttribute('data-save-status', 'saved');
+    if (i === 0) { await page.reload(); await expect(input).toHaveValue(text); }
+    await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
+    await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: '이 대화에서 보낸 문장', exact: true })).toContainText(step.fixedReply.japanese);
+    if (i) await expect(page.getByRole('region', { name: '이 대화에서 보낸 문장', exact: true })).toContainText('참고 예문');
+  }
+  await expect(page.getByText(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨 · 대화 종료로 기록을 마무리해 주세요.`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '예문 듣기', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '대화 종료', exact: true }).click();
+  const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
+  await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
+  await expect(recap).toContainText('평가한 문장 0개');
+  await page.getByRole('button', { name: '기록 보기', exact: true }).click();
+  await page.getByRole('region', { name: '이 브라우저의 대화 기록', exact: true }).getByRole('button', { name: new RegExp(`${script.labelKo} .*종료 요약 보기$`) }).click();
+  await expect(recap).toContainText(script.levelLabelKo); await noOverflow(page);
+  expect(prohibited).toEqual([]);
+  expect(await page.evaluate(() => (window as unknown as { __guidedAudioCalls: number }).__guidedAudioCalls)).toBe(0);
+  expect(await qa.read()).toEqual(original); expect(await qa.readLanguage()).toEqual(originalLanguage);
 });
 
 test('meal reuse previews before applying, preserves other inputs, and saves weekly context to the actual DB', async ({ page, qa }) => {

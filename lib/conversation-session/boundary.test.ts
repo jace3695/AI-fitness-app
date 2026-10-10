@@ -28,7 +28,7 @@ test('planners perform deterministic work without reading current time', () => {
 });
 
 const UI_PURE_IMPORTS: Record<string, { module: string; names: readonly string[]; typeOnly?: boolean }> = {
-  'components/language/useConversationSession.ts': { module: 'contracts', names: ['CONVERSATION_LIMITS', 'exact', 'sourceRef', 'supportedSource', 'ConversationDraft', 'ConversationSession'] },
+  'components/language/useConversationSession.ts': { module: 'contracts', names: ['CONVERSATION_LIMITS', 'exact', 'sourceRef', 'supportedSource', 'isGuidedSource', 'getConversationStep', 'getConversationProgress', 'ConversationDraft', 'ConversationSession', 'ConversationCommand'] },
   'app/language/conversation/page.tsx': { module: 'recap', names: ['projectClosedConversationRecap'] },
   'components/language/ConversationSessionRecap.tsx': { module: 'recap', names: ['projectClosedConversationRecap'], typeOnly: true },
 };

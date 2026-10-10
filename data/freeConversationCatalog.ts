@@ -1,6 +1,7 @@
 import { FREE_CONVERSATIONS } from './freeConversation.ts';
+import { GUIDED_CONVERSATION_PILOT } from './guidedConversationPilot.ts';
 
-/** Metadata only. No levelled scripts or linguistic assessment are supplied here. */
+/** Retained legacy version; guided sources use their separately versioned catalog. */
 export const FREE_CONVERSATION_CATALOG_VERSION = 'free-conversation-catalog-v1';
 export const FREE_CONVERSATION_SAMPLE_MATCH_POLICY = 'nfkc-strip-whitespace-japanese-punctuation-v1';
 // This revision pins the unchanged legacy source bytes. The catalog tests verify it.
@@ -71,28 +72,50 @@ const curriculumReferences: Readonly<Record<FreeConversationContextId, readonly 
   'company-quality': [curriculumReference('data/curriculumManufacturing.ts', 'w22', '측정 결과와 품질 확인', '8e7918620b852ac32f37a107c68dcd68ec789286e962cad78c65f1b66bf1cbba')],
 });
 
-export type FreeConversationCoverageCell = Readonly<{
+type FreeConversationCoverageIdentity = Readonly<{
   id: string;
   contextId: FreeConversationContextId;
   levelId: FreeConversationLevelId;
+  references: readonly ConversationCurriculumReference[];
+}>;
+
+export type FreeConversationCoverageCell = FreeConversationCoverageIdentity & (Readonly<{
+  contextId: 'convenience-store';
+  availability: 'available';
+  scriptId: string;
+  scriptRevision: string;
+  contentReviewStatus: 'locally-authored-unreviewed';
+}> | Readonly<{
   availability: 'not-authored' | 'reference-only';
   scriptId: null;
   scriptRevision: null;
   contentReviewStatus: 'not-authored';
-  references: readonly ConversationCurriculumReference[];
-}>;
+}>);
 
 export const FREE_CONVERSATION_COVERAGE: readonly FreeConversationCoverageCell[] = immutable(
-  FREE_CONVERSATION_CONTEXTS.flatMap(context => FREE_CONVERSATION_LEVELS.map(level => ({
-    id: `${context.id}:${level.id}`,
-    contextId: context.id,
-    levelId: level.id,
-    availability: curriculumReferences[context.id].length ? 'reference-only' as const : 'not-authored' as const,
-    scriptId: null,
-    scriptRevision: null,
-    contentReviewStatus: 'not-authored' as const,
-    references: curriculumReferences[context.id],
-  }))),
+  FREE_CONVERSATION_CONTEXTS.flatMap(context => FREE_CONVERSATION_LEVELS.map((level): FreeConversationCoverageCell => {
+    const script = GUIDED_CONVERSATION_PILOT.find(script => script.contextId === context.id && script.levelId === level.id);
+    if (script) return {
+      id: `${context.id}:${level.id}`,
+      contextId: script.contextId,
+      levelId: script.levelId,
+      availability: 'available',
+      scriptId: script.scriptId,
+      scriptRevision: script.scriptRevision,
+      contentReviewStatus: script.authorship.status,
+      references: curriculumReferences[context.id],
+    };
+    return {
+      id: `${context.id}:${level.id}`,
+      contextId: context.id,
+      levelId: level.id,
+      availability: curriculumReferences[context.id].length ? 'reference-only' : 'not-authored',
+      scriptId: null,
+      scriptRevision: null,
+      contentReviewStatus: 'not-authored',
+      references: curriculumReferences[context.id],
+    };
+  })),
 );
 
 /** Unknown or unavailable selections never substitute a legacy example or another level. */
