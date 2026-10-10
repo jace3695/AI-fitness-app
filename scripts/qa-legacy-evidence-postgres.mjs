@@ -42,6 +42,18 @@ export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...
   'lib/language-legacy-evidence/identity-manifest.ts', 'lib/language-legacy-evidence/idb-test-adapter.ts',
   'tests/helpers/languageFixture.ts', 'tests/helpers/storageProtocol.ts', 'tests/e2e/schema.sql',
   'tests/legacy-evidence-installation-fixture.test.ts', 'tests/legacy-evidence-ci-harness.test.ts', 'tests/legacy-evidence-ci-diagnostics.test.ts', 'tests/legacy-evidence-ci-wiring.test.ts',
+  'scripts/qa-legacy-evidence-browser.mjs',
+  'scripts/legacy-evidence-b2-build-inputs.json',
+  'playwright.config.ts',
+  'playwright.legacy-evidence.config.ts',
+  'tests/e2e/legacy-evidence-review.spec.ts',
+  'tests/legacy-evidence-browser-harness.test.ts',
+  '.github/workflows/legacy-evidence-browser.yml',
+  'docs/language-legacy-evidence-gate-b2.md',
+  'lib/language-legacy-evidence/review-capture.ts',
+  'app/data/languageLegacyReviewCapture.ts',
+  'components/language/CapturedCourseReviewQuestion.tsx',
+  'app/language/review/page.tsx',
   'package.json', 'package-lock.json',
 ].sort());
 const API = 'http://127.0.0.1:54321';

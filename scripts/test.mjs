@@ -9,6 +9,8 @@ function discover(directory) {
   });
 }
 
-const result = spawnSync(process.execPath, ['--experimental-strip-types', '--test', ...['app', 'lib', 'tests'].flatMap(discover).sort()], { stdio: 'inherit' });
+// Bound independent file processes: SQL/VM fixtures can exceed 1 GiB each.
+// Test bodies keep their own concurrency, races, assertions and timeouts.
+const result = spawnSync(process.execPath, ['--experimental-strip-types', '--test', '--test-concurrency=2', ...['app', 'lib', 'tests'].flatMap(discover).sort()], { stdio: 'inherit' });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
