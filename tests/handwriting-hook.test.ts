@@ -7,6 +7,7 @@ import * as drafts from '../lib/handwriting-draft.ts';
 import * as saveBoundary from '../lib/handwriting-save.ts';
 import * as course from '../app/data/handwritingCourse.ts';
 import { handwritingVersion } from '../lib/handwriting-local-store.ts';
+import { encodeHandwritingStorageRecord } from '../lib/handwriting-storage-codec.ts';
 import { HANDWRITING_PACKAGE_FORMAT, handwritingMaterialPath } from '../app/data/handwritingMaterials.ts';
 import type { GrowthRoutineRow } from '../app/data/growthPlatform.ts';
 const owner = '00000000-0000-4000-8000-000000000811', other = '00000000-0000-4000-8000-000000000812';
@@ -202,6 +203,17 @@ test('source-only Blob-rejecting checkpoint preserves screen and old durable byt
   assert.deepEqual(env.storage.get(owner), { ...before!, revision: (before?.revision ?? 0) + 1 });
   assert.deepEqual(canvas.pixels(), pixels); assert.equal(env.objects.size, 0); assert.equal(env.sessions.size, 0); assert.equal(env.payloads.length, 0);
   await qa.render().save(routine); assert.equal(env.objects.size, 0); assert.equal(env.payloads.length, 0);
+});
+test('the legacy Blob-only reader leaves a tagged record intact and never initializes, resets or overwrites it', async t => {
+  const env = environment(), original = await seedScreen(env, true);
+  const { stored } = await encodeHandwritingStorageRecord(original);
+  // This fixture intentionally retains the pre-codec read path: the original
+  // parseHandwritingRecord implementation rejects a non-Blob pending PNG.
+  env.storage.set(owner, stored as unknown as drafts.HandwritingRecord);
+  const raw = structuredClone(env.storage.get(owner)), qa = fixture(env); t.after(qa.unmount); await qa.ready();
+  assert.equal(qa.render().loadError, true); assert.equal(qa.render().ready, false);
+  qa.allowReset(); await qa.render().reset(); await qa.render().save(routine);
+  assert.deepEqual(env.storage.get(owner), raw); assert.equal(env.objects.size, 0); assert.equal(env.sessions.size, 0); assert.equal(env.calls.length, 0);
 });
 test('two tabs fail stale checkpoint atomically, preserve visible input and refuse cloud save', async t => {
   const env = environment(), a = fixture(env), b = fixture(env); t.after(a.unmount); t.after(b.unmount); await a.ready(); await b.ready();

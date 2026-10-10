@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { projectStateDiagnostic, stateDiagnosticCollector } from '../scripts/qa-state-diagnostics.mjs';
 
-const prefixes = ['QA_GUIDED_BOUNDARY', 'QA_STORAGE_PROTOCOL_STATE', 'QA_HANDWRITING_RECOVERY_STATE', 'QA_HANDWRITING_SAVE_BOUNDARY'];
+const prefixes = ['QA_GUIDED_BOUNDARY', 'QA_STORAGE_PROTOCOL_STATE', 'QA_HANDWRITING_RECOVERY_STATE', 'QA_HANDWRITING_SAVE_BOUNDARY', 'QA_OWNER_SWITCH_STATE'];
 function read(prefix: string, data: unknown) {
   const projected = projectStateDiagnostic(`${prefix} ${JSON.stringify(data)}`);
   assert.ok(projected); assert.equal(projected.prefix, prefix);
@@ -79,9 +79,9 @@ test('state diagnostic output is bounded and both browser projects fit the curre
   const collector = stateDiagnosticCollector();
   // Reserve four steps per journey (the current maximum is three). Per
   // project: three pilot journeys at six checkpoints, three catalogue at seven, plus
-  // at most five close/reload/final checkpoints each. Both projects fit 512.
-  const guidedRows = 2 * (3 * (4 * 6 + 5) + 3 * (4 * 7 + 5));
-  assert.equal(guidedRows, 372);
+  // five close/reload/final checkpoints, plus two catalogue readback checkpoints. Both fit 512.
+  const guidedRows = 2 * (3 * (4 * 6 + 5) + 3 * (4 * 7 + 7));
+  assert.equal(guidedRows, 384);
   for (let i = 0; i < guidedRows; i++) {
     const line = collector.ingest('QA_GUIDED_BOUNDARY ' + JSON.stringify({ phase: 'save-clicked', status: 'saved', step: 10000, totalSteps: 10000 }));
     assert.ok(line); assert.ok(line.length <= 4096);
@@ -91,4 +91,20 @@ test('state diagnostic output is bounded and both browser projects fit the curre
     assert.ok(result); assert.ok(result.line.length <= 4096);
   }
   assert.equal(collector.snapshot().dropped.QA_GUIDED_BOUNDARY, 0);
+});
+
+test('owner-switch forwarding preserves only fixed phases and identity comparisons through failure', () => {
+  const value = read('QA_OWNER_SWITCH_STATE', { phase: 'owner-b-ready', tab: 'first', failed: true, authGate: 'editor', sync: 'error',
+    owner: 'B', desiredOwner: 'B', readyOwner: 'B', readyMatchesEpoch: true, localMatchesA: false, localMatchesB: true,
+    lockHeld: 0, lockPending: 1, reads: 3, writes: 0, lastReadOwner: 'B', lastReadResult: 'ok', ownerId: 'PRIVATE_OWNER', raw: 'PRIVATE_RECORD' });
+  assert.equal(value.phase, 'owner-b-ready'); assert.equal(value.failed, true); assert.equal(value.owner, 'B'); assert.equal(value.sync, 'error');
+  assert.equal(value.localMatchesB, true); assert.equal(value.lockPending, 1); assert.equal(value.lastReadResult, 'ok');
+  assert.doesNotMatch(JSON.stringify(value), /PRIVATE|ownerId|raw/);
+});
+
+
+test('guided read-only recovery phases survive the bounded state projection', () => {
+  for (const phase of ['before-recovery', 'recovered']) {
+    assert.equal(read('QA_GUIDED_BOUNDARY', { phase }).phase, phase);
+  }
 });

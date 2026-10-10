@@ -4,6 +4,7 @@ import { conversationSessionFixture } from './helpers/conversationSessionFixture
 import { tick } from './helpers/storage-ui-fixture.ts';
 import { findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { isAppliedGuidedRecoveryCandidate } from './e2e/guided-terminal-recovery.ts';
 import { sanitizeGuidedDiagnostic } from './e2e/guided-conversation-diagnostics.ts';
 
 type Hook = ReturnType<typeof import('../components/language/useConversationSession.ts')['useConversationSession']>;
@@ -129,4 +130,77 @@ test('guided unavailable diagnostics clear session counts and editor exposure al
   assert.equal(diagnostic.draftCount, 0); assert.equal(diagnostic.turnCount, 0);
   assert.equal(diagnostic.exposure.hint, 'not-shown'); assert.equal(diagnostic.commandBoundary, 'none');
   assert.equal(JSON.stringify(diagnostic).includes('PRIVATE_RETIRED_DIAGNOSTIC_INPUT'), false);
+});
+
+
+for (const boundary of ['refreshed-context', 'unacknowledged-result'] as const) test(`guided final append ${boundary} stays fenced until exact read-only recovery`, async t => {
+  const script = findGuidedConversationCatalogScript('guided-company-mechanical-design-intermediate', 'sha256:e7122f518361da4322d717ce5f3873c1cd67a51a44a1b824a136a54b0ca47afa');
+  assert.ok(script);
+  const { f, h, session } = await started(t, script);
+  for (const step of script.steps.slice(0, -1)) {
+    h.current.typeInput(step.learnerExample.japanese); await h.view.settle();
+    assert.equal(await h.current.send(), true); await h.view.settle();
+  }
+  const finalText = script.steps.at(-1)!.learnerExample.japanese;
+  h.current.typeInput(finalText); await h.view.settle();
+  const apply = f.facade.applyConversationIntent, stage = f.facade.stageConversationIntent, capture = f.facade.captureConversationAppend;
+  let applies = 0, stages = 0, captures = 0;
+  const restoreFacades = () => Object.assign(f.facade, { applyConversationIntent: apply, stageConversationIntent: stage, captureConversationAppend: capture });
+  t.after(restoreFacades);
+  Object.assign(f.facade, {
+    captureConversationAppend(...args: Parameters<typeof capture>) { captures++; return capture(...args); },
+    stageConversationIntent(intent: Parameters<typeof stage>[0]) { stages++; return stage(intent); },
+    async applyConversationIntent(intent: Parameters<typeof apply>[0]) {
+      applies++;
+      const restore = boundary === 'unacknowledged-result' ? f.failNextNotification() : () => {};
+      let result: Awaited<ReturnType<typeof apply>>;
+      try { result = await apply(intent); } finally { restore(); }
+      if (boundary === 'refreshed-context') {
+        assert.equal(result.acknowledged, true);
+        const originalContext = result.source!.context;
+        await f.refresh(); await h.view.settle();
+        assert.equal(f.language.isLanguageRecordContextCurrent(originalContext), false);
+      } else { assert.equal(result.acknowledged, false); assert.equal(result.source, null); }
+      return result;
+    },
+  });
+  assert.equal(await h.current.send(), false); await h.view.settle();
+  assert.equal(captures, 1); assert.equal(stages, 1); assert.equal(applies, 1); assert.equal(session().turns.length, script.steps.length);
+  assert.equal(session().drafts.length, 0); assert.equal(session().turns.at(-1)!.draft.input, finalText);
+  assert.equal(h.current.status, 'uncertain'); assert.equal(h.current.diagnostics.commandBoundary, 'staged');
+  assert.equal(h.current.diagnostics.pendingKind, 'append'); assert.equal(h.current.diagnostics.contextCurrent, true);
+  assert.equal(h.current.canClose, false); assert.equal(h.current.diagnostics.editorDirty, false);
+  const envelope = f.snapshot().envelope!;
+  const expected = { ownerId: envelope.ownerId, generationId: envelope.generationId, marker: envelope.marker,
+    sessionId: session().sessionId, source: session().source, totalSteps: script.steps.length };
+  const diagnostic = { surface: 'present', ...h.current.diagnostics };
+  assert.equal(isAppliedGuidedRecoveryCandidate(diagnostic, envelope, expected), true);
+  // The fixture must not offer even a readback shortcut for a different
+  // operation, owner/reset scope, unresolved result or newer dirty editor.
+  const negativeCases: [string, Parameters<typeof isAppliedGuidedRecoveryCandidate>[0], Parameters<typeof isAppliedGuidedRecoveryCandidate>[1]][] = [
+    ['unavailable private context', { ...diagnostic, available: false }, envelope],
+    ['retired context', { ...diagnostic, contextCurrent: false }, envelope],
+    ['truly pending', { ...diagnostic, status: 'pending' }, envelope],
+    ['unresolved result', diagnostic, { ...envelope, sessions: [{ ...session(), operations: session().operations.slice(0, -1) }] }],
+    ['absent session', diagnostic, { ...envelope, sessions: [] }],
+    ['different owner', diagnostic, { ...envelope, ownerId: 'other-owner' }],
+    ['different generation', diagnostic, { ...envelope, generationId: 'different-generation' }],
+    ['reset marker', diagnostic, { ...envelope, marker: '2026-10-11T00:00:00.000Z|11111111-1111-4111-8111-111111111111' }],
+    ['stale handler boundary', { ...diagnostic, commandBoundary: 'head-changed' }, envelope],
+    ['newer dirty input', { ...diagnostic, editorDirty: true }, envelope],
+    ['pending terminal', diagnostic, { ...envelope, sessions: [{ ...session(), operations: session().operations.map((operation, index) => index === script.steps.length - 1 ? { ...operation, terminal: null } : operation) }] }],
+    ['mismatched applied receipt', diagnostic, { ...envelope, sessions: [{ ...session(), operations: session().operations.map((operation, index) => index === script.steps.length - 1 ? { ...operation, terminal: { kind: 'applied' as const, resultId: 'different-turn' } } : operation) }] }],
+    ['mismatched command turn', diagnostic, { ...envelope, sessions: [{ ...session(), turns: session().turns.map((turn, index) => index === script.steps.length - 1 ? { ...turn, draft: { ...turn.draft, input: 'different-input' } } : turn) }] }],
+  ];
+  for (const [label, state, source] of negativeCases) assert.equal(isAppliedGuidedRecoveryCandidate(state, source, expected), false, label);
+  const frozen = JSON.stringify(session()), writes = f.browser.writes.length;
+  assert.equal(await h.current.recover(), true); await h.view.settle();
+  assert.equal(f.browser.writes.length, writes, 'Recover only reads the exact original terminal operation');
+  assert.equal(JSON.stringify(session()), frozen);
+  assert.equal(captures, 1); assert.equal(stages, 1); assert.equal(applies, 1);
+  assert.equal(h.current.status, 'saved'); assert.equal(h.current.canClose, true); assert.equal(h.current.input, '');
+  restoreFacades();
+  assert.equal(await h.current.end(), true); await h.view.settle();
+  assert.ok(session().closed); assert.equal(session().operations.filter(op => op.command.kind === 'append').length, script.steps.length);
+  assert.equal(session().operations.filter(op => op.command.kind === 'close').length, 1);
 });

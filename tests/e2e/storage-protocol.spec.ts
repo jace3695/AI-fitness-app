@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect, login, synced, localState, original, assertOriginalPreserved, today, isSharedSyncWrite } from './fixture';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
 import { failureLabel } from './navigation-diagnostics';
+import { ownerSwitchDiagnostic, type OwnerSwitchPhase } from './owner-switch-diagnostics';
 
 // Authored acceptance for the disposable local Supabase fixture only. These
 // cases must run in actual Chromium/WebKit; VM unit tests are not substitutes.
@@ -114,32 +115,50 @@ test('queued owner A edit cannot enter owner B after a real sign-out and login t
   const other = await qa.createAccount();
   const otherState = { ...original, [DIET]: { ...(original[DIET] as object), [today()]: { dietMemo: 'CI owner B only', hunger: 'no' } } };
   expect((await other.client.from('user_app_state').update({ state: otherState }).eq('user_id', other.id)).error).toBeNull();
-  await login(page, qa.account, '/diet'); await synced(page);
-  const holder = await context.newPage();
+  const refs = { ownerA: qa.account.id, ownerB: other.id, stateA: original, stateB: otherState, traffic: qa.traffic };
+  let phase: OwnerSwitchPhase = 'owner-a-ready', holder: Page | undefined;
   try {
-    await holder.goto('/diet/settings'); await synced(holder);
+    await login(page, qa.account, '/diet'); await synced(page); await ownerSwitchDiagnostic(page, phase, refs);
+    holder = await context.newPage(); phase = 'holder-a-ready';
+    await holder.goto('/diet/settings'); await synced(holder); await ownerSwitchDiagnostic(holder, phase, refs, 'holder');
     await page.getByLabel('메모', { exact: true }).fill('CI stale owner A queued draft');
     const epoch = await page.evaluate(() => localStorage.getItem('fitness-cloud-sync-epoch'));
-    await holdStorageLock(holder);
+    phase = 'lock-held'; await holdStorageLock(holder); await ownerSwitchDiagnostic(holder, phase, refs, 'holder');
+    phase = 'edit-queued';
     await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
-    await expectQueued(holder);
-    await holder.getByRole('button', { name: '로그아웃', exact: true }).click();
-    await expect.poll(() => holder.evaluate(() => {
+    await expectQueued(holder); await ownerSwitchDiagnostic(page, phase, refs);
+    phase = 'signout-clicked'; await holder.getByRole('button', { name: '로그아웃', exact: true }).click();
+    await ownerSwitchDiagnostic(holder, phase, refs, 'holder'); phase = 'owner-cleared';
+    await expect.poll(() => holder!.evaluate(() => {
       const value = JSON.parse(localStorage.getItem('fitness-cloud-sync-epoch') ?? 'null');
       return value?.userId;
     })).toBeNull();
     expect(await holder.evaluate(() => localStorage.getItem('fitness-cloud-sync-epoch'))).not.toBe(epoch);
-    await releaseStorageLock(holder);
+    await ownerSwitchDiagnostic(holder, phase, refs, 'holder');
+    phase = 'lock-released'; await releaseStorageLock(holder); await ownerSwitchDiagnostic(holder, phase, refs, 'holder');
+    phase = 'signed-out';
     await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
     expect(await localState(page)).toEqual({});
-    await login(page, other, '/diet'); await synced(page);
+    await ownerSwitchDiagnostic(page, phase, refs);
+    phase = 'before-b-login'; await ownerSwitchDiagnostic(page, phase, refs);
+    await login(page, other, '/diet'); phase = 'after-b-login'; await ownerSwitchDiagnostic(page, phase, refs);
+    expect(await page.evaluate(() => localStorage.getItem('fitness-cloud-sync-user'))).toBe(other.id);
+    phase = 'owner-b-ready'; await synced(page); await ownerSwitchDiagnostic(page, phase, refs);
     expect(await localState(page)).toEqual(otherState);
     expect(await qa.read(other)).toEqual(otherState);
     await expect(page.getByLabel('메모', { exact: true })).toHaveValue('CI owner B only');
     await reauthenticateFixtureAccount(qa.account);
     expect(await qa.read(qa.account)).toEqual(original);
-    await page.reload(); await synced(page); expect(await localState(page)).toEqual(otherState);
-  } finally { await releaseStorageLock(holder); await holder.close(); }
+    phase = 'isolation-verified'; await ownerSwitchDiagnostic(page, phase, refs);
+    phase = 'before-reload'; await ownerSwitchDiagnostic(page, phase, refs);
+    await page.reload(); phase = 'after-reload'; await ownerSwitchDiagnostic(page, phase, refs);
+    await synced(page); expect(await localState(page)).toEqual(otherState);
+    phase = 'complete'; await ownerSwitchDiagnostic(page, phase, refs);
+  } catch (error) {
+    await ownerSwitchDiagnostic(page, phase, refs, 'first', true);
+    if (holder) await ownerSwitchDiagnostic(holder, phase, refs, 'holder', true);
+    throw error;
+  } finally { if (holder) { await releaseStorageLock(holder); await holder.close(); } }
 });
 
 test('legacy v1 recovery bytes survive reload and blocked save without cloud publication', async ({ page, qa }) => {

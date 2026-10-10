@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-type Phase = 'step-visible' | 'exposure-ready' | 'input-filled' | 'save-clicked' | 'saved' | 'reloaded' | 'send-clicked' | 'sent' | 'before-close' | 'close-clicked' | 'closed' | 'finished';
+type Phase = 'step-visible' | 'exposure-ready' | 'input-filled' | 'save-clicked' | 'saved' | 'reloaded' | 'send-clicked' | 'sent' | 'before-close' | 'before-recovery' | 'recovered' | 'close-clicked' | 'closed' | 'finished';
 export function sanitizeGuidedDiagnostic(value: unknown) {
   const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const choice = (key: string, allowed: readonly string[]) => typeof data[key] === 'string' && allowed.includes(data[key] as string) ? data[key] : 'unknown';

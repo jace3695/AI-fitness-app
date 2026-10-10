@@ -3,6 +3,7 @@ import { CURRICULUM } from '../../data/curriculum';
 import { GUIDED_CONVERSATION_PILOT } from '../../data/guidedConversationPilot';
 import { findGuidedConversationCatalogScript } from '../../data/guidedConversationCatalog';
 import type { ConversationEnvelope } from '../../lib/conversation-session/contracts';
+import { isAppliedGuidedRecoveryCandidate } from './guided-terminal-recovery';
 import { logGuidedBoundary, readGuidedDiagnostic } from './guided-conversation-diagnostics';
 import { test, expect, login, synced, original, originalLanguage, assertOriginalPreserved, localState, today } from './fixture';
 
@@ -399,7 +400,9 @@ for (const [scriptId, scriptRevision] of [
   const active = page.getByRole('region', { name: '현재 연습 단계', exact: true });
   const transcript = page.getByRole('region', { name: '이 대화에서 보낸 문장', exact: true });
   await expect(active).toContainText('상대방 말'); await expect(active).not.toContainText('점원');
-  expect((await readSession()).source).toMatchObject({ scriptId, scriptRevision, contextId: script.contextId, levelId: script.levelId,
+  const initialSession = await readSession();
+  const initialEnvelope = JSON.parse((await readRaw())!) as ConversationEnvelope;
+  expect(initialSession.source).toMatchObject({ scriptId, scriptRevision, contextId: script.contextId, levelId: script.levelId,
     builderPolicy: 'guided-fixed-exchange-v2', catalogVersion: 'free-conversation-catalog-v3',
     contentSource: { module: 'data/guidedConversationCatalog.ts', exportName: 'GUIDED_CONVERSATION_REMAINING' }, content: script });
   let diagnosticStep = 0;
@@ -466,6 +469,26 @@ for (const [scriptId, scriptRevision] of [
     await expect(page.getByText(`연습 단계 ${script.steps.length}/${script.steps.length} 전송됨 · 대화 종료로 기록을 마무리해 주세요.`, { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '예문 듣기', exact: true })).toHaveCount(0);
     await logGuidedBoundary(page, script.levelId, diagnosticStep, 'before-close');
+    // A committed final turn is not itself acknowledgement under a refreshed
+    // context. Follow the visible read-only recovery action once for only the
+    // exact applied-original-command boundary, without re-sending any turn.
+    await expect(status).toHaveAttribute('data-save-status', /^(saved|uncertain)$/);
+    if (await status.getAttribute('data-save-status') === 'uncertain') {
+      const beforeRecovery = await readRaw(); expect(beforeRecovery).not.toBeNull();
+      const envelope = JSON.parse(beforeRecovery!) as ConversationEnvelope;
+      expect(isAppliedGuidedRecoveryCandidate(await readGuidedDiagnostic(page), envelope, {
+        ownerId: qa.account.id, generationId: initialEnvelope.generationId, marker: initialEnvelope.marker, sessionId: initialSession.sessionId,
+        source: initialSession.source, totalSteps: script.steps.length,
+      })).toBe(true);
+      await logGuidedBoundary(page, script.levelId, diagnosticStep, 'before-recovery');
+      const recover = page.getByRole('button', { name: '저장 다시 확인', exact: true });
+      await expect(recover).toBeVisible(); await expect(recover).toBeEnabled();
+      await recover.click();
+      await expect(status).toHaveAttribute('data-save-status', 'saved');
+      await expect.poll(() => readGuidedDiagnostic(page)).toMatchObject({ pendingKind: 'none', busy: false, editorDirty: false });
+      expect(await readRaw()).toBe(beforeRecovery);
+      await logGuidedBoundary(page, script.levelId, diagnosticStep, 'recovered');
+    }
     await page.getByRole('button', { name: '대화 종료', exact: true }).click();
     await logGuidedBoundary(page, script.levelId, diagnosticStep, 'close-clicked');
     const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });

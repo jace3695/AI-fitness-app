@@ -7,7 +7,7 @@ const fields = (data, names, project) => Object.fromEntries(names.map(name => [n
 const exposureValues = ['shown', 'not-shown', 'unknown'];
 const guided = data => ({
   level: choice(data.level, ['beginner', 'elementary', 'intermediate']), step: count(data.step),
-  phase: choice(data.phase, ['step-visible', 'exposure-ready', 'input-filled', 'save-clicked', 'saved', 'reloaded', 'send-clicked', 'sent', 'before-close', 'close-clicked', 'closed', 'finished']),
+  phase: choice(data.phase, ['step-visible', 'exposure-ready', 'input-filled', 'save-clicked', 'saved', 'reloaded', 'send-clicked', 'sent', 'before-close', 'before-recovery', 'recovered', 'close-clicked', 'closed', 'finished']),
   surface: choice(data.surface, ['present', 'missing', 'unavailable']),
   status: choice(data.status, ['unavailable', 'idle', 'unsaved', 'saving', 'pending', 'uncertain', 'saved']),
   ...fields(data, ['available', 'busy', 'contextCurrent', 'editorPresent', 'editorDirty', 'editorOnActiveStep', 'closedBoundary'], bit),
@@ -40,7 +40,20 @@ const handwritingSave = data => ({
   errorBoundary: choice(data.errorBoundary, ['none', 'png-call', 'pending-put', 'pending-request', 'pending-transaction']),
   errorName: choice(data.errorName, ['none', 'AbortError', 'ConstraintError', 'DataCloneError', 'DataError', 'InvalidStateError', 'NotSupportedError', 'QuotaExceededError', 'ReadOnlyError', 'TransactionInactiveError', 'UnknownError', 'other']),
 });
-const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave };
+const ownerSwitch = data => ({
+  phase: choice(data.phase, ['owner-a-ready', 'holder-a-ready', 'lock-held', 'edit-queued', 'signout-clicked', 'owner-cleared', 'lock-released', 'signed-out', 'before-b-login', 'after-b-login', 'owner-b-ready', 'isolation-verified', 'before-reload', 'after-reload', 'complete']),
+  tab: choice(data.tab, ['first', 'holder']), visibility: choice(data.visibility, ['visible', 'hidden']),
+  authGate: choice(data.authGate, ['failed', 'login', 'editor', 'pending']),
+  sync: choice(data.sync, ['synced', 'error', 'conflict', 'syncing', 'pending', 'absent']),
+  ...fields(data, ['owner', 'desiredOwner', 'readyOwner', 'lastReadOwner'], value => choice(value, ['A', 'B', 'none', 'other'])),
+  ...fields(data, ['failed', 'readyMatchesEpoch', 'localEmpty', 'localMatchesA', 'localMatchesB', 'editorPrivate', 'editorPresent', 'legacyPresent', 'sessionChangedNotice'], bit),
+  ...fields(data, ['lockHeld', 'lockPending', 'reads', 'writes'], count),
+  protocolState: choice(data.protocolState, ['absent', 'prepared', 'committed', 'other']),
+  lastReadResult: choice(data.lastReadResult, ['absent', 'pending', 'ok', 'not-confirmed']),
+  probe: choice(data.probe, ['unavailable']),
+  failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+});
+const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch };
 export function projectStateDiagnostic(line) {
   if (typeof line !== 'string' || line.length > 8192) return null;
   const delimiter = line.indexOf(' '), prefix = line.slice(0, delimiter);
