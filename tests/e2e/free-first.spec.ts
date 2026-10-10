@@ -136,14 +136,14 @@ for (const script of GUIDED_CONVERSATION_PILOT) test(`guided ${script.levelId} s
       await logGuidedBoundary(page, script.levelId, i, 'input-filled');
       await page.getByRole('button', { name: '입력 저장', exact: true }).click();
       await logGuidedBoundary(page, script.levelId, i, 'save-clicked');
-      await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'draft', before: beforeDraft, stepIndex: i, input: text, origin: { kind: 'typed', edited: false } }, script.levelId);
+      await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'draft', before: beforeDraft, stepIndex: i, input: text, origin: { kind: 'typed', edited: false } }, script.levelId);
       await expect(status).toHaveAttribute('data-save-status', 'saved');
       await logGuidedBoundary(page, script.levelId, i, 'saved');
       if (i === 0) { await page.reload(); await expect(input).toHaveValue(text); await logGuidedBoundary(page, script.levelId, i, 'reloaded'); }
       const beforeAppend = await readEnvelope();
       await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
       await logGuidedBoundary(page, script.levelId, i, 'send-clicked');
-      await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'append', before: beforeAppend, stepIndex: i }, script.levelId);
+      await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'append', before: beforeAppend, stepIndex: i }, script.levelId);
       await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
       await logGuidedBoundary(page, script.levelId, i, 'sent');
       await expect(page.getByRole('region', { name: '이 대화에서 보낸 문장', exact: true })).toContainText(step.fixedReply.japanese);
@@ -155,7 +155,7 @@ for (const script of GUIDED_CONVERSATION_PILOT) test(`guided ${script.levelId} s
     const beforeClose = await readEnvelope();
     await page.getByRole('button', { name: '대화 종료', exact: true }).click();
     await logGuidedBoundary(page, script.levelId, diagnosticStep, 'close-clicked');
-    await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'close', before: beforeClose, stepIndex: diagnosticStep }, script.levelId);
+    await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'close', before: beforeClose, stepIndex: diagnosticStep }, script.levelId);
     const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
     await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
     await expect(recap).toContainText('평가한 문장 0개');
@@ -450,7 +450,7 @@ for (const [scriptId, scriptRevision] of [
       await logGuidedBoundary(page, script.levelId, i, 'input-filled');
       await page.getByRole('button', { name: '입력 저장', exact: true }).click();
       await logGuidedBoundary(page, script.levelId, i, 'save-clicked');
-      await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'draft', before: beforeDraft, stepIndex: i, input: text, origin: { kind: i === 0 ? 'inserted-example' : 'typed', edited: false } }, script.levelId);
+      await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'draft', before: beforeDraft, stepIndex: i, input: text, origin: { kind: i === 0 ? 'inserted-example' : 'typed', edited: false } }, script.levelId);
       await expect(status).toHaveAttribute('data-save-status', 'saved');
       await logGuidedBoundary(page, script.levelId, i, 'saved');
       const saved = await readSession(), savedDraft = saved.drafts.find(draft => draft.source.stepId === step.id)!;
@@ -469,7 +469,7 @@ for (const [scriptId, scriptRevision] of [
       const beforeAppend = await readEnvelope();
       await page.getByRole('button', { name: i === script.steps.length - 1 ? '마지막 문장 보내기' : '보내고 다음 단계로', exact: true }).click();
       await logGuidedBoundary(page, script.levelId, i, 'send-clicked');
-      await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'append', before: beforeAppend, stepIndex: i }, script.levelId);
+      await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'append', before: beforeAppend, stepIndex: i }, script.levelId);
       await expect(page.getByRole('heading', { name: `보낸 문장 ${i + 1}개`, exact: true })).toBeVisible();
       await expect(transcript).toContainText(step.fixedReply.japanese); await expect(transcript).toContainText('정해진 상대방 응답 · 평가하지 않음');
       await expect(transcript).not.toContainText('점원');
@@ -495,7 +495,7 @@ for (const [scriptId, scriptRevision] of [
     const beforeClose = await readEnvelope();
     await page.getByRole('button', { name: '대화 종료', exact: true }).click();
     await logGuidedBoundary(page, script.levelId, diagnosticStep, 'close-clicked');
-    await confirmGuidedCheckpoint(page, readRaw, initialEnvelope, { kind: 'close', before: beforeClose, stepIndex: diagnosticStep }, script.levelId);
+    await confirmGuidedCheckpoint(page, partitionKey, initialEnvelope, { kind: 'close', before: beforeClose, stepIndex: diagnosticStep }, script.levelId);
     const recap = page.getByRole('region', { name: '종료한 대화 요약', exact: true });
     await expect(recap).toContainText(`전송한 단계 ${script.steps.length}/${script.steps.length}`);
     await expect(recap).toContainText('평가한 문장 0개'); await expect(recap).toContainText('목표 달성을 판정한 결과는 아니에요');

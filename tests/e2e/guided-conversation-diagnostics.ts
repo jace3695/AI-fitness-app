@@ -40,3 +40,18 @@ export async function logGuidedBoundary(page: Page, level: 'beginner' | 'element
     console.info('QA_GUIDED_BOUNDARY', JSON.stringify({ level, step, phase, surface: 'unavailable' }));
   }
 }
+
+export const GUIDED_CHECKPOINT_REASONS = ['invalid-envelope', 'changed-scope', 'authority-or-status', 'wrong-step', 'progress-or-editor', 'pending-kind', 'draft-transition', 'command-boundary', 'operation-identity', 'command-payload', 'unresolved-operation', 'terminal-transition', 'missing-storage', 'read-failed', 'changed-after-observation'] as const;
+export type GuidedCheckpointReason = typeof GUIDED_CHECKPOINT_REASONS[number];
+/** One fixed-schema failure row. Never serialize the inspected storage/input. */
+export function logGuidedCheckpointRefusal(value: unknown, level: 'beginner' | 'elementary' | 'intermediate', step: number, checkpointKind: 'draft' | 'append' | 'close', reason: GuidedCheckpointReason) {
+  const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  try {
+    console.info('QA_GUIDED_BOUNDARY', JSON.stringify({
+      level: ['beginner', 'elementary', 'intermediate'].includes(level) ? level : 'unknown',
+      step: Number.isInteger(step) && step >= 0 && step <= 10000 ? step : null, phase: 'checkpoint-refused',
+      checkpointKind: ['draft', 'append', 'close'].includes(checkpointKind) ? checkpointKind : 'unknown',
+      proof: GUIDED_CHECKPOINT_REASONS.includes(reason) ? reason : 'unknown',
+      surface: typeof data.surface === 'string' && ['present', 'missing', 'unavailable'].includes(data.surface) ? data.surface : 'unavailable', ...sanitizeGuidedDiagnostic(data) }));
+  } catch { /* Diagnostics must not replace the original assertion failure. */ }
+}

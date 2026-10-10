@@ -7,7 +7,9 @@ const fields = (data, names, project) => Object.fromEntries(names.map(name => [n
 const exposureValues = ['shown', 'not-shown', 'unknown'];
 const guided = data => ({
   level: choice(data.level, ['beginner', 'elementary', 'intermediate']), step: count(data.step),
-  phase: choice(data.phase, ['step-visible', 'exposure-ready', 'input-filled', 'save-clicked', 'saved', 'reloaded', 'send-clicked', 'sent', 'before-close', 'before-recovery', 'recovered', 'pending-close-confirmed', 'close-abandoned', 'replacement-close-clicked', 'close-clicked', 'closed', 'finished']),
+  phase: choice(data.phase, ['step-visible', 'exposure-ready', 'input-filled', 'save-clicked', 'saved', 'reloaded', 'send-clicked', 'sent', 'before-close', 'before-recovery', 'recovered', 'pending-close-confirmed', 'close-abandoned', 'replacement-close-clicked', 'close-clicked', 'closed', 'finished', 'checkpoint-refused']),
+  checkpointKind: choice(data.checkpointKind, ['draft', 'append', 'close']),
+  proof: choice(data.proof, ['invalid-envelope', 'changed-scope', 'authority-or-status', 'wrong-step', 'progress-or-editor', 'pending-kind', 'draft-transition', 'command-boundary', 'operation-identity', 'command-payload', 'unresolved-operation', 'terminal-transition', 'missing-storage', 'read-failed', 'changed-after-observation']),
   surface: choice(data.surface, ['present', 'missing', 'unavailable']),
   status: choice(data.status, ['unavailable', 'idle', 'unsaved', 'saving', 'pending', 'uncertain', 'saved']),
   ...fields(data, ['available', 'busy', 'contextCurrent', 'editorPresent', 'editorDirty', 'editorOnActiveStep', 'closedBoundary'], bit),

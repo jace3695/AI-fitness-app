@@ -92,8 +92,9 @@ test('state diagnostic output is bounded and both browser projects fit the curre
   // Seven normal rows/step plus two readback rows for each original draft and
   // append. Five close/reload/final rows plus four for the staged-close route.
   const rowsPerProject = stepCount * (7 + 2 + 2) + journeys.length * (5 + 4);
-  const guidedRows = 2 * rowsPerProject;
-  assert.equal(guidedRows, 460); assert.ok(guidedRows <= 512);
+  // Reserve one refusal row per journey as well, even though failure ends it.
+  const guidedRows = 2 * (rowsPerProject + journeys.length);
+  assert.equal(guidedRows, 472); assert.ok(guidedRows <= 512);
   for (let i = 0; i < guidedRows; i++) {
     const phase = i === guidedRows - 1 ? 'finished' : 'before-recovery';
     const line = collector.ingest('QA_GUIDED_BOUNDARY ' + JSON.stringify({ phase, status: 'uncertain', step: 10000, totalSteps: 10000 }));
@@ -121,4 +122,13 @@ test('guided recovery and explicit abandonment phases survive the bounded state 
   for (const phase of ['before-recovery', 'recovered', 'pending-close-confirmed', 'close-abandoned', 'replacement-close-clicked']) {
     assert.equal(read('QA_GUIDED_BOUNDARY', { phase }).phase, phase);
   }
+});
+
+
+test('checkpoint refusal diagnostics retain only closed reasons and kinds', () => {
+  const value = read('QA_GUIDED_BOUNDARY', { phase: 'checkpoint-refused', checkpointKind: 'draft', proof: 'changed-after-observation', input: 'PRIVATE_INPUT', raw: 'PRIVATE_PARTITION' });
+  assert.equal(value.phase, 'checkpoint-refused'); assert.equal(value.checkpointKind, 'draft'); assert.equal(value.proof, 'changed-after-observation');
+  assert.doesNotMatch(JSON.stringify(value), /PRIVATE/);
+  const unknown = read('QA_GUIDED_BOUNDARY', { checkpointKind: 'PRIVATE_KIND', proof: 'PRIVATE_REASON' });
+  assert.equal(unknown.checkpointKind, 'unknown'); assert.equal(unknown.proof, 'unknown');
 });

@@ -37,6 +37,7 @@ function pendingCloudKeys(base: CloudState | null, local: CloudState) {
 }
 type ConflictSubmission = { review: ConflictReview; choices: CloudSyncConflictChoice[] };
 type SyncIssue = { phase: "read" | "write" | "local"; message: string };
+type AuthBinding = { userId: string | null; epoch: string | null };
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "conflict" | "error";
 
@@ -48,7 +49,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncRequest, setSyncRequest] = useState(0);
-  const [authRevision, setAuthRevision] = useState(0);
+  const [authBinding, setAuthBinding] = useState<AuthBinding>({ userId: null, epoch: null });
   const [conflictReview, setConflictReview] = useState<ConflictReview | null>(null);
   const [reviewVersion, setReviewVersion] = useState(0);
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
@@ -60,27 +61,46 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const authUserId = useRef<string | null>(null);
   const authEpoch = useRef<string | null>(null);
   const retryAuth = useRef<(() => void) | null>(null);
+  const cancelAuth = useRef<(() => void) | null>(null);
   const cancelSync = useRef<(() => void) | null>(null);
+  const completedBinding = useRef<AuthBinding | null>(null);
+  const liveSync = useRef<{ userId: string; epoch: string | null; active: boolean } | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     let authVersion = 0;
     const applyUser = async (nextUser: User | null, version: number) => {
-      if (!active) return;
+      if (!active || version !== authVersion) return;
       const nextId = nextUser?.id ?? null;
       const alreadyReady = nextId !== null && authUserId.current === nextId
         && isCurrentCloudSession(nextId, authEpoch.current);
-      if (alreadyReady) { setUser(nextUser); return; }
-      // Cancellation and shared owner fencing happen before either awaits.
+      const existing = liveSync.current;
+      if (alreadyReady && existing?.active && existing.userId === nextId && existing.epoch === authEpoch.current) { setUser(nextUser); return; }
+      // Fence even a published binding whose effect has not mounted yet.
+      // Both pending activation and an existing loop retire before any await.
+      completedBinding.current = null;
       cancelSync.current?.();
+      if (alreadyReady) {
+        // Restored shared readiness does not revive a retired sync closure.
+        // A fresh owner check must precede a replacement effect generation.
+        try {
+          const verified = await supabase!.auth.getUser();
+          if (!active || version !== authVersion) return;
+          if (verified.error || verified.data.user?.id !== nextId) throw new Error("로그인 상태를 확인하지 못했습니다. 다시 시도하여 계정을 확인해 주세요.");
+        } catch (error) {
+          if (!active || version !== authVersion) return;
+          setStatus("error");
+          setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
+          return;
+        }
+      }
       heldReview.current = null;
       setConflictReview(null);
       setPendingKeys([]);
       setSyncIssue(null);
       authUserId.current = nextId;
       setUser(null);
-      setAuthRevision(revision => revision + 1);
       lastSynced.current = "";
       setStatus("idle");
       setLastSyncedAt(null);
@@ -92,6 +112,11 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         const preparedEpoch = readCloudSyncEpoch();
         if (nextUser && !isCurrentCloudSession(nextUser.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
         authEpoch.current = preparedEpoch;
+        // Publish one completed generation; object identity also fences any
+        // superseded effect still waiting to mount.
+        const binding = { userId: nextId, epoch: preparedEpoch };
+        completedBinding.current = binding;
+        setAuthBinding(binding);
         setStatus("idle");
         setMessage("");
         setUser(nextUser);
@@ -105,8 +130,15 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       const version = ++authVersion;
       void applyUser(session?.user ?? null, version);
     });
+    cancelAuth.current = () => {
+      authVersion += 1;
+      completedBinding.current = null;
+      cancelSync.current?.();
+    };
     retryAuth.current = () => {
       const version = ++authVersion;
+      completedBinding.current = null;
+      cancelSync.current?.();
       void supabase!.auth.getUser().then(({ data, error }) => {
         if (error && error.name !== "AuthSessionMissingError") throw error;
         if (active && version === authVersion) return applyUser(data.user, version);
@@ -126,11 +158,11 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
     });
-    return () => { active = false; retryAuth.current = null; data.subscription.unsubscribe(); };
+    return () => { active = false; completedBinding.current = null; cancelAuth.current = null; retryAuth.current = null; data.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!userId || !supabase) return;
+    if (!userId || !supabase || authBinding.userId !== userId || completedBinding.current !== authBinding) return;
     let active = true;
     let syncing = false;
     let refreshRequested = false;
@@ -140,9 +172,12 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     let followUpTimer: number | undefined;
     const controller = new AbortController();
     const signal = controller.signal;
-    const epoch = readCloudSyncEpoch();
+    const epoch = authBinding.epoch;
+    const registration = { userId, epoch, active: true };
+    liveSync.current = registration;
     const stop = () => {
       active = false;
+      registration.active = false;
       controller.abort();
       window.clearTimeout(followUpTimer);
       heldReview.current = null;
@@ -371,6 +406,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     return () => {
       stop();
       if (cancelSync.current === stop) cancelSync.current = null;
+      if (liveSync.current === registration) liveSync.current = null;
       window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
       window.removeEventListener(RECORD_RESET_EVENT, onReset);
       window.clearInterval(interval);
@@ -382,7 +418,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       window.removeEventListener("online", onOnline);
       window.removeEventListener("focus", onFocus);
     };
-  }, [syncRequest, userId, authRevision]);
+  }, [syncRequest, userId, authBinding]);
 
   if (hideSignedOut && (!user || !isSupabaseConfigured)) {
     if (status === "error") return <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800">{message}</p>;
@@ -516,7 +552,8 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
             type="button"
             disabled={status === "syncing"}
             onClick={() => {
-              if (!isCurrentCloudSession(userId!, authEpoch.current)) retryAuth.current?.();
+              if (!isCurrentCloudSession(userId!, authEpoch.current) || completedBinding.current !== authBinding
+                || !liveSync.current?.active || liveSync.current.userId !== userId || liveSync.current.epoch !== authBinding.epoch) retryAuth.current?.();
               else setSyncRequest((current) => current + 1);
             }}
             className="flex-1 rounded-xl bg-white px-3 py-2 font-bold text-[#3C3489] shadow-sm disabled:cursor-wait disabled:opacity-50"
@@ -526,8 +563,9 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           <button
             type="button"
             onClick={() => {
-              // Invalidate the prompt before signOut performs any asynchronous work.
-              cancelSync.current?.();
+              // Retire pending authentication, activation and prompts before
+              // signOut performs any asynchronous work.
+              cancelAuth.current?.();
               heldReview.current = null;
               setConflictReview(null);
               setPendingKeys([]);

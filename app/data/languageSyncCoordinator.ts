@@ -1,10 +1,10 @@
-import { ConversationLocalError } from './languageLocalParticipants.ts';
+import { ConversationLocalError, conversationLocalKey, readConversationPartition } from './languageLocalParticipants.ts';
 import type { AuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
 import { assertAuthenticatedStorageOwner } from './authenticatedStorageOwner.ts';
 import type { TransactionStorage } from './storageTransaction.ts';
 import { readStorageSnapshot, STORAGE_GENERATION_KEY, STORAGE_JOURNAL_KEY, STORAGE_OWNER_KEY, STORAGE_PROTOCOL_KEY, STORAGE_READY_KEY, STORAGE_SESSION_KEY } from './storageTransaction.ts';
 import { stableState } from './cloudSync.ts';
-import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS, LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, projectLanguageBytes, projectLanguageWire, sameLanguageBytes } from './languageStorageBoundary.ts';
+import { LANGUAGE_BINDING_KEY, LANGUAGE_MARKER_KEY, LANGUAGE_OWNER_KEY, LANGUAGE_RESET_FENCE_KEY, LANGUAGE_STORAGE_KEYS, LanguageBoundaryError, languageSyncAckKey, languageSyncBaseKey, projectLanguageBytes, projectLanguageWire, sameLanguageBytes } from './languageStorageBoundary.ts';
 import { captureLanguageRemoteObservation, assertLanguageSyncDispatchCurrent, commitLanguageRemoteReset, commitLanguageSyncResponse, createLanguageSyncLifecycle,
   isLanguageRecordContextCurrent, isLanguageSyncRequestCurrent, LanguageRequestStaleError, planLanguageSync, readLanguageSyncRequest, revokeLanguageRecordContexts } from './languageCloudSync.ts';
 import type { LanguageRecordContext, LanguageSyncLifecycle } from './languageCloudSync.ts';
@@ -26,7 +26,13 @@ export function createLanguageSyncCoordinator(options: { lease: AuthenticatedSto
   };
   const fingerprint = () => {
     const snapshot = readStorageSnapshot(storage);
-    return stableState({ generation: snapshot.generation, pending: snapshot.pending, local: projectLanguageBytes(snapshot),
+    const participant = readConversationPartition(snapshot.getItem(conversationLocalKey(lease.userId)), lease.userId);
+    // Shared generation advances for private conversation writes too. Schedule
+    // cloud work only for relevant bytes/control changes, after validating that
+    // the private participant is safe. Dispatch/CAS still binds full generation.
+    return stableState({ pending: snapshot.pending, local: projectLanguageBytes(snapshot),
+      owner: snapshot.getItem(STORAGE_OWNER_KEY), languageOwner: snapshot.getItem(LANGUAGE_OWNER_KEY),
+      participantMarker: participant ? participant.marker : snapshot.getItem(LANGUAGE_MARKER_KEY),
       base: snapshot.getItem(languageSyncBaseKey(lease.userId)), ack: snapshot.getItem(languageSyncAckKey(lease.userId)),
       binding: snapshot.getItem(LANGUAGE_BINDING_KEY), fence: snapshot.getItem(LANGUAGE_RESET_FENCE_KEY), ready: snapshot.getItem(STORAGE_READY_KEY), session: snapshot.getItem(STORAGE_SESSION_KEY) });
   };

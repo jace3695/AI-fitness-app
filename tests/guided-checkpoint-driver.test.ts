@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { runInThisContext } from 'node:vm';
+import { runInNewContext, runInThisContext } from 'node:vm';
 import { expect as playwrightExpect, type Page } from '@playwright/test';
 import ts from 'typescript';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
@@ -12,7 +12,7 @@ import { planApply, planCreateSession, planResolve, planSaveDraft, planStage, se
 import * as diagnostics from './e2e/guided-conversation-diagnostics.ts';
 import type { GuidedCheckpoint } from './e2e/guided-checkpoint-recovery.ts';
 
-const READBACK = '저장 다시 확인', CANCEL = '보류 종료 취소', CLOSE = '대화 종료';
+const READBACK = '저장 다시 확인', CANCEL = '보류 종료 취소', CLOSE = '대화 종료', PARTITION_KEY = 'driver-owned-partition';
 type Frame = { envelope: ConversationEnvelope; diagnostic: Record<string, unknown>; input?: string; raw?: string | null; hiddenButtons?: string[]; disabledButtons?: string[] };
 type Transition = { button: string; frame: Frame };
 
@@ -31,7 +31,7 @@ class FakeLocator {
       assert.equal(name, 'data-conversation-diagnostic'); return JSON.stringify(this.host.frame.diagnostic);
     } }]);
   }
-  async inputValue() { assert.equal(this.kind, 'editor'); return this.host.frame.input ?? ''; }
+  async inputValue() { assert.equal(this.kind, 'editor'); this.host.splitEditorReads++; return this.host.frame.input ?? ''; }
   async click() {
     assert.equal(this.kind, 'button');
     this.host.clicks.push(this.name!);
@@ -43,7 +43,33 @@ class FakeLocator {
 }
 
 function fakePage(frame: Frame, transitions: Transition[] = []) {
-  const host = { frame, transitions: [...transitions], clicks: [] as string[], buttonChecks: [] as string[], reads: 0,
+  const host = { frame, transitions: [...transitions], clicks: [] as string[], buttonChecks: [] as string[], reads: 0, splitEditorReads: 0, observationFields: [] as string[][], afterRead: undefined as (() => void) | undefined,
+    async evaluate<T>(read: (key: string) => T, key: string): Promise<T> {
+      assert.equal(key, PARTITION_KEY); host.reads++;
+      const captured = host.frame, fields: string[] = []; host.observationFields.push(fields);
+      const diagnostic = { getAttribute(name: string) {
+        assert.equal(name, 'data-conversation-diagnostic'); fields.push('diagnostic'); return JSON.stringify(captured.diagnostic);
+      } };
+      class SyntheticInput { get value() { fields.push('editor'); return captured.input ?? ''; } }
+      const input = new SyntheticInput();
+      const select = (selector: string) => {
+        if (selector === '[data-conversation-diagnostic]') return diagnostic;
+        assert.equal(selector, '#conversation-input'); return captured.diagnostic.editorPresent ? input : null;
+      };
+      const localStorage = { getItem(requestedKey: string) {
+        assert.equal(requestedKey, PARTITION_KEY); fields.push('storage');
+        return 'raw' in captured ? captured.raw! : contracts.canonicalJson(captured.envelope);
+      } };
+      // Execute the actual browser callback synchronously in a tiny DOM/storage
+      // realm. Refreshes may run after its return, never between its reads.
+      const observed = runInNewContext(`(${read.toString()})(partitionKey)`, {
+        partitionKey: key, localStorage, window: { localStorage }, HTMLTextAreaElement: SyntheticInput, HTMLInputElement: SyntheticInput,
+        document: { querySelector: select, querySelectorAll(selector: string) { const found = select(selector); return found ? [found] : []; },
+          getElementById(id: string) { assert.equal(id, 'conversation-input'); return select(`#${id}`); } },
+      }) as T;
+      assert.equal(typeof (observed as { then?: unknown } | null)?.then, 'undefined', 'Checkpoint capture must have no async gap');
+      host.afterRead?.(); return observed;
+    },
     locator(selector: string): FakeLocator {
       assert.ok(['[data-save-status]', '[data-conversation-diagnostic]'].includes(selector));
       return new FakeLocator(host, selector === '[data-save-status]' ? 'status' : 'diagnostic');
@@ -56,7 +82,8 @@ function fakePage(frame: Frame, transitions: Transition[] = []) {
       assert.ok([READBACK, CANCEL, CLOSE].includes(options.name)); return new FakeLocator(host, 'button', options.name);
     },
     async readRaw() {
-      host.reads++; return 'raw' in host.frame ? host.frame.raw! : contracts.canonicalJson(host.frame.envelope);
+      host.reads++; const raw = 'raw' in host.frame ? host.frame.raw! : contracts.canonicalJson(host.frame.envelope);
+      host.afterRead?.(); return raw;
     },
   };
   return host;
@@ -64,9 +91,9 @@ function fakePage(frame: Frame, transitions: Transition[] = []) {
 
 /** Only Playwright's locator/timing boundary is substituted. Generic assertions
  * are real Playwright assertions; the driver, classifier, contract validation,
- * and DOM diagnostic sanitizer execute their actual source. Frames change only
- * on clicks, so a poll takes one sample instead of waiting for an impossible
- * asynchronous change. This suite does not establish browser/polling behavior. */
+ * and DOM diagnostic sanitizer execute their actual source. A poll takes one
+ * deterministic sample; explicit callbacks can refresh context after a complete
+ * capture. This suite does not establish browser/polling behavior. */
 const expectBoundary = Object.assign((actual: unknown) => {
   if (!(actual instanceof FakeLocator)) return playwrightExpect(actual);
   return {
@@ -90,6 +117,7 @@ const expectBoundary = Object.assign((actual: unknown) => {
   poll(read: () => unknown | Promise<unknown>) {
     return {
       not: { async toBe(value: unknown) { playwrightExpect(await read()).not.toBe(value); } },
+      async toBe(value: unknown) { playwrightExpect(await read()).toBe(value); },
       async toMatchObject(value: Record<string, unknown>) { playwrightExpect(await read()).toMatchObject(value); },
     };
   },
@@ -106,7 +134,7 @@ const driverExports: Record<string, unknown> = {};
 runInThisContext(`(function(exports, require) { ${driverSource}\n})`)(driverExports, (name: string) => {
   assert.ok(driverDependencies.has(name), `Unexpected driver dependency: ${name}`); return driverDependencies.get(name);
 });
-const { confirmGuidedCheckpoint, classifyGuidedCheckpoint } = driverExports as typeof import('./e2e/guided-checkpoint-recovery.ts');
+const { confirmGuidedCheckpoint, classifyGuidedCheckpoint, readGuidedCheckpoint } = driverExports as typeof import('./e2e/guided-checkpoint-recovery.ts');
 
 function start() {
   const script = GUIDED_CONVERSATION_PILOT[1], envelope = base();
@@ -132,13 +160,14 @@ function stage(envelope: ConversationEnvelope, command: ConversationCommand) {
   return ok(planStage(envelope, sessionSource(envelope, command.sessionId)!, command));
 }
 function apply(envelope: ConversationEnvelope, command: ConversationCommand) { return ok(planApply(envelope, command)); }
-function scenario(kind: GuidedCheckpoint['kind']) {
+function scenario(kind: GuidedCheckpoint['kind'], activeStep = 0) {
   const initial = start(); let before = initial;
-  if (kind === 'close') for (let step = 0; step < GUIDED_CONVERSATION_PILOT[1].steps.length; step++) {
+  const submittedSteps = kind === 'close' ? GUIDED_CONVERSATION_PILOT[1].steps.length : activeStep;
+  for (let step = 0; step < submittedSteps; step++) {
     before = save(before); const command = append(before); before = apply(stage(before, command), command);
   }
   if (kind === 'append') before = save(before);
-  const stepIndex = kind === 'close' ? GUIDED_CONVERSATION_PILOT[1].steps.length - 1 : 0;
+  const stepIndex = kind === 'close' ? GUIDED_CONVERSATION_PILOT[1].steps.length - 1 : activeStep;
   if (kind === 'draft') {
     const after = save(before), value = after.sessions[0].drafts[0];
     return { initial, before, after, pending: undefined, command: undefined,
@@ -152,7 +181,7 @@ function frame(envelope: ConversationEnvelope, kind: GuidedCheckpoint['kind'], s
   const session = envelope.sessions[0], progress = contracts.getConversationProgress(session)!;
   const hasEditor = progress.activeStepIndex !== null;
   return { envelope, input: session.drafts[0]?.input, diagnostic: {
-    status, available: true, contextCurrent: true, busy: false, errorCode: 'none',
+    status, available: true, contextCurrent: true, busy: false, errorCode: status === 'pending' ? 'other-safe-error' : 'none',
     pendingKind: status === 'saved' ? 'none' : kind, commandKind: kind === 'draft' ? 'none' : kind,
     commandBoundary: kind === 'draft' ? 'none' : status === 'saved' ? 'applied' : kind === 'close' && !session.closed ? 'captured' : 'staged',
     editorPresent: hasEditor, editorOnActiveStep: hasEditor, editorDirty: kind === 'draft' && status === 'uncertain',
@@ -162,17 +191,79 @@ function frame(envelope: ConversationEnvelope, kind: GuidedCheckpoint['kind'], s
   } };
 }
 function run(host: ReturnType<typeof fakePage>, value: ReturnType<typeof scenario>) {
-  return confirmGuidedCheckpoint(host as unknown as Page, host.readRaw, value.initial, value.checkpoint, 'elementary');
+  return confirmGuidedCheckpoint(host as unknown as Page, PARTITION_KEY, value.initial, value.checkpoint, 'elementary');
 }
 function cancelled(value: ReturnType<typeof scenario>) {
   assert.ok(value.pending && value.command);
   return ok(planResolve(value.pending, sessionSource(value.pending, value.command.sessionId)!, value.command, resolution(value.pending, value.command, 'driver-cancellation')));
 }
 
+test('actual checkpoint reader: diagnostic, partition, and editor come from one synchronous capture', async () => {
+  const value = scenario('draft'), saved = frame(value.after, 'draft'), refreshed = frame(value.after, 'draft');
+  refreshed.diagnostic.contextCurrent = false; refreshed.input = 'later synthetic input';
+  const host = fakePage(saved); host.afterRead = () => { host.frame = refreshed; };
+  const observed = await readGuidedCheckpoint(host as unknown as Page, PARTITION_KEY);
+  assert.deepEqual(observed.state, { surface: 'present', ...diagnostics.sanitizeGuidedDiagnostic(saved.diagnostic) });
+  assert.equal(observed.raw, contracts.canonicalJson(saved.envelope)); assert.equal(observed.editorInput, saved.input);
+  assert.equal(host.frame, refreshed); assert.equal(host.reads, 1); assert.deepEqual(host.clicks, []);
+  assert.deepEqual([...host.observationFields[0]].sort(), ['diagnostic', 'editor', 'storage']);
+});
+
+for (const kind of ['draft', 'append', 'close'] as const) test(`actual checkpoint driver: accepted saved ${kind} snapshot survives a later read-only context refresh without action`, async () => {
+  const value = scenario(kind, 1), saved = frame(value.after, kind), refreshed = frame(value.after, kind);
+  refreshed.diagnostic.contextCurrent = false;
+  const host = fakePage(saved);
+  host.afterRead = () => { if (host.reads === 1) host.frame = refreshed; };
+  await run(host, value);
+  assert.deepEqual(host.clicks, []);
+  assert.equal(host.frame, refreshed);
+  assert.equal(host.reads, 1, 'A no-action saved result must retain the exact snapshot accepted by its poll');
+  assert.equal(host.splitEditorReads, 0, 'Editor evidence belongs to the accepted atomic snapshot');
+});
+
+for (const failure of ['newer-editor', 'changed-bytes', 'stale-context', 'changed-result'] as const) test(`actual checkpoint driver: ${failure} after accepted uncertainty refuses before readback`, async () => {
+  const kind = failure === 'changed-result' ? 'close' : 'draft', value = scenario(kind);
+  const first = frame(failure === 'changed-result' ? value.pending! : value.after, kind, 'uncertain');
+  const changed = frame(value.after, kind, 'uncertain');
+  if (failure === 'newer-editor') changed.input = 'newer synthetic editor';
+  if (failure === 'stale-context') changed.diagnostic.contextCurrent = false;
+  if (failure === 'changed-bytes') {
+    changed.envelope = structuredClone(value.after);
+    changed.envelope.sessions[0].drafts[0].savedAt = '2026-10-10T00:00:01.000Z';
+    assert.equal(contracts.validateEnvelope(changed.envelope).status, 'valid');
+    assert.equal(classifyGuidedCheckpoint({ surface: 'present', ...diagnostics.sanitizeGuidedDiagnostic(changed.diagnostic) }, changed.envelope, value.initial, value.checkpoint, changed.input), 'draft-applied', 'Same classification alone must not authorize recovery of different bytes');
+  }
+  const host = fakePage(first, [{ button: READBACK, frame: frame(value.after, kind) }]);
+  host.afterRead = () => { if (host.reads === 1) host.frame = changed; };
+  await assert.rejects(run(host, value));
+  assert.deepEqual(host.clicks, []); assert.equal(host.transitions.length, 1);
+  assert.ok(host.reads >= 2, 'An uncertain snapshot must be rechecked immediately before recovery');
+});
+
+for (const boundary of ['pending-close', 'cancelled-close'] as const) test(`actual checkpoint driver: ${boundary} snapshot drift cannot authorize the next action`, async () => {
+  const value = scenario('close'); assert.ok(value.pending);
+  const abandoned = cancelled(value), pendingView = frame(value.pending, 'close', 'pending'), cancelledView = frame(abandoned, 'close');
+  const target = boundary === 'pending-close' ? pendingView : cancelledView;
+  const changed = { ...target, diagnostic: { ...target.diagnostic, contextCurrent: false } };
+  const transitions: Transition[] = [{ button: READBACK, frame: pendingView }, { button: CANCEL, frame: cancelledView }];
+  if (boundary === 'cancelled-close') {
+    const replacement = closing(abandoned, 'driver-close-replacement');
+    transitions.push({ button: CLOSE, frame: frame(apply(stage(abandoned, replacement), replacement), 'close') });
+  }
+  const host = fakePage(frame(value.pending, 'close', 'uncertain'), transitions);
+  host.afterRead = () => { if (host.frame === target) host.frame = changed; };
+  await assert.rejects(run(host, value));
+  assert.deepEqual(host.clicks, boundary === 'pending-close' ? [READBACK] : [READBACK, CANCEL]);
+  assert.equal(host.transitions.length, 1);
+});
+
 for (const kind of ['draft', 'append', 'close'] as const) {
   test(`actual checkpoint driver: ready ${kind} returns without clicking any action`, async () => {
     const value = scenario(kind), host = fakePage(frame(value.after, kind));
-    await run(host, value); assert.deepEqual(host.clicks, []); assert.ok(host.reads >= 2);
+    await run(host, value); assert.deepEqual(host.clicks, []); assert.equal(host.reads, 1);
+    assert.equal(host.splitEditorReads, 0);
+    assert.equal(host.observationFields.length, 1);
+    assert.deepEqual([...host.observationFields[0]].sort(), kind === 'close' ? ['diagnostic', 'storage'] : ['diagnostic', 'editor', 'storage']);
   });
   test(`actual checkpoint driver: exact applied ${kind} uncertainty clicks visible readback once`, async () => {
     const value = scenario(kind), before = contracts.canonicalJson(value.after);

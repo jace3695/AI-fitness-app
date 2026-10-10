@@ -229,7 +229,7 @@ async function createDevice(server, seed = {}) {
       const deps = node.arguments[1]?.getText(ast);
       // Keep the old dependency spelling to run the same preservation cases
       // against the pre-fix source. Neither effect body is replaced by a mock.
-      if (['[syncRequest, user]', '[syncRequest, userId, authRevision]'].includes(deps)) {
+      if (['[syncRequest, user]', '[syncRequest, userId, authRevision]', '[syncRequest, userId, authBinding]'].includes(deps)) {
         effects.push(node.arguments[0].getText(ast)); syncDependencies = deps;
       }
       if (deps === '[]') authEffects.push(node.arguments[0].getText(ast));
@@ -246,11 +246,14 @@ async function createDevice(server, seed = {}) {
   let message = '';
   let conflictReview = null, reviewVersion = 0, pendingKeys = [], syncIssue = null;
   const refs = { lastSynced: { current: '' }, syncing: { current: false },
-    authUserId: { current: 'fixture-user' }, authEpoch: { current: null }, cancelSync: { current: null }, heldReview: { current: null }, submitConflicts: { current: null } };
+    authUserId: { current: null }, authEpoch: { current: null }, cancelSync: { current: null },
+    completedBinding: { current: null }, liveSync: { current: null }, cancelAuth: { current: null },
+    heldReview: { current: null }, submitConflicts: { current: null } };
   Object.assign(context, cloud, conflicts, reset, events, refs, {
     migrateLegacyWorkoutWeekdays: workouts.migrateLegacyWorkoutWeekdays,
-    user: { id: 'fixture-user' }, userId: 'fixture-user', supabase: client,
-    authRevision: 0, retryAuth: { current: null },
+    user: null, userId: undefined, supabase: client,
+    syncRequest: 0, authRevision: 0, authBinding: { userId: null, epoch: null }, retryAuth: { current: null },
+    setAuthBinding: update => { context.authBinding = typeof update === 'function' ? update(context.authBinding) : update; },
     setAuthRevision: update => { context.authRevision = typeof update === 'function' ? update(context.authRevision) : update; },
     setUser: value => { context.user = value; context.userId = value?.id; },
     setStatus: value => { status = value; }, setMessage: value => { message = value; },
@@ -266,8 +269,17 @@ async function createDevice(server, seed = {}) {
   let cleanup;
   let authCleanup;
   let committedDeps;
-  const currentDeps = () => syncDependencies.includes('userId') ? [context.userId, context.authRevision] : [context.user];
+  // Preserve the exact identity-sensitive dependency contract of the shipped
+  // effect. Only its own completed auth transition may publish a binding.
+  const currentDeps = () => vm.runInContext(syncDependencies, context);
   const mountSync = () => { committedDeps = currentDeps(); cleanup = vm.runInContext(effect, context)(context.user, context.userId); };
+  const mountAuth = async () => {
+    assert.equal(authCleanup, undefined, 'The auth effect must mount only once per device');
+    authCleanup = vm.runInContext(ts.transpileModule(`(${authEffects[0]})()`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText, context);
+    await flush();
+  };
   // Route navigation only tears down a page-owned synchronizer. A root-layout
   // synchronizer survives Next.js client navigation; full unmount still cleans up.
   const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
@@ -362,14 +374,9 @@ async function createDevice(server, seed = {}) {
       await flush();
     },
     get waitingTimers() { return timers.size; },
-    mount: async () => { mountSync(); await flush(); },
+    mount: async () => { if (!authCleanup) await mountAuth(); mountSync(); await flush(); },
     unmount: () => { cleanup?.(); authCleanup?.(); },
-    mountAuth: async () => {
-      authCleanup = vm.runInContext(ts.transpileModule(`(${authEffects[0]})()`, {
-        compilerOptions: { target: ts.ScriptTarget.ES2022 },
-      }).outputText, context);
-      await flush();
-    },
+    mountAuth,
     pauseInitialAuth: () => {
       const pending = deferred(); initialAuth = pending.promise;
       return userId => pending.resolve({ data: { user: userId ? { id: userId } : null } });

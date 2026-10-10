@@ -3,6 +3,7 @@ import test from 'node:test';
 import { conversationSessionFixture } from './helpers/conversationSessionFixture.ts';
 import { deferred, nodes } from './helpers/storage-ui-fixture.ts';
 import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
+import { logGuidedCheckpointRefusal, GUIDED_CHECKPOINT_REASONS } from './e2e/guided-conversation-diagnostics.ts';
 import { classifyGuidedCheckpoint, type GuidedCheckpoint } from './e2e/guided-checkpoint-recovery.ts';
 import { validateEnvelope, type ConversationEnvelope } from '../lib/conversation-session/contracts.ts';
 import { findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
@@ -113,8 +114,10 @@ for (const boundary of ['refreshed-context', 'unacknowledged-result'] as const) 
   assert.equal(classifyGuidedCheckpoint(diagnostic(), envelope(), initial, checkpoint), 'close-pending');
   assert.equal(original.command.kind, 'close'); assert.equal(original.terminal, null); assert.equal(pending.closed, null);
   assert.equal(pending.turns.length, script.steps.length); assert.equal(page.button('대화 종료').props.disabled, true);
+  const pendingDiagnostic = diagnostic();
   const beforeRead = JSON.stringify(f.snapshot().envelope), readWrites = f.browser.writes.length;
   page.click('저장 다시 확인'); await page.settle();
+  assert.deepEqual(diagnostic(), { ...pendingDiagnostic, status: 'pending', errorCode: 'other-safe-error' });
   assert.equal(JSON.stringify(f.snapshot().envelope), beforeRead); assert.equal(f.browser.writes.length, readWrites);
   assert.equal(page.button('대화 종료').props.disabled, true); assert.match(page.text(), /저장 요청이 보류되어 있어요/);
   if (boundary === 'refreshed-context') await assert.rejects(apply(stagedClose), 'Retired pending command cannot be rebound to fresh authority');
@@ -244,4 +247,22 @@ test('checkpoint classifier proves normal transitions and rejects changed author
     Object.assign(value.state, { status: 'uncertain', pendingKind: 'close', commandBoundary: 'captured', closedBoundary: false, stepIndex: 1, submittedSteps: 1, turnCount: 1, editorPresent: true, editorOnActiveStep: true });
     assert.equal(validateEnvelope(value.after).status, 'valid'); assert.equal(classify(value), 'refused');
   });
+});
+
+
+test('checkpoint refusal rows are closed, bounded and cannot replace an assertion failure', () => {
+  const logged: unknown[][] = [], original = console.info;
+  try {
+    console.info = (...values: unknown[]) => { logged.push(values); };
+    const secret = 'PRIVATE_CHECKPOINT_OWNER_INPUT_BYTES';
+    logGuidedCheckpointRefusal({ status: 'saved', surface: 'present', ownerId: secret, input: secret, raw: secret }, 'beginner', 1, 'draft', 'draft-transition');
+    for (const reason of GUIDED_CHECKPOINT_REASONS) logGuidedCheckpointRefusal({ raw: secret }, 'beginner', 1, 'draft', reason);
+    logGuidedCheckpointRefusal({ status: secret, surface: secret }, secret as 'beginner', 10001, secret as 'draft', secret as 'draft-transition');
+    assert.doesNotMatch(JSON.stringify(logged), /PRIVATE_CHECKPOINT/);
+    const normal = JSON.parse(logged[0][1] as string), invalid = JSON.parse(logged.at(-1)![1] as string);
+    assert.equal(normal.proof, 'draft-transition'); assert.equal(normal.checkpointKind, 'draft'); assert.equal(normal.status, 'saved');
+    assert.equal(invalid.proof, 'unknown'); assert.equal(invalid.level, 'unknown'); assert.equal(invalid.step, null);
+    console.info = () => { throw new Error('diagnostic sink failed'); };
+    assert.doesNotThrow(() => logGuidedCheckpointRefusal({}, 'beginner', 1, 'draft', 'read-failed'));
+  } finally { console.info = original; }
 });
