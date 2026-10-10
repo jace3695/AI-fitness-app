@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { createLegacyEvidenceAdmissionFixture as fixture, createAdmittedLegacyEvidenceRepositoryFixture } from '../../tests/helpers/legacyEvidenceRepositoryHarness.ts';
 import { LocalEvidenceStore, LOCAL_EVIDENCE_DATABASE, LOCAL_EVIDENCE_DATABASE_VERSION } from './local-store.ts';
@@ -12,6 +12,8 @@ import { decodeFrozenEvidence } from './canonical-hash.ts';
 import { freezeBatch } from './outbox.ts';
 import { eventStorageKey } from './local-store.ts';
 import type { FrozenEnrollmentIntent } from './store-admission-types.ts';
+import { STORAGE_OWNER_KEY, STORAGE_SESSION_KEY } from '../../app/data/storageTransaction.ts';
+import { LANGUAGE_MARKER_KEY } from '../../app/data/languageStorageBoundary.ts';
 import type { AuthenticatedAdmissionStatusProof, AuthenticatedFirstAdmissionProof, AuthenticatedResetEvidenceStateProof } from './receipt-proof.ts';
 
 const originalStores = ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes'];
@@ -504,4 +506,128 @@ test('a live v3 client blocks the upgrade without changing bytes, and closing it
   await cacheOpener(adapter.factory).readCachedContext(source.repository.context());
   assert.equal((await inspectDatabase(adapter.factory)).version, 4);
   assert.equal(JSON.stringify(gateAStores.map(name => [name, adapter.entries(name)])), before);
+});
+
+
+/** Only fault timing is substituted; the repository and admission stay registered. */
+function atReviewScopeBoundary(t: TestContext, factory: IDBFactory,
+  boundary: 'open' | 'incarnation' | 'admission' | 'complete', fault: () => void) {
+  const open = factory.open.bind(factory); let fired = false;
+  const fire = () => { assert.equal(fired, false); fired = true; fault(); };
+  const original = factory.open; t.after(() => { factory.open = original; });
+  factory.open = (name, version) => {
+    const request = open(name, version);
+    request.addEventListener('success', () => {
+      if (boundary === 'open') { fire(); return; }
+      const db = request.result, transaction = db.transaction.bind(db);
+      db.transaction = (...args: Parameters<IDBDatabase['transaction']>) => {
+        const tx = transaction(...args); assert.equal(tx.mode, 'readonly');
+        if (boundary === 'complete') tx.addEventListener('complete', fire);
+        else {
+          const objectStore = tx.objectStore.bind(tx);
+          tx.objectStore = name => {
+            const store = objectStore(name);
+            if (name !== (boundary === 'incarnation' ? 'incarnations' : 'admissions')) return store;
+            return new Proxy(store, { get(target, property) {
+              if (property === 'get') return (key: IDBValidKey) => {
+                const read = target.get(key); read.addEventListener('success', fire); return read;
+              };
+              return Reflect.get(target, property);
+            } });
+          };
+        }
+        return tx;
+      };
+    });
+    return request;
+  };
+  return () => assert.equal(fired, true, `The ${boundary} fault must execute`);
+}
+
+test('review scope returns only immutable persisted admitted IDs through a readonly transaction', async t => {
+  const f = await createAdmittedLegacyEvidenceRepositoryFixture(t);
+  const before = JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)])), calls = f.calls.length;
+  let readonly = false; f.adapter.beforeNextTransaction('readonly', () => { readonly = true; });
+  const scope = await f.repository.store().readReviewScope(f.repository.context());
+  const admission = f.adapter.inspect('admissions', JSON.stringify([f.owner, f.generationId])) as Record<string, unknown>;
+  assert.deepEqual(scope, { ownerId: admission.ownerId, generationId: admission.generationId, incarnationId: admission.incarnationId });
+  assert.deepEqual(Object.keys(scope).sort(), ['generationId', 'incarnationId', 'ownerId']);
+  assert.ok(Object.isFrozen(scope)); assert.equal(Reflect.set(scope, 'incarnationId', randomUUID()), false);
+  assert.ok(readonly); assert.equal(f.calls.length, calls);
+  assert.equal(JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)])), before);
+  assert.deepEqual(await f.secondRepository.store().readReviewScope(f.secondRepository.context()), scope);
+});
+
+test('review scope refuses omitted/null admission and wrong owner, generation or epoch before opening IDB', async t => {
+  const f = await createAdmittedLegacyEvidenceRepositoryFixture(t);
+  let opens = 0; const factory = { open() { opens++; throw Error('Unexpected IDB open'); } } as unknown as IDBFactory;
+  for (const writerAdmission of [undefined, null]) {
+    const store = new LocalEvidenceStore({ factory, writerAdmission, isCurrent: () => true });
+    await assert.rejects(store.readReviewScope(f.context), /stale_context/);
+  }
+  assert.equal(opens, 0);
+  const open = f.adapter.factory.open; f.adapter.factory.open = () => { opens++; throw Error('Unexpected IDB open'); };
+  try {
+    for (const fence of [{ ...f.context, ownerId: randomUUID() }, { ...f.context, generationId: randomUUID() }, { ...f.context, ownerEpoch: f.context.ownerEpoch + 1 }])
+      await assert.rejects(f.store.readReviewScope(fence), /stale_context/);
+    assert.equal(opens, 0);
+  } finally { f.adapter.factory.open = open; }
+});
+
+test('review scope refuses missing, replaced, unknown and mismatched persisted admission without repairing it', async t => {
+  for (const fault of ['missing_birth', 'replaced_birth', 'unknown_birth', 'missing_admission', 'admission_owner', 'admission_generation', 'admission_incarnation', 'admission_request', 'admission_marker', 'malformed_admission'] as const)
+    await t.test(fault, async sub => {
+      const f = await createAdmittedLegacyEvidenceRepositoryFixture(sub), key = JSON.stringify([f.owner, f.generationId]);
+      const birth = f.adapter.inspect('incarnations', 'store'), admission = f.adapter.inspect('admissions', key);
+      if (fault === 'missing_birth') f.adapter.seed('incarnations', 'store', undefined);
+      else if (fault === 'replaced_birth') f.adapter.tamper('incarnations', 'store', value => ({ ...(value as object), incarnationId: randomUUID() }));
+      else if (fault === 'unknown_birth') f.adapter.tamper('incarnations', 'store', value => ({ ...(value as object), continuity: 'unknown' }));
+      else if (fault === 'missing_admission') f.adapter.seed('admissions', key, undefined);
+      else f.adapter.tamper('admissions', key, value => ({ ...(value as object), ...(
+        fault === 'admission_owner' ? { ownerId: randomUUID() } :
+        fault === 'admission_generation' ? (() => { const generationId = randomUUID(); return { generationId, initialGenerationId: generationId }; })() :
+        fault === 'admission_incarnation' ? { incarnationId: randomUUID() } :
+        fault === 'admission_request' ? { creationRequestId: randomUUID() } :
+        fault === 'admission_marker' ? { resetMarker: { present: true, value: `2026-10-10T00:00:01.000Z|${randomUUID()}` } } : { extra: true }
+      ) }));
+      const before = JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)]));
+      await assert.rejects(f.store.readReviewScope(f.context), /stale_context|corrupt_record/);
+      assert.equal(JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)])), before);
+      if (!['missing_birth', 'malformed_admission'].includes(fault)) {
+        assert.equal(f.repository.localContinuity(), 'unknown');
+        f.adapter.seed('incarnations', 'store', birth); f.adapter.seed('admissions', key, admission);
+        await assert.rejects(f.store.readReviewScope(f.context), /stale_context/);
+        assert.throws(() => f.repository.store(), /local_continuity_unknown/);
+      }
+    });
+});
+
+test('review scope fails closed on read failure, abort and version change with no writes', async t => {
+  for (const fault of ['read', 'abort', 'versionchange'] as const) await t.test(fault, async sub => {
+    const f = await createAdmittedLegacyEvidenceRepositoryFixture(sub);
+    const before = JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)]));
+    if (fault === 'read') f.adapter.failNextRead();
+    else if (fault === 'abort') f.adapter.abortNextTransaction();
+    else f.adapter.beforeNextTransaction('readonly', () => f.adapter.versionchange());
+    await assert.rejects(f.store.readReviewScope(f.context), /storage_read_failed|idb_version_changed/);
+    assert.equal(JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)])), before);
+    assert.deepEqual(await f.store.readReviewScope(f.context), { ownerId: f.owner, generationId: f.generationId, incarnationId: f.incarnationId });
+  });
+});
+
+test('review scope rechecks real facade, owner, reset and epoch at every asynchronous storage boundary', async t => {
+  for (const boundary of ['open', 'incarnation', 'admission', 'complete'] as const)
+    for (const fault of ['close', 'pause', 'owner', 'reset', 'epoch'] as const) await t.test(`${boundary}: ${fault}`, async sub => {
+      const f = await createAdmittedLegacyEvidenceRepositoryFixture(sub);
+      const before = JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)]));
+      const assertFired = atReviewScopeBoundary(sub, f.adapter.factory, boundary, () => {
+        if (fault === 'close') f.repository.close();
+        else if (fault === 'pause') f.coordinator.pause();
+        else if (fault === 'owner') f.local.storage.setItem(STORAGE_OWNER_KEY, randomUUID());
+        else if (fault === 'epoch') f.local.storage.setItem(STORAGE_SESSION_KEY, randomUUID());
+        else f.local.storage.setItem(LANGUAGE_MARKER_KEY, `2026-10-10T00:00:01.000Z|${randomUUID()}`);
+      });
+      await assert.rejects(f.store.readReviewScope(f.context), /stale_context/); assertFired();
+      assert.equal(JSON.stringify(currentStores.map(name => [name, f.adapter.entries(name)])), before);
+    });
 });

@@ -401,3 +401,29 @@ test('confirmed missing language state retires a prior complete prefix while tra
   assert.throws(() => f.repo.project(prefix), /stale_authority/);
   assert.throws(() => f.repo.context(), /stale_authority/);
 });
+
+
+test('registered SQL-backed repository exposes only actual admitted review scope through its existing release gate', async t => {
+  const f = await fixture(t), fence = f.repo.context(), calls = f.calls.length;
+  const admission = f.idb.inspect('admissions', JSON.stringify([f.owner, fence.generationId])) as { ownerId: string; generationId: string; incarnationId: string };
+  const scope = await f.repo.store().readReviewScope(fence);
+  assert.deepEqual(scope, { ownerId: admission.ownerId, generationId: admission.generationId, incarnationId: admission.incarnationId });
+  assert.equal(f.calls.length, calls); assert.equal(f.idb.entries('reviewRuns').length, 0);
+  assert.equal('readReviewScope' in f.repo, false, 'No second facade API or authority route is added');
+  for (const release of [
+    { resetProtocol: 'inactive', enrollmentEnabled: false, captureEnabled: false },
+    { resetProtocol: 'protocol-required', enrollmentEnabled: true, captureEnabled: false },
+    { resetProtocol: 'inactive', enrollmentEnabled: false, captureEnabled: true },
+  ] as const) {
+    const runtime = await loadLegacyEvidenceRepository(f.client, release), context = f.coordinator.getState().context; assert.ok(context);
+    const disabled = await runtime.acquireLanguageLegacyEvidenceRepository(context, { mode: 'existing', studyDayTimezone: 'UTC' });
+    assert.equal(disabled.localContinuity(), 'verified'); assert.throws(() => disabled.store(), /feature_inactive/); disabled.close();
+  }
+  const retained = f.repo.store();
+  await f.sql.db.query("select public.reset_my_app_records('language',$1,'초기화')", [randomUUID()]);
+  await f.coordinator.refresh();
+  await assert.rejects(retained.readReviewScope(fence), /stale_context/);
+  const fresh = await f.acquire('existing');
+  assert.notEqual(fresh.context().generationId, scope.generationId);
+  assert.equal(fresh.localContinuity(), 'unknown'); assert.throws(() => fresh.store(), /local_continuity_unknown/);
+});

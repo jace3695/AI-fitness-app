@@ -624,6 +624,16 @@ export class LocalEvidenceStore {
     if (!admission || this.admissionLost || admission.ownerId !== fence.ownerId || admission.generationId !== fence.generationId ||
       scope && (scope.ownerId !== admission.ownerId || scope.generationId !== admission.generationId || scope.incarnationId !== admission.incarnationId)) throw new LocalEvidenceError('stale_context');
   }
+  /** Lookup data only; every subsequent review operation revalidates admission. */
+  async readReviewScope(fence: LocalFence): Promise<Immutable<ReviewScope>> {
+    this.requireReviewAdmission(fence);
+    const scope = await this.transaction<Immutable<ReviewScope>>(fence, 'readonly', (_tx, done) => {
+      this.requireReviewAdmission(fence);
+      const { ownerId, generationId, incarnationId } = this.writerAdmission!;
+      done(immutableCopy({ ownerId, generationId, incarnationId }));
+    });
+    this.requireReviewAdmission(fence, scope); return scope;
+  }
   private reviewCursorRows(tx: IDBTransaction, ownerId: string, fail: (error: unknown) => void, done: (rows: ReviewAccountingRow[]) => void): void {
     const rows: ReviewAccountingRow[] = []; let remaining = REVIEW_STORES.length, bytes = 0;
     const maxRows = REVIEW_LIMITS.runs * 2 + REVIEW_LIMITS.exposures + REVIEW_LIMITS.journals;

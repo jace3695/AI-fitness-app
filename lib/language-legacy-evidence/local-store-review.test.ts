@@ -391,3 +391,17 @@ test('historical run rollback is corrupt even when the earlier state has a valid
   await assert.rejects(f.store.commitReviewTransition(f.acquire), /corrupt_record/);
   assert.deepEqual(['reviewRuns', 'itemExposures', 'reviewTransitions', 'commits', 'events'].map(name => f.adapter.entries(name)), before);
 });
+
+
+test('returned review scope is lookup data; retained IDs never bypass later admission or full review CAS', async t => {
+  const f = await fixture(t), scope = await f.store.readReviewScope(f.context);
+  assert.deepEqual(scope, { ownerId: f.owner, generationId: f.generationId, incarnationId: f.incarnationId });
+  await f.store.commitReviewTransition(f.acquire);
+  const changed = await prepareReviewTransition({ fence: f.context, immutable: { ...f.immutable, ...scope }, transitionId: id(), actionId: id(),
+    before: { runState: null, exposure: null, rowFence: null }, operation: { kind: 'acquire', observationId: id() } });
+  await assert.rejects(f.store.commitReviewTransition(changed), /review_conflict/);
+  f.repository.close();
+  await assert.rejects(f.store.readReviewState(f.context, { ...scope, rowKey: f.immutable.rowKey, ...f.immutable.identity }), /stale_context/);
+  await assert.rejects(f.store.commitReviewTransition(f.present), /stale_context/);
+  assert.equal(f.adapter.entries('reviewTransitions').length, 1); assert.equal(f.adapter.entries('events').length, 0);
+});
