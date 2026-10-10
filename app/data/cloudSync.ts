@@ -1,3 +1,4 @@
+import { languageMetadataReadyForEpoch, planLanguageOwnerTransition } from './languageStorageBoundary.ts';
 import { supabase } from "../lib/supabase.ts";
 import { respectRecordResets } from "./appRecordReset.ts";
 import { classifyCloudSyncConflicts, CloudSyncConflictStaleError, CloudSyncLegacyEncodingError, isSameCloudSyncConflictRequest, normalizeCloudSyncState, reconcileCloudSyncResolution } from "./cloudSyncConflicts.ts";
@@ -103,14 +104,16 @@ function prepareOwner(userId: string | null): Promise<void> {
   const existing = preparations.get(storage);
   const currentEpoch = storage.getItem(SYNC_EPOCH_KEY);
   if (existing?.userId === userId && existing.epoch === currentEpoch) return existing.promise;
-  if (userId && isStorageOwnerCurrent(storage, { userId, epoch: currentEpoch }) && !hasStorageTransaction(storage)) return Promise.resolve();
+  if (userId && isStorageOwnerCurrent(storage, { userId, epoch: currentEpoch }) && !hasStorageTransaction(storage)
+    && languageMetadataReadyForEpoch(readStorageSnapshot(storage), { userId, epoch: currentEpoch })) return Promise.resolve();
   // Repeated signed-out callbacks are idempotent; pending cleanup is shared above.
   if (userId === null && currentEpoch !== null) {
     try {
       const snapshot = readStorageSnapshot(storage);
       if (!snapshot.pending && snapshot.getItem(SYNC_USER_KEY) === null
         && snapshot.getItem(STORAGE_READY_KEY) === JSON.stringify({ epoch: currentEpoch, userId: null })
-        && storage.getItem(SYNC_EPOCH_KEY) === currentEpoch) return Promise.resolve();
+        && storage.getItem(SYNC_EPOCH_KEY) === currentEpoch
+        && languageMetadataReadyForEpoch(snapshot, { userId, epoch: currentEpoch })) return Promise.resolve();
     } catch { /* Fence the session before the guarded cleanup reports corruption. */ }
   }
   let owner: StorageOwnerToken;
@@ -133,7 +136,7 @@ function prepareOwner(userId: string | null): Promise<void> {
       changes[`${SYNC_ACK_PREFIX}${userId}`] = null;
     }
     changes[SYNC_USER_KEY] = userId;
-    return changes;
+    return { ...changes, ...planLanguageOwnerTransition(snapshot, owner).changes };
   }).catch(error => {
     // Two initial documents can race before either publishes its first fence.
     // Join the winning generation only if it still targets this authenticated owner.

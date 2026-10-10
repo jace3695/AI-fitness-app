@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -8,7 +8,7 @@ import type * as Cloud from '../../app/data/cloudSync.ts';
 import type * as Transactions from '../../app/data/storageTransaction.ts';
 
 export type UiNode = { type: unknown; key?: string; props: Record<string, unknown> };
-type UiEvent = { type: string; key?: string; storageArea?: unknown };
+type UiEvent = { type: string; key?: string | null; storageArea?: unknown; detail?: unknown; persisted?: boolean; newValue?: string | null };
 type AuthUser = { id: string; email: string };
 type AuthListener = (event: string, session: { user: AuthUser } | null) => void;
 export const FIXTURE_OWNER = 'synthetic-owner-a';
@@ -92,14 +92,19 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
   const listeners = new Map<string, Set<(event: UiEvent) => void>>();
   const authListeners = new Set<AuthListener>();
   const timers = new Map<number, () => void>();
+  const intervals = new Map<number, () => void>();
+  const authWaits: ReturnType<typeof deferred<{ data: { user: AuthUser | null }; error: Error | null }>>[] = [];
+  const authReads: { userId: string | null }[] = [];
   const pinWaits: ReturnType<typeof deferred<boolean>>[] = [];
   const pinReads: { userId: string; signal?: AbortSignal }[] = [];
   const downloads: Blob[] = [];
   let nextTimer = 0, reloads = 0, currentUser = initialUser;
   let authError: Error | null = null;
-  const navigator: { locks?: typeof browser.locks } = { locks: browser.locks };
+  const navigator: { locks?: typeof browser.locks; onLine: boolean } = { locks: browser.locks, onLine: true };
+  const sessionValues = new Map<string, string>();
+  const session = { getItem: (key: string) => sessionValues.get(key) ?? null, setItem: (key: string, value: string) => { sessionValues.set(key, value); }, removeItem: (key: string) => { sessionValues.delete(key); } };
   const win = {
-    localStorage: local,
+    localStorage: local, sessionStorage: session,
     location: { search: '', reload() { reloads++; }, assign() {} },
     history: { replaceState() {} },
     addEventListener(name: string, listener: (event: UiEvent) => void) {
@@ -107,11 +112,13 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     },
     removeEventListener(name: string, listener: (event: UiEvent) => void) { listeners.get(name)?.delete(listener); },
     dispatchEvent(event: UiEvent) {
-      for (const listener of [...(listeners.get(event.type) ?? [])]) listener({ type: event.type, key: event.key, storageArea: local });
+      for (const listener of [...(listeners.get(event.type) ?? [])]) listener({ ...event, storageArea: event.storageArea ?? local });
       return true;
     },
     setTimeout(callback: () => void) { const token = ++nextTimer; timers.set(token, callback); return token; },
     clearTimeout(token: number) { timers.delete(token); },
+    setInterval(callback: () => void) { const token = ++nextTimer; intervals.set(token, callback); return token; },
+    clearInterval(token: number) { intervals.delete(token); },
   };
   browser.documents.set(id, win.dispatchEvent);
   const jsx = (type: unknown, props: UiNode['props'], key?: string) => ({ type, props, key });
@@ -120,7 +127,7 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     [resolve(root, 'app/lib/supabase.ts')]: {
       isSupabaseConfigured: true, isPasswordRecoveryRedirect: false,
       supabase: { auth: {
-        async getUser() { return { data: { user: !authError && currentUser ? { id: currentUser, email: `${currentUser}@example.test` } : null }, error: authError }; },
+        async getUser() { authReads.push({ userId: currentUser }); const held = authWaits.shift(); if (held) return held.promise; return { data: { user: !authError && currentUser ? { id: currentUser, email: `${currentUser}@example.test` } : null }, error: authError }; },
         onAuthStateChange(callback: AuthListener) { authListeners.add(callback); return { data: { subscription: { unsubscribe() { authListeners.delete(callback); } } } }; },
       } },
     },
@@ -134,13 +141,14 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     [resolve(root, 'app/components/AppIdentity.tsx')]: { AppIcon: () => null },
     [resolve(root, 'app/components/HubBottomNav.tsx')]: { default: () => null },
   };
+  const doc = { visibilityState: 'visible', documentElement: { dataset: {} as Record<string, string> }, body: { style: { overflow: '' }, appendChild() {} }, createElement: () => ({ click() {}, remove() {} }), addEventListener: win.addEventListener, removeEventListener: win.removeEventListener };
   const moduleCache = new Map<string, Record<string, unknown>>();
   const context = vm.createContext({
     Date, URL: Object.assign(class extends URL {}, { createObjectURL(blob: Blob) { downloads.push(blob); return 'blob:synthetic-backup'; }, revokeObjectURL() {} }),
     URLSearchParams, Blob, console, AbortController, Event, CustomEvent, Error, AggregateError,
-    crypto, queueMicrotask, navigator, window: win,
-    setTimeout: win.setTimeout, clearTimeout: win.clearTimeout,
-    document: { body: { appendChild() {} }, createElement: () => ({ click() {}, remove() {} }) },
+    crypto, queueMicrotask, navigator, window: win, localStorage: local, sessionStorage: session,
+    setTimeout: win.setTimeout, clearTimeout: win.clearTimeout, setInterval: win.setInterval, clearInterval: win.clearInterval,
+    document: doc,
   });
   function load(path: string): Record<string, unknown> {
     const absolute = resolve(root, path);
@@ -153,21 +161,39 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     moduleCache.set(absolute, exports);
     vm.runInContext(`(function(exports, require) { ${sourceCache.get(absolute)}\n})`, context)(exports, (name: string) => {
       if (name in modules) return modules[name];
-      assert.ok(name.startsWith('.'), `Unexpected dependency ${name} from ${path}`);
-      const dependency = resolve(dirname(absolute), name);
+      assert.ok(name.startsWith('.') || name.startsWith('@/'), `Unexpected dependency ${name} from ${path}`);
+      const dependency = name.startsWith('@/') ? resolve(root, name.slice(2)) : resolve(dirname(absolute), name);
       const candidates = /\.tsx?$/.test(dependency) ? [dependency] : [`${dependency}.ts`, `${dependency}.tsx`];
-      const found = candidates.find(candidate => candidate in modules) ?? candidates[0];
+      const found = candidates.find(candidate => candidate in modules || existsSync(candidate)) ?? candidates[0];
       return load(found);
     });
     return exports;
   }
   const transactions = load('app/data/storageTransaction.ts') as typeof Transactions;
   const cloud = load('app/data/cloudSync.ts') as typeof Cloud;
-  function mount(path: string, props: Record<string, unknown> = {}) {
+  function mount(path: string, props: Record<string, unknown> = {}, componentOverride?: (props: Record<string, unknown>) => UiNode) {
     const slots: unknown[] = [], effects: (() => void)[] = [], cleanups: (() => void)[] = [];
     let cursor = 0, changed = false, disposed = false;
-    modules.react = {
+    const react = {
       Fragment: Symbol.for('fixture-fragment'),
+      useId() { return `synthetic-${id}-${cursor++}`; },
+      createContext(value: unknown) { return { Provider: Symbol('provider'), value }; },
+      useContext(context: { value: unknown }) { return context.value; },
+      useMemo(factory: () => unknown, deps: unknown[]) {
+        const slot = cursor++, old = slots[slot] as { deps: unknown[]; value: unknown } | undefined;
+        if (!old || old.deps.length !== deps.length || old.deps.some((value, index) => !Object.is(value, deps[index]))) slots[slot] = { deps, value: factory() };
+        return (slots[slot] as { value: unknown }).value;
+      },
+      useCallback(callback: unknown, deps: unknown[]) {
+        const slot = cursor++, old = slots[slot] as { deps: unknown[]; value: unknown } | undefined;
+        if (!old || old.deps.length !== deps.length || old.deps.some((value, index) => !Object.is(value, deps[index]))) slots[slot] = { deps, value: callback };
+        return (slots[slot] as { value: unknown }).value;
+      },
+      useSyncExternalStore(subscribe: (listener: () => void) => () => void, getSnapshot: () => unknown) {
+        const slot = cursor++;
+        if (!(slot in slots)) { slots[slot] = true; effects.push(() => { cleanups[slot] = subscribe(() => { changed = true; }); }); }
+        return getSnapshot();
+      },
       useState(initial: unknown) {
         const slot = cursor++;
         if (!(slot in slots)) slots[slot] = typeof initial === 'function' ? initial() : initial;
@@ -186,12 +212,14 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
         }
       },
     };
-    const component = load(path).default as (props: Record<string, unknown>) => UiNode;
+    Object.assign(modules.react ??= {}, react);
+    const component = componentOverride ?? load(path).default as (props: Record<string, unknown>) => UiNode;
     const history: UiNode[] = [];
     function render() {
       let result!: UiNode, rounds = 0;
       do {
         assert.ok(rounds++ < 25, 'Synthetic hooks did not settle');
+        Object.assign(modules.react ??= {}, react);
         changed = false; cursor = 0; result = component(props); history.push(result);
         effects.splice(0).forEach(effect => effect());
       } while (changed);
@@ -214,7 +242,15 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     render(); return view;
   }
   return {
-    local, cloud, transactions, mount, pinReads, downloads,
+    local, session, cloud, transactions, mount, pinReads, downloads, authReads,
+    dispatch: win.dispatchEvent,
+    setOnline(value: boolean) { navigator.onLine = value; },
+    failStorageAccess() { Object.defineProperty(win, 'localStorage', { configurable: true, get() { throw new Error('synthetic SecurityError'); } }); },
+    setVisibility(value: string) { doc.visibilityState = value; win.dispatchEvent({ type: 'visibilitychange' }); },
+    pollIntervals() { for (const callback of [...intervals.values()]) callback(); },
+    loadModule: load,
+    setModule(path: string, value: unknown) { modules[path.startsWith('.') || /\.tsx?$/.test(path) ? resolve(root, path) : path] = value; },
+    holdNextAuth() { const hold = deferred<{ data: { user: AuthUser | null }; error: Error | null }>(); authWaits.push(hold); return hold; },
     get reloads() { return reloads; }, get pendingTimers() { return timers.size; },
     emitAuth(event: string, userId: string | null) {
       currentUser = userId;
@@ -225,7 +261,7 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     setAuthError(error: Error | null) { authError = error; },
     disableLocks() { delete navigator.locks; },
     flushTimers() { for (const [token, callback] of [...timers]) { timers.delete(token); callback(); } },
-    dispose() { browser.documents.delete(id); authListeners.clear(); listeners.clear(); timers.clear(); },
+    dispose() { browser.documents.delete(id); authListeners.clear(); listeners.clear(); timers.clear(); intervals.clear(); },
   };
 }
 

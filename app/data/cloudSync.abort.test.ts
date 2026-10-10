@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import * as resets from './appRecordReset.ts';
 import * as storage from './storageTransaction.ts';
 import * as conflicts from './cloudSyncConflicts.ts';
+import * as languageBoundary from './languageStorageBoundary.ts';
 
 // Run the original query functions with the installed SDK and an in-memory
 // fetch boundary. No credentials, real auth, browser or remote server is used.
@@ -24,6 +25,7 @@ function cloudWithFetch(send: typeof fetch): typeof import('./cloudSync.ts') {
     if (path === './appRecordReset.ts') return resets;
     if (path === './storageTransaction.ts') return storage;
     if (path === './cloudSyncConflicts.ts') return conflicts;
+    if (path === './languageStorageBoundary.ts') return languageBoundary;
     throw new Error(`Unexpected dependency: ${path}`);
   };
   vm.runInNewContext(`(function(exports, require) { ${code}\n})`)(exports, requireFixture);

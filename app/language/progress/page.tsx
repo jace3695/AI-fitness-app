@@ -1,5 +1,7 @@
 "use client";
 
+import { readGuardedLanguageProjection } from "../../data/languageStorageBoundary.ts";
+
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 
@@ -510,9 +512,14 @@ export default function ProgressPage() {
     setGrammarProgress(grammarItems);
     setCurriculumProgress(loadCurriculumProgress());
     setCurriculumReviewCount(loadFromStorage(CURRICULUM_REVIEW_KEY).length);
-    const rawConfusingKana = loadFromStorage("wrongKanaChars");
-    const rawConfusingKanaLegacy = loadFromStorage("confusingKana");
-    const confusingChars = [...rawConfusingKana, ...rawConfusingKanaLegacy]
+    // confusingKana has no owner/reset provenance. Keep its original bytes,
+    // but never attribute that unscoped legacy record to the current owner.
+    const projection = readGuardedLanguageProjection(window.localStorage);
+    let rawConfusingKana: AnyItem[] = [];
+    if (projection.status === 'ready' && projection.records.wrongKanaChars) {
+      try { const parsed: unknown = JSON.parse(projection.records.wrongKanaChars); if (Array.isArray(parsed)) rawConfusingKana = parsed; } catch { /* Preserve invalid original bytes. */ }
+    }
+    const confusingChars = rawConfusingKana
       .map((item) => {
         if (typeof item === "string") return item;
         if (typeof item === "object" && item !== null && typeof item.char === "string") return item.char;

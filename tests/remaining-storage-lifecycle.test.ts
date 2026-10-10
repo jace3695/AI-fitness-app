@@ -10,6 +10,8 @@ import * as growth from '../app/data/growthRoutines.ts';
 import * as budget from '../app/budget/lib/pending-save.ts';
 import * as workouts from '../app/data/workoutCompletion.ts';
 import * as timers from '../app/data/timerClock.ts';
+import * as languageReset from '../app/data/languageResetFence.ts';
+import * as languageBoundary from '../app/data/languageStorageBoundary.ts';
 import { installStorageLocks, preparedStorageSeed } from './helpers/storageProtocol.ts';
 
 const userId = 'lifecycle-owner-A';
@@ -135,6 +137,7 @@ function resetFixture(b: ReturnType<typeof browser>) {
   };
   const api = loadSource<{ resetAppRecords: (app: resets.RecordResetApp, id: string, expected: string) => Promise<ResetResult> }>('../app/lib/resetAppRecords.ts', {
     '../data/storageTransaction': transactions, './supabase': { supabase }, '../data/appRecordReset': resets, '../data/growthRoutines': growth, '../budget/lib/pending-save': budget,
+    '../data/languageResetFence.ts': languageReset, '../data/languageStorageBoundary.ts': languageBoundary,
   }, { window: b.win, navigator: b.navigator });
   return { ...api, authCalls, rpcCalls, serverReceipts,
     onAuth(hook: (call: number) => Promise<void>) { authHook = hook; },

@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, Fragment, ReactNode, useEffect, useState } from "react";
+import { FormEvent, Fragment, ReactNode, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { CLOUD_SESSION_CHANGED_EVENT, clearLocalCloudState, isCurrentCloudSession, prepareLocalCloudState, readCloudSyncEpoch } from "../data/cloudSync";
-import { clearLanguageLocalState } from "../data/languageCloudSync";
+import { AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner.ts";
+import { AuthenticatedStorageOwnerProvider } from "./AuthenticatedStorageOwner.tsx";
 import {
   hasDevicePin,
   isPinSessionUnlocked,
@@ -19,8 +20,14 @@ import { PASSWORD_POLICY_HINT, strongPasswordError } from "../lib/passwordPolicy
 import { AppIcon } from "./AppIdentity";
 import HubBottomNav from "./HubBottomNav";
 
+class DevicePinRequiredError extends Error {}
+
 export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [ownerLease, setOwnerLease] = useState<AuthenticatedStorageOwner | null>(null);
+  const ownerLeaseRef = useRef<AuthenticatedStorageOwner | null>(null);
+  // Only an observed SIGNED_OUT authorizes cleanup, including its explicit retry.
+  const confirmedSignOutRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [authCheckError, setAuthCheckError] = useState(false);
   const [authCheckMessage, setAuthCheckMessage] = useState("");
@@ -58,103 +65,122 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const failed = (version: number, signal: AbortSignal, error?: unknown) => {
       if (!active || version !== authVersion || signal.aborted) return;
       confirming = false;
+      revoke();
+      if (error instanceof DevicePinRequiredError) { setAuthCheckError(false); setLoading(false); return; }
+      if (!confirmedSignOutRef.current && (error instanceof AuthenticatedStorageOwnerUnavailableError || (error instanceof Error && error.name === "AuthSessionMissingError"))) {
+        setUser(null); setPinRequired(false); setAuthCheckError(false); setLoading(false);
+        return;
+      }
       setAuthCheckMessage(error instanceof Error ? error.message : "연결 상태를 확인한 후 다시 시도해 주세요.");
       setAuthCheckError(true);
       setLoading(false);
     };
+    const revoke = () => {
+      revokeAuthenticatedStorageOwner(ownerLeaseRef.current);
+      ownerLeaseRef.current = null;
+      setOwnerLease(null);
+    };
+    const current = (version: number, signal: AbortSignal) => active && version === authVersion && !signal.aborted;
+    const confirm = async (version: number, signal: AbortSignal, preparation?: Promise<boolean>, code?: string | null) => {
+      if (preparation && !await preparation) return;
+      if (!current(version, signal)) return;
+      let verifiedUser: User | null = null;
+      if (confirmedSignOutRef.current) {
+        const result = await authClient.auth.getUser();
+        if (!current(version, signal)) return;
+        if (result.error && result.error.name !== "AuthSessionMissingError") throw result.error;
+        if (!result.data.user) {
+          await clearLocalCloudState();
+          if (!current(version, signal)) return;
+          setUser(null); setPinRequired(false); setBiometricEnabled(false);
+          confirmedUserId = null; confirmedEpoch = null; confirming = false;
+          setAuthCheckError(false); setLoading(false);
+          return;
+        }
+      }
+      const lease = await verifyAuthenticatedStorageOwner(window.localStorage, async () => {
+        const result = await authClient.auth.getUser();
+        if (!current(version, signal)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        verifiedUser = result.data.user;
+        return result;
+      }, async id => {
+        if (!current(version, signal)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        await prepareLocalCloudState(id);
+        if (!current(version, signal)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        const preparedEpoch = readCloudSyncEpoch();
+        const configured = await hasDevicePin(id, signal);
+        if (!current(version, signal) || !isCurrentCloudSession(id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        if (configured && !isPinSessionUnlocked(id)) {
+          setUser(verifiedUser); setPinRequired(true); setBiometricEnabled(hasDeviceBiometric(id));
+          // No live lease exists while the PIN gate is locked. Unlock restarts
+          // fresh authentication and preparation before authority is issued.
+          throw new DevicePinRequiredError();
+        }
+      });
+      if (!current(version, signal)) { revokeAuthenticatedStorageOwner(lease); return; }
+      ownerLeaseRef.current = lease;
+      const nextUser = verifiedUser as User | null;
+      if (!nextUser) throw new Error("로그인 상태를 다시 확인해 주세요.");
+      if (isPasswordRecoveryRedirect || code) setRecoveryMode(true);
+      if (!lease.isCurrent()) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+      setUser(nextUser);
+      setPinRequired(false);
+      setBiometricEnabled(hasDeviceBiometric(nextUser.id));
+      setOwnerLease(lease);
+      confirmedSignOutRef.current = false;
+      confirmedUserId = nextUser.id; confirmedEpoch = lease.epoch; confirming = false;
+      setAuthCheckError(false); setLoading(false);
+    };
     const initializeAuth = async () => {
-      const version = authVersion;
-      const signal = controller.signal;
+      const version = authVersion, signal = controller.signal;
       try {
         const code = new URLSearchParams(window.location.search).get("code");
         if (code) {
           const { error } = await authClient.auth.exchangeCodeForSession(code);
-          if (error) {
-            setMessage("재설정 링크가 만료되었거나 이미 사용되었습니다. 새 이메일을 요청해 주세요.");
-          } else {
-            setRecoveryMode(true);
-            window.history.replaceState({}, "", "/?recovery=1");
-          }
+          if (!current(version, signal)) return;
+          if (error) setMessage("재설정 링크가 만료되었거나 이미 사용되었습니다. 새 이메일을 요청해 주세요.");
+          else { setRecoveryMode(true); window.history.replaceState({}, "", "/?recovery=1"); }
         }
-
-        const { data, error } = await authClient.auth.getUser();
-        if (error && error.name !== "AuthSessionMissingError") throw error;
-        if (!active || version !== authVersion) return;
-        if (data.user) await prepareLocalCloudState(data.user.id);
-        else await clearLocalCloudState();
-        if (!active || version !== authVersion || signal.aborted) return;
-        const preparedEpoch = readCloudSyncEpoch();
-        setUser(data.user);
-        if (data.user && (isPasswordRecoveryRedirect || Boolean(code))) {
-          setRecoveryMode(true);
-        }
-        const configured = data.user ? await hasDevicePin(data.user.id, signal) : false;
-        if (!active || version !== authVersion) return;
-        if (data.user && !isCurrentCloudSession(data.user.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
-        setPinRequired(Boolean(data.user && configured && !isPinSessionUnlocked(data.user.id)));
-        setBiometricEnabled(Boolean(data.user && hasDeviceBiometric(data.user.id)));
-        confirmedUserId = data.user?.id ?? null;
-        confirmedEpoch = preparedEpoch;
-        confirming = false;
-        setAuthCheckError(false);
-        setLoading(false);
+        await confirm(version, signal, undefined, code);
       } catch (error) { failed(version, signal, error); }
     };
     void initializeAuth();
     const { data } = authClient.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      // Focus/token refresh for an already checked owner must not unmount an
-      // editor or discard its unsaved work.
-      if (session?.user.id === confirmedUserId && isCurrentCloudSession(session.user.id, confirmedEpoch) && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+      // A callback is only a wake: it cannot mint authenticated runtime authority.
+      let sameOwnerReady = false;
+      try { sameOwnerReady = Boolean(session?.user.id === confirmedUserId && ownerLeaseRef.current?.isCurrent()
+        && session?.user && isCurrentCloudSession(session.user.id, confirmedEpoch)); } catch { /* Fail closed on unavailable storage. */ }
+      if (sameOwnerReady && session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
         setUser(session.user);
         return;
       }
       const version = ++authVersion;
       confirming = true;
-      controller.abort();
-      controller = new AbortController();
+      revoke(); // Synchronous, independent of React rendering or deferred auth lookup.
+      controller.abort(); controller = new AbortController();
       const signal = controller.signal;
       clearTimeout(confirmationTimer);
-      setAuthCheckError(false);
-      setLoading(true);
-      if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) {
-        setRecoveryMode(true);
-      }
-      if (event === "SIGNED_OUT") {
-        clearLanguageLocalState();
-        setRecoveryMode(false);
-      }
-      // The shared preparation invalidates old work synchronously, and dedupes
-      // this gate with the root synchronizer before waiting for the local lock.
-      const preparation = session?.user
-        ? prepareLocalCloudState(session.user.id)
-        : clearLocalCloudState();
-      // Attach a rejection handler now, even before the auth-callback timer.
-      const ready = preparation.then(() => true, (error) => {
-        failed(version, signal, error);
-        return false;
-      });
-      const nextUser = session?.user ?? null;
+      setAuthCheckError(false); setLoading(true);
+      if (event === "PASSWORD_RECOVERY" || (session?.user && isPasswordRecoveryRedirect)) setRecoveryMode(true);
+      if (event === "SIGNED_OUT") { confirmedSignOutRef.current = true; setRecoveryMode(false); }
+      // Owner callbacks immediately invalidate shared work; null/error callbacks do
+      // not imply permission to remove records. Only SIGNED_OUT may clear.
+      let preparation: Promise<void>;
+      try { preparation = session?.user ? prepareLocalCloudState(session.user.id)
+        : event === "SIGNED_OUT" ? clearLocalCloudState() : Promise.resolve(); }
+      catch (error) { failed(version, signal, error); return; }
+      const ready = preparation.then(() => true, error => { failed(version, signal, error); return false; });
       confirmationTimer = setTimeout(() => {
-        void (async () => {
-          if (!await ready || !active || version !== authVersion || signal.aborted) return;
-          const preparedEpoch = readCloudSyncEpoch();
-          const configured = nextUser ? await hasDevicePin(nextUser.id, signal) : false;
-          if (!active || version !== authVersion || signal.aborted) return;
-          if (nextUser && !isCurrentCloudSession(nextUser.id, preparedEpoch)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
-          setUser(nextUser);
-          setPinRequired(Boolean(nextUser && configured && !isPinSessionUnlocked(nextUser.id)));
-          confirmedUserId = nextUser?.id ?? null;
-          confirmedEpoch = preparedEpoch;
-          confirming = false;
-          setAuthCheckError(false);
-          setLoading(false);
-        })().catch(error => failed(version, signal, error));
+        void confirm(version, signal, ready).catch(error => failed(version, signal, error));
       }, 0);
-      setBiometricEnabled(Boolean(session?.user && hasDeviceBiometric(session.user.id)));
     });
     const onSessionChange = () => {
-      if (!confirming && confirmedUserId && !isCurrentCloudSession(confirmedUserId, confirmedEpoch)) {
+      if (confirming || !confirmedUserId) return;
+      let ready = false;
+      try { ready = Boolean(ownerLeaseRef.current?.isCurrent()) && isCurrentCloudSession(confirmedUserId, confirmedEpoch); } catch { /* Storage access itself can be denied. */ }
+      if (!ready) {
+        revoke();
         setAuthCheckMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 확인해 주세요.");
         setAuthCheckError(true);
         setLoading(false);
@@ -163,7 +189,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
     window.addEventListener("storage", onSessionChange);
     return () => {
-      active = false; controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe();
+      active = false; revoke(); controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe();
       window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
       window.removeEventListener("storage", onSessionChange);
     };
@@ -197,7 +223,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const verified = await verifyDeviceBiometric(user.id);
     if (verified) {
       unlockPinSession(user.id);
-      setPinRequired(false);
+      setPinRequired(false); setLoading(true); setAuthCheckAttempt(value => value + 1);
     } else {
       setPinMessage("생체인증을 확인하지 못했습니다. 다시 시도하거나 PIN을 입력해 주세요.");
     }
@@ -212,7 +238,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     if (result.ok) {
       setPin("");
       setPinMessage("");
-      setPinRequired(false);
+      setPinRequired(false); setLoading(true); setAuthCheckAttempt(value => value + 1);
     } else if (result.reason === "locked") {
       setPinRequiresPassword(true);
       setPinMessage("입력 횟수를 초과했습니다. 계정 비밀번호로 잠금을 해제해 주세요.");
@@ -231,7 +257,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       await reauthenticateDevicePin(user.id, accountPassword);
       setAccountPassword("");
       setPinRequiresPassword(false);
-      setPinRequired(false);
+      setPinRequired(false); setLoading(true); setAuthCheckAttempt(value => value + 1);
     } catch (error) {
       setPinMessage(error instanceof Error ? error.message : "계정 비밀번호를 확인하지 못했습니다.");
     }
@@ -313,7 +339,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">다른 계정으로 로그인</button>
     </section>
   </main>;
-  if (user) return <Fragment key={user.id}>{children}<HubBottomNav /></Fragment>;
+  if (user && ownerLease) return <Fragment key={user.id}><AuthenticatedStorageOwnerProvider lease={ownerLease}>{children}<HubBottomNav /></AuthenticatedStorageOwnerProvider></Fragment>;
 
   return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-md rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">

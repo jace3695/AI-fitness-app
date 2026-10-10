@@ -97,6 +97,9 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   const localTransactions = load('../app/data/storageTransaction.ts') as typeof transactions;
   modules['./storageTransaction.ts'] = localTransactions;
   modules['../data/storageTransaction'] = localTransactions;
+  // The shared owner transition now composes the real pure language boundary.
+  // Load it in this tab's realm so it uses the same transaction module/locks.
+  modules['./languageStorageBoundary.ts'] = load('../app/data/languageStorageBoundary.ts');
   const cloud = load('../app/data/cloudSync.ts') as typeof import('../app/data/cloudSync.ts');
   modules['../data/cloudSync'] = { ...cloud,
     async getRemoteState() { browser.remote.reads++; const result = { state: structuredClone(browser.remote.state), updated_at: String(browser.remote.revision) }; const hold = nextRead; nextRead = undefined; if (hold) await hold.promise; return fromJson(result); },

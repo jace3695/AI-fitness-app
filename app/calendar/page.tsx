@@ -2,7 +2,10 @@
 
 import { growthSessionTimeLabel } from "@/lib/assistant-growth-command";
 import { useDialogFocus } from "@/components/useDialogFocus";
-import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
+import { CLOUD_SESSION_CHANGED_EVENT, RECORDS_CHANGED_EVENT } from "../data/storageTransaction.ts";
+import { readGuardedLanguageProjection } from "../data/languageStorageBoundary.ts";
+import { RECORD_RESET_EVENT } from "../data/appRecordReset.ts";
+import { useAuthenticatedStorageOwner } from "../components/AuthenticatedStorageOwner.tsx";
 import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useEffect, useRef, useMemo, useState } from "react";
@@ -29,6 +32,9 @@ function CalendarCard({ title, href, tone, children }: { title: string; href: st
 }
 
 function UnifiedCalendar() {
+  const languageOwner = useAuthenticatedStorageOwner();
+  const [languageUnavailable, setLanguageUnavailable] = useState(false);
+  const [languageInfo, setLanguageInfo] = useState<Record<string, NonNullable<DayInfo['language']>>>({});
   const [month, setMonth] = useState(() => { const date = new Date(); return new Date(date.getFullYear(), date.getMonth(), 1); });
   const [info, setInfo] = useState<Record<string, DayInfo>>({});
   const [googleLoadState, setGoogleLoadState] = useState<GoogleCalendarLoadState | null>(null);
@@ -40,6 +46,34 @@ function UnifiedCalendar() {
   useDialogFocus(Boolean(selected), dialogRef);
   const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
 
+  // Language attribution is checked independently of the calendar's network
+  // reads, so a blocked namespace cannot retain old badges while they await.
+  useEffect(() => {
+    const refreshLanguage = () => {
+      const next: Record<string, NonNullable<DayInfo['language']>> = {};
+      let unavailable = true;
+      try { if (languageOwner?.isCurrent()) {
+        const projection = readGuardedLanguageProjection(window.localStorage, languageOwner);
+        if (projection.status === 'ready') { unavailable = false; Object.entries(parse(projection.records.dailyLearningHistory ?? null)).forEach(([date, value]) => {
+          if (!date.startsWith(monthKey) || !value || typeof value !== 'object') return;
+          const row = value as Record<string, unknown>;
+          const ids = Array.isArray(row.completedIds) ? row.completedIds.filter((id): id is string => typeof id === 'string') : [];
+          const count = Number(row.completedCount || ids.length);
+          if (Number.isFinite(count) && count > 0) next[date] = { count, ids };
+        }); }
+      } } catch { /* Storage access denial clears language independently of network. */ }
+      setLanguageUnavailable(unavailable);
+      setLanguageInfo(next);
+    };
+    refreshLanguage();
+    for (const event of ['storage', 'focus', 'pageshow', CLOUD_SESSION_CHANGED_EVENT, RECORDS_CHANGED_EVENT, RECORD_RESET_EVENT]) window.addEventListener(event, refreshLanguage);
+    languageOwner?.signal.addEventListener('abort', refreshLanguage);
+    return () => {
+      for (const event of ['storage', 'focus', 'pageshow', CLOUD_SESSION_CHANGED_EVENT, RECORDS_CHANGED_EVENT, RECORD_RESET_EVENT]) window.removeEventListener(event, refreshLanguage);
+      languageOwner?.signal.removeEventListener('abort', refreshLanguage);
+    };
+  }, [languageOwner, monthKey]);
+
   useEffect(() => {
     let active = true;
     const load = async () => {
@@ -50,13 +84,6 @@ function UnifiedCalendar() {
       const stores = readRecordStores();
       Object.entries(stores.workouts).forEach(([date, value]) => { if (date.startsWith(monthKey) && isWorkoutPerformed(value)) next[date] = { ...next[date], workout: getWorkoutRecord(value), note: stores.notes[date] }; });
       Object.entries(stores.diet).forEach(([date, value]) => { if (date.startsWith(monthKey) && Object.keys(value).length) next[date] = { ...next[date], diet: value, water: stores.water[date] }; });
-      Object.entries(parse(localStorage.getItem("dailyLearningHistory"))).forEach(([date, value]) => {
-        if (!date.startsWith(monthKey) || !value || typeof value !== "object") return;
-        const row = value as Record<string, unknown>;
-        const ids = Array.isArray(row.completedIds) ? row.completedIds.filter((id): id is string => typeof id === "string") : [];
-        const count = Number(row.completedCount || ids.length);
-        if (count) next[date] = { ...next[date], language: { count, ids } };
-      });
       if (supabase) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -128,20 +155,21 @@ function UnifiedCalendar() {
     grouped[event.date] = [...(grouped[event.date] || []), event];
     return grouped;
   }, {}), [googleLoadState, monthKey]);
-  const row = selected ? info[selected] : undefined;
+  const row = selected && (info[selected] || languageInfo[selected]) ? { ...info[selected], language: languageInfo[selected] } : undefined;
   const selectedGoogleEvents = selected ? googleByDate[selected] || [] : [];
   const workout = row?.workout ? [row.workout.workoutRoutineName || row.workout.workoutPlanName, ...(row.workout.workoutExerciseNames || []), row.workout.cardioDone ? `${row.workout.cardioType || "유산소"} ${row.workout.cardioMinutes || 0}분` : "", row.workout.workoutMemo || row.note].filter(Boolean) as string[] : [];
   const diet = row?.diet ? [row.diet.dietStatus, row.diet.fastingRecordStatus ? `공복 ${row.diet.fastingRecordStatus}` : "", row.water ? `물 ${row.water.toLocaleString()}mL` : "", row.diet.dietMemo].filter((value): value is string => typeof value === "string" && Boolean(value)) : [];
 
   return <main className="min-h-dvh bg-yeoni-bg text-[#242231]"><header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="calendar" title="통합 달력" subtitle="모든 앱의 날짜별 기록" /><Link href="/calendar/settings" className="inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-bold">설정</Link></div></header><div className="yeoni-page-content">
     <AppCompanion>날짜를 누르면 그날의 일정과 기록을 함께 볼 수 있어요.</AppCompanion>
+    {languageUnavailable && <p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">학습 기록의 계정과 저장 상태를 확인하지 못해 달력에서 잠시 숨겼어요. 다른 앱의 기록은 계속 확인할 수 있어요.</p>}
     {loading ? <p role="status" className="mb-3 text-sm text-gray-500">기록을 불러오는 중…</p> : loadFailures.length > 0 ? <div role="status" className="mb-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800"><p>{loadFailures.join(' · ')} 기록을 확인하지 못했어요. 이전에 불러온 기록은 유지합니다.</p><button type="button" onClick={() => setReloadVersion(value => value + 1)} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">다시 불러오기</button></div> : null}
     <section className="rounded-3xl bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">←</button><h2 className="text-xl font-bold">{month.getFullYear()}년 {month.getMonth() + 1}월</h2><button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="rounded-xl bg-gray-100 px-3 py-2 font-bold">→</button></div>
       <div className="mt-5 grid grid-cols-7 text-center text-xs font-bold text-gray-400">{"일월화수목금토".split("").map((day) => <span key={day}>{day}</span>)}</div>
       <div className="mt-2 grid grid-cols-7 gap-1.5">{days.map((day, index) => {
         if (!day) return <span key={`empty-${index}`} />;
         const date = `${monthKey}-${String(day).padStart(2, "0")}`;
-        const record = info[date];
+        const record = { ...info[date], language: languageInfo[date] };
         const googlePreview = getGoogleCalendarDayPreview(googleByDate[date] || []);
         return <button key={date} onClick={() => setSelected(date)} aria-label={`${date} 기록 상세 보기${googlePreview ? `, Google 일정 ${googlePreview.title}` : ""}`} className={`min-h-20 overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-24 sm:p-3 ${selected === date ? "border-violet-600 bg-violet-50" : "border-gray-100 bg-gray-50 hover:border-violet-200 hover:bg-white"}`}>
           <b className="block leading-none">{day}</b>

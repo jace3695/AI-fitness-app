@@ -151,18 +151,17 @@ test('shipping AuthGate retries failed sign-out cleanup when getUser is null and
   assert.equal(hasEditor(gate.render()), false);
 });
 
-test('shipping AuthGate with no authenticated user preserves legacy recovery bytes behind its retry gate', async t => {
+test('shipping AuthGate with no authenticated user preserves legacy recovery bytes and still offers sign-in', async t => {
   const initial = JSON.stringify({ original: 'synthetic previous owner record' });
   const journal = JSON.stringify({ [RECORD_KEY]: initial });
   const browser = storageBrowser({ [RECORD_KEY]: initial, 'fitness-cloud-sync-user': FIXTURE_OWNER, 'yeoni-storage-transaction-v1': journal });
   const tab = storageTab(browser, 'auth', null); t.after(tab.dispose);
   const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
-  assert.match(gate.text(), /로그인 확인을 완료하지 못했어요/);
-  assert.match(gate.text(), /이전 버전.*복구 정보/);
-  assert.ok(gate.button('다시 확인')); assert.equal(hasEditor(gate.render()), false);
+  assert.match(gate.text(), /한 번 로그인하고 나의 모든 앱/);
+  assert.ok(gate.button('AI 연이 시작')); assert.equal(hasEditor(gate.render()), false);
   assert.equal(tab.local.getItem(RECORD_KEY), initial);
   assert.equal(tab.local.getItem(tab.transactions.STORAGE_JOURNAL_KEY), journal);
-  assert.doesNotMatch(gate.text(), /한 번 로그인하고 나의 모든 앱/);
+  assert.equal(browser.calls.length, 0, 'No-user verification is not permission to recover or clear storage');
 });
 
 for (const errorName of ['AuthRetryableFetchError', 'AuthApiError']) test(`shipping AuthGate preserves records when getUser resolves with ${errorName} and no user`, async t => {
@@ -183,16 +182,90 @@ for (const errorName of ['AuthRetryableFetchError', 'AuthApiError']) test(`shipp
   assert.deepEqual([...browser.values], before);
 });
 
-test('shipping AuthGate treats AuthSessionMissingError as signed out and awaits safe cleanup', async t => {
+test('shipping AuthGate offers sign-in for AuthSessionMissingError without inventing signed-out cleanup', async t => {
   const browser = storageBrowser({ [RECORD_KEY]: JSON.stringify({ original: 'synthetic prior session record' }) });
   const tab = storageTab(browser, 'auth'); t.after(tab.dispose); await tab.cloud.prepareLocalCloudState(FIXTURE_OWNER);
   tab.setAuthError(Object.assign(new Error('Auth session missing!'), { name: 'AuthSessionMissingError', __isAuthError: true }));
   const release = browser.holdLock(); t.after(release);
   const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
-  assert.match(gate.text(), /불러오는 중/); assert.equal(hasEditor(gate.render()), false);
-  assert.notEqual(tab.local.getItem(RECORD_KEY), null);
+  assert.match(gate.text(), /한 번 로그인하고 나의 모든 앱/); assert.equal(hasEditor(gate.render()), false);
+  const preserved = tab.local.getItem(RECORD_KEY);
+  assert.notEqual(preserved, null);
   release(); await gate.settle();
-  assert.equal(tab.local.getItem(RECORD_KEY), null);
+  assert.equal(tab.local.getItem(RECORD_KEY), preserved, 'Missing session is not an observed SIGNED_OUT');
   assert.match(gate.text(), /한 번 로그인하고 나의 모든 앱/);
   assert.doesNotMatch(gate.text(), /로그인 확인을 완료하지 못했어요/);
+});
+
+const leaseOf = (tree: UiNode) => nodes(tree).find(node => node.props.lease)?.props.lease as import('../app/data/authenticatedStorageOwner.ts').AuthenticatedStorageOwner | undefined;
+
+test('O04 shipping AuthGate retains the exact live lease and does not reverify on current same-owner callbacks', async t => {
+  const browser = storageBrowser(), tab = storageTab(browser, 'lease'); t.after(tab.dispose);
+  const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
+  const lease = leaseOf(gate.render()), reads = tab.authReads.length;
+  assert.ok(lease); assert.ok(lease.isCurrent());
+  for (const event of ['SIGNED_IN', 'TOKEN_REFRESHED', 'INITIAL_SESSION']) {
+    tab.emitAuth(event, FIXTURE_OWNER); tab.flushTimers(); await gate.settle();
+    assert.equal(leaseOf(gate.render()), lease); assert.equal(lease.signal.aborted, false);
+  }
+  assert.equal(tab.authReads.length, reads);
+  tab.local.removeItem(tab.transactions.STORAGE_READY_KEY);
+  tab.emitAuth('TOKEN_REFRESHED', FIXTURE_OWNER);
+  assert.equal(lease.signal.aborted, true, 'Missing readiness synchronously revokes runtime authority');
+  assert.equal(hasEditor(gate.render()), false);
+  tab.flushTimers(); await gate.settle();
+  assert.notEqual(leaseOf(gate.render()), lease); assert.ok(leaseOf(gate.render())?.isCurrent());
+});
+
+test('O04/R12 shipping AuthGate revokes before deferred changing-owner getUser and a late reply cannot win', async t => {
+  const browser = storageBrowser(), tab = storageTab(browser, 'late-auth'); t.after(tab.dispose);
+  const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
+  const first = leaseOf(gate.render())!;
+  const oldAuth = tab.holdNextAuth();
+  tab.emitAuth('SIGNED_IN', OTHER_OWNER);
+  assert.equal(first.signal.aborted, true); assert.equal(hasEditor(gate.render()), false);
+  tab.flushTimers(); await gate.settle();
+  tab.emitAuth('SIGNED_IN', FIXTURE_OWNER); tab.flushTimers(); await gate.settle();
+  const resumed = leaseOf(gate.render()); assert.ok(resumed?.isCurrent()); assert.notEqual(resumed, first);
+  oldAuth.resolve({ data: { user: { id: OTHER_OWNER, email: 'b@example.test' } }, error: null });
+  await gate.settle();
+  assert.equal(leaseOf(gate.render()), resumed); assert.equal(gate.render().key, FIXTURE_OWNER);
+});
+
+test('O05 shipping AuthGate never exposes a callback owner when fresh verification fails', async t => {
+  const browser = storageBrowser(), tab = storageTab(browser, 'auth-error'); t.after(tab.dispose);
+  const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
+  const lease = leaseOf(gate.render())!;
+  tab.setAuthError(new Error('synthetic callback verification failed'));
+  tab.emitAuth('SIGNED_IN', OTHER_OWNER); tab.flushTimers(); await gate.settle();
+  assert.equal(lease.signal.aborted, true); assert.equal(hasEditor(gate.render()), false);
+  assert.match(gate.text(), /synthetic callback verification failed/);
+  assert.equal(leaseOf(gate.render()), undefined);
+});
+
+test('N03 only the runtime-registered verified lease passes authenticated authority checks', async t => {
+  const browser = storageBrowser(), tab = storageTab(browser, 'counterfeit'); t.after(tab.dispose);
+  const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
+  const lease = leaseOf(gate.render())!;
+  const runtime = tab.loadModule('app/data/authenticatedStorageOwner.ts') as typeof import('../app/data/authenticatedStorageOwner.ts');
+  runtime.assertAuthenticatedStorageOwner(lease);
+  for (const forged of [JSON.parse(JSON.stringify(lease)), { ...lease, isCurrent: () => true }, { userId: FIXTURE_OWNER, epoch: lease.epoch, signal: new AbortController().signal, freshness: 'fresh', isCurrent: () => true }]) {
+    assert.throws(() => runtime.assertAuthenticatedStorageOwner(forged), /계정|로그인/);
+  }
+  runtime.revokeAuthenticatedStorageOwner(lease);
+  assert.equal(lease.signal.aborted, true); assert.throws(() => runtime.assertAuthenticatedStorageOwner(lease));
+});
+
+test('O04 PIN verification completes before any runtime lease is issued', async t => {
+  const browser = storageBrowser(), tab = storageTab(browser, 'pin-lease'); t.after(tab.dispose);
+  const runtime = tab.loadModule('app/data/authenticatedStorageOwner.ts') as typeof import('../app/data/authenticatedStorageOwner.ts');
+  const verify = runtime.verifyAuthenticatedStorageOwner;
+  let issued = 0;
+  runtime.verifyAuthenticatedStorageOwner = async (...args) => { const result = await verify(...args); issued++; return result; };
+  const pin = tab.holdNextPin();
+  const gate = tab.mount(AUTH_GATE, { children: editor }); t.after(gate.dispose); await gate.settle();
+  assert.equal(issued, 0); assert.equal(leaseOf(gate.render()), undefined);
+  pin.resolve(true); await gate.settle();
+  assert.equal(issued, 0); assert.equal(leaseOf(gate.render()), undefined); assert.equal(hasEditor(gate.render()), false);
+  assert.match(gate.text(), /잠금 해제/);
 });

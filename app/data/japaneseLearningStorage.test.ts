@@ -4,7 +4,9 @@ import { CURRICULUM } from "../../data/curriculum.ts";
 import { CURRICULUM_PROGRESS_KEY, loadCurriculumProgress, saveCurriculumProgress } from "../../utils/curriculumProgress.ts";
 import { INTEGRATED_LEARNING_SETTINGS_KEY, loadIntegratedLearningSettings } from "../../utils/integratedLearningSettings.ts";
 import { answerSessionQuestion, createLearningSession, normalizeLearningSession, withLearningSessionDraft } from "../../utils/learningSession.ts";
-import { prepareLanguageLocalState } from "./languageCloudSync.ts";
+import { prepareLocalCloudState } from "./cloudSync.ts";
+import { readGuardedLanguageProjection } from "./languageStorageBoundary.ts";
+import { languageFixture } from "../../tests/helpers/languageFixture.ts";
 
 class MemoryStorage {
   values = new Map<string, string>();
@@ -53,11 +55,19 @@ test("저장 공간 오류를 호출자에게 전달하며 기존 성공 기록�
   assert.equal(storage.getItem(CURRICULUM_PROGRESS_KEY), before);
 }));
 
-test("계정 준비 시 이전 계정의 새 수업 초안도 함께 격리한다", () => withStorage((storage) => {
-  prepareLanguageLocalState("test-account-a");
+test("계정 준비 시 이전 계정의 새 수업 초안도 함께 격리한다", async t => {
+  const fixture = languageFixture(); t.after(fixture.restore);
+  const storage = fixture.storage;
+  await prepareLocalCloudState("test-account-a");
   saveCurriculumProgress(withLearningSessionDraft(loadCurriculumProgress(), createLearningSession("f01", 5, "starter")));
+  const original = storage.getItem(CURRICULUM_PROGRESS_KEY);
   storage.setItem("unrelated-test-key", "preserve");
-  prepareLanguageLocalState("test-account-b");
-  assert.equal(loadCurriculumProgress().activeSession, undefined);
+  await prepareLocalCloudState("test-account-b");
+  // Approved held-in-place policy: B cannot read A's draft, and unknown backup is never silently deleted.
+  assert.equal(readGuardedLanguageProjection(storage).status, "unavailable");
+  assert.equal(storage.getItem(CURRICULUM_PROGRESS_KEY), original);
   assert.equal(storage.getItem("unrelated-test-key"), "preserve");
-}));
+  await prepareLocalCloudState("test-account-a");
+  assert.equal(readGuardedLanguageProjection(storage).status, "ready");
+  assert.ok(loadCurriculumProgress().activeSession);
+});

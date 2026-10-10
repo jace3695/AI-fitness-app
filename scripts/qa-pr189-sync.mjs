@@ -195,7 +195,7 @@ async function createDevice(server, seed = {}) {
     queueMicrotask, crypto, Error, navigator: { locks }, Date: FixtureDate });
   client.deserialize = value => vm.runInContext('JSON.parse', context)(JSON.stringify(value));
   const cache = new Map();
-  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/cloudSyncConflicts.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
+  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/languageStorageBoundary.ts', 'app/data/cloudSyncConflicts.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
   function load(path) {
     if (cache.has(path)) return cache.get(path);
     assert.ok(allowed.has(path), `Unexpected module ${path}`);
