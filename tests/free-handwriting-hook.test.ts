@@ -136,6 +136,19 @@ test('restored free guide and ink render before the pending reset-marker lookup 
   gate.release.resolve(); await qa.ready();
   assert.deepEqual(canvas.pixels(), original.frames[original.historyIndex].raster.pixels);
 });
+test('fresh canvas pointer input before delayed initialization is ignored until an initial frame is ready', async t => {
+  const env = environment(), gate = { arrived: deferred(), release: deferred() }; env.markerGate = gate;
+  const qa = fixture(env), canvas = attachCanvas(qa); t.after(qa.unmount); t.after(gate.release.resolve);
+  await gate.arrived.promise;
+  const event = { currentTarget: canvas.canvas, clientX: 1, clientY: 1, pressure: .5, pointerId: 1, pointerType: 'mouse' } as unknown as Parameters<ReturnType<typeof qa.render>['start']>[0];
+  const blank = new Uint8ClampedArray(canvas.pixels());
+  qa.render().start(event); qa.render().draw(event); qa.render().stop(event);
+  assert.equal(qa.render().ready, false); assert.equal(qa.render().draft.frames.length, 0);
+  assert.equal(drafts.freeEvidence(qa.render().draft).strokes, 0); assert.deepEqual(canvas.pixels(), blank); assert.equal(env.storage.size, 0);
+  gate.release.resolve(); await qa.ready(); await qa.render().flush();
+  const initialized = env.storage.get(owner) as drafts.FreeDraft;
+  assert.equal(initialized.frames.length, 1); assert.equal(initialized.historyIndex, 0); assert.equal(drafts.freeEvidence(initialized).strokes, 0);
+});
 test('free hook restores raster, guide, ink, exact evidence and undo/redo after reload',async t=>{
  const {env,original,qa,canvas}=await restored();t.after(qa.unmount);assert.deepEqual(canvas.pixels(),original.frames[1].raster.pixels);assert.equal(qa.render().draft.inkColor,'#abcdef');
  qa.render().restore(0);await qa.render().flush();assert.equal(drafts.freeEvidence(qa.render().draft).strokes,0);qa.unmount();const b=fixture(env),bc=attachCanvas(b);t.after(b.unmount);await b.ready();assert.equal(b.render().draft.historyIndex,0);assert.deepEqual(bc.pixels(),original.frames[0].raster.pixels);b.render().restore(1);await b.render().flush();assert.deepEqual(drafts.freeEvidence(b.render().draft),original.frames[1].evidence);

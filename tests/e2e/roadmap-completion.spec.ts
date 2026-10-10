@@ -3,6 +3,7 @@ import { test, expect, login, synced, today, originalLanguage, type State } from
 import { RouteDrain } from './route-drain';
 import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 import { CURRICULUM } from '../../data/curriculum';
+import { drawCheckpointedFreeCanvasStroke, freeCanvasPixels, readFreeCanvasCheckpoint, waitForEmptyFreeCanvas } from './free-handwriting-canvas';
 const noOverflow = async (page: Parameters<typeof synced>[0]) => expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
 test('detailed workout confirmation survives reload and restores only its own change at 320px', async ({page,qa}) => {
@@ -54,11 +55,33 @@ test('typing saves measured mistakes once and recovers a lost response without a
  await page.reload({waitUntil:'domcontentloaded'});await expect(page.getByRole('region',{name:'타자 오류와 변화'})).toContainText('1회 · 정확도 0%');expect(await qa.read()).toEqual(before);await noOverflow(page);
 });
 
-test('handwriting measures remaining strokes, saves private image and actual time, and survives reload',async({page,qa})=>{
- const routine={id:randomUUID(),user_id:qa.account.id,category:'handwriting',title:'검증 손글씨',target_minutes:20,enabled:true};expect((await qa.account.client.from('growth_routines').insert(routine)).error).toBeNull();await page.setViewportSize({width:320,height:844});await login(page,qa.account);await synced(page);const before=await qa.read();await page.goto('/growth/handwriting/free',{waitUntil:'domcontentloaded'});const canvas=page.getByLabel('손글씨 연습장');await expect(canvas).toBeVisible();await expect(page.getByRole('button',{name:'손글씨와 완료 기록 저장'})).toBeDisabled();const box=(await canvas.boundingBox())!;
- for(let i=0;i<2;i++){await page.mouse.move(box.x+30,box.y+30+i*20);await page.mouse.down();await page.mouse.move(box.x+130,box.y+45+i*20,{steps:5});await page.mouse.up();}
- const metrics=page.getByRole('region',{name:'손글씨 측정 기록'});await expect(metrics).toContainText('획 2개');await page.getByRole('button',{name:'되돌리기',exact:true}).click();await expect(metrics).toContainText('획 1개');await expect(metrics).toContainText('변화가 있는 펜 압력 미측정');await page.getByRole('button',{name:'손글씨와 완료 기록 저장'}).click();await expect(page.getByRole('button',{name:'저장 완료',exact:true})).toBeDisabled();
- const session=(await qa.account.client.from('growth_sessions').select('*').single()).data!;expect(session.actual_minutes).toBeLessThan(20);expect(session.metrics).toMatchObject({strokes:1,pressureRange:null});expect(session.metrics.activeSeconds).toBeGreaterThanOrEqual(0);const resource=(await qa.account.client.from('growth_resources').select('*').single()).data!;expect(resource.id).toBe(session.metrics.resourceId);expect((await qa.account.client.storage.from('growth-resources').download(resource.storage_path)).error).toBeNull();const other=await qa.createAccount();expect((await other.client.storage.from('growth-resources').download(resource.storage_path)).error).not.toBeNull();await noOverflow(page);await page.reload({waitUntil:'domcontentloaded'});expect((await qa.account.client.from('growth_sessions').select('*')).data).toHaveLength(1);expect(await qa.read()).toEqual(before);
+test('handwriting measures remaining strokes, saves private image and actual time, and survives reload', async ({ page, qa }) => {
+ const routine = { id: randomUUID(), user_id: qa.account.id, category: 'handwriting', title: '검증 손글씨', target_minutes: 20, enabled: true };
+ expect((await qa.account.client.from('growth_routines').insert(routine)).error).toBeNull();
+ await page.setViewportSize({ width: 320, height: 844 }); await login(page, qa.account); await synced(page); const before = await qa.read();
+ await page.goto('/growth/handwriting/free', { waitUntil: 'domcontentloaded' });
+ const initial = await waitForEmptyFreeCanvas(page, qa.account.id);
+ await expect(page.getByRole('button', { name: '손글씨와 완료 기록 저장' })).toBeDisabled();
+ const first = await drawCheckpointedFreeCanvasStroke(page, initial);
+ const second = await drawCheckpointedFreeCanvasStroke(page, first.checkpoint, 20);
+ const metrics = page.getByRole('region', { name: '손글씨 측정 기록' });
+ await expect(metrics).toContainText('획 2개');
+ const history = { owner: qa.account.id, attemptId: initial.attemptId, resetMarker: initial.resetMarker, frames: second.checkpoint.frames };
+ await page.getByRole('button', { name: '되돌리기', exact: true }).click();
+ await expect(metrics).toContainText('획 1개'); await expect.poll(() => freeCanvasPixels(page)).toBe(first.image);
+ await expect.poll(() => readFreeCanvasCheckpoint(page, qa.account.id)).toMatchObject({ ...history, historyIndex: 1 });
+ await expect(metrics).toContainText('변화가 있는 펜 압력 미측정');
+ await page.getByRole('button', { name: '손글씨와 완료 기록 저장' }).click();
+ await expect(page.getByRole('button', { name: '저장 완료', exact: true })).toBeDisabled();
+ const session = (await qa.account.client.from('growth_sessions').select('*').single()).data!;
+ expect(session.actual_minutes).toBeLessThan(20); expect(session.metrics).toMatchObject({ strokes: 1, pressureRange: null });
+ expect(session.metrics.activeSeconds).toBeGreaterThanOrEqual(0);
+ const resource = (await qa.account.client.from('growth_resources').select('*').single()).data!;
+ expect(resource.id).toBe(session.metrics.resourceId);
+ expect((await qa.account.client.storage.from('growth-resources').download(resource.storage_path)).error).toBeNull();
+ const other = await qa.createAccount(); expect((await other.client.storage.from('growth-resources').download(resource.storage_path)).error).not.toBeNull();
+ await noOverflow(page); await page.reload({ waitUntil: 'domcontentloaded' });
+ expect((await qa.account.client.from('growth_sessions').select('*')).data).toHaveLength(1); expect(await qa.read()).toEqual(before);
 });
 
 test('language focus links due work mistakes and opens the new drawing and quality lessons',async({page,qa})=>{
