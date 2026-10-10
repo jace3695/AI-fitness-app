@@ -152,20 +152,47 @@ test('known prefix is independently acknowledged, missing suffix appended, and o
 
 test('acknowledgement completion loss recovers by exact read-first CAS; two facades cannot downgrade it', async t => {
   const f = await fixture(t), value = await capture(f.repo, { answer: true });
-  let injected = false;
+  let fault: ReturnType<typeof f.idb.loseNextCommitResponseForStoreWrite> | undefined;
   f.hooks(undefined, (name, _args, data) => {
-    if (!injected && name === 'read_language_legacy_evidence_events' && (data as { records: unknown[] }).records.length) {
-      injected = true; f.idb.loseNextCommitResponse();
+    if (!fault && name === 'read_language_legacy_evidence_events' && (data as { records: unknown[] }).records.length) {
+      // Other facades can still create batch-intent/readback-marker transactions.
+      // Lose the actual receipt-write completion, never whichever write is next.
+      fault = f.idb.loseNextCommitResponseForStoreWrite('receipts');
     }
     return data;
   });
   const other = await f.acquire();
   const result = await Promise.all([f.repo.deliverBatch(value.batch), other.deliverBatch(value.batch)]);
-  assert.ok(injected); assert.ok(result.every(value => value.status === 'acknowledged'));
+  assert.ok(fault); assert.equal(fault.consumed, 1);
+  assert.deepEqual(fault.committedStores, ['batches', 'delivery', 'receipts']);
+  assert.equal(f.idb.entries('receipts').length, 2);
+  assert.ok(result.every(value => value.status === 'acknowledged'));
   const metadata = await other.store().readDelivery(other.context(), value.batch.events[0].eventId); assert.equal(metadata!.status, 'acknowledged');
   await assert.rejects(other.store().markReadbackRequired(other.context(), value.batch.events[0], metadata!.revision), /checkpoint_conflict/);
   assert.deepEqual(await other.store().readDelivery(other.context(), value.batch.events[0].eventId), metadata);
   assert.equal(complete(await other.readPrefix()).snapshot.completeness.throughServerSequence, 2);
+});
+
+for (const boundary of ['batch_intent', 'readback_marker'] as const) test(`${boundary} completion loss fails closed and explicit retry preserves exact batch and receipts`, async t => {
+  const f = await fixture(t), value = await capture(f.repo, { answer: true });
+  const fault = f.idb.loseNextCommitResponseForStoreWrite(boundary === 'batch_intent' ? 'batches' : 'delivery', boundary === 'batch_intent' ? 'add' : 'put');
+  const callsBefore = f.calls.length;
+  await assert.rejects(f.repo.deliverBatch(value.batch), { code: 'storage_abort' });
+  assert.equal(fault.consumed, 1);
+  assert.deepEqual(fault.committedStores, [boundary === 'batch_intent' ? 'batches' : 'delivery']);
+  assert.equal(f.idb.entries('receipts').length, 0, 'A local failure cannot claim authenticated acknowledgement');
+  const persisted = await f.repo.store().readBatch(f.repo.context(), value.batch.batchId);
+  assert.deepEqual(persisted?.batch, value.batch); assert.equal(persisted?.delivery.status, 'pending');
+  const metadata = await Promise.all(value.batch.events.map(event => f.repo.store().readDelivery(f.repo.context(), event.eventId)));
+  assert.deepEqual(metadata.map(row => row?.status), boundary === 'batch_intent' ? ['pending', 'pending'] : ['readback_required', 'pending']);
+  if (boundary === 'batch_intent') assert.equal(f.calls.length, callsBefore, 'Unconfirmed batch intent must stop before remote reads or append');
+  assert.equal(f.calls.filter(call => call.name === 'append_language_legacy_evidence').length, boundary === 'batch_intent' ? 0 : 1);
+  assert.equal((await f.repo.deliverBatch(value.batch)).status, 'acknowledged');
+  assert.equal(f.calls.filter(call => call.name === 'append_language_legacy_evidence').length, 1, 'Read-first retry must reuse an existing server commit');
+  assert.deepEqual((await f.repo.store().readBatch(f.repo.context(), value.batch.batchId))?.batch, value.batch);
+  const prefix = complete(await f.repo.readPrefix()); assert.equal(prefix.snapshot.completeness.throughServerSequence, 2);
+  assert.deepEqual(prefix.snapshot.records.map(row => row.payloadHash), value.batch.events.map(event => event.payloadHash));
+  assert.equal(fault.consumed, 1);
 });
 
 test('real SQL conflicting immutable bytes quarantine pending work without replacing local event or raw handoff', async t => {

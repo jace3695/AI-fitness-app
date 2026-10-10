@@ -18,6 +18,8 @@ type StoreState = { keyPath: KeyPath | null; indexes: Map<string, IndexSchema>; 
 type DatabaseState = { name: string; version: number; stores: Map<string, StoreState>; connections: Set<Connection> };
 type Connection = { db: Hub; closed: boolean; state: DatabaseState };
 type Operation = { request: Request; run(): unknown };
+type WriteKind = 'add' | 'put' | 'delete' | 'clear';
+type StoreCommitLoss = { storeName: string; operation: WriteKind; error: DOMException; consumed: number; committedStores: string[] };
 
 const clone = <T>(value: T): T => structuredClone(value);
 const failure = (name: string, message = name): DOMException => new DOMException(message, name);
@@ -127,6 +129,7 @@ export function createDeterministicIDBAdapter() {
   let tail = Promise.resolve();
   let nextAbort: DOMException | null = null, nextQuota: DOMException | null = null;
   let nextReadFailure: DOMException | null = null, nextLostCommit: DOMException | null = null;
+  let nextStoreCommitLoss: StoreCommitLoss | null = null;
   let blockedOpens = 0, pendingOpens = 0;
   const beforeTransactions = new Map<'readonly' | 'readwrite', () => void>();
   let afterWriteCommit: (() => void) | undefined;
@@ -153,6 +156,7 @@ export function createDeterministicIDBAdapter() {
     for (const name of scope) if (!connection.state.stores.has(name)) throw failure('NotFoundError', name);
     const tx = { ...hub(), db: connection.db, mode, error: null as DOMException | null };
     const operations: Operation[] = [], snapshots = new Map<string, Map<string, Row>>(), stores = new Map<string, Hub>();
+    const writes: { storeName: string; operation: WriteKind }[] = [];
     const injectedAbort = nextAbort; nextAbort = null;
     const injectedLostCommit = mode === 'readwrite' ? nextLostCommit : null;
     if (mode === 'readwrite') nextLostCommit = null;
@@ -170,9 +174,11 @@ export function createDeterministicIDBAdapter() {
       if (nextReadFailure) { const error = nextReadFailure; nextReadFailure = null; throw error; }
       return run();
     }
-    function write(run: () => unknown): unknown {
+    function write(storeName: string, operation: WriteKind, run: () => unknown): unknown {
       if (nextQuota) { const error = nextQuota; nextQuota = null; throw error; }
-      return run();
+      const result = run();
+      writes.push({ storeName, operation });
+      return result;
     }
     function objectStore(name: string): Hub {
       assertActive();
@@ -223,7 +229,7 @@ export function createDeterministicIDBAdapter() {
                 delete() {
                   assertPositioned(); assertWritable();
                   const primary = keyToken(row!.key);
-                  return enqueue(cursor, () => write(() => { rows().delete(primary); return undefined; }));
+                  return enqueue(cursor, () => write(name, 'delete', () => { rows().delete(primary); return undefined; }));
                 },
                 continue(key?: Key) {
                   assertPositioned();
@@ -248,9 +254,9 @@ export function createDeterministicIDBAdapter() {
         put(value: unknown, key?: Key) { return put(value, key, false); },
         delete(key: Key) {
           assertWritable(); const token = keyToken(key);
-          return enqueue(store, () => write(() => { rows().delete(token); return undefined; }));
+          return enqueue(store, () => write(name, 'delete', () => { rows().delete(token); return undefined; }));
         },
-        clear() { assertWritable(); return enqueue(store, () => write(() => { rows().clear(); return undefined; })); },
+        clear() { assertWritable(); return enqueue(store, () => write(name, 'clear', () => { rows().clear(); return undefined; })); },
         index(indexName: string) {
           const definition = schema.indexes.get(indexName);
           if (!definition) throw failure('NotFoundError', indexName);
@@ -275,7 +281,7 @@ export function createDeterministicIDBAdapter() {
         if (schema.keyPath !== null && suppliedKey !== undefined) throw failure('DataError', 'Inline keys cannot have an explicit key.');
         const key = clone(schema.keyPath === null ? suppliedKey : pathValue(frozen, schema.keyPath)) as Key;
         const token = keyToken(key);
-        return enqueue(store, () => write(() => {
+        return enqueue(store, () => write(name, add ? 'add' : 'put', () => {
           if (add && rows().has(token)) throw failure('ConstraintError', 'Duplicate primary key.');
           checkUnique(schema, rows(), token, frozen);
           rows().set(token, { key, value: frozen });
@@ -291,6 +297,7 @@ export function createDeterministicIDBAdapter() {
     });
     tail = tail.then(async () => {
       let completed = 0;
+      let matchedCommitLoss: DOMException | null = null;
       try {
         // Creation has returned, so application code has registered the tx and
         // its handlers. A versionchange here can abort it before any request.
@@ -316,13 +323,22 @@ export function createDeterministicIDBAdapter() {
         if (!abortReason && injectedAbort) abortReason = injectedAbort;
         if (!abortReason && mode === 'readwrite') {
           for (const name of scope) connection.state.stores.get(name)!.rows = snapshots.get(name)!;
+          // All evidence transactions have the same broad store scope. Match an
+          // actual successful mutation and consume only after atomic publication,
+          // so another facade's unrelated transaction cannot steal this fault.
+          const targeted = nextStoreCommitLoss;
+          if (targeted && writes.some(write => write.storeName === targeted.storeName && write.operation === targeted.operation)) {
+            nextStoreCommitLoss = null; targeted.consumed++;
+            targeted.committedStores = [...new Set(writes.map(write => write.storeName))].sort();
+            matchedCommitLoss = targeted.error;
+          }
           const afterCommit = afterWriteCommit;
           afterWriteCommit = undefined;
           afterCommit?.();
         }
         // Deliberately non-browser fault: storage committed, caller saw failure.
         // This tests application readback/retry, not an IDB durability claim.
-        if (!abortReason && injectedLostCommit) abortReason = injectedLostCommit;
+        if (!abortReason && (injectedLostCommit || matchedCommitLoss)) abortReason = injectedLostCommit || matchedCommitLoss;
       } catch (error) {
         abortReason = error instanceof DOMException ? error : failure('UnknownError', String(error));
       }
@@ -432,6 +448,13 @@ export function createDeterministicIDBAdapter() {
     quotaNextWrite(error = failure('QuotaExceededError', 'Injected write quota failure.')) { nextQuota = error; },
     failNextRead(error = failure('UnknownError', 'Injected read failure.')) { nextReadFailure = error; },
     loseNextCommitResponse(error = failure('UnknownError', 'Injected completion failure after commit.')) { nextLostCommit = error; },
+    /** Synthetic, mutation-targeted completion loss; never a browser durability claim. */
+    loseNextCommitResponseForStoreWrite(storeName: string, operation: WriteKind = 'put', error = failure('UnknownError', 'Injected targeted completion failure after commit.')) {
+      if (nextStoreCommitLoss) throw Error('A targeted commit-response fault is already pending.');
+      const fault: StoreCommitLoss = { storeName, operation, error, consumed: 0, committedStores: [] };
+      nextStoreCommitLoss = fault;
+      return Object.freeze({ get consumed() { return fault.consumed; }, get committedStores() { return [...fault.committedStores]; } });
+    },
     beforeNextTransaction(mode: 'readonly' | 'readwrite', callback: () => void) { beforeTransactions.set(mode, callback); },
     afterNextWriteCommit(callback: () => void) { afterWriteCommit = callback; },
     blockNextOpen() { blockedOpens++; },
