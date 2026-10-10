@@ -1,10 +1,12 @@
 import { supabase } from "../lib/supabase.ts";
 import { respectRecordResets } from "./appRecordReset.ts";
+import { classifyCloudSyncConflicts, CloudSyncConflictStaleError, CloudSyncLegacyEncodingError, isSameCloudSyncConflictRequest, normalizeCloudSyncState, reconcileCloudSyncResolution } from "./cloudSyncConflicts.ts";
 import { captureStorageOwner, completeStorageOwnerTransition, hasStorageTransaction, invalidateStorageOwner, isStorageOwnerCurrent,
   readDesiredStorageOwner, readStorageSnapshot, StorageCorruptionError, StorageSessionChangedError, StorageSnapshotBusyError,
   updateStorageBatch, STORAGE_OWNER_KEY, STORAGE_SESSION_KEY, STORAGE_READY_KEY,
 } from "./storageTransaction.ts";
 import type { StorageOwnerToken, StorageReader } from "./storageTransaction.ts";
+export { CloudSyncLegacyEncodingError } from "./cloudSyncConflicts.ts";
 export { CLOUD_SESSION_CHANGED_EVENT } from "./storageTransaction.ts";
 
 const SYNCED_STORAGE_PREFIX = "ai-fitness-";
@@ -240,6 +242,7 @@ export interface CloudSyncRequest {
   local: CloudState;
   base: CloudState | null;
   acknowledgementToken: string | null;
+  storageGeneration: string | null;
 }
 export class CloudSyncAcknowledgementStaleError extends Error {
   constructor() { super('다른 동기화가 먼저 완료되었습니다. 최신 기록으로 다시 동기화합니다.'); this.name = 'CloudSyncAcknowledgementStaleError'; }
@@ -251,25 +254,74 @@ export function readCloudSyncRequest(userId: string, epoch: string | null): Clou
   if (snapshot.pending) throw new StorageSnapshotBusyError();
   if (snapshot.getItem(SYNC_EPOCH_KEY) !== epoch || snapshot.getItem(SYNC_USER_KEY) !== userId || !isCurrentCloudSession(userId, epoch)) throw new StorageSessionChangedError();
   return { userId, epoch, local: readLocalCloudState(snapshot), base: parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${userId}`)),
-    acknowledgementToken: snapshot.getItem(`${SYNC_ACK_PREFIX}${userId}`) };
+    acknowledgementToken: snapshot.getItem(`${SYNC_ACK_PREFIX}${userId}`), storageGeneration: snapshot.generation };
 }
-/** Acknowledge the request, preserving fresh local edits, in one owner-guarded commit. */
-export async function commitCloudSyncResponse(request: CloudSyncRequest, acknowledgedState: CloudState): Promise<{ local: CloudState; pending: boolean }> {
-  let result = { local: {} as CloudState, pending: false };
+/** Compare the exact prompt evidence under the existing short lock; never run network here. */
+export async function assertCloudSyncRequestCurrent(request: CloudSyncRequest): Promise<void> {
   await updateStorageBatch(window.localStorage, snapshot => {
-    if (snapshot.getItem(`${SYNC_ACK_PREFIX}${request.userId}`) !== request.acknowledgementToken) throw new CloudSyncAcknowledgementStaleError();
+    const current: CloudSyncRequest = { userId: request.userId, epoch: request.epoch,
+      local: readLocalCloudState(snapshot), base: parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`)),
+      acknowledgementToken: snapshot.getItem(`${SYNC_ACK_PREFIX}${request.userId}`), storageGeneration: snapshot.generation };
+    if (!isSameCloudSyncConflictRequest(request, current)) throw new CloudSyncConflictStaleError();
+    return {};
+  }, { owner: { userId: request.userId, epoch: request.epoch } });
+}
+export class CloudSyncResponseConflictError extends Error {
+  constructor() { super('동기화 중 같은 항목이 수정되었습니다. 원본을 유지하고 충돌 내용을 다시 확인합니다.'); this.name = 'CloudSyncResponseConflictError'; }
+}
+export class CloudSyncNamespaceError extends Error {
+  constructor() { super('공통 동기화 범위 밖의 기록이 있어 적용하지 않았습니다. 원본을 보존했으니 기록 범위를 확인해 주세요.'); this.name = 'CloudSyncNamespaceError'; }
+}
+function assertCloudStateNamespace(state: CloudState) {
+  if (!isPlainObject(state) || Object.keys(state).some(key => !key.startsWith(SYNCED_STORAGE_PREFIX))) throw new CloudSyncNamespaceError();
+}
+function assertCloudStorageEncoding(state: CloudState) {
+  // A known legacy wrapper must first be semantically classified, then saved as
+  // a canonical map under exact raw-wire CAS. Never acknowledge a transformation
+  // that was not the payload actually sent and verified by the caller.
+  if (stableState(state) !== stableState(normalizeCloudSyncState(state))) throw new CloudSyncLegacyEncodingError();
+}
+/** Keep generic JSON-looking strings exact; supported record maps are canonical objects. */
+function exactCloudChanges(snapshot: StorageReader, state: CloudState) {
+  const changes = cloudChanges(snapshot, state);
+  for (const [key, value] of Object.entries(state)) {
+    if (typeof value === 'string' && parseStoredValue(value) !== value) changes[key] = JSON.stringify(value);
+  }
+  return changes;
+}
+async function commitResponse(request: CloudSyncRequest, acknowledgedState: CloudState, explicitResolution: boolean): Promise<{ local: CloudState; pending: boolean }> {
+  let result = { local: {} as CloudState, pending: false };
+  // Validate before entering the storage lock, without modifying any snapshots.
+  assertCloudStateNamespace(acknowledgedState);
+  classifyCloudSyncConflicts(null, acknowledgedState, acknowledgedState);
+  assertCloudStorageEncoding(acknowledgedState);
+  await updateStorageBatch(window.localStorage, snapshot => {
+    if (snapshot.getItem(`${SYNC_ACK_PREFIX}${request.userId}`) !== request.acknowledgementToken
+      || stableState({ base: parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`)) }) !== stableState({ base: request.base })) throw new CloudSyncAcknowledgementStaleError();
     const latest = readLocalCloudState(snapshot);
-    const local = reconcileSyncResponse(request.local, acknowledgedState, latest);
+    const classified = explicitResolution ? null : classifyCloudSyncConflicts(request.local, acknowledgedState, latest);
+    // Retain the old baseline too, so the next GET exposes both real contenders.
+    if (classified && classified.merged === null) throw new CloudSyncResponseConflictError();
+    const local = explicitResolution ? reconcileCloudSyncResolution(request.local, acknowledgedState, latest) : classified!.merged!;
+    assertCloudStorageEncoding(local);
     result = { local, pending: stableState(local) !== stableState(acknowledgedState) };
     if (stableState(latest) === stableState(local)
       && stableState(parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`)) ?? {}) === stableState(acknowledgedState)
       && snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`) !== null) return {};
-    return { ...cloudChanges(snapshot, local),
+    return { ...exactCloudChanges(snapshot, local),
       [`${SYNC_BASE_PREFIX}${request.userId}`]: JSON.stringify(acknowledgedState),
       [`${SYNC_ACK_PREFIX}${request.userId}`]: crypto.randomUUID(),
     };
   }, { owner: { userId: request.userId, epoch: request.epoch } });
   return result;
+}
+/** Normal autosync never advances a baseline across a newly discovered same-field conflict. */
+export function commitCloudSyncResponse(request: CloudSyncRequest, acknowledgedState: CloudState) {
+  return commitResponse(request, acknowledgedState, false);
+}
+/** Only for an explicitly reviewed dispatch; newer local actions remain pending. */
+export function commitCloudSyncResolutionResponse(request: CloudSyncRequest, acknowledgedState: CloudState) {
+  return commitResponse(request, acknowledgedState, true);
 }
 
 /** A remote response acknowledges sentState, not edits made while it was pending. */
@@ -299,24 +351,26 @@ export async function getRemoteState(userId: string, signal?: AbortSignal) {
   if (signal) query.abortSignal(signal);
   const { data, error } = await query.maybeSingle();
   signal?.throwIfAborted();
-  if (error) throw error;
+  if (error) throw new Error("클라우드 기록을 읽지 못했습니다. 기기 원본을 보존했으니 다시 확인해 주세요.");
+  if (data) assertCloudStateNamespace(data.state as CloudState);
   return data as { state: CloudState; updated_at: string } | null;
 }
 
+/** Insert only when no row exists. The RPC keeps private state in a POST body. */
 export async function saveRemoteState(userId: string, state: CloudState, signal?: AbortSignal) {
-  if (!supabase) return;
+  if (!supabase) throw new Error("클라우드 연결을 확인해 주세요.");
   signal?.throwIfAborted();
-  // A competing first sync or reset may have created the row after our read.
-  // Insert must fail in that case; upsert would overwrite that newer state.
-  const query = supabase.from("user_app_state").insert({
-    user_id: userId,
-    state,
-    updated_at: new Date().toISOString(),
+  assertCloudStateNamespace(state);
+  classifyCloudSyncConflicts(null, state, state);
+  assertCloudStorageEncoding(state);
+  const query = supabase.rpc("save_cloud_state_if_unchanged", {
+    p_owner: userId, p_state: state, p_expected_updated_at: null, p_expected_state: null,
   });
   if (signal) query.abortSignal(signal);
-  const { error } = await query;
+  const { data, error } = await query;
   signal?.throwIfAborted();
-  if (error) throw error;
+  if (error) throw new Error("클라우드 기록을 안전하게 저장하지 못했습니다. 기기 원본을 보존했으니 다시 확인해 주세요.");
+  if (data !== true) throw new Error("다른 기기의 새 기록을 확인했습니다. 원본을 보존했으니 다시 동기화해 주세요.");
   await verifyRemoteState(userId, state, signal);
 }
 
@@ -335,19 +389,26 @@ export async function saveRemoteStateIfUnchanged(
   state: CloudState,
   expectedUpdatedAt: string,
   signal?: AbortSignal,
+  expectedState?: CloudState,
 ) {
-  if (!supabase) return false;
+  if (!supabase) throw new Error("클라우드 연결을 확인해 주세요.");
   signal?.throwIfAborted();
-  const query = supabase
-    .from("user_app_state")
-    .update({ state, updated_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("updated_at", expectedUpdatedAt)
-    .select("updated_at");
+  // A timestamp alone is not a revision: legacy clients can reuse milliseconds.
+  // Missing evidence/RPC must fail closed; never fall back to a direct PATCH.
+  if (!expectedState || !expectedUpdatedAt) throw new CloudSyncConflictStaleError();
+  assertCloudStateNamespace(expectedState);
+  classifyCloudSyncConflicts(null, expectedState, expectedState);
+  assertCloudStateNamespace(state);
+  classifyCloudSyncConflicts(null, state, state);
+  assertCloudStorageEncoding(state);
+  const query = supabase.rpc("save_cloud_state_if_unchanged", {
+    p_owner: userId, p_state: state, p_expected_updated_at: expectedUpdatedAt, p_expected_state: expectedState,
+  });
   if (signal) query.abortSignal(signal);
-  const { data, error } = await query.maybeSingle();
+  const { data, error } = await query;
   signal?.throwIfAborted();
-  if (error) throw error;
+  if (error) throw new Error("클라우드 기록을 안전하게 저장하지 못했습니다. 기기 원본을 보존했으니 다시 확인해 주세요.");
+  if (data !== true && data !== false) throw new Error("클라우드 저장 결과를 확인하지 못했습니다. 기기 원본을 보존했습니다.");
   if (!data) return false;
   await verifyRemoteState(userId, state, signal);
   return true;

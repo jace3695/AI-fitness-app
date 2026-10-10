@@ -61,7 +61,7 @@ jobs:
       - name: Build the isolated production app
         run: npm run build
       - name: Verify handoff data safety and Live learning in both browsers
-        run: node scripts/qa-playwright.mjs tests/e2e/language-live.spec.ts tests/e2e/language-live-learning.spec.ts tests/e2e/language-live-preparation.spec.ts tests/e2e/google-calendar.spec.ts tests/e2e/free-first.spec.ts tests/e2e/sentence-typing-recovery.spec.ts tests/e2e/diet-self-responses.spec.ts tests/e2e/growth-progression.spec.ts tests/e2e/language-live-overview.spec.ts tests/e2e/typing-basics-recovery.spec.ts tests/e2e/handwriting-recovery.spec.ts tests/e2e/diet-travel.spec.ts tests/e2e/storage-protocol.spec.ts tests/e2e/free-handwriting-recovery.spec.ts tests/e2e/routine-record-recovery.spec.ts --project=chromium --project=webkit-small
+        run: node scripts/qa-playwright.mjs tests/e2e/language-live.spec.ts tests/e2e/language-live-learning.spec.ts tests/e2e/language-live-preparation.spec.ts tests/e2e/google-calendar.spec.ts tests/e2e/free-first.spec.ts tests/e2e/sentence-typing-recovery.spec.ts tests/e2e/diet-self-responses.spec.ts tests/e2e/growth-progression.spec.ts tests/e2e/language-live-overview.spec.ts tests/e2e/typing-basics-recovery.spec.ts tests/e2e/handwriting-recovery.spec.ts tests/e2e/diet-travel.spec.ts tests/e2e/storage-protocol.spec.ts tests/e2e/free-handwriting-recovery.spec.ts tests/e2e/routine-record-recovery.spec.ts tests/e2e/sync-conflicts.spec.ts --project=chromium --project=webkit-small
       - name: Diagnose drawing reload protocol without retries
         env:
           QA_DRAWING_PROTOCOL: '1'

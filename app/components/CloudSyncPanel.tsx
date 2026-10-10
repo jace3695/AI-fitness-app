@@ -5,12 +5,13 @@ import type { User } from "@supabase/supabase-js";
 import {
   commitCloudSyncResponse,
   CloudSyncAcknowledgementStaleError,
+  CloudSyncResponseConflictError,
   clearLocalCloudState,
   CLOUD_SESSION_CHANGED_EVENT,
   getRemoteState,
   isCurrentCloudSession,
-  mergeCloudState,
-  mergeCloudStateFromBase,
+  assertCloudSyncRequestCurrent,
+  commitCloudSyncResolutionResponse,
   readLocalCloudState,
   prepareLocalCloudState,
   readCloudSyncEpoch,
@@ -25,8 +26,19 @@ import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarke
 
 import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, STORAGE_JOURNAL_KEY, StorageSnapshotBusyError } from "../data/storageTransaction";
 import { requestSafeReload } from "../lib/unsavedChanges";
+import { classifyCloudSyncConflicts, createCloudSyncConflictReview, resolveCloudSyncConflictReview, CloudSyncConflictStaleError } from "../data/cloudSyncConflicts";
+import type { CloudSyncConflictReview as ConflictReview, CloudSyncConflictChoice } from "../data/cloudSyncConflicts";
+import type { CloudState } from "../data/cloudSync";
+import CloudSyncConflictReview, { cloudSyncFieldLabel } from "./CloudSyncConflictReview";
 
-type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "error";
+function pendingCloudKeys(base: CloudState | null, local: CloudState) {
+  return [...new Set([...Object.keys(base ?? {}), ...Object.keys(local)])]
+    .filter(key => stableState({ value: base?.[key], present: base !== null && key in base }) !== stableState({ value: local[key], present: key in local }));
+}
+type ConflictSubmission = { review: ConflictReview; choices: CloudSyncConflictChoice[] };
+type SyncIssue = { phase: "read" | "write" | "local"; message: string };
+
+type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "conflict" | "error";
 
 export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOut?: boolean }) {
   const [user, setUser] = useState<User | null>(null);
@@ -37,6 +49,12 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncRequest, setSyncRequest] = useState(0);
   const [authRevision, setAuthRevision] = useState(0);
+  const [conflictReview, setConflictReview] = useState<ConflictReview | null>(null);
+  const [reviewVersion, setReviewVersion] = useState(0);
+  const [pendingKeys, setPendingKeys] = useState<string[]>([]);
+  const [syncIssue, setSyncIssue] = useState<SyncIssue | null>(null);
+  const heldReview = useRef<ConflictReview | null>(null);
+  const submitConflicts = useRef<((submission: ConflictSubmission) => void) | null>(null);
   const userId = user?.id;
   const lastSynced = useRef("");
   const authUserId = useRef<string | null>(null);
@@ -56,6 +74,10 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       if (alreadyReady) { setUser(nextUser); return; }
       // Cancellation and shared owner fencing happen before either awaits.
       cancelSync.current?.();
+      heldReview.current = null;
+      setConflictReview(null);
+      setPendingKeys([]);
+      setSyncIssue(null);
       authUserId.current = nextId;
       setUser(null);
       setAuthRevision(revision => revision + 1);
@@ -114,6 +136,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     let refreshRequested = false;
     let remoteRefreshRequested = false;
     let resetVersion = 0;
+    let reviewInvalidatedByWrite = false;
     let followUpTimer: number | undefined;
     const controller = new AbortController();
     const signal = controller.signal;
@@ -122,6 +145,9 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       active = false;
       controller.abort();
       window.clearTimeout(followUpTimer);
+      heldReview.current = null;
+      setConflictReview(null);
+      submitConflicts.current = null;
     };
     cancelSync.current = stop;
     const onSessionChange = () => {
@@ -131,7 +157,8 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       setMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 시도하여 계정을 확인해 주세요.");
     };
     window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
-    const onReset = () => { resetVersion += 1; };
+    const clearReview = () => { heldReview.current = null; setConflictReview(null); };
+    const onReset = () => { resetVersion += 1; clearReview(); setPendingKeys([]); setSyncIssue(null); };
     window.addEventListener(RECORD_RESET_EVENT, onReset);
 
     const transactionPending = () => {
@@ -145,8 +172,21 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         ? "이전 버전의 저장 복구 정보가 남아 있습니다. 이전 창을 모두 닫고 별도 복구 절차를 확인해 주세요. 기록은 그대로 보존했습니다."
         : "다른 창의 기록 저장이 끝나면 다시 동기화합니다.");
     };
-    const sync = async () => {
+    const showReview = (review: ConflictReview) => {
+      if (stableState({ request: heldReview.current?.request, remote: heldReview.current?.remote }) !== stableState({ request: review.request, remote: review.remote })) {
+        heldReview.current = review;
+        setConflictReview(review);
+        setReviewVersion(current => current + 1);
+      }
+      setStatus("conflict");
+      setSyncIssue(null);
+      setMessage(reviewInvalidatedByWrite
+        ? "새로운 기기 저장 작업으로 이전 선택을 초기화했습니다. 저장이 계속되면 선택이 다시 초기화될 수 있습니다. 진행 중인 입력을 저장하고 해당 편집 화면을 닫은 뒤 최신 내용을 선택해 주세요. 다른 탭의 저장도 확인해 주세요."
+        : "같은 항목의 변경을 선택할 때까지 서버 반영을 보류합니다.");
+    };
+    const sync = async (submission?: ConflictSubmission) => {
       if (syncing || !active || !isCurrentCloudSession(userId, epoch) || isRecordResetRunning()) return;
+      if (submission && heldReview.current !== submission.review) return;
       if (transactionPending()) {
         deferTransaction();
         return;
@@ -166,38 +206,61 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       refreshRequested = false;
       remoteRefreshRequested = false;
       setStatus("syncing");
+      let phase: SyncIssue["phase"] = "local";
       try {
         // One owner-scoped coherent snapshot supplies both records and base.
         // Network never runs in the origin-wide local-storage lock.
         const request = readCloudSyncRequest(userId, epoch);
         const local = request.local;
+        setPendingKeys(pendingCloudKeys(request.base, local));
         if (interrupted()) return;
+        phase = "read";
         let remoteRow = await getRemoteState(userId, signal);
         if (interrupted()) return;
+        phase = "local";
         let acknowledged = local;
+        let explicitResolution = false;
         if (!remoteRow) {
-          await saveRemoteState(userId, local, signal);
+          if (submission) throw new CloudSyncConflictStaleError();
+          if (request.base !== null) throw new Error("이전에 확인한 서버 기록을 찾을 수 없습니다. 기기 기록은 보존했으며 자동으로 다시 만들지 않습니다.");
+          clearReview();
+          // First insert uses the same narrow legacy normalization as updates;
+          // the raw request remains unchanged for guarded acknowledgment.
+          acknowledged = classifyCloudSyncConflicts(null, {}, local).merged!;
+          phase = "write";
+          await saveRemoteState(userId, acknowledged, signal);
           if (interrupted()) return;
         } else {
-          acknowledged = request.base
-            ? mergeCloudStateFromBase(request.base, remoteRow.state, local)
-            : mergeCloudState(remoteRow.state, local);
-          if (stableState(acknowledged) !== stableState(remoteRow.state)) {
+          if (submission) {
+            acknowledged = resolveCloudSyncConflictReview(submission.review, submission.choices, request, remoteRow);
+            // The short local guard validates the shown snapshot again. It never
+            // encloses the following network request in a local storage lock.
+            await assertCloudSyncRequestCurrent(submission.review.request);
+            if (interrupted() || heldReview.current !== submission.review) return;
+            explicitResolution = true;
+          } else {
+            const classified = classifyCloudSyncConflicts(request.base, remoteRow.state, local);
+            if (classified.conflicts.length) { showReview(createCloudSyncConflictReview(request, remoteRow)); return; }
+            acknowledged = classified.merged!;
+            clearReview();
+          }
+          if (explicitResolution || stableState(acknowledged) !== stableState(remoteRow.state)) {
             let saved = false;
-            // Keep a lost local-only CAS visible. A merge that already observed
-            // changes on both sides may reread/retry its conditional update.
-            const attempts = request.base && stableState(remoteRow.state) === stableState(request.base) ? 1 : 4;
+            const attempts = explicitResolution || request.base && stableState(remoteRow.state) === stableState(request.base) ? 1 : 4;
             for (let attempt = 0; attempt < attempts && !saved; attempt += 1) {
               if (interrupted()) return;
-              saved = await saveRemoteStateIfUnchanged(userId, acknowledged, remoteRow.updated_at, signal);
+              phase = "write";
+              saved = await saveRemoteStateIfUnchanged(userId, acknowledged, remoteRow.updated_at, signal, remoteRow.state);
               if (interrupted()) return;
+              if (!saved && explicitResolution) throw new CloudSyncConflictStaleError();
               if (!saved && attempt + 1 < attempts) {
+                phase = "read";
                 remoteRow = await getRemoteState(userId, signal);
                 if (interrupted()) return;
                 if (!remoteRow) break;
-                acknowledged = request.base
-                  ? mergeCloudStateFromBase(request.base, remoteRow.state, local)
-                  : mergeCloudState(remoteRow.state, local);
+                const classified = classifyCloudSyncConflicts(request.base, remoteRow.state, local);
+                if (classified.conflicts.length) { showReview(createCloudSyncConflictReview(request, remoteRow)); return; }
+                acknowledged = classified.merged!;
               }
             }
             if (!saved) throw new Error("다른 기기의 변경을 확인했습니다. 다시 동기화해 주세요.");
@@ -206,8 +269,15 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         if (interrupted()) return;
         // Reconcile fresh local edits and advance the acknowledged base in the
         // same guarded transaction, including the remote-only/initial branches.
-        const committed = await commitCloudSyncResponse(request, acknowledged);
+        phase = "local";
+        const committed = explicitResolution
+          ? await commitCloudSyncResolutionResponse(request, acknowledged)
+          : await commitCloudSyncResponse(request, acknowledged);
         if (cancelled()) return;
+        clearReview();
+        reviewInvalidatedByWrite = false;
+        setSyncIssue(null);
+        setPendingKeys(pendingCloudKeys(acknowledged, committed.local));
         lastSynced.current = stableState(acknowledged);
         if (RECORD_RESET_APPS.some(app => local[resetMarkerKey(app)] !== committed.local[resetMarkerKey(app)])) requestSafeReload();
         const pending = committed.pending || transactionPending()
@@ -221,12 +291,20 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         setLastSyncedAt(new Date());
       } catch (error) {
         if (!cancelled()) {
-          if (error instanceof StorageSnapshotBusyError || error instanceof CloudSyncAcknowledgementStaleError || transactionPending()) {
+          if (error instanceof CloudSyncConflictStaleError) {
+            clearReview();
+            refreshRequested = true;
+            setStatus("pending");
+            setMessage("기록이 바뀌었습니다. 이전 선택은 적용하지 않고 최신 내용을 다시 확인합니다.");
+            return;
+          }
+          if (error instanceof StorageSnapshotBusyError || error instanceof CloudSyncAcknowledgementStaleError || error instanceof CloudSyncResponseConflictError || transactionPending()) {
             refreshRequested = true;
             setStatus("pending");
             return;
           }
           setStatus("error");
+          setSyncIssue({ phase, message: phase === "read" ? "서버 기록을 확인하지 못했습니다. 저장 여부를 판단하지 않았습니다." : phase === "write" ? "서버 저장 결과를 확인하지 못했습니다. 이미 반영되었을 수 있어 다시 조회합니다." : "기기 기록의 안전한 반영을 확인하지 못했습니다." });
           setMessage(
             error instanceof Error ? error.message : "동기화에 실패했습니다.",
           );
@@ -242,6 +320,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       }
     };
 
+    submitConflicts.current = submission => { void sync(submission); };
     void sync();
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void sync();
@@ -253,6 +332,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     const onFocus = () => void sync();
     const onRemoteRecordsChanged = (event: Event) => {
       if ((event as CustomEvent<{ ownerId?: string }>).detail?.ownerId !== userId || !active || !isCurrentCloudSession(userId, epoch)) return;
+      clearReview();
       refreshRequested = true;
       remoteRefreshRequested = true;
       void sync();
@@ -260,6 +340,12 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     const onRecordsChanged = () => {
       if (!isCurrentCloudSession(userId, epoch)) { onSessionChange(); return; }
       if (!active) return;
+      if (heldReview.current) {
+        try {
+          const fresh = readCloudSyncRequest(userId, epoch);
+          if (stableState({ request: fresh }) !== stableState({ request: heldReview.current.request })) { clearReview(); reviewInvalidatedByWrite = true; refreshRequested = true; }
+        } catch { clearReview(); refreshRequested = true; }
+      }
       if (transactionPending()) {
         deferTransaction();
         return;
@@ -390,7 +476,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
 
   return (
     <div className="mt-3 w-full">
-      <div className={`rounded-2xl border p-3 text-[11px] ${status === "error" ? "border-red-100 bg-red-50 text-red-800" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}>
+      <div className={`rounded-2xl border p-3 text-[11px] ${status === "error" ? "border-red-100 bg-red-50 text-red-800" : status === "conflict" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-100 bg-emerald-50 text-emerald-800"}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="font-bold">
@@ -398,7 +484,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
                 ? "기록 동기화 중…"
                 : status === "error"
                   ? "기록 동기화 실패"
-                  : status === "synced" ? "서버 반영 완료" : "기기 기록 · 서버 반영 대기"}
+                  : status === "conflict" ? "기록 충돌 · 선택 필요" : status === "synced" ? "서버 반영 완료" : "기기 기록 · 서버 반영 대기"}
             </p>
             <p className="mt-0.5 truncate opacity-80">{user.email}</p>
             {message ? (
@@ -413,10 +499,18 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
               </p>
             ) : null}
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 font-bold ${status === "error" ? "bg-red-100 text-red-700" : status === "syncing" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
-            {status === "error" ? "확인 필요" : status === "syncing" ? "동기화 중" : status === "synced" ? "서버 저장 확인" : "반영 대기"}
+          <span className={`shrink-0 rounded-full px-2.5 py-1 font-bold ${status === "error" ? "bg-red-100 text-red-700" : status === "syncing" || status === "conflict" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>
+            {status === "error" ? "확인 필요" : status === "conflict" ? "선택 대기" : status === "syncing" ? "동기화 중" : status === "synced" ? "서버 저장 확인" : "반영 대기"}
           </span>
         </div>
+        {syncIssue && <ul aria-label="동기화 확인 실패 목록" aria-live="polite" className="mt-3 list-inside list-disc rounded-lg bg-white p-2 text-red-800"><li>{syncIssue.message}</li></ul>}
+        {pendingKeys.length > 0 && <details className="mt-3 rounded-lg bg-white p-2 text-gray-700">
+          <summary className="cursor-pointer py-1 font-bold">서버 반영 대기 목록 {pendingKeys.length}개</summary>
+          <p className="mt-1">아래 항목은 반영 대기 중입니다. 각각의 저장 실패가 확인된 것은 아닙니다.</p>
+          <ul className="mt-2 max-h-40 list-inside list-disc overflow-y-auto">{pendingKeys.map(key => <li key={key} className="break-all">{cloudSyncFieldLabel([key])} · 반영 대기</li>)}</ul>
+        </details>}
+        {conflictReview && <CloudSyncConflictReview key={reviewVersion} review={conflictReview} busy={status === "syncing"}
+          onResolve={choices => submitConflicts.current?.({ review: conflictReview, choices })} />}
         <div className="mt-3 flex gap-2">
           <button
             type="button"
@@ -431,7 +525,18 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           </button>
           <button
             type="button"
-            onClick={() => void supabase?.auth.signOut()}
+            onClick={() => {
+              // Invalidate the prompt before signOut performs any asynchronous work.
+              cancelSync.current?.();
+              heldReview.current = null;
+              setConflictReview(null);
+              setPendingKeys([]);
+              setSyncIssue(null);
+              setStatus("idle");
+              void supabase?.auth.signOut().then(({ error }) => {
+                if (error) { setStatus("error"); setMessage("로그아웃을 확인하지 못했습니다. 다시 시도하여 로그인 상태를 확인해 주세요."); }
+              });
+            }}
             className="rounded-xl bg-white px-3 py-2 font-bold text-gray-600 shadow-sm"
           >
             로그아웃

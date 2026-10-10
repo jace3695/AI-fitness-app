@@ -4,11 +4,14 @@ import {
   clearLocalCloudState, isCurrentCloudSession, mergeCloudState, mergeCloudStateFromBase,
   prepareLocalCloudState, readCloudSyncEpoch, readLocalCloudState, readSyncBase, saveSyncBase,
   readCloudSyncRequest, commitCloudSyncResponse, CloudSyncAcknowledgementStaleError, restoreCloudBackup,
+  assertCloudSyncRequestCurrent, commitCloudSyncResolutionResponse, CloudSyncResponseConflictError, CloudSyncLegacyEncodingError, CloudSyncNamespaceError,
 } from './cloudSync.ts';
 import { captureStorageOwner, STORAGE_JOURNAL_KEY, STORAGE_LOCK_NAME, STORAGE_PROTOCOL_KEY, STORAGE_SESSION_KEY,
   StorageLegacyMigrationRequiredError, StorageSessionChangedError, updateStorageBatch } from './storageTransaction.ts';
 import { installStorageLocks } from '../../tests/helpers/storageProtocol.ts';
-import { readJsonForUpdate, updateJson } from './recordStorage.ts';
+import { CloudSyncConflictStaleError, classifyCloudSyncConflicts } from './cloudSyncConflicts.ts';
+import { getLocalDateKey } from './dietPlans.ts';
+import { readJsonForUpdate, readRecordStores, updateJson } from './recordStorage.ts';
 
 const original = Object.fromEntries(Array.from({ length: 17 }, (_, index) => [`ai-fitness-fixture-${index}`, { value: index }]));
 function device(seed: Record<string, unknown> = original) {
@@ -163,4 +166,165 @@ test('same-owner reload recovers a crashed ordinary v2 batch without waiting for
     await prepareLocalCloudState('a');assert.equal(readCloudSyncEpoch(),epoch);assert.deepEqual(readLocalCloudState(),original);assert.equal(JSON.parse(local.storage.getItem(STORAGE_PROTOCOL_KEY)!).state,'committed');
     assert.doesNotThrow(()=>readCloudSyncRequest('a',epoch));
   }finally{local.restore();}
+});
+
+
+test('conflict request freshness is checked under lock and detects same-content local A→B→A', async () => {
+  const key='ai-fitness-record'; const local=device({[key]:{memo:'A'}}); try {
+    await prepareLocalCloudState('a'); await saveSyncBase('a',{[key]:{memo:'base'}});
+    const request=readCloudSyncRequest('a',readCloudSyncEpoch()); const unchanged=[...local.values];
+    await assertCloudSyncRequestCurrent(request); assert.deepEqual([...local.values],unchanged,'A read-only guard must not issue a new generation');
+    await updateStorageBatch(local.storage,()=>({[key]:JSON.stringify({memo:'B'})}));
+    await updateStorageBatch(local.storage,()=>({[key]:JSON.stringify({memo:'A'})}));
+    assert.deepEqual(readLocalCloudState(),request.local); const before=[...local.values];
+    await assert.rejects(assertCloudSyncRequestCurrent(request),CloudSyncConflictStaleError);
+    assert.deepEqual([...local.values],before); assert.equal(local.locks.active,0);
+  } finally {local.restore();}
+});
+test('conflict request freshness observes queued local writes and cannot cross A→B→A owner epochs', async () => {
+  const local=device(); try {
+    await prepareLocalCloudState('a'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    const write=updateStorageBatch(local.storage,()=>({'ai-fitness-new':'true'}));
+    await assert.rejects(assertCloudSyncRequestCurrent(request),CloudSyncConflictStaleError); await write;
+    await prepareLocalCloudState('b'); await prepareLocalCloudState('a');
+    await assert.rejects(assertCloudSyncRequestCurrent(request),StorageSessionChangedError);
+    await assert.rejects(commitCloudSyncResolutionResponse(request,{}),StorageSessionChangedError);
+  } finally {local.restore();}
+});
+test('normal ack discovers concurrent same-field input without changing local or baseline evidence', async () => {
+  const key='ai-fitness-record'; const base={[key]:{memo:'base'}}; const local=device(base); try {
+    await prepareLocalCloudState('a'); await saveSyncBase('a',base); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    await updateStorageBatch(local.storage,()=>({[key]:JSON.stringify({memo:'typed during GET'})}));
+    const before=[...local.values]; const remote={[key]:{memo:'different device'}};
+    await assert.rejects(commitCloudSyncResponse(request,remote),CloudSyncResponseConflictError);
+    assert.deepEqual([...local.values],before); assert.deepEqual(readSyncBase('a'),base);
+    const fresh=readCloudSyncRequest('a',readCloudSyncEpoch()); assert.equal(classifyCloudSyncConflicts(fresh.base,remote,fresh.local).conflicts.length,1);
+  } finally {local.restore();}
+});
+test('normal ack also rejects initial-baseline, array and parent deletion/edit races', async () => {
+  const key='ai-fitness-record';
+  for(const [base,remote,newer] of [[{memo:'base'},{memo:'remote'},{memo:'local'}],[['old'],['remote'],['local']],[{a:1},{a:2},undefined]]) {
+    const local=device({[key]:base}); try {
+      await prepareLocalCloudState('a'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+      await updateStorageBatch(local.storage,()=>({[key]:newer===undefined?null:JSON.stringify(newer)}));
+      const before=[...local.values]; await assert.rejects(commitCloudSyncResponse(request,{[key]:remote}),CloudSyncResponseConflictError);
+      assert.deepEqual([...local.values],before); assert.equal(readSyncBase('a'),null);
+    } finally {local.restore();}
+  }
+});
+test('explicit resolution atomically acknowledges chosen remote state while newer same-field input stays pending', async () => {
+  const key='ai-fitness-record'; const base={[key]:{memo:'base',list:['old'],gone:1,independent:1}};
+  const local=device({[key]:{memo:'local',list:['local'],gone:1,independent:1}}); try {
+    await prepareLocalCloudState('a'); await saveSyncBase('a',base); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    await assertCloudSyncRequestCurrent(request); assert.equal(local.locks.active,0,'Network dispatch would occur outside the local lock');
+    const resolved={[key]:{memo:'chosen remote',list:['remote'],gone:2,independent:2}};
+    await updateStorageBatch(local.storage,()=>({[key]:JSON.stringify({memo:'typed after selection',list:['new','new'],independent:1})}));
+    const result=await commitCloudSyncResolutionResponse(request,resolved);
+    assert.deepEqual(result.local,{[key]:{memo:'typed after selection',list:['new','new'],independent:2}}); assert.equal(result.pending,true);
+    assert.deepEqual(readSyncBase('a'),resolved); assert.deepEqual(readLocalCloudState(),result.local); assert.equal(local.locks.active,0);
+    const fresh=readCloudSyncRequest('a',readCloudSyncEpoch()); assert.deepEqual(classifyCloudSyncConflicts(fresh.base,resolved,fresh.local).merged,result.local);
+  } finally {local.restore();}
+});
+test('explicit resolution failures at records, baseline and acknowledgement roll back every source', async () => {
+  const key='ai-fitness-record';
+  for (const failureKey of [key,'fitness-cloud-sync-base:a','fitness-cloud-sync-ack:a']) {
+    const base={[key]:{memo:'base'}}; const old={[key]:{memo:'local'}}; const local=device(old); try {
+      await prepareLocalCloudState('a'); await saveSyncBase('a',base); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+      const ack=local.storage.getItem('fitness-cloud-sync-ack:a'); const set=local.storage.setItem; let failed=false;
+      local.storage.setItem=(key,value)=>{if(key===failureKey&&!failed){failed=true;throw new Error('synthetic quota');}set(key,value);};
+      await assert.rejects(commitCloudSyncResolutionResponse(request,{[key]:{memo:'chosen remote'}}),/synthetic quota/);
+      assert.deepEqual(readLocalCloudState(),old); assert.deepEqual(readSyncBase('a'),base); assert.equal(local.storage.getItem('fitness-cloud-sync-ack:a'),ack);
+    } finally {local.restore();}
+  }
+});
+test('competing ack and changed baseline cannot be overwritten by an older explicit decision', async () => {
+  const local=device(); try {
+    await prepareLocalCloudState('a'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    await commitCloudSyncResponse(request,original); const before=[...local.values];
+    await assert.rejects(commitCloudSyncResolutionResponse(request,{}),CloudSyncAcknowledgementStaleError); assert.deepEqual([...local.values],before);
+    const fresh=readCloudSyncRequest('a',readCloudSyncEpoch()); local.storage.setItem('fitness-cloud-sync-base:a','{}');
+    await assert.rejects(commitCloudSyncResolutionResponse(fresh,{}),CloudSyncAcknowledgementStaleError);
+  } finally {local.restore();}
+});
+test('selected JSON-looking top-level strings round-trip exactly and malformed raw local bytes survive', async () => {
+  const key='ai-fitness-record';
+  for (const value of ['null','123','true','{"x":1}','[1,2]','"quoted"','plain text','{broken']) {
+    const local=device({}); try {
+      await prepareLocalCloudState('a'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+      const result=await commitCloudSyncResolutionResponse(request,{[key]:value});
+      assert.deepEqual(readLocalCloudState(),{[key]:value}); assert.deepEqual(readSyncBase('a'),{[key]:value}); assert.equal(result.pending,false);
+    } finally {local.restore();}
+  }
+  const local=device({}); try {
+    await prepareLocalCloudState('a'); local.storage.setItem(key,'{broken'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    await commitCloudSyncResponse(request,{...request.local,'ai-fitness-independent':true}); assert.equal(local.storage.getItem(key),'{broken');
+  } finally {local.restore();}
+});
+test('reset arriving after explicit dispatch cannot resurrect pre-reset selected records', async () => {
+  const key='ai-fitness-daily-notes'; const local=device({[key]:{memo:'local'}}); try {
+    await prepareLocalCloudState('a'); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    const marker='2026-10-09T20:00:00Z|synthetic-reset';
+    await updateStorageBatch(local.storage,()=>({[key]:null,'ai-fitness-record-reset-fitness':marker}));
+    const resolved={[key]:{memo:'selected before reset'}}; const result=await commitCloudSyncResolutionResponse(request,resolved);
+    assert.deepEqual(result.local,{'ai-fitness-record-reset-fitness':marker}); assert.equal(result.pending,true); assert.deepEqual(readSyncBase('a'),resolved);
+  } finally {local.restore();}
+});
+
+
+test('unsubmitted legacy representation conversion cannot be acknowledged as though it was the verified payload', async () => {
+  const key='ai-fitness-workout-completed-days'; const records={'2030-01-01':{workoutMemo:'synthetic existing memo'}};
+  const original={[key]:records}; const local=device(original); try {
+    await prepareLocalCloudState('a'); await saveSyncBase('a',original); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    const legacy={[key]:JSON.stringify(records)}; const before=[...local.values];
+    await assert.rejects(commitCloudSyncResponse(request,legacy),CloudSyncLegacyEncodingError);
+    await assert.rejects(commitCloudSyncResolutionResponse(request,legacy),CloudSyncLegacyEncodingError);
+    assert.deepEqual([...local.values],before); assert.deepEqual(readLocalCloudState(),original); assert.deepEqual(readSyncBase('a'),original);
+    assert.deepEqual(readJsonForUpdate(local.storage,key,{}),records);
+  } finally {local.restore();}
+});
+
+
+test('canonicalized legacy server record maps roundtrip through actual record readers and stable next-sync baseline', async () => {
+  const key='ai-fitness-workout-completed-days'; const day='2030-01-01';
+  const base={[key]:JSON.stringify({[day]:{workoutMemo:'base',extra:{kept:[1,1,null]}}})};
+  const remote={[key]:JSON.stringify({[day]:{workoutMemo:'server',extra:{kept:[1,1,null]}}}),'ai-fitness-water-intake':JSON.stringify({[day]:1200})};
+  const local=device({[key]:JSON.parse(base[key])}); try {
+    await prepareLocalCloudState('a'); await saveSyncBase('a',base); const request=readCloudSyncRequest('a',readCloudSyncEpoch());
+    const classified=classifyCloudSyncConflicts(request.base,remote,request.local); assert.equal(classified.conflicts.length,0); const canonical=classified.merged!;
+    const result=await commitCloudSyncResponse(request,canonical); assert.equal(result.pending,false);
+    const stores=readRecordStores(); assert.equal((stores.workouts[day] as {workoutMemo:string}).workoutMemo,'server'); assert.deepEqual((stores.workouts[day] as unknown as Record<string, unknown>).extra,{kept:[1,1,null]}); assert.equal(stores.water[day],1200);
+    assert.deepEqual(readSyncBase('a'),canonical); const fresh=readCloudSyncRequest('a',readCloudSyncEpoch());
+    assert.deepEqual(classifyCloudSyncConflicts(fresh.base,canonical,fresh.local),{merged:canonical,conflicts:[],resetKeys:[]});
+    const before=[...local.values]; await commitCloudSyncResponse(fresh,canonical); assert.deepEqual([...local.values],before,'Stable canonical ack must not cause a write loop');
+  } finally {local.restore();}
+});
+test('legacy canonicalization quota failure preserves old raw baseline and readable local records atomically', async () => {
+  const key='ai-fitness-workout-completed-days';const map={'2030-01-01':{workoutMemo:'local'}};const base={[key]:JSON.stringify(map)};const local=device({[key]:map});try {
+    await prepareLocalCloudState('a');await saveSyncBase('a',base);const request=readCloudSyncRequest('a',readCloudSyncEpoch());const set=local.storage.setItem;let failed=false;
+    local.storage.setItem=(key,value)=>{if(key==='fitness-cloud-sync-base:a'&&!failed){failed=true;throw new Error('compatibility quota');}set(key,value);};
+    const canonical=classifyCloudSyncConflicts(request.base,{[key]:JSON.stringify({'2030-01-01':{workoutMemo:'server'}})},request.local).merged!;
+    await assert.rejects(commitCloudSyncResponse(request,canonical),/compatibility quota/);assert.deepEqual(readSyncBase('a'),base);assert.deepEqual(readLocalCloudState(),{[key]:map});assert.equal((readRecordStores().workouts['2030-01-01'] as {workoutMemo:string}).workoutMemo,'local');
+  }finally{local.restore();}
+});
+
+
+test('out-of-contract remote roots cannot mutate local records, baseline, or acknowledgement', async () => {
+  const local=device();try{
+    await prepareLocalCloudState('a');await saveSyncBase('a',original);const request=readCloudSyncRequest('a',readCloudSyncEpoch());const before=[...local.values];
+    for(const invalid of [{...original,unrelated:{memo:'synthetic'}},{unrelated:{}}]) {
+      await assert.rejects(commitCloudSyncResponse(request,invalid),CloudSyncNamespaceError);await assert.rejects(commitCloudSyncResolutionResponse(request,invalid),CloudSyncNamespaceError);
+      assert.deepEqual([...local.values],before);assert.deepEqual(readLocalCloudState(),original);assert.deepEqual(readSyncBase('a'),original);
+    }
+  }finally{local.restore();}
+});
+
+
+test('all documented fasting formats retain actual current-day reader behavior after canonical ack', async () => {
+  const key='ai-fitness-fasting-start-time';const day=getLocalDateKey();
+  for(const [wire,expected] of [['',''],['18:30','18:30'],['"18:30"','18:30'],[JSON.stringify({[day]:'19:40',unknown:{kept:true}}),'19:40']]) {
+    const local=device({});try{
+      await prepareLocalCloudState('a');const request=readCloudSyncRequest('a',readCloudSyncEpoch());const classified=classifyCloudSyncConflicts(null,{[key]:wire},{});assert.equal(classified.conflicts.length,0);
+      const canonical=classified.merged!;const result=await commitCloudSyncResponse(request,canonical);assert.equal(result.pending,false);assert.equal(readRecordStores().fastingStart,expected);assert.deepEqual(readSyncBase('a'),canonical);
+    }finally{local.restore();}
+  }
 });

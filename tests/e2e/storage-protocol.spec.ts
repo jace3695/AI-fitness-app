@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, login, synced, localState, original, assertOriginalPreserved, today } from './fixture';
+import { test, expect, login, synced, localState, original, assertOriginalPreserved, today, isSharedSyncWrite } from './fixture';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
 
 // Authored acceptance for the disposable local Supabase fixture only. These
@@ -107,7 +107,7 @@ test('legacy v1 recovery bytes survive reload and blocked save without cloud pub
     localStorage.setItem(diet, JSON.stringify({ '2099-01-01': { dietMemo: 'CI interrupted legacy bytes' } }));
     return { journal, raw: localStorage.getItem(diet) };
   }), { lock: LOCK, legacy: LEGACY, diet: DIET });
-  const publications = qa.traffic.entries.filter(entry => entry.table === 'user_app_state' && ['PATCH', 'POST'].includes(entry.method)).length;
+  const publications = qa.traffic.entries.filter(isSharedSyncWrite).length;
   await page.getByLabel('오늘 배고픔을 느꼈나요?', { exact: true }).selectOption('yes');
   await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
   await expect(page.getByText(/기기에 저장하지 못했어요/)).toBeVisible();
@@ -119,7 +119,7 @@ test('legacy v1 recovery bytes survive reload and blocked save without cloud pub
   await expect(page.getByRole('button', { name: '오늘 식단 저장', exact: true })).toHaveCount(0);
   expect(await page.evaluate(({ legacy, diet }) => ({ journal: localStorage.getItem(legacy), raw: localStorage.getItem(diet) }), { legacy: LEGACY, diet: DIET })).toEqual(before);
   expect(await qa.read()).toEqual(original);
-  expect(qa.traffic.entries.filter(entry => entry.table === 'user_app_state' && ['PATCH', 'POST'].includes(entry.method))).toHaveLength(publications);
+  expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(publications);
   await expect(page.getByText('서버 반영 완료', { exact: true })).toHaveCount(0);
 });
 

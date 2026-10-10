@@ -63,7 +63,7 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   const Clock = new Proxy(Date, { construct(target, args) { return Reflect.construct(target, args.length ? args : [`${day}T12:00:00`]); } });
   const modules: Record<string, unknown> = {
     'react/jsx-runtime': { jsx: (type: unknown, props: Node['props']) => ({ type, props }), jsxs: (type: unknown, props: Node['props']) => ({ type, props }) },
-    '../lib/supabase.ts': { supabase: null }, '../data/appRecordReset': { ...resets, isRecordResetRunning: () => false }, './appRecordReset.ts': resets,
+    '../lib/supabase.ts': { supabase: null },
     '../lib/supabase': { isSupabaseConfigured: true, supabase: { auth: { async getUser() { return { data: { user: { id: owner, email: 'synthetic@example.test' } } }; }, onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; } } } },
     '../lib/passwordPolicy': {}, '../lib/unsavedChanges': { requestSafeReload() {} },
     'next/image': { default: () => null }, '@/lib/diet-time': dietTime,
@@ -75,22 +75,36 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
     '../data/workouts': { SWITCHON_DEFAULT_START_DATE: '2026-08-24', SWITCHON_START_DATE_KEY: 'ai-fitness-switchon-start-date' },
   };
   for (const name of ['DietPatterns', 'DietWorkoutContext', 'WorkoutTimes', 'WorkoutTimeHistory', 'DietFavorites']) modules[`./${name}`] = { default: () => null };
+  // Shipped modules share one browser realm. JSON transport explicitly bridges
+  // host fixture values so the production plain-object validation stays strict.
+  const context = vm.createContext({ Date: Clock, URL, console, AbortController, Event, CustomEvent, Error, crypto, queueMicrotask, navigator: { locks: browser.locks },
+    window: win, document: { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' },
+  });
+  const fromJson = <T,>(value: T): T => vm.runInContext('JSON.parse', context)(JSON.stringify(value));
   const load = (path: string) => {
     const exports: Record<string, unknown> = {};
-    vm.runInNewContext(`(function(exports, require) { ${source(path)}\n})`, { Date: Clock, URL, console, AbortController, Event, Error, crypto, queueMicrotask, navigator: { locks: browser.locks },
-      window: win, document: { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' },
-    })(exports, (name: string) => { assert.ok(name in modules, `Unexpected dependency ${name}`); return modules[name]; });
+    vm.runInContext(`(function(exports, require) { ${source(path)}\n})`, context)(exports, (name: string) => {
+      assert.ok(name in modules, `Unexpected dependency ${name}`); return modules[name];
+    });
     return exports;
   };
+  const localResets = load('../app/data/appRecordReset.ts') as typeof resets;
+  modules['./appRecordReset.ts'] = localResets;
+  modules['../data/appRecordReset'] = { ...localResets, isRecordResetRunning: () => false };
+  const conflicts = load('../app/data/cloudSyncConflicts.ts');
+  modules['./cloudSyncConflicts.ts'] = conflicts;
+  modules['../data/cloudSyncConflicts'] = conflicts;
   const localTransactions = load('../app/data/storageTransaction.ts') as typeof transactions;
   modules['./storageTransaction.ts'] = localTransactions;
   modules['../data/storageTransaction'] = localTransactions;
   const cloud = load('../app/data/cloudSync.ts') as typeof import('../app/data/cloudSync.ts');
   modules['../data/cloudSync'] = { ...cloud,
-    async getRemoteState() { browser.remote.reads++; const result = { state: structuredClone(browser.remote.state), updated_at: String(browser.remote.revision) }; const hold = nextRead; nextRead = undefined; if (hold) await hold.promise; return result; },
+    async getRemoteState() { browser.remote.reads++; const result = { state: structuredClone(browser.remote.state), updated_at: String(browser.remote.revision) }; const hold = nextRead; nextRead = undefined; if (hold) await hold.promise; return fromJson(result); },
     async saveRemoteState(_owner: string, state: Record<string, unknown>) { browser.remote.state = structuredClone(state); browser.remote.revision++; browser.remote.writes++; },
-    async saveRemoteStateIfUnchanged(_owner: string, state: Record<string, unknown>, revision: string) {
-      if (revision !== String(browser.remote.revision)) return false;
+    async saveRemoteStateIfUnchanged(_owner: string, state: Record<string, unknown>, revision: string, signal?: AbortSignal, expectedState?: Record<string, unknown>) {
+      signal?.throwIfAborted();
+      assert.equal(_owner, owner); assert.ok(expectedState, 'The adapter requires exact-content CAS evidence');
+      if (revision !== String(browser.remote.revision) || cloud.stableState(expectedState) !== cloud.stableState(browser.remote.state)) return false;
       browser.remote.state = structuredClone(state); browser.remote.revision++; browser.remote.writes++; return true;
     },
   };
@@ -102,6 +116,7 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
       useMemo(factory: () => unknown, deps: unknown[]) { const slot = cursor++, old = slots[slot] as { deps: unknown[]; value: unknown } | undefined; if (!old || old.deps.length !== deps.length || old.deps.some((value, index) => value !== deps[index])) slots[slot] = { deps, value: factory() }; return (slots[slot] as { value: unknown }).value; },
       useEffect(effect: () => void, deps?: unknown[]) { const slot = cursor++, old = slots[slot] as unknown[] | undefined; if (!deps || !old || old.length !== deps.length || old.some((value, index) => value !== deps[index])) { slots[slot] = deps; effects.push(() => { cleanups[slot]?.(); const cleanup = effect(); if (typeof cleanup === 'function') cleanups[slot] = cleanup; }); } },
     };
+    if (path.endsWith('/CloudSyncPanel.tsx')) modules['./CloudSyncConflictReview'] = load('../app/components/CloudSyncConflictReview.tsx');
     const component = load(path).default as (props: object) => Node;
     const render = (): Node => { let result: Node, rounds = 0; do { assert.ok(rounds++ < 20); changed = false; cursor = 0; result = component({}); effects.splice(0).forEach(effect => effect()); } while (changed); return result; };
     render(); return { render, dispose() { cleanups.forEach(cleanup => cleanup?.()); } };

@@ -75,6 +75,7 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009193716_save_handwriting_attempt.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009210000_save_free_handwriting_attempt.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009210500_save_routine_session.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009212500_save_cloud_state_if_unchanged.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST, Storage and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));

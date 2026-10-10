@@ -1,4 +1,4 @@
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -44,10 +44,20 @@ export const originalLanguage: State = {
 };
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
-const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 
 type SyncTable = 'user_app_state' | 'language_user_state';
-type Entry = { session: string; table: SyncTable; method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
+export const sharedSyncRpc = 'save_cloud_state_if_unchanged';
+export const sharedSyncRpcPath = `/rest/v1/rpc/${sharedSyncRpc}`;
+type Entry = {
+  session: string; table: SyncTable; method: string; started: number; received: number; status: number;
+  cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean;
+  rpc?: typeof sharedSyncRpc; owner?: string; expectedState?: State | null; expectedUpdatedAt?: string | null;
+  receivedUpdatedAt?: string; rowExists?: boolean;
+};
+// Count both transports so a regression to a direct INSERT/PATCH cannot hide
+// behind a "no write" assertion. Other RPCs are deliberately not sync traffic.
+export const isSharedSyncWrite = (entry: Entry) => entry.table === 'user_app_state' && ['PATCH', 'POST'].includes(entry.method);
+const stateObject = (value: unknown): value is State => value !== null && typeof value === 'object' && !Array.isArray(value);
 type Hold = { table: SyncTable; method: string; phase: 'request' | 'response' | 'loss'; arrived: () => void; wait: Promise<void> };
 function deferred() {
   let resolve!: () => void;
@@ -78,10 +88,12 @@ export class Traffic {
     await context.route('**/*', (route: Route) => this.routes.run(async () => {
       const request = route.request();
       const url = new URL(request.url());
+      const method = request.method();
       if (!['http://127.0.0.1:3000', 'http://127.0.0.1:54321'].includes(url.origin)) {
         this.blockedOrigins.add(url.origin); await route.abort('blockedbyclient'); return;
       }
-      const table = url.pathname.slice('/rest/v1/'.length) as SyncTable;
+      const rpc = url.pathname === sharedSyncRpcPath && method === 'POST' ? sharedSyncRpc : undefined;
+      const table = (rpc ? 'user_app_state' : url.pathname.slice('/rest/v1/'.length)) as SyncTable;
       if (url.origin !== 'http://127.0.0.1:54321' || !['user_app_state', 'language_user_state'].includes(table)) {
         const document = request.isNavigationRequest() && request.resourceType() === 'document';
         const note = (phase: string) => {
@@ -94,9 +106,18 @@ export class Traffic {
         catch (error) { note('continue-rejected'); throw error; }
         return;
       }
-      const method = request.method(); const started = Date.now();
+      const started = Date.now();
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
-      if (method === 'GET' && this.failReads) {
+      const payload = method === 'GET' ? undefined : request.postDataJSON();
+      const owner = rpc ? payload?.p_owner : url.searchParams.get('user_id')?.replace(/^eq\./, '');
+      // RPC writes must carry both expected content and timestamp, or an
+      // explicit null/null absent-row precondition. A timestamp alone fails.
+      const cas = rpc ? method === 'POST' && typeof owner === 'string' && Boolean(owner)
+        && stateObject(payload?.p_state)
+        && (payload?.p_expected_updated_at === null && payload?.p_expected_state === null
+          || typeof payload?.p_expected_updated_at === 'string' && Boolean(payload.p_expected_updated_at) && stateObject(payload?.p_expected_state))
+        : url.searchParams.has('updated_at');
+      if (!rpc && method === 'GET' && this.failReads) {
         this.entries.push({ session: this.label, table, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
         await route.fulfill({ status: 503, contentType: 'application/json',
           headers: { 'access-control-allow-origin': 'http://127.0.0.1:3000' },
@@ -104,26 +125,44 @@ export class Traffic {
       }
       const hold = this.next?.method === method && this.next.table === table ? this.next : undefined;
       if (hold) this.next = undefined;
+      // Record dispatch attempts before a hold/fetch. Counts must also see a
+      // pending or transport-failed publication, not only HTTP responses.
+      const entry: Entry = { session: this.label, table, method, started, received: 0, status: 0, cas,
+        ...(typeof owner === 'string' ? { owner } : {}),
+        ...(rpc ? { rpc, expectedState: payload?.p_expected_state, expectedUpdatedAt: payload?.p_expected_updated_at } : {}),
+        ...(method !== 'GET' ? { sent: rpc ? payload?.p_state : payload?.state } : {}) };
+      this.entries.push(entry);
       if (hold?.phase === 'request') { hold.arrived(); await hold.wait; }
       // Genuine HTTP to PostgREST with the browser's authenticated headers.
       const response = await route.fetch({ maxRetries: 0 });
       const body = await response.json().catch(() => null);
       const row = Array.isArray(body) ? body[0] : body;
-      const entry: Entry = { session: this.label, table, method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
-        ...(method !== 'GET' ? { sent: request.postDataJSON()?.state, matched: Boolean(row) } : {}),
-        ...(row?.state ? { receivedState: row.state } : {}) };
-      this.entries.push(entry);
+      Object.assign(entry, { received: Date.now(), status: response.status(),
+        ...(method !== 'GET' ? { matched: response.ok() && (rpc ? body === true : Boolean(row)) } : {}),
+        ...(!rpc && method === 'GET' && response.ok() ? { rowExists: Boolean(row) } : {}),
+        ...(stateObject(row?.state) ? { receivedState: row.state } : {}),
+        ...(typeof row?.updated_at === 'string' ? { receivedUpdatedAt: row.updated_at } : {}) });
       if (hold && hold.phase !== 'request') { hold.arrived(); await hold.wait; }
       if (hold?.phase === 'loss') { entry.delivered = false; await route.abort('failed'); }
       else { entry.delivered = true; await route.fulfill({ response }); }
     }));
   }
   assertConfirmed(expected: State) {
-    const writes = this.entries.filter(e => e.table === 'user_app_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
-    expect(writes.length, 'A real conditional PATCH carrying the expected state').toBeGreaterThan(0);
+    const writes = this.entries.filter(e => isSharedSyncWrite(e) && e.rpc === sharedSyncRpc && e.method === 'POST' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
+    expect(writes.length, 'A real conditional sync RPC carrying the expected state').toBeGreaterThan(0);
     expect(writes.every(e => e.cas)).toBe(true);
+    for (const write of writes) {
+      expect(this.entries.some(read => read.session === write.session && read.table === 'user_app_state' && read.method === 'GET'
+        && read.status === 200 && read.delivered && read.owner === write.owner && read.received <= write.started
+        && this.entries.indexOf(read) < this.entries.indexOf(write)
+        && (write.expectedState === null && write.expectedUpdatedAt === null ? read.rowExists === false
+          : read.receivedUpdatedAt === write.expectedUpdatedAt && read.receivedState && canonical(read.receivedState) === canonical(write.expectedState))),
+      'The conditional RPC carries the exact owner, content and timestamp from a prior real GET').toBe(true);
+    }
     expect(this.entries.some(e => e.table === 'user_app_state' && e.method === 'GET' && e.status === 200 && e.receivedState && canonical(e.receivedState) === canonical(expected)
-      && writes.some(write => e.started >= write.received)), 'A subsequent real confirmation GET has the exact PATCH state').toBe(true);
+      && e.delivered && writes.some(write => e.session === write.session && e.owner === write.owner && e.started >= write.received
+        && this.entries.indexOf(e) > this.entries.indexOf(write))),
+    'A subsequent real confirmation GET has the exact RPC state for the same owner and session').toBe(true);
   }
   assertLanguageConfirmed(expected: State) {
     const writes = this.entries.filter(e => e.table === 'language_user_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
@@ -133,10 +172,12 @@ export class Traffic {
       && writes.some(write => e.started >= write.received)), 'A subsequent real language confirmation GET has the exact PATCH state').toBe(true);
   }
   safeEvidence() {
-    return this.entries.map(e => ({ session: e.session, method: e.method, started: e.started, received: e.received, status: e.status, cas: e.cas,
+    return this.entries.map(e => ({ session: e.session, method: e.method, rpc: e.rpc, started: e.started, received: e.received, status: e.status, cas: e.cas,
       synthetic: Boolean(e.synthetic), delivered: e.delivered, matched: e.matched,
-      table: e.table, ...(e.sent ? { sentKeys: Object.keys(e.sent).length, sentSha256: digest(e.sent) } : {}),
-      ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length, receivedSha256: digest(e.receivedState) } : {}) }));
+      ...(e.rpc ? { expectsAbsent: e.expectedState === null && e.expectedUpdatedAt === null,
+        ...(e.expectedState ? { expectedKeys: Object.keys(e.expectedState).length } : {}) } : {}),
+      table: e.table, ...(e.sent ? { sentKeys: Object.keys(e.sent).length } : {}),
+      ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length } : {}) }));
   }
 }
 
@@ -262,9 +303,9 @@ export const test = base.extend<{ qa: Qa }>({
       }, null, 2));
       console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
         storageFilesRemoved,
-        requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic).length,
+        requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic && e.status > 0).length,
         injectedErrors: traffic.entries.filter(e => e.synthetic).length,
-        conditionalMisses: traffic.entries.filter(e => e.method === 'PATCH' && e.matched === false).length,
+        conditionalMisses: traffic.entries.filter(e => e.cas && e.status === 200 && e.matched === false).length,
         blockedOrigins: [...traffic.blockedOrigins] }));
       expect(traffic.blockedOrigins.size, 'No requests to hosted or external origins').toBe(0);
     }

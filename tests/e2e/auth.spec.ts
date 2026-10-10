@@ -1,6 +1,6 @@
-import { test, expect, login, synced, original, localState } from './fixture';
+import { test, expect, login, synced, original, localState, isSharedSyncWrite } from './fixture';
 
-test('login, logout and same-account relogin preserve all 17 original keys without PATCH', async ({ page, qa }) => {
+test('login, logout and same-account relogin preserve all 17 original keys without any shared-state write', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page);
   expect(await qa.read()).toEqual(original); expect(await localState(page)).toEqual(original);
   await page.getByRole('button', { name: '로그아웃', exact: true }).click();
@@ -9,7 +9,7 @@ test('login, logout and same-account relogin preserve all 17 original keys witho
   expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('fitness-cloud-sync-base:')))).toEqual([]);
   await login(page, qa.account); await synced(page); await page.reload(); await synced(page);
   expect(await qa.read()).toEqual(original); expect(await localState(page)).toEqual(original);
-  expect(qa.traffic.entries.filter(e => e.method === 'PATCH')).toHaveLength(0);
+  expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
 });
 
 test('legacy logged-out empty cache with a remaining baseline cannot delete the server', async ({ page, context, qa }) => {
@@ -20,7 +20,7 @@ test('legacy logged-out empty cache with a remaining baseline cannot delete the 
   }, { id: qa.account.id, state: original });
   await login(page, qa.account); await synced(page);
   expect(await localState(page)).toEqual(original); expect(await qa.read()).toEqual(original);
-  expect(qa.traffic.entries.filter(e => e.method === 'PATCH')).toHaveLength(0);
+  expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
 });
 
 test('old in-flight GET cannot repopulate records after logout', async ({ page, qa }) => {
@@ -33,7 +33,7 @@ test('old in-flight GET cannot repopulate records after logout', async ({ page, 
   expect(await qa.read()).toEqual(original); expect(await localState(page)).toEqual({});
   await login(page, qa.account); await synced(page);
   expect(await localState(page)).toEqual(original);
-  expect(qa.traffic.entries.filter(e => e.method === 'PATCH')).toHaveLength(0);
+  expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
 });
 
 test('authenticated RLS rejects another account reading or overwriting the owner', async ({ qa }) => {

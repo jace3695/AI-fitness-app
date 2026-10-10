@@ -152,7 +152,7 @@ test('diet unknown and absent responses survive unrelated saves, with explicit c
 test('diet self-responses survive reload after a failed server confirmation and recover by readback', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
   for (const [index, question] of questions.entries()) await page.getByLabel(question, { exact: true }).selectOption(index === 1 ? 'no' : 'yes');
-  const hold = qa.traffic.holdNext('PATCH', 'response');
+  const hold = qa.traffic.holdNext('POST', 'response');
   await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click(); await hold.arrived;
   qa.traffic.failReads = true; hold.release();
   await expect(page.getByText('기록 동기화 실패', { exact: true })).toBeVisible();
