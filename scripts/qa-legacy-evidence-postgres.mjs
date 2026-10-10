@@ -9,18 +9,48 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 export const CASES = Object.freeze([
   'old_direct_writer_vs_append', 'append_then_reset', 'reset_then_stale_append',
-  'concurrent_same_slot_and_distinct_slots', 'initialization_vs_reset_both_orders',
+  'concurrent_same_slot_and_distinct_slots', 'enrollment_vs_reset_both_orders',
   'state_delete_reinsert_vs_append', 'assistant_and_connector_dependencies',
-  'rollback_allocation', 'account_and_state_cascade',
+  'rollback_allocation', 'account_and_state_cascade', 'request_bound_enrollment_replay', 'competing_enrollment_nonce',
 ]);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MIGRATION = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
+const ENROLLMENT_MIGRATION = 'supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql';
+// Explicit fixture-only release. Never written to the built app or environment.
+export const DISPOSABLE_EVIDENCE_RELEASE = Object.freeze({ resetProtocol: 'protocol-required', enrollmentEnabled: true, captureEnabled: true });
+export const DISPOSABLE_WRITE_FUNCTIONS = Object.freeze([
+  'public.get_language_legacy_evidence_context(uuid,jsonb,text,text,text)',
+  'language_legacy_evidence_private.get_context(uuid,jsonb,text,text,text)',
+  'public.enroll_language_legacy_evidence_v1(uuid,uuid,jsonb,text,text,text,text)',
+  'language_legacy_evidence_private.enroll_v1(uuid,uuid,jsonb,text,text,text,text)',
+  'public.append_language_legacy_evidence(uuid,uuid,text,uuid,text,jsonb,text[])',
+  'language_legacy_evidence_private.append_events(uuid,uuid,text,uuid,text,jsonb,text[])',
+]);
 const DEPENDENCIES = [
   'supabase/migrations/20260915034857_assistant_task_command_history.sql',
   'supabase/migrations/20260915052413_chatgpt_scoped_connection.sql',
   'supabase/migrations/20260916043619_assistant_language_commands.sql',
   'supabase/migrations/20260916045546_language_history_reset_triggers.sql',
 ];
+export const SOURCE_INPUTS = Object.freeze([MIGRATION, ENROLLMENT_MIGRATION, ...DEPENDENCIES,
+  'scripts/e2e-stack.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+  'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts',
+  'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'app/lib/resetAppRecords.ts',
+  'lib/language-legacy-evidence/local-store.ts', 'lib/language-legacy-evidence/store-admission-types.ts',
+  'lib/language-legacy-evidence/receipt-proof.ts', 'tests/helpers/legacyEvidenceRepositoryHarness.ts',
+  'app/data/authenticatedStorageOwner.ts', 'app/data/storageTransaction.ts', 'app/data/cloudSync.ts',
+  'app/data/cloudSyncConflicts.ts', 'app/data/languageCloudSync.ts', 'app/data/languageSyncCoordinator.ts',
+  'app/data/languageLocalParticipants.ts', 'app/data/appRecordReset.ts', 'app/data/growthRoutines.ts',
+  'app/budget/lib/pending-save.ts', 'lib/conversation-session/contracts.ts',
+  'lib/language-legacy-evidence/canonical-hash.ts', 'lib/language-legacy-evidence/validation.ts',
+  'lib/language-legacy-evidence/server-types.ts', 'lib/language-legacy-evidence/persistence-types.ts',
+  'lib/language-legacy-evidence/types.ts', 'lib/language-legacy-evidence/capture.ts',
+  'lib/language-legacy-evidence/outbox.ts', 'lib/language-legacy-evidence/projection.ts',
+  'lib/language-legacy-evidence/study-policy.ts', 'lib/language-legacy-evidence/catalogue.ts',
+  'lib/language-legacy-evidence/identity-manifest.ts', 'lib/language-legacy-evidence/idb-test-adapter.ts',
+  'tests/helpers/languageFixture.ts', 'tests/helpers/storageProtocol.ts', 'tests/e2e/schema.sql',
+  'package.json', 'package-lock.json',
+].sort());
 const API = 'http://127.0.0.1:54321';
 const verifiedStacks = new WeakSet();
 const assertVerifiedStack = stack => { if (!stack || !verifiedStacks.has(stack)) refuse('unverified disposable stack capability'); };
@@ -203,12 +233,14 @@ export async function runPostgresHarness(stack) {
   const { LEGACY_EVIDENCE_CATALOGUE } = await import('../lib/language-legacy-evidence/catalogue.ts');
   const { makeSourceSlotKey, canonicalEvidence } = await import('../lib/language-legacy-evidence/validation.ts');
   const protocol = manifest.LEGACY_EVIDENCE_SERVER_PROTOCOL, digest = manifest.LEGACY_EVIDENCE_MANIFEST_DIGEST;
-  const report = { schemaVersion: 1, kind: 'real-disposable-postgres', status: 'running', cases: CASES.map(name => ({ name, status: 'unrun' })), waits: [], backends: [],
-    digests: { manifest: digest, sources: Object.fromEntries([MIGRATION, ...DEPENDENCIES].map(path => [path, sha(readFileSync(resolve(ROOT, path)))])) }, limitations: ['Synthetic JWT claims in psql; Auth checked separately over HTTP.', 'Fake IndexedDB is not browser persistence.', 'Inactive source harness; no hosted or capture acceptance.'] };
+  const report = { schemaVersion: 2, kind: 'real-disposable-postgres', status: 'running', cases: CASES.map(name => ({ name, status: 'unrun' })), waits: [], backends: [],
+    digests: { sourceScope: 'Selected authored SQL, codec, authority, reset and fixture sources; not a full checkout or installed dependency tree digest.', manifest: digest, sources: Object.fromEntries(SOURCE_INPUTS.map(path => [path, sha(readFileSync(resolve(ROOT, path)))])) }, limitations: ['Synthetic JWT claims in psql; Auth checked separately over HTTP.', 'Fake IndexedDB is not browser persistence.', 'Inactive source harness; no hosted or capture acceptance.'] };
   const a = new PsqlSession(stack.container, 'legacy_evidence_qa_a'), b = new PsqlSession(stack.container, 'legacy_evidence_qa_b'), observer = new PsqlSession(stack.container, 'legacy_evidence_qa_observer');
   let fixtures;
   const getContext = (owner, marker = { present: false, value: null }) => `select public.get_language_legacy_evidence_context(${uuid(owner)},${json(marker)},'Asia/Seoul',${literal(protocol)},${literal(digest)})`;
   const readContext = (owner, generation = null) => `select public.read_language_legacy_evidence_context(${uuid(owner)},${generation ? uuid(generation) : 'null::uuid'},${literal(digest)})`;
+  const readStatus = (owner, marker = null) => `select public.read_language_legacy_evidence_status(${uuid(owner)},${json(marker)})`;
+  const enroll = (owner, request, marker = { present: false, value: null }, timezone = 'Asia/Seoul') => `select public.enroll_language_legacy_evidence_v1(${uuid(owner)},${uuid(request)},${json(marker)},${literal(timezone)},${literal(protocol)},${literal(manifest.LEGACY_EVIDENCE_MANIFEST_RELEASE)},${literal(digest)})`;
   const reset = (owner, request = randomUUID()) => `select public.reset_my_app_records('language',${uuid(request)},'초기화')`;
   const append = (owner, context, batch) => `select public.append_language_legacy_evidence(${uuid(owner)},${uuid(context.generationId)},${literal(digest)},${uuid(batch.id)},${literal(batch.slot)},${json(batch.predecessor)},array[${batch.events.map(event => literal(canonicalEvidence(event))).join(',')}]::text[])`;
   const makeBatch = (owner, context, session = randomUUID()) => {
@@ -229,16 +261,20 @@ export async function runPostgresHarness(stack) {
   try {
     await Promise.all([a.start(), b.start(), observer.start(true)]);
     report.backends = [a.pid, b.pid, observer.pid]; assert.equal(new Set(report.backends).size, 3);
-    const schema = await observer.scalar(`select pg_catalog.jsonb_build_object('tables',(select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events') and c.relrowsecurity),'roles',(select count(*) from pg_catalog.pg_roles where rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') and not rolcanlogin and not rolsuper and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls and not rolinherit),'memberships',(select count(*) from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid=m.roleid or r.oid=m.member where r.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor')),'triggers',(select pg_catalog.jsonb_agg(pg_catalog.pg_get_triggerdef(t.oid) order by t.tgname) from pg_catalog.pg_trigger t where t.tgrelid='public.language_user_state'::regclass and not t.tgisinternal),'functions',(select pg_catalog.jsonb_agg(pg_catalog.pg_get_functiondef(p.oid) order by p.oid) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='language_legacy_evidence_private'));`);
-    assert.equal(schema.tables, 4); assert.equal(schema.roles, 2); assert.equal(schema.memberships, 0);
+    const schema = await observer.scalar(`select pg_catalog.jsonb_build_object('tables',(select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events','language_legacy_evidence_enrollments') and c.relrowsecurity),'roles',(select count(*) from pg_catalog.pg_roles where rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor') and not rolcanlogin and not rolsuper and not rolcreatedb and not rolcreaterole and not rolreplication and not rolbypassrls and not rolinherit),'memberships',(select count(*) from pg_catalog.pg_auth_members m join pg_catalog.pg_roles r on r.oid=m.roleid or r.oid=m.member where r.rolname in ('language_legacy_evidence_executor','language_legacy_evidence_reset_executor')),'triggers',(select pg_catalog.jsonb_agg(pg_catalog.pg_get_triggerdef(t.oid) order by t.tgname) from pg_catalog.pg_trigger t where t.tgrelid='public.language_user_state'::regclass and not t.tgisinternal),'functions',(select pg_catalog.jsonb_agg(pg_catalog.pg_get_functiondef(p.oid) order by n.nspname,p.proname,pg_catalog.oidvectortypes(p.proargtypes)) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='language_legacy_evidence_private'));`);
+    assert.equal(schema.tables, 5); assert.equal(schema.roles, 2); assert.equal(schema.memberships, 0);
     for (const name of ['assistant_language_history_language_reset', 'chatgpt_reset_language', 'language_legacy_evidence_marker_reset']) assert.ok(schema.triggers.some(text => text.includes(name) && text.includes('AFTER UPDATE OF state') && !text.includes('DELETE')));
     assert.ok(schema.functions?.length); report.digests.installedFunctions = sha(JSON.stringify(schema.functions)); report.digests.installedTriggers = sha(JSON.stringify(schema.triggers));
     const privilegeAudit = await observer.scalar(`select pg_catalog.jsonb_build_object(
       'tables',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',c.relname,'forced',c.relforcerowsecurity,'owner',r.rolname,'applicationAccess',exists(select 1 from (values ('anon'),('authenticated'),('service_role')) app(role) cross join (values ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),('REFERENCES'),('TRIGGER')) p(privilege) where pg_catalog.has_table_privilege(app.role,c.oid,p.privilege) or (case when p.privilege in ('SELECT','INSERT','UPDATE','REFERENCES') then pg_catalog.has_any_column_privilege(app.role,c.oid,p.privilege) else false end)))) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace join pg_catalog.pg_roles r on r.oid=c.relowner where n.nspname='public' and c.relname like 'language_legacy_evidence_%' and c.relkind='r'),
       'privateSchema',(select pg_catalog.jsonb_build_object('authUsage',pg_catalog.has_schema_privilege('authenticated',oid,'USAGE'),'authCreate',pg_catalog.has_schema_privilege('authenticated',oid,'CREATE'),'anonUsage',pg_catalog.has_schema_privilege('anon',oid,'USAGE'),'anonCreate',pg_catalog.has_schema_privilege('anon',oid,'CREATE'),'serviceCreate',pg_catalog.has_schema_privilege('service_role',oid,'CREATE'),'serviceUsage',pg_catalog.has_schema_privilege('service_role',oid,'USAGE')) from pg_catalog.pg_namespace where nspname='language_legacy_evidence_private'),
-      'functions',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('schema',n.nspname,'name',p.proname,'owner',r.rolname,'definer',p.prosecdef,'config',p.proconfig,'auth',pg_catalog.has_function_privilege('authenticated',p.oid,'EXECUTE'),'anon',pg_catalog.has_function_privilege('anon',p.oid,'EXECUTE'),'service',pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE'),'public',exists(select 1 from pg_catalog.aclexplode(coalesce(p.proacl,pg_catalog.acldefault('f',p.proowner))) acl where acl.grantee=0 and acl.privilege_type='EXECUTE'))) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace join pg_catalog.pg_roles r on r.oid=p.proowner where n.nspname='language_legacy_evidence_private' or (n.nspname='public' and p.proname in ('get_language_legacy_evidence_context','append_language_legacy_evidence','read_language_legacy_evidence_context','read_language_legacy_evidence_events','read_language_legacy_evidence_page'))),
+      'functions',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('schema',n.nspname,'name',p.proname,'signature',n.nspname||'.'||p.proname||'('||replace(pg_catalog.oidvectortypes(p.proargtypes),' ','')||')','owner',r.rolname,'definer',p.prosecdef,'config',p.proconfig,'auth',pg_catalog.has_function_privilege('authenticated',p.oid,'EXECUTE'),'anon',pg_catalog.has_function_privilege('anon',p.oid,'EXECUTE'),'service',pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE'),'public',exists(select 1 from pg_catalog.aclexplode(coalesce(p.proacl,pg_catalog.acldefault('f',p.proowner))) acl where acl.grantee=0 and acl.privilege_type='EXECUTE'))) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace join pg_catalog.pg_roles r on r.oid=p.proowner where n.nspname='language_legacy_evidence_private' or (n.nspname='public' and p.proname in ('get_language_legacy_evidence_context','append_language_legacy_evidence','read_language_legacy_evidence_context','read_language_legacy_evidence_events','read_language_legacy_evidence_page','read_language_legacy_evidence_status','enroll_language_legacy_evidence_v1'))),
       'columns',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',attname,'executorUpdate',pg_catalog.has_column_privilege('language_legacy_evidence_executor','public.language_user_state',attname,'UPDATE'))) from pg_catalog.pg_attribute where attrelid='public.language_user_state'::regclass and attnum>0 and not attisdropped),
       'resetGenerationColumns',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',attname,'select',pg_catalog.has_column_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_generations',attname,'SELECT'),'update',pg_catalog.has_column_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_generations',attname,'UPDATE'))) from pg_catalog.pg_attribute where attrelid='public.language_legacy_evidence_generations'::regclass and attnum>0 and not attisdropped),
+      'enrollmentColumns',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',attname,'executorSelect',pg_catalog.has_column_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_enrollments',attname,'SELECT'),'executorInsert',pg_catalog.has_column_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_enrollments',attname,'INSERT'),'executorUpdate',pg_catalog.has_column_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_enrollments',attname,'UPDATE'),'resetSelect',pg_catalog.has_column_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_enrollments',attname,'SELECT'),'resetInsert',pg_catalog.has_column_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_enrollments',attname,'INSERT'),'resetUpdate',pg_catalog.has_column_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_enrollments',attname,'UPDATE')) order by attname) from pg_catalog.pg_attribute where attrelid='public.language_legacy_evidence_enrollments'::regclass and attnum>0 and not attisdropped),
+      'enrollmentPolicies',(select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('name',p.polname,'command',p.polcmd,'using',pg_catalog.pg_get_expr(p.polqual,p.polrelid),'check',pg_catalog.pg_get_expr(p.polwithcheck,p.polrelid),'roles',(select pg_catalog.jsonb_agg(r.rolname order by r.rolname) from pg_catalog.pg_roles r where r.oid=any(p.polroles))) order by p.polname) from pg_catalog.pg_policy p where p.polrelid='public.language_legacy_evidence_enrollments'::regclass),
+      'witnessExecutorDelete',pg_catalog.has_table_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_enrollments','DELETE'),
+      'witnessResetDelete',pg_catalog.has_table_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_enrollments','DELETE'),
       'resetMetadataPolicy',(select count(*) from pg_catalog.pg_policy p where p.polrelid='public.language_legacy_evidence_generations'::regclass and p.polcmd='r' and pg_catalog.pg_get_expr(p.polqual,p.polrelid)='true' and p.polroles=array[(select oid from pg_catalog.pg_roles where rolname='language_legacy_evidence_reset_executor')]),
       'eventExecutorUpdate',pg_catalog.has_table_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_events','UPDATE'),
       'eventExecutorDelete',pg_catalog.has_table_privilege('language_legacy_evidence_executor','public.language_legacy_evidence_events','DELETE'),
@@ -247,35 +283,64 @@ export async function runPostgresHarness(stack) {
       'eventResetInsert',pg_catalog.has_table_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_events','INSERT'),
       'eventResetUpdate',pg_catalog.has_table_privilege('language_legacy_evidence_reset_executor','public.language_legacy_evidence_events','UPDATE'));
     `);
-    assert.equal(privilegeAudit.tables.length, 4);
+    assert.equal(privilegeAudit.tables.length, 5);
     for (const table of privilegeAudit.tables) { assert.equal(table.forced, true); assert.equal(table.applicationAccess, false); assert.ok(!table.owner.startsWith('language_legacy_evidence_')); }
     assert.deepEqual(privilegeAudit.privateSchema, { authUsage: true, authCreate: false, anonUsage: false, anonCreate: false, serviceCreate: false, serviceUsage: false });
-    const entryNames = new Set(['get_context', 'append_events', 'read_context', 'read_events', 'read_page']);
+    const entryNames = new Set(['get_context', 'enroll_v1', 'append_events', 'read_context', 'read_events', 'read_page', 'read_status']);
+    const writeEndpoints = new Set(DISPOSABLE_WRITE_FUNCTIONS);
+    assert.deepEqual(privilegeAudit.functions.filter(fn => writeEndpoints.has(fn.signature)).map(fn => fn.signature).sort(), [...DISPOSABLE_WRITE_FUNCTIONS].sort());
     for (const fn of privilegeAudit.functions) {
       assert.equal(fn.public, false); assert.equal(fn.anon, false); assert.equal(fn.service, false); assert.ok(fn.config?.some(value => value === 'search_path=\"\"' || value === 'search_path='));
-      if (fn.schema === 'public') { assert.equal(fn.definer, false); assert.equal(fn.auth, true); }
-      else if (entryNames.has(fn.name)) { assert.equal(fn.definer, true); assert.equal(fn.auth, true); assert.equal(fn.owner, 'language_legacy_evidence_executor'); }
+      if (fn.schema === 'public') { assert.equal(fn.definer, false); assert.equal(fn.auth, !writeEndpoints.has(fn.signature)); }
+      else if (entryNames.has(fn.name)) { assert.equal(fn.definer, true); assert.equal(fn.auth, !writeEndpoints.has(fn.signature)); assert.equal(fn.owner, 'language_legacy_evidence_executor'); }
       else { assert.equal(fn.auth, false); if (fn.name === 'marker_reset') { assert.equal(fn.definer, true); assert.equal(fn.owner, 'language_legacy_evidence_reset_executor'); } }
     }
-    assert.equal(privilegeAudit.functions.filter(fn => fn.schema === 'public').length, 5);
-    assert.equal(privilegeAudit.functions.filter(fn => fn.schema === 'language_legacy_evidence_private' && entryNames.has(fn.name)).length, 5);
+    assert.equal(privilegeAudit.functions.filter(fn => fn.schema === 'public').length, 7);
+    assert.equal(privilegeAudit.functions.filter(fn => fn.schema === 'language_legacy_evidence_private' && entryNames.has(fn.name)).length, 7);
     for (const column of privilegeAudit.columns) assert.equal(column.executorUpdate, column.name === 'updated_at');
     for (const column of privilegeAudit.resetGenerationColumns) { assert.equal(column.select, ['owner_id','generation_id'].includes(column.name)); assert.equal(column.update, ['generation_id','reset_marker','prospective_started_at','last_server_sequence'].includes(column.name)); }
+    assert.deepEqual(privilegeAudit.enrollmentColumns.map(column => column.name), ['creation_request_id', 'initial_generation_id', 'owner_id']);
+    for (const column of privilegeAudit.enrollmentColumns) {
+      assert.equal(column.executorSelect, true); assert.equal(column.executorInsert, true); assert.equal(column.executorUpdate, false);
+      assert.equal(column.resetSelect, column.name === 'owner_id'); assert.equal(column.resetInsert, false); assert.equal(column.resetUpdate, false);
+    }
+    assert.deepEqual(privilegeAudit.enrollmentPolicies, [
+      { name: 'legacy_evidence_enrollment_insert', command: 'a', using: null, check: '((auth.uid() IS NOT NULL) AND (auth.uid() = owner_id))', roles: ['language_legacy_evidence_executor'] },
+      { name: 'legacy_evidence_enrollment_read', command: 'r', using: '((auth.uid() IS NOT NULL) AND (auth.uid() = owner_id))', check: null, roles: ['language_legacy_evidence_executor'] },
+      { name: 'legacy_evidence_reset_enrollment_probe', command: 'r', using: 'true', check: null, roles: ['language_legacy_evidence_reset_executor'] },
+    ]);
+    assert.equal(privilegeAudit.witnessExecutorDelete, false); assert.equal(privilegeAudit.witnessResetDelete, false);
     assert.equal(privilegeAudit.resetMetadataPolicy, 1);
     for (const key of ['eventExecutorUpdate','eventExecutorDelete','generationExecutorUpdate','eventResetInsert','eventResetUpdate']) assert.equal(privilegeAudit[key], false);
     assert.equal(privilegeAudit.generationCounterUpdate, true); report.digests.installedPrivilegeAudit = sha(JSON.stringify(privilegeAudit));
-    fixtures = await createSyntheticAccounts(stack, 12); const accounts = fixtures.accounts; let next = 0;
-    const fresh = async (initialize = true) => { const owner = accounts[next++].id; const context = initialize ? success(await transaction(a, owner, getContext(owner))) : null; return { owner, context }; };
+    fixtures = await createSyntheticAccounts(stack, 16); const accounts = fixtures.accounts; let next = 0;
+    const fresh = async (initialize = true) => { const owner = accounts[next++].id, request = randomUUID(); const context = initialize ? success(await transaction(a, owner, enroll(owner, request))).currentContext : null; return { owner, context, request }; };
     // Actual restricted-role smoke checks, including Supabase's real default ACLs.
     const securityOwner = accounts[0].id;
     await a.begin(securityOwner);
-    for (const table of ['language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events']) {
-      for (const statement of [`select null::jsonb from public.${table}`, `insert into public.${table} default values returning null::jsonb`, `delete from public.${table} returning null::jsonb`, `update public.${table} set ${table.endsWith('_events') ? 'payload_hash=payload_hash' : table.endsWith('_generations') ? 'last_server_sequence=last_server_sequence' : 'manifest_digest=manifest_digest'} returning null::jsonb`, `truncate public.${table}`]) denied(await a.call(statement), ['42501']);
+    for (const table of ['language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events','language_legacy_evidence_enrollments']) {
+      for (const statement of [`select null::jsonb from public.${table}`, `insert into public.${table} default values returning null::jsonb`, `delete from public.${table} returning null::jsonb`, `update public.${table} set ${table.endsWith('_events') ? 'payload_hash=payload_hash' : table.endsWith('_generations') ? 'last_server_sequence=last_server_sequence' : table.endsWith('_enrollments') ? 'creation_request_id=creation_request_id' : 'manifest_digest=manifest_digest'} returning null::jsonb`, `truncate public.${table}`]) denied(await a.call(statement), ['42501']);
+    }
+    for (const command of [getContext(securityOwner), enroll(securityOwner, randomUUID()),
+      `select public.append_language_legacy_evidence(${uuid(securityOwner)},${uuid(randomUUID())},${literal(digest)},${uuid(randomUUID())},'unused',null::jsonb,array[]::text[])`]) {
+      denied(await a.call(command), ['42501']);
+      const privateCommand = command.replace('public.get_language_legacy_evidence_context', 'language_legacy_evidence_private.get_context')
+        .replace('public.enroll_language_legacy_evidence_v1', 'language_legacy_evidence_private.enroll_v1')
+        .replace('public.append_language_legacy_evidence', 'language_legacy_evidence_private.append_events');
+      denied(await a.call(privateCommand), ['42501']);
     }
     denied(await a.call(`select language_legacy_evidence_private.canonical('{}'::jsonb)`), ['42501']);
     denied(await a.call(`select language_legacy_evidence_private.marker_reset()`), ['42501']);
     denied(await a.call(`select language_legacy_evidence_private.read_context(${uuid(accounts[1].id)},null::uuid,${literal(digest)})`), ['legacy_auth_mismatch']);
     await a.commit(); report.restrictedRoleDenials = 'passed';
+    report.defaultWriteDenial = 'passed';
+    // This privilege change is impossible without the verified disposable capability,
+    // and happens only after both catalog and actual restricted-role denial checks.
+    assertVerifiedStack(stack);
+    await a.query(`grant execute on function ${DISPOSABLE_WRITE_FUNCTIONS.join(',')} to authenticated;`);
+    const activated = await observer.scalar(`select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object('signature',f.signature,'auth',pg_catalog.has_function_privilege('authenticated',f.signature,'EXECUTE'),'anon',pg_catalog.has_function_privilege('anon',f.signature,'EXECUTE'),'service',pg_catalog.has_function_privilege('service_role',f.signature,'EXECUTE')) order by f.signature) from (values ${DISPOSABLE_WRITE_FUNCTIONS.map(value => `(${literal(value)})`).join(',')}) f(signature);`);
+    assert.equal(activated.length, 6); for (const fn of activated) { assert.equal(fn.auth, true); assert.equal(fn.anon, false); assert.equal(fn.service, false); }
+    report.disposableWriteActivation = { functions: [...DISPOSABLE_WRITE_FUNCTIONS], release: DISPOSABLE_EVIDENCE_RELEASE };
     await run(CASES[0], async () => {
       const { owner, context } = await fresh(), batch = makeBatch(owner, context);
       await a.begin(owner); await a.query(`select 1 from public.language_user_state where user_id=${uuid(owner)} for update;`);
@@ -313,15 +378,15 @@ export async function runPostgresHarness(stack) {
       return { replayStable: true, divergentOutcome: code, differentSlotPrefix: [1, 2, 3] };
     });
     await run(CASES[4], async () => {
-      const first = await fresh(false); await a.begin(first.owner); const initialized = success(await a.call(getContext(first.owner)));
+      const first = await fresh(false); await a.begin(first.owner); const initialized = success(await a.call(enroll(first.owner, first.request))).currentContext;
       await b.begin(first.owner); const pendingReset = b.call(reset(first.owner)); await waitForBlock(observer, b, a, report.waits); await a.commit(); success(await pendingReset); await b.commit();
       const rotated = await state(first.owner); assert.notEqual(rotated.generation, initialized.generationId); assert.equal(rotated.highWater, 0);
       const second = await fresh(false); await a.begin(second.owner); const resetValue = success(await a.call(reset(second.owner)));
-      await b.begin(second.owner); const pendingInit = b.call(getContext(second.owner)); await waitForBlock(observer, b, a, report.waits); await a.commit();
+      await b.begin(second.owner); const pendingInit = b.call(enroll(second.owner, second.request)); await waitForBlock(observer, b, a, report.waits); await a.commit();
       denied(await pendingInit, ['legacy_marker_conflict']); await b.rollback(); assert.equal((await state(second.owner)).generation, null);
       // Fresh read of the committed marker, followed by a NEW authenticated transaction.
       const observed = await secondOwnerMarker(second.owner); assert.equal(observed.value, resetValue.marker);
-      const reacquired = success(await transaction(b, second.owner, getContext(second.owner, observed))); assert.deepEqual(reacquired.resetMarker, observed); assert.equal(reacquired.highWater, 0);
+      const reacquired = success(await transaction(b, second.owner, enroll(second.owner, randomUUID(), observed))).currentContext; assert.deepEqual(reacquired.resetMarker, observed); assert.equal(reacquired.highWater, 0);
       return { initializationFirstRotated: true, resetFirstRejectedStale: true, freshTransactionInitialized: true };
     });
     async function secondOwnerMarker(owner) { const account = accounts.find(value => value.id === owner); const verified = await account.client.auth.getUser(); assert.equal(verified.data.user?.id, owner); assert.equal(verified.error, null); const result = await account.client.from('language_user_state').select('state').eq('user_id', owner).single(); assert.equal(result.error, null); return { present: Object.hasOwn(result.data.state, 'languageRecordResetV1'), value: result.data.state.languageRecordResetV1 ?? null }; }
@@ -330,7 +395,11 @@ export async function runPostgresHarness(stack) {
       await a.begin(owner); await a.query(`delete from public.language_user_state where user_id=${uuid(owner)}; insert into public.language_user_state(user_id,state) values(${uuid(owner)},'{}'::jsonb);`);
       await b.begin(owner); const pending = b.call(append(owner, context, batch)); await waitForBlock(observer, b, a, report.waits); await a.commit();
       const code = denied(await pending, ['legacy_stale_generation', 'legacy_state_not_ready']); await b.commit(); assert.equal((await state(owner)).generation, null);
-      const newContext = success(await transaction(a, owner, getContext(owner))); assert.notEqual(newContext.generationId, context.generationId); assert.equal(newContext.highWater, 0); return { outcome: code, oldRowsRevived: false };
+      const missing = success(await transaction(a, owner, readStatus(owner))); assert.equal(missing.status, 'enrolled_generation_missing');
+      assert.equal(missing.enrollment.initialGenerationId, context.generationId);
+      denied(await transaction(a, owner, getContext(owner)), ['legacy_enrolled_generation_missing']);
+      denied(await transaction(a, owner, enroll(owner, randomUUID())), ['legacy_enrolled_generation_missing']);
+      assert.equal((await state(owner)).generation, null); return { outcome: code, witnessSurvivesStateDeletion: true, oldInitializerCannotRepair: true, oldRowsRevived: false };
     });
     await run(CASES[6], async () => {
       const { owner, context } = await fresh(), account = accounts.find(value => value.id === owner), batch = makeBatch(owner, context), grant = randomUUID();
@@ -356,7 +425,34 @@ export async function runPostgresHarness(stack) {
       const { owner, context } = await fresh(), batch = makeBatch(owner, context); success(await transaction(a, owner, append(owner, context, batch)));
       await fixtures.deleteAccount(accounts.find(value => value.id === owner)); const now = await state(owner); assert.equal(now.generation, null); assert.deepEqual(now.sequences, []);
       const orphanCount = await observer.scalar(`select count(*) from public.language_user_state where user_id=${uuid(owner)};`); assert.equal(orphanCount, 0);
-      return { authAdminDelete: true, stateGenerationEventCascade: true, directEventDmlGranted: false };
+      assert.equal(await observer.scalar(`select count(*) from public.language_legacy_evidence_enrollments where owner_id=${uuid(owner)};`), 0);
+      return { authAdminDelete: true, stateGenerationEventAndWitnessCascade: true, directEventDmlGranted: false };
+    });
+    await run(CASES[9], async () => {
+      const { owner, request } = await fresh(false);
+      const before = success(await transaction(a, owner, readStatus(owner))); assert.equal(before.status, 'unenrolled'); assert.equal(before.enrollment, null);
+      const first = success(await transaction(a, owner, enroll(owner, request)));
+      const exact = success(await transaction(a, owner, enroll(owner, request)));
+      assert.equal(exact.status, 'enrolled'); assert.equal(exact.creationRequestId, request); assert.equal(exact.initialGenerationId, first.currentContext.generationId);
+      assert.equal(exact.currentContext.generationId, first.currentContext.generationId);
+      denied(await transaction(a, owner, enroll(owner, request, before.resetMarker, 'UTC')), ['legacy_enrollment_conflict']);
+      const witnessed = success(await transaction(a, owner, readStatus(owner, before.resetMarker))); assert.equal(witnessed.status, 'enrolled');
+      assert.deepEqual(witnessed.enrollment, { creationRequestId: request, initialGenerationId: first.currentContext.generationId });
+      const resetResult = success(await transaction(a, owner, reset(owner)));
+      denied(await transaction(a, owner, enroll(owner, request, { present: true, value: resetResult.marker })), ['legacy_enrollment_stale']);
+      await a.begin(owner); await a.query(`update public.language_user_state set state=state-'languageRecordResetV1' where user_id=${uuid(owner)};`); await a.commit();
+      denied(await transaction(a, owner, enroll(owner, request)), ['legacy_enrollment_stale']);
+      assert.deepEqual(success(await transaction(a, owner, readStatus(owner))).enrollment, witnessed.enrollment);
+      return { exactReplay: true, alteredRequestDenied: true, rotatedInitialGenerationStale: true, markerRollbackCannotRevive: true };
+    });
+    await run(CASES[10], async () => {
+      const { owner, request } = await fresh(false), competing = randomUUID();
+      await a.begin(owner); const first = success(await a.call(enroll(owner, request)));
+      await b.begin(owner); const pending = b.call(enroll(owner, competing)); await waitForBlock(observer, b, a, report.waits); await a.commit();
+      const second = success(await pending); await b.commit(); assert.equal(second.status, 'existing_enrollment');
+      assert.equal(second.creationRequestId, request); assert.equal(second.initialGenerationId, first.currentContext.generationId);
+      assert.equal(second.currentContext.generationId, first.currentContext.generationId);
+      return { firstNonceImmutable: true, competingNonceNotFirstAdmission: true, singleGeneration: true };
     });
     report.status = 'passed'; return report;
   } catch (error) { report.status = 'failed'; report.failureCode = safeCode(error); error.sanitizedReport = report; throw error; }
@@ -378,7 +474,7 @@ export async function main() {
     report = await runPostgresHarness(stack);
     const { runHttpHarness } = await import('./qa-legacy-evidence-http.mjs');
     report.http = await runHttpHarness(); assert.equal(report.http.status, 'passed');
-  } catch (error) { report = error.sanitizedReport ?? report ?? { schemaVersion: 1, status: 'failed', cases: CASES.map(name => ({ name, status: 'unrun' })) }; report.status = 'failed'; report.failureCode = safeCode(error); if (error.httpReport) report.http = error.httpReport; throw error; }
+  } catch (error) { report = error.sanitizedReport ?? report ?? { schemaVersion: 2, status: 'failed', cases: CASES.map(name => ({ name, status: 'unrun' })) }; report.status = 'failed'; report.failureCode = safeCode(error); if (error.httpReport) report.http = error.httpReport; throw error; }
   finally { if (report) { mkdirSync(resolve(ROOT, '.e2e/evidence'), { recursive: true }); writeFileSync(resolve(ROOT, '.e2e/evidence/legacy-evidence-postgres.json'), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 }); } }
   console.log('Disposable PostgreSQL race and local HTTP repository checks passed; browser durability remains unrun.');
 }

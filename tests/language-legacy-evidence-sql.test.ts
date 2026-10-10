@@ -26,7 +26,7 @@ const append=async(events:EvidenceEvent[],prev:Predecessor=null)=>(await f.rpc('
 const current=async()=>await f.rpc('read_language_legacy_evidence_context',{expected_owner:owner,expected_generation:c.generationId,manifest_digest:digest}) as Context;
 const read=async(ids:string[])=>await f.rpc('read_language_legacy_evidence_events',{expected_owner:owner,expected_generation:c.generationId,manifest_digest:digest,event_ids:ids}) as Read;
 const page=async(h:number,after=0,limit=200)=>await f.rpc('read_language_legacy_evidence_page',{expected_owner:owner,expected_generation:c.generationId,manifest_digest:digest,through_sequence:h,after_sequence:after,page_limit:limit}) as Read & {throughSequence:number;afterSequence:number;lastSequence:number;rowCount:number;payloadBytes:number;exhausted:boolean};
-before(async()=>{f=await createLegacyEvidenceSqlFixture();});
+before(async()=>{f=await createLegacyEvidenceSqlFixture({activateWrites:true});});
 after(async()=>{await f.close();});
 beforeEach(async()=>{await f.db.exec('reset role; truncate auth.users cascade;');other=await f.addOwner();owner=await f.addOwner();c=await f.context(owner) as Context;});
 
@@ -153,7 +153,7 @@ test('catalogue ACL and function owner/search path inventory has no memberships 
  assert.equal((await f.db.query("select * from pg_auth_members m join pg_roles r on r.oid=m.member or r.oid=m.roleid where r.rolname like 'language_legacy_evidence_%'")).rows.length,0);
  const tables=(await f.db.query<{relrowsecurity:boolean;relforcerowsecurity:boolean;owner:string}>("select c.relrowsecurity,c.relforcerowsecurity,r.rolname owner from pg_class c join pg_roles r on r.oid=c.relowner where c.relname in ('language_legacy_evidence_manifests','language_legacy_evidence_manifest_tasks','language_legacy_evidence_generations','language_legacy_evidence_events')")).rows;assert.equal(tables.length,4);assert.ok(tables.every(r=>r.relrowsecurity&&r.relforcerowsecurity&&!r.owner.startsWith('language_legacy')));
  const funcs=(await f.db.query<{proname:string;prosecdef:boolean;proconfig:string[];owner:string}>("select p.proname,p.prosecdef,p.proconfig,r.rolname owner from pg_proc p join pg_roles r on r.oid=p.proowner join pg_namespace n on n.oid=p.pronamespace where n.nspname='language_legacy_evidence_private'")).rows;assert.ok(funcs.every(r=>r.proconfig.includes('search_path=""')));
- assert.equal(funcs.filter(r=>r.prosecdef).length,6);assert.ok(funcs.filter(r=>r.prosecdef).every(r=>r.owner===(r.proname==='marker_reset'?'language_legacy_evidence_reset_executor':'language_legacy_evidence_executor')));
+ assert.equal(funcs.filter(r=>r.prosecdef).length,8);assert.ok(funcs.filter(r=>r.prosecdef).every(r=>r.owner===(r.proname==='marker_reset'?'language_legacy_evidence_reset_executor':'language_legacy_evidence_executor')));
  const triggers=(await f.db.query<{tgname:string}>("select tgname from pg_trigger where tgrelid='public.language_user_state'::regclass and not tgisinternal order by tgname")).rows.map(r=>r.tgname);assert.ok(triggers.includes('assistant_language_history_language_reset'));assert.ok(triggers.includes('chatgpt_reset_language'));assert.ok(triggers.includes('language_legacy_evidence_marker_reset'));
  const sql=readSql(`supabase/migrations/${LEGACY_EVIDENCE_MIGRATION}`);const trigger=sql.slice(sql.indexOf('create function language_legacy_evidence_private.marker_reset()'),sql.indexOf('create trigger language_legacy_evidence_marker_reset'));assert.doesNotMatch(trigger,/pg_advisory/);assert.doesNotMatch(sql,/nextval\(|serial\b|generated.*identity/i);
 });
@@ -182,10 +182,11 @@ test('raw marker missing/null/string/type transitions rotate, same marker and ro
  await f.db.exec('begin');await f.db.query("update public.language_user_state set state='{"+'"languageRecordResetV1":"rolled-back"'+"}' where user_id=$1",[owner]);await f.db.exec('rollback');assert.equal((await current()).generationId,c.generationId);
 });
 
-test('state reinsertion and auth-admin account cascade work without owner DELETE trigger',async()=>{
+test('state reinsertion retains enrollment loss and auth-admin account cascade works without owner DELETE trigger',async()=>{
  const p=event();await append([p]);const old=c.generationId;
- await f.db.query('delete from public.language_user_state where user_id=$1',[owner]);await f.db.query("insert into public.language_user_state(user_id,state) values($1,'{}')",[owner]);c=await f.context(owner) as Context;assert.notEqual(c.generationId,old);assert.equal(c.highWater,0);
- await append([event()]);await f.db.exec("reset role; set app.test_user=''; set role synthetic_auth_admin");await f.db.query('delete from auth.users where id=$1',[owner]);await f.db.exec('reset role');assert.equal((await f.db.query('select * from public.language_legacy_evidence_events')).rows.length,0);assert.equal((await f.db.query('select * from public.language_legacy_evidence_generations')).rows.length,0);
+ await f.db.query('delete from public.language_user_state where user_id=$1',[owner]);await f.db.query("insert into public.language_user_state(user_id,state) values($1,'{}')",[owner]);await assert.rejects(f.context(owner),/legacy_enrolled_generation_missing/);
+ const status=await f.rpc('read_language_legacy_evidence_status',{expected_owner:owner}) as {status:string;enrollment:{initialGenerationId:string}};assert.equal(status.status,'enrolled_generation_missing');assert.equal(status.enrollment.initialGenerationId,old);
+ await f.db.exec("reset role; set app.test_user=''; set role synthetic_auth_admin");await f.db.query('delete from auth.users where id=$1',[owner]);await f.db.exec('reset role');assert.equal((await f.db.query('select * from public.language_legacy_evidence_events')).rows.length,0);assert.equal((await f.db.query('select * from public.language_legacy_evidence_generations')).rows.length,0);
 });
 
 test('R4 administrative marker compatibility: unenrolled no-op, enrolled null/foreign auth fail closed',async()=>{
@@ -213,7 +214,7 @@ test('R4 reset role has cross-owner key-only probe, no secret/context/payload re
  assert.equal((await f.db.query('select owner_id,generation_id from public.language_legacy_evidence_events')).rows.length,0);
  await f.db.exec('update public.language_legacy_evidence_generations set generation_id=gen_random_uuid(); delete from public.language_legacy_evidence_events;');
  await f.asOwner(owner);assert.equal((await current()).generationId,c.generationId);assert.equal((await current()).highWater,1);
- const sessionFixture=await createLegacyEvidenceSqlFixture();
+ const sessionFixture=await createLegacyEvidenceSqlFixture({activateWrites:true});
  try {
   await sessionFixture.db.exec('set session authorization authenticated');
   await assert.rejects(sessionFixture.db.exec('set role language_legacy_evidence_reset_executor'),/permission denied/);

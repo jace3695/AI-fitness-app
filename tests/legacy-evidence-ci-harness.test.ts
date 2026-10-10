@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { CASES, createSyntheticAccounts, runPostgresHarness, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
+import { DISPOSABLE_EVIDENCE_RELEASE, DISPOSABLE_WRITE_FUNCTIONS, SOURCE_INPUTS, CASES, createSyntheticAccounts, runPostgresHarness, loopbackFetch, selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const config = 'project_id = "isolated_stack"\n[api]\nport = 54321\n[db]\nport = 54322\nmajor_version = 17\n[auth]\nenabled = true\n';
 const env = { GITHUB_ACTIONS: 'true', RUNNER_TEMP: '/tmp/synthetic-runner', GITHUB_RUN_ID: '123', GITHUB_JOB: 'isolated' };
@@ -59,12 +59,12 @@ test('HTTP origin barrier rejects providers, redirects and credentials before in
   assert.equal(requests, 0); await transport('http://127.0.0.1:54321/auth/v1/token'); assert.equal(requests, 1);
 });
 
-test('inactive source contains all nine bounded schedules and independent HTTP entry point', () => {
+test('inactive source contains all eleven bounded schedules and independent HTTP entry point', () => {
   const source = readFileSync(new URL('../scripts/qa-legacy-evidence-postgres.mjs', import.meta.url), 'utf8');
   const http = readFileSync(new URL('../scripts/qa-legacy-evidence-http.mjs', import.meta.url), 'utf8');
   const discovery = readFileSync(new URL('../scripts/test.mjs', import.meta.url), 'utf8');
-  assert.equal(CASES.length, 9); assert.equal(new Set(CASES).size, 9);
-  for (let index = 0; index < 9; index++) assert.ok(source.includes(`await run(CASES[${index}]`));
+  assert.equal(CASES.length, 11); assert.equal(new Set(CASES).size, 11);
+  for (let index = 0; index < CASES.length; index++) assert.ok(source.includes(`await run(CASES[${index}]`));
   assert.match(source, /pg_catalog\.pg_blocking_pids/); assert.match(source, /statement_timeout = '12s'/);
   assert.match(source, /new PsqlSession\(stack.container, 'legacy_evidence_qa_a'\)/);
   assert.match(source, /new PsqlSession\(stack.container, 'legacy_evidence_qa_b'\)/);
@@ -75,7 +75,7 @@ test('inactive source contains all nine bounded schedules and independent HTTP e
   assert.match(discovery, /endsWith\('\.test\.ts'\)/);
   assert.doesNotMatch(source + http, /supabase\s+(?:login|link|db\s+push)|https:\/\//);
   assert.match(http, /const stack = verifyDisposableStack\(\)/);
-  assert.match(http, /loadLegacyEvidenceRepository\(client\)/);
+  assert.match(http, /loadLegacyEvidenceRepository\(client, DISPOSABLE_EVIDENCE_RELEASE\)/);
   assert.match(http, /createLanguageSyncCoordinator/); assert.match(http, /await response\.json\(\)/);
   assert.match(http, /dropReadAfterAppend/); assert.match(http, /await coordinator\.resume\(\)/);
   assert.match(http, /mode: 'existing'/); assert.doesNotMatch(http, /as AuthenticatedReceipt|registerAuthenticatedReceiptReadback/);
@@ -89,10 +89,19 @@ test('authored catalog audit executes against actual migration in PGlite, withou
     const begin = source.indexOf('    const schema = await observer.scalar('), end = source.indexOf('    fixtures = await createSyntheticAccounts(', begin);
     assert.ok(begin >= 0 && end > begin);
     const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
-    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', source.slice(begin, end));
+    const audit = new AsyncFunction('observer', 'assert', 'report', 'sha', 'DISPOSABLE_WRITE_FUNCTIONS', source.slice(begin, end));
     const report = { digests: {} };
-    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest');
+    await audit({ async scalar(sql: string) { const result = await fixture.db.query(sql); assert.equal(result.rows.length, 1); return Object.values(result.rows[0] as Record<string, unknown>)[0]; } }, assert, report, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS);
     assert.ok('installedPrivilegeAudit' in report.digests);
+    // The same catalog audit must reject even one accidentally re-enabled route.
+    for (const signature of DISPOSABLE_WRITE_FUNCTIONS) {
+      await fixture.db.exec(`grant execute on function ${signature} to authenticated`);
+      await assert.rejects(audit({ async scalar(sql: string) {
+        const result = await fixture.db.query(sql); return Object.values(result.rows[0] as Record<string, unknown>)[0];
+      } }, assert, { digests: {} }, () => 'synthetic-audit-digest', DISPOSABLE_WRITE_FUNCTIONS));
+      await fixture.db.exec(`revoke execute on function ${signature} from authenticated`);
+    }
+
     // Execute only the authored error-boundary SQL on this synthetic connection.
     // Its exception block is a real subtransaction, so ON_ERROR_STOP need not be disabled.
     const wrapper = source.match(/else await this\.query\(`(create function pg_temp\.qa_call[\s\S]*?)`\);/);
@@ -115,4 +124,46 @@ test('fabricated or copied stack objects cannot spawn psql or create HTTP accoun
   await assert.rejects(createSyntheticAccounts(forged, 1, async () => { fetchCalls++; return new Response('{}'); }), /unverified disposable stack capability/);
   await assert.rejects(runPostgresHarness({ ...forged }), /unverified disposable stack capability/);
   assert.equal(fetchCalls, 0);
+});
+
+
+test('fixture opt-in is exact, private and after actual default-denial checks', () => {
+  assert.deepEqual(DISPOSABLE_EVIDENCE_RELEASE, { resetProtocol: 'protocol-required', enrollmentEnabled: true, captureEnabled: true });
+  assert.deepEqual(DISPOSABLE_WRITE_FUNCTIONS, [
+    'public.get_language_legacy_evidence_context(uuid,jsonb,text,text,text)',
+    'language_legacy_evidence_private.get_context(uuid,jsonb,text,text,text)',
+    'public.enroll_language_legacy_evidence_v1(uuid,uuid,jsonb,text,text,text,text)',
+    'language_legacy_evidence_private.enroll_v1(uuid,uuid,jsonb,text,text,text,text)',
+    'public.append_language_legacy_evidence(uuid,uuid,text,uuid,text,jsonb,text[])',
+    'language_legacy_evidence_private.append_events(uuid,uuid,text,uuid,text,jsonb,text[])',
+  ]);
+  const driver = readFileSync(new URL('../scripts/qa-legacy-evidence-postgres.mjs', import.meta.url), 'utf8');
+  const denied = driver.indexOf("report.defaultWriteDenial = 'passed'");
+  const grant = driver.indexOf('await a.query(`grant execute on function');
+  assert.ok(denied > 0 && grant > denied);
+  assert.match(driver.slice(denied, grant), /assertVerifiedStack\(stack\)/);
+  assert.match(driver.slice(grant), /DISPOSABLE_WRITE_FUNCTIONS.join\(','\)/);
+  assert.doesNotMatch(driver, /grant execute on all functions|grant all/);
+  assert.ok(driver.includes('oldInitializerCannotRepair: true'));
+  assert.ok(driver.includes('markerRollbackCannotRevive: true'));
+  assert.ok(driver.includes('competingNonceNotFirstAdmission: true'));
+  const http = readFileSync(new URL('../scripts/qa-legacy-evidence-http.mjs', import.meta.url), 'utf8');
+  for (const contract of ['firstEnrollmentRequest.creation_request_id', 'dropEnrollment', 'read_language_legacy_evidence_status',
+    'loadResetAppRecords', "resetProtocol: 'inactive'", 'captureEnabled: false', 'resetApi.fence().evidenceCleanup.status',
+    'reset_carry', 'completedResetRetryPreservesCurrentGeneration', 'local_continuity_unknown']) assert.ok(http.includes(contract), contract);
+  assert.doesNotMatch(http, /repository\.cleanupAfterReset|registerAuthenticatedFirstAdmission|registerAuthenticatedResetEvidenceState/);
+});
+
+test('candidate source digests cover additive migration and the exact release/reset/admission contract', () => {
+  assert.deepEqual(SOURCE_INPUTS, [...SOURCE_INPUTS].sort()); assert.equal(new Set(SOURCE_INPUTS).size, SOURCE_INPUTS.length);
+  for (const path of ['supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql',
+    'scripts/e2e-stack.mjs', 'scripts/qa-legacy-evidence-postgres.mjs', 'scripts/qa-legacy-evidence-http.mjs',
+    'app/data/languageLegacyEvidenceRelease.ts', 'app/data/languageLegacyEvidenceRepository.ts', 'app/lib/resetAppRecords.ts',
+    'app/data/languageResetFence.ts', 'app/data/languageStorageBoundary.ts', 'lib/language-legacy-evidence/local-store.ts',
+    'lib/language-legacy-evidence/store-admission-types.ts', 'lib/language-legacy-evidence/receipt-proof.ts',
+    'lib/language-legacy-evidence/canonical-hash.ts', 'lib/language-legacy-evidence/validation.ts',
+    'lib/language-legacy-evidence/server-types.ts', 'lib/language-legacy-evidence/capture.ts',
+    'lib/language-legacy-evidence/idb-test-adapter.ts', 'app/data/authenticatedStorageOwner.ts',
+    'app/data/languageSyncCoordinator.ts', 'tests/helpers/languageFixture.ts', 'tests/helpers/storageProtocol.ts', 'package-lock.json']) assert.ok(SOURCE_INPUTS.includes(path), path);
+  for (const path of SOURCE_INPUTS) assert.ok(readFileSync(new URL(`../${path}`, import.meta.url)).length);
 });

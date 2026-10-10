@@ -4,13 +4,21 @@ import { parseCheckpoint, verifyPreparedCapture } from './capture.ts';
 import { LocalEvidenceError, MAX_EVENT_BYTES, type CaptureCheckpoint, type DeliveryMetadata, type FrozenBatch, type FrozenEvidence,
   type AuthenticatedReceiptReadback, type BatchDelivery, type LocalCommitResult, type LocalEvidenceContext, type LocalFence, type PreparedCapture } from './persistence-types.ts';
 import { decodeBatchDelivery, decodeDeliveryMetadata, decodeFrozenBatch, verifyFrozenBatch } from './outbox.ts';
-import { assertAuthenticatedContext, assertAuthenticatedPrefix, assertAuthenticatedReceiptReadback, type AuthenticatedContextProof, type AuthenticatedPrefixProof } from './receipt-proof.ts';
+import { assertAuthenticatedContext, assertAuthenticatedPrefix, assertAuthenticatedReceiptReadback, assertAuthenticatedAdmissionStatus,
+  assertAuthenticatedFirstAdmission, assertAuthenticatedResetEvidenceState, type AuthenticatedAdmissionStatusProof,
+  type AuthenticatedFirstAdmissionProof, type AuthenticatedResetEvidenceStateProof, type AuthenticatedContextProof, type AuthenticatedPrefixProof } from './receipt-proof.ts';
 import { MAX_PREFIX_BYTES, MAX_PREFIX_EVENTS, serverEvidenceContextSchema, serverEvidenceReceiptSchema, type CachedEvidenceContext, type CachedEvidencePrefix, type ServerEvidenceReceipt } from './server-types.ts';
+import { checkedAdmissionValue, enrollmentIntentRowSchema, frozenEnrollmentIntentSchema, localGenerationAdmissionSchema,
+  storeIncarnationSchema, type AdmissionSnapshot, type EnrollmentIntentRow, type FrozenEnrollmentIntent,
+  type LocalGenerationAdmission, type StoreIncarnation } from './store-admission-types.ts';
 
 export const LOCAL_EVIDENCE_DATABASE = 'yeoni-legacy-language-evidence-v1';
-export const LOCAL_EVIDENCE_DATABASE_VERSION = 2;
-const STORES = ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes'] as const;
+export const LOCAL_EVIDENCE_DATABASE_VERSION = 3;
+const SCOPED_STORES = ['events', 'checkpoints', 'commits', 'delivery', 'batches', 'audioBindings', 'receipts', 'contexts', 'prefixes', 'admissions'] as const;
+const STORES = [...SCOPED_STORES, 'incarnations', 'enrollmentIntents'] as const;
 type StoreName = typeof STORES[number];
+type ScopedStoreName = typeof SCOPED_STORES[number];
+const INCARNATION_KEY = 'store';
 type ScopedRow = { ownerId: string; generationId: string };
 type EventRow = ScopedRow & { semanticKey: string; value: FrozenEvidence };
 type CheckpointRow = ScopedRow & { episodeKey: string; latestTransitionId: string; value: CaptureCheckpoint };
@@ -66,7 +74,7 @@ function checkedCacheRow(input: unknown, prefix: boolean): CachedEvidenceContext
 }
 
 /** Destructive cleanup never trusts wrapper scope without the immutable key/body. */
-function cleanupIdentity(name: StoreName, key: IDBValidKey, input: unknown): ScopedRow {
+function cleanupIdentity(name: ScopedStoreName, key: IDBValidKey, input: unknown): ScopedRow {
   try {
     const row = input as ScopedRow & Record<string, unknown>;
     if (!row || typeof row.ownerId !== 'string' || typeof row.generationId !== 'string' || typeof key !== 'string') throw Error();
@@ -91,6 +99,8 @@ function cleanupIdentity(name: StoreName, key: IDBValidKey, input: unknown): Sco
     } else if (name === 'receipts') {
       const receipt = checkedReceiptRow(row as ReceiptRow);
       expectedKey = receiptKey(row, receipt.event.eventId);
+    } else if (name === 'admissions') {
+      checkedAdmissionValue(localGenerationAdmissionSchema, row); expectedKey = scopeKey(row);
     } else if (name === 'contexts' || name === 'prefixes') {
       checkedCacheRow(row, name === 'prefixes'); expectedKey = scopeKey(row);
     } else {
@@ -127,12 +137,23 @@ function openDatabase(factory: IDBFactory | undefined): Promise<Connection> {
     let failed = false;
     let request: IDBOpenDBRequest;
     try { request = factory.open(LOCAL_EVIDENCE_DATABASE, LOCAL_EVIDENCE_DATABASE_VERSION); } catch (error) { reject(storageError(error)); return; }
-    request.onupgradeneeded = () => {
-      for (const name of STORES) {
-        if (request.result.objectStoreNames.contains(name)) continue;
-        const store = request.result.createObjectStore(name);
-        if (name === 'events') store.createIndex('semanticKey', 'semanticKey', { unique: true });
-        if (name === 'checkpoints') store.createIndex('episodeKey', 'episodeKey', { unique: true });
+    request.onupgradeneeded = event => {
+      try {
+        // This is the shared opener, including cache-only and reset opens. Birth
+        // uncertainty commits in the versionchange transaction before any caller
+        // can write a context/cache/event and conceal an empty or upgraded store.
+        if (request.result.objectStoreNames.contains('incarnations')) throw new LocalEvidenceError('corrupt_record');
+        for (const name of STORES) {
+          if (request.result.objectStoreNames.contains(name)) continue;
+          const store = request.result.createObjectStore(name);
+          if (name === 'events') store.createIndex('semanticKey', 'semanticKey', { unique: true });
+          if (name === 'checkpoints') store.createIndex('episodeKey', 'episodeKey', { unique: true });
+          if (name === 'incarnations') store.put({ version: 1, incarnationId: crypto.randomUUID(),
+            origin: event.oldVersion === 0 ? 'created' : 'unproven_upgrade', continuity: 'unknown' } satisfies StoreIncarnation, INCARNATION_KEY);
+        }
+      } catch (error) {
+        failed = true; try { request.transaction?.abort(); } catch { /* Upgrade already aborted. */ }
+        reject(storageError(error));
       }
     };
     request.onblocked = () => { failed = true; reject(new LocalEvidenceError('idb_blocked')); };
@@ -154,20 +175,51 @@ function openDatabase(factory: IDBFactory | undefined): Promise<Connection> {
 export class LocalEvidenceStore {
   private readonly factory: IDBFactory | undefined;
   private readonly isCurrent: (fence: LocalFence) => boolean;
-  constructor(options: { factory?: IDBFactory; isCurrent: (fence: LocalFence) => boolean }) {
+  private readonly writerAdmission: Readonly<LocalGenerationAdmission> | null | undefined;
+  private readonly onAdmissionLost?: () => void;
+  private admissionLost = false;
+  constructor(options: { factory?: IDBFactory; isCurrent: (fence: LocalFence) => boolean; writerAdmission?: LocalGenerationAdmission | null; onAdmissionLost?: () => void }) {
     this.factory = options.factory ?? globalThis.indexedDB;
     this.isCurrent = options.isCurrent;
+    // Production constructors always provide this field. Undefined preserves the
+    // isolated A2.1 library contract; it is forbidden by production source closure.
+    this.writerAdmission = options.writerAdmission == null ? options.writerAdmission : immutableCopy(checkedAdmissionValue(localGenerationAdmissionSchema, options.writerAdmission));
+    this.onAdmissionLost = options.onAdmissionLost;
   }
   private fence(value: LocalFence): void {
     if (!this.isCurrent(value)) throw new LocalEvidenceError('stale_context');
   }
   /** All callbacks are synchronous. Crypto/validation awaits happen outside IDB transactions. */
   private async transaction<T>(fence: LocalFence, mode: IDBTransactionMode,
-    work: (tx: IDBTransaction, setResult: (result: T) => void, fail: (error: unknown) => void) => void): Promise<T> {
-    this.fence(fence);
+    work: (tx: IDBTransaction, setResult: (result: T) => void, fail: (error: unknown) => void) => void, cacheOnly = false): Promise<T> {
+    const guard = () => { this.fence(fence); if (this.admissionLost && !cacheOnly) throw new LocalEvidenceError('stale_context'); };
+    return this.guardedTransaction(guard, mode, (tx, done, fail, incarnation) => {
+      const expected = this.writerAdmission;
+      if (expected === undefined) { work(tx, done, fail); return; }
+      const lost = () => { this.admissionLost = true; this.onAdmissionLost?.(); if (!cacheOnly) throw new LocalEvidenceError('stale_context'); };
+      if (!expected) { lost(); work(tx, done, fail); return; }
+      if (incarnation.incarnationId !== expected.incarnationId || incarnation.continuity !== 'verified'
+        || expected.ownerId !== fence.ownerId || expected.generationId !== fence.generationId) {
+        lost(); work(tx, done, fail); return;
+      }
+      // The admission comparison and operation share one all-stores transaction.
+      // An already returned writer cannot reopen an evicted DB as a fresh window.
+      const read = tx.objectStore('admissions').get(scopeKey(expected));
+      read.onsuccess = () => {
+        try {
+          guard();
+          if (read.result === undefined || !same(checkedAdmissionValue(localGenerationAdmissionSchema, read.result), expected)) lost();
+          work(tx, done, fail);
+        } catch (error) { fail(error); }
+      };
+    });
+  }
+  private async guardedTransaction<T>(guard: () => void, mode: IDBTransactionMode,
+    work: (tx: IDBTransaction, setResult: (result: T) => void, fail: (error: unknown) => void, incarnation: StoreIncarnation) => void): Promise<T> {
+    guard();
     const connection = await openDatabase(this.factory);
     try {
-      this.fence(fence);
+      guard();
       const result = await new Promise<T>((resolve, reject) => {
         if (connection.versionChanged) { reject(new LocalEvidenceError('idb_version_changed')); return; }
         let tx: IDBTransaction;
@@ -181,12 +233,166 @@ export class LocalEvidenceStore {
           connection.transactions.delete(tx);
           reject(connection.versionChanged ? new LocalEvidenceError('idb_version_changed') : storageError(failure ?? tx.error, mode === 'readonly' ? 'storage_read_failed' : 'storage_abort'));
         };
-        try { work(tx, value => { result = value; }, fail); } catch (error) { fail(error); }
+        const birth = tx.objectStore('incarnations').get(INCARNATION_KEY);
+        birth.onsuccess = () => {
+          try {
+            guard();
+            const incarnation = checkedAdmissionValue(storeIncarnationSchema, birth.result);
+            work(tx, value => { result = value; }, fail, incarnation);
+          } catch (error) { fail(error); }
+        };
       });
       if (connection.versionChanged) throw new LocalEvidenceError('idb_version_changed');
-      this.fence(fence);
+      guard();
       return result;
     } finally { connection.db.close(); }
+  }
+  /** Status proofs authenticate admission reads without inventing a generation. */
+  async readAdmission(proof: AuthenticatedAdmissionStatusProof): Promise<AdmissionSnapshot> {
+    const guard = () => assertAuthenticatedAdmissionStatus(proof); guard();
+    return this.guardedTransaction<AdmissionSnapshot>(guard, 'readwrite', (tx, done, fail, incarnation) => {
+      const guarded = (work: () => void) => { try { guard(); work(); } catch (error) { fail(error); } };
+      const intents = tx.objectStore('enrollmentIntents'), readIntent = intents.get(proof.ownerId);
+      readIntent.onsuccess = () => guarded(() => {
+        let intent: FrozenEnrollmentIntent | null = null;
+        if (readIntent.result !== undefined) {
+          const row = checkedAdmissionValue(enrollmentIntentRowSchema, readIntent.result);
+          if (row.ownerId !== proof.ownerId || row.incarnationId !== incarnation.incarnationId) throw new LocalEvidenceError('corrupt_record');
+          const stale = !same(row.intent.resetMarker, proof.resetMarker) || proof.status === 'enrolled_generation_missing' ||
+            proof.status === 'enrolled' && (proof.creationRequestId !== row.intent.requestId || proof.initialGenerationId !== proof.currentContext?.generationId);
+          if (stale) intents.delete(proof.ownerId); else intent = row.intent;
+        }
+        const finish = (admission: LocalGenerationAdmission | null) => done(immutableCopy({ incarnationId: incarnation.incarnationId,
+          origin: incarnation.origin, continuity: admission && incarnation.continuity === 'verified' ? 'verified' : 'unknown', admission, intent }));
+        if (proof.status !== 'enrolled' || !proof.currentContext) { finish(null); return; }
+        const context = proof.currentContext, read = tx.objectStore('admissions').get(scopeKey(context));
+        read.onsuccess = () => guarded(() => {
+          if (read.result === undefined) { finish(null); return; }
+          const admission = checkedAdmissionValue(localGenerationAdmissionSchema, read.result);
+          if (admission.ownerId !== proof.ownerId || admission.generationId !== context.generationId || admission.incarnationId !== incarnation.incarnationId ||
+            admission.creationRequestId !== proof.creationRequestId || admission.initialGenerationId !== proof.initialGenerationId ||
+            !same(admission.resetMarker, proof.resetMarker)) throw new LocalEvidenceError('corrupt_record');
+          // A row never repairs lost/corrupt incarnation metadata.
+          finish(incarnation.continuity === 'verified' ? admission : null);
+        });
+      });
+    });
+  }
+  async freezeEnrollmentIntent(input: FrozenEnrollmentIntent, proof: AuthenticatedAdmissionStatusProof): Promise<FrozenEnrollmentIntent> {
+    const guard = () => assertAuthenticatedAdmissionStatus(proof); guard();
+    const intent = immutableCopy(checkedAdmissionValue(frozenEnrollmentIntentSchema, input));
+    if (proof.status !== 'unenrolled' || proof.currentContext !== null || proof.creationRequestId !== null || proof.initialGenerationId !== null ||
+      proof.ownerId !== intent.ownerId || !same(proof.resetMarker, intent.resetMarker)) throw new LocalEvidenceError('stale_context');
+    let failure: unknown;
+    try {
+      await this.guardedTransaction<void>(guard, 'readwrite', (tx, done, fail, incarnation) => {
+        if (incarnation.origin !== 'created') throw new LocalEvidenceError('unsupported_history');
+        const guarded = (work: () => void) => { try { guard(); work(); } catch (error) { fail(error); } };
+        let remaining = SCOPED_STORES.length + 1;
+        const finish = () => {
+          if (--remaining) return;
+          guard();
+          tx.objectStore('enrollmentIntents').put({ version: 1, ownerId: intent.ownerId, incarnationId: incarnation.incarnationId, intent } satisfies EnrollmentIntentRow, intent.ownerId);
+          done();
+        };
+        const current = tx.objectStore('enrollmentIntents').get(intent.ownerId);
+        current.onsuccess = () => guarded(() => {
+          if (current.result !== undefined) {
+            const row = checkedAdmissionValue(enrollmentIntentRowSchema, current.result);
+            if (row.ownerId !== intent.ownerId || row.incarnationId !== incarnation.incarnationId) throw new LocalEvidenceError('corrupt_record');
+            if (!same(row.intent, intent)) throw new LocalEvidenceError('checkpoint_conflict');
+          }
+          finish();
+        });
+        for (const name of SCOPED_STORES) {
+          const request = tx.objectStore(name).openCursor();
+          request.onsuccess = () => guarded(() => {
+            const cursor = request.result; if (!cursor) { finish(); return; }
+            const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+            if (scope.ownerId === intent.ownerId) throw new LocalEvidenceError('unsupported_history');
+            cursor.continue();
+          });
+        }
+      });
+    } catch (error) { failure = error; }
+    guard();
+    if (failure instanceof LocalEvidenceError && ['stale_context', 'corrupt_record', 'checkpoint_conflict', 'unsupported_history'].includes(failure.code)) throw failure;
+    const snapshot = await this.readAdmission(proof); guard();
+    if (!snapshot.intent || !same(snapshot.intent, intent)) {
+      if (failure) throw storageError(failure);
+      throw new LocalEvidenceError('commit_unconfirmed');
+    }
+    return snapshot.intent;
+  }
+  /** Only an independently checked receipt/read-first proof can promote a birth. */
+  async completeFirstAdmission(input: FrozenEnrollmentIntent, proof: AuthenticatedFirstAdmissionProof): Promise<void> {
+    const guard = () => assertAuthenticatedFirstAdmission(proof); guard();
+    const intent = immutableCopy(checkedAdmissionValue(frozenEnrollmentIntentSchema, input));
+    const context = serverEvidenceContextSchema.parse(proof.currentContext);
+    if (!same(proof.intent, intent) || proof.ownerId !== intent.ownerId || context.ownerId !== intent.ownerId ||
+      proof.creationRequestId !== intent.requestId || proof.initialGenerationId !== context.generationId || !same(context.resetMarker, intent.resetMarker) ||
+      context.studyDayTimezone !== intent.studyDayTimezone || context.protocol !== intent.protocol || context.manifestRelease !== intent.manifestRelease ||
+      context.manifestDigest !== intent.manifestDigest) throw new LocalEvidenceError('stale_context');
+    const admission: LocalGenerationAdmission = { version: 1, ownerId: intent.ownerId, generationId: context.generationId,
+      incarnationId: proof.incarnationId, continuity: 'verified', kind: 'first_enrollment', creationRequestId: proof.creationRequestId,
+      initialGenerationId: proof.initialGenerationId, resetMarker: context.resetMarker, resetRequestId: null };
+    checkedAdmissionValue(localGenerationAdmissionSchema, admission);
+    const cache: CachedEvidenceContext = { version: 1, ownerId: context.ownerId, generationId: context.generationId, context, status: 'previously_verified_offline' };
+    const check = (write: boolean) => this.guardedTransaction<boolean>(guard, write ? 'readwrite' : 'readonly', (tx, done, fail, incarnation) => {
+      if (incarnation.origin !== 'created' || incarnation.incarnationId !== proof.incarnationId) throw new LocalEvidenceError('unsupported_history');
+      const guarded = (work: () => void) => { try { guard(); work(); } catch (error) { fail(error); } };
+      const read = tx.objectStore('admissions').get(scopeKey(admission));
+      read.onsuccess = () => guarded(() => {
+        if (read.result !== undefined) {
+          const current = checkedAdmissionValue(localGenerationAdmissionSchema, read.result);
+          if (!same(current, admission)) throw new LocalEvidenceError('checkpoint_conflict');
+          if (incarnation.continuity !== 'verified') { done(false); return; }
+          const cached = tx.objectStore('contexts').get(scopeKey(admission));
+          cached.onsuccess = () => guarded(() => {
+            const checked = checkedCacheRow(cached.result, false);
+            const stable = (value: CachedEvidenceContext['context']) => ({ ...value, serverTime: null, highWater: null });
+            if (checked.ownerId !== admission.ownerId || checked.generationId !== admission.generationId || !same(stable(checked.context), stable(context))) throw new LocalEvidenceError('corrupt_record');
+            done(true);
+          });
+          return;
+        }
+        if (!write) { done(false); return; }
+        const pending = tx.objectStore('enrollmentIntents').get(intent.ownerId);
+        pending.onsuccess = () => guarded(() => {
+          const row = checkedAdmissionValue(enrollmentIntentRowSchema, pending.result);
+          if (row.ownerId !== intent.ownerId || row.incarnationId !== proof.incarnationId || !same(row.intent, intent)) throw new LocalEvidenceError('checkpoint_conflict');
+          let remaining = SCOPED_STORES.length;
+          for (const name of SCOPED_STORES) {
+            const request = tx.objectStore(name).openCursor();
+            request.onsuccess = () => guarded(() => {
+              const cursor = request.result;
+              if (cursor) {
+                const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+                if (scope.ownerId === intent.ownerId) throw new LocalEvidenceError('unsupported_history');
+                cursor.continue(); return;
+              }
+              if (--remaining) return;
+              guard();
+              tx.objectStore('incarnations').put({ ...incarnation, continuity: 'verified' } satisfies StoreIncarnation, INCARNATION_KEY);
+              tx.objectStore('admissions').add(admission, scopeKey(admission));
+              tx.objectStore('contexts').put(cache, scopeKey(cache));
+              tx.objectStore('enrollmentIntents').delete(intent.ownerId);
+              done(true);
+            });
+          }
+        });
+      });
+    });
+    if (await check(false)) return;
+    let failure: unknown; try { await check(true); } catch (error) { failure = error; }
+    guard();
+    try { if (await check(false)) { guard(); return; } }
+    catch (error) {
+      if (error instanceof LocalEvidenceError && ['stale_context', 'corrupt_record', 'checkpoint_conflict', 'unsupported_history'].includes(error.code)) throw error;
+      throw new LocalEvidenceError('commit_unconfirmed');
+    }
+    if (failure) throw storageError(failure);
+    throw new LocalEvidenceError('commit_unconfirmed');
   }
   async readCheckpoint(fence: LocalFence, sourceSlotKey: string): Promise<CaptureCheckpoint | null> {
     const result = await this.transaction<{ row: CheckpointRow; journal?: CommitRow } | null>(fence, 'readonly', (tx, done) => {
@@ -622,12 +828,12 @@ export class LocalEvidenceStore {
           try { guard(); if (read.result === undefined || !covers(read.result)) store.put(row, scopeKey(fence)); done(); }
           catch (error) { fail(error); }
         };
-      });
+      }, true);
     } catch (error) { failure = error; }
     guard();
     const read = await this.transaction<unknown>(fence, 'readonly', (tx, done) => {
       const request = tx.objectStore(name).get(scopeKey(fence)); request.onsuccess = () => done(request.result);
-    }); guard();
+    }, true); guard();
     if (read === undefined || !covers(read)) { if (failure) throw storageError(failure); throw new LocalEvidenceError('commit_unconfirmed'); }
   }
   async readCachedContext(fence: LocalFence): Promise<CachedEvidenceContext | null> {
@@ -643,7 +849,7 @@ export class LocalEvidenceStore {
   private async readCache(fence: LocalFence, name: 'contexts' | 'prefixes'): Promise<CachedEvidenceContext | CachedEvidencePrefix | null> {
     const row = await this.transaction<unknown>(fence, 'readonly', (tx, done) => {
       const request = tx.objectStore(name).get(scopeKey(fence)); request.onsuccess = () => done(request.result);
-    });
+    }, true);
     if (row === undefined) return null;
     const checked = checkedCacheRow(row, name === 'prefixes');
     if (checked.ownerId !== fence.ownerId || checked.generationId !== fence.generationId) throw new LocalEvidenceError('corrupt_record');
@@ -771,14 +977,100 @@ export class LocalEvidenceStore {
     return { status: result.events.some(entry => entry.delivery.status === 'quarantined') || result.batches.some(entry => entry.delivery.status === 'quarantined') ? 'quarantined' : 'pending',
       events: result.events.map(entry => ({ event: immutableCopy(entry.event), delivery: entry.delivery })), batches: result.batches };
   }
-  /** Caller must supply a freshly revalidated generation fence. No reset integration is installed. */
+  /** Reset authority is a distinct registered proof; missing generation never gets a fake fence. */
+  async cleanupConfirmedReset(proof: AuthenticatedResetEvidenceStateProof): Promise<void> {
+    const guard = () => assertAuthenticatedResetEvidenceState(proof); guard();
+    const retain = proof.status === 'enrolled' ? proof.context?.generationId : null;
+    if (proof.status === 'enrolled' ? !proof.context || !retain || proof.context.ownerId !== proof.ownerId || !same(proof.context.resetMarker, proof.resetMarker)
+      : proof.context !== null) throw new LocalEvidenceError('stale_context');
+    let carried: LocalGenerationAdmission | null = null;
+    const sweep = (write: boolean) => this.guardedTransaction<boolean>(guard, write ? 'readwrite' : 'readonly', (tx, done, fail, incarnation) => {
+      const candidates: { name: ScopedStoreName; key: IDBValidKey; scope: ScopedRow }[] = [];
+      const events = new Map<string, FrozenEvidence>(), delivery: DeliveryMetadata[] = [], admissions: LocalGenerationAdmission[] = [];
+      const intents: { key: IDBValidKey; row: EnrollmentIntentRow }[] = [];
+      const guarded = (work: () => void) => { try { guard(); work(); } catch (error) { fail(error); } };
+      let remaining = SCOPED_STORES.length + 1;
+      const intentIsCurrent = (row: EnrollmentIntentRow) => !!retain && row.intent.requestId === proof.creationRequestId && proof.initialGenerationId === retain &&
+        same(row.intent.resetMarker, proof.resetMarker) && row.intent.studyDayTimezone === proof.context!.studyDayTimezone &&
+        row.intent.protocol === proof.context!.protocol && row.intent.manifestRelease === proof.context!.manifestRelease && row.intent.manifestDigest === proof.context!.manifestDigest;
+      const finish = () => {
+        if (--remaining) return;
+        guard();
+        for (const value of delivery) {
+          const event = events.get(eventStorageKey(value.ownerId, value.eventId));
+          if (!event || event.generationId !== value.generationId || event.payloadHash !== value.payloadHash) throw new LocalEvidenceError('corrupt_record');
+        }
+        const owned = admissions.filter(row => row.ownerId === proof.ownerId);
+        if (owned.some(row => row.creationRequestId !== proof.creationRequestId || row.initialGenerationId !== proof.initialGenerationId)) throw new LocalEvidenceError('corrupt_record');
+        const current = owned.find(row => row.generationId === retain);
+        if (current && !same(current.resetMarker, proof.resetMarker)) throw new LocalEvidenceError('corrupt_record');
+        // Existing current-generation admission wins, including a same-request
+        // retry after legitimate current-generation work. Unknown never rises.
+        if (write && retain && !current && incarnation.continuity === 'verified' && owned.length) {
+          carried = { version: 1, ownerId: proof.ownerId, generationId: retain, incarnationId: incarnation.incarnationId,
+            continuity: 'verified', kind: 'reset_carry', creationRequestId: proof.creationRequestId, initialGenerationId: proof.initialGenerationId,
+            resetMarker: proof.resetMarker, resetRequestId: proof.requestId };
+          checkedAdmissionValue(localGenerationAdmissionSchema, carried);
+          tx.objectStore('admissions').add(carried, scopeKey(carried));
+        }
+        let stale = false;
+        for (const candidate of candidates) {
+          if (candidate.scope.ownerId === proof.ownerId && candidate.scope.generationId !== retain) {
+            stale = true; if (write) tx.objectStore(candidate.name).delete(candidate.key);
+          }
+        }
+        for (const candidate of intents) {
+          if (candidate.row.ownerId === proof.ownerId && !intentIsCurrent(candidate.row)) {
+            stale = true; if (write) tx.objectStore('enrollmentIntents').delete(candidate.key);
+          }
+        }
+        if (!write && carried && (!current || !same(current, carried) || incarnation.continuity !== 'verified')) throw new LocalEvidenceError('commit_unconfirmed');
+        done(!stale);
+      };
+      for (const name of SCOPED_STORES) {
+        const request = tx.objectStore(name).openCursor();
+        request.onsuccess = () => guarded(() => {
+          const cursor = request.result; if (!cursor) { finish(); return; }
+          const scope = cleanupIdentity(name, cursor.primaryKey, cursor.value);
+          candidates.push({ name, key: cursor.primaryKey, scope });
+          if (name === 'events') { const event = (cursor.value as EventRow).value; events.set(eventStorageKey(event.ownerId, event.eventId), event); }
+          if (name === 'delivery') delivery.push(cursor.value as DeliveryMetadata);
+          if (name === 'admissions') {
+            const row = checkedAdmissionValue(localGenerationAdmissionSchema, cursor.value);
+            if (row.incarnationId !== incarnation.incarnationId) throw new LocalEvidenceError('corrupt_record');
+            admissions.push(row);
+          }
+          cursor.continue();
+        });
+      }
+      const request = tx.objectStore('enrollmentIntents').openCursor();
+      request.onsuccess = () => guarded(() => {
+        const cursor = request.result; if (!cursor) { finish(); return; }
+        const row = checkedAdmissionValue(enrollmentIntentRowSchema, cursor.value);
+        if (cursor.primaryKey !== row.ownerId || row.incarnationId !== incarnation.incarnationId) throw new LocalEvidenceError('corrupt_record');
+        intents.push({ key: cursor.primaryKey, row }); cursor.continue();
+      });
+    });
+    let failure: unknown;
+    try { await sweep(true); } catch (error) { failure = error; }
+    guard();
+    try { if (await sweep(false)) { guard(); return; } }
+    catch (error) {
+      if (error instanceof LocalEvidenceError && ['stale_context', 'corrupt_record'].includes(error.code)) throw error;
+      if (failure) throw storageError(failure);
+      throw new LocalEvidenceError('commit_unconfirmed');
+    }
+    if (failure) throw storageError(failure);
+    throw new LocalEvidenceError('commit_unconfirmed');
+  }
+  /** Inactive A2.1 compatibility surface, never the shipping reset authority. */
   async cleanupStaleGenerations(freshContext: LocalEvidenceContext): Promise<void> {
     if (freshContext.freshness !== 'fresh') throw new LocalEvidenceError('stale_context');
     const freshFence: LocalFence = { ownerId: freshContext.ownerId, generationId: freshContext.generationId, ownerEpoch: freshContext.ownerEpoch };
     await this.transaction<void>(freshFence, 'readwrite', (tx, done, fail) => {
-      const candidates: { name: StoreName; key: IDBValidKey; scope: ScopedRow }[] = [];
+      const candidates: { name: ScopedStoreName; key: IDBValidKey; scope: ScopedRow }[] = [];
       const events = new Map<string, FrozenEvidence>(), delivery: DeliveryMetadata[] = [];
-      let remaining = STORES.length;
+      let remaining = SCOPED_STORES.length;
       const finish = () => {
         if (--remaining !== 0) return;
         this.fence(freshFence);
@@ -793,7 +1085,7 @@ export class LocalEvidenceStore {
         }
         done();
       };
-      for (const name of STORES) {
+      for (const name of SCOPED_STORES) {
         const store = tx.objectStore(name), request = store.openCursor();
         request.onsuccess = () => {
           try {
@@ -811,7 +1103,7 @@ export class LocalEvidenceStore {
     });
     const remaining = await this.transaction<boolean>(freshFence, 'readonly', (tx, done, fail) => {
       let stale = false; done(false);
-      for (const name of STORES) {
+      for (const name of SCOPED_STORES) {
         const request = tx.objectStore(name).openCursor();
         request.onsuccess = () => {
           try {

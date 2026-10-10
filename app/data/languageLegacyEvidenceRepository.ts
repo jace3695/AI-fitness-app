@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { createClient } from '../../lib/supabase.ts';
 import { languageLegacyEvidenceCapability, type LanguageLegacyEvidenceAuthority, type LanguageRecordContext } from './languageCloudSync.ts';
+import { LANGUAGE_LEGACY_EVIDENCE_RELEASE } from './languageLegacyEvidenceRelease.ts';
+import { languageEvidenceResetCapability, type LanguageResetContext, type LanguageEvidenceResetAuthority } from './languageResetFence.ts';
+import type { FrozenEnrollmentIntent } from '../../lib/language-legacy-evidence/store-admission-types.ts';
 import { parseLanguageMarker } from './languageStorageBoundary.ts';
 import { LocalEvidenceStore } from '../../lib/language-legacy-evidence/local-store.ts';
 import { canonicalSha256, immutableCopy } from '../../lib/language-legacy-evidence/canonical-hash.ts';
@@ -8,13 +11,13 @@ import { canonicalEvidence, evidenceReceiptSchema, instantSchema, makeSourceSlot
 import { isRecordTimezone } from '../../lib/language-legacy-evidence/study-policy.ts';
 import { projectLegacyEvidence } from '../../lib/language-legacy-evidence/projection.ts';
 import { LEGACY_EVIDENCE_MANIFEST_DIGEST, LEGACY_EVIDENCE_MANIFEST_RELEASE, SERVER_EVIDENCE_PROTOCOL } from '../../lib/language-legacy-evidence/identity-manifest.ts';
-import { registerAuthenticatedContext, registerAuthenticatedPrefix, registerAuthenticatedReceiptReadback } from '../../lib/language-legacy-evidence/receipt-proof.ts';
+import { registerAuthenticatedContext, registerAuthenticatedPrefix, registerAuthenticatedReceiptReadback, registerAuthenticatedAdmissionStatus, registerAuthenticatedFirstAdmission, registerAuthenticatedResetEvidenceState } from '../../lib/language-legacy-evidence/receipt-proof.ts';
 import { LocalEvidenceError, MAX_BATCH_BYTES, MAX_BATCH_EVENTS, MAX_EVENT_BYTES, type FrozenBatch, type Immutable, type LocalEvidenceContext, type LocalFence } from '../../lib/language-legacy-evidence/persistence-types.ts';
 import { verifyFrozenBatch } from '../../lib/language-legacy-evidence/outbox.ts';
 import { MAX_PREFIX_EVENTS, MAX_PREFIX_BYTES, type ServerEvidenceContext, type ServerEvidenceReceipt } from '../../lib/language-legacy-evidence/server-types.ts';
 import type { EvidenceProjection, EvidenceReceipt, EvidenceSnapshot } from '../../lib/language-legacy-evidence/types.ts';
 
-export type LegacyEvidenceFailure = 'stale_authority' | 'unavailable' | 'invalid_response' | 'event_conflict' |
+export type LegacyEvidenceFailure = 'feature_inactive' | 'local_continuity_unknown' | 'legacy_enrolled_generation_missing' | 'legacy_enrollment_stale' | 'legacy_enrollment_conflict' | 'legacy_enrollment_integrity' | 'legacy_invalid_enrollment' | 'stale_authority' | 'unavailable' | 'invalid_response' | 'event_conflict' |
   'legacy_auth_mismatch' | 'legacy_state_not_ready' | 'legacy_unsupported_protocol' | 'legacy_unsupported_manifest' |
   'legacy_stale_generation' | 'legacy_marker_conflict' | 'legacy_invalid_event' | 'legacy_event_id_conflict' |
   'legacy_source_slot_conflict' | 'legacy_predecessor_conflict' | 'legacy_retryable';
@@ -56,6 +59,7 @@ export interface LanguageLegacyEvidenceRepository {
   /** Local cancellation serial is allocated here, never parsed from the owner's opaque epoch. */
   context(): Immutable<LocalEvidenceContext>;
   serverContext(): Immutable<ServerEvidenceContext>;
+  localContinuity(): 'verified' | 'unknown';
   store(): LocalEvidenceStore;
   deliverBatch(batch: FrozenBatch): Promise<{ status: 'acknowledged' | 'readback_required'; acknowledged: number; pending: number }>;
   readPrefix(options?: { maxEvents?: number; maxPayloadBytes?: number }): Promise<LegacyEvidencePrefixResult>;
@@ -63,7 +67,7 @@ export interface LanguageLegacyEvidenceRepository {
   cleanupAfterReset(expectedMarker: Readonly<{ present: boolean; value: string | null }>): Promise<void>;
   close(): void;
 }
-type Registration = { authority: LanguageLegacyEvidenceAuthority; context: ServerEvidenceContext; serial: number; retired: boolean; store: LocalEvidenceStore };
+type Registration = { authority: LanguageLegacyEvidenceAuthority; context: ServerEvidenceContext; serial: number; retired: boolean; store: LocalEvidenceStore; continuity: 'verified' | 'unknown' };
 const repositories = new WeakMap<LanguageLegacyEvidenceRepository, Registration>();
 const prefixes = new WeakMap<VerifiedLegacyEvidencePrefix, Registration>();
 const retiredAuthorities = new WeakSet<LanguageLegacyEvidenceAuthority>();
@@ -93,7 +97,7 @@ function parseContext(input: unknown, authority: LanguageLegacyEvidenceAuthority
 }
 function remoteFailure(error: unknown): LegacyEvidenceRepositoryError {
   const message = error && typeof error === 'object' && 'message' in error ? String(error.message) : '';
-  const known: LegacyEvidenceFailure[] = ['legacy_auth_mismatch', 'legacy_state_not_ready', 'legacy_unsupported_protocol', 'legacy_unsupported_manifest',
+  const known: LegacyEvidenceFailure[] = ['legacy_enrollment_integrity', 'legacy_invalid_enrollment', 'legacy_enrolled_generation_missing', 'legacy_enrollment_stale', 'legacy_enrollment_conflict', 'legacy_auth_mismatch', 'legacy_state_not_ready', 'legacy_unsupported_protocol', 'legacy_unsupported_manifest',
     'legacy_stale_generation', 'legacy_marker_conflict', 'legacy_invalid_event', 'legacy_event_id_conflict', 'legacy_source_slot_conflict', 'legacy_predecessor_conflict', 'legacy_retryable'];
   return new LegacyEvidenceRepositoryError(known.find(code => message === code) ?? 'unavailable');
 }
@@ -277,28 +281,81 @@ async function readPrefix(entry: Registration, options: { maxEvents?: number; ma
   const result: VerifiedLegacyEvidencePrefix = immutableCopy({ status: 'complete_authenticated_prefix' as const, snapshot, context });
   prefixes.set(result, entry); return result;
 }
-/** Inactive: no UI, auth hook, reset handler or assistant imports this module. */
+/** No capture/display consumer. Initialization requires the explicit release floor. */
 export async function acquireLanguageLegacyEvidenceRepository(recordContext: LanguageRecordContext,
   options: { studyDayTimezone: string; mode?: 'initialize' | 'existing' }): Promise<LanguageLegacyEvidenceRepository> {
+  const initialize = (options.mode ?? 'initialize') === 'initialize';
   if (!isRecordTimezone(options.studyDayTimezone) || !['initialize', 'existing'].includes(options.mode ?? 'initialize')) fail('invalid_response');
+  if (initialize && (LANGUAGE_LEGACY_EVIDENCE_RELEASE.resetProtocol !== 'protocol-required' || !LANGUAGE_LEGACY_EVIDENCE_RELEASE.enrollmentEnabled)) fail('feature_inactive');
   let authority: LanguageLegacyEvidenceAuthority;
   try { authority = languageLegacyEvidenceCapability.acquire(recordContext); } catch { fail('stale_authority'); }
-  const guard = () => { if (retiredAuthorities.has(authority)) fail('stale_authority'); try { languageLegacyEvidenceCapability.assertCurrent(authority); } catch { fail('stale_authority'); } };
-  const result = await rpc(authority, guard, options.mode === 'existing' ? 'read_language_legacy_evidence_context' : 'get_language_legacy_evidence_context',
-    options.mode === 'existing' ? { expected_owner: authority.ownerId, expected_generation: null, manifest_digest: LEGACY_EVIDENCE_MANIFEST_DIGEST } :
-      { expected_owner: authority.ownerId, expected_marker: authority.resetMarker, proposed_timezone: options.studyDayTimezone,
-        protocol: SERVER_EVIDENCE_PROTOCOL, manifest_digest: LEGACY_EVIDENCE_MANIFEST_DIGEST });
-  guard(); const context = parseContext(result, authority);
+  let acquiredEntry: Registration | null = null;
+  const guard = () => { if (acquiredEntry?.retired || retiredAuthorities.has(authority)) fail('stale_authority'); try { languageLegacyEvidenceCapability.assertCurrent(authority); } catch { fail('stale_authority'); } };
   if (cancellationSerial === Number.MAX_SAFE_INTEGER) fail('unavailable');
   const serial = ++cancellationSerial;
-  const entry = { authority, context, serial, retired: false } as Registration;
-  entry.store = new LocalEvidenceStore({ isCurrent(fence: LocalFence) {
-    try { assertRegistration(entry); return fence.ownerId === context.ownerId && fence.generationId === context.generationId && fence.ownerEpoch === serial; } catch { return false; }
+  let context: ServerEvidenceContext | null = null;
+  const store = new LocalEvidenceStore({ writerAdmission: null, isCurrent(fence: LocalFence) {
+    try { guard(); return context !== null && fence.ownerId === context.ownerId && fence.generationId === context.generationId && fence.ownerEpoch === serial; } catch { return false; }
   } });
+  const readStatus = async () => {
+    const raw = await rpc(authority, guard, 'read_language_legacy_evidence_status', { expected_owner: authority.ownerId, expected_marker: authority.resetMarker });
+    guard(); return parseStatus(raw, authority.ownerId, authority.resetMarker);
+  };
+  let status = await readStatus(); guard();
+  if (status.status === 'enrolled_generation_missing') fail('legacy_enrolled_generation_missing');
+  if (!initialize && status.status === 'unenrolled') fail('legacy_state_not_ready');
+  let admission = await store.readAdmission(registerAuthenticatedAdmissionStatus({ ...statusAdmission(status), ownerEpoch: serial }, guard)); guard();
+  if (status.status === 'unenrolled') {
+    // Durable exact intent precedes every network enrollment attempt. A response
+    // lost after commit is completed from fresh status on the next acquisition.
+    let intent = admission.intent;
+    if (!intent) intent = { version: 1, ownerId: authority.ownerId, requestId: crypto.randomUUID(), resetMarker: { ...authority.resetMarker },
+      studyDayTimezone: options.studyDayTimezone, protocol: SERVER_EVIDENCE_PROTOCOL,
+      manifestRelease: LEGACY_EVIDENCE_MANIFEST_RELEASE, manifestDigest: LEGACY_EVIDENCE_MANIFEST_DIGEST };
+    assertIntent(intent, authority.ownerId, authority.resetMarker);
+    await store.freezeEnrollmentIntent(intent, registerAuthenticatedAdmissionStatus({ ...statusAdmission(status), ownerEpoch: serial }, guard)); guard();
+    const result = await rpc(authority, guard, 'enroll_language_legacy_evidence_v1', {
+      expected_owner: intent.ownerId, creation_request_id: intent.requestId, expected_marker: intent.resetMarker,
+      proposed_timezone: intent.studyDayTimezone, protocol: intent.protocol, manifest_release: intent.manifestRelease, manifest_digest: intent.manifestDigest,
+    });
+    guard(); const receipt = enrollmentSchema.safeParse(result); if (!receipt.success) fail('invalid_response');
+    parseContext(receipt.data.currentContext, authority);
+    if (receipt.data.status === 'enrolled' ? receipt.data.creationRequestId !== intent.requestId || receipt.data.initialGenerationId !== receipt.data.currentContext.generationId
+      : receipt.data.creationRequestId === intent.requestId) fail('invalid_response');
+    // An RPC result alone is never local admission proof.
+    status = await readStatus(); guard();
+    if (status.status !== 'enrolled' || !status.enrollment || !status.currentContext) fail('legacy_enrolled_generation_missing');
+    if (receipt.data.creationRequestId !== status.enrollment.creationRequestId || receipt.data.initialGenerationId !== status.enrollment.initialGenerationId ||
+      !equals(identity(receipt.data.currentContext), identity(status.currentContext))) fail('invalid_response');
+    admission = await store.readAdmission(registerAuthenticatedAdmissionStatus({ ...statusAdmission(status), ownerEpoch: serial }, guard)); guard();
+  }
+  if (status.status !== 'enrolled' || !status.currentContext || !status.enrollment) fail('legacy_state_not_ready');
+  context = parseContext(status.currentContext, authority);
+  if (admission.intent && admission.continuity !== 'verified') {
+    const intent = admission.intent;
+    // A competing enrollment, rotated generation or modified request cannot
+    // convert the pending local intent into first-use continuity.
+    if (firstAdmissionMatches(intent, status)) {
+      await store.completeFirstAdmission(intent, registerAuthenticatedFirstAdmission({ ownerId: authority.ownerId, ownerEpoch: serial,
+        incarnationId: admission.incarnationId, intent, currentContext: context,
+        creationRequestId: status.enrollment.creationRequestId, initialGenerationId: status.enrollment.initialGenerationId }, guard)); guard();
+      admission = await store.readAdmission(registerAuthenticatedAdmissionStatus({ ...statusAdmission(status), ownerEpoch: serial }, guard)); guard();
+    }
+  }
+  const entry = { authority, context, serial, retired: false, continuity: admission.continuity } as Registration;
+  acquiredEntry = entry;
+  entry.store = new LocalEvidenceStore({ writerAdmission: admission.continuity === 'verified' ? admission.admission : null,
+    onAdmissionLost() { entry.continuity = 'unknown'; },
+    isCurrent(fence: LocalFence) {
+      try { assertRegistration(entry); return fence.ownerId === entry.context.ownerId && fence.generationId === entry.context.generationId && fence.ownerEpoch === serial; }
+      catch { return false; }
+    },
+  });
   const repository: LanguageLegacyEvidenceRepository = Object.freeze({
     context() { return immutableCopy(localContext(registration(this))); },
     serverContext() { return immutableCopy(registration(this).context); },
-    store() { return registration(this).store; },
+    localContinuity() { return registration(this).continuity; },
+    store() { const current = registration(this); if (LANGUAGE_LEGACY_EVIDENCE_RELEASE.resetProtocol !== 'protocol-required' || !LANGUAGE_LEGACY_EVIDENCE_RELEASE.captureEnabled) fail('feature_inactive'); if (current.continuity !== 'verified') fail('local_continuity_unknown'); return current.store; },
     async deliverBatch(batch: FrozenBatch) { return deliver(registration(this), batch); },
     async readPrefix(bounds?: { maxEvents?: number; maxPayloadBytes?: number }) { return readPrefix(registration(this), bounds); },
     project(prefix: VerifiedLegacyEvidencePrefix) {
@@ -321,4 +378,82 @@ export async function acquireLanguageLegacyEvidenceRepository(recordContext: Lan
   try { await entry.store.writeVerifiedContext(localContext(entry), proof); assertRegistration(entry); }
   catch (error) { entry.retired = true; throw error; }
   return repository;
+}
+
+const enrollmentIdentitySchema = z.object({ creationRequestId: uuid, initialGenerationId: uuid }).strict();
+const statusSchema = z.object({ version: z.literal(1), status: z.enum(['unenrolled', 'enrolled', 'enrolled_generation_missing']),
+  ownerId: uuid, protocol: z.literal(SERVER_EVIDENCE_PROTOCOL), manifestRelease: z.literal(LEGACY_EVIDENCE_MANIFEST_RELEASE),
+  manifestDigest: z.literal(LEGACY_EVIDENCE_MANIFEST_DIGEST), statePresent: z.literal(true), resetMarker: markerSchema,
+  enrollment: enrollmentIdentitySchema.nullable(), currentContext: contextSchema.nullable() }).strict();
+const enrollmentSchema = z.object({ version: z.literal(1), status: z.enum(['enrolled', 'existing_enrollment']),
+  creationRequestId: uuid, initialGenerationId: uuid, currentContext: contextSchema }).strict();
+type EvidenceStatus = z.infer<typeof statusSchema>;
+function parseStatus(input: unknown, ownerId: string, expectedMarker: Readonly<{ present: boolean; value: string | null }>): EvidenceStatus {
+  const parsed = statusSchema.safeParse(input); if (!parsed.success) fail('invalid_response');
+  const value = parsed.data, marker = parseLanguageMarker(value.resetMarker.present ? value.resetMarker.value : null);
+  if (value.ownerId !== ownerId || !equals(value.resetMarker, expectedMarker) ||
+    (value.resetMarker.present ? marker.kind !== 'valid' : value.resetMarker.value !== null) ||
+    (value.status === 'unenrolled' ? value.enrollment !== null || value.currentContext !== null : value.enrollment === null) ||
+    (value.status === 'enrolled') !== (value.currentContext !== null)) fail('invalid_response');
+  if (value.currentContext && (value.currentContext.ownerId !== ownerId || !equals(value.currentContext.resetMarker, expectedMarker) ||
+    Date.parse(value.currentContext.prospectiveStartedAt) > Date.parse(value.currentContext.serverTime))) fail('invalid_response');
+  return value;
+}
+function statusAdmission(status: EvidenceStatus) {
+  return { ownerId: status.ownerId, resetMarker: status.resetMarker, status: status.status,
+    creationRequestId: status.enrollment?.creationRequestId ?? null, initialGenerationId: status.enrollment?.initialGenerationId ?? null,
+    currentContext: status.currentContext };
+}
+function assertIntent(intent: FrozenEnrollmentIntent, ownerId: string, marker: Readonly<{ present: boolean; value: string | null }>): void {
+  if (intent.version !== 1 || intent.ownerId !== ownerId || !uuid.safeParse(intent.requestId).success || !equals(intent.resetMarker, marker) ||
+    !isRecordTimezone(intent.studyDayTimezone) || intent.protocol !== SERVER_EVIDENCE_PROTOCOL ||
+    intent.manifestRelease !== LEGACY_EVIDENCE_MANIFEST_RELEASE || intent.manifestDigest !== LEGACY_EVIDENCE_MANIFEST_DIGEST) fail('legacy_enrollment_stale');
+}
+function firstAdmissionMatches(intent: FrozenEnrollmentIntent, status: EvidenceStatus): boolean {
+  const context = status.currentContext;
+  return status.status === 'enrolled' && context !== null && status.enrollment !== null &&
+    intent.ownerId === status.ownerId && intent.requestId === status.enrollment.creationRequestId &&
+    context.generationId === status.enrollment.initialGenerationId && equals(intent.resetMarker, status.resetMarker) &&
+    intent.studyDayTimezone === context.studyDayTimezone && intent.protocol === context.protocol &&
+    intent.manifestRelease === context.manifestRelease && intent.manifestDigest === context.manifestDigest;
+}
+function cleanupIdentity(status: EvidenceStatus): unknown {
+  return { ...statusAdmission(status), currentContext: status.currentContext ? identity(status.currentContext) : null };
+}
+async function resetStatus(authority: LanguageEvidenceResetAuthority): Promise<EvidenceStatus> {
+  const guard = () => languageEvidenceResetCapability.assertCurrent(authority);
+  guard(); const client = createClient();
+  let auth;
+  try { auth = await client.auth.getUser(); } catch { guard(); fail('unavailable'); }
+  guard(); if (auth.error || auth.data.user?.id !== authority.ownerId) fail('legacy_auth_mismatch');
+  let result;
+  try { result = await client.rpc('read_language_legacy_evidence_status', { expected_owner: authority.ownerId,
+    expected_marker: { present: true, value: authority.marker } }).abortSignal(new AbortController().signal); }
+  catch { guard(); fail('unavailable'); }
+  guard(); if (result.error) throw remoteFailure(result.error);
+  return parseStatus(result.data, authority.ownerId, { present: true, value: authority.marker });
+}
+/** Sole consumer is the existing reset orchestrator. No ordinary writer context
+ * can be acquired while the same-request cleanup fence is pending. */
+export async function cleanupLanguageLegacyEvidenceForReset(context: LanguageResetContext, marker: string): Promise<LanguageResetContext> {
+  if (LANGUAGE_LEGACY_EVIDENCE_RELEASE.resetProtocol !== 'protocol-required') fail('feature_inactive');
+  const authority = languageEvidenceResetCapability.acquire(context, marker);
+  const guard = () => languageEvidenceResetCapability.assertCurrent(authority);
+  const before = await resetStatus(authority); guard();
+  if (before.status !== 'unenrolled') {
+    if (!before.enrollment) fail('invalid_response');
+    const proof = registerAuthenticatedResetEvidenceState({ ownerId: authority.ownerId, ownerEpoch: authority.ownerEpoch,
+      requestId: authority.requestId, resetMarker: { present: true, value: marker }, status: before.status,
+      creationRequestId: before.enrollment.creationRequestId, initialGenerationId: before.enrollment.initialGenerationId,
+      context: before.currentContext }, guard);
+    // The registered reset proof is the only authority used by cleanup; ordinary
+    // LocalFence access remains disabled throughout the transaction and readback.
+    const store = new LocalEvidenceStore({ writerAdmission: null, isCurrent: () => false });
+    await store.cleanupConfirmedReset(proof); guard();
+  }
+  // This deliberately also checks the skip-IDB branch. Concurrent first
+  // enrollment or generation loss under the same marker leaves cleanup pending.
+  const after = await resetStatus(authority); guard();
+  if (!equals(cleanupIdentity(before), cleanupIdentity(after))) fail('legacy_stale_generation');
+  return languageEvidenceResetCapability.verify(authority);
 }

@@ -32,7 +32,7 @@ export function parseLanguageMarker(raw: unknown): LanguageMarker {
   if (canonical !== match[1].slice(0, 19)) return { kind: 'invalid', raw };
   return { kind: 'valid', raw, time, requestId: match[2] };
 }
-export type LanguageResetFence = { version: 1; owner: string; requestId: string; expectedMarker: string | null; state: 'pending' | 'uncertain' | 'completed'; marker?: string };
+export type LanguageResetFence = { version: 1; owner: string; requestId: string; expectedMarker: string | null; state: 'pending' | 'uncertain' | 'completed'; marker?: string; evidenceCleanup?: { version: 1; status: 'pending' | 'verified' } };
 export function parseLanguageResetFence(raw: string | null): LanguageResetFence | null {
   if (raw === null) return null;
   try {
@@ -42,6 +42,9 @@ export function parseLanguageResetFence(raw: string | null): LanguageResetFence 
       || !['pending', 'uncertain', 'completed'].includes(value.state)
       || !(value.expectedMarker === null || typeof value.expectedMarker === 'string')
       || parseLanguageMarker(value.expectedMarker).kind === 'invalid') throw new LanguageBoundaryError();
+    if (value.evidenceCleanup !== undefined && (!value.evidenceCleanup || Array.isArray(value.evidenceCleanup)
+      || Object.keys(value.evidenceCleanup).sort().join(',') !== 'status,version' || value.evidenceCleanup.version !== 1
+      || !['pending', 'verified'].includes(value.evidenceCleanup.status))) throw new LanguageBoundaryError();
     if (value.state === 'completed') {
       const marker = parseLanguageMarker(value.marker);
       if (marker.kind !== 'valid' || marker.requestId !== value.requestId) throw new LanguageBoundaryError();
@@ -100,7 +103,7 @@ export function readLanguageBoundary(snapshot: StorageSnapshot, expectedOwner: S
     readLanguageSyncBase(snapshot.getItem(languageSyncBaseKey(expectedOwner.userId)));
     const ack = snapshot.getItem(languageSyncAckKey(expectedOwner.userId));
     if (ack !== null && !validLanguageAck(ack)) throw new LanguageBoundaryError();
-    if (fence && (fence.owner !== expectedOwner.userId || fence.state !== 'completed' || fence.marker !== marker)) {
+    if (fence && (fence.owner !== expectedOwner.userId || fence.state !== 'completed' || fence.evidenceCleanup?.status === 'pending' || fence.marker !== marker)) {
       return { status: 'unavailable', reason: '학습 기록 초기화가 아직 확인되지 않았습니다. 이 기기의 기록은 보존 중입니다. 초기화 화면에서 같은 요청을 확인해 주세요.' };
     }
     return { status: 'ready', binding };
@@ -170,7 +173,7 @@ export function planLanguageOwnerTransition(snapshot: StorageSnapshot, desiredOw
   } catch { return blocked('corrupt-language-evidence'); }
   if (desiredOwner.userId === provenOwner) return save({ version: 1, epoch: desiredOwner.epoch, owner: provenOwner, status: 'ready', provenance: binding?.provenance ?? 'legacy' });
   // Only verified exact cache may follow the old cleanup behavior. Unknown/different bytes stay in place.
-  if (binding?.provenance === 'verified' && base && validLanguageAck(ack) && (!fence || fence.state === 'completed') && sameLanguageBytes(bytes, projectLanguageWire(base))) {
+  if (binding?.provenance === 'verified' && base && validLanguageAck(ack) && (!fence || fence.state === 'completed' && fence.evidenceCleanup?.status !== 'pending') && sameLanguageBytes(bytes, projectLanguageWire(base))) {
     for (const key of LANGUAGE_STORAGE_KEYS) changes[key] = null;
     changes[languageSyncBaseKey(provenOwner)] = null; changes[languageSyncAckKey(provenOwner)] = null;
     changes[LANGUAGE_RESET_FENCE_KEY] = null; changes[LANGUAGE_OWNER_KEY] = desiredOwner.userId;

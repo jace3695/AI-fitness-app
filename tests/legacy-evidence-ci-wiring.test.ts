@@ -12,11 +12,14 @@ function step(name: string) {
   return matches[0];
 }
 
-test('disposable seed installs the actual ledger once after all reset and connector dependencies', () => {
+test('disposable seed installs the actual ledger and additive enrollment once after all reset and connector dependencies', () => {
   const stack = source('scripts/e2e-stack.mjs');
   const migrations = [...stack.matchAll(/readFileSync\('(supabase\/migrations\/[^']+)'/g)].map(match => match[1]);
   const ledger = 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql';
+  const enrollment = 'supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql';
   assert.equal(migrations.filter(path => path === ledger).length, 1);
+  assert.equal(migrations.filter(path => path === enrollment).length, 1);
+  assert.ok(migrations.indexOf(ledger) < migrations.indexOf(enrollment));
   for (const dependency of [
     'supabase/migrations/20260915034857_assistant_task_command_history.sql',
     'supabase/migrations/20260915052413_chatgpt_scoped_connection.sql',
@@ -27,7 +30,8 @@ test('disposable seed installs the actual ledger once after all reset and connec
     assert.ok(migrations.indexOf(dependency) < migrations.indexOf(ledger), `${dependency} must precede the ledger`);
   }
   assert.ok(stack.includes("appendFileSync(`${workdir}/supabase/seed.sql`, '\\n' + readFileSync('" + ledger + "', 'utf8'));"));
-  assert.ok(stack.indexOf(ledger) < stack.indexOf("run('start', '--exclude'"));
+  assert.ok(stack.indexOf(enrollment) < stack.indexOf("run('start', '--exclude'"));
+  assert.doesNotMatch(stack, /grant execute on function.*legacy_evidence|DISPOSABLE_EVIDENCE_RELEASE|enrollmentEnabled|captureEnabled/);
 });
 
 test('post-stack CI step invokes the authored PostgreSQL and HTTP chain with native TypeScript loading', () => {

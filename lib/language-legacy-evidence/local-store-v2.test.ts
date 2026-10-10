@@ -50,7 +50,7 @@ function seedAcknowledged(qa: ReturnType<typeof harness>, event: Parameters<type
   qa.adapter.seed('receipts', JSON.stringify([event.ownerId, event.generationId, event.eventId]), { version: 1, ownerId: event.ownerId, generationId: event.generationId, canonical });
   return metadata;
 }
-test('v1 upgrade adds three stores and preserves all six original stores, indexes, immutable bytes and raw handoffs', async () => {
+test('v1 upgrade adds receipt/cache/admission stores and preserves all six original stores, indexes, immutable bytes and raw handoffs', async () => {
   const before = harness(), start = await presentation(); await before.store.commit(start);
   const submitted = await answer(start.checkpoint); await before.store.commit(submitted);
   const batch = await freezeBatch(id(), [start.event!, submitted.event!], null); await before.store.putBatch(start.fence, batch);
@@ -65,7 +65,7 @@ test('v1 upgrade adds three stores and preserves all six original stores, indexe
     const request = qa.adapter.factory.open(LOCAL_EVIDENCE_DATABASE, LOCAL_EVIDENCE_DATABASE_VERSION);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
-      assert.equal(request.result.version, 2);
+      assert.equal(request.result.version, LOCAL_EVIDENCE_DATABASE_VERSION);
       const tx = request.result.transaction(['events', 'checkpoints'], 'readonly');
       assert.ok(tx.objectStore('events').indexNames.contains('semanticKey'));
       assert.ok(tx.objectStore('checkpoints').indexNames.contains('episodeKey'));

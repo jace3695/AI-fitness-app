@@ -48,3 +48,49 @@ export function registerAuthenticatedPrefix(input: { context: LocalEvidenceConte
   return register(prefixes, input, assertCurrent) as AuthenticatedPrefixProof;
 }
 export function assertAuthenticatedPrefix(proof: AuthenticatedPrefixProof, fence: LocalFence): void { assertRegistered(prefixes, proof, fence); }
+
+// Enrollment and reset are separate from ordinary writer authority: neither may
+// be reconstructed from cached context or a serialized verified flag.
+import type { FrozenEnrollmentIntent } from './store-admission-types.ts';
+type AdmissionStatusInput = {
+  ownerId: string; ownerEpoch: number; resetMarker: { present: boolean; value: string | null };
+  status: 'unenrolled' | 'enrolled' | 'enrolled_generation_missing';
+  creationRequestId: string | null; initialGenerationId: string | null; currentContext: ServerEvidenceContext | null;
+};
+type FirstAdmissionInput = {
+  ownerId: string; ownerEpoch: number; incarnationId: string; intent: FrozenEnrollmentIntent;
+  currentContext: ServerEvidenceContext; creationRequestId: string; initialGenerationId: string;
+};
+type ResetEvidenceInput = {
+  ownerId: string; ownerEpoch: number; requestId: string; resetMarker: { present: boolean; value: string | null };
+  status: 'enrolled' | 'enrolled_generation_missing'; creationRequestId: string; initialGenerationId: string;
+  context: ServerEvidenceContext | null;
+};
+declare const admissionStatusBrand: unique symbol;
+declare const firstAdmissionBrand: unique symbol;
+declare const resetEvidenceBrand: unique symbol;
+export type AuthenticatedAdmissionStatusProof = Immutable<AdmissionStatusInput & { readonly [admissionStatusBrand]: true }>;
+export type AuthenticatedFirstAdmissionProof = Immutable<FirstAdmissionInput & { readonly [firstAdmissionBrand]: true }>;
+export type AuthenticatedResetEvidenceStateProof = Immutable<ResetEvidenceInput & { readonly [resetEvidenceBrand]: true }>;
+const admissionStatuses = new WeakMap<object, () => void>();
+const firstAdmissions = new WeakMap<object, () => void>();
+const resetEvidenceStates = new WeakMap<object, () => void>();
+function registerLive<T extends object>(registry: WeakMap<object, () => void>, input: T, assertCurrent: () => void): Immutable<T> {
+  assertCurrent(); const proof = immutableCopy(input); registry.set(proof, assertCurrent); assertCurrent(); return proof;
+}
+function assertLive(registry: WeakMap<object, () => void>, proof: object): void {
+  const guard = registry.get(proof); if (!guard) throw new LocalEvidenceError('stale_context'); guard();
+}
+/** Sole producers are the fixed authenticated repository operations. */
+export function registerAuthenticatedAdmissionStatus(input: AdmissionStatusInput, assertCurrent: () => void): AuthenticatedAdmissionStatusProof {
+  return registerLive(admissionStatuses, input, assertCurrent) as AuthenticatedAdmissionStatusProof;
+}
+export function assertAuthenticatedAdmissionStatus(proof: AuthenticatedAdmissionStatusProof): void { assertLive(admissionStatuses, proof); }
+export function registerAuthenticatedFirstAdmission(input: FirstAdmissionInput, assertCurrent: () => void): AuthenticatedFirstAdmissionProof {
+  return registerLive(firstAdmissions, input, assertCurrent) as AuthenticatedFirstAdmissionProof;
+}
+export function assertAuthenticatedFirstAdmission(proof: AuthenticatedFirstAdmissionProof): void { assertLive(firstAdmissions, proof); }
+export function registerAuthenticatedResetEvidenceState(input: ResetEvidenceInput, assertCurrent: () => void): AuthenticatedResetEvidenceStateProof {
+  return registerLive(resetEvidenceStates, input, assertCurrent) as AuthenticatedResetEvidenceStateProof;
+}
+export function assertAuthenticatedResetEvidenceState(proof: AuthenticatedResetEvidenceStateProof): void { assertLive(resetEvidenceStates, proof); }

@@ -135,6 +135,9 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
         onAuthStateChange(callback: AuthListener) { authListeners.add(callback); return { data: { subscription: { unsubscribe() { authListeners.delete(callback); } } } }; },
       } },
     },
+    // These UI fixtures retain the default inactive release. The actual registered
+    // evidence reset adapter is exercised with SQL in its dedicated shipped-handler suite.
+    [resolve(root, 'app/data/languageLegacyEvidenceRepository.ts')]: { cleanupLanguageLegacyEvidenceForReset() { assert.fail('Inactive reset must not open evidence'); } },
     [resolve(root, 'app/lib/devicePin.ts')]: {
       MAX_PIN_FAILURES: 5, PIN_LENGTH: 6,
       async hasDevicePin(userId: string, signal?: AbortSignal) { pinReads.push({ userId, signal }); return pinWaits.shift()?.promise ?? false; },

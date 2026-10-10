@@ -361,6 +361,15 @@ export function createDeterministicIDBAdapter() {
         state.stores.set(name, store);
         return {
           name, keyPath: store.keyPath, indexNames: names(() => [...store.indexes.keys()].sort()),
+          // Minimal versionchange write support. Upgrade operates on a cloned
+          // schema/row snapshot; a synchronous failure never publishes it.
+          put(value: unknown, key: Key) {
+            if (!upgrading) throw failure('InvalidStateError');
+            if (nextQuota) { const error = nextQuota; nextQuota = null; throw error; }
+            const token = keyToken(key); checkUnique(store, store.rows, token, value);
+            store.rows.set(token, { key: clone(key), value: clone(value) });
+            const req = request(null, null); req.result = key; req.readyState = 'done'; return req;
+          },
           createIndex(indexName: string, keyPath: KeyPath, options?: IDBIndexParameters) {
             if (!upgrading) throw failure('InvalidStateError');
             if (store.indexes.has(indexName)) throw failure('ConstraintError');
@@ -396,10 +405,14 @@ export function createDeterministicIDBAdapter() {
           const state = upgrade ? { name, version: desired, stores: clone(previous?.stores ?? new Map<string, StoreState>()), connections: new Set<Connection>() } : previous!;
           connection = connect(state); req.result = connection.db;
           if (upgrade) {
+            let aborted = false;
+            req.transaction = { abort() { aborted = true; } };
             (connection.db._setUpgrading as (value: boolean) => void)(true);
             emit(req, 'upgradeneeded', { oldVersion: previous?.version ?? 0, newVersion: desired });
             (connection.db._setUpgrading as (value: boolean) => void)(false);
+            if (aborted) throw failure('AbortError', 'Versionchange transaction aborted.');
             databases.set(name, state);
+            req.transaction = null;
           }
           req.readyState = 'done'; emit(req, 'success');
         } catch (error) {

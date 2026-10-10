@@ -89,6 +89,8 @@ function fixture(extra: Record<string, string> = {}) {
   };
   const code = ts.transpileModule(readFileSync(new URL('../app/lib/resetAppRecords.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const modules: Record<string, unknown> = {
+    '../data/languageLegacyEvidenceRelease.ts': { LANGUAGE_LEGACY_EVIDENCE_RELEASE: { resetProtocol: 'inactive', enrollmentEnabled: false, captureEnabled: false } },
+    '../data/languageLegacyEvidenceRepository.ts': { cleanupLanguageLegacyEvidenceForReset() { assert.fail('Inactive reset must never open evidence'); } },
     '../data/storageTransaction': transactions, './supabase': { supabase }, '../data/appRecordReset': resets,
     '../data/growthRoutines': growth, '../budget/lib/pending-save': budget,
     '../data/languageResetFence.ts': resetFence, '../data/languageStorageBoundary.ts': boundary,

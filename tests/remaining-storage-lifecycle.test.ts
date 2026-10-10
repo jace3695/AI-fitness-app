@@ -136,6 +136,8 @@ function resetFixture(b: ReturnType<typeof browser>) {
     },
   };
   const api = loadSource<{ resetAppRecords: (app: resets.RecordResetApp, id: string, expected: string) => Promise<ResetResult> }>('../app/lib/resetAppRecords.ts', {
+    '../data/languageLegacyEvidenceRelease.ts': { LANGUAGE_LEGACY_EVIDENCE_RELEASE: { resetProtocol: 'inactive', enrollmentEnabled: false, captureEnabled: false } },
+    '../data/languageLegacyEvidenceRepository.ts': { cleanupLanguageLegacyEvidenceForReset() { assert.fail('Inactive reset must never open evidence'); } },
     '../data/storageTransaction': transactions, './supabase': { supabase }, '../data/appRecordReset': resets, '../data/growthRoutines': growth, '../budget/lib/pending-save': budget,
     '../data/languageResetFence.ts': languageReset, '../data/languageStorageBoundary.ts': languageBoundary,
   }, { window: b.win, navigator: b.navigator });

@@ -18,7 +18,7 @@ import type { LanguageLegacyEvidenceRepository, VerifiedLegacyEvidencePrefix } f
 const RAW = 'PRIVATE_LOCAL_COMPATIBILITY_ONLY_7da9f';
 type Hook = (name: string, args: Record<string, unknown>, data?: unknown) => unknown | Promise<unknown>;
 async function fixture(t: TestContext) {
-  const sql = await createLegacyEvidenceSqlFixture(), owner = await sql.addOwner();
+  const sql = await createLegacyEvidenceSqlFixture({ activateWrites: true }), owner = await sql.addOwner();
   const local = languageFixture(); const lease = await local.owner(owner);
   const idb = createDeterministicIDBAdapter(), previous = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: idb.factory });
@@ -41,7 +41,7 @@ async function fixture(t: TestContext) {
       return result.rows[0] ? { state: result.rows[0].state, updatedAt: result.rows[0].updated_at } : null; },
     async insert() { assert.fail('Repository tests never bootstrap missing language state'); }, async update() { assert.fail('Unexpected snapshot write'); },
   } });
-  const runtime = await loadLegacyEvidenceRepository(client);
+  const runtime = await loadLegacyEvidenceRepository(client, { resetProtocol: 'protocol-required', enrollmentEnabled: true, captureEnabled: true });
   await coordinator.start(); assert.equal(coordinator.getState().status, 'ready');
   async function acquire(mode: 'initialize' | 'existing' = 'initialize') {
     const context = coordinator.getState().context; assert.ok(context);
@@ -209,7 +209,7 @@ test('owner/lifecycle changes during IDB commit, transport and acknowledgement r
   assert.ok(entries.every(([, row]) => row.status !== 'acknowledged'));
 });
 
-test('actual SQL reset requires fresh coordinator authority, noninitializing cleanup, and preserves new-generation replay', async t => {
+test('remote-only SQL reset cannot promote local continuity or authorize ordinary-writer cleanup', async t => {
   const f = await fixture(t), old = await capture(f.repo, { answer: true });
   await f.repo.deliverBatch(old.batch); const prefix = complete(await f.repo.readPrefix());
   const requestId = randomUUID();
@@ -217,15 +217,16 @@ test('actual SQL reset requires fresh coordinator authority, noninitializing cle
   await assert.rejects(f.repo.readPrefix(), /legacy_stale_generation|stale_authority/);
   await f.coordinator.refresh(); f.calls.length = 0;
   const fresh = await f.acquire('existing'); assert.notEqual(fresh.context().generationId, old.batch.generationId);
-  assert.equal(f.calls[0].name, 'read_language_legacy_evidence_context');
+  assert.equal(f.calls[0].name, 'read_language_legacy_evidence_status');
   assert.throws(() => fresh.project(prefix), /stale_authority/);
-  const next = await capture(fresh); await fresh.deliverBatch(next.batch);
-  await fresh.cleanupAfterReset(fresh.serverContext().resetMarker);
-  assert.equal(f.idb.entries('events').length, 1); assert.equal(f.idb.entries('checkpoints').length, 1);
-  assert.ok(f.idb.entries('receipts').every(([, row]) => (row as { generationId: string }).generationId === fresh.context().generationId));
-  assert.ok(!JSON.stringify(f.idb.entries('commits')).includes(RAW));
+  assert.equal(fresh.localContinuity(), 'unknown'); assert.throws(() => fresh.store(), /local_continuity_unknown/);
+  await assert.rejects(fresh.cleanupAfterReset(fresh.serverContext().resetMarker), /stale_context/);
+  assert.equal(f.idb.entries('events').length, 2); assert.equal(f.idb.entries('checkpoints').length, 1);
+  // Only the shipping registered reset proof may clear old bytes and carry admission.
+  assert.ok(JSON.stringify(f.idb.entries('commits')).includes(RAW));
   await f.sql.db.query("select public.reset_my_app_records('language',$1,'초기화')", [requestId]);
-  assert.equal(complete(await fresh.readPrefix()).snapshot.records.length, 1);
+  assert.equal(complete(await fresh.readPrefix()).snapshot.records.length, 0);
+  assert.equal(fresh.localContinuity(), 'unknown');
   await assert.rejects(fresh.deliverBatch(old.batch), /legacy_stale_generation/);
   await assert.rejects(fresh.cleanupAfterReset({ present: false, value: null }), /legacy_marker_conflict/);
 });

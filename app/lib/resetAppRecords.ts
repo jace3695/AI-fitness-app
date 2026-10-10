@@ -3,7 +3,9 @@ import { supabase } from "./supabase";
 import { APP_RECORD_KEYS, RECORD_RESET_EVENT, RECORD_RESET_STORAGE_EVENT, resetMarkerKey, type RecordResetApp } from "../data/appRecordReset";
 import { getGrowthRoutinesStorageKey, parseGrowthRoutines } from "../data/growthRoutines";
 import { pendingBudgetSaveKey } from "../budget/lib/pending-save";
-import { assertLanguageResetCurrent, captureLanguageReset, completeLanguageReset, establishLanguageReset, markLanguageResetUncertain, type LanguageResetContext } from "../data/languageResetFence.ts";
+import { assertLanguageResetCurrent, captureLanguageReset, completeLanguageReset, establishLanguageReset, markLanguageResetUncertain, requireLanguageEvidenceCleanup, type LanguageResetContext } from "../data/languageResetFence.ts";
+import { LANGUAGE_LEGACY_EVIDENCE_RELEASE } from "../data/languageLegacyEvidenceRelease.ts";
+import { cleanupLanguageLegacyEvidenceForReset } from "../data/languageLegacyEvidenceRepository.ts";
 import { LANGUAGE_MARKER_KEY, LanguageBoundaryError, parseLanguageMarker, validateLanguageWire } from "../data/languageStorageBoundary.ts";
 
 export function clearGrowthRecordBackup(userId: string, marker: string) {
@@ -78,6 +80,12 @@ async function performLanguageReset(captured: LanguageResetContext): Promise<Res
     const { data: current, error: currentError } = await client.auth.getUser();
     assertLanguageResetCurrent(context);
     if (currentError || current.user?.id !== context.owner.userId) throw new Error("계정이 바뀌었어요. 원래 계정에서 초기화 결과를 확인해 주세요.");
+    if (LANGUAGE_LEGACY_EVIDENCE_RELEASE.resetProtocol === 'protocol-required') {
+      context = await requireLanguageEvidenceCleanup(context, receipt.marker);
+      assertLanguageResetCurrent(context);
+      context = await cleanupLanguageLegacyEvidenceForReset(context, receipt.marker);
+      assertLanguageResetCurrent(context);
+    }
     context = await completeLanguageReset(context, receipt.marker);
     assertLanguageResetCurrent(context);
     window.localStorage.setItem(RECORD_RESET_STORAGE_EVENT, JSON.stringify({ userId: context.owner.userId, app: "language", marker: receipt.marker }));
