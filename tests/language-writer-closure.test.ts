@@ -190,6 +190,8 @@ test('global raw storage capability inventory cannot silently grow or change out
 const REVIEWED_IMPORTERS = new Set([...REVIEWED_STORAGE_AUTHORITY,...routes,...components,...helpers,...domains,
   'app/data/languageRecordMutations.ts','app/data/languageRecordDocuments.ts','app/data/languageRecordIdentity.ts',
   'app/data/conversationLocalRecords.ts',
+  // One read/guard-only bridge consumer, independently constrained below.
+  'app/data/languageLegacyEvidenceRepository.ts',
   'components/language/LanguageRecordsProvider.tsx','components/language/useLanguageRecordSnapshot.ts','components/language/useLanguageMutationAction.ts',
 ]);
 function capabilityImporters(files: readonly string[]): Set<string> {

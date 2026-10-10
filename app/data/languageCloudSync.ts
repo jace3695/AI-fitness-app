@@ -137,6 +137,34 @@ function assertRecordContext(context: LanguageRecordContext, snapshot?: StorageS
   return entry;
 }
 export function isLanguageRecordContextCurrent(context: LanguageRecordContext): boolean { try { assertRecordContext(context); return true; } catch { return false; } }
+/** Read/guard authority only. The sole production consumer is the inactive evidence
+ * repository. No storage, lease, snapshot writer or conversation authority escapes. */
+export interface LanguageLegacyEvidenceAuthority {
+  readonly ownerId: string;
+  readonly resetMarker: Readonly<{ present: boolean; value: string | null }>;
+  readonly signal: AbortSignal;
+}
+const legacyEvidenceAuthorities = new WeakMap<LanguageLegacyEvidenceAuthority, { context: LanguageRecordContext; retired: boolean }>();
+export const languageLegacyEvidenceCapability = Object.freeze({
+  acquire(context: LanguageRecordContext): LanguageLegacyEvidenceAuthority {
+    const entry = assertRecordContext(context);
+    const marker = parseLanguageMarker(entry.markerRaw);
+    // A locally committed response can mint an ordinary record context, but cannot
+    // mint this authority. The coordinator must have registered its actual read.
+    if (!entry.observation || marker.kind === 'invalid' || entry.observation.ownerId !== context.userId ||
+      entry.observation.marker !== (marker.kind === 'valid' ? marker.raw : null)) throw new LanguageRequestStaleError();
+    const value = Object.freeze({ ownerId: context.userId, signal: context.signal,
+      resetMarker: Object.freeze({ present: marker.kind === 'valid', value: marker.kind === 'valid' ? marker.raw : null }) });
+    legacyEvidenceAuthorities.set(value, { context, retired: false });
+    return value;
+  },
+  assertCurrent(value: LanguageLegacyEvidenceAuthority): void {
+    const registered = legacyEvidenceAuthorities.get(value);
+    if (!registered || registered.retired) throw new LanguageRequestStaleError();
+    try { assertRecordContext(registered.context); }
+    catch (error) { registered.retired = true; throw error; }
+  },
+});
 /** Only the reviewed coordinator imports this capture function. Raw commit callers
  * do not gain conversation authority. Registration binds the actual received wire
  * to the original request/lifecycle; local commits never advance this timestamp. */

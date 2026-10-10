@@ -1,4 +1,5 @@
-import type { AudioProvenance, EvidenceEvent, EvidenceReceipt, ProjectionContext, TextVisibility } from './types.ts';
+import type { ServerEvidenceReceipt } from './server-types.ts';
+import type { AudioProvenance, EvidenceEvent, ProjectionContext, TextVisibility } from './types.ts';
 
 /** Inactive local protocol. None of these data types authenticate an owner. */
 export const LOCAL_EVIDENCE_PROTOCOL = 'legacy-evidence-local-v1' as const;
@@ -57,22 +58,25 @@ export type PreparedCapture = Immutable<{
   expected: CheckpointExpectation; checkpoint: CaptureCheckpoint; event: FrozenEvidence | null; mutation: CaptureMutation;
 }>;
 /** Mutable metadata never changes the event's canonical bytes. Local only. */
-export type DeliveryMetadata = {
+type DeliveryIdentity = {
   ownerId: string; generationId: string; eventId: string; payloadHash: string; revision: number;
-  status: 'pending' | 'readback_required' | 'quarantined';
 };
+export type DeliveryMetadata = DeliveryIdentity & (
+  { status: 'pending' | 'readback_required' | 'quarantined' } |
+  { version: 2; status: 'acknowledged'; receiptCanonical: string }
+);
 export type FrozenBatch = Immutable<{
   version: 1; batchId: string; ownerId: string; generationId: string; sourceSlotKey: string; episodeId: string;
   expectedPredecessor: Predecessor; events: readonly FrozenEvidence[];
 }>;
-export type BatchDelivery = { revision: number; status: 'pending' | 'readback_required' | 'quarantined' };
-/** Contract only. There is deliberately no constructor/acknowledgement API in this slice. */
+export type BatchDelivery = { revision: number; status: 'pending' | 'readback_required' | 'quarantined' } | { version: 2; revision: number; status: 'acknowledged' };
+/** The brand documents the contract; the exact-object runtime registry is authoritative. */
 declare const authenticatedReadback: unique symbol;
 export type AuthenticatedReceiptReadback = {
   readonly [authenticatedReadback]: true;
   readonly context: LocalEvidenceContext;
   readonly batchId: string;
-  readonly exactReceipts: readonly EvidenceReceipt[];
+  readonly exactReceipts: readonly ServerEvidenceReceipt[];
 };
 export type ReceiptTrust = 'unverified' | 'previously_verified_offline' | 'fresh_authenticated_readback';
 export type PrefixStatus = 'unavailable' | 'partial' | 'complete_authenticated_prefix';
