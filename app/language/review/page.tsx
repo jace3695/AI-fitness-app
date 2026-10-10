@@ -5,11 +5,14 @@ import Link from "next/link";
 import { GRAMMAR_LESSONS, GRAMMAR_PROGRESS_KEY, type GrammarProgressItem } from "@/data/grammar";
 import type { RubySegment as WordRubySegment } from "@/data/words";
 import type { RubySegment as SentenceRubySegment } from "@/data/sentences";
-import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
 import { CURRICULUM_REVIEW_KEY, type CurriculumReviewItem } from "@/utils/curriculumProgress";
-import { reviewInterval, reviewObservationFields, summarizeReviewMastery, type ReviewObservation } from "@/utils/learningReview";
+import { summarizeReviewMastery } from "@/utils/learningReview";
 import { reviewFocus, type ReviewTrack } from "@/utils/reviewFocus";
 import CourseReviewQuestion from "@/components/language/CourseReviewQuestion";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { languageRowSource, type LanguageRowHandle } from "@/app/data/languageRecordIdentity";
+import { projectReviewRows, projectReviewedItems, planReviewMutation, verifyCourseReview, type ReviewMutationPayload, type ReviewScheduleInput } from "@/app/data/languageReviewMutations";
 
 type Word = {
   word: string;
@@ -71,50 +74,7 @@ const WRONG_KANA_KEY = "wrongKana";
 const WRONG_KANA_CHARS_KEY = "wrongKanaChars";
 const WRONG_WORDS_KEY = "wrongWords";
 const WRONG_SENTENCES_KEY = "wrongSentences";
-const REVIEW_COMPLETED_ITEMS_KEY = "reviewCompletedItemsByDate";
 const EMPTY_REVIEW_MESSAGE = "아직 복습할 항목이 없어요. 단어와 문장을 저장하거나 퀴즈를 풀면 복습에 모여요.";
-
-type ReviewCompletedItemsEntry = {
-  date: string;
-  items: string[];
-};
-
-function readReviewedItemsByDate(): ReviewCompletedItemsEntry[] {
-  try {
-    const raw = localStorage.getItem(REVIEW_COMPLETED_ITEMS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed
-      .filter((entry): entry is { date?: unknown; items?: unknown } => !!entry && typeof entry === "object")
-      .map((entry) => ({
-        date: typeof entry.date === "string" ? entry.date : "",
-        items: Array.isArray(entry.items)
-          ? entry.items.filter((item): item is string => typeof item === "string")
-          : [],
-      }))
-      .filter((entry) => entry.date.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function writeReviewedItemsByDate(entries: ReviewCompletedItemsEntry[]): void {
-  localStorage.setItem(REVIEW_COMPLETED_ITEMS_KEY, JSON.stringify(entries));
-}
-
-function getReviewedItemsForDate(date: string): string[] {
-  const todayEntry = readReviewedItemsByDate().find((entry) => entry.date === date);
-  if (!todayEntry) return [];
-  return Array.from(new Set(todayEntry.items));
-}
-
-function saveReviewedItemsForDate(date: string, itemIds: string[]): void {
-  const uniqueItems = Array.from(new Set(itemIds));
-  const completedByDate = readReviewedItemsByDate().filter((entry) => entry.date !== date);
-  writeReviewedItemsByDate([...completedByDate, { date, items: uniqueItems }]);
-}
 
 function getTodayLocalDateKey(): string {
   const now = new Date();
@@ -127,17 +87,6 @@ function getTodayLocalDateKey(): string {
 function normalizePartOfSpeech(partOfSpeech?: string): string {
   if (!partOfSpeech) return "other";
   return partOfSpeech.replace(/_/g, "-");
-}
-
-function loadArray<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
-  }
 }
 
 function WrongItemText({ item }: { item: WrongItem }) {
@@ -222,170 +171,61 @@ function parseKanaReviewItem(item: WrongItem): {
 
 export default function ReviewPage() {
   const [activeReviewTab, setActiveReviewTab] = useState<ReviewTab>("all");
-  const [savedWords, setSavedWords] = useState<Word[]>([]);
-  const [savedSentences, setSavedSentences] = useState<Sentence[]>([]);
-  const [grammarReviewItems, setGrammarReviewItems] = useState<GrammarProgressItem[]>([]);
-  const [wrongKana, setWrongKana] = useState<WrongItem[]>([]);
-  const [wrongKanaChars, setWrongKanaChars] = useState<string[]>([]);
-  const [wrongWords, setWrongWords] = useState<WrongItem[]>([]);
-  const [wrongSentences, setWrongSentences] = useState<WrongItem[]>([]);
-  const [reviewedItemIds, setReviewedItemIds] = useState<string[]>([]);
-  const [curriculumReviewItems, setCurriculumReviewItems] = useState<CurriculumReviewItem[]>([]);
-  const [courseSaveError, setCourseSaveError] = useState("");
+  const source = useLanguageRecordSnapshot();
+  const { context, snapshot, records } = source;
   const [reviewOpenedAt] = useState(() => Date.now());
-  const hasMarkedReviewCompletedRef = useRef(false);
-
+  const date = getTodayLocalDateKey();
+  const replayStarted = useRef(false);
+  const [pinnedCourse, setPinnedCourse] = useState<{ item: CurriculumReviewItem; handle: LanguageRowHandle } | null>(null);
+  const actions = useLanguageMutationAction(source, planReviewMutation);
+  const scheduleAction = useLanguageMutationAction(source, planReviewMutation, { verify: verifyCourseReview });
+  const replay = useLanguageMutationAction(source, planReviewMutation);
+  const currentProjections = useMemo(() => ({
+    words: projectReviewRows<Word>(snapshot, WORDS_KEY), sentences: projectReviewRows<Sentence>(snapshot, SENTENCES_KEY),
+    grammar: projectReviewRows<GrammarProgressItem>(snapshot, GRAMMAR_PROGRESS_KEY), kana: projectReviewRows<WrongItem>(snapshot, WRONG_KANA_KEY),
+    chars: projectReviewRows<string>(snapshot, WRONG_KANA_CHARS_KEY), wrongWords: projectReviewRows<WrongItem>(snapshot, WRONG_WORDS_KEY),
+    wrongSentences: projectReviewRows<WrongItem>(snapshot, WRONG_SENTENCES_KEY), course: projectReviewRows<CurriculumReviewItem>(snapshot, CURRICULUM_REVIEW_KEY),
+  }), [snapshot]);
+  const retainedProjections = useRef(currentProjections);
+  if (snapshot && !actions.pending && !scheduleAction.pending) retainedProjections.current = currentProjections;
+  const projections = retainedProjections.current;
+  const savedWords = projections.words.rows.map(row => row.value), savedSentences = projections.sentences.rows.map(row => row.value);
+  const grammarRows = projections.grammar.rows.filter(row => row.value.wrongCount > 0 || row.value.lastResult === "wrong");
+  const grammarReviewItems = grammarRows.map(row => row.value), wrongKana = projections.kana.rows.map(row => row.value), wrongKanaChars = projections.chars.rows.map(row => row.value);
+  const wrongWords = projections.wrongWords.rows.map(row => row.value), wrongSentences = projections.wrongSentences.rows.map(row => row.value);
+  const curriculumReviewItems = projections.course.rows.map(row => row.value);
+  const retainedReviewed = useRef(records.reviewCompletedItemsByDate);
+  if (snapshot && !actions.pending && !scheduleAction.pending) retainedReviewed.current = records.reviewCompletedItemsByDate;
+  const reviewed = projectReviewedItems(retainedReviewed.current, date), reviewedItemIds = reviewed.items;
+  const projectionError = Object.values(projections).find(value => value.error)?.error || reviewed.error;
+  const courseSaveError = scheduleAction.error || actions.error || replay.error;
   useEffect(() => {
-    const words = loadArray<Word>(WORDS_KEY);
-    const sentences = loadArray<Sentence>(SENTENCES_KEY);
-    const grammar = loadArray<GrammarProgressItem>(GRAMMAR_PROGRESS_KEY).filter(
-      (item) => item && (item.wrongCount > 0 || item.lastResult === "wrong"),
-    );
-    const kana = loadArray<WrongItem>(WRONG_KANA_KEY);
-    const charsRaw = loadArray<unknown>(WRONG_KANA_CHARS_KEY);
-    const chars = charsRaw.filter((item): item is string => typeof item === "string");
-    const wWords = loadArray<WrongItem>(WRONG_WORDS_KEY);
-    const wSentences = loadArray<WrongItem>(WRONG_SENTENCES_KEY);
-
-    setSavedWords(words);
-    setSavedSentences(sentences);
-    setGrammarReviewItems(grammar);
-    setWrongKana(kana);
-    setWrongKanaChars(chars);
-    setWrongWords(wWords);
-    setWrongSentences(wSentences);
-    setCurriculumReviewItems(loadArray<CurriculumReviewItem>(CURRICULUM_REVIEW_KEY));
-
-    const dateKey = getTodayLocalDateKey();
-    const todayItems = getReviewedItemsForDate(dateKey);
-
-    setReviewedItemIds(todayItems);
-    if (todayItems.length >= 3) {
-      markTodayRoutineCompleted("review");
-      hasMarkedReviewCompletedRef.current = true;
-    }
-  }, []);
-
-
-  const kanaReviewCount = useMemo(() => {
-    const charsFromWrongKana = wrongKana
-      .map((item) => (typeof item === "string" ? item : typeof item.char === "string" ? item.char : ""))
-      .filter(Boolean);
-    return new Set([...charsFromWrongKana, ...wrongKanaChars]).size;
-  }, [wrongKana, wrongKanaChars]);
-
-  const handleDeleteWord = (w: Word) => {
-    const next = savedWords.filter((x) => x.word !== w.word);
-    setSavedWords(next);
-    localStorage.setItem(WORDS_KEY, JSON.stringify(next));
+    if (replayStarted.current || !context || !snapshot) return;
+    replayStarted.current = true;
+    void replay.submit({ kind: "reconcile-completion" });
+  }, [context, snapshot, replay]);
+  const kanaReviewCount = new Set([...wrongKana.map(item => typeof item === "string" ? item : typeof item.char === "string" ? item.char : ""), ...wrongKanaChars].filter(Boolean)).size;
+  const deleteWithHandle = (payload: ReviewMutationPayload, handle: LanguageRowHandle) => actions.submit(payload, () => { if (pinnedCourse?.handle.viewId === handle.viewId) setPinnedCourse(null); }, languageRowSource(handle));
+  const handleDeleteWord = (word: Word) => { const row = projections.words.rows.find(row => row.value === word); if (row) void deleteWithHandle({ kind: "delete-group", key: WORDS_KEY, handle: row.handle }, row.handle); };
+  const handleDeleteSentence = (sentence: Sentence) => { const row = projections.sentences.rows.find(row => row.value === sentence); if (row) void deleteWithHandle({ kind: "delete-group", key: SENTENCES_KEY, handle: row.handle }, row.handle); };
+  const handleDeleteWrongWord = (handle: LanguageRowHandle) => deleteWithHandle({ kind: "delete-row", key: WRONG_WORDS_KEY, handle }, handle);
+  const handleDeleteWrongSentence = (handle: LanguageRowHandle) => deleteWithHandle({ kind: "delete-row", key: WRONG_SENTENCES_KEY, handle }, handle);
+  const handleDeleteGrammarReviewItem = (handle: LanguageRowHandle) => deleteWithHandle({ kind: "delete-group", key: GRAMMAR_PROGRESS_KEY, handle }, handle);
+  const handleDeleteWrongKana = (handle: LanguageRowHandle) => deleteWithHandle({ kind: "delete-row", key: WRONG_KANA_KEY, handle, cleanupKana: true }, handle);
+  const handleDeleteWrongKanaChar = (handle: LanguageRowHandle) => deleteWithHandle({ kind: "delete-row", key: WRONG_KANA_CHARS_KEY, handle }, handle);
+  const handleDeleteCurriculumReview = async (handle: LanguageRowHandle) => {
+    if (scheduleAction.isPending() || actions.isPending()) return false;
+    if (!window.confirm("이 문제를 복습에서 삭제할까요? 수업 기록은 유지돼요.")) return false;
+    return deleteWithHandle({ kind: "delete-group", key: CURRICULUM_REVIEW_KEY, handle }, handle);
   };
-
-  const handleDeleteSentence = (s: Sentence) => {
-    const next = savedSentences.filter((x) => x.japanese !== s.japanese);
-    setSavedSentences(next);
-    localStorage.setItem(SENTENCES_KEY, JSON.stringify(next));
+  const scheduleCurriculumReview = (handle: LanguageRowHandle, input: ReviewScheduleInput) => {
+    if (actions.isPending()) return Promise.resolve(false);
+    return scheduleAction.submit({ kind: "schedule", handle, ...input }, () => setPinnedCourse(null), languageRowSource(handle));
   };
-
-  const handleDeleteWrongWord = (targetIndex: number) => {
-    const next = wrongWords.filter((_, index) => index !== targetIndex);
-    setWrongWords(next);
-    localStorage.setItem(WRONG_WORDS_KEY, JSON.stringify(next));
-  };
-
-  const handleDeleteWrongSentence = (targetIndex: number) => {
-    const next = wrongSentences.filter((_, index) => index !== targetIndex);
-    setWrongSentences(next);
-    localStorage.setItem(WRONG_SENTENCES_KEY, JSON.stringify(next));
-  };
-
-  const handleDeleteGrammarReviewItem = (lessonId: string) => {
-    const next = grammarReviewItems.filter((item) => item.lessonId !== lessonId);
-    setGrammarReviewItems(next);
-
-    const grammarProgress = loadArray<GrammarProgressItem>(GRAMMAR_PROGRESS_KEY);
-    const nextProgress = grammarProgress.filter((item) => item.lessonId !== lessonId);
-    localStorage.setItem(GRAMMAR_PROGRESS_KEY, JSON.stringify(nextProgress));
-  };
-
-  const handleDeleteWrongKana = (targetIndex: number) => {
-    const targetItem = wrongKana[targetIndex];
-    const targetChar =
-      typeof targetItem === "string" ? targetItem : typeof targetItem?.char === "string" ? targetItem.char : "";
-    const nextWrongKana = wrongKana.filter((_, index) => index !== targetIndex);
-    setWrongKana(nextWrongKana);
-    localStorage.setItem(WRONG_KANA_KEY, JSON.stringify(nextWrongKana));
-
-    if (targetChar) {
-      const hasSameCharInWrongKana = nextWrongKana.some((item) =>
-        (typeof item === "string" ? item : typeof item.char === "string" ? item.char : "") === targetChar,
-      );
-      if (!hasSameCharInWrongKana) {
-        const nextWrongKanaChars = wrongKanaChars.filter((char) => char !== targetChar);
-        setWrongKanaChars(nextWrongKanaChars);
-        localStorage.setItem(WRONG_KANA_CHARS_KEY, JSON.stringify(nextWrongKanaChars));
-      }
-    }
-  };
-
-  const handleDeleteWrongKanaChar = (targetIndex: number) => {
-    const next = wrongKanaChars.filter((_, index) => index !== targetIndex);
-    setWrongKanaChars(next);
-    localStorage.setItem(WRONG_KANA_CHARS_KEY, JSON.stringify(next));
-  };
-
-  const handleDeleteCurriculumReview = (id: string) => {
-    if (!window.confirm("이 문제를 복습에서 삭제할까요? 수업 기록은 유지돼요.")) return;
-    try {
-      const latest: CurriculumReviewItem[] = JSON.parse(localStorage.getItem(CURRICULUM_REVIEW_KEY) ?? "[]");
-      const next = latest.filter((item) => item.id !== id);
-      localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(next));
-      setCurriculumReviewItems(next);
-      setCourseSaveError("");
-    } catch { setCourseSaveError("복습 항목을 삭제하지 못했어요. 다시 시도해 주세요."); }
-  };
-
-  const scheduleCurriculumReview = (id: string, correct: boolean, neededHelp: boolean, hadWrong: boolean, observation?: ReviewObservation) => {
-    try {
-    const now = new Date();
-    const latest: CurriculumReviewItem[] = JSON.parse(localStorage.getItem(CURRICULUM_REVIEW_KEY) ?? "[]");
-    const next = latest.map((item) => {
-      if (item.id !== id) return item;
-      const effective = observation ? { ...observation, neededHelp: neededHelp || hadWrong || observation.neededHelp } : undefined;
-      const intervalDays = reviewInterval(item.intervalDays, correct && !neededHelp && !hadWrong, effective);
-      return {
-        ...item,
-        wrongCount: hadWrong ? (item.wrongCount ?? 0) + 1 : item.wrongCount,
-        lastWrongAt: hadWrong ? now.toISOString() : item.lastWrongAt,
-        intervalDays,
-        ...(effective ? reviewObservationFields(item, correct, effective) : {}),
-        nextReviewAt: new Date(now.getTime() + intervalDays * 86_400_000).toISOString(),
-      };
-    });
-    localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(next));
-    setCurriculumReviewItems(next);
-    setCourseSaveError("");
-    if (correct) trackReviewAction(`course:${id}`);
-    } catch { setCourseSaveError("복습 결과를 저장하지 못했어요. 이 화면에서 다시 시도해 주세요."); }
-  };
-
   const trackReviewAction = (itemId: string) => {
-    const dateKey = getTodayLocalDateKey();
-
-    setReviewedItemIds((prev) => {
-      if (prev.includes(itemId)) return prev;
-
-      const next = [...prev, itemId];
-      saveReviewedItemsForDate(dateKey, next);
-
-      if (next.length >= 3 && !hasMarkedReviewCompletedRef.current) {
-        markTodayRoutineCompleted("review");
-        hasMarkedReviewCompletedRef.current = true;
-      }
-
-      return next;
-    });
+    if (scheduleAction.isPending()) return;
+    void actions.submit({ kind: "reviewed", itemId });
   };
-
   const isReviewed = (itemId: string) => reviewedItemIds.includes(itemId);
   const reviewActionButtonStyle = (done: boolean) => ({
     borderColor: done ? "#22c55e" : "#2563eb",
@@ -404,9 +244,21 @@ export default function ReviewPage() {
   const showKana = activeReviewTab === "all" || activeReviewTab === "kana";
   const dueCurriculumReviewItems = curriculumReviewItems.filter((item) => !item.nextReviewAt || new Date(item.nextReviewAt).getTime() <= reviewOpenedAt);
 
+  const selectedCourseItems = pinnedCourse ? [pinnedCourse] : (dueCurriculumReviewItems.find(item => item.id === focusedId) ? dueCurriculumReviewItems.filter(item => item.id === focusedId) : focusItems.length ? focusItems.slice(0, 1) : dueCurriculumReviewItems.slice(0, 1)).flatMap(item => {
+    const row = projections.course.rows.find(row => row.value === item); return row ? [{ item, handle: row.handle }] : [];
+  });
+
 
   return (
     <section>
+      {!snapshot && <p role="status">{source.error || "학습 기록을 확인하고 있어요. 입력은 보존됩니다."}</p>}
+      <div hidden={!snapshot} inert={!snapshot}>
+      {projectionError && <p role="alert">{projectionError}</p>}
+      {courseSaveError && <p role="alert">{courseSaveError}</p>}
+      {[["복습 저장", actions], ["과정 복습 저장", scheduleAction], ["기존 완료 확인", replay]].map(([label, control]) => {
+        const action = control as typeof actions;
+        return action.pending ? <div key={label as string} role="status"><span>{label as string} 확인이 필요해요.</span><button type="button" disabled={action.busy} onClick={() => void action.retry()}>저장 다시 확인</button>{action.canResubmit && <button type="button" disabled={action.busy} onClick={() => void action.resubmit()}>최신 상태에서 새로 저장</button>}</div> : null;
+      })}
       <div className="page-header card" style={{ marginBottom: "14px", padding: "18px", border: "1px solid #dbeafe", background: "linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%)", boxShadow: "0 10px 22px rgba(37,99,235,0.08)" }}>
         <h1 style={{ color: "#1e3a8a", marginBottom: "4px" }}>복습</h1>
         <p className="muted" style={{ margin: 0, color: "#334155" }}>저장한 단어와 틀린 문제를 다시 확인해 보세요.</p>
@@ -474,16 +326,16 @@ export default function ReviewPage() {
         })}
       </div>
 
-      {showCourse && (
-        <>
+      {(showCourse || pinnedCourse) && (
+        <div hidden={!showCourse}>
           <div className="section-title"><h2>오늘 복습할 과정 문제</h2><span className="count">{dueCurriculumReviewItems.length}개</span></div>
           {courseSaveError && <p role="alert">{courseSaveError}</p>}
-          {dueCurriculumReviewItems.length === 0 ? <div className="empty-state">오늘 예정된 과정 복습을 모두 마쳤어요. 전체 보관 항목은 {curriculumReviewItems.length}개예요. <Link href="/language/learn">[배우기]</Link>에서 다음 수업을 시작해 보세요.</div> : (
+          {selectedCourseItems.length === 0 ? <div className="empty-state">오늘 예정된 과정 복습을 모두 마쳤어요. 전체 보관 항목은 {curriculumReviewItems.length}개예요. <Link href="/language/learn">[배우기]</Link>에서 다음 수업을 시작해 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px" }}>
-              {(dueCurriculumReviewItems.find(item => item.id === focusedId) ? dueCurriculumReviewItems.filter(item => item.id === focusedId) : focusItems.length ? focusItems.slice(0, 1) : dueCurriculumReviewItems.slice(0, 1)).map((item) => <CourseReviewQuestion key={item.id} item={item} onSchedule={scheduleCurriculumReview} onDelete={handleDeleteCurriculumReview} />)}
+              {selectedCourseItems.map(({ item, handle }) => <CourseReviewQuestion key={handle.viewId} item={item} handle={handle} onDirty={() => setPinnedCourse(previous => previous ?? { item, handle })} pending={!snapshot || scheduleAction.pending || actions.pending} onSchedule={scheduleCurriculumReview} onDelete={handleDeleteCurriculumReview} />)}
             </ul>
           )}
-        </>
+        </div>
       )}
 
       {showWords && (
@@ -491,8 +343,8 @@ export default function ReviewPage() {
           <div className="section-title"><h2>저장한 단어</h2><span className="count">{savedWords.length}개</span></div>
           {savedWords.length === 0 ? <div className="empty-state">{EMPTY_REVIEW_MESSAGE} <Link href="/language/words">[단어]</Link>에서 단어를 저장해 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {savedWords.map((w) => (
-                <li key={w.word} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", wordBreak: "break-word", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
+              {savedWords.map((w, idx) => (
+                <li key={projections.words.rows[idx].handle.viewId} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", wordBreak: "break-word", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
                   <div className="card-top"><div className="jp-text">{w.word}</div><div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}><span className="badge">{w.category}</span>{partOfSpeechLabels[normalizePartOfSpeech(w.partOfSpeech)] && <span className="badge">{partOfSpeechLabels[normalizePartOfSpeech(w.partOfSpeech)]}</span>}</div></div>
                   <div style={{ marginTop: "12px" }}><div className="label">뜻</div><div>{w.meaning}</div></div>
                   <div style={{ marginTop: "10px" }}><div className="label">예문</div><div style={{ color: "#555" }}>{w.example}</div></div>
@@ -501,7 +353,7 @@ export default function ReviewPage() {
                     <Link href={`/language/sentences?word=${encodeURIComponent(w.sentenceKeyword || w.word)}`} className="btn">관련 문장 보기</Link>
                     <button
                       type="button"
-                      onClick={() => trackReviewAction(`saved-word:${w.word}`)}
+                      disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(`saved-word:${w.word}`)}
                       className="btn"
                       style={reviewActionButtonStyle(isReviewed(`saved-word:${w.word}`))}
                     >
@@ -517,7 +369,7 @@ export default function ReviewPage() {
           <div className="section-title"><h2>틀린 단어</h2><span className="count">{wrongWords.length}개</span></div>
           {wrongWords.length === 0 ? <div className="empty-state">틀린 단어가 없습니다.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {wrongWords.map((item, idx) => { const itemId = buildWrongItemId("wrong-word", item); return <li key={`ww-${idx}`} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}><div style={{ marginBottom: "8px" }}><WrongItemText item={item} /></div><div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><Link href="/language/words" className="btn">단어 다시 학습</Link><button type="button" onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongWord(idx)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div></li>; })}
+              {wrongWords.map((item, idx) => { const itemId = buildWrongItemId("wrong-word", item); return <li key={projections.wrongWords.rows[idx].handle.viewId} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}><div style={{ marginBottom: "8px" }}><WrongItemText item={item} /></div><div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><Link href="/language/words" className="btn">단어 다시 학습</Link><button type="button" disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongWord(projections.wrongWords.rows[idx].handle)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div></li>; })}
             </ul>
           )}
         </>
@@ -528,8 +380,8 @@ export default function ReviewPage() {
           <div className="section-title"><h2>저장한 문장</h2><span className="count">{savedSentences.length}개</span></div>
           {savedSentences.length === 0 ? <div className="empty-state">{EMPTY_REVIEW_MESSAGE} <Link href="/language/sentences">[문장]</Link>에서 문장을 저장해 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {savedSentences.map((s) => (
-                <li key={s.japanese} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", wordBreak: "break-word", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
+              {savedSentences.map((s, idx) => (
+                <li key={projections.sentences.rows[idx].handle.viewId} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", wordBreak: "break-word", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
                   <div className="card-top"><div className="jp-text">{s.japanese}</div><div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}><span className="badge">{s.category}</span>{s.pattern && <span className="badge">{sentencePatternLabels[s.pattern] ?? "기타"}</span>}</div></div>
                   <div style={{ marginTop: "12px" }}><div className="label">뜻</div><div>{s.meaning}</div></div>
                   <div style={{ marginTop: "10px" }}><div className="label">설명</div><div style={{ color: "#555" }}>{s.note}</div></div>
@@ -537,7 +389,7 @@ export default function ReviewPage() {
                     <Link href="/language/sentences" className="btn">문장 다시 학습</Link>
                     <button
                       type="button"
-                      onClick={() => trackReviewAction(`saved-sentence:${s.japanese}`)}
+                      disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(`saved-sentence:${s.japanese}`)}
                       className="btn"
                       style={reviewActionButtonStyle(isReviewed(`saved-sentence:${s.japanese}`))}
                     >
@@ -553,7 +405,7 @@ export default function ReviewPage() {
           <div className="section-title"><h2>틀린 문장</h2><span className="count">{wrongSentences.length}개</span></div>
           {wrongSentences.length === 0 ? <div className="empty-state">틀린 문장이 없습니다.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {wrongSentences.map((item, idx) => { const itemId = buildWrongItemId("wrong-sentence", item); return <li key={`ws-${idx}`} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}><div style={{ marginBottom: "8px" }}><WrongItemText item={item} /></div><div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><Link href="/language/sentences" className="btn">문장 다시 학습</Link><button type="button" onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongSentence(idx)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div></li>; })}
+              {wrongSentences.map((item, idx) => { const itemId = buildWrongItemId("wrong-sentence", item); return <li key={projections.wrongSentences.rows[idx].handle.viewId} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}><div style={{ marginBottom: "8px" }}><WrongItemText item={item} /></div><div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><Link href="/language/sentences" className="btn">문장 다시 학습</Link><button type="button" disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongSentence(projections.wrongSentences.rows[idx].handle)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div></li>; })}
             </ul>
           )}
         </>
@@ -564,15 +416,15 @@ export default function ReviewPage() {
           <div className="section-title"><h2>문법 복습</h2><span className="count">{grammarReviewItems.length}개</span></div>
           {grammarReviewItems.length === 0 ? <div className="empty-state">{EMPTY_REVIEW_MESSAGE} <Link href="/language/grammar">[문법]</Link>에서 연습 문제를 풀어 보세요.</div> : (
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {grammarReviewItems.map((item) => (
-                <li key={item.lessonId} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
+              {grammarReviewItems.map((item, idx) => (
+                <li key={grammarRows[idx].handle.viewId} className="card" style={{ marginBottom: "14px", overflowWrap: "anywhere", border: "1px solid #dbeafe", borderRadius: "16px", boxShadow: "0 8px 20px rgba(15,23,42,.06)" }}>
                   {(() => {
                     const lesson = GRAMMAR_LESSONS.find((entry) => entry.id === item.lessonId);
                     return (
                       <>
                   <div className="card-top"><div className="jp-text">{item.title}</div><div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}><span className="badge">{item.category}</span><span className="badge">{item.pattern}</span></div></div>
                   <div style={{ marginTop: "10px", fontSize: "14px" }}>오답 {item.wrongCount}회 · 최근 결과: {item.lastResult === "correct" ? "정답" : "오답"}</div>
-                  <div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><button type="button" onClick={() => trackReviewAction(`grammar:${item.lessonId}`)} className="btn" style={reviewActionButtonStyle(isReviewed(`grammar:${item.lessonId}`))}>{isReviewed(`grammar:${item.lessonId}`) ? "복습 완료됨" : "복습 완료"}</button><Link href={`/language/grammar?lesson=${item.lessonId}`} className="btn">문법 다시 학습</Link><button type="button" onClick={() => handleDeleteGrammarReviewItem(item.lessonId)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div>
+                  <div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}><button type="button" disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(`grammar:${item.lessonId}`)} className="btn" style={reviewActionButtonStyle(isReviewed(`grammar:${item.lessonId}`))}>{isReviewed(`grammar:${item.lessonId}`) ? "복습 완료됨" : "복습 완료"}</button><Link href={`/language/grammar?lesson=${item.lessonId}`} className="btn">문법 다시 학습</Link><button type="button" onClick={() => handleDeleteGrammarReviewItem(grammarRows[idx].handle)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div>
                       </>
                     );
                   })()}
@@ -592,7 +444,7 @@ export default function ReviewPage() {
                 const itemId = buildWrongItemId("wrong-kana", item);
                 const parsed = parseKanaReviewItem(item);
                 return (
-                  <li key={`wk-${idx}`} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}>
+                  <li key={projections.kana.rows[idx].handle.viewId} className="card" style={{ marginBottom: "10px", overflowWrap: "anywhere", border: "1px solid #dbeafe" }}>
                     <div style={{ marginBottom: "10px" }}>
                       <div style={{ fontSize: "30px", fontWeight: 700, lineHeight: 1.2, color: "#0f172a" }}>{parsed.char || "가나 정보 없음"}</div>
                       <div style={{ marginTop: "4px", color: "#475569", fontSize: "14px" }}>
@@ -602,8 +454,8 @@ export default function ReviewPage() {
                     </div>
                     <div className="card-actions" style={{ justifyContent: "flex-end", display: "flex", gap: "8px", flexWrap: "wrap" }}>
                       <Link href="/language/kana" className="btn">가나 다시 학습</Link>
-                      <button type="button" onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button>
-                      <button type="button" onClick={() => handleDeleteWrongKana(idx)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button>
+                      <button type="button" disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button>
+                      <button type="button" onClick={() => handleDeleteWrongKana(projections.kana.rows[idx].handle)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button>
                     </div>
                   </li>
                 );
@@ -613,7 +465,7 @@ export default function ReviewPage() {
 
           <div className="section-title"><h2>헷갈린 글자</h2><span className="count">{wrongKanaChars.length}개</span></div>
           {wrongKanaChars.length === 0 ? <div className="empty-state">헷갈린 글자가 없습니다.</div> : (
-            <div className="card" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px", border: "1px solid #dbeafe" }}>{wrongKanaChars.map((char, idx) => { const itemId = `kana-char:${char}`; return <div key={`kc-${char}-${idx}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", borderRadius: "999px", background: "#f8fbff" }}><span className="badge" style={{ fontSize: "18px" }}>{char}</span><button type="button" onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongKanaChar(idx)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div>; })}</div>
+            <div className="card" style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px", border: "1px solid #dbeafe" }}>{wrongKanaChars.map((char, idx) => { const itemId = `kana-char:${char}`; return <div key={projections.chars.rows[idx].handle.viewId} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", borderRadius: "999px", background: "#f8fbff" }}><span className="badge" style={{ fontSize: "18px" }}>{char}</span><button type="button" disabled={actions.pending || scheduleAction.pending} onClick={() => trackReviewAction(itemId)} className="btn" style={reviewActionButtonStyle(isReviewed(itemId))}>{isReviewed(itemId) ? "복습 완료됨" : "복습 완료"}</button><button type="button" onClick={() => handleDeleteWrongKanaChar(projections.chars.rows[idx].handle)} className="btn" style={{ borderColor: "#ef4444", color: "#dc2626", background: "#fff5f5" }}>삭제</button></div>; })}</div>
           )}
 
           <div className="card-actions" style={{ justifyContent: "flex-end", marginBottom: "18px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -622,6 +474,7 @@ export default function ReviewPage() {
         </>
       )}
 
+      </div>
     </section>
   );
 }

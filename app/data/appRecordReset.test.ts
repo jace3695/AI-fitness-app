@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installStorageLocks, preparedStorageSeed } from "../../tests/helpers/storageProtocol.ts";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { APP_RECORD_KEYS, RECORD_RESET_APPS, resetMarkerKey } from "./appRecordReset.ts";
@@ -65,19 +66,21 @@ test("DB 트랜잭션의 삭제 키가 화면의 삭제 범위와 일치한다",
   }
 });
 
-test("클라우드의 삭제를 기기에 적용할 때 다른 앱과 인증 저장값은 유지한다", () => {
-  const values = new Map<string, string>([["ai-fitness-weight-records", "{}"], ["savedWords", "[]"], ["sb-auth-token", "private"]]);
+test("클라우드의 삭제를 기기에 적용할 때 다른 앱과 인증 저장값은 유지한다", async () => {
+  const locks = installStorageLocks();
+  const values = new Map<string, string>([...Object.entries(preparedStorageSeed()), ["ai-fitness-weight-records", "{}"], ["savedWords", "[]"], ["sb-auth-token", "private"]]);
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
   Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: {
     get length() { return values.size; }, key: (index: number) => [...values.keys()][index] ?? null,
     getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value), removeItem: (key: string) => values.delete(key),
   } } });
   try {
-    applyCloudState({ [fitnessMarker]: stamp });
+    await applyCloudState({ [fitnessMarker]: stamp });
     assert.equal(values.has("ai-fitness-weight-records"), false);
     assert.equal(values.get("savedWords"), "[]");
     assert.equal(values.get("sb-auth-token"), "private");
   } finally {
+    locks.restore();
     if (descriptor) Object.defineProperty(globalThis, "window", descriptor);
     else Reflect.deleteProperty(globalThis, "window");
   }

@@ -42,6 +42,7 @@ import {
   type AssistantWeeklyArea,
 } from "../data/assistantWeeklyBriefing";
 import { isGrowthRoutineScheduled, summarizeGrowthRoutineWeek } from "../data/growthSchedule";
+import { growthDurationLabel, summarizeGrowthDuration } from "../data/growthPlatform";
 import { isRetiredGrowthRoutine } from "../data/growthRoutines";
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
@@ -71,6 +72,7 @@ type BriefingGrowthSession = {
   routine_id: string | null;
   session_date: string;
   actual_minutes: number | string;
+  metrics?: Record<string, unknown> | null;
   status: "completed" | "partial" | "stopped";
 };
 type BriefingSnapshot = {
@@ -78,7 +80,7 @@ type BriefingSnapshot = {
   fitness: FitnessDailyStatus;
   diet: DietDailyStatus;
   language: LanguageDailyStatus;
-  growth: { completed: number; total: number; minutes: number };
+  growth: { completed: number; total: number; duration: ReturnType<typeof summarizeGrowthDuration> };
 };
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
@@ -88,7 +90,7 @@ const EMPTY_BRIEFING: BriefingSnapshot = {
   fitness: EMPTY_FITNESS_DAILY_STATUS,
   diet: EMPTY_DIET_DAILY_STATUS,
   language: EMPTY_LANGUAGE_DAILY_STATUS,
-  growth: { completed: 0, total: 0, minutes: 0 },
+  growth: { completed: 0, total: 0, duration: summarizeGrowthDuration([]) },
 };
 
 const WELCOME_MESSAGE: ChatMessage = {
@@ -114,7 +116,7 @@ const weeklyCardTones: Record<AssistantWeeklyArea, string> = {
 
 const AssistantCharacter = dynamic(() => import('@/components/yeoni/AssistantCharacter'));
 
-export default function AssistantClient({ characterAudio = null }: { characterAudio?: { ko: string; ja: string } | null }) {
+export default function AssistantClient({ characterAudio = null, alignReplies = false }: { characterAudio?: { ko: string; ja: string } | null; alignReplies?: boolean }) {
   const [items, setItems] = useState<Item[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -259,7 +261,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
       supabase.from("user_app_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", auth.user.id).maybeSingle(),
       supabase.from("growth_routines").select("*").eq("user_id", auth.user.id).eq("enabled", true),
-      supabase.from("growth_sessions").select("routine_id,session_date,actual_minutes,status").eq("user_id", auth.user.id).gte("session_date", weeklyStartKey).lte("session_date", todayKey),
+      supabase.from("growth_sessions").select("routine_id,session_date,actual_minutes,status,metrics").eq("user_id", auth.user.id).gte("session_date", weeklyStartKey).lte("session_date", todayKey),
     ]);
     const failures = [
       itemResult.error && '할 일', projectResult.error && '프로젝트', memoryResult.error && '기억',
@@ -292,7 +294,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
       growth: growthRoutineResult.error || growthSessionResult.error ? previous.growth : {
         completed: scheduledGrowthRoutines.filter((routine) => todayGrowthCompletedIds.has(routine.id)).length,
         total: scheduledGrowthRoutines.length,
-        minutes: todayGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0),
+        duration: summarizeGrowthDuration(todayGrowthSessions),
       },
     }));
     setWeeklyBriefing(buildAssistantWeeklyBriefing({
@@ -447,7 +449,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서.</p></div>
         </div>
-        <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio}
+        <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio} alignReplies={alignReplies}
           incoming={characterReply?.ownerId === pending.ownerId ? characterReply : null} busy={chatSending || adviceBusy} />
           : <AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion>}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
@@ -463,7 +465,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
                   event.preventDefault();
                   if (!chatSending && !adviceBusy) setChatInput(ADVICE_QUESTIONS[scope]);
                 }
-              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} />}</div></div>)}
+              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} align={!!characterAudio && alignReplies} />}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
@@ -525,7 +527,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <Link href="/fitness" className="rounded-2xl bg-orange-50/70 p-3 ring-1 ring-orange-100"><p className="text-xs font-bold text-orange-700">오늘 운동</p><p className="mt-2 line-clamp-2 text-lg font-bold text-orange-950">{briefing.fitness.title}</p><p className={`mt-1 text-xs ${briefing.fitness.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.fitness.detail}</p></Link>
           <Link href="/diet" className="rounded-2xl bg-lime-50/70 p-3 ring-1 ring-lime-100"><p className="text-xs font-bold text-lime-700">오늘 식단</p><p className="mt-2 line-clamp-2 text-lg font-bold text-lime-950">{briefing.diet.title}</p><p className={`mt-1 text-xs ${briefing.diet.completed ? "font-bold text-emerald-700" : "text-gray-500"}`}>{briefing.diet.detail}</p></Link>
           <Link href={briefing.language.nextHref} className="rounded-2xl bg-blue-50/70 p-3 ring-1 ring-blue-100"><p className="text-xs font-bold text-blue-700">오늘 언어 학습</p><p className="mt-2 text-xl font-bold text-blue-950">{briefing.language.completed}/{briefing.language.total} 완료</p><p className="mt-1 text-xs text-gray-500">{briefing.language.nextLabel}</p></Link>
-          <Link href="/growth" className="rounded-2xl bg-fuchsia-50/70 p-3 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">기록 {briefing.growth.minutes}분</p></Link>
+          <Link href="/growth" className="rounded-2xl bg-fuchsia-50/70 p-3 ring-1 ring-fuchsia-100"><p className="text-xs font-bold text-fuchsia-700">오늘 자기계발</p><p className="mt-2 text-xl font-bold text-fuchsia-950">{briefing.growth.completed}/{briefing.growth.total} 완료</p><p className="mt-1 text-xs text-gray-500">{growthDurationLabel(briefing.growth.duration)}</p></Link>
         </>}</div>
 
       </section>

@@ -45,6 +45,7 @@ export default function DrawingPage() {
   const [compare, setCompare] = useState<string>("");
   const [album, setAlbum] = useState(false);
   const [localStatus, setLocalStatus] = useState("");
+  const [checkpointRetry, retryCheckpoint] = useState(0);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [filter, setFilter] = useState(0);
   const [review, setReview] = useState(false);
@@ -55,6 +56,7 @@ export default function DrawingPage() {
   useEffect(()=>{if(libraryOpen) libraryRef.current?.scrollIntoView({block:"start"});},[libraryOpen]);
   const workHeading = useRef<HTMLHeadingElement>(null);
   const checkpointGeneration = useRef(0);
+  const checkpointTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestOwner = useRef(records.owner); latestOwner.current = records.owner;
   useUnsavedChanges(dirty);
   useEffect(() => {
@@ -65,15 +67,23 @@ export default function DrawingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (!attempt || !dirty || attempt.user_id !== owner) return;
+    if (!attempt || !dirty || records.busy || attempt.user_id !== owner) return;
     const ticket = ++checkpointGeneration.current;
+    let active = true;
     const timer = setTimeout(() => {
+      if (!active || ticket !== checkpointGeneration.current) return;
+      checkpointTimer.current = null;
       void checkpoint({ attempt, baseRevision: attempt.revision, pending: true })
-        .then(() => { if (ticket === checkpointGeneration.current) setLocalStatus("이 기기에 임시 보관 중 · 클라우드 저장 전"); })
-        .catch(() => { if (ticket === checkpointGeneration.current) setLocalStatus("임시 저장 공간을 쓰지 못했어요. 화면을 닫기 전에 내보내기 또는 저장해 주세요."); });
+        .then(() => { if (active && ticket === checkpointGeneration.current) setLocalStatus("이 기기에 임시 보관 중 · 클라우드 저장 전"); })
+        .catch(() => { if (active && ticket === checkpointGeneration.current) setLocalStatus("임시 저장 공간을 쓰지 못했어요. 화면을 닫기 전에 내보내기 또는 저장해 주세요."); });
     }, 250);
-    return () => clearTimeout(timer);
-  }, [attempt, dirty, owner, checkpoint]);
+    checkpointTimer.current = timer;
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      if (checkpointTimer.current === timer) checkpointTimer.current = null;
+    };
+  }, [attempt, dirty, owner, checkpoint, records.busy, checkpointRetry]);
 
   const owned = attempt?.user_id === records.owner ? attempt : null;
   const doc = owned?.document;
@@ -107,9 +117,19 @@ export default function DrawingPage() {
     setAttempt(record); setLocalStatus(""); setLibraryOpen(false); setEasy(record.document.short); setReferenceOverlay(false); setDirty(false); setReview(false); setOriginal(record.document.lesson.stage !== 4); setAlbum(false); setCompare("");
   }
   async function save(completed: boolean, patch: Partial<DrawingDocument> = {}) {
-    if (!owned || photoBusy) return;
+    if (!owned || photoBusy || records.busy) return;
+    // Stop the old revision before save stages its exact request. Cancelling
+    // only after success lets a delayed checkpoint overwrite the confirmation.
+    checkpointGeneration.current++;
+    if (checkpointTimer.current !== null) {
+      clearTimeout(checkpointTimer.current);
+      checkpointTimer.current = null;
+    }
     const saved = await records.save({ ...owned, document: {...owned.document,...patch}, status: completed ? "completed" : "draft" });
     if (saved && saved.user_id === latestOwner.current) { checkpointGeneration.current++; setAttempt(saved); setDirty(false); setLocalStatus("클라우드 저장 확인 완료"); setReview(completed); return true; }
+    // Size/ownership checks can reject before busy changes. Keep local recovery
+    // scheduled even when the server save never starts.
+    if (latestOwner.current === owned.user_id) retryCheckpoint(value => value + 1);
     return false;
   }
   const previous = records.records.find(a => a.id === compare);
@@ -152,9 +172,11 @@ export default function DrawingPage() {
         </>}
         <nav aria-label="그림 연습 메뉴" className="drawing-menu">
           {owned && <button className="drawing-button" disabled={records.busy} onClick={async()=>{if(await preserve()){setAttempt(null);setDirty(false);setReview(false);setLocalStatus("");window.scrollTo({top:0});}}}>처음 화면</button>}
-          <button className="drawing-button" aria-expanded={album} onClick={()=>setAlbum(!album)}>내 그림 {records.records.length}장</button>
-          <button className="drawing-button" aria-expanded={libraryOpen || !simple} onClick={()=>setLibraryOpen(!libraryOpen)}>다른 수업 고르기</button>
-          <button className="drawing-button" aria-pressed={!simple} onClick={()=>setSimple(!simple)}>전체 도구 보기</button>
+          {/* Loading records changes the welcome card above these controls.
+              Accept input only after that layout change, like the start button. */}
+          <button className="drawing-button" disabled={!records.ready} aria-expanded={album} onClick={()=>setAlbum(!album)}>내 그림 {records.records.length}장</button>
+          <button className="drawing-button" disabled={!records.ready} aria-expanded={libraryOpen || !simple} onClick={()=>setLibraryOpen(!libraryOpen)}>다른 수업 고르기</button>
+          <button className="drawing-button" disabled={!records.ready} aria-pressed={!simple} onClick={()=>setSimple(!simple)}>전체 도구 보기</button>
         </nav>
         {!simple && <p className="mt-3 text-sm text-slate-500">모든 도구를 펼쳤어요. ‘전체 도구 보기’를 다시 누르면 쉬운 화면으로 돌아가요. · 연습한 수업 {doneIds.size}개</p>}
       </section>

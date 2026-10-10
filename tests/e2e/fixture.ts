@@ -1,9 +1,10 @@
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { RouteDrain } from './route-drain';
 import { failureLabel, observeNavigation, routeLabel } from './navigation-diagnostics';
+import { RouteContinueDiagnostics } from './route-continue-diagnostics';
 
 export { expect };
 export type State = Record<string, unknown>;
@@ -44,10 +45,20 @@ export const originalLanguage: State = {
 };
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const canonical = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
-const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 
 type SyncTable = 'user_app_state' | 'language_user_state';
-type Entry = { session: string; table: SyncTable; method: string; started: number; received: number; status: number; cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean };
+export const sharedSyncRpc = 'save_cloud_state_if_unchanged';
+export const sharedSyncRpcPath = `/rest/v1/rpc/${sharedSyncRpc}`;
+type Entry = {
+  session: string; table: SyncTable; method: string; started: number; received: number; status: number;
+  cas: boolean; matched?: boolean; sent?: State; receivedState?: State; synthetic?: boolean; delivered?: boolean;
+  rpc?: typeof sharedSyncRpc; owner?: string; expectedState?: State | null; expectedUpdatedAt?: string | null;
+  receivedUpdatedAt?: string; rowExists?: boolean;
+};
+// Count both transports so a regression to a direct INSERT/PATCH cannot hide
+// behind a "no write" assertion. Other RPCs are deliberately not sync traffic.
+export const isSharedSyncWrite = (entry: Entry) => entry.table === 'user_app_state' && ['PATCH', 'POST'].includes(entry.method);
+const stateObject = (value: unknown): value is State => value !== null && typeof value === 'object' && !Array.isArray(value);
 type Hold = { table: SyncTable; method: string; phase: 'request' | 'response' | 'loss'; arrived: () => void; wait: Promise<void> };
 function deferred() {
   let resolve!: () => void;
@@ -58,6 +69,7 @@ function deferred() {
 export class Traffic {
   entries: Entry[] = [];
   documentRoutes: { at: number; route: string; phase: string }[] = [];
+  continueFailures = new RouteContinueDiagnostics();
   blockedOrigins = new Set<string>();
   failReads = false;
   private next?: Hold;
@@ -78,10 +90,12 @@ export class Traffic {
     await context.route('**/*', (route: Route) => this.routes.run(async () => {
       const request = route.request();
       const url = new URL(request.url());
+      const method = request.method();
       if (!['http://127.0.0.1:3000', 'http://127.0.0.1:54321'].includes(url.origin)) {
         this.blockedOrigins.add(url.origin); await route.abort('blockedbyclient'); return;
       }
-      const table = url.pathname.slice('/rest/v1/'.length) as SyncTable;
+      const rpc = url.pathname === sharedSyncRpcPath && method === 'POST' ? sharedSyncRpc : undefined;
+      const table = (rpc ? 'user_app_state' : url.pathname.slice('/rest/v1/'.length)) as SyncTable;
       if (url.origin !== 'http://127.0.0.1:54321' || !['user_app_state', 'language_user_state'].includes(table)) {
         const document = request.isNavigationRequest() && request.resourceType() === 'document';
         const note = (phase: string) => {
@@ -91,12 +105,28 @@ export class Traffic {
         };
         note('continue-start');
         try { await route.continue(); note('continue-resolved'); }
-        catch (error) { note('continue-rejected'); throw error; }
+        catch (error) {
+          note('continue-rejected');
+          if (!document) {
+            const diagnostic = this.continueFailures.record(request, error);
+            if (diagnostic) console.log('QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(diagnostic));
+          }
+          throw error;
+        }
         return;
       }
-      const method = request.method(); const started = Date.now();
+      const started = Date.now();
       if (!['GET', 'PATCH', 'POST'].includes(method)) { await route.continue(); return; }
-      if (method === 'GET' && this.failReads) {
+      const payload = method === 'GET' ? undefined : request.postDataJSON();
+      const owner = rpc ? payload?.p_owner : url.searchParams.get('user_id')?.replace(/^eq\./, '');
+      // RPC writes must carry both expected content and timestamp, or an
+      // explicit null/null absent-row precondition. A timestamp alone fails.
+      const cas = rpc ? method === 'POST' && typeof owner === 'string' && Boolean(owner)
+        && stateObject(payload?.p_state)
+        && (payload?.p_expected_updated_at === null && payload?.p_expected_state === null
+          || typeof payload?.p_expected_updated_at === 'string' && Boolean(payload.p_expected_updated_at) && stateObject(payload?.p_expected_state))
+        : url.searchParams.has('updated_at');
+      if (!rpc && method === 'GET' && this.failReads) {
         this.entries.push({ session: this.label, table, method, started, received: Date.now(), status: 503, cas: false, synthetic: true, delivered: true });
         await route.fulfill({ status: 503, contentType: 'application/json',
           headers: { 'access-control-allow-origin': 'http://127.0.0.1:3000' },
@@ -104,26 +134,44 @@ export class Traffic {
       }
       const hold = this.next?.method === method && this.next.table === table ? this.next : undefined;
       if (hold) this.next = undefined;
+      // Record dispatch attempts before a hold/fetch. Counts must also see a
+      // pending or transport-failed publication, not only HTTP responses.
+      const entry: Entry = { session: this.label, table, method, started, received: 0, status: 0, cas,
+        ...(typeof owner === 'string' ? { owner } : {}),
+        ...(rpc ? { rpc, expectedState: payload?.p_expected_state, expectedUpdatedAt: payload?.p_expected_updated_at } : {}),
+        ...(method !== 'GET' ? { sent: rpc ? payload?.p_state : payload?.state } : {}) };
+      this.entries.push(entry);
       if (hold?.phase === 'request') { hold.arrived(); await hold.wait; }
       // Genuine HTTP to PostgREST with the browser's authenticated headers.
       const response = await route.fetch({ maxRetries: 0 });
       const body = await response.json().catch(() => null);
       const row = Array.isArray(body) ? body[0] : body;
-      const entry: Entry = { session: this.label, table, method, started, received: Date.now(), status: response.status(), cas: url.searchParams.has('updated_at'),
-        ...(method !== 'GET' ? { sent: request.postDataJSON()?.state, matched: Boolean(row) } : {}),
-        ...(row?.state ? { receivedState: row.state } : {}) };
-      this.entries.push(entry);
+      Object.assign(entry, { received: Date.now(), status: response.status(),
+        ...(method !== 'GET' ? { matched: response.ok() && (rpc ? body === true : Boolean(row)) } : {}),
+        ...(!rpc && method === 'GET' && response.ok() ? { rowExists: Boolean(row) } : {}),
+        ...(stateObject(row?.state) ? { receivedState: row.state } : {}),
+        ...(typeof row?.updated_at === 'string' ? { receivedUpdatedAt: row.updated_at } : {}) });
       if (hold && hold.phase !== 'request') { hold.arrived(); await hold.wait; }
       if (hold?.phase === 'loss') { entry.delivered = false; await route.abort('failed'); }
       else { entry.delivered = true; await route.fulfill({ response }); }
     }));
   }
   assertConfirmed(expected: State) {
-    const writes = this.entries.filter(e => e.table === 'user_app_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
-    expect(writes.length, 'A real conditional PATCH carrying the expected state').toBeGreaterThan(0);
+    const writes = this.entries.filter(e => isSharedSyncWrite(e) && e.rpc === sharedSyncRpc && e.method === 'POST' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
+    expect(writes.length, 'A real conditional sync RPC carrying the expected state').toBeGreaterThan(0);
     expect(writes.every(e => e.cas)).toBe(true);
+    for (const write of writes) {
+      expect(this.entries.some(read => read.session === write.session && read.table === 'user_app_state' && read.method === 'GET'
+        && read.status === 200 && read.delivered && read.owner === write.owner && read.received <= write.started
+        && this.entries.indexOf(read) < this.entries.indexOf(write)
+        && (write.expectedState === null && write.expectedUpdatedAt === null ? read.rowExists === false
+          : read.receivedUpdatedAt === write.expectedUpdatedAt && read.receivedState && canonical(read.receivedState) === canonical(write.expectedState))),
+      'The conditional RPC carries the exact owner, content and timestamp from a prior real GET').toBe(true);
+    }
     expect(this.entries.some(e => e.table === 'user_app_state' && e.method === 'GET' && e.status === 200 && e.receivedState && canonical(e.receivedState) === canonical(expected)
-      && writes.some(write => e.started >= write.received)), 'A subsequent real confirmation GET has the exact PATCH state').toBe(true);
+      && e.delivered && writes.some(write => e.session === write.session && e.owner === write.owner && e.started >= write.received
+        && this.entries.indexOf(e) > this.entries.indexOf(write))),
+    'A subsequent real confirmation GET has the exact RPC state for the same owner and session').toBe(true);
   }
   assertLanguageConfirmed(expected: State) {
     const writes = this.entries.filter(e => e.table === 'language_user_state' && e.method === 'PATCH' && e.status === 200 && e.matched && e.delivered && e.sent && canonical(e.sent) === canonical(expected));
@@ -133,10 +181,12 @@ export class Traffic {
       && writes.some(write => e.started >= write.received)), 'A subsequent real language confirmation GET has the exact PATCH state').toBe(true);
   }
   safeEvidence() {
-    return this.entries.map(e => ({ session: e.session, method: e.method, started: e.started, received: e.received, status: e.status, cas: e.cas,
+    return this.entries.map(e => ({ session: e.session, method: e.method, rpc: e.rpc, started: e.started, received: e.received, status: e.status, cas: e.cas,
       synthetic: Boolean(e.synthetic), delivered: e.delivered, matched: e.matched,
-      table: e.table, ...(e.sent ? { sentKeys: Object.keys(e.sent).length, sentSha256: digest(e.sent) } : {}),
-      ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length, receivedSha256: digest(e.receivedState) } : {}) }));
+      ...(e.rpc ? { expectsAbsent: e.expectedState === null && e.expectedUpdatedAt === null,
+        ...(e.expectedState ? { expectedKeys: Object.keys(e.expectedState).length } : {}) } : {}),
+      table: e.table, ...(e.sent ? { sentKeys: Object.keys(e.sent).length } : {}),
+      ...(e.receivedState ? { receivedKeys: Object.keys(e.receivedState).length } : {}) }));
   }
 }
 
@@ -193,22 +243,35 @@ export const test = base.extend<{ qa: Qa }>({
           commit: process.env.QA_HEAD_SHA, title: testInfo.title, project: testInfo.project.name,
           repeatEachIndex: testInfo.repeatEachIndex, status: testInfo.status,
           failures: testInfo.errors.map(error => failureLabel(error.message ?? '')),
-          navigation, documentRoutes: traffic.documentRoutes,
+          navigation, documentRoutes: traffic.documentRoutes, continueFailures: traffic.continueFailures,
         };
         navigationEvidence = JSON.stringify(evidence, null, 2);
         console.log('QA_NAVIGATION_FAILURE ' + JSON.stringify(evidence));
       }
+      const cleanupStarted = performance.now();
+      const cleanupPhase = (phase: 'traffic-drain' | 'unroute' | 'context-close' | 'account-cleanup', boundary: 'start' | 'end') => {
+        // Node-side fixed labels only. Keep useful boundaries even if a later
+        // browser command stalls before the normal evidence files are written.
+        if (navigationEvidence) console.log('QA_CLEANUP_PHASE ' + JSON.stringify({ phase, boundary, ms: Math.round(performance.now() - cleanupStarted) }));
+      };
       traffic.releaseAll();
       // Drain while the routing list is still installed. Removing it first can
       // auto-continue a second response before its callback calls fulfill.
+      cleanupPhase('traffic-drain', 'start');
       await traffic.drain();
+      cleanupPhase('traffic-drain', 'end');
       // Finish in-flight route.fetch/fulfill callbacks before closing their
       // request context. Keep callback errors visible; do not ignore them.
+      cleanupPhase('unroute', 'start');
       await context.unrouteAll({ behavior: 'wait' });
+      cleanupPhase('unroute', 'end');
       // Stop browser writers before removing the synthetic Auth users. Cascade
       // then removes their rows; verify cleanup even when an assertion fails.
+      cleanupPhase('context-close', 'start');
       await context.close();
+      cleanupPhase('context-close', 'end');
       let storageFilesRemoved = 0;
+      cleanupPhase('account-cleanup', 'start');
       for (const account of accounts) {
         const ownedFiles = async (prefix: string): Promise<string[]> => {
           const result = await admin.storage.from('growth-resources').list(prefix, { limit: 1000 });
@@ -232,11 +295,12 @@ export const test = base.extend<{ qa: Qa }>({
         expect(remaining.error).toBeNull(); expect(remaining.count).toBe(0);
         const remainingLanguage = await admin.from('language_user_state').select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
         expect(remainingLanguage.error).toBeNull(); expect(remainingLanguage.count).toBe(0);
-        for (const table of ['chatgpt_advice', 'fitness_ai_review_history', 'assistant_task_command_history', 'assistant_language_command_history', 'assistant_workout_command_history', 'assistant_diet_command_history', 'assistant_growth_command_history', 'assistant_items', 'assistant_projects', 'assistant_memories', 'assistant_chat_messages', 'budget_payment_plans', 'budget_payment_plan_requests', 'budget_category_rules', 'budget_category_changes', 'budget_category_change_items', 'budget_profiles', 'budget_transactions', 'budget_income', 'budget_savings', 'growth_routines', 'growth_sessions', 'growth_ai_reviews', 'growth_resources', 'diet_meal_favorites', 'workout_actual_times'] as const) {
+        for (const table of ['language_live_lessons', 'language_live_learning_batches', 'language_live_preparations', 'chatgpt_advice', 'fitness_ai_review_history', 'assistant_task_command_history', 'assistant_language_command_history', 'assistant_workout_command_history', 'assistant_diet_command_history', 'assistant_growth_command_history', 'assistant_items', 'assistant_projects', 'assistant_memories', 'assistant_chat_messages', 'budget_payment_plans', 'budget_payment_plan_requests', 'budget_category_rules', 'budget_category_changes', 'budget_category_change_items', 'budget_profiles', 'budget_transactions', 'budget_income', 'budget_savings', 'growth_routines', 'growth_sessions', 'growth_ai_reviews', 'growth_resources', 'diet_meal_favorites', 'workout_actual_times'] as const) {
           const remainingBudget = await admin.from(table).select('user_id', { count: 'exact', head: true }).eq('user_id', account.id);
           expect(remainingBudget.error).toBeNull(); expect(remainingBudget.count, `${table} synthetic cleanup`).toBe(0);
         }
       }
+      cleanupPhase('account-cleanup', 'end');
       cleaned = true;
       mkdirSync('.e2e/evidence', { recursive: true });
       // Diagnostic file IO must not prevent synthetic account cleanup.
@@ -244,13 +308,13 @@ export const test = base.extend<{ qa: Qa }>({
       writeFileSync(`.e2e/evidence/${testInfo.project.name}-${testInfo.testId.replace(/[^a-zA-Z0-9_-]/g, '')}.json`, JSON.stringify({
         title: testInfo.title, syntheticAccountsRemoved: accounts.length, cleaned, originalKeys: Object.keys(original).length,
         traffic: traffic.safeEvidence(), blockedOrigins: [...traffic.blockedOrigins],
-        navigation, documentRoutes: traffic.documentRoutes,
+        navigation, documentRoutes: traffic.documentRoutes, continueFailures: traffic.continueFailures,
       }, null, 2));
       console.log('QA_CLEANUP ' + JSON.stringify({ title: testInfo.title, accountsRemoved: accounts.length, rowsRemaining: 0,
         storageFilesRemoved,
-        requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic).length,
+        requests: traffic.entries.length, realResponses: traffic.entries.filter(e => !e.synthetic && e.status > 0).length,
         injectedErrors: traffic.entries.filter(e => e.synthetic).length,
-        conditionalMisses: traffic.entries.filter(e => e.method === 'PATCH' && e.matched === false).length,
+        conditionalMisses: traffic.entries.filter(e => e.cas && e.status === 200 && e.matched === false).length,
         blockedOrigins: [...traffic.blockedOrigins] }));
       expect(traffic.blockedOrigins.size, 'No requests to hosted or external origins').toBe(0);
     }
@@ -265,6 +329,23 @@ export async function login(page: Page, account: Account, path = '/diet/settings
   await expect(page.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible();
 }
 export const synced = async (page: Page) => { await expect(page.getByText('서버 반영 완료', { exact: true })).toBeVisible(); };
+export async function foregroundLivePage(page: Page) {
+  // A background tab deliberately hides/inerts private language editors.
+  // Simulate returning to the tab; never bypass that privacy/lifecycle gate.
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+  const ready = page.getByText('학습 기록 · 서버 저장 확인', { exact: true });
+  const paused = page.getByRole('button', { name: '학습 기록 다시 확인', exact: true });
+  // Foregrounding alone is not a sync acknowledgement. If the peer paused this
+  // tab, use only its visible, warm-paused recovery action; never turn a
+  // blocked/error/reset state into an automatic fixture retry.
+  await expect(ready.or(paused)).toBeVisible();
+  const reconnect = await paused.isVisible();
+  console.log('QA_LIVE_FOREGROUND ' + JSON.stringify({ recovery: reconnect ? 'explicit-paused' : 'already-ready' }));
+  if (reconnect) await paused.click();
+  await expect(ready).toBeVisible();
+  await expect(page.locator('.live-workspace')).toBeVisible();
+}
 export const localState = (page: Page): Promise<State> => page.evaluate(() => Object.fromEntries(Object.keys(localStorage).filter(key => key.startsWith('ai-fitness-')).map(key => {
   const value = localStorage.getItem(key)!; try { return [key, JSON.parse(value)]; } catch { return [key, value]; }
 })));
@@ -281,8 +362,10 @@ export async function saveMeal(page: Page, memo: string) {
   await page.getByLabel('메모', { exact: true }).fill(memo);
   await expect(page.getByLabel('메모', { exact: true })).toHaveValue(memo);
   await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
+  // An earlier success label can survive while this edit waits for the Web
+  // Lock. Prove this exact revision committed before accepting the label.
+  await expect.poll(async () => mealMemo(await localState(page)), { message: 'The form committed the intended memo locally' }).toBe(memo);
   await expect(page.getByText('오늘 식단 기록을 저장했습니다.', { exact: true })).toBeVisible();
-  expect(mealMemo(await localState(page)), 'The form saved the intended memo locally').toBe(memo);
 }
 export const mealMemo = (state: State) => (state['ai-fitness-diet-completed-days'] as Record<string, { dietMemo?: string }> | undefined)?.[today()]?.dietMemo;
 export async function mealSaved(page: Page, qa: Qa, memo: string) {

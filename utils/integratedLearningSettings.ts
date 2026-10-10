@@ -32,11 +32,10 @@ export const DEFAULT_INTEGRATED_LEARNING_SETTINGS: IntegratedLearningSettings = 
   showKoreanHint: true,
 };
 
-export function loadIntegratedLearningSettings(): IntegratedLearningSettings {
-  if (typeof window === "undefined") return DEFAULT_INTEGRATED_LEARNING_SETTINGS;
+export function loadIntegratedLearningSettings(raw?: string | null): IntegratedLearningSettings {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(INTEGRATED_LEARNING_SETTINGS_KEY) ?? "null") as Partial<IntegratedLearningSettings> | null;
-    if (!parsed || typeof parsed !== "object") return DEFAULT_INTEGRATED_LEARNING_SETTINGS;
+    const parsed = JSON.parse(raw ?? "null") as Partial<IntegratedLearningSettings> | null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return DEFAULT_INTEGRATED_LEARNING_SETTINGS;
     return {
       dailyMinutes: parsed.dailyMinutes === 5 || parsed.dailyMinutes === 20 ? parsed.dailyMinutes : 10,
       preferredTrack: parsed.preferredTrack === "work" || parsed.preferredTrack === "travel" ? parsed.preferredTrack : "foundation",
@@ -54,9 +53,4 @@ export function loadIntegratedLearningSettings(): IntegratedLearningSettings {
   } catch {
     return DEFAULT_INTEGRATED_LEARNING_SETTINGS;
   }
-}
-
-export function saveIntegratedLearningSettings(settings: IntegratedLearningSettings) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(INTEGRATED_LEARNING_SETTINGS_KEY, JSON.stringify(settings));
 }

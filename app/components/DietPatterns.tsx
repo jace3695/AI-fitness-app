@@ -1,5 +1,6 @@
 import { dietPatterns, DIET_COMPARISON_MIN_DAYS } from '../data/dietPatterns';
 import { DIGESTION_LABELS } from '../data/freeDietTools';
+import { DIET_SELF_RESPONSE_FIELDS, DIET_SELF_RESPONSE_LABELS, dietSelfResponseMetricText } from '../data/dietSelfResponses';
 
 export default function DietPatterns({ store, today }: { store: Record<string, unknown>; today: string }) {
   const comparison = dietPatterns(store, today);
@@ -17,16 +18,18 @@ export default function DietPatterns({ store, today }: { store: Record<string, u
         <ul className="mt-2 space-y-2 text-xs leading-5 text-gray-700">
           <li>소화 불편 {data.digestion.count}일 / 응답 {data.digestion.answers}일{data.digestion.rate === null ? ' · 비율 미기록' : ` · ${data.digestion.rate}%`}</li>
           <li>야식 {data.lateSnack.count}일 / 응답 {data.lateSnack.answers}일{data.lateSnack.rate === null ? ' · 비율 미기록' : ` · ${data.lateSnack.rate}%`}</li>
+          {DIET_SELF_RESPONSE_FIELDS.map(({ key, label }) => <li key={key}>{label}: {dietSelfResponseMetricText(data.selfResponses[key])}</li>)}
         </ul>
         <details className="mt-3 text-xs leading-5">
           <summary className="min-h-11 cursor-pointer py-3 font-bold">{label} 날짜별 근거</summary>
-          {data.days.length ? <ul className="space-y-2">{data.days.map(day => <li key={day.date} className="break-words">{day.date} · 소화 {DIGESTION_LABELS[day.digestion]} · 야식 {day.lateSnack === 'yes' ? '예' : day.lateSnack === 'no' ? '아니요' : '미기록'}</li>)}</ul> : <p>이 기간에 저장된 식단 기록이 없습니다.</p>}
+          {data.days.length ? <ul className="space-y-2">{data.days.map(day => <li key={day.date} className="break-words"><span>{day.date} · 소화 {DIGESTION_LABELS[day.digestion]} · 야식 {day.lateSnack === 'yes' ? '예' : day.lateSnack === 'no' ? '아니요' : '미기록'}</span><span className="block">{DIET_SELF_RESPONSE_FIELDS.map(({ key, label }) => `${label} ${DIET_SELF_RESPONSE_LABELS[day.selfResponses[key]]}`).join(' · ')}</span></li>)}</ul> : <p>이 기간에 저장된 식단 기록이 없습니다.</p>}
         </details>
       </article>)}
     </div>
     <ul className="mt-3 space-y-2 text-xs leading-5 text-gray-700">
       <li>소화 불편: {change(comparison.digestionDelta)}</li>
       <li>야식: {change(comparison.lateSnackDelta)}</li>
+      {comparison.selfResponseDeltas.map(({ key, label, delta }) => <li key={key}>{label}: {change(delta)}</li>)}
     </ul>
     <p className="mt-3 text-xs leading-5 text-gray-500">기록하지 않은 날의 상태는 알 수 없습니다. 응답한 날짜가 서로 달라 이 비교만으로 원인이나 건강 상태를 판단할 수 없습니다.</p>
   </section>;

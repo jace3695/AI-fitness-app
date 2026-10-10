@@ -12,7 +12,9 @@ export async function init(assets: Record<string, string>, original: string) {
   await new Promise<void>((ready, reject) => { renderer = createHumanCanvasRenderer(canvas, { assetUrls: assets, ready, fail: () => reject(new Error('Human asset failed')) }); });
 }
 export function show(input: { time?: number; eye?: CharacterFrame['blink']; mouth?: Viseme; still?: boolean; size?: number }) {
-  const controller = new CharacterController(), frame = controller.sample(EMPTY_PLAYBACK, input.time ?? 0, { ...policy, enabled: !input.still });
+  // These are explicit static artwork endpoints, not speech. A default smooth
+  // rest pose would override the requested viseme and hide every open mouth.
+  const controller = new CharacterController(), frame = controller.sample(EMPTY_PLAYBACK, input.time ?? 0, { ...policy, enabled: !input.still }, 'direct');
   return draw({ ...frame, ...(input.eye ? { blink: input.eye } : {}), ...(input.mouth ? { viseme: input.mouth } : {}) }, input.size);
 }
 export function draw(frame: CharacterFrame, size = 360) {

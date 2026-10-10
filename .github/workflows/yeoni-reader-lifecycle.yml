@@ -1,0 +1,71 @@
+name: Yeoni reader lifecycle
+
+on:
+  push:
+    branches: [agent/yeoni-cat-animation-poc]
+    paths:
+      - 'scripts/yeoni-reply/check-reader-lifecycle.mjs'
+      - 'components/ZephyrReadButton.tsx'
+      - 'components/yeoni/**'
+      - 'components/useYeoniPreferences.ts'
+      - 'utils/yeoniPreferences.ts'
+      - 'app/globals.css'
+      - 'lib/zephyr-playback.ts'
+      - 'lib/yeoni-voice-policy.ts'
+      - 'lib/yeoni/**'
+      - 'public/yeoni/**'
+      - 'public/yeoni-cat-sprite-v1.webp'
+      - 'docs/yeoni-phase5/fixtures/**'
+      - 'scripts/browser-qa/package*.json'
+      - 'package*.json'
+      - 'tailwind.config.ts'
+      - 'tsconfig.json'
+      - '.github/workflows/yeoni-reader-lifecycle.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: yeoni-reader-lifecycle-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  reader-lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      YEONI_READER_EVIDENCE_DIR: .e2e/reader-lifecycle
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - name: Install locked component-test dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix scripts/browser-qa ci --ignore-scripts
+      - name: Check the new harness
+        run: |
+          node --check scripts/yeoni-reply/check-reader-lifecycle.mjs
+          npx eslint scripts/yeoni-reply/check-reader-lifecycle.mjs
+      - name: Install real Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify reader lifecycle using only checked-in sample audio
+        run: |
+          set -o pipefail
+          mkdir -p "$YEONI_READER_EVIDENCE_DIR"
+          node scripts/yeoni-reply/check-reader-lifecycle.mjs 2>&1 | tee "$YEONI_READER_EVIDENCE_DIR/reader-lifecycle-20261010.runner.log"
+      - name: Preserve only this run's isolated evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: yeoni-reader-lifecycle-${{ github.sha }}-${{ github.run_attempt }}
+          path: .e2e/reader-lifecycle/reader-lifecycle-20261010.*
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

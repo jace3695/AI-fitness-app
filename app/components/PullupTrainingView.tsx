@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { readStorageSnapshot } from '../data/storageTransaction';
+import { captureFitnessEditorOwner, readFitnessValue, updateFitnessValues, fitnessStorageError } from '../data/fitnessStorageUpdates';
+import type { WorkoutCompletionStore } from '../data/workoutCompletion';
 import { getLocalDateKey } from '../data/dietPlans';
-import { getWorkoutRecord, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY } from '../data/workoutCompletion';
+import { getWorkoutRecord, migrateLegacyWorkoutWeekdays, readWorkoutCompletionStore, WORKOUT_COMPLETED_DAYS_KEY } from '../data/workoutCompletion';
 import { createDefaultPullupProgress, getPullupVideoUrl, normalizePullupProgress, PULLUP_PROGRESS_KEY, PULLUP_STAGES, PullupProgress } from '../data/pullupTraining';
 
 const safetyRules = ['통증을 참고 진행하지 않기', '팔 저림, 어깨 통증, 목 통증이 있으면 즉시 중단', '허리가 꺾이거나 반동이 커지면 난이도를 낮추기', '밴드와 철봉 고정 상태를 매번 확인', '문틀 철봉의 허용 하중과 설치 상태를 확인'];
 
 export default function PullupTrainingView() {
+  const [owner] = useState(captureFitnessEditorOwner);
+  const revision = useRef(0);
   const [progress, setProgress] = useState<PullupProgress>(() => createDefaultPullupProgress());
   const [selectedStage, setSelectedStage] = useState(1);
   const [pullupPain, setPullupPain] = useState(false);
@@ -15,29 +20,25 @@ export default function PullupTrainingView() {
   const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
-    const todayRecord = getWorkoutRecord(readWorkoutCompletionStore()[getLocalDateKey()]);
-    setPullupPain(Boolean(todayRecord.pullupPain));
-    setPullupMemo(todayRecord.pullupMemo || '');
-    if (todayRecord.pullupStage) setSelectedStage(todayRecord.pullupStage);
-    const raw = window.localStorage.getItem(PULLUP_PROGRESS_KEY);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as unknown;
-        const normalized = normalizePullupProgress(parsed);
-        setProgress(normalized);
-        setSelectedStage(normalized.currentStage || 1);
-        if (JSON.stringify(normalized) !== JSON.stringify(parsed)) {
-          window.localStorage.setItem(PULLUP_PROGRESS_KEY, JSON.stringify(normalized));
-        }
-      } catch {
-        window.localStorage.setItem(PULLUP_PROGRESS_KEY, JSON.stringify(createDefaultPullupProgress()));
-      }
-    }
+    try {
+      const snapshot = readStorageSnapshot(window.localStorage);
+      const todayRecord = getWorkoutRecord(readWorkoutCompletionStore(new Date(), snapshot)[getLocalDateKey()]);
+      setPullupPain(Boolean(todayRecord.pullupPain));
+      setPullupMemo(todayRecord.pullupMemo || '');
+      const normalized = normalizePullupProgress(readFitnessValue(snapshot, PULLUP_PROGRESS_KEY, createDefaultPullupProgress()));
+      setProgress(normalized);
+      setSelectedStage(todayRecord.pullupStage || normalized.currentStage || 1);
+    } catch (error) { setSaveMessage(fitnessStorageError(error)); }
   }, []);
 
-  const save = (next: PullupProgress) => {
+  const save = async (transform: (current: PullupProgress) => PullupProgress) => {
+    const next = await updateFitnessValues(snapshot => {
+      const current = normalizePullupProgress(readFitnessValue(snapshot, PULLUP_PROGRESS_KEY, createDefaultPullupProgress()));
+      const value = transform(current);
+      return { changes: { [PULLUP_PROGRESS_KEY]: JSON.stringify(value) }, value };
+    }, owner);
     setProgress(next);
-    window.localStorage.setItem(PULLUP_PROGRESS_KEY, JSON.stringify(next));
+    return next;
   };
 
   const stage = PULLUP_STAGES.find((item) => item.id === selectedStage) ?? PULLUP_STAGES[0];
@@ -45,58 +46,51 @@ export default function PullupTrainingView() {
   const totalCount = useMemo(() => Object.values(progress.stageChecks).reduce((sum, item) => sum + (item.completedCount || 0), 0), [progress]);
   const canPromote = check.promotionReady && check.painFree && stage.id === progress.currentStage && stage.id < PULLUP_STAGES.length;
 
-  const updateCheck = (key: keyof typeof check, value: boolean | number) => {
-    const next = { ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: { ...check, [key]: value } } };
-    save(next);
+  const run = async (action: () => Promise<unknown>) => {
+    try { await action(); } catch (error) { setSaveMessage(fitnessStorageError(error)); }
   };
+  const updateCheck = (key: keyof typeof check, value: boolean | number) => run(() => save(current => ({ ...current, updatedAt: getLocalDateKey(), stageChecks: { ...current.stageChecks, [`stage${stage.id}`]: { ...current.stageChecks[`stage${stage.id}`], [key]: value } } })));
 
-  const writeTodayPullupRecord = (pain: boolean, memo: string, done: boolean) => {
+  const writeTodayPullupRecord = async (pain: boolean, memo: string, done: boolean) => {
     const dateKey = getLocalDateKey();
-    const store = readWorkoutCompletionStore();
-    const current = getWorkoutRecord(store[dateKey]);
-    window.localStorage.setItem(WORKOUT_COMPLETED_DAYS_KEY, JSON.stringify({
-      ...store,
-      [dateKey]: {
-        ...current,
-        pullupDone: done,
-        pullupStage: done ? stage.id : undefined,
-        pullupExerciseNames: done ? stage.exercises : undefined,
-        pullupPain: done ? pain : undefined,
-        pullupMemo: done ? memo.trim() || undefined : undefined,
-      },
-    }));
+    const next = await updateFitnessValues(snapshot => {
+      const progress = normalizePullupProgress(readFitnessValue(snapshot, PULLUP_PROGRESS_KEY, createDefaultPullupProgress()));
+      const check = progress.stageChecks[`stage${stage.id}`];
+      const nextCheck = { ...check, todayCompleted: done, completedCount: Math.max(0, check.completedCount + (done === check.todayCompleted ? 0 : done ? 1 : -1)), painFree: done ? !pain : check.painFree };
+      const value = { ...progress, updatedAt: dateKey, stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } };
+      const store = migrateLegacyWorkoutWeekdays(readFitnessValue<WorkoutCompletionStore>(snapshot, WORKOUT_COMPLETED_DAYS_KEY, {}));
+      const current = getWorkoutRecord(store[dateKey]);
+      return { changes: {
+        [PULLUP_PROGRESS_KEY]: JSON.stringify(value),
+        [WORKOUT_COMPLETED_DAYS_KEY]: JSON.stringify({ ...store, [dateKey]: { ...current, pullupDone: done, pullupStage: done ? stage.id : undefined, pullupExerciseNames: done ? stage.exercises : undefined, pullupPain: done ? pain : undefined, pullupMemo: done ? memo.trim() || undefined : undefined } }),
+      }, value };
+    }, owner);
+    setProgress(next);
   };
 
-  const completeToday = () => {
-    const pullupDone = !check.todayCompleted;
-    const nextCheck = { ...check, todayCompleted: pullupDone, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount + 1, painFree: pullupDone ? !pullupPain : check.painFree };
-    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
-    writeTodayPullupRecord(pullupPain, pullupMemo, pullupDone);
-    setSaveMessage(pullupDone ? '오늘 철봉 완료 기록을 저장했습니다.' : '오늘 철봉 완료 기록을 해제했습니다.');
-  };
-
-  const saveTodayPullupRecord = () => {
-    const nextCheck = { ...check, todayCompleted: true, completedCount: check.todayCompleted ? check.completedCount : check.completedCount + 1, painFree: !pullupPain };
-    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
-    writeTodayPullupRecord(pullupPain, pullupMemo, true);
+  const completeToday = () => run(async () => {
+    const done = !check.todayCompleted;
+    await writeTodayPullupRecord(pullupPain, pullupMemo, done);
+    setSaveMessage(done ? '오늘 철봉 완료 기록을 저장했습니다.' : '오늘 철봉 완료 기록을 해제했습니다.');
+  });
+  const saveTodayPullupRecord = () => run(async () => {
+    await writeTodayPullupRecord(pullupPain, pullupMemo, true);
     setSaveMessage('오늘 철봉 완료 기록을 저장했습니다.');
-  };
-
-
-  const cancelTodayPullupRecord = () => {
-    const nextCheck = { ...check, todayCompleted: false, completedCount: check.todayCompleted ? Math.max(0, check.completedCount - 1) : check.completedCount };
-    save({ ...progress, updatedAt: getLocalDateKey(), stageChecks: { ...progress.stageChecks, [`stage${stage.id}`]: nextCheck } });
-    writeTodayPullupRecord(false, '', false);
-    setPullupPain(false);
-    setPullupMemo('');
+  });
+  const cancelTodayPullupRecord = () => run(async () => {
+    const savedRevision = revision.current;
+    await writeTodayPullupRecord(false, '', false);
+    if (revision.current === savedRevision) { setPullupPain(false); setPullupMemo(''); }
     setSaveMessage('철봉 기록을 취소했습니다.');
-  };
-
-  const moveNext = () => {
-    const nextStage = Math.min(PULLUP_STAGES.length, stage.id + 1);
-    save({ ...progress, currentStage: nextStage, updatedAt: getLocalDateKey() });
-    setSelectedStage(nextStage);
-  };
+  });
+  const moveNext = () => run(async () => {
+    const next = await save(current => {
+      const check = current.stageChecks[`stage${stage.id}`];
+      if (!check.promotionReady || !check.painFree || current.currentStage !== stage.id) throw new Error('최신 단계 조건을 다시 확인해 주세요.');
+      return { ...current, currentStage: Math.min(PULLUP_STAGES.length, stage.id + 1), updatedAt: getLocalDateKey() };
+    });
+    setSelectedStage(next.currentStage);
+  });
 
   return <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
     <div className="rounded-2xl bg-[#111827] p-4 text-white sm:p-5 lg:col-span-2">
@@ -130,8 +124,8 @@ export default function PullupTrainingView() {
       <h3 className="mt-1 text-lg font-bold text-gray-900">오늘 철봉 완료 저장</h3>
       <div className="mt-3 rounded-xl bg-[#EEEDFE] p-3 text-[13px] text-[#3C3489]"><b>선택 단계: {stage.id}단계</b><p className="mt-1 text-[12px]">{stage.title}</p></div>
       <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-[13px] text-gray-700"><p className="font-bold text-gray-800">기록될 운동:</p>{stage.exercises.map((name) => <p key={`record-${name}`} className="mt-1">- {name}</p>)}</div>
-      <label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={pullupPain} onChange={(e) => setPullupPain(e.target.checked)} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
-      <label className="mt-3 block text-[13px] font-bold text-gray-700">메모<textarea value={pullupMemo} onChange={(e) => setPullupMemo(e.target.value)} placeholder="오늘 자세 느낌 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
+      <label className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={pullupPain} onChange={(e) => { revision.current += 1; setPullupPain(e.target.checked); }} className="h-4 w-4 accent-[#E24B4A]" />통증 있음</label>
+      <label className="mt-3 block text-[13px] font-bold text-gray-700">메모<textarea value={pullupMemo} onChange={(e) => { revision.current += 1; setPullupMemo(e.target.value); }} placeholder="오늘 자세 느낌 입력" className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px] font-normal" /></label>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"><button onClick={saveTodayPullupRecord} className="rounded-xl bg-[#534AB7] px-4 py-3 text-[14px] font-bold text-white">오늘 철봉 완료로 기록</button><button onClick={cancelTodayPullupRecord} className="rounded-xl bg-red-50 px-4 py-3 text-[14px] font-bold text-red-600">철봉 기록 취소</button></div>
       {saveMessage && <p className="mt-2 rounded-xl bg-green-50 px-3 py-2 text-[12px] font-semibold text-green-700">{saveMessage}</p>}
     </section>

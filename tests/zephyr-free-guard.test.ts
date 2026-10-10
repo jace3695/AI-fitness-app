@@ -7,6 +7,8 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { PGlite } from '@electric-sql/pglite';
 import * as voice from '../lib/yeoni-voice-policy.ts';
+import * as speechAlignment from '../lib/yeoni/speech-alignment.ts';
+import * as currencySpeech from '../lib/yeoni/korean-currency-speech.ts';
 
 const db = new PGlite();
 const owner = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
@@ -15,6 +17,8 @@ const migration = '../supabase/migrations/20260915011629_zephyr_free_character_g
 type Result = Record<string, unknown>;
 let month: string;
 let authenticated = true, budgetCalls = 0, googleCalls = 0;
+let expectedSpokenText = '가😀 나';
+let alignmentTexts: string[] = [];
 let failure: 'none' | 'lost-grant' | 'google-network' | 'google-http' | 'bad-audio' | 'expired-grant' | 'wrong-grant' = 'none';
 let env: Record<string, string>;
 let edgeHandler: (request: Request) => Promise<Response>;
@@ -51,6 +55,7 @@ before(async () => {
 after(async () => { await db.close(); });
 beforeEach(async () => {
   authenticated = true; failure = 'none'; budgetCalls = 0; googleCalls = 0;
+  expectedSpokenText = '가😀 나'; alignmentTexts = [];
   env = { GOOGLE_TTS_FREE_ENABLED:'true', GOOGLE_TTS_API_KEY:key, PAID_AI_ENABLED:'true' };
   await db.exec(`reset role; truncate public.zephyr_character_requests,public.zephyr_free_months;
     insert into auth.users values('${owner}'),('${other}') on conflict do nothing;`);
@@ -74,18 +79,44 @@ beforeEach(async () => {
   const server = moduleAt('../lib/zephyr-free-server.ts', {'node:crypto':crypto}, {process:{env}});
   route = moduleAt('../app/api/tts/route.ts', {
     'next/server':{NextResponse:{json:Response.json}}, '@/lib/yeoni-voice-policy':voice,
+    '@/lib/yeoni/speech-alignment':{ ...speechAlignment, alignGeneratedReply:async (_audio:string,text:string) => { alignmentTexts.push(text); return null; } },
+    '@/lib/yeoni/korean-currency-speech':currencySpeech,
     '@/lib/supabase-server':{createServerSupabaseClient:async()=>client}, '@/lib/zephyr-free-server':server,
   }, {fetch:async (url:string, options:RequestInit) => {
-    googleCalls++; assert.equal(await balance(),4);
+    googleCalls++; assert.equal(await balance(),Array.from(expectedSpokenText).length);
     assert.equal(url,'https://texttospeech.googleapis.com/v1/text:synthesize');
     assert.equal(options.redirect,'error'); assert.equal(options.cache,'no-store'); assert.ok(options.signal);
     assert.equal((options.headers as Record<string,string>)['x-goog-api-key'],key);
     const payload=JSON.parse(options.body as string);
-    assert.deepEqual(payload,{input:{text:'가😀 나'},voice:{languageCode:'ko-KR',name:voice.YEONI_VOICE_NAME},audioConfig:{audioEncoding:'MP3'}});
+    assert.deepEqual(payload,{input:{text:expectedSpokenText},voice:{languageCode:'ko-KR',name:voice.YEONI_VOICE_NAME},audioConfig:{audioEncoding:'MP3'}});
     if(failure==='google-network') throw new Error('Synthetic lost provider response');
     if(failure==='google-http') return Response.json({error:'synthetic'},{status:500});
     return Response.json({audioContent:failure==='bad-audio'?'':'c3ludGhldGlj'});
-  }}) as typeof route;
+  },process:{env}}) as typeof route;
+});
+
+test('currency uses one final text for committed budget, provider, response and optional alignment', async () => {
+  expectedSpokenText = '구천구백구십구원';
+  env.YEONI_REPLY_ALIGNMENT_ENABLED = '1';
+  env.YEONI_ALIGNMENT_URL = 'https://alignment.invalid/align';
+  env.YEONI_ALIGNMENT_TOKEN = 'synthetic-token'.repeat(4);
+  const id = randomUUID();
+  const input = () => new Request('https://fixture.local/api/tts', { method:'POST', body:JSON.stringify({text:'9999원',requestId:id,includeAlignment:true}) });
+  const response = await route.POST(input()); assert.equal(response.status,200);
+  const body = await response.json();
+  assert.equal(body.spokenText,expectedSpokenText); assert.equal(body.reservedCharacters,8);
+  assert.deepEqual(alignmentTexts,[expectedSpokenText]); assert.equal(googleCalls,1);
+  const receipt = (await db.query<{text_sha256:string}>('select text_sha256 from public.zephyr_character_requests')).rows[0];
+  assert.equal(receipt.text_sha256,crypto.createHash('sha256').update(expectedSpokenText).digest('hex'));
+  assert.equal((await route.POST(input())).status,409); assert.equal(googleCalls,1);
+});
+
+test('currency expansion cannot overrun the character cap or monthly reservation', async () => {
+  assert.equal((await route.POST(request(randomUUID(),'9999원 '.repeat(200).trim()))).status,400);
+  assert.equal(budgetCalls,0); assert.equal(googleCalls,0); assert.equal(await balance(),0);
+  await db.exec('update public.zephyr_free_months set app_limit_chars=5;');
+  assert.equal((await route.POST(request(randomUUID(),'9999원'))).status,429);
+  assert.equal(googleCalls,0); assert.equal(await balance(),0);
 });
 
 test('disabled switch, absent/wrong key, missing month, unverified pool and unauthenticated calls never reach Google', async () => {

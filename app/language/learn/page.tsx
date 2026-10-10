@@ -1,36 +1,67 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CURRICULUM, TRACKS, getTrackLessons, type CourseTrack } from "@/data/curriculum";
-import { DEFAULT_CURRICULUM_PROGRESS, loadCurriculumProgress, saveCurriculumProgress } from "@/utils/curriculumProgress";
-import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
+import { CURRICULUM_PROGRESS_KEY, curriculumProgressReadError, DEFAULT_CURRICULUM_PROGRESS, loadCurriculumProgress } from "@/utils/curriculumProgress";
+import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, INTEGRATED_LEARNING_SETTINGS_KEY, loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
 import FocusedLesson from "@/components/language/FocusedLesson";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { createCourseMutation, createExplicitCourseSave, runCourseMutation, type CourseMutation, type CourseOutcome } from "@/app/data/languageCourseMutations";
+import { getLanguageMutationOutcome, languageMutationError, reconcileLanguageMutation, requireLanguageMutationAcknowledged } from "@/app/data/languageRecordMutations";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
+import { isLanguageRecordContextCurrent } from "@/app/data/languageCloudSync";
 
 const trackOrder: CourseTrack[] = ["foundation", "work", "travel"];
 
 function CurriculumContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const access = useLanguageRecordSnapshot();
+  const settingsWarning = languageSettingsProjectionError({ [INTEGRATED_LEARNING_SETTINGS_KEY]: access.records[INTEGRATED_LEARNING_SETTINGS_KEY] });
+  const currentContext = useRef(access.context); currentContext.current = access.context;
+  const pending = useRef<CourseMutation | null>(null);
+  const superseded = useRef<CourseMutation[]>([]);
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const requestedTrack = searchParams.get("track");
   const [progress, setProgress] = useState(DEFAULT_CURRICULUM_PROGRESS);
   const [settings, setSettings] = useState(DEFAULT_INTEGRATED_LEARNING_SETTINGS);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
-    setProgress(loadCurriculumProgress());
-    setSettings(loadIntegratedLearningSettings());
+    if (!access.snapshot) return;
+    setProgress(loadCurriculumProgress(access.records[CURRICULUM_PROGRESS_KEY]));
+    setSettings(loadIntegratedLearningSettings(access.records[INTEGRATED_LEARNING_SETTINGS_KEY]));
     setLoaded(true);
-  }, []);
+  }, [access.snapshot, access.records]);
   const selectedTrack: CourseTrack = trackOrder.includes(requestedTrack as CourseTrack) ? requestedTrack as CourseTrack : progress.selectedTrack;
   const lessons = getTrackLessons(selectedTrack);
-  const chooseTrack = (track: CourseTrack) => {
+  const chooseTrack = async (track: CourseTrack, newSave = false) => {
+    if (busy.current) return;
+    busy.current = true;
     try {
-      const latest = { ...loadCurriculumProgress(), selectedTrack: track };
-      saveCurriculumProgress(latest);
-      setProgress(latest);
-      setError("");
-    } catch { setError("과정 선택을 저장하지 못했어요. 수업은 계속 볼 수 있어요."); }
+      const context = currentContext.current;
+      if (!context || !access.snapshot) throw new Error("학습 기록 연결을 다시 확인해 주세요.");
+      if (pending.current && (pending.current.payload.kind !== "track" || pending.current.payload.track !== track)) throw new Error("앞선 과정 선택을 먼저 다시 확인해 주세요. 저장 요청은 보존됩니다.");
+      if (newSave && pending.current) {
+        const old = pending.current;
+        const next = createExplicitCourseSave(context, old.source, old.payload, old);
+        superseded.current.push(old); pending.current = next;
+      }
+      pending.current ??= createCourseMutation(context, access.snapshot, { kind: "track", track });
+      const intent = pending.current;
+      const committed = intent.context === context && !["committed", "unknown"].includes(getLanguageMutationOutcome(intent))
+        ? requireLanguageMutationAcknowledged(await runCourseMutation(intent))
+        : reconcileLanguageMutation<CourseMutation["payload"], CourseOutcome>(intent, context);
+      if (!mounted.current || currentContext.current !== context || !isLanguageRecordContextCurrent(context)) throw new Error("연결이 바뀌어 과정 이동을 보류했어요. 같은 과정을 눌러 다시 확인해 주세요.");
+      pending.current = null;
+      setProgress(loadCurriculumProgress(committed.records[CURRICULUM_PROGRESS_KEY]));
+      setError(""); router.push(`/language/learn?track=${track}`);
+    } catch (error) { if (mounted.current) setError(languageMutationError(error)); }
+    finally { busy.current = false; }
   };
   if (!loaded) return <div className="learn-loading" role="status">학습 기록을 불러오는 중이에요.</div>;
   return <section className="curriculum-page">
@@ -40,9 +71,10 @@ function CurriculumContent() {
       <p>지금은 약 {settings.dailyMinutes}분 분량이에요. 정해진 시간 안에 끝내지 않아도 괜찮아요.</p>
       <div className="curriculum-summary"><strong>{progress.completedLessonIds.filter((id) => CURRICULUM.some((lesson) => lesson.id === id)).length}/{CURRICULUM.length}</strong><span>해본 수업 · 숙달 평가는 아니에요</span></div>
     </header>
-    {error && <p role="alert">{error}</p>}
+    {(error || access.error || settingsWarning || curriculumProgressReadError(access.records[CURRICULUM_PROGRESS_KEY])) && <p role="alert">{error || access.error || settingsWarning || curriculumProgressReadError(access.records[CURRICULUM_PROGRESS_KEY])}</p>}
+    {error && pending.current?.payload.kind === "track" && ["created", "not-committed"].includes(getLanguageMutationOutcome(pending.current)) && <button type="button" onClick={() => { if (pending.current?.payload.kind === "track") void chooseTrack(pending.current.payload.track, true); }}>선택한 과정 새 저장 시도</button>}
     <nav className="track-tabs" aria-label="학습 과정 선택">
-      {trackOrder.map((track) => <Link key={track} href={`/language/learn?track=${track}`} onClick={() => chooseTrack(track)} aria-current={selectedTrack === track ? "page" : undefined} className={selectedTrack === track ? "is-active" : ""}>{TRACKS[track].title}</Link>)}
+      {trackOrder.map((track) => <Link key={track} href={`/language/learn?track=${track}`} onClick={(event) => { event.preventDefault(); void chooseTrack(track); }} aria-current={selectedTrack === track ? "page" : undefined} className={selectedTrack === track ? "is-active" : ""}>{TRACKS[track].title}</Link>)}
     </nav>
     {selectedTrack === "foundation" && <section className="kana-onboarding" aria-labelledby="kana-onboarding-title">
       <div className="kana-onboarding-step" aria-hidden="true">0</div>

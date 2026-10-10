@@ -1,3 +1,4 @@
+import { installStorageLocks, preparedStorageSeed } from '../../tests/helpers/storageProtocol.ts';
 import assert from "node:assert/strict";
 import test from "node:test";
 import { RECORDS_CHANGED_EVENT } from "./storageTransaction.ts";
@@ -8,8 +9,10 @@ import {
 } from "./userWorkoutSettings.ts";
 
 test("운동 설정 저장은 공통 클라우드 동기화에 즉시 변경을 알린다", async () => {
-  const values = new Map<string, string>();
+  const locks = installStorageLocks();
+  const values = new Map<string, string>(Object.entries(preparedStorageSeed()));
   const storage = {
+    get length() { return values.size; }, key: (index: number) => [...values.keys()][index] ?? null,
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
@@ -25,7 +28,7 @@ test("운동 설정 저장은 공통 클라우드 동기화에 즉시 변경을 
   });
 
   try {
-    saveUserWorkoutSettings({
+    await saveUserWorkoutSettings({
       ...EMPTY_USER_WORKOUT_SETTINGS,
       weeklyExerciseTargets: { mon: { "덤벨 고블릿 스쿼트": { reps: 12, weightKg: 5.5 } } },
     });
@@ -37,5 +40,6 @@ test("운동 설정 저장은 공통 클라우드 동기화에 즉시 변경을 
     );
   } finally {
     Reflect.deleteProperty(globalThis, "window");
+    locks.restore();
   }
 });

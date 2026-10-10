@@ -14,7 +14,8 @@ import {
   EMPTY_LANGUAGE_DAILY_STATUS,
   parseStateObject,
 } from "../data/dailyAppStatus";
-import { buildGrowthComparison, GROWTH_STOP_REASONS, normalizeGrowthStopReason, type GrowthStopReason, type GrowthSessionStatus } from "../data/growthPlatform";
+import { GROWTH_DIFFICULTIES, normalizeGrowthDifficulty, type GrowthDifficulty } from "../data/growthRoutineProgression";
+import { buildGrowthComparison, growthPeriodTimeLabel, GROWTH_STOP_REASONS, normalizeGrowthStopReason, type GrowthStopReason, type GrowthSessionStatus } from "../data/growthPlatform";
 import {
   ALL_GROWTH_WEEKDAYS,
   GROWTH_WEEKDAYS,
@@ -28,6 +29,7 @@ import { GROWTH_CATEGORIES, GROWTH_ROUTINE_LIMIT, growthCategoryLabel, isRetired
 import { supabase } from "../lib/supabase";
 import { getLocalDateKey } from "@/utils/dateKey";
 import { useGrowthData } from "./useGrowthData";
+import { useRoutineRecordRecovery } from "./useRoutineRecordRecovery";
 
 function comparisonLabel(delta: number, unit: string) {
   if (delta === 0) return "이전과 같음";
@@ -45,18 +47,33 @@ export default function GrowthPage() {
   const [targetMinutes, setTargetMinutes] = useState(15);
   const [preferredDays, setPreferredDays] = useState<number[]>([...ALL_GROWTH_WEEKDAYS]);
   const [targetSessionsPerWeek, setTargetSessionsPerWeek] = useState(3);
-  const [activeRoutineId, setActiveRoutineId] = useState<string | null>(null);
-  const [startedAt, setStartedAt] = useState<string | null>(null);
-  const [sessionMemo, setSessionMemo] = useState("");
-  const [stopReason, setStopReason] = useState<GrowthStopReason>("unrecorded");
-  const [recordStopReason, setRecordStopReason] = useState<GrowthStopReason>("unrecorded");
-  const [recordOpen, setRecordOpen] = useState(false);
-  const [recordRoutineId, setRecordRoutineId] = useState("");
-  const [recordDate, setRecordDate] = useState(getLocalDateKey());
-  const [recordStatus, setRecordStatus] = useState<GrowthSessionStatus>("completed");
-  const [recordMinutes, setRecordMinutes] = useState(10);
-  const [recordMemo, setRecordMemo] = useState("");
-  const [saving, setSaving] = useState(false);
+  const recovery = useRoutineRecordRecovery(growth.user?.id ?? null);
+  const { active, manual } = recovery.draft;
+  const activeRoutineId = active.routineId || null;
+  const startedAt = active.startedAt;
+  const sessionMemo = active.memo;
+  const stopReason = active.stopReason;
+  const difficulty = active.difficulty;
+  const recordDifficulty = manual.difficulty;
+  const recordStopReason = manual.stopReason;
+  const recordOpen = manual.open;
+  const recordRoutineId = manual.routineId;
+  const recordDate = manual.date;
+  const recordStatus = manual.status;
+  const recordMinutes = manual.minutes;
+  const recordMemo = manual.memo;
+  const setSessionMemo = (memo: string) => recovery.changeForm('active', { memo });
+  const setStopReason = (value: GrowthStopReason) => recovery.changeForm('active', { stopReason: value });
+  const setDifficulty = (value: GrowthDifficulty) => recovery.changeForm('active', { difficulty: value });
+  const setRecordDifficulty = (value: GrowthDifficulty) => recovery.changeForm('manual', { difficulty: value });
+  const setRecordStopReason = (value: GrowthStopReason) => recovery.changeForm('manual', { stopReason: value });
+  const setRecordOpen = (value: boolean | ((open: boolean) => boolean)) => recovery.changeForm('manual', { open: typeof value === 'function' ? value(manual.open) : value });
+  const setRecordDate = (date: string) => recovery.changeForm('manual', { date });
+  const setRecordStatus = (status: GrowthSessionStatus) => recovery.changeForm('manual', { status });
+  const setRecordMinutes = (minutes: string) => recovery.changeForm('manual', { minutes });
+  const setRecordMemo = (memo: string) => recovery.changeForm('manual', { memo });
+  const [managementSaving, setSaving] = useState(false);
+  const saving = managementSaving || recovery.saving;
   const [legacyImporting, setLegacyImporting] = useState(false);
   const todayKey = useMemo(() => getLocalDateKey(), []);
   const todayLabel = useMemo(() => new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(new Date()), []);
@@ -108,43 +125,29 @@ export default function GrowthPage() {
   const recentSessions = visibleSessions.slice(0, 12);
 
   const startRoutine = (routineId: string) => {
-    setActiveRoutineId(routineId);
-    setStartedAt(new Date().toISOString());
-    setSessionMemo(""); setStopReason("unrecorded");
-    growth.setNotice("타이머를 시작했어요. 실제 시작 시각으로 계산합니다.");
+    const routine = visibleRoutines.find(item => item.id === routineId);
+    if (routine && !saving && !recovery.blocked) recovery.start(routine);
   };
 
   const finishActive = async (status: GrowthSessionStatus) => {
-    if (!activeRoutine || !startedAt) return;
-    setSaving(true);
-    const endedAt = new Date().toISOString();
-    const result = await growth.saveSession({
-      routineId: activeRoutine.id,
-      sessionDate: todayKey,
-      status,
-      plannedMinutes: activeRoutine.target_minutes,
-      actualMinutes: Math.max(1, Math.round(Math.max(0, Date.parse(endedAt) - Date.parse(startedAt)) / 60_000)),
-      memo: sessionMemo,
-      metrics: status === "completed" ? {} : { stopReason },
-      startedAt,
-      endedAt,
-    });
-    setSaving(false);
-    if (result.error) { growth.setNotice("실행 기록을 저장하지 못했어요. 다시 시도해 주세요."); return; }
-    setActiveRoutineId(null); setStartedAt(null); setSessionMemo("");
-    growth.setNotice(status === "completed" ? "완료 기록을 클라우드에 저장했어요." : status === "partial" ? "진행 기록을 저장했어요." : "중단 지점까지 안전하게 저장했어요.");
+    if (!activeRoutine || !startedAt || recovery.blocked || saving) return;
+    const row = await recovery.save('active', activeRoutine, status);
+    if (row) await growth.refresh();
   };
 
   const quickToggle = async (routineId: string) => {
-    const routine = visibleRoutines.find((item) => item.id === routineId);
-    if (!routine || saving) return;
+    const routine = visibleRoutines.find(item => item.id === routineId);
+    if (!routine || saving || recovery.blocked) return;
+    const completed = growth.sessions.filter(session => session.routine_id === routineId && session.session_date === todayKey && session.status === 'completed');
+    if (!completed.length) {
+      const row = await recovery.save('quick', routine);
+      if (row) await growth.refresh();
+      return;
+    }
     setSaving(true);
-    const completed = growth.sessions.filter((session) => session.routine_id === routineId && session.session_date === todayKey && session.status === "completed");
-    const result = completed.length
-      ? { error: (await Promise.all(completed.map((session) => growth.deleteSession(session.id)))).find((item) => item.error)?.error ?? null }
-      : await growth.saveSession({ routineId, sessionDate: todayKey, status: "completed", plannedMinutes: routine.target_minutes, actualMinutes: routine.target_minutes, memo: "빠른 완료 기록" });
+    const error = (await Promise.all(completed.map(session => growth.deleteSession(session.id)))).find(item => item.error)?.error;
     setSaving(false);
-    growth.setNotice(result.error ? "완료 상태를 저장하지 못했어요." : completed.length ? "오늘 완료 기록을 모두 취소했어요." : "오늘 완료로 기록했어요.");
+    growth.setNotice(error ? '완료 상태를 저장하지 못했어요.' : '오늘 완료 기록을 모두 취소했어요.');
   };
 
   const addRoutine = async (event: FormEvent) => {
@@ -172,14 +175,10 @@ export default function GrowthPage() {
 
   const saveManualRecord = async (event: FormEvent) => {
     event.preventDefault();
-    const routine = visibleRoutines.find((item) => item.id === recordRoutineId);
-    if (!routine) return;
-    setSaving(true);
-    const result = await growth.saveSession({ routineId: routine.id, sessionDate: recordDate, status: recordStatus, plannedMinutes: routine.target_minutes, actualMinutes: recordMinutes, memo: recordMemo, metrics: recordStatus === "completed" ? {} : { stopReason: recordStopReason } });
-    setSaving(false);
-    if (result.error) { growth.setNotice("기록을 저장하지 못했어요."); return; }
-    setRecordOpen(false); setRecordMemo("");
-    growth.setNotice(`${recordDate} 기록을 저장했어요.`);
+    const routine = visibleRoutines.find(item => item.id === recordRoutineId);
+    if (!routine || recovery.blocked || saving) return;
+    const row = await recovery.save('manual', routine);
+    if (row) await growth.refresh();
   };
 
   const importLegacyBackup = async () => {
@@ -244,7 +243,7 @@ export default function GrowthPage() {
         }`}
       >
         <button
-          disabled={saving}
+          disabled={saving || recovery.blocked}
           type="button"
           onClick={() => void quickToggle(routine.id)}
           aria-label={`${routine.title} ${completed ? "완료 취소" : "빠른 완료"}`}
@@ -265,7 +264,7 @@ export default function GrowthPage() {
         </div>
         <button
           type="button"
-          disabled={Boolean(activeRoutine) || completed}
+          disabled={saving || recovery.blocked || Boolean(activeRoutine) || completed}
           onClick={() => startRoutine(routine.id)}
           className="min-h-11 rounded-xl bg-violet-600 px-4 text-xs font-bold text-white disabled:bg-gray-200 disabled:text-gray-500"
         >
@@ -283,13 +282,20 @@ export default function GrowthPage() {
         <section className="rounded-[30px] yeoni-summary p-6 text-white shadow-[0_22px_55px_rgba(91,75,180,0.22)] sm:p-8">
           <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-bold text-white/75">오늘의 자기계발</p><strong className="mt-3 block text-4xl">{completedCount}/{totalCount}</strong><p className="mt-2 text-sm text-white/80">오늘 루틴 완료</p></div><strong className="text-2xl">{progress}%</strong></div>
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/20" aria-label={`오늘 자기계발 ${progress}% 완료`}><div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${progress}%` }} /></div>
-          <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><button type="button" onClick={() => setRecordOpen((value) => !value)} className="min-h-11 rounded-xl bg-white px-3 text-xs font-bold text-violet-700 sm:px-4 sm:text-sm">지난 기록 추가</button><Link href="/growth/review" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/15 px-3 text-xs font-bold ring-1 ring-white/30 sm:px-4 sm:text-sm">주간 코칭 보기</Link></div>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap"><button type="button" disabled={!recovery.ready || recovery.storageError} onClick={() => setRecordOpen((value) => !value)} className="min-h-11 rounded-xl bg-white px-3 text-xs font-bold text-violet-700 sm:px-4 sm:text-sm">지난 기록 추가</button><Link href="/growth/review" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white/15 px-3 text-xs font-bold ring-1 ring-white/30 sm:px-4 sm:text-sm">주간 코칭 보기</Link></div>
         </section>
 
-        {recordOpen && <section className="mt-4 rounded-[26px] bg-white p-5 shadow-sm"><h2 className="text-lg font-bold">날짜를 골라 기록하기</h2><form onSubmit={saveManualRecord} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><select required value={recordRoutineId} onChange={(event) => { const id = event.target.value; setRecordRoutineId(id); const routine = visibleRoutines.find((item) => item.id === id); if (routine) setRecordMinutes(routine.target_minutes); }} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><option value="">루틴 선택</option>{enabledRoutines.map((routine) => <option key={routine.id} value={routine.id}>{routine.title}</option>)}</select><input aria-label="기록 날짜" type="date" required max={todayKey} value={recordDate} onChange={(event) => setRecordDate(event.target.value)} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200" /><select aria-label="실행 상태" value={recordStatus} onChange={(event) => setRecordStatus(event.target.value as GrowthSessionStatus)} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><option value="completed">완료</option><option value="partial">진행</option><option value="stopped">중단</option></select><label className="flex min-h-12 items-center gap-2 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><span>실행</span><input aria-label="실행 시간" type="number" min={0} max={1440} value={recordMinutes} onChange={(event) => setRecordMinutes(Number(event.target.value))} className="w-14 bg-transparent font-bold outline-none" />분</label><button disabled={saving || !recordRoutineId} className="min-h-12 rounded-xl bg-violet-600 px-4 text-sm font-bold text-white disabled:bg-gray-300">기록 저장</button>{recordStatus !== 'completed' ? <label className="text-sm">중단·미완료 이유<select aria-label="지난 기록 중단 이유" value={recordStopReason} onChange={event => setRecordStopReason(normalizeGrowthStopReason(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-gray-50 px-3 ring-1 ring-gray-200">{Object.entries(GROWTH_STOP_REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label> : null}<textarea value={recordMemo} onChange={(event) => setRecordMemo(event.target.value)} maxLength={500} placeholder="메모(선택)" className="min-h-20 rounded-xl bg-gray-50 p-3 text-sm ring-1 ring-gray-200 sm:col-span-2 lg:col-span-5" /></form></section>}
+        <section aria-label="루틴 기록 복구" className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+          <p role="status">{recovery.notice || (!recovery.ready ? '기록 복구 상태를 확인하고 있어요…' : '입력은 이 계정의 기기에 보관해요. 빠른 완료는 시간을 미기록으로 남겨요.')}</p>
+          {recovery.draft.pending && <button type="button" disabled={!recovery.ready || recovery.saving || recovery.storageError} onClick={async () => { const row = await recovery.save(recovery.draft.pending!.mode, null); if (row) await growth.refresh(); }} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold disabled:opacity-50">같은 기록 다시 확인</button>}
+          {recovery.storageError && <button type="button" disabled={recovery.saving} onClick={() => void recovery.retryCheckpoint()} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">기기 임시 저장 다시 시도</button>}
+          {(recovery.loadError || !recovery.ready) && <button type="button" disabled={recovery.saving} onClick={recovery.retryLoad} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">복구 상태 다시 불러오기</button>}
+        </section>
+
+        {recordOpen && <section className="mt-4 rounded-[26px] bg-white p-5 shadow-sm"><h2 className="text-lg font-bold">날짜를 골라 기록하기</h2><form onSubmit={saveManualRecord} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><select required value={recordRoutineId} onChange={(event) => { const id = event.target.value; const routine = visibleRoutines.find((item) => item.id === id); recovery.changeForm("manual", { routineId: id, ...(routine ? { minutes: String(routine.target_minutes) } : {}) }); }} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><option value="">루틴 선택</option>{enabledRoutines.map((routine) => <option key={routine.id} value={routine.id}>{routine.title}</option>)}</select><input aria-label="기록 날짜" type="date" required max={todayKey} value={recordDate} onChange={(event) => setRecordDate(event.target.value)} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200" /><select aria-label="실행 상태" value={recordStatus} onChange={(event) => setRecordStatus(event.target.value as GrowthSessionStatus)} className="min-h-12 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><option value="completed">완료</option><option value="partial">진행</option><option value="stopped">중단</option></select><label className="flex min-h-12 items-center gap-2 rounded-xl bg-gray-50 px-3 text-sm ring-1 ring-gray-200"><span>실행</span><input aria-label="실행 시간" type="number" min={0} max={1440} value={recordMinutes} onChange={(event) => setRecordMinutes(event.target.value)} className="w-14 bg-transparent font-bold outline-none" />분</label><button disabled={saving || recovery.blocked || !recordRoutineId} className="min-h-12 rounded-xl bg-violet-600 px-4 text-sm font-bold text-white disabled:bg-gray-300">기록 저장</button>{recordStatus === "completed" ? <label className="text-sm">완료 후 난이도 (선택)<select aria-label="지난 기록 완료 후 난이도" value={recordDifficulty} onChange={event => setRecordDifficulty(normalizeGrowthDifficulty(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-gray-50 px-3 ring-1 ring-gray-200">{Object.entries(GROWTH_DIFFICULTIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label> : null}{recordStatus !== 'completed' ? <label className="text-sm">중단·미완료 이유<select aria-label="지난 기록 중단 이유" value={recordStopReason} onChange={event => setRecordStopReason(normalizeGrowthStopReason(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-gray-50 px-3 ring-1 ring-gray-200">{Object.entries(GROWTH_STOP_REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label> : null}<textarea value={recordMemo} onChange={(event) => setRecordMemo(event.target.value)} maxLength={500} placeholder="메모(선택)" className="min-h-20 rounded-xl bg-gray-50 p-3 text-sm ring-1 ring-gray-200 sm:col-span-2 lg:col-span-5" /></form></section>}
 
         <section className="mt-5 grid gap-4 sm:grid-cols-2">
-          {[{ label: "최근 7일", value: week }, { label: "최근 30일", value: month }].map((item) => <article key={item.label} className="rounded-[26px] bg-white p-5 shadow-sm"><p className="text-xs font-bold text-violet-600">{item.label} 성장 기록</p><div className="mt-3 flex items-end justify-between gap-3"><div><strong className="text-3xl">{item.value.current.totalMinutes}분</strong><p className="mt-1 text-xs text-gray-500">{item.value.current.activeDays}일 실행 · 완료율 {item.value.current.completionRate}%</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${item.value.minuteDelta >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{comparisonLabel(item.value.minuteDelta, "분")}</span></div></article>)}
+          {[{ label: "최근 7일", value: week }, { label: "최근 30일", value: month }].map((item) => <article key={item.label} className="rounded-[26px] bg-white p-5 shadow-sm"><p className="text-xs font-bold text-violet-600">{item.label} 성장 기록</p><div className="mt-3 flex items-end justify-between gap-3"><div><strong className="text-3xl">{growthPeriodTimeLabel(item.value.current)}</strong><p className="mt-1 text-xs text-gray-500">{item.value.current.activeDays}일 실행 · 완료율 {item.value.current.completionRate}%{item.value.current.unknownTimeSessions ? ` · 시간 미기록 ${item.value.current.unknownTimeSessions}회` : ""}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${(item.value.minuteDelta ?? 0) >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.value.minuteDelta === null ? "시간 미기록 포함 · 비교 보류" : comparisonLabel(item.value.minuteDelta, "분")}</span></div></article>)}
         </section>
 
         <nav aria-label="자기계발 연습과 자료" className="mt-5 grid grid-cols-3 gap-3">
@@ -299,7 +305,9 @@ export default function GrowthPage() {
           <Link href="/growth/resources" className="rounded-3xl bg-emerald-50 p-4 text-center ring-1 ring-emerald-100"><span className="text-2xl" aria-hidden="true">📚</span><strong className="mt-2 block text-sm text-emerald-900">내 자료</strong><span className="mt-1 block text-xs text-emerald-700">비공개 보관·검색</span></Link>
         </nav>
 
-        {activeRoutine && <section className="mt-5 rounded-[28px] bg-[#242231] p-6 text-white shadow-xl"><p className="text-xs font-bold text-violet-300">실행 중</p><h2 className="mt-2 text-2xl font-bold">{activeRoutine.title}</h2><p className="mt-5 font-mono text-5xl font-bold tracking-tight"><RoutineElapsedTime startedAt={startedAt!} /></p><p className="mt-2 text-sm text-white/60">목표 {activeRoutine.target_minutes}분</p><textarea value={sessionMemo} onChange={(event) => setSessionMemo(event.target.value)} maxLength={500} placeholder="지금 느낀 점이나 다음에 할 일을 적어두세요" className="mt-5 min-h-20 w-full rounded-2xl border-0 bg-white/10 p-4 text-sm text-white placeholder:text-white/40 ring-1 ring-white/15" /><label className="mt-4 block text-sm" htmlFor="growth-stop-reason">중단·미완료 이유 (선택)<select id="growth-stop-reason" aria-label="중단·미완료 이유 (선택)" value={stopReason} onChange={event => setStopReason(normalizeGrowthStopReason(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-white px-3 text-gray-900">{Object.entries(GROWTH_STOP_REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="mt-4 grid grid-cols-3 gap-2"><button disabled={saving} onClick={() => void finishActive("stopped")} className="min-h-12 rounded-xl bg-white/10 text-sm font-bold">중단 저장</button><button disabled={saving} onClick={() => void finishActive("partial")} className="min-h-12 rounded-xl bg-violet-400/30 text-sm font-bold">진행 저장</button><button disabled={saving} onClick={() => void finishActive("completed")} className="min-h-12 rounded-xl bg-emerald-500 text-sm font-bold">완료 저장</button></div></section>}
+        {activeRoutineId && !activeRoutine && <section className="mt-4 rounded-2xl bg-amber-50 p-4"><p>실행하던 루틴을 확인하지 못했어요. 입력은 유지했고 다른 루틴으로 저장하지 않아요.</p><p className="mt-2 whitespace-pre-wrap">{sessionMemo}</p><p>{startedAt}</p><button type="button" disabled={recovery.blocked || saving} onClick={() => void recovery.discardActive()} className="mt-2 min-h-11 rounded-xl bg-white px-4">메모 보관 후 실행 초안 비우기</button></section>}
+
+        {activeRoutine && <section className="mt-5 rounded-[28px] bg-[#242231] p-6 text-white shadow-xl"><p className="text-xs font-bold text-violet-300">실행 중</p><h2 className="mt-2 text-2xl font-bold">{activeRoutine.title}</h2><p className="mt-5 font-mono text-5xl font-bold tracking-tight"><RoutineElapsedTime startedAt={startedAt!} /></p><p className="mt-2 text-sm text-white/60">목표 {activeRoutine.target_minutes}분</p><textarea value={sessionMemo} onChange={(event) => setSessionMemo(event.target.value)} maxLength={500} placeholder="지금 느낀 점이나 다음에 할 일을 적어두세요" className="mt-5 min-h-20 w-full rounded-2xl border-0 bg-white/10 p-4 text-sm text-white placeholder:text-white/40 ring-1 ring-white/15" /><label className="mt-4 block text-sm" htmlFor="growth-stop-reason">중단·미완료 이유 (선택)<select id="growth-stop-reason" aria-label="중단·미완료 이유 (선택)" value={stopReason} onChange={event => setStopReason(normalizeGrowthStopReason(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-white px-3 text-gray-900">{Object.entries(GROWTH_STOP_REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="mt-4 block text-sm">완료 후 난이도 (선택)<select aria-label="완료 후 난이도 (선택)" value={difficulty} onChange={event => setDifficulty(normalizeGrowthDifficulty(event.target.value))} className="mt-2 min-h-11 w-full rounded-xl bg-white px-3 text-gray-900">{Object.entries(GROWTH_DIFFICULTIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><span className="mt-2 block text-xs text-white/70">완료 저장할 때만 남겨요. 선택하지 않으면 난이도를 추정하지 않습니다.</span></label><div className="mt-4 grid grid-cols-3 gap-2"><button disabled={saving || recovery.blocked} onClick={() => void finishActive("stopped")} className="min-h-12 rounded-xl bg-white/10 text-sm font-bold">중단 저장</button><button disabled={saving || recovery.blocked} onClick={() => void finishActive("partial")} className="min-h-12 rounded-xl bg-violet-400/30 text-sm font-bold">진행 저장</button><button disabled={saving || recovery.blocked} onClick={() => void finishActive("completed")} className="min-h-12 rounded-xl bg-emerald-500 text-sm font-bold">완료 저장</button></div></section>}
 
         <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold text-violet-600">클라우드 동기화</p><h2 className="mt-1 text-xl font-bold">나의 루틴</h2></div><button type="button" aria-expanded={editing} onClick={() => setEditing((value) => !value)} className="min-h-11 rounded-full bg-gray-100 px-4 text-xs font-bold text-gray-700">{editing ? "편집 닫기" : "루틴 편집"}</button></div>
@@ -380,18 +388,18 @@ export default function GrowthPage() {
                   return (
                     <div key={routine.id} className="rounded-2xl bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <button type="button" disabled={saving} onClick={() => void growth.updateRoutine(routine.id, { enabled: !routine.enabled })} className={`min-h-10 rounded-lg px-3 text-xs font-bold ${routine.enabled ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                        <button type="button" disabled={saving || recovery.blocked} onClick={() => void growth.updateRoutine(routine.id, { enabled: !routine.enabled })} className={`min-h-10 rounded-lg px-3 text-xs font-bold ${routine.enabled ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
                           {routine.enabled ? "사용 중" : "숨김"}
                         </button>
                         <span className="min-w-0 flex-1 truncate text-sm font-semibold">{routine.title} · {routine.target_minutes}분</span>
-                        <button type="button" disabled={saving} onClick={() => void growth.removeRoutine(routine.id)} className="min-h-10 rounded-lg bg-red-50 px-3 text-xs font-bold text-red-600">삭제</button>
+                        <button type="button" disabled={saving || recovery.blocked || activeRoutineId === routine.id} onClick={() => { if (activeRoutineId !== routine.id && !recovery.blocked) void growth.removeRoutine(routine.id); }} className="min-h-10 rounded-lg bg-red-50 px-3 text-xs font-bold text-red-600">삭제</button>
                       </div>
                       <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                         <fieldset>
                           <legend className="text-[11px] font-bold text-gray-600">실행 요일</legend>
                           <div className="mt-2 grid grid-cols-7 gap-1.5">
                             {GROWTH_WEEKDAYS.map((day) => (
-                              <button key={day.id} type="button" disabled={saving} aria-label={`${routine.title} ${day.label}요일`} aria-pressed={routineDays.includes(day.id)} onClick={() => void updateRoutineDays(routine.id, day.id)} className={`min-h-10 rounded-lg text-[11px] font-bold disabled:opacity-50 ${routineDays.includes(day.id) ? "bg-violet-100 text-violet-800" : "bg-gray-100 text-gray-400"}`}>
+                              <button key={day.id} type="button" disabled={saving || recovery.blocked} aria-label={`${routine.title} ${day.label}요일`} aria-pressed={routineDays.includes(day.id)} onClick={() => void updateRoutineDays(routine.id, day.id)} className={`min-h-10 rounded-lg text-[11px] font-bold disabled:opacity-50 ${routineDays.includes(day.id) ? "bg-violet-100 text-violet-800" : "bg-gray-100 text-gray-400"}`}>
                                 {day.label}
                               </button>
                             ))}
@@ -399,7 +407,7 @@ export default function GrowthPage() {
                         </fieldset>
                         <label className="text-[11px] font-bold text-gray-600">
                           주간 목표
-                          <select aria-label={`${routine.title} 주간 목표`} disabled={saving} value={routineTarget} onChange={(event) => void updateRoutineWeeklyTarget(routine.id, Number(event.target.value))} className="mt-2 min-h-10 w-full rounded-lg bg-gray-50 px-3 text-xs ring-1 ring-gray-200 disabled:opacity-50">
+                          <select aria-label={`${routine.title} 주간 목표`} disabled={saving || recovery.blocked} value={routineTarget} onChange={(event) => void updateRoutineWeeklyTarget(routine.id, Number(event.target.value))} className="mt-2 min-h-10 w-full rounded-lg bg-gray-50 px-3 text-xs ring-1 ring-gray-200 disabled:opacity-50">
                             {routineDays.map((_, index) => <option key={index + 1} value={index + 1}>{index + 1}회</option>)}
                           </select>
                         </label>
@@ -412,7 +420,7 @@ export default function GrowthPage() {
           )}
         </section>
 
-        <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-bold text-violet-600">실행 이력</p><h2 className="mt-1 text-xl font-bold">최근 기록</h2></div><button type="button" onClick={() => void growth.refresh()} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">새로고침</button></div><div className="mt-4 space-y-2">{recentSessions.length ? recentSessions.map((session) => { const routine = visibleRoutines.find((item) => item.id === session.routine_id); const statusLabel = session.status === "completed" ? "완료" : session.status === "partial" ? "진행" : "중단"; return <article key={session.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-gray-50 p-4"><div><div className="flex flex-wrap items-center gap-2"><strong>{routine?.title ?? "삭제된 루틴"}</strong><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${session.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{statusLabel}</span></div><p className="mt-1 text-xs text-gray-500">{session.session_date} · {growthSessionTimeLabel(session)}{session.memo ? ` · ${session.memo}` : ""}</p></div><button type="button" aria-label="기록 삭제" onClick={() => void growth.deleteSession(session.id)} className="text-xl text-gray-300">×</button></article>; }) : <p className="py-7 text-center text-sm text-gray-400">아직 실행 기록이 없습니다.</p>}</div></section>
+        <section className="mt-5 rounded-[28px] bg-white p-4 shadow-sm sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs font-bold text-violet-600">실행 이력</p><h2 className="mt-1 text-xl font-bold">최근 기록</h2></div><button type="button" onClick={() => void growth.refresh()} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">새로고침</button></div><div className="mt-4 space-y-2">{recentSessions.length ? recentSessions.map((session) => { const routine = visibleRoutines.find((item) => item.id === session.routine_id); const statusLabel = session.status === "completed" ? "완료" : session.status === "partial" ? "진행" : "중단"; return <article key={session.id} className="grid grid-cols-[1fr_auto] gap-3 rounded-2xl bg-gray-50 p-4"><div><div className="flex flex-wrap items-center gap-2"><strong>{routine?.title ?? "삭제된 루틴"}</strong><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${session.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{statusLabel}</span></div><p className="mt-1 text-xs text-gray-500">{session.session_date} · {growthSessionTimeLabel(session)}{session.memo ? ` · ${session.memo}` : ""}</p>{session.status === "completed" && <p className="mt-1 text-xs text-gray-500">난이도: {normalizeGrowthDifficulty(session.metrics?.routineDifficulty) === "unrecorded" ? "미기록" : GROWTH_DIFFICULTIES[normalizeGrowthDifficulty(session.metrics?.routineDifficulty)]}</p>}</div><button type="button" aria-label="기록 삭제" disabled={saving || recovery.blocked} onClick={() => { if (!saving && !recovery.blocked) void growth.deleteSession(session.id); }} className="text-xl text-gray-300">×</button></article>; }) : <p className="py-7 text-center text-sm text-gray-400">아직 실행 기록이 없습니다.</p>}</div></section>
 
       </div>
     </main>

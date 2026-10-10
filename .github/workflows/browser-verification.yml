@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     # The complete suite includes all authored drawing lessons in both engines.
     # Keep every regression check while allowing the growing suite to finish.
-    timeout-minutes: 105
+    timeout-minutes: 210
     env:
       CI: 'true'
       QA_SOUP_VARIANT: fixed
@@ -33,6 +33,7 @@ jobs:
           node-version: '24.19.0'
           cache: npm
       - run: npm ci
+      - run: npm --prefix scripts/browser-qa ci --ignore-scripts
       - name: Existing checks
         run: |
           npm test
@@ -58,8 +59,16 @@ jobs:
           echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
       - name: Start disposable database and auth
         run: node scripts/e2e-stack.mjs start
+      - name: Verify legacy evidence PostgreSQL races and HTTP roundtrip
+        run: node --experimental-strip-types scripts/qa-legacy-evidence-postgres.mjs
       - name: Build the isolated production app
         run: npm run build
+      - name: Verify handoff data safety and Live learning in both browsers
+        run: node scripts/qa-playwright.mjs tests/e2e/language-live.spec.ts tests/e2e/language-live-learning.spec.ts tests/e2e/language-live-preparation.spec.ts tests/e2e/google-calendar.spec.ts tests/e2e/free-first.spec.ts tests/e2e/sentence-typing-recovery.spec.ts tests/e2e/diet-self-responses.spec.ts tests/e2e/growth-progression.spec.ts tests/e2e/language-live-overview.spec.ts tests/e2e/typing-basics-recovery.spec.ts tests/e2e/handwriting-recovery.spec.ts tests/e2e/diet-travel.spec.ts tests/e2e/storage-protocol.spec.ts tests/e2e/free-handwriting-recovery.spec.ts tests/e2e/routine-record-recovery.spec.ts tests/e2e/sync-conflicts.spec.ts tests/e2e/handwriting-comparison.spec.ts tests/e2e/workout-pain-evidence.spec.ts --project=chromium --project=webkit-small
+      - name: Diagnose drawing reload protocol without retries
+        env:
+          QA_DRAWING_PROTOCOL: '1'
+        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(27|33)'
       - name: Verify beginner drawing flow in both browsers
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races
@@ -100,6 +109,7 @@ jobs:
             .e2e/evidence/server-navigation.jsonl
             .e2e/evidence/drawing-simple-*.png
             .e2e/evidence/pin-status-*.png
+            .e2e/evidence/language-live-*.png
             .e2e/evidence/drawing-stage3-*.png
             .e2e/evidence/drawing-stage4-*.png
             .e2e/evidence/drawing-stage5-*.png

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
+import { captureStorageOwner, isStorageOwnerCurrent, StorageSessionChangedError, type StorageOwnerToken, RECORDS_CHANGED_EVENT } from "../data/storageTransaction";
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 import {
   DIET_GOAL_CHECK_ITEMS,
@@ -22,6 +22,7 @@ import {
   FoamRollerTiming,
 } from "../data/foamRoller";
 import {
+  migrateLegacyWorkoutWeekdays,
   isCardioDone,
   isPullupDone,
   isWorkoutDone,
@@ -45,10 +46,10 @@ import {
   hasSafetyAlert,
   isDietSuccess,
   readRecordStores,
-  readJson,
   saveWeightGoal,
-  writeJson,
+  updateJson,
 } from "../data/recordStorage";
+import { applyFitnessEdits, fitnessStorageError } from "../data/fitnessStorageUpdates";
 import WorkoutTimes from "./WorkoutTimes";
 import BodyRecordCard from "./BodyRecordCard";
 import MonthlySummaryCard from "./MonthlySummaryCard";
@@ -95,6 +96,12 @@ export default function RecordCalendarView() {
   );
   const [selected, setSelected] = useState(todayKey);
   const [timePending, setTimePending] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [storageError, setStorageError] = useState("");
+  const pendingRef = useRef(false);
+  const noteOwner = useRef<StorageOwnerToken | null>(null);
+  const workoutOwner = useRef<StorageOwnerToken | null>(null);
+  const workoutBaseline = useRef<WorkoutDayRecord>({});
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [editingWorkout, setEditingWorkout] = useState(false);
@@ -130,7 +137,10 @@ export default function RecordCalendarView() {
   const noteDate = useRef(selected);
   useUnsavedChanges(editingWorkout || editingSecondary !== null || noteDraft !== (stores?.notes[selected] || ""));
   useEffect(() => {
-    const refresh = () => setStores(readRecordStores());
+    const refresh = () => {
+      try { setStores(readRecordStores()); }
+      catch (error) { setStorageError(fitnessStorageError(error)); }
+    };
     refresh();
     window.addEventListener(RECORDS_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
@@ -143,7 +153,11 @@ export default function RecordCalendarView() {
     () => {
       if (noteDate.current !== selected) noteEdited.current = false;
       noteDate.current = selected;
-      if (!noteEdited.current) setNoteDraft(stores?.notes[selected] || "");
+      if (!noteEdited.current) {
+        setNoteDraft(stores?.notes[selected] || "");
+        try { noteOwner.current = captureStorageOwner(); }
+        catch (error) { noteOwner.current = null; setStorageError(fitnessStorageError(error)); }
+      }
     },
     [stores?.notes, selected],
   );
@@ -157,8 +171,11 @@ export default function RecordCalendarView() {
       ? selectedWorkout
       : undefined;
   useEffect(() => {
-    if (draftDate.current === selected && (editingWorkout || editingSecondary)) return;
+    if (draftDate.current === selected && (editingWorkout || editingSecondary || confirmingWorkoutDelete || pendingRef.current)) return;
     draftDate.current = selected;
+    workoutBaseline.current = selectedWorkoutRecord ?? {};
+    try { workoutOwner.current = captureStorageOwner(); }
+    catch (error) { workoutOwner.current = null; setStorageError(fitnessStorageError(error)); }
     setEditingWorkout(false);
     setConfirmingWorkoutDelete(false);
     setEditingSecondary(null);
@@ -182,22 +199,48 @@ export default function RecordCalendarView() {
     setFoamAreasDraft(selectedWorkoutRecord?.foamRollerAreas || []);
     setFoamPainDraft(Boolean(selectedWorkoutRecord?.foamRollerPain));
     setFoamMemoDraft(selectedWorkoutRecord?.foamRollerMemo || "");
-  }, [selected, selectedWorkoutRecord, editingWorkout, editingSecondary]);
+  }, [selected, selectedWorkoutRecord, editingWorkout, editingSecondary, confirmingWorkoutDelete, pending]);
   if (!stores)
     return (
       <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">
-        기록을 불러오는 중...
+        {storageError || "기록을 불러오는 중..."}
       </div>
     );
   const moveMonth = (delta: number) =>
     setVisible(new Date(visible.getFullYear(), visible.getMonth() + delta, 1));
-  const saveNote = () => {
-    const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
-    if (noteDraft.trim()) next[selected] = noteDraft.trim();
-    else delete next[selected];
-    writeJson(DAILY_NOTES_KEY, next);
-    noteEdited.current = false;
-    setStores({ ...stores, notes: next });
+  const runRecordChange = async (change: () => Promise<void>) => {
+    if (pendingRef.current) return false;
+    pendingRef.current = true;
+    setPending(true);
+    setStorageError("");
+    setWorkoutNotice("");
+    try {
+      await change();
+      return true;
+    } catch (error) {
+      setStorageError(fitnessStorageError(error));
+      return false;
+    } finally {
+      pendingRef.current = false;
+      setPending(false);
+    }
+  };
+  const saveNote = async (remove = false) => {
+    const value = remove ? "" : noteDraft.trim();
+    await runRecordChange(async () => {
+      const owner = noteOwner.current;
+      if (!owner) throw new StorageSessionChangedError();
+      const next = await updateJson<DailyNotesStore>(DAILY_NOTES_KEY, {}, (current) => {
+        const next = { ...current };
+        if (value) next[selected] = value;
+        else delete next[selected];
+        return next;
+      }, owner);
+      if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new StorageSessionChangedError();
+      noteEdited.current = false;
+      setNoteDraft(value);
+      setStores((current) => current && { ...current, notes: next });
+    });
   };
   const selectedDiet = stores.diet[selected];
   const selectedRecovery = stores.recovery[selected];
@@ -247,16 +290,22 @@ export default function RecordCalendarView() {
     stores.lunchCarbs[selected] ||
     stores.lunchProteins[selected],
   );
-  const writeWorkoutStore = (update: (record: WorkoutDayRecord) => WorkoutDayRecord) => {
-    const workouts = readJson<RecordStores["workouts"]>(WORKOUT_COMPLETED_DAYS_KEY, {});
-    const value = workouts[selected];
-    const record = typeof value === "object" && value ? value : {};
-    const next = update(record);
-    if (Object.keys(next).length) workouts[selected] = next;
-    else delete workouts[selected];
-    writeJson(WORKOUT_COMPLETED_DAYS_KEY, workouts);
-    setStores({ ...stores, workouts });
-  };
+  const writeWorkoutStore = (update: (record: WorkoutDayRecord) => WorkoutDayRecord) => runRecordChange(async () => {
+    const owner = workoutOwner.current;
+    if (!owner) throw new StorageSessionChangedError();
+    const workouts = await updateJson<RecordStores["workouts"]>(WORKOUT_COMPLETED_DAYS_KEY, {}, (current) => {
+      current = migrateLegacyWorkoutWeekdays(current);
+      const workouts = { ...current };
+      const value = workouts[selected];
+      const record = typeof value === "object" && value ? value : {};
+      const next = update(record);
+      if (Object.keys(next).length) workouts[selected] = next;
+      else delete workouts[selected];
+      return workouts;
+    }, owner);
+    if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new StorageSessionChangedError();
+    setStores((current) => current && { ...current, workouts });
+  });
   const hasBackConcern = Boolean(workoutPainDraft || workoutBackStatusDraft && workoutBackStatusDraft !== "none" || workoutNeurologicalDraft.length);
   const backFeedback = {
     workoutPain: workoutPainDraft || workoutBackStatusDraft === "pain" || workoutBackStatusDraft === "worse" || workoutNeurologicalDraft.length > 0,
@@ -265,14 +314,15 @@ export default function RecordCalendarView() {
     workoutPainExercise: hasBackConcern ? workoutPainExerciseDraft.trim() || undefined : undefined,
     workoutPainSet: hasBackConcern && workoutPainSetDraft && Number.isInteger(workoutPainSetDraft) && workoutPainSetDraft > 0 ? workoutPainSetDraft : undefined,
   };
-  const saveWorkoutEdit = () => {
+  const saveWorkoutEdit = async () => {
     if (!selectedWorkoutRecord) return;
+    const baseline = workoutBaseline.current;
     const exerciseRecords = exerciseRecordsDraft || [];
     const workoutExerciseNames = exerciseRecords.length
       ? exerciseRecords.map((record) => record.exerciseName)
-      : selectedWorkoutRecord.workoutExerciseNames;
-    writeWorkoutStore((current) => ({
-        ...current,
+      : baseline.workoutExerciseNames;
+    const saved = await writeWorkoutStore((current) => applyFitnessEdits(current, baseline, {
+        ...baseline,
         workoutDone: workoutStatusDraft === "completed",
         workoutStatus: workoutStatusDraft,
         workoutDifficulty: workoutDifficultyDraft,
@@ -282,6 +332,7 @@ export default function RecordCalendarView() {
         workoutExerciseNames,
         workoutExerciseRecords: exerciseRecords.length ? exerciseRecords : undefined,
     }));
+    if (!saved) return;
     setEditingWorkout(false);
     setWorkoutNotice("운동 기록을 수정했습니다.");
   };
@@ -309,44 +360,48 @@ export default function RecordCalendarView() {
     setExerciseRecordsDraft([]);
     setEditingWorkout(true);
   };
-  const saveNewWorkoutRecord = () => {
+  const saveNewWorkoutRecord = async () => {
     if (selected > todayKey || !exerciseRecordsDraft?.length) return;
     const exerciseNames = exerciseRecordsDraft.map((record) => record.exerciseName);
-    writeWorkoutStore((current) => ({ ...current, workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, ...backFeedback, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft }));
+    const saved = await writeWorkoutStore((current) => ({ ...current, workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, ...backFeedback, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft }));
+    if (!saved) return;
     setEditingWorkout(false);
     setWorkoutNotice("선택한 날짜에 운동 기록을 추가했습니다.");
   };
-  const deleteWorkoutRecord = () => {
+  const deleteWorkoutRecord = async () => {
     if (!selectedWorkoutRecord) return;
-    writeWorkoutStore(removeGeneralWorkoutRecord);
+    if (!await writeWorkoutStore(removeGeneralWorkoutRecord)) return;
     setConfirmingWorkoutDelete(false);
     setWorkoutNotice("일반 운동 기록을 삭제했습니다.");
   };
-  const saveSecondaryEdit = (kind: "cardio" | "pullup" | "foam") => {
+  const saveSecondaryEdit = async (kind: "cardio" | "pullup" | "foam") => {
     if (!selectedWorkoutRecord) return;
     const patch: Partial<WorkoutDayRecord> = kind === "cardio"
       ? { cardioDone: true, cardioType: cardioTypeDraft.trim() || "유산소", cardioMinutes: Math.max(1, cardioMinutesDraft), cardioMemo: cardioMemoDraft.trim() || undefined }
       : kind === "pullup"
         ? { pullupDone: true, pullupStage: Math.min(5, Math.max(1, pullupStageDraft)), pullupPain: pullupPainDraft, pullupMemo: pullupMemoDraft.trim() || undefined }
         : { foamRollerDone: true, foamRollerTiming: foamTimingDraft, foamRollerAreas: foamAreasDraft, foamRollerPain: foamPainDraft, foamRollerMemo: foamMemoDraft.trim() || undefined };
-    writeWorkoutStore((current) => ({ ...current, ...patch }));
+    const baseline = workoutBaseline.current;
+    if (!await writeWorkoutStore((current) => applyFitnessEdits(current, baseline, { ...baseline, ...patch }))) return;
     setEditingSecondary(null);
     setWorkoutNotice(`${kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러"} 기록을 수정했습니다.`);
   };
-  const deleteSecondaryRecord = (kind: "cardio" | "pullup" | "foam") => {
+  const deleteSecondaryRecord = async (kind: "cardio" | "pullup" | "foam") => {
     if (!selectedWorkoutRecord) return;
     const label = kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러";
     if (!window.confirm(`선택한 날짜의 ${label} 기록만 삭제할까요? 다른 기록은 유지됩니다.`)) return;
-    writeWorkoutStore(kind === "cardio"
+    const saved = await writeWorkoutStore(kind === "cardio"
       ? removeCardioRecord
       : kind === "pullup"
         ? removePullupRecord
         : removeFoamRollerRecord);
+    if (!saved) return;
     setEditingSecondary(null);
     setWorkoutNotice(`${label} 기록을 삭제했습니다.`);
   };
   return (
-    <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+    <fieldset disabled={pending} aria-busy={pending} className="grid min-w-0 gap-4 xl:grid-cols-2 xl:items-start">
+      {storageError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 xl:col-span-2">{storageError}</p>}
       <RecordDashboard
         stores={stores}
         year={visible.getFullYear()}
@@ -359,9 +414,11 @@ export default function RecordCalendarView() {
         year={visible.getFullYear()}
         monthIndex={visible.getMonth()}
         cutoffDateKey={todayKey}
-        onGoalChange={(goal) =>
-          setStores({ ...stores, weightGoal: saveWeightGoal(goal) })
-        }
+        onGoalChange={async (goal, owner) => {
+          const weightGoal = await saveWeightGoal(goal, owner);
+          if (!isStorageOwnerCurrent(window.localStorage, owner)) throw new StorageSessionChangedError();
+          setStores((current) => current && { ...current, weightGoal });
+        }}
       />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between">
@@ -915,7 +972,7 @@ export default function RecordCalendarView() {
         weights={stores.weights}
         inbody={stores.inbody}
         onChange={({ weights, inbody }) =>
-          setStores({ ...stores, weights, inbody })
+          setStores((current) => current && { ...current, weights, inbody })
         }
       />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
@@ -928,26 +985,19 @@ export default function RecordCalendarView() {
         />
         <div className="mt-2 flex gap-2">
           <button
-            onClick={saveNote}
+            onClick={() => saveNote()}
             className="flex-1 rounded-xl bg-[#534AB7] px-4 py-2 text-[13px] font-bold text-white"
           >
             저장
           </button>
           <button
-            onClick={() => {
-              setNoteDraft("");
-              noteEdited.current = false;
-              const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
-              delete next[selected];
-              writeJson(DAILY_NOTES_KEY, next);
-              setStores({ ...stores, notes: next });
-            }}
+            onClick={() => saveNote(true)}
             className="rounded-xl bg-red-50 px-4 py-2 text-[13px] font-bold text-red-600"
           >
             삭제
           </button>
         </div>
       </section>
-    </div>
+    </fieldset>
   );
 }

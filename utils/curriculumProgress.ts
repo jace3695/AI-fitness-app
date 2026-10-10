@@ -1,3 +1,4 @@
+import { languageDocument } from "../app/data/languageRecordDocuments.ts";
 import type { CourseTrack } from "@/data/curriculum";
 import type { LearningSession } from "./learningSession";
 
@@ -51,12 +52,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function loadCurriculumProgress(): CurriculumProgress {
-  if (typeof window === "undefined") return DEFAULT_CURRICULUM_PROGRESS;
+export function loadCurriculumProgress(raw?: string | null): CurriculumProgress {
   try {
-    const raw = window.localStorage.getItem(CURRICULUM_PROGRESS_KEY);
     if (!raw) return DEFAULT_CURRICULUM_PROGRESS;
     const parsed = JSON.parse(raw) as Partial<CurriculumProgress>;
+    if (!isRecord(parsed)) return DEFAULT_CURRICULUM_PROGRESS;
     return {
       completedLessonIds: Array.isArray(parsed.completedLessonIds)
         ? parsed.completedLessonIds.filter((id): id is string => typeof id === "string")
@@ -84,10 +84,21 @@ export function loadCurriculumProgress(): CurriculumProgress {
   }
 }
 
-export function saveCurriculumProgress(progress: CurriculumProgress) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    CURRICULUM_PROGRESS_KEY,
-    JSON.stringify({ ...progress, updatedAt: new Date().toISOString() }),
-  );
+
+/** Read-only warning for a partial display. It never authorizes writing projected defaults. */
+export function curriculumProgressReadError(raw?: string | null): string | null {
+  if (raw == null) return null;
+  try {
+    const doc = languageDocument(raw, "object");
+    for (const key of ["completedLessonIds", "activityDates", "kanaCompletedGroups"]) if (doc.has([key])) {
+      for (let index = 0; index < doc.length([key]); index++) if (typeof doc.get([key, index]) !== "string") throw new Error();
+    }
+    for (const key of ["quizScores", "lessonAttempts", "lessonDrafts", "activeSession"]) if (doc.has([key])) languageDocument(doc.rawAt([key]), "object");
+    const track = doc.get(["selectedTrack"]);
+    if (track !== undefined && !["foundation", "work", "travel"].includes(String(track))) throw new Error();
+    for (const key of ["lastLessonId", "updatedAt"]) if (doc.has([key]) && typeof doc.get([key]) !== "string") throw new Error();
+    const scores = doc.get<Record<string, unknown>>(["quizScores"]);
+    for (const key of Object.keys(scores ?? {})) if (typeof doc.get(["quizScores", key]) !== "number") throw new Error();
+    return null;
+  } catch { return "일부 학습 기록의 형식을 읽지 못해 확인 가능한 내용만 표시합니다. 원본은 보존했어요."; }
 }

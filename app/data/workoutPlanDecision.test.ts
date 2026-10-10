@@ -21,8 +21,8 @@ const proposal: WorkoutPlanProposal = {
   cautions: [],
 };
 
-test("브라우저가 아니면 계획 결정 기록은 안전하게 비어 있다", () => {
+test("브라우저가 아니면 계획 결정 기록은 안전하게 비어 있다", async () => {
   assert.deepEqual(readWorkoutPlanDecisionHistory(), []);
-  assert.doesNotThrow(() => saveWorkoutPlanDecision("kept", proposal));
+  await assert.doesNotReject(() => saveWorkoutPlanDecision("kept", proposal));
   assert.equal(typeof WORKOUT_PLAN_DECISION_HISTORY_KEY, "string");
 });

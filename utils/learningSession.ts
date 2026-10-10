@@ -39,8 +39,9 @@ export function normalizeLearningSession(value: unknown, lesson: CurriculumLesso
   const draft = value as Partial<LearningSession>;
   if (draft.version !== 1 || draft.lessonId !== lesson.id || ![5, 10, 20].includes(draft.minutes ?? 0)) return;
   if (draft.mode !== "starter" && draft.mode !== "reader") return;
-  const clean = createLearningSession(lesson.id, draft.minutes as LearningMinutes, draft.mode);
-  if (typeof draft.id === "string" && draft.id.length <= 100 && draft.id.length > 0) clean.id = draft.id;
+  // Read normalization must not invent a new persistent identity for an unsupported legacy draft.
+  if (typeof draft.id !== "string" || draft.id.length > 100 || draft.id.length === 0) return;
+  const clean: LearningSession = { version: 1, id: draft.id, lessonId: lesson.id, minutes: draft.minutes as LearningMinutes, mode: draft.mode, stage: 0, wordIndex: 0, quizCursor: 0, answers: {}, firstAnswers: {}, responses: {}, speakingChecks: [false, false, false] };
   const bounded = (number: unknown, max: number) => typeof number === "number" && Number.isInteger(number) ? Math.max(0, Math.min(number, max)) : 0;
   clean.stage = bounded(draft.stage, 4);
   clean.wordIndex = bounded(draft.wordIndex, lesson.words.length - 1);

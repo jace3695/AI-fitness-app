@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { languageRowSource, type LanguageRowHandle } from "@/app/data/languageRecordIdentity";
+import { readLanguageRecordSnapshot, type LanguageRecordSnapshot } from "@/app/data/languageCloudSync";
+import { languageMutationError } from "@/app/data/languageRecordMutations";
+import { languageDocument, LanguageSourceConflictError } from "@/app/data/languageRecordDocuments";
+import { projectReviewRows, planReviewMutation } from "@/app/data/languageReviewMutations";
+
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 
 import { WORDS } from "@/data/words";
 import { SENTENCES } from "@/data/sentences";
 import { GRAMMAR_LESSONS, GRAMMAR_PROGRESS_KEY, type GrammarProgressItem } from "@/data/grammar";
 import { CURRICULUM, TRACKS, type CourseTrack } from "@/data/curriculum";
-import { CURRICULUM_REVIEW_KEY, loadCurriculumProgress, type CurriculumProgress } from "@/utils/curriculumProgress";
+import { CURRICULUM_PROGRESS_KEY, CURRICULUM_REVIEW_KEY, curriculumProgressReadError, loadCurriculumProgress } from "@/utils/curriculumProgress";
 import { getLocalDateKey } from "@/utils/dateKey";
 
 function getCurrentStreak(activityDates: string[]): number {
@@ -35,6 +43,7 @@ const SECTIONS: { key: SectionKey; label: string; href: string; linkLabel: strin
 type AnyItem = string | Record<string, any>;
 
 interface KanaQuizItem {
+  handle?: LanguageRowHandle;
   char: string;
   romaji: string;
   type?: string;
@@ -61,6 +70,7 @@ interface KanaTopWrongItem {
 }
 
 interface WordQuizItem {
+  handle?: LanguageRowHandle;
   word: string;
   meaning: string;
   category?: string;
@@ -70,6 +80,7 @@ interface WordQuizItem {
 }
 
 interface SentenceQuizItem {
+  handle?: LanguageRowHandle;
   japanese: string;
   meaning: string;
   category?: string;
@@ -120,26 +131,6 @@ const YOON_KANA_CHARS = new Set([
   "キャ","キュ","キョ","シャ","シュ","ショ","チャ","チュ","チョ","ニャ","ニュ","ニョ","ヒャ","ヒュ","ヒョ","ミャ","ミュ","ミョ","リャ","リュ","リョ","ギャ","ギュ","ギョ","ジャ","ジュ","ジョ","ビャ","ビュ","ビョ","ピャ","ピュ","ピョ",
 ]);
 const SPECIAL_KANA_CHARS = new Set(["っ", "ッ", "ん", "ン", "ー"]);
-
-function loadFromStorage(key: string): AnyItem[] {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed as AnyItem[];
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(key: string, value: AnyItem[]) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
-}
 
 function formatDate(dateStr: string): string {
   try {
@@ -254,13 +245,14 @@ function renderWordOrSentenceItem(item: AnyItem, i: number): React.ReactNode {
   return <span key={i}>{display}</span>;
 }
 
-function getKanaQuizItems(items: AnyItem[]): KanaQuizItem[] {
+function getKanaQuizItems(items: AnyItem[], handles?: LanguageRowHandle[]): KanaQuizItem[] {
   const result: KanaQuizItem[] = [];
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     if (typeof item === "object" && item !== null) {
       const obj = item as Record<string, unknown>;
       if (typeof obj.char === "string" && obj.char && typeof obj.romaji === "string" && obj.romaji) {
         result.push({
+          handle: handles?.[index],
           char: obj.char,
           romaji: obj.romaji,
           type: typeof obj.type === "string" ? obj.type : undefined,
@@ -273,14 +265,15 @@ function getKanaQuizItems(items: AnyItem[]): KanaQuizItem[] {
   return result;
 }
 
-function getWordQuizItems(items: AnyItem[]): WordQuizItem[] {
+function getWordQuizItems(items: AnyItem[], handles?: LanguageRowHandle[]): WordQuizItem[] {
   const result: WordQuizItem[] = [];
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     if (typeof item === "object" && item !== null) {
       const obj = item as Record<string, unknown>;
       if (typeof obj.word === "string" && obj.word && typeof obj.meaning === "string" && obj.meaning) {
         const mode: WordQuizItem["mode"] = Math.random() < 0.5 ? "wordToMeaning" : "meaningToWord";
         result.push({
+          handle: handles?.[index],
           word: obj.word,
           meaning: obj.meaning,
           category: typeof obj.category === "string" ? obj.category : undefined,
@@ -294,9 +287,9 @@ function getWordQuizItems(items: AnyItem[]): WordQuizItem[] {
   return result;
 }
 
-function getSentenceQuizItems(items: AnyItem[]): SentenceQuizItem[] {
+function getSentenceQuizItems(items: AnyItem[], handles?: LanguageRowHandle[]): SentenceQuizItem[] {
   const result: SentenceQuizItem[] = [];
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     if (typeof item === "object" && item !== null) {
       const obj = item as Record<string, unknown>;
       if (
@@ -305,6 +298,7 @@ function getSentenceQuizItems(items: AnyItem[]): SentenceQuizItem[] {
       ) {
         const mode: SentenceQuizItem["mode"] = Math.random() < 0.5 ? "japaneseToMeaning" : "meaningToJapanese";
         result.push({
+          handle: handles?.[index],
           japanese: obj.japanese,
           meaning: obj.meaning,
           category: typeof obj.category === "string" ? obj.category : undefined,
@@ -316,49 +310,6 @@ function getSentenceQuizItems(items: AnyItem[]): SentenceQuizItem[] {
     }
   });
   return result;
-}
-
-function isObjectItem(item: AnyItem): item is Record<string, unknown> {
-  return typeof item === "object" && item !== null;
-}
-
-function getKanaWrongKey(item: AnyItem, includeCreatedAt?: boolean): string {
-  if (!isObjectItem(item)) return "";
-  const base = [
-    typeof item.char === "string" ? item.char : "",
-    typeof item.romaji === "string" ? item.romaji : "",
-    typeof item.type === "string" ? item.type : "",
-    typeof item.mode === "string" ? item.mode : "",
-  ].join("|");
-  const shouldIncludeCreatedAt = includeCreatedAt ?? typeof item.createdAt === "string";
-  if (!shouldIncludeCreatedAt) return base;
-  return `${base}|${typeof item.createdAt === "string" ? item.createdAt : ""}`;
-}
-
-function getWordWrongKey(item: AnyItem, includeCreatedAt?: boolean): string {
-  if (!isObjectItem(item)) return "";
-  const base = [
-    typeof item.word === "string" ? item.word : "",
-    typeof item.meaning === "string" ? item.meaning : "",
-    typeof item.category === "string" ? item.category : "",
-    typeof item.quizType === "string" ? item.quizType : "",
-  ].join("|");
-  const shouldIncludeCreatedAt = includeCreatedAt ?? typeof item.createdAt === "string";
-  if (!shouldIncludeCreatedAt) return base;
-  return `${base}|${typeof item.createdAt === "string" ? item.createdAt : ""}`;
-}
-
-function getSentenceWrongKey(item: AnyItem, includeCreatedAt?: boolean): string {
-  if (!isObjectItem(item)) return "";
-  const base = [
-    typeof item.japanese === "string" ? item.japanese : "",
-    typeof item.meaning === "string" ? item.meaning : "",
-    typeof item.category === "string" ? item.category : "",
-    typeof item.quizType === "string" ? item.quizType : "",
-  ].join("|");
-  const shouldIncludeCreatedAt = includeCreatedAt ?? typeof item.createdAt === "string";
-  if (!shouldIncludeCreatedAt) return base;
-  return `${base}|${typeof item.createdAt === "string" ? item.createdAt : ""}`;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -401,12 +352,27 @@ function generateSentenceOptions(correct: string, allItems: SentenceQuizItem[], 
 }
 
 export default function ProgressPage() {
-  const [data, setData] = useState<Record<SectionKey, AnyItem[]>>({
-    wrongKana: [],
-    wrongWords: [],
-    wrongSentences: [],
-  });
-
+  const source = useLanguageRecordSnapshot();
+  const { context, snapshot, records } = source;
+  const actions = useLanguageMutationAction(source, planReviewMutation);
+  const clears = useLanguageMutationAction(source, planReviewMutation, { strictSource: true });
+  const [localError, setLocalError] = useState("");
+  const currentRows = useMemo(() => ({
+    wrongKana: projectReviewRows<AnyItem>(snapshot, "wrongKana"), wrongWords: projectReviewRows<AnyItem>(snapshot, "wrongWords"), wrongSentences: projectReviewRows<AnyItem>(snapshot, "wrongSentences"),
+    chars: projectReviewRows<string>(snapshot, "wrongKanaChars"), grammar: projectReviewRows<GrammarProgressItem>(snapshot, GRAMMAR_PROGRESS_KEY), review: projectReviewRows<unknown>(snapshot, CURRICULUM_REVIEW_KEY),
+  }), [snapshot]);
+  const retainedRows = useRef(currentRows);
+  if (snapshot && !actions.pending && !clears.pending) retainedRows.current = currentRows;
+  const rows = retainedRows.current;
+  const data = useMemo(() => ({ wrongKana: rows.wrongKana.rows.map(row => row.value), wrongWords: rows.wrongWords.rows.map(row => row.value), wrongSentences: rows.wrongSentences.rows.map(row => row.value) }), [rows]);
+  const confusingKanaChars = useMemo(() => [...new Set(rows.chars.rows.map(row => row.value))], [rows.chars]);
+  const grammarProgress = rows.grammar.rows.map(row => row.value);
+  const curriculumProgress = loadCurriculumProgress(records[CURRICULUM_PROGRESS_KEY]);
+  const curriculumReviewCount = rows.review.rows.length;
+  let projectionError = Object.values(rows).find(value => value.error)?.error || curriculumProgressReadError(records[CURRICULUM_PROGRESS_KEY]);
+  try { languageDocument(records[CURRICULUM_PROGRESS_KEY], "object"); } catch { projectionError = "과정 진도 일부를 읽지 못했어요. 원본은 보존했어요."; }
+  const acceptedAnswers = useRef({ wrongKana: false, wrongWords: false, wrongSentences: false });
+  const quizSources = useRef<Partial<Record<SectionKey, string | undefined>>>({});
 
   const wordOptionPool = useMemo(() => ({
     meaning: Array.from(new Set(WORDS.map((item) => item.meaning).filter(Boolean))),
@@ -438,14 +404,11 @@ export default function ProgressPage() {
   const [sentenceOptions, setSentenceOptions] = useState<string[]>([]);
   const [sentenceSelected, setSentenceSelected] = useState<string | null>(null);
   const [sentenceIsCorrect, setSentenceIsCorrect] = useState<boolean | null>(null);
-  const [confusingKanaChars, setConfusingKanaChars] = useState<string[]>([]);
-  const [grammarProgress, setGrammarProgress] = useState<GrammarProgressItem[]>([]);
   const [activeProgressTab, setActiveProgressTab] = useState<ProgressTab>("all");
-  const [curriculumProgress, setCurriculumProgress] = useState<CurriculumProgress | null>(null);
-  const [curriculumReviewCount, setCurriculumReviewCount] = useState(0);
 
-  const buildKanaQuiz = useCallback((items: AnyItem[]) => {
-    const qi = getKanaQuizItems(items);
+  const buildKanaQuiz = useCallback((items: AnyItem[], handles?: LanguageRowHandle[]) => {
+    acceptedAnswers.current.wrongKana = false;
+    const qi = getKanaQuizItems(items, handles);
     const shuffled = shuffle(qi);
     setQuizItems(shuffled);
     setQuizIndex(0);
@@ -458,8 +421,9 @@ export default function ProgressPage() {
     }
   }, []);
 
-  const buildWordQuiz = useCallback((items: AnyItem[]) => {
-    const qi = getWordQuizItems(items);
+  const buildWordQuiz = useCallback((items: AnyItem[], handles?: LanguageRowHandle[]) => {
+    acceptedAnswers.current.wrongWords = false;
+    const qi = getWordQuizItems(items, handles);
     const shuffled = shuffle(qi);
     setWordQuizItems(shuffled);
     setWordQuizIndex(0);
@@ -475,8 +439,9 @@ export default function ProgressPage() {
     }
   }, [wordOptionPool]);
 
-  const buildSentenceQuiz = useCallback((items: AnyItem[]) => {
-    const qi = getSentenceQuizItems(items);
+  const buildSentenceQuiz = useCallback((items: AnyItem[], handles?: LanguageRowHandle[]) => {
+    acceptedAnswers.current.wrongSentences = false;
+    const qi = getSentenceQuizItems(items, handles);
     const shuffled = shuffle(qi);
     setSentenceQuizItems(shuffled);
     setSentenceQuizIndex(0);
@@ -493,37 +458,17 @@ export default function ProgressPage() {
   }, [sentenceOptionPool]);
 
   useEffect(() => {
-    const wrongKana = loadFromStorage("wrongKana");
-    const wrongWords = loadFromStorage("wrongWords");
-    const wrongSentences = loadFromStorage("wrongSentences");
-    let grammarItems: GrammarProgressItem[] = [];
-    try {
-      const rawGrammar = localStorage.getItem(GRAMMAR_PROGRESS_KEY);
-      if (rawGrammar) {
-        const parsed = JSON.parse(rawGrammar);
-        if (Array.isArray(parsed)) grammarItems = parsed as GrammarProgressItem[];
-      }
-    } catch {
-      grammarItems = [];
+    if (!snapshot || actions.pending || clears.pending) return;
+    for (const key of ["wrongKana", "wrongWords", "wrongSentences"] as const) {
+      if (Object.hasOwn(quizSources.current, key) && quizSources.current[key] === records[key]) continue;
+      if ((key === "wrongKana" && selected !== null) || (key === "wrongWords" && wordSelected !== null) || (key === "wrongSentences" && sentenceSelected !== null)) continue;
+      const values = rows[key].rows.map(row => row.value), handles = rows[key].rows.map(row => row.handle);
+      if (key === "wrongKana") buildKanaQuiz(values, handles);
+      else if (key === "wrongWords") buildWordQuiz(values, handles);
+      else buildSentenceQuiz(values, handles);
+      quizSources.current[key] = records[key];
     }
-    setData({ wrongKana, wrongWords, wrongSentences });
-    setGrammarProgress(grammarItems);
-    setCurriculumProgress(loadCurriculumProgress());
-    setCurriculumReviewCount(loadFromStorage(CURRICULUM_REVIEW_KEY).length);
-    const rawConfusingKana = loadFromStorage("wrongKanaChars");
-    const rawConfusingKanaLegacy = loadFromStorage("confusingKana");
-    const confusingChars = [...rawConfusingKana, ...rawConfusingKanaLegacy]
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (typeof item === "object" && item !== null && typeof item.char === "string") return item.char;
-        return "";
-      })
-      .filter(Boolean);
-    setConfusingKanaChars(Array.from(new Set(confusingChars)));
-    buildKanaQuiz(wrongKana);
-    buildWordQuiz(wrongWords);
-    buildSentenceQuiz(wrongSentences);
-  }, [buildKanaQuiz, buildWordQuiz, buildSentenceQuiz]);
+  }, [snapshot, records, rows, actions.pending, clears.pending, selected, wordSelected, sentenceSelected, buildKanaQuiz, buildWordQuiz, buildSentenceQuiz]);
 
   const kanaSummaryCards: KanaSummaryCard[] = useMemo(() => {
     const wrongKanaItems = getKanaQuizItems(data.wrongKana);
@@ -577,160 +522,81 @@ export default function ProgressPage() {
     [grammarProgress],
   );
 
-  function clearSection(key: SectionKey) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // ignore
-    }
-    setData((prev) => {
-      const next = { ...prev, [key]: [] };
-      if (key === "wrongKana") {
-        buildKanaQuiz([]);
-      }
-      if (key === "wrongWords") {
-        buildWordQuiz([]);
-      }
-      if (key === "wrongSentences") {
-        buildSentenceQuiz([]);
-      }
-      return next;
-    });
-  }
-
+  const rebuildCommittedQuiz = (key: SectionKey, current: LanguageRecordSnapshot | null) => {
+    if (!current) return;
+    const projected = projectReviewRows<AnyItem>(current, key), values = projected.rows.map(row => row.value), handles = projected.rows.map(row => row.handle);
+    if (key === "wrongKana") buildKanaQuiz(values, handles);
+    else if (key === "wrongWords") buildWordQuiz(values, handles);
+    else buildSentenceQuiz(values, handles);
+    quizSources.current[key] = current.records[key];
+  };
   function handleClearSection(key: SectionKey) {
-    const confirmMessages: Record<SectionKey, string> = {
-      wrongKana: "헷갈린 글자 오답을 모두 삭제할까요?",
-      wrongWords: "틀린 단어 오답을 모두 삭제할까요?",
-      wrongSentences: "틀린 문장 오답을 모두 삭제할까요?",
-    };
-
+    if (!context || !snapshot || actions.isPending() || clears.isPending()) return;
+    if (!rows[key].complete) { setLocalError("표시하지 못한 기록이 있어 전체 삭제를 중단했어요. 원본을 보존했어요."); return; }
+    let captured: LanguageRecordSnapshot;
+    try { captured = readLanguageRecordSnapshot(context, [key]); if (captured.records[key] !== snapshot.records[key]) throw new LanguageSourceConflictError("화면을 연 뒤 이 기록이 바뀌었어요. 최신 목록을 확인한 뒤 다시 삭제해 주세요."); } catch (error) { setLocalError(languageMutationError(error)); return; }
+    const confirmMessages: Record<SectionKey, string> = { wrongKana: "헷갈린 글자 오답을 모두 삭제할까요?", wrongWords: "틀린 단어 오답을 모두 삭제할까요?", wrongSentences: "틀린 문장 오답을 모두 삭제할까요?" };
     if (!window.confirm(confirmMessages[key])) return;
-    clearSection(key);
+    void clears.submit({ kind: "clear-progress", key }, result => rebuildCommittedQuiz(key, result.source), captured);
   }
-
-  function removeWrongKanaItem(target: AnyItem) {
-    if (!isObjectItem(target)) return;
-    const useCreatedAt = typeof target.createdAt === "string";
-    const targetKey = getKanaWrongKey(target, useCreatedAt);
-
-    setData((prev) => {
-      let removed = false;
-      const updated = prev.wrongKana.filter((storedItem) => {
-        if (removed) return true;
-        const storedKey = getKanaWrongKey(storedItem, useCreatedAt);
-        if (storedKey === targetKey) {
-          removed = true;
-          return false;
-        }
-        return true;
-      });
-      saveToStorage("wrongKana", updated);
-      buildKanaQuiz(updated);
-      return { ...prev, wrongKana: updated };
-    });
-  }
-
-  function removeWrongWordItem(target: AnyItem) {
-    if (!isObjectItem(target)) return;
-    const useCreatedAt = typeof target.createdAt === "string";
-    const targetKey = getWordWrongKey(target, useCreatedAt);
-
-    setData((prev) => {
-      let removed = false;
-      const updated = prev.wrongWords.filter((storedItem) => {
-        if (removed) return true;
-        const storedKey = getWordWrongKey(storedItem, useCreatedAt);
-        if (storedKey === targetKey) {
-          removed = true;
-          return false;
-        }
-        return true;
-      });
-      saveToStorage("wrongWords", updated);
-      buildWordQuiz(updated);
-      return { ...prev, wrongWords: updated };
-    });
-  }
-
-  function removeWrongSentenceItem(target: AnyItem) {
-    if (!isObjectItem(target)) return;
-    const useCreatedAt = typeof target.createdAt === "string";
-    const targetKey = getSentenceWrongKey(target, useCreatedAt);
-
-    setData((prev) => {
-      let removed = false;
-      const updated = prev.wrongSentences.filter((storedItem) => {
-        if (removed) return true;
-        const storedKey = getSentenceWrongKey(storedItem, useCreatedAt);
-        if (storedKey === targetKey) {
-          removed = true;
-          return false;
-        }
-        return true;
-      });
-      saveToStorage("wrongSentences", updated);
-      buildSentenceQuiz(updated);
-      return { ...prev, wrongSentences: updated };
-    });
-  }
+  const removeProgressItem = (key: SectionKey, handle?: LanguageRowHandle) => {
+    if (!handle || actions.isPending() || clears.isPending()) return Promise.resolve(false);
+    return actions.submit({ kind: "delete-row", key, handle }, result => rebuildCommittedQuiz(key, result.source), languageRowSource(handle));
+  };
+  const removeWrongKanaItem = (_target: AnyItem, handle?: LanguageRowHandle) => removeProgressItem("wrongKana", handle);
+  const removeWrongWordItem = (_target: AnyItem, handle?: LanguageRowHandle) => removeProgressItem("wrongWords", handle);
+  const removeWrongSentenceItem = (_target: AnyItem, handle?: LanguageRowHandle) => removeProgressItem("wrongSentences", handle);
 
   // Kana quiz handlers
   function handleOptionSelect(opt: string) {
-    if (selected !== null) return;
+    if (acceptedAnswers.current.wrongKana || selected !== null || actions.isPending() || clears.isPending()) return;
     const current = quizItems[quizIndex];
     if (!current) return;
 
     const correct = opt === current.romaji;
+    acceptedAnswers.current.wrongKana = true;
     setSelected(opt);
     setIsCorrect(correct);
 
     if (correct) {
-      removeWrongKanaItem(current);
-      setQuizItems((prev) => prev.filter((_, i) => i !== quizIndex));
+      void removeWrongKanaItem(current, current.handle);
     }
   }
 
   function handleNext() {
-    setSelected(null);
-    setIsCorrect(null);
-
-    setQuizItems((prev) => {
-      const nextIndex = isCorrect
-        ? quizIndex >= prev.length ? prev.length - 1 : quizIndex
-        : (quizIndex + 1) % Math.max(prev.length, 1);
-      const clampedIndex = Math.min(nextIndex, prev.length - 1);
-
-      setQuizIndex(clampedIndex);
-      if (prev.length > 0) {
-        setOptions(generateKanaOptions(prev[clampedIndex]?.romaji ?? "", prev));
-      }
-      return prev;
-    });
+    if (actions.isPending() || clears.isPending()) return;
+    acceptedAnswers.current.wrongKana = false;
+    setSelected(null); setIsCorrect(null);
+    const nextIndex = isCorrect ? Math.min(quizIndex, quizItems.length - 1) : (quizIndex + 1) % Math.max(quizItems.length, 1);
+    setQuizIndex(Math.max(0, nextIndex));
+    if (quizItems.length) setOptions(generateKanaOptions(quizItems[Math.max(0, nextIndex)]?.romaji ?? "", quizItems));
   }
 
   // Word quiz handlers
   function handleWordOptionSelect(opt: string) {
-    if (wordSelected !== null) return;
+    if (acceptedAnswers.current.wrongWords || wordSelected !== null || actions.isPending() || clears.isPending()) return;
     const current = wordQuizItems[wordQuizIndex];
     if (!current) return;
 
     const correctVal = current.mode === "wordToMeaning" ? current.meaning : current.word;
     const correct = opt === correctVal;
+    acceptedAnswers.current.wrongWords = true;
     setWordSelected(opt);
     setWordIsCorrect(correct);
 
   }
 
   function handleWordNext() {
+    if (actions.isPending() || clears.isPending()) return;
     const wasCorrect = wordIsCorrect;
     const current = wordQuizItems[wordQuizIndex];
 
     if (wasCorrect && current) {
-      removeWrongWordItem(current);
+      void removeWrongWordItem(current, current.handle);
       return;
     }
 
+    acceptedAnswers.current.wrongWords = false;
     const nextIndex = (wordQuizIndex + 1) % Math.max(wordQuizItems.length, 1);
     const nextItem = wordQuizItems[nextIndex];
 
@@ -747,26 +613,29 @@ export default function ProgressPage() {
 
   // Sentence quiz handlers
   function handleSentenceOptionSelect(opt: string) {
-    if (sentenceSelected !== null) return;
+    if (acceptedAnswers.current.wrongSentences || sentenceSelected !== null || actions.isPending() || clears.isPending()) return;
     const current = sentenceQuizItems[sentenceQuizIndex];
     if (!current) return;
 
     const correctVal = current.mode === "japaneseToMeaning" ? current.meaning : current.japanese;
     const correct = opt === correctVal;
+    acceptedAnswers.current.wrongSentences = true;
     setSentenceSelected(opt);
     setSentenceIsCorrect(correct);
 
   }
 
   function handleSentenceNext() {
+    if (actions.isPending() || clears.isPending()) return;
     const wasCorrect = sentenceIsCorrect;
     const current = sentenceQuizItems[sentenceQuizIndex];
 
     if (wasCorrect && current) {
-      removeWrongSentenceItem(current);
+      void removeWrongSentenceItem(current, current.handle);
       return;
     }
 
+    acceptedAnswers.current.wrongSentences = false;
     const nextIndex = (sentenceQuizIndex + 1) % Math.max(sentenceQuizItems.length, 1);
     const nextItem = sentenceQuizItems[nextIndex];
 
@@ -808,6 +677,7 @@ export default function ProgressPage() {
   const currentWordQuiz = wordQuizItems[wordQuizIndex] ?? null;
   const currentSentenceQuiz = sentenceQuizItems[sentenceQuizIndex] ?? null;
 
+  if (!snapshot) return <section role="status">{source.error || "학습 기록을 확인하고 있어요. 입력은 보존됩니다."}</section>;
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "1.5rem 1rem 3rem", color: "#0f172a" }}>
       <section style={{ marginBottom: "1.1rem", border: "1px solid #dbeafe", borderRadius: 20, padding: "1.2rem", background: "linear-gradient(145deg, #f8fbff 0%, #eef4ff 100%)", boxShadow: "0 10px 28px rgba(59, 130, 246, 0.08)" }}>
@@ -819,7 +689,9 @@ export default function ProgressPage() {
 
       <section style={{ marginBottom: "1rem", border: "1px solid #dbeafe", borderRadius: 20, padding: "1rem", background: "#ffffff", boxShadow: "0 6px 20px rgba(148, 163, 184, 0.16)" }}>
         <h2 style={{ fontSize: "1.05rem", margin: "0 0 0.8rem", color: "#1f684c" }}>새 학습 과정</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(105px,1fr))", gap: "0.55rem", marginBottom: "0.7rem" }}>
+        {(localError || actions.error || clears.error || projectionError) && <p role="alert">{localError || actions.error || clears.error || projectionError}</p>}
+      {[actions, clears].map((control, index) => control.pending ? <div key={index} role="status"><span>삭제 결과 확인이 필요해요. 입력은 보존했어요.</span><button type="button" disabled={control.busy} onClick={() => void control.retry()}>저장 다시 확인</button>{control.canResubmit && <button type="button" disabled={control.busy} onClick={() => void control.resubmit()}>최신 상태에서 새로 저장</button>}</div> : null)}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(105px,1fr))", gap: "0.55rem", marginBottom: "0.7rem" }}>
           <div style={{ padding: "0.7rem", borderRadius: 12, background: "#f3faf6", textAlign: "center" }}><small>연속 학습</small><strong style={{ display: "block", color: "#287a59" }}>{getCurrentStreak(curriculumProgress?.activityDates ?? [])}일</strong></div>
           <div style={{ padding: "0.7rem", borderRadius: 12, background: "#f3faf6", textAlign: "center" }}><small>총 학습일</small><strong style={{ display: "block", color: "#287a59" }}>{curriculumProgress?.activityDates.length ?? 0}일</strong></div>
           <div style={{ padding: "0.7rem", borderRadius: 12, background: "#f3faf6", textAlign: "center" }}><small>수업 시도</small><strong style={{ display: "block", color: "#287a59" }}>{Object.values(curriculumProgress?.lessonAttempts ?? {}).reduce((sum, attempts) => sum + attempts.length, 0)}회</strong></div>
@@ -1043,7 +915,7 @@ export default function ProgressPage() {
               <div style={{ marginBottom: "0.75rem", textAlign: "center" }}>
                 {isCorrect ? (
                   <span style={{ color: "#065f46", fontWeight: "bold", fontSize: "0.95rem" }}>
-                    ✅ 정답입니다! 오답 목록에서 정리했습니다.
+                    {actions.pending ? "✅ 정답이에요. 오답 정리 저장을 확인하고 있어요." : "✅ 정답입니다! 오답 목록에서 정리했습니다."}
                   </span>
                 ) : (
                   <span style={{ color: "#991b1b", fontWeight: "bold", fontSize: "0.95rem" }}>
@@ -1403,10 +1275,10 @@ export default function ProgressPage() {
             ) : key === "wrongKana" ? (
               <ul style={{ margin: 0, paddingLeft: 0 }}>
                 {items.map((item, i) => (
-                  <li key={`wrong-kana-item-${i}`} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", listStyle: "none" }}>
+                  <li key={rows.wrongKana.rows[i].handle.viewId} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", listStyle: "none" }}>
                     <div style={{ flex: 1 }}>{renderKanaItem(item, i)}</div>
                     <button
-                      onClick={() => removeWrongKanaItem(item)}
+                      onClick={() => void removeWrongKanaItem(item, rows.wrongKana.rows[i].handle)}
                       style={{
                         fontSize: "0.75rem",
                         padding: "0.2rem 0.45rem",
@@ -1426,16 +1298,16 @@ export default function ProgressPage() {
             ) : (
               <ul style={{ margin: 0, paddingLeft: "1.2rem" }}>
                 {items.map((item, i) => (
-                  <li key={`wrong-item-${key}-${i}`} style={{ marginBottom: "0.35rem" }}>
+                  <li key={rows[key].rows[i].handle.viewId} style={{ marginBottom: "0.35rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
                       <span style={{ flex: 1 }}>{renderWordOrSentenceItem(item, i)}</span>
                       <button
                         onClick={() => {
                           if (key === "wrongWords") {
-                            removeWrongWordItem(item);
+                            void removeWrongWordItem(item, rows.wrongWords.rows[i].handle);
                             return;
                           }
-                          removeWrongSentenceItem(item);
+                          void removeWrongSentenceItem(item, rows.wrongSentences.rows[i].handle);
                         }}
                         style={{
                           fontSize: "0.75rem",

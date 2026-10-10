@@ -1,3 +1,4 @@
+import { readStorageSnapshot } from './storageTransaction.ts';
 import { getLocalDateKey } from "./dietPlans.ts";
 
 export type WorkoutDayId =
@@ -291,43 +292,31 @@ export function getWeeklyWorkoutCompletion(
   );
 }
 
+/** Pure legacy projection. Persist it only inside a guarded fresh-state transaction. */
+export function migrateLegacyWorkoutWeekdays(store: WorkoutCompletionStore, baseDate = new Date()): WorkoutCompletionStore {
+  const next = { ...store };
+  for (const [key, value] of Object.entries(store)) {
+    if (!isWorkoutDayId(key) || !value) continue;
+    const dateKey = getDateForWorkoutDay(key, baseDate);
+    // A dated record is already canonical and must not be replaced by an older weekday marker.
+    if (!(dateKey in next)) next[dateKey] = typeof value === 'object' ? value : { workoutDone: true };
+    delete next[key];
+  }
+  return next;
+}
+
 export function readWorkoutCompletionStore(
   baseDate = new Date(),
+  source?: Pick<Storage, 'getItem'>,
 ): WorkoutCompletionStore {
   if (typeof window === "undefined") return {};
-  const raw = window.localStorage.getItem(WORKOUT_COMPLETED_DAYS_KEY);
+  const raw = (source ?? readStorageSnapshot(window.localStorage)).getItem(WORKOUT_COMPLETED_DAYS_KEY);
   if (!raw) return {};
-
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const migrated: WorkoutCompletionStore = {};
-    let changed = false;
-
-    Object.entries(parsed).forEach(([key, value]) => {
-      if (!value) return;
-      if (isWorkoutDayId(key)) {
-        migrated[getDateForWorkoutDay(key, baseDate)] = { workoutDone: true };
-        changed = true;
-        return;
-      }
-      migrated[key] =
-        typeof value === "object" && value !== null
-          ? (value as WorkoutDayRecord)
-          : { workoutDone: true };
-    });
-
-    if (changed) {
-      window.localStorage.setItem(
-        WORKOUT_COMPLETED_DAYS_KEY,
-        JSON.stringify(migrated),
-      );
-    }
-
-    return migrated;
-  } catch {
-    window.localStorage.removeItem(WORKOUT_COMPLETED_DAYS_KEY);
-    return {};
-  }
+    const parsed = JSON.parse(raw) as WorkoutCompletionStore;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return migrateLegacyWorkoutWeekdays(parsed, baseDate);
+  } catch { return {}; }
 }
 
 export function isWorkoutCompletedOnDate(

@@ -15,7 +15,7 @@ test('typing basics tracks mistakes, saves once and resumes with owner isolation
  await page.keyboard.press('Tab');await expect(pad).not.toBeFocused();
  await typeLesson(page,TYPING_LESSONS[0].keys);await expect(pad).toBeDisabled();await expect(page.getByText('첫 시도 포함 정확도')).toContainText('92%');await expect(page.getByRole('button',{name:'자리 연습 저장'})).toBeDisabled();
  await page.getByLabel('안내된 손가락으로 누르고 기본 자리로 돌아왔어요.').check();await page.getByLabel('키를 세게 내리치지 않고 손의 힘을 빼 보았어요.').check();
- const pattern='**/rest/v1/growth_sessions*',drain=new RouteDrain();let posts=0;
+ const pattern='**/rest/v1/rpc/save_sentence_typing_session',drain=new RouteDrain();let posts=0;
  await page.route(pattern,route=>drain.run(async()=>{if(route.request().method()==='POST'){posts++;await route.fetch();await route.fulfill({status:503,contentType:'application/json',body:'{"message":"lost"}'});}else await route.fallback();}));
  try{await page.getByRole('button',{name:'자리 연습 저장',exact:true}).click();await expect(page.getByRole('button',{name:'저장 완료',exact:true})).toBeDisabled();expect(posts).toBe(1);}finally{await drain.wait();await page.unroute(pattern);}
  const rows=(await qa.account.client.from('growth_sessions').select('*')).data!;expect(rows).toHaveLength(1);expect(rows[0].metrics).toMatchObject({courseId:'typing-position-v1',lessonId:'anchors',keyPresses:13,correctKeyPresses:12,keyAccuracy:92,mistakeKeys:{f:1}});expect(rows[0].metrics.passageIndex).toBeUndefined();

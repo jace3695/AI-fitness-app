@@ -3,7 +3,8 @@ import { EXCLUDED_EXERCISE_IDS } from "./workoutGroups.ts";
 import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
 import type { AdaptiveReviewDecision } from "./workoutAdaptiveReview.ts";
-import { notifyRecordsChanged } from "./storageTransaction.ts";
+import { readStorageSnapshot, type StorageOwnerToken } from "./storageTransaction.ts";
+import { applyFitnessEdits, readFitnessValue, updateFitnessValues } from "./fitnessStorageUpdates.ts";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -48,10 +49,10 @@ export interface UserWorkoutSettings {
 
 export const EMPTY_USER_WORKOUT_SETTINGS: UserWorkoutSettings = { weeklyGroups: {}, exerciseTargets: {}, weeklyEdits: {}, weeklyMethods: {}, dateOverrides: {} };
 
-export function readUserWorkoutSettings(): UserWorkoutSettings {
+export function readUserWorkoutSettings(source?: Pick<Storage, 'getItem'>): UserWorkoutSettings {
   if (typeof window === "undefined") return EMPTY_USER_WORKOUT_SETTINGS;
   try {
-    const saved = JSON.parse(window.localStorage.getItem(USER_WORKOUT_SETTINGS_KEY) || "{}");
+    const saved = JSON.parse((source ?? readStorageSnapshot(window.localStorage)).getItem(USER_WORKOUT_SETTINGS_KEY) || "{}");
     return {
       weeklyGroups: saved.weeklyGroups || {},
       exerciseTargets: saved.exerciseTargets || {},
@@ -70,9 +71,16 @@ export function getExerciseTargetsForDay(settings: UserWorkoutSettings, dayId: W
   return { ...settings.exerciseTargets, ...settings.weeklyExerciseTargets?.[dayId], ...(date ? settings.dateOverrides[date]?.exerciseTargets : {}) };
 }
 
-export function saveUserWorkoutSettings(settings: UserWorkoutSettings) {
-  window.localStorage.setItem(USER_WORKOUT_SETTINGS_KEY, JSON.stringify(settings));
-  notifyRecordsChanged();
+export function updateUserWorkoutSettings(transform: (settings: UserWorkoutSettings) => UserWorkoutSettings, owner?: StorageOwnerToken) {
+  return updateFitnessValues(snapshot => {
+    const current = readFitnessValue(snapshot, USER_WORKOUT_SETTINGS_KEY, EMPTY_USER_WORKOUT_SETTINGS);
+    const next = transform({ ...EMPTY_USER_WORKOUT_SETTINGS, ...current });
+    return { changes: { [USER_WORKOUT_SETTINGS_KEY]: JSON.stringify(next) }, value: next };
+  }, owner);
+}
+
+export function saveUserWorkoutSettings(settings: UserWorkoutSettings, baseline?: UserWorkoutSettings, owner?: StorageOwnerToken) {
+  return updateUserWorkoutSettings(current => baseline ? applyFitnessEdits(current, baseline, settings) : settings, owner);
 }
 
 function applyTarget(exercise: Exercise, target?: ExerciseTarget): Exercise {

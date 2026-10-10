@@ -17,7 +17,9 @@ export function show(input: { emotion?: CharacterEmotion; gesture?: CharacterGes
   if (input.gesture) controller.requestGesture(input.gesture);
   controller.sample(EMPTY_PLAYBACK, 0, policy);
   const t = input.gesture ? (input.progress ?? 0) * GESTURE_DURATION[input.gesture] : input.time ?? 0;
-  const sample = controller.sample(EMPTY_PLAYBACK, t, policy);
+  // Synthetic artwork endpoints must not inherit the default smooth rest pose,
+  // which would override the explicitly selected static mouth below.
+  const sample = controller.sample(EMPTY_PLAYBACK, t, policy, 'direct');
   const frame = { ...sample, ...(input.eye ? { blink: input.eye } : {}), ...(input.mouth ? { viseme: input.mouth } : {}), ...(input.still ? { breath: 0, sway: 0 } : {}) };
   return draw(frame);
 }

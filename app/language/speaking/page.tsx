@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import FuriganaText from "@/components/FuriganaText";
 import type { RubySegment } from "@/data/sentences";
 import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
@@ -68,32 +68,17 @@ const BASE_QUESTIONS: Question[] = [
 ];
 
 const CATEGORIES = ["전체", "여행", "업무", "친구", "일상"];
-const APP_SETTINGS_KEY = "japaneseAppSettings";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { languageSettingsProjectionError, loadJapaneseAppSettings } from "@/app/data/languageSettingsMutations";
 
-type AppSettings = {
-  ttsRate: number;
-  repeatCount: number;
-  repeatDelayMs: number;
-  showKoreanPronunciation: boolean;
-  showReading: boolean;
-};
-type SettingsPayload = Partial<AppSettings> & {
-  sections?: {
-    speaking?: Partial<AppSettings>;
-  };
-};
-
-const DEFAULT_SETTINGS: AppSettings = {
-  ttsRate: 1,
-  repeatCount: 1,
-  repeatDelayMs: 500,
-  showKoreanPronunciation: true,
-  showReading: true,
-};
 export default function SpeakingPage() {
   const [audioError, setAudioError] = useState("");
-  const [allQuestions, setAllQuestions] = useState<Question[]>(BASE_QUESTIONS);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const { records, snapshot, error: recordError } = useLanguageRecordSnapshot();
+  const retainedSavedRaw = useRef(records.savedSentences);
+  if (snapshot) retainedSavedRaw.current = records.savedSentences;
+  const savedRaw = retainedSavedRaw.current;
+  const settingsError = languageSettingsProjectionError({ japaneseAppSettings: records.japaneseAppSettings });
+  const settings = loadJapaneseAppSettings(records.japaneseAppSettings).sections.speaking;
   const [activeCategory, setActiveCategory] = useState("전체");
   const [filtered, setFiltered] = useState<Question[]>(BASE_QUESTIONS);
   const [index, setIndex] = useState(0);
@@ -102,51 +87,21 @@ export default function SpeakingPage() {
   const [score, setScore] = useState({ correct: 0, wrong: 0 });
   const [answered, setAnswered] = useState(false);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(APP_SETTINGS_KEY);
-      if (!raw) return;
 
-      const parsed = JSON.parse(raw) as SettingsPayload;
-      const sectionSettings = {
-        ...DEFAULT_SETTINGS,
-        ...parsed,
-        ...(parsed.sections?.speaking ?? {}),
-      };
-      setSettings({
-        ttsRate: sectionSettings.ttsRate,
-        repeatCount: sectionSettings.repeatCount,
-        repeatDelayMs: sectionSettings.repeatDelayMs,
-        showKoreanPronunciation: sectionSettings.showKoreanPronunciation,
-        showReading: sectionSettings.showReading,
+
+  const { allQuestions, savedError } = useMemo(() => {
+    try {
+      const parsed: unknown = JSON.parse(savedRaw ?? "[]");
+      if (!Array.isArray(parsed)) throw new Error("unsupported");
+      const saved = parsed.filter((value): value is SavedSentence => {
+        if (!value || typeof value !== "object" || Array.isArray(value) || typeof value.japanese !== "string" || typeof value.meaning !== "string") return false;
+        if (["category", "note", "reading", "koreanPronunciation"].some(field => value[field] !== undefined && typeof value[field] !== "string")) return false;
+        return value.rubySegments === undefined || (Array.isArray(value.rubySegments) && value.rubySegments.every((segment: unknown) => !!segment && typeof segment === "object" && !Array.isArray(segment) && "text" in segment && typeof segment.text === "string" && (!("reading" in segment) || typeof segment.reading === "string")));
       });
-    } catch {
-      setSettings(DEFAULT_SETTINGS);
-    }
-  }, []);
+      return { allQuestions: [...BASE_QUESTIONS, ...saved.map(s => ({ korean: s.meaning, japanese: s.japanese, category: s.category || "일상", note: s.note, reading: s.reading, koreanPronunciation: s.koreanPronunciation, rubySegments: s.rubySegments }))], savedError: parsed.length !== saved.length };
+    } catch { return { allQuestions: BASE_QUESTIONS, savedError: true }; }
+  }, [savedRaw]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("savedSentences");
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        const saved: SavedSentence[] = Array.isArray(parsed) ? (parsed as SavedSentence[]) : [];
-        const converted: Question[] = saved.map((s) => ({
-          korean: s.meaning,
-          japanese: s.japanese,
-          category: s.category || "일상",
-          note: s.note,
-          reading: s.reading,
-          koreanPronunciation: s.koreanPronunciation,
-          rubySegments: s.rubySegments,
-        }));
-        setAllQuestions([...BASE_QUESTIONS, ...converted]);
-      }
-    } catch {
-      // ignore
-      setAllQuestions(BASE_QUESTIONS);
-    }
-  }, []);
 
   useEffect(() => {
     const result =
@@ -168,7 +123,7 @@ export default function SpeakingPage() {
     } else if (phase === "counting" && countdown === 0) {
       setPhase("answer");
     }
-    return () => clearTimeout(timer);
+      return () => clearTimeout(timer);
   }, [phase, countdown]);
 
   const current = filtered[index];
@@ -210,6 +165,8 @@ export default function SpeakingPage() {
     setScore({ correct: 0, wrong: 0 });
   };
 
+  if (!snapshot) return <section role="status">{recordError || "학습 기록의 저장 상태를 확인하고 있어요."}</section>;
+
   if (phase === "done") {
     const total = filtered.length;
     return (
@@ -248,6 +205,8 @@ export default function SpeakingPage() {
         말하기 훈련
       </h1>
 
+      {settingsError && <p role="alert">{settingsError}</p>}
+      {savedError && <p role="alert">저장 문장 일부를 읽지 못했어요. 원본은 보존했어요.</p>}
       {/* 카테고리 필터 */}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
         {CATEGORIES.map((cat) => (

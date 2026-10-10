@@ -1,5 +1,6 @@
 "use client";
 
+import { captureFitnessEditorOwner } from '../data/fitnessStorageUpdates';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildFitnessAiSnapshot } from "../data/fitnessAiSnapshot";
 import { readRecordStores } from "../data/recordStorage";
@@ -11,7 +12,7 @@ import type { WorkoutPlanProposal, WorkoutPlanSelection } from "../data/workoutP
 import { readWorkoutPlanDecisionHistory, saveWorkoutPlanDecision } from "../data/workoutPlanDecision";
 import type { WorkoutDayId } from "../data/workoutCompletion";
 import { DEFAULT_WEEKLY_WORKOUT_PLAN_ID, SELECTED_WEEKLY_WORKOUT_PLAN_KEY } from "../data/workoutPlans";
-import { readUserWorkoutSettings, saveUserWorkoutSettings } from "../data/userWorkoutSettings";
+import { readUserWorkoutSettings } from "../data/userWorkoutSettings";
 import type { UserWorkoutSettings } from "../data/userWorkoutSettings";
 import { buildWorkoutProgramContext } from "../data/workoutProgramReview";
 import type { WorkoutProgramAiReview } from "../data/workoutProgramReview";
@@ -40,6 +41,7 @@ const ANALYSIS_OPTIONS: { id: AnalysisType; title: string; description: string; 
 ];
 
 export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanApplied, managedCircuit = false }: { stores?: RecordStores; mode?: "full" | "plan"; onPlanApplied?: (settings: UserWorkoutSettings) => void; managedCircuit?: boolean }) {
+  const [owner] = useState(captureFitnessEditorOwner);
   const [result, setResult] = useState<CoachResult | null>(null);
   const [analysisType, setAnalysisType] = useState<AnalysisType>(mode === "plan" ? "program" : "latest");
   const [loading, setLoading] = useState(false);
@@ -148,7 +150,7 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
     }
   };
 
-  const applyPlan = (proposal: WorkoutPlanProposal, selection?: WorkoutPlanSelection) => {
+  const applyPlan = async (proposal: WorkoutPlanProposal, selection?: WorkoutPlanSelection) => {
     if ((window.localStorage.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID) === 'five-day-fullbody-circuit') {
       setApplyNotice('주 5일 서킷의 변경은 운동 홈의 「연이의 운동 조정 제안」에서 최신 기록과 바뀔 내용을 확인해 적용해 주세요.');
       return;
@@ -158,16 +160,20 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
       ? "고른 요일과 운동량만 내 기본 운동 설정에 적용할까요?"
       : "이 AI 계획 전체를 내 기본 운동 설정에 적용할까요? 현재 요일별 계획과 추천 운동량이 바뀝니다.";
     if (!window.confirm(message)) return;
-    const next = applyWorkoutPlanProposal(readUserWorkoutSettings(), proposal, selection);
-    saveUserWorkoutSettings(next);
-    onPlanApplied?.(next);
-    saveWorkoutPlanDecision(partial ? "partial" : "applied", proposal, selection);
+    let next;
+    try {
+      next = await saveWorkoutPlanDecision(partial ? "partial" : "applied", proposal, selection, (current, snapshot) => {
+        if ((snapshot.getItem(SELECTED_WEEKLY_WORKOUT_PLAN_KEY) || DEFAULT_WEEKLY_WORKOUT_PLAN_ID) === 'five-day-fullbody-circuit') throw new Error('현재 운동표가 바뀌었어요. 최신 조정 제안을 다시 확인해 주세요.');
+        return applyWorkoutPlanProposal(current, proposal, selection);
+      }, owner);
+    } catch (error) { setApplyNotice(error instanceof Error ? error.message : "계획을 저장하지 못했어요. 기존 설정을 보존했습니다."); return; }
+    if (next) onPlanApplied?.(next);
     void saveCloudDecision(partial ? "partial" : "applied", selection);
     setApplyNotice(partial ? "고른 항목만 적용했습니다. 나머지 설정은 그대로예요." : "AI 계획 전체를 적용했습니다. 운동하기에서 새 계획을 확인할 수 있어요.");
   };
 
-  const keepPlan = (proposal: WorkoutPlanProposal) => {
-    saveWorkoutPlanDecision("kept", proposal);
+  const keepPlan = async (proposal: WorkoutPlanProposal) => {
+    try { await saveWorkoutPlanDecision("kept", proposal, undefined, undefined, owner); } catch (error) { setApplyNotice(error instanceof Error ? error.message : "선택을 저장하지 못했어요."); return; }
     void saveCloudDecision("kept");
     setApplyNotice("기존 계획을 유지했습니다. 운동 설정은 바뀌지 않았어요.");
   };

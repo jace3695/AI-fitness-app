@@ -5,9 +5,12 @@ import { createClient } from '@/lib/supabase';
 import { prepareZephyrSpeech, ZephyrAudioCache } from '@/lib/zephyr-playback';
 import { claimSpeechFocus, SPEECH_FOCUS_EVENT, SPEECH_STOP_EVENT } from '@/lib/yeoni/speech-focus';
 
+import { readerSpeech, readerSnapshot } from '@/lib/yeoni/reader-speech';
+import type { LipSyncManifest } from '@/lib/yeoni/lip-sync';
+
 const cache = new ZephyrAudioCache();
 
-export default function ZephyrReadButton({ text }: { text: string }) {
+export default function ZephyrReadButton({ text, align = false }: { text: string; align?: boolean }) {
   const [owner, setOwner] = useState<string | null>(null);
   const [changedAccount, setChangedAccount] = useState(false);
   const identity = useRef<string | null | undefined>(undefined);
@@ -22,12 +25,14 @@ export default function ZephyrReadButton({ text }: { text: string }) {
   if (changedAccount) return <p className="mt-2 text-xs" role="status">계정이 바뀌었어요. 새로고침한 뒤 답변을 읽어 주세요.</p>;
   if (!owner) return null;
   const speech = prepareZephyrSpeech(text);
-  return speech.text ? <Playback key={`${owner}:${speech.text}`} owner={owner} speech={speech} /> : null;
+  return speech.text ? <Playback key={`${owner}:${speech.text}`} owner={owner} speech={speech} align={align} /> : null;
 }
 
-function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof prepareZephyrSpeech> }) {
+function Playback({ owner, speech, align }: { owner: string; speech: ReturnType<typeof prepareZephyrSpeech>; align: boolean }) {
   const id = useId();
   const audio = useRef<HTMLAudioElement>(null);
+  const manifest = useRef<LipSyncManifest | null>(null);
+  const source = useRef('');
   const alive = useRef(true);
   const busy = useRef(false);
   const attempt = useRef(0);
@@ -40,7 +45,7 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
   useEffect(() => {
     alive.current = true;
     const element = audio.current;
-    const stop = () => { attempt.current += 1; element?.pause(); };
+    const stop = () => { attempt.current += 1; element?.pause(); readerSpeech.release(id); };
     const stopOther = (event: Event) => { if ((event as CustomEvent<string>).detail !== id) stop(); };
     const hidden = () => { if (document.hidden) stop(); };
     window.addEventListener(SPEECH_FOCUS_EVENT, stopOther);
@@ -61,7 +66,7 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
     try {
       if (!ready) {
         setGenerating(true);
-        const result = await cache.get(owner, speech.text, { storage: window.sessionStorage, request: async init => {
+        const result = await cache.get(owner, speech.text, { storage: window.sessionStorage, includeAlignment: align, request: async init => {
           const { data: { session } } = await createClient().auth.getSession();
           if (!alive.current || session?.user.id !== owner) throw new Error('로그인 계정을 다시 확인해 주세요.');
           const headers = new Headers(init.headers); headers.set('Authorization', `Bearer ${session.access_token}`);
@@ -69,7 +74,10 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
         } });
         const { data: { session } } = await createClient().auth.getSession();
         if (!alive.current || session?.user.id !== owner) return;
-        audio.current.src = `data:audio/mpeg;base64,${result.audioContent}`;
+        source.current = `data:audio/mpeg;base64,${result.audioContent}`;
+        audio.current.src = source.current;
+        manifest.current = result.alignment ?? null;
+        if (align && !result.alignment) setNotice('음성은 준비됐지만 입 모양 시각을 확인하지 못했어요. 음성만 재생하며 추가 생성하지 않아요.');
         setReady(true); setRemaining(result.remainingCharacters);
       }
       if (!alive.current || currentAttempt !== attempt.current || document.hidden) return;
@@ -86,11 +94,14 @@ function Playback({ owner, speech }: { owner: string; speech: ReturnType<typeof 
       {generating ? '음성 준비 중…' : playing ? '읽기 중지' : ready ? '다시 재생' : '답변 읽기'}
     </button>
     <p className="mt-1 text-xs leading-5">Google Zephyr · {speech.characters.toLocaleString('ko-KR')}자{speech.truncated ? ' · 긴 답변의 앞부분만 읽어요.' : ''}</p>
-    {!ready && <p className="text-xs leading-5">누르면 이 답변을 Google에 보내 음성을 만들어요.</p>}
+    {!ready && <p className="text-xs leading-5">누르면 이 답변을 Google에 보내 음성을 만들어요.{align ? ' 생성된 음성과 문장은 연이 정렬 서버에서 입 모양 시각을 분석해요.' : ''}</p>}
     <audio ref={audio} controls={ready} className={ready ? 'mt-2 w-full min-w-0' : 'hidden'} preload="none" aria-label="Zephyr 답변 음성"
-      onPlay={() => { setPlaying(true); claimSpeechFocus(id); }}
-      onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setNotice('재생을 마쳤어요. 다시 재생해도 문자수를 추가로 사용하지 않아요.'); }}
-      onError={() => setNotice('음성을 재생하지 못했어요. 새 음성은 생성하지 않고 화면의 답변을 유지해요.')} />
+      onPlay={() => { setPlaying(true); claimSpeechFocus(id);
+        const element = audio.current, timeline = manifest.current;
+        if (align && element && timeline) readerSpeech.attach(id, () => readerSnapshot(element, timeline, source.current, document.hidden));
+      }}
+      onPause={() => { setPlaying(false); readerSpeech.release(id); }} onEnded={() => { setPlaying(false); readerSpeech.release(id); setNotice('재생을 마쳤어요. 다시 재생해도 문자수를 추가로 사용하지 않아요.'); }}
+      onError={() => { readerSpeech.release(id); setNotice('음성을 재생하지 못했어요. 새 음성은 생성하지 않고 화면의 답변을 유지해요.'); }} />
     {remaining !== null && <p className="mt-1 text-xs leading-5">생성 당시 앱의 남은 한도 {remaining.toLocaleString('ko-KR')}자 · 이 화면에서 다시 재생하면 추가 생성 없음</p>}
     {notice && <p role="status" className="mt-2 text-xs leading-5">{notice}</p>}
   </div>;

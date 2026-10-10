@@ -119,11 +119,11 @@ function getAiTarget(name: string, base: ExerciseTarget, records: WorkoutComplet
   };
 }
 
-export default function WorkoutPlanEditor({ settings, defaultGroups, records, onChange }: {
+export default function WorkoutPlanEditor({ settings, defaultGroups, records, onChange: persistSettings }: {
   settings: UserWorkoutSettings;
   defaultGroups: Record<WorkoutDayId, string>;
   records: WorkoutCompletionStore;
-  onChange: (settings: UserWorkoutSettings) => void;
+  onChange: (settings: UserWorkoutSettings) => void | Promise<void>;
 }) {
   const [editingDay, setEditingDay] = useState<WorkoutDayId>("mon");
   const [scope, setScope] = useState<EditScope>("weekly");
@@ -143,6 +143,11 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
   const baseMethod = (day: WorkoutDayId) => defaultGroups[day]?.startsWith('current-') ? CURRENT_WEEKLY_METHODS[day] : DEFAULT_WORKOUT_METHOD;
   const currentMethod = normalizeWorkoutMethod((scope === "weekly" ? settings.weeklyMethods[effectiveDay] : dateOverride?.method || settings.weeklyMethods[effectiveDay]) || baseMethod(effectiveDay));
 
+  const [saveError, setSaveError] = useState('');
+  const onChange = async (next: UserWorkoutSettings) => {
+    try { await persistSettings(next); setSaveError(''); return true; }
+    catch (error) { setSaveError(error instanceof Error ? error.message : '설정을 저장하지 못했어요. 입력을 보존했습니다.'); return false; }
+  };
   const changeGroup = (nextGroupId: string) => {
     if (scope === "weekly") {
       onChange({ ...settings, weeklyGroups: { ...settings.weeklyGroups, [effectiveDay]: nextGroupId } });
@@ -153,10 +158,10 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
 
   const updateEdit = (edit: DayRoutineEdit) => {
     if (scope === "weekly") {
-      onChange({ ...settings, weeklyEdits: { ...settings.weeklyEdits, [effectiveDay]: edit } });
+      return onChange({ ...settings, weeklyEdits: { ...settings.weeklyEdits, [effectiveDay]: edit } });
       return;
     }
-    onChange({ ...settings, dateOverrides: { ...settings.dateOverrides, [dateKey]: { ...dateOverride, edit } } });
+    return onChange({ ...settings, dateOverrides: { ...settings.dateOverrides, [dateKey]: { ...dateOverride, edit } } });
   };
 
   const updateMethod = (patch: Partial<WorkoutMethodConfig>) => {
@@ -191,12 +196,12 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
       : { ...currentEdit, removed: Array.from(new Set([...(currentEdit.removed || []), id])), order: (currentEdit.order || []).filter((item) => item !== id) });
   };
 
-  const addExercise = () => {
+  const addExercise = async () => {
     const name = newExerciseName.trim();
     if (!name) return;
     const id = `custom-${Date.now()}`;
-    updateEdit({ ...currentEdit, customExercises: [...(currentEdit.customExercises || []), { id, name, reps: 10, sets: 2 }], order: [...orderedExercises.map((exercise) => exercise.exerciseId), id] });
-    setNewExerciseName("");
+    const saved = await updateEdit({ ...currentEdit, customExercises: [...(currentEdit.customExercises || []), { id, name, reps: 10, sets: 2 }], order: [...orderedExercises.map((exercise) => exercise.exerciseId), id] });
+    if (saved) setNewExerciseName(current => current.trim() === name ? "" : current);
   };
 
   const swapDays = () => {
@@ -235,6 +240,7 @@ export default function WorkoutPlanEditor({ settings, defaultGroups, records, on
   };
 
   return <section className="mb-4 rounded-3xl border border-[#D9D6FF] bg-white p-4 shadow-sm sm:p-6">
+    {saveError && <p role="alert" className="mb-3 text-sm text-red-700">{saveError}</p>}
     <p className="text-[12px] font-bold text-[#534AB7]">필요한 것만 바꾸기</p>
     <h2 className="mt-1 text-xl font-bold text-gray-900">어느 날 운동을 바꿀까요?</h2>
     <p className="mt-2 text-sm text-gray-500">기간과 요일을 고른 뒤 운동만 선택하면 끝입니다. 횟수와 방식은 바꾸고 싶을 때만 열어보세요.</p>

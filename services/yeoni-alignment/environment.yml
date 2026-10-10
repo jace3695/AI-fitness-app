@@ -1,0 +1,11 @@
+name: yeoni-alignment
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - montreal-forced-aligner=3.4.2
+  - ffmpeg
+  - pip
+  - pip:
+      - python-mecab-ko==1.3.7
+      - gunicorn==23.0.0

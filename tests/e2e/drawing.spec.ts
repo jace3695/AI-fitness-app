@@ -1,4 +1,5 @@
 import { showDrawingTools } from './drawing-tools';
+import { localDrawingConfirmation } from './drawing-checkpoint-race';
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { readFileSync } from 'node:fs';
@@ -355,7 +356,15 @@ test('drawing D33 D34: previous memory source remains untouched and reference sn
     else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
     await expect(practice.getByRole('button',{name:'위로 긴 귀',exact:true})).toBeVisible();
     await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+    // A server row can exist before the UI receives its response and finishes
+    // its local confirmation. Do not leave this drawing during that interval.
+    await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
     await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.length;}).toBe(n===33?2:3);
+    const saved=await qa.account.client.from('growth_drawing_attempts').select('*').eq('document->lesson->>id',`D${n}`).single();
+    expect(saved.error).toBeNull();
+    expect(saved.data.revision).toBe(1);
+    expect(saved.data.document.memory.source).toEqual({attemptId:original.id,revision:original.revision,lessonId:'D31'});
+    expect(await localDrawingConfirmation(page,qa.account.id,saved.data.id)).toEqual({pending:false,revision:saved.data.revision,baseRevision:saved.data.revision});
     const source=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data;
     expect(source).toEqual(original);
   }
@@ -548,7 +557,14 @@ for(const capstone of ['D65','D70'])test(`drawing ${capstone}: own collection co
  await practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true}).first().click();await draw();for(let i=0;i<4;i++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();await practice.getByLabel('캐릭터 비교 메모',{exact:true}).fill('귀와 눈 간격을 유지하고 한 곳을 보완했어요.');await practice.getByLabel('캐릭터 특징 비교 완료',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await page.getByRole('button',{name:'스스로 해봤어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();
  await expect.poll(async()=>{const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return rows?.some(a=>a.document.lesson.id===capstone&&a.status==='completed');}).toBe(true);
  const after=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=after.find(a=>a.document.lesson.id===capstone)!;for(const source of originals)expect(after.find(a=>a.id===source.id)).toEqual(source);expect(saved.document.strokes).toHaveLength(2);expect(saved.document.identity.collection).toHaveLength(sources.length);expect(saved.document.identity.baseline.attemptId).toBe(base.id);
- await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:`내 그림 ${after.length}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:capstone}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();await expect(practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true})).toHaveCount(sources.length);expect(await qa.read()).toEqual(before);
+ // Keep each restore action on a distinct source line for safe failure locations.
+ await page.reload();
+ await showDrawingTools(page);
+ await page.getByRole('button',{name:`내 그림 ${after.length}장`,exact:true}).click();
+ await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:capstone}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+ await expect(practice.getByLabel('캐릭터 특징 비교 완료',{exact:true})).toBeChecked();
+ await expect(practice.getByRole('button',{name:'이 그림을 복사해 보완',exact:true})).toHaveCount(sources.length);
+ expect(await qa.read()).toEqual(before);
 });
 
 for(const authored of parsePack(pack).lessons.slice(70,80))test(`drawing ${authored.id}: original creator variants, paper notes and exact restored state`,async({page,qa},testInfo)=>{

@@ -56,8 +56,8 @@ export const ADVANCED_CURRICULUM: CurriculumLesson[] = (Object.keys(seeds) as Co
       ],
       speak: seed.speak,
       quiz: [
-        { kind: "listening", prompt: "음성을 듣고 맞는 표현을 고르세요.", choices: [seed.pattern[2], seed.speak, seed.words[0][0]], answer: 0, explanation: seed.pattern[3] },
-        { kind: "input", prompt: `‘${seed.words[0][2]}’를 일본어로 입력하세요.`, choices: [seed.words[0][0]], answer: 0, explanation: `${seed.words[0][0]}(${seed.words[0][1]})는 ‘${seed.words[0][2]}’라는 뜻이에요.` },
+        { evidenceRef: { itemId: `course:${prefix}${order}:pattern-example:0`, contentRevision: 1, taskId: `course:${prefix}${order}:pattern-example:0:listening` }, kind: "listening", prompt: "음성을 듣고 맞는 표현을 고르세요.", choices: [seed.pattern[2], seed.speak, seed.words[0][0]], answer: 0, explanation: seed.pattern[3] },
+        { evidenceRef: { itemId: `course:${prefix}${order}:word:0`, contentRevision: 1, taskId: `course:${prefix}${order}:word:0:core-input` }, kind: "input", prompt: `‘${seed.words[0][2]}’를 일본어로 입력하세요.`, choices: [seed.words[0][0]], answer: 0, explanation: `${seed.words[0][0]}(${seed.words[0][1]})는 ‘${seed.words[0][2]}’라는 뜻이에요.` },
       ],
     };
   }),

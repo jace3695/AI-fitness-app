@@ -1,3 +1,5 @@
+import type { EvidenceReference } from "../lib/language-legacy-evidence/types.ts";
+
 export type CourseTrack = "foundation" | "work" | "travel";
 
 export type LessonQuiz = {
@@ -6,6 +8,7 @@ export type LessonQuiz = {
   answer: number;
   explanation: string;
   kind?: "choice" | "listening" | "input";
+  evidenceRef?: EvidenceReference;
 };
 
 export type CurriculumLesson = {
@@ -491,11 +494,15 @@ const expandLessonQuiz = (item: CurriculumLesson): CurriculumLesson => {
     const distractor1 = words[(index + 1) % words.length];
     const distractor2 = words[(index + 2) % words.length];
     return [
-      { prompt: `‘${word.japanese}(${word.reading})’의 뜻은?`, choices: [word.meaning, distractor1.meaning, distractor2.meaning], answer: 0, explanation: `${word.japanese}(${word.reading})는 ‘${word.meaning}’라는 뜻이에요.` },
-      { kind: "input" as const, prompt: `‘${word.meaning}’를 일본어로 입력하세요.`, choices: [word.japanese], answer: 0, explanation: `정답은 ${word.japanese}(${word.reading})예요.` },
+      { evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:meaning` }, prompt: `‘${word.japanese}(${word.reading})’의 뜻은?`, choices: [word.meaning, distractor1.meaning, distractor2.meaning], answer: 0, explanation: `${word.japanese}(${word.reading})는 ‘${word.meaning}’라는 뜻이에요.` },
+      { evidenceRef: { itemId: `course:${item.id}:word:${index}`, contentRevision: 1, taskId: `course:${item.id}:word:${index}:input` }, kind: "input" as const, prompt: `‘${word.meaning}’를 일본어로 입력하세요.`, choices: [word.japanese], answer: 0, explanation: `정답은 ${word.japanese}(${word.reading})예요.` },
     ];
   });
-  return { ...item, quiz: [...item.quiz, ...wordQuestions].slice(0, 8) };
+  // Core questions have their own authored identity unless explicitly linked above.
+  const coreQuestions = item.quiz.map((quiz, index) => ({ ...quiz, evidenceRef: quiz.evidenceRef ?? {
+    itemId: `course:${item.id}:question:${index}`, contentRevision: 1, taskId: `course:${item.id}:question:${index}`,
+  } }));
+  return { ...item, quiz: [...coreQuestions, ...wordQuestions].slice(0, 8) };
 };
 
 export const CURRICULUM: CurriculumLesson[] = [...CORE_CURRICULUM, ...EXPANDED_CURRICULUM, ...ADVANCED_CURRICULUM, ...MANUFACTURING_CURRICULUM].map(expandLessonQuiz);

@@ -1,0 +1,21 @@
+.panel { margin: 20px 0; padding: 20px; border: 1px solid #d6e4f8; border-radius: 18px; background: #f8fbff; color: #173451; overflow-wrap: anywhere; min-width: 0; }
+.header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.panel h2 { margin: 0; font-size: 20px; }
+.panel h3 { margin: 0 0 10px; font-size: 16px; }
+.panel p { line-height: 1.6; }
+.hint { font-size: 13px; color: #526579; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.action { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; min-height: 44px; max-width: 100%; border: 1px solid #bbd3ed; border-radius: 12px; background: #fff; color: #18529a; font-size: 14px; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer; overflow-wrap: anywhere; }
+.action:disabled { opacity: .65; cursor: wait; }
+.action:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.card { min-width: 0; padding: 16px; border: 1px solid #dbe7f4; border-radius: 12px; background: #fff; }
+.list { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.list p { margin: 4px 0; font-size: 13px; }
+.preserved { white-space: pre-wrap; }
+.notice { padding: 12px; border-radius: 10px; background: #fff4dc; line-height: 1.6; }
+.badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 100%; font-size: 9px; line-height: 1.3; }
+.badge { background: #e0eaff; color: #224d8d; border-radius: 4px; padding: 2px; overflow-wrap: anywhere; }
+.calendarList { display: grid; gap: 8px; padding: 0; list-style: none; }
+.calendarList button { width: 100%; text-align: left; justify-content: flex-start; }
+@media (max-width: 540px) { .panel { padding: 14px; } .grid { grid-template-columns: minmax(0, 1fr); } .actions .action { flex: 1 1 150px; } }
