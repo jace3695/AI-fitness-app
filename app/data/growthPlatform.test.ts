@@ -148,3 +148,29 @@ test('미기록·알 수 없는 이유만 있는 기록에서는 새 중단 이�
   assert.equal(result.suggestions[0].reason, '서로 다른 2일에 미완료 기록이 있어요. 이유는 기록되지 않아 추정하지 않아요.');
   assert.equal(JSON.stringify(records), before);
 });
+
+test('explicit time-unknown completions preserve activity while staying out of duration averages', () => {
+  const known = session('2026-09-01', 20);
+  const unknown = { ...session('2026-09-02', 0), metrics: { actualMinutesRecorded: false } };
+  const result = summarizeGrowthPeriod([known, unknown], '2026-09-02', 7);
+  assert.equal(result.activeDays, 2); assert.equal(result.completedCount, 2); assert.equal(result.completionRate, 100);
+  assert.equal(result.totalMinutes, 20); assert.equal(result.recordedTimeDays, 1); assert.equal(result.unknownTimeSessions, 1);
+  assert.equal(result.averageMinutesPerActiveDay, 20);
+  assert.equal(buildGrowthComparison([known, unknown], '2026-09-02', 7).minuteDelta, null);
+});
+test('unknown-only duration stays unknown; actual zero and legacy unflagged minutes keep distinct meanings', () => {
+  const unknown = { ...session('2026-09-02', 0), metrics: { actualMinutesRecorded: false } };
+  const result = summarizeGrowthPeriod([unknown], '2026-09-02', 7);
+  assert.equal(result.recordedTimeSessions, 0); assert.equal(result.averageMinutesPerActiveDay, null);
+  const coach = buildLocalGrowthCoach([routine], [unknown], '2026-09-02');
+  assert.match(coach.summary.overview, /실행 시간은 미기록/); assert.doesNotMatch(coach.summary.overview, /0분/);
+  const zero = summarizeGrowthPeriod([session('2026-09-02', 0)], '2026-09-02', 7);
+  assert.equal(zero.recordedTimeSessions, 1); assert.equal(zero.averageMinutesPerActiveDay, 0);
+  const legacy = summarizeGrowthPeriod([session('2026-09-02', 15)], '2026-09-02', 7);
+  assert.equal(legacy.totalMinutes, 15); assert.equal(legacy.unknownTimeSessions, 0);
+});
+test('even a nonzero sentinel with explicit unknown flag never contributes fabricated duration', () => {
+  const unknown = { ...session('2026-09-02', 99), metrics: { actualMinutesRecorded: false } };
+  const result = summarizeGrowthPeriod([unknown], '2026-09-02', 7);
+  assert.equal(result.totalMinutes, 0); assert.equal(result.recordedTimeSessions, 0);
+});

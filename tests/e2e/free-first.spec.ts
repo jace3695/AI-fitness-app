@@ -128,7 +128,7 @@ for (const [reason, label] of [['illness', '몸이 아팠어요'], ['forgot', '�
     await page.getByLabel('중단·미완료 이유 (선택)', { exact: true }).selectOption({ label });
     await page.getByRole('button', { name: '중단 저장', exact: true }).click();
     const readRecord = (date: string) => qa.account.client.from('growth_sessions').select('status,metrics').eq('routine_id', routine.id).eq('session_date', date).single();
-    await expect.poll(async () => (await readRecord(today())).data).toEqual({ status: 'stopped', metrics: { stopReason: reason } });
+    await expect.poll(async () => (await readRecord(today())).data).toEqual({ status: 'stopped', metrics: { recordMode: 'active', actualMinutesRecorded: true, stopReason: reason } });
     await page.getByRole('button', { name: '지난 기록 추가', exact: true }).click();
     const form = page.locator('section').filter({ has: page.getByRole('heading', { name: '날짜를 골라 기록하기', exact: true }) });
     await form.getByRole('combobox').first().selectOption(routine.id);
@@ -138,11 +138,11 @@ for (const [reason, label] of [['illness', '몸이 아팠어요'], ['forgot', '�
     await page.getByLabel('지난 기록 중단 이유', { exact: true }).selectOption({ label });
     await page.getByLabel('실행 시간', { exact: true }).fill('3');
     await form.getByRole('button', { name: '기록 저장', exact: true }).click();
-    await expect.poll(async () => (await readRecord(daysAgo(1))).data).toEqual({ status: 'partial', metrics: { stopReason: reason } });
+    await expect.poll(async () => (await readRecord(daysAgo(1))).data).toEqual({ status: 'partial', metrics: { recordMode: 'manual', actualMinutesRecorded: true, stopReason: reason } });
     await page.reload();
     await expect(page.getByRole('button', { name: `${routine.title} 빠른 완료`, exact: true })).toBeVisible();
-    expect((await readRecord(today())).data).toEqual({ status: 'stopped', metrics: { stopReason: reason } });
-    expect((await readRecord(daysAgo(1))).data).toEqual({ status: 'partial', metrics: { stopReason: reason } });
+    expect((await readRecord(today())).data).toEqual({ status: 'stopped', metrics: { recordMode: 'active', actualMinutesRecorded: true, stopReason: reason } });
+    expect((await readRecord(daysAgo(1))).data).toEqual({ status: 'partial', metrics: { recordMode: 'manual', actualMinutesRecorded: true, stopReason: reason } });
     await noOverflow(page);
     await page.goto('/growth/review');
     await page.getByRole('button', { name: '주간 코칭 만들기', exact: true }).click();

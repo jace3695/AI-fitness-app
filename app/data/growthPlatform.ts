@@ -93,7 +93,10 @@ export type GrowthPeriodSummary = {
   completedCount: number;
   totalMinutes: number;
   completionRate: number;
-  averageMinutesPerActiveDay: number;
+  averageMinutesPerActiveDay: number | null;
+  recordedTimeSessions: number;
+  recordedTimeDays: number;
+  unknownTimeSessions: number;
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -109,6 +112,20 @@ export function periodStart(endDate: string, days: number) {
   return shiftDateKey(endDate, -(Math.max(1, Math.round(days)) - 1));
 }
 
+export type GrowthDurationInput = { actual_minutes: number | string; metrics?: Record<string, unknown> | null };
+export function summarizeGrowthDuration(sessions: GrowthDurationInput[]) {
+  const recorded = sessions.filter(session => session.metrics?.actualMinutesRecorded !== false);
+  const totalMinutes = recorded.reduce((sum, session) => {
+    const minutes = Number(session.actual_minutes);
+    return sum + (Number.isFinite(minutes) ? Math.max(0, minutes) : 0);
+  }, 0);
+  return { totalMinutes, recordedTimeSessions: recorded.length, unknownTimeSessions: sessions.length - recorded.length };
+}
+export function growthDurationLabel(duration: ReturnType<typeof summarizeGrowthDuration>) {
+  if (duration.unknownTimeSessions && !duration.recordedTimeSessions) return `시간 미기록 ${duration.unknownTimeSessions}회`;
+  return `기록 ${Math.round(duration.totalMinutes)}분${duration.unknownTimeSessions ? ` · 시간 미기록 ${duration.unknownTimeSessions}회 제외` : ''}`;
+}
+
 export function summarizeGrowthPeriod(
   sessions: GrowthSessionRow[],
   endDate: string,
@@ -118,7 +135,12 @@ export function summarizeGrowthPeriod(
   const inPeriod = sessions.filter((session) => session.session_date >= startDate && session.session_date <= endDate);
   const activeDays = new Set(inPeriod.map((session) => session.session_date)).size;
   const completedCount = inPeriod.filter((session) => session.status === "completed").length;
-  const totalMinutes = inPeriod.reduce((sum, session) => sum + Math.max(0, Number(session.actual_minutes) || 0), 0);
+  // Only explicit false means unknown. Historic records without this newer flag
+  // keep their recorded meaning; no migration or retrospective guess is made.
+  const recorded = inPeriod.filter(session => session.metrics.actualMinutesRecorded !== false);
+  const recordedTimeDays = new Set(recorded.map(session => session.session_date)).size;
+  const duration = summarizeGrowthDuration(inPeriod);
+  const totalMinutes = duration.totalMinutes;
   return {
     startDate,
     endDate,
@@ -127,8 +149,14 @@ export function summarizeGrowthPeriod(
     completedCount,
     totalMinutes,
     completionRate: inPeriod.length ? Math.round((completedCount / inPeriod.length) * 100) : 0,
-    averageMinutesPerActiveDay: activeDays ? Math.round(totalMinutes / activeDays) : 0,
+    averageMinutesPerActiveDay: recordedTimeDays ? Math.round(totalMinutes / recordedTimeDays) : null,
+    recordedTimeSessions: duration.recordedTimeSessions, recordedTimeDays, unknownTimeSessions: duration.unknownTimeSessions,
   };
+}
+
+export function growthPeriodTimeLabel(summary: GrowthPeriodSummary) {
+  if (summary.unknownTimeSessions && !summary.recordedTimeSessions) return '시간 미기록';
+  return `${summary.totalMinutes}분${summary.unknownTimeSessions ? ' (기록된 시간)' : ''}`;
 }
 
 export function buildGrowthComparison(sessions: GrowthSessionRow[], endDate: string, days: number) {
@@ -138,7 +166,7 @@ export function buildGrowthComparison(sessions: GrowthSessionRow[], endDate: str
   return {
     current,
     previous,
-    minuteDelta: current.totalMinutes - previous.totalMinutes,
+    minuteDelta: current.unknownTimeSessions || previous.unknownTimeSessions ? null : current.totalMinutes - previous.totalMinutes,
     activeDayDelta: current.activeDays - previous.activeDays,
   };
 }
@@ -254,7 +282,7 @@ export function buildLocalGrowthCoach(
   return {
     summary: {
       overview: week.sessionCount
-        ? `이번 주 ${week.activeDays}일 동안 ${week.totalMinutes}분을 기록했어요.`
+        ? `이번 주 ${week.activeDays}일 동안 ${week.sessionCount}회 기록했어요. ${week.recordedTimeSessions ? `시간이 기록된 ${week.recordedTimeSessions}회의 합계는 ${week.totalMinutes}분이에요.` : '실행 시간은 미기록이에요.'}${week.unknownTimeSessions && week.recordedTimeSessions ? ` 시간 미기록 ${week.unknownTimeSessions}회는 시간 집계에서 제외했어요.` : ''}`
         : "이번 주 기록이 아직 없어요. 가장 쉬운 루틴부터 5분만 시작해 보세요.",
       positives: week.completedCount ? [`완료 기록이 ${week.completedCount}개 있어요.`] : [],
       cautions: week.activeDays <= 1 ? ["한 번에 오래 하기보다 실행하는 날을 늘려보세요."] : [],

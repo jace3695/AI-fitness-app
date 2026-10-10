@@ -34,19 +34,19 @@ test('optional difficulty survives a failed save and reload; unknown history and
   await expect(difficulty).toHaveValue('unrecorded');
   await difficulty.selectOption('too_easy');
   let fail = true;
-  await page.route('**/rest/v1/growth_sessions*', async route => {
+  await page.route('**/rest/v1/rpc/save_routine_session', async route => {
     if (route.request().method() === 'POST' && fail) {
       fail = false;
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic save failure' }) });
     } else await route.continue();
   });
   await page.getByRole('button', { name: '완료 저장', exact: true }).click();
-  await expect(page.getByText('실행 기록을 저장하지 못했어요. 다시 시도해 주세요.', { exact: true })).toBeVisible();
+  await expect(page.getByText('저장 결과를 확인하지 못했어요. 입력과 같은 요청을 보관했으니 연결 후 같은 기록 다시 확인을 눌러 주세요.', { exact: true })).toBeVisible();
   await expect(difficulty).toHaveValue('too_easy');
   expect((await qa.account.client.from('growth_sessions').select('id').eq('routine_id', routine.id).eq('session_date', today())).data).toEqual([]);
-  await page.getByRole('button', { name: '완료 저장', exact: true }).click();
+  await page.getByRole('button', { name: '같은 기록 다시 확인', exact: true }).click();
   const todayRecord = () => qa.account.client.from('growth_sessions').select('metrics').eq('routine_id', routine.id).eq('session_date', today()).single();
-  await expect.poll(async () => (await todayRecord()).data?.metrics).toEqual({ routineDifficulty: 'too_easy' });
+  await expect.poll(async () => (await todayRecord()).data?.metrics).toEqual({ recordMode: 'active', actualMinutesRecorded: true, routineDifficulty: 'too_easy' });
   await page.getByRole('button', { name: '지난 기록 추가', exact: true }).click();
   const form = page.locator('section').filter({ has: page.getByRole('heading', { name: '날짜를 골라 기록하기', exact: true }) });
   await form.getByRole('combobox').first().selectOption(routine.id);
@@ -54,7 +54,7 @@ test('optional difficulty survives a failed save and reload; unknown history and
   await expect(page.getByLabel('지난 기록 완료 후 난이도', { exact: true })).toHaveValue('unrecorded');
   await page.getByLabel('지난 기록 완료 후 난이도', { exact: true }).selectOption('appropriate');
   await form.getByRole('button', { name: '기록 저장', exact: true }).click();
-  await expect.poll(async () => (await qa.account.client.from('growth_sessions').select('metrics').eq('routine_id', routine.id).eq('session_date', daysAgo(1)).single()).data?.metrics).toEqual({ routineDifficulty: 'appropriate' });
+  await expect.poll(async () => (await qa.account.client.from('growth_sessions').select('metrics').eq('routine_id', routine.id).eq('session_date', daysAgo(1)).single()).data?.metrics).toEqual({ recordMode: 'manual', actualMinutesRecorded: true, routineDifficulty: 'appropriate' });
   await page.reload();
   await expect(page.getByText('난이도: 너무 쉬웠어요', { exact: true })).toBeVisible();
   await expect(page.getByText('난이도: 적당했어요', { exact: true })).toBeVisible();
@@ -81,7 +81,7 @@ test('explicit easy evidence previews dates, supports keeping, and applies once 
   await form.getByRole('combobox').first().selectOption(routine.id);
   await page.getByLabel('지난 기록 완료 후 난이도', { exact: true }).selectOption('too_easy');
   await form.getByRole('button', { name: '기록 저장', exact: true }).click();
-  await expect(page.getByText(`${today()} 기록을 저장했어요.`, { exact: true })).toBeVisible();
+  await expect(page.getByText('기록을 클라우드에서 확인했어요. 저장 중 새로 입력한 내용은 유지했어요.', { exact: true })).toBeVisible();
   await page.goto('/growth/review');
   await page.getByRole('button', { name: '주간 코칭 만들기', exact: true }).click();
   await expect(preview(page)).toContainText('10분 → 15분');
