@@ -25,7 +25,9 @@ import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
 import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, readDesiredStorageOwner, readStorageSnapshot, STORAGE_JOURNAL_KEY, StorageSessionChangedError, StorageSnapshotBusyError } from "../data/storageTransaction";
-import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, assertAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner";
+import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT,
+  assertAuthenticatedStorageOwner, assertAuthenticatedStorageOwnerRecheckProof, cancelAuthenticatedStorageOwnerRecheck,
+  consumeAuthenticatedStorageOwnerRecheck, createAuthenticatedStorageOwnerRecheck, isRequestedAuthenticatedStorageOwnerProof, type AuthenticatedStorageOwner, type AuthenticatedStorageOwnerRecheck } from "../data/authenticatedStorageOwner";
 import { requestSafeReload } from "../lib/unsavedChanges";
 import { classifyCloudSyncConflicts, createCloudSyncConflictReview, resolveCloudSyncConflictReview, CloudSyncConflictStaleError } from "../data/cloudSyncConflicts";
 import type { CloudSyncConflictReview as ConflictReview, CloudSyncConflictChoice } from "../data/cloudSyncConflicts";
@@ -38,8 +40,9 @@ function pendingCloudKeys(base: CloudState | null, local: CloudState) {
 }
 type ConflictSubmission = { review: ConflictReview; choices: CloudSyncConflictChoice[] };
 type SyncIssue = { phase: "read" | "write" | "local"; message: string };
-type AuthBinding = { userId: string | null; epoch: string | null; activate?: () => void };
-type SyncRegistration = { userId: string; epoch: string | null; active: boolean };
+type RecheckBudget = { used: boolean };
+type AuthBinding = { userId: string | null; epoch: string | null; budget: RecheckBudget; activate?: () => void };
+type SyncRegistration = { userId: string; epoch: string | null; active: boolean; budget: RecheckBudget };
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "conflict" | "error";
 
@@ -51,7 +54,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const [status, setStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [syncRequest, setSyncRequest] = useState(0);
-  const [authBinding, setAuthBinding] = useState<AuthBinding>({ userId: null, epoch: null });
+  const [authBinding, setAuthBinding] = useState<AuthBinding>({ userId: null, epoch: null, budget: { used: false } });
   const [conflictReview, setConflictReview] = useState<ConflictReview | null>(null);
   const [reviewVersion, setReviewVersion] = useState(0);
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
@@ -69,15 +72,38 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const liveSync = useRef<SyncRegistration | null>(null);
   const sessionRetirement = useRef<SyncRegistration | null>(null);
   const cancelRecovery = useRef<(() => void) | null>(null);
+  const requestOwnerRecheck = useRef<((retired: SyncRegistration) => void) | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     let authVersion = 0;
     const seenProofs = new WeakSet<object>();
+    let recheck: AuthenticatedStorageOwnerRecheck | null = null;
+    let recheckTimer: ReturnType<typeof setTimeout> | undefined;
+    const discardRecheck = () => {
+      clearTimeout(recheckTimer); recheckTimer = undefined;
+      const pending = recheck; recheck = null;
+      cancelAuthenticatedStorageOwnerRecheck(pending);
+    };
     const discardRecovery = () => {
+      discardRecheck();
       cancelRecovery.current?.();
       sessionRetirement.current = null;
+    };
+    requestOwnerRecheck.current = retired => {
+      if (retired.budget.used) return;
+      retired.budget.used = true;
+      // One deferred observation, not a polling retry or storage-derived proof.
+      // Missing readiness leaves normal auth/preparation in charge.
+      recheckTimer = setTimeout(() => {
+        recheckTimer = undefined;
+        if (!active || sessionRetirement.current !== retired || retired.active
+          || (liveSync.current && liveSync.current !== retired) || authUserId.current !== retired.userId) return;
+        try { recheck = createAuthenticatedStorageOwnerRecheck(window.localStorage, retired, retired); }
+        catch { return; }
+        window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, { detail: recheck }));
+      }, 0);
     };
     const applyUser = async (nextUser: User | null, version: number) => {
       if (!active || version !== authVersion) return;
@@ -123,7 +149,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         authEpoch.current = preparedEpoch;
         // Publish one completed generation; object identity also fences any
         // superseded effect still waiting to mount.
-        const binding = { userId: nextId, epoch: preparedEpoch };
+        const binding = { userId: nextId, epoch: preparedEpoch, budget: { used: false } };
         completedBinding.current = binding;
         setAuthBinding(binding);
         setStatus("idle");
@@ -160,24 +186,25 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
       });
     };
-    const onOwnerReady = (event: Event) => {
-      const proof = (event as CustomEvent<AuthenticatedStorageOwner>).detail;
-      try { assertAuthenticatedStorageOwner(proof); } catch { return; }
+    const recoverOwner = (proof: AuthenticatedStorageOwner, request?: AuthenticatedStorageOwnerRecheck): boolean => {
+      try { assertAuthenticatedStorageOwner(proof); } catch { return false; }
       // A proof seen before retirement is not saved for later replay.
-      if (seenProofs.has(proof)) return;
+      if (seenProofs.has(proof)) return false;
       seenProofs.add(proof);
       const retired = sessionRetirement.current;
       // A cancelled pending effect may already have cleaned up the retired
       // registration. Its retirement marker survives only until a real boundary.
       if (!retired || retired.active || (liveSync.current && liveSync.current !== retired) || authUserId.current !== proof.userId
-        || retired.userId !== proof.userId || isRecordResetRunning()) return;
+        || retired.userId !== proof.userId || isRecordResetRunning()) return false;
       const assertProofReady = () => {
+        if (request) assertAuthenticatedStorageOwnerRecheckProof(request, proof, window.localStorage, retired);
         assertAuthenticatedStorageOwner(proof);
         if (isRecordResetRunning() || proof.epoch !== readCloudSyncEpoch()
           || readStorageSnapshot(window.localStorage).pending || hasStorageTransaction(window.localStorage)
           || !isCurrentCloudSession(proof.userId, proof.epoch)) throw new StorageSessionChangedError();
       };
-      try { assertProofReady(); } catch { return; }
+      try { assertProofReady(); } catch { return false; }
+      if (!request) discardRecheck();
       cancelRecovery.current?.();
       const version = ++authVersion;
       let pending = true, activated = false;
@@ -185,6 +212,8 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       const cancel = () => {
         pending = false;
         proof.signal.removeEventListener('abort', cancel);
+        request?.signal.removeEventListener('abort', cancel);
+        if (request && recheck === request) discardRecheck();
         if (binding && completedBinding.current === binding) completedBinding.current = null;
         if (cancelRecovery.current === cancel) cancelRecovery.current = null;
       };
@@ -195,6 +224,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       };
       cancelRecovery.current = cancel;
       proof.signal.addEventListener('abort', cancel, { once: true });
+      request?.signal.addEventListener('abort', cancel, { once: true });
       completedBinding.current = null;
       heldReview.current = null;
       setConflictReview(null); setPendingKeys([]); setSyncIssue(null);
@@ -204,7 +234,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       void supabase!.auth.getUser().then(verified => {
         assertRecoveryCurrent();
         if (verified.error || verified.data.user?.id !== proof.userId) throw new Error("로그인 상태를 확인하지 못했습니다. 다시 시도하여 계정을 확인해 주세요.");
-        binding = { userId: proof.userId, epoch: proof.epoch, activate: () => {
+        binding = { userId: proof.userId, epoch: proof.epoch, budget: retired.budget, activate: () => {
           if (activated) return;
           assertRecoveryCurrent();
           if (completedBinding.current !== binding) throw new StorageSessionChangedError();
@@ -213,6 +243,11 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           activated = true;
           pending = false;
           proof.signal.removeEventListener('abort', cancel);
+          request?.signal.removeEventListener('abort', cancel);
+          if (request) {
+            consumeAuthenticatedStorageOwnerRecheck(request, proof, window.localStorage, retired);
+            if (recheck === request) recheck = null;
+          }
           if (cancelRecovery.current === cancel) cancelRecovery.current = null;
           sessionRetirement.current = null;
         } };
@@ -227,10 +262,22 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         }
         cancel();
       });
+      return true;
+    };
+    const onOwnerReady = (event: Event) => {
+      const proof = (event as CustomEvent<AuthenticatedStorageOwner>).detail;
+      if (!isRequestedAuthenticatedStorageOwnerProof(proof)) recoverOwner(proof);
+    };
+    const onRecheckReady = (event: Event) => {
+      const result = (event as CustomEvent<{ request: AuthenticatedStorageOwnerRecheck; proof: AuthenticatedStorageOwner }>).detail;
+      if (!result || result.request !== recheck) return;
+      if (result.proof && seenProofs.has(result.proof)) return;
+      if (!recoverOwner(result.proof, result.request)) discardRecheck();
     };
     const onRecoveryBoundary = () => {
       if (!sessionRetirement.current) return;
       try {
+        if (recheck && readCloudSyncEpoch() !== recheck.epoch) discardRecheck();
         if (readDesiredStorageOwner(window.localStorage)?.userId !== sessionRetirement.current.userId) discardRecovery();
       } catch { discardRecovery(); }
     };
@@ -239,6 +286,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onRecoveryBoundary);
     window.addEventListener('storage', onRecoveryBoundary);
     window.addEventListener(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, onOwnerReady);
+    window.addEventListener(AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT, onRecheckReady);
     // A delayed initial lookup cannot undo a subsequent sign-out/sign-in event.
     const initialVersion = authVersion;
     void supabase.auth.getUser().then(({ data, error }) => {
@@ -250,11 +298,12 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
     });
     return () => {
-      active = false; discardRecovery(); completedBinding.current = null; cancelAuth.current = null; retryAuth.current = null; data.subscription.unsubscribe();
+      active = false; discardRecovery(); completedBinding.current = null; cancelAuth.current = null; retryAuth.current = null; requestOwnerRecheck.current = null; data.subscription.unsubscribe();
       window.removeEventListener(RECORD_RESET_EVENT, discardRecovery);
       window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onRecoveryBoundary);
       window.removeEventListener('storage', onRecoveryBoundary);
       window.removeEventListener(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, onOwnerReady);
+      window.removeEventListener(AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT, onRecheckReady);
     };
   }, []);
 
@@ -277,7 +326,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     const controller = new AbortController();
     const signal = controller.signal;
     const epoch = authBinding.epoch;
-    const registration = { userId, epoch, active: true };
+    const registration = { userId, epoch, active: true, budget: authBinding.budget };
     liveSync.current = registration;
     const stop = () => {
       active = false;
@@ -294,7 +343,10 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       if (!active || isCurrentCloudSession(userId, epoch)) return;
       stop();
       // A genuine different owner or sign-out is never an automatic recovery.
-      try { if (readDesiredStorageOwner(window.localStorage)?.userId === userId) sessionRetirement.current = registration; }
+      try { if (readDesiredStorageOwner(window.localStorage)?.userId === userId) {
+        sessionRetirement.current = registration;
+        requestOwnerRecheck.current?.(registration);
+      } }
       catch { /* Unavailable or corrupt storage stays explicitly blocked. */ }
       setStatus("error");
       setMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 시도하여 계정을 확인해 주세요.");

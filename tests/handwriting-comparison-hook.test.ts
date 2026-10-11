@@ -294,6 +294,8 @@ function shippingPageGate() {
   const modules: Record<string, unknown> = {
     react, 'react/jsx-runtime': { jsx, jsxs: jsx }, 'react-dom': { flushSync: (fn: () => void) => fn() }, 'next/link': {}, 'next/image': {},
     '@/app/components/AppIdentity': {}, '@/utils/dateKey': {}, '@/app/data/handwritingCourse': {}, '@/lib/handwriting-comparison': {}, '@/lib/handwriting-comparison-reader': {}, './useSavedHandwritingComparison': {},
+    '@/app/components/AuthenticatedStorageOwner': { useAuthenticatedStorageOwner() { assert.fail('Outer account gate must not read an editor lease'); } },
+    '@/app/data/authenticatedStorageOwner': { assertAuthenticatedStorageOwner() { assert.fail('Outer account gate must not authorize editor actions'); } },
     '@/app/lib/supabase': { supabase: { auth: { getUser: () => user, onAuthStateChange(callback: typeof auth) { auth = callback; return { data: { subscription: { unsubscribe() { auth = null; } } } }; } } } },
   };
   const exports = {} as { default: () => { type: unknown; props: { children?: unknown; owner?: string; isOwnerActive?: (id: string) => boolean } } };

@@ -18,9 +18,9 @@
     "tests/legacy-evidence-ci-harness.test.ts",
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
-  "fileCount": 1512,
-  "byteCount": 71109780,
-  "digest": "e0c48f2a36391e557ebe7abc017f2b6401eeeeca6353ac585b46a103d3a11020",
+  "fileCount": 1517,
+  "byteCount": 71203153,
+  "digest": "bf34024c988336e8fc56635dfdf02ad89e7ae5d6aa49b18c87a1d7d865eb0902",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -625,14 +625,14 @@
     {
       "path": "app/components/AuthGate.tsx",
       "mode": 33188,
-      "bytes": 24186,
-      "sha256": "73f14c10e9a7b7f35293b2b744217b15bbf465c4b955f62b571006d104d78929"
+      "bytes": 30017,
+      "sha256": "507e22def6e46fc815a06d31b7d640138d040c112b0e83e4a42a2b58790389e8"
     },
     {
       "path": "app/components/AuthenticatedStorageOwner.tsx",
       "mode": 33188,
-      "bytes": 660,
-      "sha256": "7ae317e05364a34f7836ba00c4bf35f326bfca2a06b06628a4be2583ba96c50a"
+      "bytes": 667,
+      "sha256": "15f6ce4b2f0cae396a4260eb8d43e1fd447eca4e181eeff34ce73a5d27420ef9"
     },
     {
       "path": "app/components/BodyRecordCard.tsx",
@@ -649,8 +649,8 @@
     {
       "path": "app/components/CloudSyncPanel.tsx",
       "mode": 33188,
-      "bytes": 35651,
-      "sha256": "d39550bae94ca376fee81744fe915c59f506a22e4f60314382270a5846ae4b46"
+      "bytes": 39042,
+      "sha256": "3b2c8433818dd46f8bc88b233748a3ab8ce4ad6e30a5f70b8cd6a1c64610fe82"
     },
     {
       "path": "app/components/ConditionCheckCard.tsx",
@@ -961,8 +961,8 @@
     {
       "path": "app/data/authenticatedStorageOwner.ts",
       "mode": 33188,
-      "bytes": 3189,
-      "sha256": "aed5c1416bb57bd1283ccfd7549eb02e7d0b2f34758e5d44dd4bc7ca962f3d48"
+      "bytes": 8237,
+      "sha256": "279c27c3abd6c9634b38c71c2d51cf987b00059ed234b88edcebde692c8c242d"
     },
     {
       "path": "app/data/cloudSync.abort.test.ts",
@@ -1903,8 +1903,8 @@
     {
       "path": "app/growth/handwriting/compare/page.tsx",
       "mode": 33188,
-      "bytes": 17261,
-      "sha256": "3b305e3acd9a2a9388d09fa268211af2bc039b002fdeaf7288e3ade9ab7f1018"
+      "bytes": 19425,
+      "sha256": "fce725e074036f6e8c3251621705687ffad6ff1d628bd68fcbfee2ec1cb5b44c"
     },
     {
       "path": "app/growth/handwriting/compare/useSavedHandwritingComparison.ts",
@@ -2767,8 +2767,8 @@
     {
       "path": "components/useDialogFocus.ts",
       "mode": 33188,
-      "bytes": 1908,
-      "sha256": "a53342df8ab9dd299546f415ad599ad894f16d5384846b2de45b8f15050b6bed"
+      "bytes": 2207,
+      "sha256": "491fe4bb9cdc214383bc4eb2c1319d06ac49da818d595c367f8335e77adfdec6"
     },
     {
       "path": "components/usePageActivity.ts",
@@ -6613,8 +6613,8 @@
     {
       "path": "scripts/qa-pr189-sync.mjs",
       "mode": 33188,
-      "bytes": 64634,
-      "sha256": "92b834ccc9b56cd00bbd8218f9a16baa32c1abb481696b4affd748a39865d7bd"
+      "bytes": 64740,
+      "sha256": "6136192bc713eca4db5b24e9216102e157c2a2f371927861c5a0d11fbc50b84e"
     },
     {
       "path": "scripts/qa-state-diagnostics.mjs",
@@ -7847,6 +7847,12 @@
       "sha256": "6eeacf15b5684b49a51c9a9c9c2a81a458ae0432e395bb8eefec0c55caa737d5"
     },
     {
+      "path": "tests/authenticated-owner-recheck.test.ts",
+      "mode": 33188,
+      "bytes": 11570,
+      "sha256": "17f9dd033c234fb1467c781a54327b4aa91e61e9556f4847fbe38f84817a95d4"
+    },
+    {
       "path": "tests/backup-restore-ui.test.ts",
       "mode": 33188,
       "bytes": 11353,
@@ -7909,8 +7915,8 @@
     {
       "path": "tests/cloud-sync-panel-lifecycle.test.ts",
       "mode": 33188,
-      "bytes": 36080,
-      "sha256": "9767cd7f370e92bf308ad0deaa8a2d7dd5f1941e9b98f773fed5d1803e6109db"
+      "bytes": 50933,
+      "sha256": "27dc82999cef051c465429b12610c3a2171737c6f76d4177bc9d3f322b145acf"
     },
     {
       "path": "tests/conversation-local-privacy.test.ts",
@@ -7931,6 +7937,12 @@
       "sha256": "6ddcc19eb5850fb6fb09df4e1aae1cd373ac578253f3b2c1bf483cb7f16a409e"
     },
     {
+      "path": "tests/dialog-focus-availability.test.ts",
+      "mode": 33188,
+      "bytes": 4515,
+      "sha256": "ba0086abf7877536e290b50149146812b8812ec86c3136223c009d00d56787ad"
+    },
+    {
       "path": "tests/diet-favorites-migration.test.ts",
       "mode": 33188,
       "bytes": 4682,
@@ -7939,8 +7951,8 @@
     {
       "path": "tests/diet-multitab-ui.test.ts",
       "mode": 33188,
-      "bytes": 26818,
-      "sha256": "ca89c943a9633afef4c34538f118f2f86bd5dcf80094ad6d6812ccdff4567b23"
+      "bytes": 26878,
+      "sha256": "c4d1bd411ca46dbba4717eb9cb56bbf972c166e160e0504e849c3232fc475367"
     },
     {
       "path": "tests/diet-travel-ui.test.ts",
@@ -8209,8 +8221,8 @@
     {
       "path": "tests/e2e/handwriting-comparison.spec.ts",
       "mode": 33188,
-      "bytes": 34905,
-      "sha256": "50bfd185f699496c5313ef8954bf739b372aa5c56998bfaac545e09ba6681a18"
+      "bytes": 41226,
+      "sha256": "220c9eb52ecab9589d2d18865ab591dc1e55717feabe2f505b4f93c81d8c75c7"
     },
     {
       "path": "tests/e2e/handwriting-course.spec.ts",
@@ -8279,6 +8291,12 @@
       "sha256": "45697d86e1d170ecc6142e41a095da2e5f4f548d5a07918d1628e6e4039d1bbb"
     },
     {
+      "path": "tests/e2e/owner-recheck-harness.ts",
+      "mode": 33188,
+      "bytes": 7207,
+      "sha256": "49965b6597984b9ec0b017c895e50d7fa1d4531a717cc4eca14b3f78f1598f57"
+    },
+    {
       "path": "tests/e2e/owner-switch-diagnostics.ts",
       "mode": 33188,
       "bytes": 5181,
@@ -8341,8 +8359,8 @@
     {
       "path": "tests/e2e/storage-protocol.spec.ts",
       "mode": 33188,
-      "bytes": 17212,
-      "sha256": "819d687bfffe35cfd41d828aacc96773e981e77e5fe052704144817190c0456e"
+      "bytes": 21558,
+      "sha256": "8ecce60165580fbf6533d996ede6621e5641b963313c4204210905c47b57460a"
     },
     {
       "path": "tests/e2e/sync-conflicts.spec.ts",
@@ -8515,8 +8533,8 @@
     {
       "path": "tests/handwriting-comparison-hook.test.ts",
       "mode": 33188,
-      "bytes": 36973,
-      "sha256": "8e227cc11ccf68918578714f21f401be1c2e86b70b42ab6ade69cf284b7df41d"
+      "bytes": 37284,
+      "sha256": "d9a6faa0008de05d58bbd26e4a5da00801fca59e2edd5517e2e31fb8686d7b8a"
     },
     {
       "path": "tests/handwriting-comparison.test.ts",
@@ -8529,6 +8547,12 @@
       "mode": 33188,
       "bytes": 28242,
       "sha256": "fd6c4d16ec816afb3a96bcae51477b60990d8b1063fed737584f2cccbe69d9d3"
+    },
+    {
+      "path": "tests/handwriting-image-dialog-lifecycle.test.ts",
+      "mode": 33188,
+      "bytes": 8611,
+      "sha256": "87efd65eb1b090e0a9334d1aeb0b57d6d0706ac3b7dc4933982669dbb277e85b"
     },
     {
       "path": "tests/handwriting-materials-hook.test.ts",
@@ -8588,7 +8612,7 @@
       "path": "tests/helpers/languageStorageCapabilities.json",
       "mode": 33188,
       "bytes": 17392,
-      "sha256": "6ed644adee366e4778669b9b628c57f742a81b6428ca299b1886ff129ac2fca1"
+      "sha256": "68c281bf4c85251c80b0944ae048db7fcfe5eb759de45d4ae633d534bcbe380e"
     },
     {
       "path": "tests/helpers/languageWriterFixture.ts",
@@ -8617,8 +8641,8 @@
     {
       "path": "tests/helpers/storage-ui-fixture.ts",
       "mode": 33188,
-      "bytes": 19025,
-      "sha256": "db6e128650bc8d4f939e0ecc3b9402a396780fb7040aa58aadd1c7f2b31545c8"
+      "bytes": 19304,
+      "sha256": "1a8c68c162f3b7bde44b38d916dc1e10f3ff723b18490bd897ed3d3770bbafac"
     },
     {
       "path": "tests/helpers/storageProtocol.ts",
@@ -8871,6 +8895,12 @@
       "mode": 33188,
       "bytes": 4096,
       "sha256": "f95da3686142d504b565dc35031f3874577f19f2e8b082cb66061c865fe9a9d5"
+    },
+    {
+      "path": "tests/owner-recheck-browser-harness.test.ts",
+      "mode": 33188,
+      "bytes": 18454,
+      "sha256": "9b8593e75a4558995d4c7c519f0e05913a22d398e3328b24ec0fd7f77fa9ed5b"
     },
     {
       "path": "tests/owner-switch-diagnostics.test.ts",

@@ -4,6 +4,7 @@ import type { Locator, Page, Request } from '@playwright/test';
 import { test, expect, login, synced, sharedSyncRpcPath, canonical } from './fixture';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
 import { RouteDrain } from './route-drain';
+import { installOwnerRecheckHarness, triggerOwnerRecheck, holdFreshOwnerVerification, assertRecheckBytesUnchanged } from './owner-recheck-harness';
 
 // Authored acceptance, not execution evidence. Only the existing disposable
 // fixture may run this suite; it owns account, database and Storage cleanup.
@@ -387,4 +388,69 @@ test('delayed old selection cannot publish after replacement or a real owner swi
     await selectReady(page, 0, c); await assertOriginalImage(first(page), c); await expect(second(page).getByRole('img')).toHaveCount(0);
     expect(await snapshot(qa.account)).toEqual(before); expect(await snapshot(other)).toEqual(otherBefore); traffic.assertReadOnly();
   } finally { pending?.release(); await drain.wait(); await page.unroute(pattern); traffic.stop(); }
+});
+
+test('native comparison zoom retains its DOM while exact-ready recheck releases modal inertness and then restores safe focus', async ({ page, qa }) => {
+  const saved = await seedAttempt(qa.account, { kind: 'course' });
+  await installOwnerRecheckHarness(page); await login(page, qa.account); await synced(page);
+  await open(page, 1); await synced(page); await selectReady(page, 0, saved);
+  const zoom = page.getByRole('button', { name: '기준 기록 크게 보기', exact: true }); await zoom.focus(); await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: '기준 기록 크게 보기', exact: true }); await expect(dialog).toBeVisible();
+  const node = await dialog.elementHandle(); expect(node).not.toBeNull();
+  expect(await node!.evaluate(element => (element as HTMLDialogElement).open && element.matches(':modal'))).toBe(true);
+  const before = await snapshot(qa.account), traffic = audit(page, before.state), hold = await holdFreshOwnerVerification(page, qa.account.id);
+  try {
+    await triggerOwnerRecheck(page); await hold.arrived();
+    await expect(page.getByText('AI 연이를 불러오는 중…', { exact: true })).toBeVisible(); await expect(dialog).toHaveCount(0);
+    expect(await node!.evaluate(element => ({ connected: element.isConnected, open: (element as HTMLDialogElement).open,
+      modal: element.matches(':modal'), hiddenAncestor: Boolean(element.closest('[hidden][inert][aria-hidden="true"]')) })))
+      .toEqual({ connected: true, open: false, modal: false, hiddenAncestor: true });
+    const retry = page.getByRole('button', { name: '다시 시도', exact: true }), signout = page.getByRole('button', { name: '로그아웃', exact: true });
+    await retry.focus(); await expect(retry).toBeFocused(); await retry.click({ trial: true });
+    await page.keyboard.press('Tab'); await expect(signout).toBeFocused(); await page.keyboard.press('Shift+Tab'); await expect(retry).toBeFocused();
+    await assertRecheckBytesUnchanged(page); traffic.assertReadOnly();
+    hold.release(); await synced(page); await expect(dialog).toBeVisible();
+    expect(await node!.evaluate(element => element.isConnected && element === document.querySelector('dialog') && (element as HTMLDialogElement).open && element.matches(':modal'))).toBe(true);
+    // A queued close event from the programmatic suspension cannot invoke the
+    // React user-close path or destroy the resumed native dialog.
+    await node!.evaluate(element => element.dispatchEvent(new Event('close'))); await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('img')).toHaveJSProperty('naturalWidth', saved.width);
+    await page.keyboard.press('Tab'); expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(zoom).toBeFocused();
+    expect(await node!.evaluate(element => element.isConnected)).toBe(false);
+    traffic.assertReadOnly(); expect(await snapshot(qa.account)).toEqual(before);
+  } finally { await hold.close(); traffic.stop(); await node?.dispose(); }
+});
+
+test('signout during native recheck destroys the old dialog and a new same-owner epoch cannot revive it', async ({ page, qa }) => {
+  const saved = await seedAttempt(qa.account, { kind: 'course' });
+  await installOwnerRecheckHarness(page); await login(page, qa.account); await synced(page);
+  await open(page, 1); await synced(page); await selectReady(page, 0, saved);
+  await page.getByRole('button', { name: '기준 기록 크게 보기', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: '기준 기록 크게 보기', exact: true }); await expect(dialog).toBeVisible();
+  const node = await dialog.elementHandle(); expect(node).not.toBeNull();
+  const oldEpoch = await page.evaluate(() => localStorage.getItem('fitness-cloud-sync-epoch')); expect(oldEpoch).not.toBeNull();
+  const before = await snapshot(qa.account), traffic = audit(page, before.state), hold = await holdFreshOwnerVerification(page, qa.account.id);
+  try {
+    await triggerOwnerRecheck(page); await hold.arrived();
+    await expect(page.getByText('AI 연이를 불러오는 중…', { exact: true })).toBeVisible();
+    expect(await node!.evaluate(element => element.isConnected && !(element as HTMLDialogElement).open && !element.matches(':modal'))).toBe(true);
+    await page.getByRole('button', { name: '로그아웃', exact: true }).click();
+    await expect.poll(() => node!.evaluate(element => element.isConnected)).toBe(false);
+    // Release the genuine late response only after cancellation has removed the
+    // private subtree. It must never reopen the detached native dialog.
+    hold.release(); await expect(page.getByLabel('이메일', { exact: true })).toBeVisible();
+    await node!.evaluate(element => element.dispatchEvent(new Event('close')));
+    expect(await node!.evaluate(element => element.isConnected || (element as HTMLDialogElement).open)).toBe(false);
+    await page.getByLabel('이메일', { exact: true }).fill(qa.account.email);
+    await page.getByLabel('비밀번호', { exact: true }).fill(qa.account.password);
+    await page.getByRole('button', { name: 'AI 연이 시작', exact: true }).click(); await synced(page);
+    expect(await page.evaluate(epoch => localStorage.getItem('fitness-cloud-sync-epoch') !== epoch, oldEpoch)).toBe(true);
+    await expect(dialog).toHaveCount(0); await expect(selector(page, 0)).toHaveValue('');
+    expect(await node!.evaluate(element => element.isConnected || (element as HTMLDialogElement).open)).toBe(false);
+    await selectReady(page, 0, saved); await page.getByRole('button', { name: '기준 기록 크게 보기', exact: true }).click(); await expect(dialog).toBeVisible();
+    expect(await node!.evaluate(element => element === document.querySelector('dialog'))).toBe(false);
+    await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
+    await reauthenticateFixtureAccount(qa.account); traffic.assertReadOnly(); expect(await snapshot(qa.account)).toEqual(before);
+  } finally { await hold.close(); traffic.stop(); await node?.dispose(); }
 });

@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import AppIdentity from '@/app/components/AppIdentity';
 import { getLocalDateKey } from '@/utils/dateKey';
@@ -10,6 +10,8 @@ import { HANDWRITING_LESSONS } from '@/app/data/handwritingCourse';
 import { canPairAttempts, comparisonPairNotes, type ComparisonAttempt } from '@/lib/handwriting-comparison';
 import { comparisonStatusText, type ComparisonPane, type SavedHandwritingReader } from '@/lib/handwriting-comparison-reader';
 import { useSavedHandwritingComparison } from './useSavedHandwritingComparison';
+import { useAuthenticatedStorageOwner } from '@/app/components/AuthenticatedStorageOwner';
+import { assertAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from '@/app/data/authenticatedStorageOwner';
 
 export default function HandwritingComparisonPage() {
   const [owner, setOwner] = useState<string | null>(null), [checked, setChecked] = useState(false), [authVersion, setAuthVersion] = useState(0);
@@ -112,6 +114,42 @@ function ComparisonImagePane({ pane, index, title, reader, onZoom }: { pane: Com
 }
 function ImageDialog({ pane, title, onClose, onError }: { pane: ComparisonPane; title: string; onClose: () => void; onError: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const prior = document.activeElement as HTMLElement | null, dialog = ref.current; dialog?.showModal(); return () => { dialog?.close(); if (prior?.isConnected) prior.focus(); }; }, []);
+  const lease = useAuthenticatedStorageOwner();
+  const original = useRef({ owner: pane.attempt?.owner, epoch: lease?.epoch });
+  const currentLease = useRef(lease);
+  const prior = useRef<HTMLElement | null>(null);
+  const canPresent = useCallback((owner: AuthenticatedStorageOwner | null) => {
+    try {
+      if (!owner || owner.userId !== original.current.owner || owner.epoch !== original.current.epoch) return false;
+      assertAuthenticatedStorageOwner(owner); return true;
+    } catch { return false; }
+  }, []);
+  useLayoutEffect(() => { currentLease.current = lease; }, [lease]);
+  useLayoutEffect(() => {
+    prior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = ref.current;
+    return () => {
+      dialog?.close();
+      const target = prior.current;
+      // Real close/unmount may restore focus; suspension never does. A revoked
+      // or different epoch cannot focus the preserved prior owner's subtree.
+      if (canPresent(currentLease.current) && target?.isConnected && target.getClientRects().length
+        && !target.closest('[hidden], [inert], [aria-hidden="true"]')
+        && !['hidden', 'collapse'].includes(getComputedStyle(target).visibility)) target.focus();
+    };
+    // The original image owner/epoch and trigger are immutable for this mount.
+  }, [canPresent]);
+  useLayoutEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    const close = () => { if (dialog.open) dialog.close(); };
+    if (!canPresent(lease)) { close(); return; }
+    lease!.signal.addEventListener('abort', close, { once: true });
+    if (!dialog.open && dialog.isConnected && dialog.parentElement?.getClientRects().length && !dialog.closest('[hidden], [inert], [aria-hidden="true"]')
+      && !['hidden', 'collapse'].includes(getComputedStyle(dialog).visibility)) dialog.showModal();
+    return () => { lease!.signal.removeEventListener('abort', close); close(); };
+    // Fresh registered context is the only reopening wake. Programmatic close
+    // has no onClose state callback, so the same native node/image survives.
+  }, [lease, canPresent]);
   return <dialog ref={ref} aria-label={`${title} 크게 보기`} onCancel={event => { event.preventDefault(); onClose(); }} className="max-h-[95dvh] w-[96vw] max-w-6xl overflow-auto rounded-2xl p-3 backdrop:bg-black/60"><div className="sticky top-0 flex items-center justify-between gap-2 bg-white pb-3"><h2 className="font-bold">{title} · 전체 원본</h2><button autoFocus className={buttonClass} onClick={onClose}>닫기</button></div><Image unoptimized src={pane.url} width={pane.width} height={pane.height} alt={`${title} 저장한 연습장 전체 이미지`} className="h-auto w-full object-contain" onError={onError} /><p className="mt-2 text-xs">{pane.width} × {pane.height}픽셀. 확대는 보기만 바꾸며 원본은 편집하지 않아요.</p></dialog>;
 }

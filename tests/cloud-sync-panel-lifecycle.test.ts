@@ -497,3 +497,173 @@ test('fresh Gate verification does not silently retry an ordinary live network e
   assert.equal(f.reads.length, reads); assert.equal(f.tab.authReads.length, authReads);
   assert.match(f.panel.text(), /synthetic remote read unavailable/); assert.deepEqual(f.writes, []);
 });
+
+const RECHECK = 'yeoni-authenticated-storage-owner-recheck', RECHECK_READY = 'yeoni-authenticated-storage-owner-recheck-ready';
+function retireOnlyPanel(f: ReturnType<typeof panelFixture>) {
+  const get = f.tab.local.getItem; let samples = 0;
+  f.tab.local.getItem = key => {
+    if (key !== f.tab.transactions.STORAGE_PROTOCOL_KEY) return get(key);
+    samples++;
+    // Gate's two coherent checks precede the panel's two exhausted snapshots.
+    return samples > 4 && samples <= 16 ? JSON.stringify({ version: 2, state: 'committed', generation: `synthetic-overlap-${samples}` }) : get(key);
+  };
+  try { f.tab.dispatch({ type: 'storage', key: f.tab.transactions.STORAGE_PROTOCOL_KEY }); }
+  finally { f.tab.local.getItem = get; }
+  assert.match(f.panel.text(), /다른 창에서 로그인 상태가 변경되었습니다/);
+}
+function observeRecheck(f: ReturnType<typeof panelFixture>) {
+  const runtime = ownership(f), create = runtime.createAuthenticatedStorageOwnerRecheck, register = runtime.registerAuthenticatedStorageOwnerRecheckProof;
+  const requests: import('../app/data/authenticatedStorageOwner.ts').AuthenticatedStorageOwnerRecheck[] = [];
+  const proofs: AuthenticatedStorageOwner[] = [];
+  runtime.createAuthenticatedStorageOwnerRecheck = (...args) => { const request = create(...args); requests.push(request); return request; };
+  runtime.registerAuthenticatedStorageOwnerRecheckProof = (...args) => { register(...args); proofs.push(args[1]); };
+  return { runtime, requests, proofs };
+}
+const suspendedWrapper = (f: ReturnType<typeof panelFixture>) => nodes(f.gate.render()).find(node => node.props.hidden === true && node.props.inert === true);
+
+test('a pre-retirement Gate proof gets one fresh exact-ready recheck without losing its mounted same-owner draft', async t => {
+  const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle();
+  const observed = observeRecheck(f), oldLease = gateLease(f), originalTree = f.gate.render(), oldLoop = f.reads.at(-1)!.signal;
+  const reads = f.reads.length, authReads = f.tab.authReads.length, writes = f.browser.writes.length, locks = f.browser.calls.length;
+  const auth = f.tab.holdNextAuth(), panelAuth = f.tab.holdNextAuth();
+  retireOnlyPanel(f); assert.equal(oldLease.isCurrent(), true); assert.equal(f.tab.authReads.length, authReads);
+  f.tab.flushTimers(); await f.settle();
+  assert.equal(observed.requests.length, 1); assert.equal(f.tab.authReads.length, authReads + 1);
+  assert.equal(oldLease.signal.aborted, true); assert.equal(oldLoop?.aborted, true);
+  const hidden = suspendedWrapper(f); assert.ok(hidden); assert.equal(JSON.stringify(hidden.props.style), JSON.stringify({ display: 'none' }));
+  assert.equal(hidden.props['aria-hidden'], true); assert.ok(nodes(hidden).includes(EDITOR));
+  assert.equal(f.gate.render().type, originalTree.type); assert.equal(f.gate.render().key, originalTree.key);
+  const beforeProvider = nodes(originalTree).find(node => 'lease' in node.props)!;
+  const pendingProvider = nodes(f.gate.render()).find(node => 'lease' in node.props)!;
+  assert.equal(pendingProvider.type, beforeProvider.type); assert.equal(pendingProvider.props.lease, null);
+  assert.throws(() => { observed.runtime.assertAuthenticatedStorageOwner(oldLease); f.tab.local.setItem(KEY, 'forbidden stale action'); });
+  assert.equal(f.browser.writes.length, writes, 'A captured lease-backed action cannot write while its subtree stays mounted');
+  for (let i = 0; i < 3; i++) { f.tab.dispatch({ type: 'focus' }); f.tab.pollIntervals(); f.tab.dispatch({ type: RECHECK, detail: observed.requests[0] }); f.tab.flushTimers(); }
+  assert.equal(f.tab.authReads.length, authReads + 1);
+  auth.resolve(verified()); await f.settle();
+  assert.equal(observed.proofs.length, 1); assert.notEqual(observed.proofs[0], oldLease);
+  assert.equal(suspendedWrapper(f), undefined); assert.ok(nodes(f.gate.render()).includes(EDITOR));
+  assert.equal(f.tab.authReads.length, authReads + 2); assert.equal(f.reads.length, reads);
+  const result = { request: observed.requests[0], proof: observed.proofs[0] };
+  // Neither a duplicate dedicated response nor the wrong response channel can
+  // cancel or replace the legitimate in-flight panel authentication.
+  f.tab.dispatch({ type: RECHECK_READY, detail: result }); f.tab.dispatch({ type: READY, detail: result.proof });
+  await f.settle(); assert.equal(result.request.signal.aborted, false); assert.equal(f.reads.length, reads);
+  panelAuth.resolve(verified()); await f.settle();
+  assert.match(f.panel.text(), /서버 반영 완료/); assert.equal(f.reads.length, reads + 1);
+  assert.equal(f.browser.calls.length, locks + 1, 'Only the new read acknowledgment may acquire a lock; recheck never prepares storage');
+  assert.equal(f.browser.writes.length, writes); assert.deepEqual(f.writes, []);
+  assert.throws(() => observed.runtime.assertAuthenticatedStorageOwnerRecheck(result.request, f.tab.local));
+  const signal = f.reads.at(-1)!.signal;
+  f.tab.dispatch({ type: RECHECK, detail: result.request }); f.tab.dispatch({ type: RECHECK_READY, detail: result }); await f.settle();
+  assert.equal(f.reads.length, reads + 1); assert.equal(f.tab.authReads.length, authReads + 2);
+  f.gate.dispose(); await f.panel.settle(); assert.equal(result.proof.signal.aborted, true); assert.equal(signal?.aborted, false);
+  assert.match(f.panel.text(), /서버 반영 완료/);
+});
+
+test('automatic replacement inherits its consumed budget and cannot form a repeated recheck loop', async t => {
+  const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+  retireOnlyPanel(f); f.tab.flushTimers(); await f.settle(); assert.match(f.panel.text(), /서버 반영 완료/);
+  const reads = f.reads.length, auth = f.tab.authReads.length;
+  retireOnlyPanel(f); f.tab.flushTimers(); await f.settle();
+  for (let i = 0; i < 3; i++) { f.tab.dispatch({ type: 'focus' }); f.tab.dispatch({ type: 'storage' }); f.tab.pollIntervals(); f.tab.flushTimers(); await f.settle(); }
+  assert.equal(observed.requests.length, 1); assert.equal(f.tab.authReads.length, auth); assert.equal(f.reads.length, reads);
+  assert.match(f.panel.text(), /다른 창에서 로그인 상태가 변경되었습니다/);
+  syncButton(f)(); await f.settle(); assert.match(f.panel.text(), /서버 반영 완료/);
+});
+
+for (const fault of ['ready', 'language', 'prepared', 'legacy', 'corrupt', 'epoch', 'reset'] as const)
+  test(`a ${fault} boundary before the one deferred attempt never supersedes normal Gate work`, async t => {
+    const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+    retireOnlyPanel(f); const reads = f.tab.authReads.length;
+    if (fault === 'ready') f.tab.local.removeItem(f.tab.transactions.STORAGE_READY_KEY);
+    if (fault === 'language') f.tab.local.removeItem('language-storage-binding-v1');
+    if (fault === 'prepared') f.tab.local.setItem(f.tab.transactions.STORAGE_PROTOCOL_KEY, JSON.stringify({ version: 2, state: 'prepared', generation: 'synthetic', transactionId: 'synthetic', before: {} }));
+    if (fault === 'legacy') f.tab.local.setItem(f.tab.transactions.STORAGE_JOURNAL_KEY, '{}');
+    if (fault === 'corrupt') f.tab.local.setItem(f.tab.transactions.STORAGE_PROTOCOL_KEY, '{broken');
+    if (fault === 'epoch') f.tab.transactions.invalidateStorageOwner(f.tab.local, OTHER);
+    if (fault === 'reset') { f.controls.resetRunning = true; f.tab.dispatch({ type: RESET }); }
+    const before = [...f.browser.values], writes = f.browser.writes.length;
+    f.tab.flushTimers(); await f.settle();
+    assert.equal(observed.requests.length, 0); assert.equal(f.tab.authReads.length, reads);
+    assert.deepEqual([...f.browser.values], before); assert.equal(f.browser.writes.length, writes);
+  });
+
+for (const phase of ['gate-auth', 'pin', 'panel-auth', 'activation'] as const)
+  for (const boundary of ['signout', 'owner-change', 'epoch-aba', 'reset', 'gate-unmount', 'panel-unmount'] as const)
+    test(`${boundary} fences exact-ready recheck at ${phase} without resurrecting its hidden draft or old result`, async t => {
+      const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+      const held = phase === 'gate-auth' ? f.tab.holdNextAuth() : phase === 'pin' ? f.tab.holdNextPin() : undefined;
+      const panelAuth = phase === 'panel-auth' || phase === 'activation' ? f.tab.holdNextAuth() : undefined;
+      // For a held panel lookup the Gate lookup must consume an earlier entry.
+      const firstAuth = panelAuth ? panelAuth : undefined;
+      retireOnlyPanel(f); f.tab.flushTimers(); await f.settle();
+      if (firstAuth) {
+        const actualPanelAuth = f.tab.holdNextAuth(); firstAuth.resolve(verified()); await f.settle();
+        if (phase === 'activation') { actualPanelAuth.resolve(verified()); for (let i = 0; i < 3; i++) await tick(); }
+        else (f as unknown as { heldPanel: typeof actualPanelAuth }).heldPanel = actualPanelAuth;
+      }
+      const reads = f.reads.length;
+      if (boundary === 'signout') f.tab.emitAuth('SIGNED_OUT', null);
+      if (boundary === 'owner-change') { const peer = storageTab(f.browser, 'boundary', FIXTURE_OWNER); t.after(peer.dispose); await peer.cloud.prepareLocalCloudState(FIXTURE_OWNER); await tick(); }
+      if (boundary === 'epoch-aba') { const peer = storageTab(f.browser, 'boundary', OTHER); t.after(peer.dispose); peer.transactions.invalidateStorageOwner(peer.local, OTHER); await peer.cloud.prepareLocalCloudState(OTHER); await tick(); }
+      if (boundary === 'reset') { f.controls.resetRunning = true; f.tab.dispatch({ type: RESET }); f.controls.resetRunning = false; f.tab.dispatch({ type: RESET }); }
+      if (boundary === 'gate-unmount') f.gate.dispose();
+      if (boundary === 'panel-unmount') f.panel.dispose();
+      if (phase === 'gate-auth') (held as ReturnType<typeof f.tab.holdNextAuth>).resolve(verified());
+      if (phase === 'pin') (held as ReturnType<typeof f.tab.holdNextPin>).resolve(false);
+      (f as unknown as { heldPanel?: ReturnType<typeof f.tab.holdNextAuth> }).heldPanel?.resolve(verified());
+      f.tab.flushTimers(); await f.settle();
+      assert.equal(observed.requests.length, 1); assert.equal(observed.requests[0].signal.aborted, true);
+      assert.equal(f.reads.length, reads); assert.deepEqual(f.writes, []);
+      if (boundary !== 'gate-unmount') { assert.equal(suspendedWrapper(f), undefined); assert.equal(nodes(f.gate.render()).includes(EDITOR), false); assert.doesNotMatch(f.gate.text(), /불러오는 중/); }
+      if (boundary !== 'panel-unmount') assert.doesNotMatch(f.panel.text(), /서버 반영 완료/);
+    });
+
+for (const fault of ['error', 'null', 'mismatch', 'pin-error', 'pin-locked'] as const)
+  test(`exact-ready ${fault} failure cannot expose the preserved draft or automatically retry`, async t => {
+    const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+    const auth = f.tab.holdNextAuth(), pin = fault.startsWith('pin') ? f.tab.holdNextPin() : undefined;
+    retireOnlyPanel(f); f.tab.flushTimers(); await f.settle();
+    const reads = f.reads.length, writes = f.browser.writes.length;
+    auth.resolve(fault === 'error' ? { data: { user: null }, error: new Error('synthetic recheck failure') }
+      : fault === 'null' ? { data: { user: null }, error: null } : verified(fault === 'mismatch' ? FIXTURE_OWNER : OTHER));
+    await f.settle(); if (fault === 'pin-error') pin!.reject(new Error('synthetic PIN failure')); else pin?.resolve(true);
+    await f.settle(); const authReads = f.tab.authReads.length;
+    f.tab.dispatch({ type: RECHECK, detail: observed.requests[0] }); f.tab.flushTimers(); f.tab.pollIntervals(); await f.settle();
+    assert.equal(f.tab.authReads.length, authReads); assert.equal(f.reads.length, reads); assert.equal(f.browser.writes.length, writes);
+    assert.equal(nodes(f.gate.render()).includes(EDITOR), false); assert.equal(suspendedWrapper(f), undefined);
+    assert.equal(observed.proofs.length, 0); assert.doesNotMatch(f.gate.text(), /불러오는 중/);
+  });
+
+for (const phase of ['gate-auth', 'panel-auth'] as const) for (const successor of ['manual-retry', 'same-owner-callback'] as const)
+  test(`${successor} supersedes correlated ${phase} and its late result cannot clear the new binding`, async t => {
+    const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+    const gateAuth = f.tab.holdNextAuth(); retireOnlyPanel(f); f.tab.flushTimers(); await f.settle();
+    let old = gateAuth;
+    if (phase === 'panel-auth') { old = f.tab.holdNextAuth(); gateAuth.resolve(verified()); await f.settle(); }
+    if (successor === 'manual-retry') syncButton(f)();
+    else { f.tab.emitAuth('TOKEN_REFRESHED', OTHER); f.tab.flushTimers(); }
+    await f.settle(); assert.match(f.panel.text(), /서버 반영 완료/);
+    const reads = f.reads.length, signal = f.reads.at(-1)!.signal, current = successor === 'same-owner-callback' ? gateLease(f) : undefined;
+    assert.equal(observed.requests[0].signal.aborted, true);
+    old.resolve(verified()); await f.settle();
+    assert.equal(f.reads.length, reads); assert.equal(signal?.aborted, false); assert.match(f.panel.text(), /서버 반영 완료/);
+    if (current) assert.equal(gateLease(f), current);
+    else { assert.equal(nodes(f.gate.render()).includes(EDITOR), false); assert.doesNotMatch(f.gate.text(), /불러오는 중/); }
+  });
+
+for (const failure of ['error', 'null', 'mismatch'] as const)
+  test(`correlated panel ${failure} cancels the published requested Gate proof without read or hidden-draft revival`, async t => {
+    const f = panelFixture(t, storageBrowser(), 'first', OTHER); await f.settle(); const observed = observeRecheck(f);
+    const gateAuth = f.tab.holdNextAuth(); retireOnlyPanel(f); f.tab.flushTimers(); await f.settle();
+    const auth = f.tab.holdNextAuth(), reads = f.reads.length, writes = f.browser.writes.length;
+    gateAuth.resolve(verified()); await f.settle(); assert.equal(observed.proofs.length, 1);
+    auth.resolve(failure === 'error' ? { data: { user: null }, error: new Error('synthetic panel verification failure') }
+      : failure === 'null' ? { data: { user: null }, error: null } : verified(FIXTURE_OWNER));
+    await f.settle();
+    assert.equal(observed.requests[0].signal.aborted, true); assert.equal(observed.proofs[0].signal.aborted, true);
+    assert.equal(f.reads.length, reads); assert.equal(f.browser.writes.length, writes); assert.equal(nodes(f.gate.render()).includes(EDITOR), false);
+    assert.equal(suspendedWrapper(f), undefined); assert.doesNotMatch(f.gate.text(), /불러오는 중/);
+    assert.doesNotMatch(f.panel.text(), /서버 반영 완료/);
+  });

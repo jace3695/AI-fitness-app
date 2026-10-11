@@ -226,6 +226,11 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
           effects.push(() => { cleanups[slot]?.(); const cleanup = effect(); if (cleanup) cleanups[slot] = cleanup; });
         }
       },
+      useLayoutEffect(effect: () => (() => void) | void, deps: unknown[]) {
+        // This fixture commits synchronously without a browser paint phase.
+        // Keep the hook slot/dependencies distinct, then run at that commit.
+        react.useEffect(effect, deps);
+      },
     };
     Object.assign(modules.react ??= {}, react);
     const component = componentOverride ?? load(path).default as (props: Record<string, unknown>) => UiNode;

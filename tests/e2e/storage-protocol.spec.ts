@@ -1,8 +1,9 @@
 import type { Page } from '@playwright/test';
-import { test, expect, login, synced, localState, original, assertOriginalPreserved, today, isSharedSyncWrite } from './fixture';
+import { test, expect, login, synced, localState, original, assertOriginalPreserved, today, isSharedSyncWrite, mealMemo, mealSaved } from './fixture';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
 import { failureLabel } from './navigation-diagnostics';
 import { ownerSwitchDiagnostic, type OwnerSwitchPhase } from './owner-switch-diagnostics';
+import { installOwnerRecheckHarness, triggerOwnerRecheck, holdFreshOwnerVerification, assertRecheckBytesUnchanged } from './owner-recheck-harness';
 
 // Authored acceptance for the disposable local Supabase fixture only. These
 // cases must run in actual Chromium/WebKit; VM unit tests are not substitutes.
@@ -229,4 +230,52 @@ test('reload recovers an interrupted v2 transaction under the real lock before e
     await page.reload(); await synced(page);
     await expect(page.getByLabel('오늘 배고픔을 느꼈나요?', { exact: true })).toHaveValue('yes');
   } finally { await releaseStorageLock(holder); await holder.close(); }
+});
+
+for (const menuOpen of [false, true]) test(`exact-ready recheck retains the unsaved diet DOM and ${menuOpen ? 'open dialog' : 'editor'} without hidden focus capture`, async ({ page, qa }) => {
+  await installOwnerRecheckHarness(page);
+  await login(page, qa.account, '/diet'); await synced(page); await dietEditorReady(page);
+  const memo = page.getByLabel('메모', { exact: true }), draft = `CI retained ${menuOpen ? 'dialog' : 'editor'} draft`;
+  await memo.fill(draft); await memo.focus();
+  const node = await memo.elementHandle(); expect(node).not.toBeNull();
+  const menu = page.getByRole('dialog', { name: '어디로 이동할까요?', exact: true });
+  if (menuOpen) { await page.getByRole('button', { name: '전체', exact: true }).click(); await expect(menu).toBeVisible(); }
+  const dialogNode = menuOpen ? await menu.elementHandle() : null;
+  const hold = await holdFreshOwnerVerification(page, qa.account.id);
+  const writes = qa.traffic.entries.filter(isSharedSyncWrite).length;
+  const reads = qa.traffic.entries.filter(entry => entry.table === 'user_app_state' && entry.method === 'GET').length;
+  try {
+    await triggerOwnerRecheck(page); await hold.arrived();
+    await expect(page.getByText('AI 연이를 불러오는 중…', { exact: true })).toBeVisible();
+    await expect(memo).toBeHidden();
+    expect(await node!.evaluate(element => element.isConnected && element === document.querySelector('#diet-memo'))).toBe(true);
+    expect(await node!.evaluate(element => ({ value: (element as HTMLTextAreaElement).value,
+      concealed: Boolean(element.closest('[hidden][inert][aria-hidden="true"]')),
+      display: getComputedStyle(element.closest('[hidden][inert]')!).display }))).toEqual({ value: draft, concealed: true, display: 'none' });
+    await expect(page.getByRole('textbox', { name: '메모', exact: true })).toHaveCount(0);
+    if (menuOpen) { await expect(menu).toHaveCount(0); expect(await dialogNode!.evaluate(element => element.isConnected)).toBe(true); }
+    const retry = page.getByRole('button', { name: '다시 시도', exact: true }), signout = page.getByRole('button', { name: '로그아웃', exact: true });
+    await retry.focus(); await expect(retry).toBeFocused();
+    await page.keyboard.press('Tab'); await expect(signout).toBeFocused();
+    await page.keyboard.press('Shift+Tab'); await expect(retry).toBeFocused();
+    await retry.click({ trial: true });
+    await node!.evaluate(element => (element as HTMLElement).focus()); await expect(retry).toBeFocused();
+    await page.keyboard.type('hidden-input-must-not-enter-draft');
+    expect(await node!.evaluate(element => (element as HTMLTextAreaElement).value)).toBe(draft);
+    await assertRecheckBytesUnchanged(page);
+    expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(writes); expect(await qa.read()).toEqual(original);
+    hold.release(); await synced(page); await expect(memo).toBeVisible(); await expect(memo).toHaveValue(draft);
+    expect(await node!.evaluate(element => element === document.querySelector('#diet-memo'))).toBe(true);
+    expect(qa.traffic.entries.filter(entry => entry.table === 'user_app_state' && entry.method === 'GET').length).toBeGreaterThan(reads);
+    if (menuOpen) {
+      await expect(menu).toBeVisible(); expect(await dialogNode!.evaluate(element => element === document.querySelector('#hub-more-menu'))).toBe(true);
+      await menu.getByRole('button', { name: '전체 메뉴 닫기', exact: true }).focus();
+      await page.keyboard.press('Shift+Tab'); expect(await menu.evaluate(element => element.contains(document.activeElement))).toBe(true);
+      await page.keyboard.press('Escape'); await expect(menu).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '전체', exact: true })).toBeFocused();
+    }
+    await page.getByRole('button', { name: '오늘 식단 저장', exact: true }).click(); await mealSaved(page, qa, draft);
+    expect(mealMemo(await qa.read())).toBe(draft); assertOriginalPreserved(await qa.read());
+    await page.reload(); await synced(page); await expect(memo).toHaveValue(draft);
+  } finally { await hold.close(); await node?.dispose(); await dialogNode?.dispose(); }
 });

@@ -193,7 +193,7 @@ async function createDevice(server, seed = {}) {
     return work;
   } };
   const context = vm.createContext({ window, document, Event, CustomEvent, AbortController,
-    queueMicrotask, crypto, Error, navigator: { locks }, Date: FixtureDate });
+    queueMicrotask, crypto, Error, setTimeout: window.setTimeout, clearTimeout: window.clearTimeout, navigator: { locks }, Date: FixtureDate });
   client.deserialize = value => vm.runInContext('JSON.parse', context)(JSON.stringify(value));
   const cache = new Map();
   const allowed = new Set(['app/data/cloudSync.ts', 'app/data/languageStorageBoundary.ts', 'app/data/cloudSyncConflicts.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/authenticatedStorageOwner.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
@@ -250,7 +250,7 @@ async function createDevice(server, seed = {}) {
   const refs = { lastSynced: { current: '' }, syncing: { current: false },
     authUserId: { current: null }, authEpoch: { current: null }, cancelSync: { current: null },
     completedBinding: { current: null }, liveSync: { current: null }, cancelAuth: { current: null },
-    sessionRetirement: { current: null }, cancelRecovery: { current: null },
+    sessionRetirement: { current: null }, cancelRecovery: { current: null }, requestOwnerRecheck: { current: null },
     heldReview: { current: null }, submitConflicts: { current: null } };
   Object.assign(context, cloud, conflicts, reset, events, authOwner, refs, {
     migrateLegacyWorkoutWeekdays: workouts.migrateLegacyWorkoutWeekdays,

@@ -79,7 +79,7 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   // Shipped modules share one browser realm. JSON transport explicitly bridges
   // host fixture values so the production plain-object validation stays strict.
   const context = vm.createContext({ Date: Clock, URL, console, AbortController, Event, CustomEvent, Error, crypto, queueMicrotask, navigator: { locks: browser.locks },
-    window: win, document: { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' },
+    window: win, setTimeout: win.setTimeout, clearTimeout: win.clearTimeout, document: { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' },
   });
   const fromJson = <T,>(value: T): T => vm.runInContext('JSON.parse', context)(JSON.stringify(value));
   const load = (path: string) => {
@@ -98,12 +98,12 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   const localTransactions = load('../app/data/storageTransaction.ts') as typeof transactions;
   modules['./storageTransaction.ts'] = localTransactions;
   modules['../data/storageTransaction'] = localTransactions;
-  // The panel and proof issuer must share this realm's actual WeakMap registry.
-  const authOwner = load('../app/data/authenticatedStorageOwner.ts') as typeof import('../app/data/authenticatedStorageOwner.ts');
-  modules['../data/authenticatedStorageOwner'] = authOwner;
   // The shared owner transition now composes the real pure language boundary.
   // Load it in this tab's realm so it uses the same transaction module/locks.
   modules['./languageStorageBoundary.ts'] = load('../app/data/languageStorageBoundary.ts');
+  // The panel and proof issuer must share this realm's actual WeakMap registry.
+  const authOwner = load('../app/data/authenticatedStorageOwner.ts') as typeof import('../app/data/authenticatedStorageOwner.ts');
+  modules['../data/authenticatedStorageOwner'] = authOwner;
   const cloud = load('../app/data/cloudSync.ts') as typeof import('../app/data/cloudSync.ts');
   modules['../data/cloudSync'] = { ...cloud,
     async getRemoteState() { browser.remote.reads++; const result = { state: structuredClone(browser.remote.state), updated_at: String(browser.remote.revision) }; const hold = nextRead; nextRead = undefined; if (hold) await hold.promise; return fromJson(result); },

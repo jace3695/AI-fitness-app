@@ -1,10 +1,13 @@
 "use client";
 
-import { FormEvent, Fragment, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, Fragment, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { CLOUD_SESSION_CHANGED_EVENT, clearLocalCloudState, isCurrentCloudSession, prepareLocalCloudState, readCloudSyncEpoch } from "../data/cloudSync";
-import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner.ts";
+import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT,
+  assertAuthenticatedStorageOwnerRecheck, claimAuthenticatedStorageOwnerRecheck, registerAuthenticatedStorageOwnerRecheckProof, cancelAuthenticatedStorageOwnerRecheck,
+  AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner, type AuthenticatedStorageOwnerRecheck } from "../data/authenticatedStorageOwner.ts";
+import { RECORD_RESET_EVENT } from "../data/appRecordReset.ts";
 import { AuthenticatedStorageOwnerProvider } from "./AuthenticatedStorageOwner.tsx";
 import {
   hasDevicePin,
@@ -26,6 +29,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [ownerLease, setOwnerLease] = useState<AuthenticatedStorageOwner | null>(null);
   const ownerLeaseRef = useRef<AuthenticatedStorageOwner | null>(null);
+  const editorDisplayedRef = useRef(false);
+  const [suspendedOwnerId, setSuspendedOwnerId] = useState<string | null>(null);
   // Only an observed SIGNED_OUT authorizes cleanup, including its explicit retry.
   const confirmedSignOutRef = useRef(false);
   const [loading, setLoading] = useState(true);
@@ -48,6 +53,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [accountPassword, setAccountPassword] = useState("");
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSubmitting, setBiometricSubmitting] = useState(false);
+  useLayoutEffect(() => {
+    editorDisplayedRef.current = Boolean(isSupabaseConfigured && user && ownerLease && !loading && !authCheckError && !recoveryMode && !pinRequired);
+  }, [user, ownerLease, loading, authCheckError, recoveryMode, pinRequired]);
 
   useEffect(() => {
     if (!supabase) {
@@ -62,9 +70,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     let confirmedEpoch: string | null = null;
     let controller = new AbortController();
     let confirmationTimer: ReturnType<typeof setTimeout> | undefined;
+    let pendingRecheck: AuthenticatedStorageOwnerRecheck | null = null;
+    let cancelRecheck: (() => void) | undefined;
     const failed = (version: number, signal: AbortSignal, error?: unknown) => {
       if (!active || version !== authVersion || signal.aborted) return;
       confirming = false;
+      setSuspendedOwnerId(null);
       revoke();
       if (error instanceof DevicePinRequiredError) { setAuthCheckError(false); setLoading(false); return; }
       if (!confirmedSignOutRef.current && (error instanceof AuthenticatedStorageOwnerUnavailableError || (error instanceof Error && error.name === "AuthSessionMissingError"))) {
@@ -150,6 +161,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     void initializeAuth();
     const { data } = authClient.auth.onAuthStateChange((event, session) => {
       if (!active) return;
+      cancelRecheck?.();
       // A callback is only a wake: it cannot mint authenticated runtime authority.
       let sameOwnerReady = false;
       try { sameOwnerReady = Boolean(session?.user.id === confirmedUserId && ownerLeaseRef.current?.isCurrent()
@@ -178,7 +190,81 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         void confirm(version, signal, ready).catch(error => failed(version, signal, error));
       }, 0);
     });
+    const onOwnerRecheck = (event: Event) => {
+      const request = (event as CustomEvent<AuthenticatedStorageOwnerRecheck>).detail;
+      // Readiness must already be complete before this can supersede a normal
+      // pending preparer. A request cannot repair, adopt or write any epoch.
+      try { claimAuthenticatedStorageOwnerRecheck(request, window.localStorage); }
+      catch { return; }
+      const preserve = editorDisplayedRef.current && confirmedUserId === request.userId && ownerLeaseRef.current?.epoch === request.epoch
+        && ownerLeaseRef.current.isCurrent();
+      const version = ++authVersion;
+      cancelRecheck?.();
+      confirming = true;
+      revoke(); controller.abort(); controller = new AbortController();
+      const signal = controller.signal;
+      clearTimeout(confirmationTimer);
+      setSuspendedOwnerId(preserve ? request.userId : null);
+      setAuthCheckError(false); setLoading(true);
+      pendingRecheck = request;
+      const detach = () => {
+        request.signal.removeEventListener('abort', cancel);
+        if (pendingRecheck === request) pendingRecheck = null;
+        if (cancelRecheck === cancel) cancelRecheck = undefined;
+      };
+      const cancel = () => {
+        detach();
+        cancelAuthenticatedStorageOwnerRecheck(request);
+        if (!current(version, signal)) return;
+        failed(version, signal, new Error("로그인 상태가 변경되었습니다. 다시 확인해 주세요."));
+        controller.abort();
+      };
+      cancelRecheck = cancel;
+      request.signal.addEventListener('abort', cancel, { once: true });
+      const assertReady = () => {
+        if (!current(version, signal)) throw new Error("계정이 변경되었습니다. 로그인 상태를 다시 확인해 주세요.");
+        assertAuthenticatedStorageOwnerRecheck(request, window.localStorage);
+      };
+      void (async () => {
+        let verifiedUser: User | null = null, lease: AuthenticatedStorageOwner | null = null;
+        try {
+          lease = await verifyAuthenticatedStorageOwner(window.localStorage, async () => {
+            const result = await authClient.auth.getUser();
+            assertReady();
+            if (result.error) throw result.error;
+            if (result.data.user?.id !== request.userId) throw new AuthenticatedStorageOwnerUnavailableError();
+            verifiedUser = result.data.user;
+            return result;
+          }, async id => {
+            assertReady();
+            const configured = await hasDevicePin(id, signal);
+            assertReady();
+            if (configured && !isPinSessionUnlocked(id)) {
+              setUser(verifiedUser); setPinRequired(true); setBiometricEnabled(hasDeviceBiometric(id));
+              throw new DevicePinRequiredError();
+            }
+          });
+          assertReady();
+          registerAuthenticatedStorageOwnerRecheckProof(request, lease, window.localStorage, detach);
+          ownerLeaseRef.current = lease;
+          setOwnerLease(lease); setUser(verifiedUser); setSuspendedOwnerId(null);
+          setPinRequired(false); setBiometricEnabled(hasDeviceBiometric(request.userId));
+          confirmedUserId = request.userId; confirmedEpoch = request.epoch; confirming = false;
+          confirmedSignOutRef.current = false;
+          setAuthCheckError(false); setLoading(false);
+          window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT, { detail: { request, proof: lease } }));
+        } catch (error) {
+          if (lease) revokeAuthenticatedStorageOwner(lease);
+          detach(); cancelAuthenticatedStorageOwnerRecheck(request);
+          failed(version, signal, error);
+        }
+      })();
+    };
     const onSessionChange = () => {
+      if (pendingRecheck) {
+        try { assertAuthenticatedStorageOwnerRecheck(pendingRecheck, window.localStorage); }
+        catch { cancelRecheck?.(); }
+      }
       if (confirming || !confirmedUserId) return;
       let ready = false;
       try { ready = Boolean(ownerLeaseRef.current?.isCurrent()) && isCurrentCloudSession(confirmedUserId, confirmedEpoch); } catch { /* Storage access itself can be denied. */ }
@@ -191,10 +277,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     };
     window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
     window.addEventListener("storage", onSessionChange);
+    const onReset = () => { cancelRecheck?.(); };
+    window.addEventListener(RECORD_RESET_EVENT, onReset);
+    window.addEventListener(AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, onOwnerRecheck);
     return () => {
-      active = false; revoke(); controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe();
+      active = false; cancelRecheck?.(); revoke(); controller.abort(); clearTimeout(confirmationTimer); data.subscription.unsubscribe();
       window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
       window.removeEventListener("storage", onSessionChange);
+      window.removeEventListener(RECORD_RESET_EVENT, onReset);
+      window.removeEventListener(AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, onOwnerRecheck);
     };
   }, [authCheckAttempt]);
 
@@ -306,7 +397,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="grid min-h-dvh place-items-center bg-yeoni-bg"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
+  const loadingView = <div className="grid min-h-dvh place-items-center bg-yeoni-bg"><div className="flex flex-col items-center gap-3 text-sm font-semibold text-[#534AB7]"><AppIcon kind="assistant" className="h-16 w-16" />AI 연이를 불러오는 중…</div></div>;
+  // Keep this exact ancestor/slot in the normal and suspended branches. Hidden
+  // drafts retain React state, while a null lease and revoked old lease fence
+  // authority; hidden/inert alone would not cancel descendant effects.
+  const authenticatedView = (suspended: boolean) => <Fragment key={user!.id}><AuthenticatedStorageOwnerProvider lease={suspended ? null : ownerLease}><div hidden={suspended} inert={suspended} aria-hidden={suspended || undefined} style={{ display: suspended ? 'none' : 'contents' }}>{children}<HubBottomNav /></div></AuthenticatedStorageOwnerProvider>{suspended ? loadingView : null}</Fragment>;
+  if (user && suspendedOwnerId === user.id && !authCheckError && !recoveryMode && !pinRequired) return authenticatedView(true);
+  if (loading) return loadingView;
   if (authCheckError) return <main className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><section className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 확인을 완료하지 못했어요</h1><p role="alert" className="mt-3 text-sm text-gray-600">{authCheckMessage || "연결 상태를 확인한 후 다시 시도해 주세요."}</p><button type="button" className="mt-5 min-h-11 rounded-xl bg-[#534AB7] px-5 font-bold text-white" onClick={() => { setLoading(true); setAuthCheckError(false); setAuthCheckAttempt(value => value + 1); }}>다시 확인</button></section></main>;
   if (!isSupabaseConfigured)
     return <div className="grid min-h-dvh place-items-center bg-yeoni-bg p-6"><div className="max-w-md rounded-3xl bg-white p-6 text-center shadow-sm"><h1 className="text-xl font-bold">로그인 설정이 필요합니다</h1><p className="mt-2 text-sm text-gray-600">운동 기록을 안전하게 분리하려면 Supabase 환경변수를 설정해 주세요.</p></div></div>;
@@ -342,7 +439,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <button type="button" onClick={() => void resetDevicePin()} className="mt-3 text-xs font-semibold text-gray-500 underline">다른 계정으로 로그인</button>
     </section>
   </main>;
-  if (user && ownerLease) return <Fragment key={user.id}><AuthenticatedStorageOwnerProvider lease={ownerLease}>{children}<HubBottomNav /></AuthenticatedStorageOwnerProvider></Fragment>;
+  if (user && ownerLease) return authenticatedView(false);
 
   return <main className="grid min-h-dvh place-items-center bg-gradient-to-br from-[#F6F7FB] via-white to-[#EEEDFE] p-4">
     <section className="w-full max-w-md rounded-[28px] border border-white bg-white/95 p-6 shadow-[0_24px_70px_rgba(83,74,183,0.16)] sm:p-8">

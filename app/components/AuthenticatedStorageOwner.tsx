@@ -6,7 +6,7 @@ import type { AuthenticatedStorageOwner } from '../data/authenticatedStorageOwne
 const OwnerContext = createContext<AuthenticatedStorageOwner | null>(null);
 
 /** AuthGate places this inside its owner-keyed and PIN-checked subtree. */
-export function AuthenticatedStorageOwnerProvider({ lease, children }: { lease: AuthenticatedStorageOwner; children: ReactNode }) {
+export function AuthenticatedStorageOwnerProvider({ lease, children }: { lease: AuthenticatedStorageOwner | null; children: ReactNode }) {
   return <OwnerContext.Provider value={lease}>{children}</OwnerContext.Provider>;
 }
 

@@ -3,6 +3,9 @@ import { useEffect, type RefObject } from 'react';
 
 const dialogs: symbol[] = [];
 const controls = 'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+const available = (element: HTMLElement) => element.isConnected && element.getClientRects().length > 0
+  && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+  && !['hidden', 'collapse'].includes(getComputedStyle(element).visibility);
 
 export function useDialogFocus(open: boolean, ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -11,11 +14,11 @@ export function useDialogFocus(open: boolean, ref: RefObject<HTMLElement | null>
     const id = Symbol('dialog');
     dialogs.push(id);
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(controls)).filter(el => el.getClientRects().length > 0);
-    const focusFirst = () => (focusable()[0] ?? dialog).focus();
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(controls)).filter(available);
+    const focusFirst = () => { if (available(dialog)) (focusable()[0] ?? dialog).focus(); };
     focusFirst();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (dialogs.at(-1) !== id || event.key !== 'Tab') return;
+      if (dialogs.at(-1) !== id || event.key !== 'Tab' || !available(dialog)) return;
       const elements = focusable();
       const first = elements[0], last = elements.at(-1);
       if (!first || !last) { event.preventDefault(); dialog.focus(); return; }
@@ -23,7 +26,7 @@ export function useDialogFocus(open: boolean, ref: RefObject<HTMLElement | null>
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     const onFocus = (event: FocusEvent) => {
-      if (dialogs.at(-1) === id && event.target instanceof Node && !dialog.contains(event.target)) focusFirst();
+      if (dialogs.at(-1) === id && available(dialog) && event.target instanceof Node && !dialog.contains(event.target)) focusFirst();
     };
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('focusin', onFocus);
@@ -32,7 +35,7 @@ export function useDialogFocus(open: boolean, ref: RefObject<HTMLElement | null>
       dialogs.splice(dialogs.indexOf(id), 1);
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('focusin', onFocus);
-      if (top && previous?.isConnected) previous.focus();
+      if (top && previous && available(previous)) previous.focus();
     };
   }, [open, ref]);
 }
