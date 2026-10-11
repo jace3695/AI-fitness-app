@@ -338,6 +338,46 @@ function dependencyFixture(root: string) {
   mkdirSync(join(source, '.bin')); symlinkSync(join(source, 'tiny/bin.mjs'), join(source, '.bin/tiny'));
   return { source, lock: { packages: { 'node_modules/tiny': { version: '1.2.3' } } } };
 }
+function dependencyCopier(overrides: Record<string, unknown> = {}) {
+  return privateFunction('copyDependencyTree', {
+    ...Object.fromEntries(Object.entries(filesystem).filter(([name]) => name !== 'default')),
+    ...Object.fromEntries(Object.entries(paths).filter(([name]) => name !== 'default')),
+    LIMITS: harness.LIMITS, DEPENDENCY_FIXTURE_EXCLUSIONS: harness.DEPENDENCY_FIXTURE_EXCLUSIONS,
+    dependencyFixtureExclusion: harness.dependencyFixtureExclusion, regularPath: harness.regularPath,
+    sha256: harness.sha256, validateRelativePath: harness.validateRelativePath, refuse,
+    inside: (parent: string, child: string) => child === parent || child.startsWith(parent + paths.sep),
+    dependencyExcluded: () => false, json: (file: string) => JSON.parse(readFileSync(file, 'utf8')), ...overrides,
+  });
+}
+const bundledResolveRoots = [
+  ['resolve', '2.0.0-next.6'],
+  ['postcss-import/node_modules/resolve', '1.22.12'],
+  ['tailwindcss/node_modules/resolve', '1.22.12'],
+] as const;
+const bundledResolveSuffixes = ['test/resolver/symlinked/_/node_modules', 'test/shadowed_core/node_modules'] as const;
+function bundledResolveFixture(root: string) {
+  const { source, lock } = dependencyFixture(root);
+  const packages: Record<string, { version: string }> = { ...lock.packages };
+  for (const name of ['postcss-import', 'tailwindcss']) {
+    put(source, `${name}/package.json`, JSON.stringify({ name, version: '1.0.0' })); packages[`node_modules/${name}`] = { version: '1.0.0' };
+  }
+  for (const [path, version] of bundledResolveRoots) {
+    put(source, `${path}/package.json`, JSON.stringify({ name: 'resolve', version })); packages[`node_modules/${path}`] = { version };
+    put(source, `${path}/index.js`, 'module.exports = {};\n'); put(source, `${path}/test/retained.js`, '// retain ordinary package test bytes\n');
+    for (const suffix of bundledResolveSuffixes) put(source, `${path}/${suffix}/unreviewed/package.json`, JSON.stringify({ name: 'bundled-fixture', version: '0.0.0' }));
+  }
+  return { source, lock: { packages } };
+}
+function forwardLinkFixture(root: string, mismatch = false) {
+  const source = join(root, 'node_modules'), destination = join(root, 'owned/node_modules');
+  put(source, 'a-first/package.json', JSON.stringify({ name: 'a-first', version: mismatch ? '2.0.0' : '1.0.0' }));
+  put(source, 'z-tool/package.json', JSON.stringify({ name: 'z-tool', version: '1.0.0' })); put(source, 'z-tool/cli.js', '// synthetic executable\n', 0o755);
+  mkdirSync(join(source, '.bin')); symlinkSync('../z-tool/cli.js', join(source, '.bin/a-tool')); symlinkSync('a-tool', join(source, '.bin/z-tool'));
+  return { source, destination, lock: { packages: { 'node_modules/a-first': { version: '1.0.0' }, 'node_modules/z-tool': { version: '1.0.0' } } } };
+}
+function assertUnpublishedLinks(destination: string) {
+  for (const name of ['a-tool', 'z-tool']) assert.throws(() => lstatSync(join(destination, '.bin', name)), { code: 'ENOENT' }, 'A missing target must not leave even a dangling link inode');
+}
 test('dependency copy relocates internal absolute package links and preserves bytes without writable inode sharing', t => {
   const root = tiny(t), { source, lock } = dependencyFixture(root), destination = join(root, 'private/node_modules');
   const result = harness.copyDependencyTree(source, destination, lock);
@@ -345,7 +385,7 @@ test('dependency copy relocates internal absolute package links and preserves by
   assert.deepEqual(readFileSync(join(destination, 'tiny/bin.mjs')), readFileSync(join(source, 'tiny/bin.mjs')));
   assert.notEqual(statSync(join(destination, 'tiny/bin.mjs')).ino, statSync(join(source, 'tiny/bin.mjs')).ino);
   assert.equal(statSync(join(destination, 'tiny/bin.mjs')).mode & 0o777, 0o755); assert.equal(result.files, 3);
-  assert.deepEqual(result.installedVersions, [{ path: 'node_modules/tiny', version: '1.2.3' }]); assert.match(result.digest, /^[a-f0-9]{64}$/);
+  assert.deepEqual(result.installedVersions, [{ path: 'node_modules/tiny', version: '1.2.3' }]); assert.deepEqual(result.excludedFixtures, []); assert.match(result.digest, /^[a-f0-9]{64}$/);
   put(destination, 'tiny/bin.mjs', 'private mutation'); assert.equal(readFileSync(join(source, 'tiny/bin.mjs'), 'utf8'), '#!/usr/bin/env node\n');
 });
 test('dependency inventories deterministically exclude caches and credential artifacts', t => {
@@ -363,6 +403,160 @@ test('dependency links refuse checkout escapes and excluded credential/cache tar
   const root = tiny(t), { source, lock } = dependencyFixture(root); put(root, 'outside', 'secret');
   symlinkSync('../../outside', join(source, 'tiny/escape')); refused(() => harness.copyDependencyTree(source, join(root, 'copy-escape'), lock), 'dependency_invalid'); rmSync(join(source, 'tiny/escape'));
   put(source, 'tiny/.env', 'secret'); symlinkSync('.env', join(source, 'tiny/credential')); refused(() => harness.copyDependencyTree(source, join(root, 'copy-credential'), lock), 'dependency_invalid');
+});
+
+test('bundled fixture policy is immutable and matches only six exact roots or their descendants', () => {
+  const expected = bundledResolveRoots.flatMap(([packageRoot, version]) => bundledResolveSuffixes.map(suffix => ({ packageRoot, version, path: `${packageRoot}/${suffix}` })));
+  assert.deepEqual(harness.DEPENDENCY_FIXTURE_EXCLUSIONS, expected); assert.equal(Object.isFrozen(harness.DEPENDENCY_FIXTURE_EXCLUSIONS), true);
+  for (const row of expected) {
+    assert.equal(Object.isFrozen(harness.dependencyFixtureExclusion(row.path)), true);
+    assert.deepEqual(harness.dependencyFixtureExclusion(row.path), row); assert.deepEqual(harness.dependencyFixtureExclusion(`${row.path}/child/file.js`), row);
+    for (const near of [row.packageRoot, row.path.slice(0, -1), `${row.path}-other`, `other/${row.path}`, row.path.replace('/test/', '/tests/')]) assert.equal(harness.dependencyFixtureExclusion(near), undefined, near);
+  }
+});
+test('dependency copy omits exactly the six version-pinned bundled resolve fixture trees', t => {
+  const root = tiny(t), { source, lock } = bundledResolveFixture(root), destination = join(root, 'copy');
+  const first = harness.copyDependencyTree(source, destination, lock);
+  for (const [path] of bundledResolveRoots) {
+    for (const suffix of bundledResolveSuffixes) assert.equal(existsSync(join(destination, path, suffix)), false, `${path}/${suffix}`);
+    for (const retained of ['package.json', 'index.js', 'test/retained.js']) assert.deepEqual(readFileSync(join(destination, path, retained)), readFileSync(join(source, path, retained)));
+  }
+  assert.deepEqual(first.installedVersions.map(row => row.path).sort(), Object.keys(lock.packages).sort());
+  assert.equal(first.files, 14); assert.equal(harness.ownedUsage(destination, false), first.bytes);
+  const expectedExclusions = bundledResolveRoots.flatMap(([path, version]) => bundledResolveSuffixes.map(suffix => ({ path: `${path}/${suffix}`, version }))).sort((a, b) => a.path.localeCompare(b.path));
+  assert.deepEqual([...first.excludedFixtures].sort((a, b) => a.path.localeCompare(b.path)), expectedExclusions);
+  for (const [path] of bundledResolveRoots) for (const suffix of bundledResolveSuffixes) put(source, `${path}/${suffix}/unreviewed/package.json`, 'changed excluded fixture bytes');
+  assert.deepEqual(harness.copyDependencyTree(source, join(root, 'copy-again'), lock), first, 'Excluded fixture bytes must not affect the copied dependency inventory');
+  const removedPath = `${bundledResolveRoots[0][0]}/${bundledResolveSuffixes[0]}`; rmSync(join(source, removedPath), { recursive: true });
+  const partial = harness.copyDependencyTree(source, join(root, 'copy-fewer-fixtures'), lock);
+  assert.deepEqual(partial, { ...first, excludedFixtures: first.excludedFixtures.filter(row => row.path !== removedPath) }, 'The reported omissions must reflect only fixed directories actually present');
+});
+test('bundled resolve fixture omission remains gated by each installed and lockfile version', t => {
+  const root = tiny(t); let index = 0;
+  for (const [packagePath] of bundledResolveRoots) for (const mutation of ['installed', 'lock', 'both']) {
+    const fixture = bundledResolveFixture(join(root, String(index++)));
+    if (mutation !== 'lock') put(fixture.source, `${packagePath}/package.json`, JSON.stringify({ name: 'resolve', version: '9.9.9' }));
+    if (mutation !== 'installed') fixture.lock.packages[`node_modules/${packagePath}`].version = '9.9.9';
+    refused(() => harness.copyDependencyTree(fixture.source, join(root, `refused-${index}`), fixture.lock), 'dependency_invalid');
+  }
+});
+test('bundled fixture omission refuses renamed resolve metadata and linked package manifests', t => {
+  const root = tiny(t); let index = 0;
+  for (const [packagePath, version] of bundledResolveRoots) {
+    const renamed = bundledResolveFixture(join(root, String(index++)));
+    put(renamed.source, `${packagePath}/package.json`, JSON.stringify({ name: 'other-package', version }));
+    refused(() => harness.copyDependencyTree(renamed.source, join(root, `refused-name-${index}`), renamed.lock), 'dependency_invalid');
+    const linked = bundledResolveFixture(join(root, String(index++))), packageFile = join(linked.source, packagePath, 'package.json');
+    put(linked.source, `${packagePath}/manifest.json`, JSON.stringify({ name: 'resolve', version })); rmSync(packageFile); symlinkSync('manifest.json', packageFile);
+    refused(() => harness.copyDependencyTree(linked.source, join(root, `refused-manifest-${index}`), linked.lock), 'source_path');
+  }
+});
+test('bundled fixture omission refuses regular files and simulated device entries at each fixed root', t => {
+  const root = tiny(t); let index = 0;
+  for (const [packagePath] of bundledResolveRoots) for (const suffix of bundledResolveSuffixes) {
+    const { source, lock } = bundledResolveFixture(join(root, String(index))), omitted = join(source, packagePath, suffix);
+    const copy = dependencyCopier({ lstatSync: (path: string) => path === omitted ? { isSymbolicLink: () => false, isDirectory: () => false, isFile: () => false } : lstatSync(path) });
+    refused(() => copy(source, join(root, `refused-device-${index}`), lock), 'dependency_invalid');
+    rmSync(omitted, { recursive: true }); put(source, `${packagePath}/${suffix}`, 'ordinary file cannot impersonate an omitted directory');
+    refused(() => harness.copyDependencyTree(source, join(root, `refused-file-${index++}`), lock), 'dependency_invalid');
+  }
+  const { source, lock } = dependencyFixture(join(root, 'ordinary-device'));
+  const copy = dependencyCopier({ lstatSync: (path: string) => path === join(source, 'tiny/bin.mjs') ? { isSymbolicLink: () => false, isDirectory: () => false, isFile: () => false } : lstatSync(path) });
+  refused(() => copy(source, join(root, 'refused-ordinary-device'), lock), 'dependency_invalid');
+});
+test('bundled fixture omission does not admit other packages, unreviewed roots or nearby paths', t => {
+  const root = tiny(t);
+  const unreviewedPaths = [
+    'unknown/package.json', 'resolve/node_modules/unknown/package.json',
+    'resolve/test/resolver/other/node_modules/unknown/package.json',
+    'resolve/test/shadowed_core/other/node_modules/unknown/package.json',
+    'resolve/tests/shadowed_core/node_modules/unknown/package.json',
+    'postcss-import/test/shadowed_core/node_modules/unknown/package.json',
+    'tailwindcss/test/resolver/symlinked/_/node_modules/unknown/package.json',
+    'tiny/test/shadowed_core/node_modules/unknown/package.json',
+  ];
+  for (const [index, path] of unreviewedPaths.entries()) {
+    const { source, lock } = bundledResolveFixture(join(root, String(index))); put(source, path, JSON.stringify({ name: 'unknown', version: '1.0.0' }));
+    refused(() => harness.copyDependencyTree(source, join(root, `refused-${index}`), lock), 'dependency_invalid');
+  }
+  const { source, lock } = dependencyFixture(join(root, 'other-resolve-root'));
+  put(source, 'tiny/node_modules/resolve/package.json', JSON.stringify({ name: 'resolve', version: '1.22.12' }));
+  put(source, 'tiny/node_modules/resolve/test/shadowed_core/node_modules/unknown/package.json', '{}');
+  const reviewed = { packages: { ...lock.packages, 'node_modules/tiny/node_modules/resolve': { version: '1.22.12' } } };
+  refused(() => harness.copyDependencyTree(source, join(root, 'refused-other-resolve-root'), reviewed), 'dependency_invalid');
+});
+test('bundled fixture omission refuses symlink roots and links into omitted or credential trees', t => {
+  const root = tiny(t); let index = 0;
+  for (const [packagePath] of bundledResolveRoots) for (const suffix of bundledResolveSuffixes) {
+    const { source, lock } = bundledResolveFixture(join(root, String(index))), omitted = join(source, packagePath, suffix);
+    rmSync(omitted, { recursive: true }); symlinkSync(join(source, 'tiny'), omitted);
+    refused(() => harness.copyDependencyTree(source, join(root, `refused-root-${index++}`), lock), 'dependency_invalid');
+  }
+  for (const target of ['resolve/test/shadowed_core/node_modules/unreviewed/package.json', 'tiny/.env', 'tiny/.cache/payload']) {
+    const { source, lock } = bundledResolveFixture(join(root, String(index)));
+    if (!existsSync(join(source, target))) put(source, target, 'excluded bytes');
+    symlinkSync(join(source, target), join(source, 'tiny/linked'));
+    refused(() => harness.copyDependencyTree(source, join(root, `refused-target-${index++}`), lock), 'dependency_invalid');
+  }
+});
+test('version, budget, signal and byte-cap refusals leave forward-link copies strictly inspectable', t => {
+  const root = tiny(t);
+  for (const failure of ['version', 'budget_exhausted', 'interrupted', 'resource_limit']) {
+    const { source, destination, lock } = forwardLinkFixture(join(root, failure), failure === 'version'); let checkpoints = 0;
+    const checkpoint = () => {
+      checkpoints++;
+      if (['budget_exhausted', 'interrupted'].includes(failure) && existsSync(join(destination, 'a-first/package.json'))) refuse(failure);
+    };
+    refused(() => harness.copyDependencyTree(source, destination, lock, { checkpoint, ...(failure === 'resource_limit' ? { maxBytes: 1 } : {}) }), failure === 'version' ? 'dependency_invalid' : failure);
+    assert.ok(checkpoints >= 3); assertUnpublishedLinks(destination);
+    assert.doesNotThrow(() => harness.ownedUsage(join(destination, '..'), false), `${failure} must preserve strict cleanup traversal`);
+    if (failure !== 'resource_limit') assert.equal(existsSync(join(destination, 'a-first/package.json')), true, 'The refusal must exercise a partially copied tree');
+    assert.equal(existsSync(join(destination, 'z-tool/cli.js')), false);
+  }
+});
+test('link publication checkpoints interrupt before the first or a later link without dangling links', t => {
+  const root = tiny(t);
+  for (const afterFirst of [false, true]) {
+    const { source, destination, lock } = forwardLinkFixture(join(root, String(afterFirst))); let publicationCheckpoints = 0;
+    const checkpoint = () => {
+      if (!existsSync(join(destination, 'z-tool/package.json'))) return;
+      publicationCheckpoints++;
+      assert.equal(existsSync(join(destination, 'z-tool/cli.js')), true, 'All regular targets must be copied before publication begins');
+      if (!afterFirst || existsSync(join(destination, '.bin/a-tool'))) refuse('interrupted');
+    };
+    refused(() => harness.copyDependencyTree(source, destination, lock, { checkpoint }), 'interrupted');
+    assert.equal(publicationCheckpoints, afterFirst ? 2 : 1);
+    if (afterFirst) {
+      assert.equal(lstatSync(join(destination, '.bin/a-tool')).isSymbolicLink(), true);
+      assert.equal(realpathSync(join(destination, '.bin/a-tool')), join(destination, 'z-tool/cli.js'));
+      assert.throws(() => lstatSync(join(destination, '.bin/z-tool')), { code: 'ENOENT' });
+    } else assertUnpublishedLinks(destination);
+    assert.doesNotThrow(() => harness.ownedUsage(join(destination, '..'), false));
+  }
+});
+test('link publication revalidates missing or escaping destination targets before creating any link', t => {
+  const root = tiny(t);
+  for (const mutation of ['missing', 'escape']) {
+    const { source, destination, lock } = forwardLinkFixture(join(root, mutation)); let mutated = false;
+    const target = join(destination, 'z-tool/cli.js'), outside = put(root, `${mutation}-outside.js`, 'outside owned copy');
+    const checkpoint = () => {
+      if (mutated || !existsSync(join(destination, 'z-tool/package.json'))) return;
+      mutated = true; rmSync(target); if (mutation === 'escape') symlinkSync(outside, target);
+    };
+    refused(() => harness.copyDependencyTree(source, destination, lock, { checkpoint }), 'dependency_invalid');
+    assert.equal(mutated, true); assertUnpublishedLinks(destination);
+    if (mutation === 'escape') { refused(() => harness.ownedUsage(destination, false), 'ownership_invalid'); rmSync(target); }
+    assert.doesNotThrow(() => harness.ownedUsage(destination, false));
+  }
+});
+test('successful link publication canonicalizes forward link chains to copied targets', t => {
+  const root = tiny(t), { source, destination, lock } = forwardLinkFixture(root);
+  const result = harness.copyDependencyTree(source, destination, lock);
+  for (const name of ['a-tool', 'z-tool']) {
+    assert.equal(readlinkSync(join(destination, '.bin', name)), '../z-tool/cli.js');
+    assert.equal(realpathSync(join(destination, '.bin', name)), join(destination, 'z-tool/cli.js'));
+  }
+  assert.equal(result.files, 5); assert.equal(harness.ownedUsage(destination, false), result.bytes);
 });
 
 // Linux identities and cleanup use only synthetic process objects.
@@ -434,6 +628,8 @@ test('owned deletion preflight rejects paths outside the exact runner child and 
 test('owned usage refuses escape links before removal and counts only bounded ordinary files', t => {
   const root = tiny(t), owned = join(root, 'owned'); put(owned, 'a', '123'); put(owned, 'sub/b', '45'); assert.equal(harness.ownedUsage(owned), 5);
   put(root, 'outside', 'secret'); symlinkSync('../outside', join(owned, 'escape')); refused(() => harness.ownedUsage(owned), 'ownership_invalid');
+  rmSync(join(owned, 'escape')); symlinkSync('missing-target', join(owned, 'dangling'));
+  assert.throws(() => harness.ownedUsage(owned, false), { code: 'ENOENT' }, 'Cleanup must remain strict about preexisting dangling links');
 });
 test('cleanup refuses invalid ownership before deleting any directory or record', async () => {
   const removals: string[] = [];
@@ -586,12 +782,7 @@ test('phase selection requires verified owner nonce/commit/cache/ready state and
 });
 test('dependency copy refuses simulated hardlink inodes rather than silently sharing writable files', t => {
   const root = tiny(t), { source, lock } = dependencyFixture(root), destination = join(root, 'copy');
-  const copied = privateFunction('copyDependencyTree', { LIMITS: harness.LIMITS,
-    ...Object.fromEntries(Object.entries(filesystem).filter(([name]) => name !== 'default')), ...Object.fromEntries(Object.entries(paths).filter(([name]) => name !== 'default')), sha256: harness.sha256, validateRelativePath: harness.validateRelativePath, refuse,
-    inside: (parent: string, child: string) => child === parent || child.startsWith(parent + paths.sep), dependencyExcluded: () => false,
-    json: (file: string) => JSON.parse(readFileSync(file, 'utf8')),
-    statSync: (file: string) => statSync(file.replace(destination, source)),
-  });
+  const copied = dependencyCopier({ statSync: (file: string) => statSync(file.replace(destination, source)) });
   refused(() => copied(source, destination, lock), 'dependency_invalid');
 });
 test('immutable build identity excludes only fixed runtime caches and detects server/static mutations', t => {

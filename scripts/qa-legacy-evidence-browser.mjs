@@ -217,11 +217,22 @@ export function verifyCopiedSources(destination, manifest) {
   return { digest: inventoryDigest(rows), release: rows.find(row => row.path === RELEASE_PATH).sha256, changedFiles: 1 };
 }
 const dependencyExcluded = name => name.startsWith('.env') || ['.cache', '.git', '.npm', '.yarn', 'coverage', 'test-results', '.temp'].includes(name) || /\.(?:pem|key|p12|pfx|log|tsbuildinfo)$/i.test(name);
+export const DEPENDENCY_FIXTURE_EXCLUSIONS = Object.freeze([
+  { packageRoot: 'resolve', version: '2.0.0-next.6' },
+  { packageRoot: 'postcss-import/node_modules/resolve', version: '1.22.12' },
+  { packageRoot: 'tailwindcss/node_modules/resolve', version: '1.22.12' },
+].flatMap(row => [
+  'test/resolver/symlinked/_/node_modules',
+  'test/shadowed_core/node_modules',
+].map(suffix => Object.freeze({ ...row, path: `${row.packageRoot}/${suffix}` }))));
+export function dependencyFixtureExclusion(path) {
+  return DEPENDENCY_FIXTURE_EXCLUSIONS.find(row => path === row.path || path.startsWith(`${row.path}/`));
+}
 export function copyDependencyTree(source, destination, lock, { checkpoint = () => {}, maxBytes = LIMITS.ownedBytes } = {}) {
   if (realpathSync(source) !== source || !lock?.packages) refuse('dependency_invalid');
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 0 || maxBytes > LIMITS.ownedBytes) refuse('resource_limit');
   let copiedBytes = 0;
-  const entries = [], versions = []; mkdirSync(destination, { recursive: true, mode: 0o700 });
+  const entries = [], versions = [], excludedFixtures = [], pendingLinks = []; mkdirSync(destination, { recursive: true, mode: 0o700 });
   const walk = relativePath => {
     if (relativePath === '' || relativePath.endsWith('/node_modules')) {
       const prefix = relativePath ? `node_modules/${relativePath}` : 'node_modules';
@@ -236,12 +247,19 @@ export function copyDependencyTree(source, destination, lock, { checkpoint = () 
       checkpoint();
       const path = relativePath ? `${relativePath}/${name}` : name; validateRelativePath(path);
       const input = join(source, path), output = join(destination, path), s = lstatSync(input);
+      const exclusion = DEPENDENCY_FIXTURE_EXCLUSIONS.find(row => row.path === path);
+      if (exclusion) {
+        if (s.isSymbolicLink() || !s.isDirectory() || lock.packages[`node_modules/${exclusion.packageRoot}`]?.version !== exclusion.version) refuse('dependency_invalid');
+        const packageJson = json(regularPath(source, `${exclusion.packageRoot}/package.json`));
+        if (packageJson.name !== 'resolve' || packageJson.version !== exclusion.version) refuse('dependency_invalid');
+        excludedFixtures.push({ path, version: exclusion.version }); continue;
+      }
       if (s.isSymbolicLink()) {
         const target = realpathSync(input); if (!inside(source, target)) refuse('dependency_invalid');
-        const targetRelative = relative(source, target); if (targetRelative.split(sep).some(dependencyExcluded)) refuse('dependency_invalid');
+        const targetRelative = relative(source, target); if (targetRelative.split(sep).some(dependencyExcluded) || dependencyFixtureExclusion(targetRelative)) refuse('dependency_invalid');
         const relocated = relative(dirname(output), join(destination, targetRelative));
         if (!inside(destination, resolve(dirname(output), relocated))) refuse('dependency_invalid');
-        symlinkSync(relocated, output); entries.push({ path, link: relocated });
+        pendingLinks.push({ path, relocated, targetRelative }); entries.push({ path, link: relocated });
       } else if (s.isDirectory()) { mkdirSync(output, { mode: 0o700 }); walk(path); }
       else if (s.isFile()) {
         copiedBytes += s.size; if (copiedBytes > maxBytes) refuse('resource_limit');
@@ -262,8 +280,16 @@ export function copyDependencyTree(source, destination, lock, { checkpoint = () 
     else if (!lock.packages[`node_modules/${name}`]) refuse('dependency_invalid');
   }
   walk('');
+  // Publish links only after all regular targets exist, so an interrupted copy
+  // remains inspectable by the unchanged strict owned-directory traversal.
+  for (const { path, relocated, targetRelative } of pendingLinks) {
+    checkpoint();
+    const target = join(destination, targetRelative);
+    if (!existsSync(target) || !inside(destination, realpathSync(target))) refuse('dependency_invalid');
+    symlinkSync(relocated, join(destination, path));
+  }
   for (const entry of entries) if (entry.link && (!existsSync(join(destination, entry.path)) || !inside(destination, realpathSync(join(destination, entry.path))))) refuse('dependency_invalid');
-  return { files: entries.length, bytes: entries.reduce((n,e) => n + (e.bytes ?? 0), 0), digest: sha256(JSON.stringify(entries)), installedVersions: versions };
+  return { files: entries.length, bytes: entries.reduce((n,e) => n + (e.bytes ?? 0), 0), digest: sha256(JSON.stringify(entries)), installedVersions: versions, excludedFixtures };
 }
 export function buildIdentity(app) {
   const root = join(app, '.next'), entries = [];
