@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { test, expect, login, today } from './fixture';
 import { RouteDrain } from './route-drain';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
@@ -52,8 +52,13 @@ for (const mode of ['active','manual','quick'] as const) for (const committed of
   const drain = new RouteDrain(), requests: Record<string, unknown>[] = [], calls: string[] = [];
   let phase: 'lost-response' | 'reload' | 'unknown-retry' | 'confirm-retry' | 'verify-row' | 'complete' = 'lost-response';
   let failPost = true, failRead = true;
-  await page.route(pattern, route => drain.run(async () => {
-    const request = route.request(), url = new URL(request.url());
+  // Keep the shared context interceptor installed during removal: a page
+  // interceptor can still own a request already handed to a context fallback.
+  const handleRoutineRecovery = (route: Route) => drain.run(async () => {
+    const request = route.request(); let requestPage: Page | null = null;
+    try { requestPage = request.frame().page(); } catch { /* Worker/frameless requests were outside the original page scope. */ }
+    if (requestPage !== page) { await route.fallback(); return; }
+    const url = new URL(request.url());
     if (request.method() === 'POST') {
       expect(url.pathname).toBe(rpcPath); const payload = request.postDataJSON(); requests.push(payload); calls.push('POST');
       if (committed || !failPost) { const response = await route.fetch({ maxRetries: 0 }); expect(response.ok()).toBe(true); }
@@ -65,7 +70,8 @@ for (const mode of ['active','manual','quick'] as const) for (const committed of
       calls.push(retryCount === undefined ? 'GET' : `GET:retry:${retryCount}`);
       if (requests.length && failRead) await route.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"synthetic unknown read"}' }); else await route.fallback();
     } else await route.fallback();
-  }));
+  });
+  await page.context().route(pattern, handleRoutineRecovery);
   try {
     await page.getByRole('button', { name: mode === 'active' ? '완료 저장' : mode === 'manual' ? '기록 저장' : `${routine.title} 빠른 완료`, exact: true }).click();
     await expect(recovery(page)).toContainText('저장 결과를 확인하지 못했어요'); await expect(retry(page)).toBeEnabled(); expect(requests).toHaveLength(1);
@@ -86,7 +92,7 @@ for (const mode of ['active','manual','quick'] as const) for (const committed of
     // Fixed enums and counts only. Preserve route/assertion failures while
     // showing whether a transport rejection preceded or followed row checks.
     console.log('QA_ROUTINE_RECOVERY_PHASE', JSON.stringify({ mode, committed, phase, posts: requests.length, calls: calls.length }));
-    await drain.wait(); await page.unroute(pattern);
+    await drain.wait(); await page.context().unroute(pattern, handleRoutineRecovery);
   }
 });
 test('newer manual edits survive a delayed save while pending delete and quick cancel remain blocked', async ({ page, qa }) => {

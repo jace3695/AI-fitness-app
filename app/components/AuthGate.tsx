@@ -4,7 +4,7 @@ import { FormEvent, Fragment, ReactNode, useEffect, useRef, useState } from "rea
 import type { User } from "@supabase/supabase-js";
 import { isPasswordRecoveryRedirect, isSupabaseConfigured, supabase } from "../lib/supabase";
 import { CLOUD_SESSION_CHANGED_EVENT, clearLocalCloudState, isCurrentCloudSession, prepareLocalCloudState, readCloudSyncEpoch } from "../data/cloudSync";
-import { AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner.ts";
+import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner.ts";
 import { AuthenticatedStorageOwnerProvider } from "./AuthenticatedStorageOwner.tsx";
 import {
   hasDevicePin,
@@ -130,6 +130,9 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       confirmedSignOutRef.current = false;
       confirmedUserId = nextUser.id; confirmedEpoch = lease.epoch; confirming = false;
       setAuthCheckError(false); setLoading(false);
+      // Never serialize this proof or emit from callback session data. The
+      // global panel may use this completed verification as a one-shot wake.
+      window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, { detail: lease }));
     };
     const initializeAuth = async () => {
       const version = authVersion, signal = controller.signal;

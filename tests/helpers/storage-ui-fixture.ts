@@ -116,7 +116,8 @@ export function storageTab(browser: ReturnType<typeof storageBrowser>, id: strin
     },
     removeEventListener(name: string, listener: (event: UiEvent) => void) { listeners.get(name)?.delete(listener); },
     dispatchEvent(event: UiEvent) {
-      for (const listener of [...(listeners.get(event.type) ?? [])]) listener({ ...event, storageArea: event.storageArea ?? local });
+      // Native Event/CustomEvent accessors are not enumerable own properties.
+      for (const listener of [...(listeners.get(event.type) ?? [])]) listener({ ...event, type: event.type, detail: event.detail, storageArea: event.storageArea ?? local });
       return true;
     },
     setTimeout(callback: () => void) { const token = ++nextTimer; timers.set(token, callback); return token; },

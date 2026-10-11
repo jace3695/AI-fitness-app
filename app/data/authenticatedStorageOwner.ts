@@ -1,5 +1,9 @@
 import { captureStorageOwner, isStorageOwnerCurrent, readStorageSnapshot, StorageSessionChangedError, type StorageReader } from './storageTransaction.ts';
 
+/** Same-document wake only. Consumers must validate the registered lease and
+ * independently authenticate before creating their own runtime authority. */
+export const AUTHENTICATED_STORAGE_OWNER_READY_EVENT = 'yeoni-authenticated-storage-owner-ready';
+
 /** Runtime authority. A serialized owner/epoch (including a copied lease) is not a lease. */
 export interface AuthenticatedStorageOwner {
   readonly userId: string;

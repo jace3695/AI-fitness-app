@@ -292,13 +292,16 @@ function exactCloudChanges(snapshot: StorageReader, state: CloudState) {
   }
   return changes;
 }
-async function commitResponse(request: CloudSyncRequest, acknowledgedState: CloudState, explicitResolution: boolean): Promise<{ local: CloudState; pending: boolean }> {
+async function commitResponse(request: CloudSyncRequest, acknowledgedState: CloudState, explicitResolution: boolean, assertCallerCurrent?: () => void): Promise<{ local: CloudState; pending: boolean }> {
   let result = { local: {} as CloudState, pending: false };
   // Validate before entering the storage lock, without modifying any snapshots.
   assertCloudStateNamespace(acknowledgedState);
   classifyCloudSyncConflicts(null, acknowledgedState, acknowledgedState);
   assertCloudStorageEncoding(acknowledgedState);
   await updateStorageBatch(window.localStorage, snapshot => {
+    // A caller may retire while waiting for this lock without changing the
+    // serialized owner epoch. Fence that closure before any acknowledgment.
+    assertCallerCurrent?.();
     if (snapshot.getItem(`${SYNC_ACK_PREFIX}${request.userId}`) !== request.acknowledgementToken
       || stableState({ base: parseSyncBase(snapshot.getItem(`${SYNC_BASE_PREFIX}${request.userId}`)) }) !== stableState({ base: request.base })) throw new CloudSyncAcknowledgementStaleError();
     const latest = readLocalCloudState(snapshot);
@@ -319,12 +322,12 @@ async function commitResponse(request: CloudSyncRequest, acknowledgedState: Clou
   return result;
 }
 /** Normal autosync never advances a baseline across a newly discovered same-field conflict. */
-export function commitCloudSyncResponse(request: CloudSyncRequest, acknowledgedState: CloudState) {
-  return commitResponse(request, acknowledgedState, false);
+export function commitCloudSyncResponse(request: CloudSyncRequest, acknowledgedState: CloudState, assertCallerCurrent?: () => void) {
+  return commitResponse(request, acknowledgedState, false, assertCallerCurrent);
 }
 /** Only for an explicitly reviewed dispatch; newer local actions remain pending. */
-export function commitCloudSyncResolutionResponse(request: CloudSyncRequest, acknowledgedState: CloudState) {
-  return commitResponse(request, acknowledgedState, true);
+export function commitCloudSyncResolutionResponse(request: CloudSyncRequest, acknowledgedState: CloudState, assertCallerCurrent?: () => void) {
+  return commitResponse(request, acknowledgedState, true, assertCallerCurrent);
 }
 
 /** A remote response acknowledges sentState, not edits made while it was pending. */

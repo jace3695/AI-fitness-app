@@ -15,7 +15,8 @@ import { readJsonForUpdate } from '../app/data/recordStorage.ts';
 import * as dietTime from '../lib/diet-time.ts';
 
 type Node = { type: unknown; props: Record<string, unknown> };
-type Listener = (event: { type: string; key?: string; storageArea?: unknown }) => void;
+type FixtureEvent = { type: string; key?: string; detail?: unknown; storageArea?: unknown };
+type Listener = (event: FixtureEvent) => void;
 const day = '2026-10-09', owner = 'synthetic-owner', key = plans.DIET_COMPLETED_DAYS_KEY;
 const original = { [key]: { '2001-01-02': { dietMemo: 'synthetic original' } } };
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -50,12 +51,12 @@ function sharedBrowser() {
 function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   let nextRead: { promise: Promise<void>; release: () => void } | undefined;
   const local = browser.local(id), listeners = new Map<string, Set<Listener>>(), timers = new Map<number, () => void>();
-  let timerId = 0;
+  let timerId = 0, authReads = 0;
   const win = {
     localStorage: local,
     addEventListener(name: string, callback: Listener) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name)!.add(callback); },
     removeEventListener(name: string, callback: Listener) { listeners.get(name)?.delete(callback); },
-    dispatchEvent(event: { type: string; key?: string }) { [...(listeners.get(event.type) ?? [])].forEach(callback => callback({ ...event, storageArea: local })); return true; },
+    dispatchEvent(event: FixtureEvent) { [...(listeners.get(event.type) ?? [])].forEach(callback => callback({ ...event, type: event.type, detail: event.detail, storageArea: local })); return true; },
     setInterval() { return ++timerId; }, clearInterval() {},
     setTimeout(callback: () => void) { const id = ++timerId; timers.set(id, callback); return id; }, clearTimeout(id: number) { timers.delete(id); },
   };
@@ -64,7 +65,7 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   const modules: Record<string, unknown> = {
     'react/jsx-runtime': { jsx: (type: unknown, props: Node['props']) => ({ type, props }), jsxs: (type: unknown, props: Node['props']) => ({ type, props }) },
     '../lib/supabase.ts': { supabase: null },
-    '../lib/supabase': { isSupabaseConfigured: true, supabase: { auth: { async getUser() { return { data: { user: { id: owner, email: 'synthetic@example.test' } } }; }, onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; } } } },
+    '../lib/supabase': { isSupabaseConfigured: true, supabase: { auth: { async getUser() { authReads++; return { data: { user: { id: owner, email: 'synthetic@example.test' } } }; }, onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; } } } },
     '../lib/passwordPolicy': {}, '../lib/unsavedChanges': { requestSafeReload() {} },
     'next/image': { default: () => null }, '@/lib/diet-time': dietTime,
     '@/components/useUnsavedChanges': { useUnsavedChanges() {} }, '@/app/lib/authenticatedHeaders': {},
@@ -97,6 +98,9 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   const localTransactions = load('../app/data/storageTransaction.ts') as typeof transactions;
   modules['./storageTransaction.ts'] = localTransactions;
   modules['../data/storageTransaction'] = localTransactions;
+  // The panel and proof issuer must share this realm's actual WeakMap registry.
+  const authOwner = load('../app/data/authenticatedStorageOwner.ts') as typeof import('../app/data/authenticatedStorageOwner.ts');
+  modules['../data/authenticatedStorageOwner'] = authOwner;
   // The shared owner transition now composes the real pure language boundary.
   // Load it in this tab's realm so it uses the same transaction module/locks.
   modules['./languageStorageBoundary.ts'] = load('../app/data/languageStorageBoundary.ts');
@@ -126,7 +130,10 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
   }
   const diet = mount('../app/components/DietView.tsx'), sync = mount('../app/components/CloudSyncPanel.tsx');
   const select = (id: string) => { const found = nodes(diet.render()).find(node => node.type === 'select' && node.props.id === id); assert.ok(found); return found; };
-  return { local, cloud, transactions: localTransactions, render: diet.render, status: () => textOf(sync.render()),
+  return { local, cloud, authOwner, transactions: localTransactions, render: diet.render, status: () => textOf(sync.render()),
+    get authReads() { return authReads; },
+    issueProof() { return authOwner.verifyAuthenticatedStorageOwner(local, async () => ({ data: { user: { id: owner } }, error: null }), cloud.prepareLocalCloudState); },
+    readyEvent(detail: unknown) { win.dispatchEvent(new CustomEvent(authOwner.AUTHENTICATED_STORAGE_OWNER_READY_EVENT, { detail })); },
     holdNextRead() { let release!: () => void; const promise = new Promise<void>(resolve => { release = resolve; }); nextRead = { promise, release }; return release; },
     focus() { win.dispatchEvent({ type: 'focus' }); },
     change(id: string, value: string, flushRender = true) { const tree = diet.render(); const input = select(id); (tree.props.onChangeCapture as () => void)?.(); (input.props.onChange as (event: unknown) => void)({ target: { value } }); if (flushRender) diet.render(); },
@@ -138,6 +145,27 @@ function tab(browser: ReturnType<typeof sharedBrowser>, id: string) {
     dispose() { diet.dispose(); sync.dispose(); browser.contexts.delete(id); },
   };
 }
+
+test('diet VM recovery uses its real registered proof and rejects copied, revoked and foreign-realm leases', async t => {
+  const shared = sharedBrowser(), a = tab(shared, 'A'), b = tab(shared, 'B');
+  t.after(a.dispose); t.after(b.dispose); await a.ready(); await b.ready();
+  a.local.removeItem(a.transactions.STORAGE_READY_KEY); a.event(a.transactions.STORAGE_READY_KEY);
+  assert.match(a.status(), /다른 창에서 로그인 상태가 변경되었습니다/);
+  await a.cloud.prepareLocalCloudState(owner);
+  const valid = await a.issueProof(), revoked = await a.issueProof(), foreign = await b.issueProof();
+  a.authOwner.revokeAuthenticatedStorageOwner(revoked);
+  const reads = shared.remote.reads, authReads = a.authReads;
+  for (const invalid of [{ ...valid }, revoked, foreign]) {
+    assert.throws(() => a.authOwner.assertAuthenticatedStorageOwner(invalid), { name: 'StorageSessionChangedError' });
+    a.readyEvent(invalid); await a.sync();
+    assert.equal(a.authReads, authReads); assert.equal(shared.remote.reads, reads);
+    assert.match(a.status(), /다른 창에서 로그인 상태가 변경되었습니다/);
+  }
+  a.authOwner.assertAuthenticatedStorageOwner(valid);
+  a.readyEvent(valid); await a.ready();
+  assert.equal(a.authReads, authReads + 1); assert.equal(shared.remote.reads, reads + 1);
+  assert.equal(shared.remote.writes, 0); assert.deepEqual(shared.read(), original[key]);
+});
 
 test('shipping dirty diet and cloud reader cannot roll back a peer diet save halfway through its storage batch', async t => {
   const shared = sharedBrowser(), a = tab(shared, 'A'); t.after(a.dispose); await a.ready();

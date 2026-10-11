@@ -24,7 +24,8 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, STORAGE_JOURNAL_KEY, StorageSnapshotBusyError } from "../data/storageTransaction";
+import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, readDesiredStorageOwner, readStorageSnapshot, STORAGE_JOURNAL_KEY, StorageSessionChangedError, StorageSnapshotBusyError } from "../data/storageTransaction";
+import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, assertAuthenticatedStorageOwner, type AuthenticatedStorageOwner } from "../data/authenticatedStorageOwner";
 import { requestSafeReload } from "../lib/unsavedChanges";
 import { classifyCloudSyncConflicts, createCloudSyncConflictReview, resolveCloudSyncConflictReview, CloudSyncConflictStaleError } from "../data/cloudSyncConflicts";
 import type { CloudSyncConflictReview as ConflictReview, CloudSyncConflictChoice } from "../data/cloudSyncConflicts";
@@ -37,7 +38,8 @@ function pendingCloudKeys(base: CloudState | null, local: CloudState) {
 }
 type ConflictSubmission = { review: ConflictReview; choices: CloudSyncConflictChoice[] };
 type SyncIssue = { phase: "read" | "write" | "local"; message: string };
-type AuthBinding = { userId: string | null; epoch: string | null };
+type AuthBinding = { userId: string | null; epoch: string | null; activate?: () => void };
+type SyncRegistration = { userId: string; epoch: string | null; active: boolean };
 
 type SyncStatus = "idle" | "pending" | "syncing" | "synced" | "conflict" | "error";
 
@@ -64,12 +66,19 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const cancelAuth = useRef<(() => void) | null>(null);
   const cancelSync = useRef<(() => void) | null>(null);
   const completedBinding = useRef<AuthBinding | null>(null);
-  const liveSync = useRef<{ userId: string; epoch: string | null; active: boolean } | null>(null);
+  const liveSync = useRef<SyncRegistration | null>(null);
+  const sessionRetirement = useRef<SyncRegistration | null>(null);
+  const cancelRecovery = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     let authVersion = 0;
+    const seenProofs = new WeakSet<object>();
+    const discardRecovery = () => {
+      cancelRecovery.current?.();
+      sessionRetirement.current = null;
+    };
     const applyUser = async (nextUser: User | null, version: number) => {
       if (!active || version !== authVersion) return;
       const nextId = nextUser?.id ?? null;
@@ -127,15 +136,18 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       }
     };
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      discardRecovery();
       const version = ++authVersion;
       void applyUser(session?.user ?? null, version);
     });
     cancelAuth.current = () => {
+      discardRecovery();
       authVersion += 1;
       completedBinding.current = null;
       cancelSync.current?.();
     };
     retryAuth.current = () => {
+      discardRecovery();
       const version = ++authVersion;
       completedBinding.current = null;
       cancelSync.current?.();
@@ -148,6 +160,85 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
       });
     };
+    const onOwnerReady = (event: Event) => {
+      const proof = (event as CustomEvent<AuthenticatedStorageOwner>).detail;
+      try { assertAuthenticatedStorageOwner(proof); } catch { return; }
+      // A proof seen before retirement is not saved for later replay.
+      if (seenProofs.has(proof)) return;
+      seenProofs.add(proof);
+      const retired = sessionRetirement.current;
+      // A cancelled pending effect may already have cleaned up the retired
+      // registration. Its retirement marker survives only until a real boundary.
+      if (!retired || retired.active || (liveSync.current && liveSync.current !== retired) || authUserId.current !== proof.userId
+        || retired.userId !== proof.userId || isRecordResetRunning()) return;
+      const assertProofReady = () => {
+        assertAuthenticatedStorageOwner(proof);
+        if (isRecordResetRunning() || proof.epoch !== readCloudSyncEpoch()
+          || readStorageSnapshot(window.localStorage).pending || hasStorageTransaction(window.localStorage)
+          || !isCurrentCloudSession(proof.userId, proof.epoch)) throw new StorageSessionChangedError();
+      };
+      try { assertProofReady(); } catch { return; }
+      cancelRecovery.current?.();
+      const version = ++authVersion;
+      let pending = true, activated = false;
+      let binding: AuthBinding | undefined;
+      const cancel = () => {
+        pending = false;
+        proof.signal.removeEventListener('abort', cancel);
+        if (binding && completedBinding.current === binding) completedBinding.current = null;
+        if (cancelRecovery.current === cancel) cancelRecovery.current = null;
+      };
+      const assertRecoveryCurrent = () => {
+        if (!pending || !active || version !== authVersion || sessionRetirement.current !== retired
+          || authUserId.current !== proof.userId) throw new StorageSessionChangedError();
+        assertProofReady();
+      };
+      cancelRecovery.current = cancel;
+      proof.signal.addEventListener('abort', cancel, { once: true });
+      completedBinding.current = null;
+      heldReview.current = null;
+      setConflictReview(null); setPendingKeys([]); setSyncIssue(null);
+      lastSynced.current = ""; setLastSyncedAt(null);
+      // The Gate proof only authorizes this wake. The global panel establishes
+      // independent authority with its own fresh lookup, never callback data.
+      void supabase!.auth.getUser().then(verified => {
+        assertRecoveryCurrent();
+        if (verified.error || verified.data.user?.id !== proof.userId) throw new Error("로그인 상태를 확인하지 못했습니다. 다시 시도하여 계정을 확인해 주세요.");
+        binding = { userId: proof.userId, epoch: proof.epoch, activate: () => {
+          if (activated) return;
+          assertRecoveryCurrent();
+          if (completedBinding.current !== binding) throw new StorageSessionChangedError();
+          // This synchronous handoff is the last use of the page-scoped proof.
+          // Later navigation may revoke it without retiring the global panel.
+          activated = true;
+          pending = false;
+          proof.signal.removeEventListener('abort', cancel);
+          if (cancelRecovery.current === cancel) cancelRecovery.current = null;
+          sessionRetirement.current = null;
+        } };
+        authEpoch.current = proof.epoch;
+        completedBinding.current = binding;
+        setAuthBinding(binding);
+        setUser(verified.data.user);
+      }).catch(error => {
+        if (active && version === authVersion && pending) {
+          setStatus("error");
+          setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
+        }
+        cancel();
+      });
+    };
+    const onRecoveryBoundary = () => {
+      if (!sessionRetirement.current) return;
+      try {
+        if (readDesiredStorageOwner(window.localStorage)?.userId !== sessionRetirement.current.userId) discardRecovery();
+      } catch { discardRecovery(); }
+    };
+    // Reset events fence a pending proof even if reset finishes before auth does.
+    window.addEventListener(RECORD_RESET_EVENT, discardRecovery);
+    window.addEventListener(CLOUD_SESSION_CHANGED_EVENT, onRecoveryBoundary);
+    window.addEventListener('storage', onRecoveryBoundary);
+    window.addEventListener(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, onOwnerReady);
     // A delayed initial lookup cannot undo a subsequent sign-out/sign-in event.
     const initialVersion = authVersion;
     void supabase.auth.getUser().then(({ data, error }) => {
@@ -158,11 +249,24 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
     });
-    return () => { active = false; completedBinding.current = null; cancelAuth.current = null; retryAuth.current = null; data.subscription.unsubscribe(); };
+    return () => {
+      active = false; discardRecovery(); completedBinding.current = null; cancelAuth.current = null; retryAuth.current = null; data.subscription.unsubscribe();
+      window.removeEventListener(RECORD_RESET_EVENT, discardRecovery);
+      window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onRecoveryBoundary);
+      window.removeEventListener('storage', onRecoveryBoundary);
+      window.removeEventListener(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, onOwnerReady);
+    };
   }, []);
 
   useEffect(() => {
     if (!userId || !supabase || authBinding.userId !== userId || completedBinding.current !== authBinding) return;
+    try { authBinding.activate?.(); }
+    catch (error) {
+      cancelRecovery.current?.();
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
+      return;
+    }
     let active = true;
     let syncing = false;
     let refreshRequested = false;
@@ -184,10 +288,14 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       setConflictReview(null);
       submitConflicts.current = null;
     };
-    cancelSync.current = stop;
+    const cancel = () => { sessionRetirement.current = null; stop(); };
+    cancelSync.current = cancel;
     const onSessionChange = () => {
       if (!active || isCurrentCloudSession(userId, epoch)) return;
       stop();
+      // A genuine different owner or sign-out is never an automatic recovery.
+      try { if (readDesiredStorageOwner(window.localStorage)?.userId === userId) sessionRetirement.current = registration; }
+      catch { /* Unavailable or corrupt storage stays explicitly blocked. */ }
       setStatus("error");
       setMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 시도하여 계정을 확인해 주세요.");
     };
@@ -220,7 +328,8 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         : "같은 항목의 변경을 선택할 때까지 서버 반영을 보류합니다.");
     };
     const sync = async (submission?: ConflictSubmission) => {
-      if (syncing || !active || !isCurrentCloudSession(userId, epoch) || isRecordResetRunning()) return;
+      if (syncing || !active || signal.aborted || liveSync.current !== registration || completedBinding.current !== authBinding
+        || !isCurrentCloudSession(userId, epoch) || isRecordResetRunning()) return;
       if (submission && heldReview.current !== submission.review) return;
       if (transactionPending()) {
         deferTransaction();
@@ -228,6 +337,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       }
       const version = resetVersion;
       const cancelled = () => !active || !isCurrentCloudSession(userId, epoch)
+        || signal.aborted || liveSync.current !== registration || completedBinding.current !== authBinding
         || version !== resetVersion || isRecordResetRunning();
       const interrupted = () => {
         if (cancelled()) return true;
@@ -305,9 +415,10 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
         // Reconcile fresh local edits and advance the acknowledged base in the
         // same guarded transaction, including the remote-only/initial branches.
         phase = "local";
+        const assertCallerCurrent = () => { if (cancelled()) throw new StorageSessionChangedError(); };
         const committed = explicitResolution
-          ? await commitCloudSyncResolutionResponse(request, acknowledged)
-          : await commitCloudSyncResponse(request, acknowledged);
+          ? await commitCloudSyncResolutionResponse(request, acknowledged, assertCallerCurrent)
+          : await commitCloudSyncResponse(request, acknowledged, assertCallerCurrent);
         if (cancelled()) return;
         clearReview();
         reviewInvalidatedByWrite = false;
@@ -405,7 +516,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     window.addEventListener("focus", onFocus);
     return () => {
       stop();
-      if (cancelSync.current === stop) cancelSync.current = null;
+      if (cancelSync.current === cancel) cancelSync.current = null;
       if (liveSync.current === registration) liveSync.current = null;
       window.removeEventListener(CLOUD_SESSION_CHANGED_EVENT, onSessionChange);
       window.removeEventListener(RECORD_RESET_EVENT, onReset);

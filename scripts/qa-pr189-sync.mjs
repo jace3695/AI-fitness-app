@@ -173,10 +173,11 @@ async function createDevice(server, seed = {}) {
   }
   const client = server.client();
   const authCallbacks = new Set();
+  let authReads = 0;
   let initialAuth = Promise.resolve({ data: { user: { id: 'fixture-user' } } });
   client.auth = {
     signOut: async () => ({ error: null }),
-    getUser: () => initialAuth,
+    getUser: () => { authReads++; return initialAuth; },
     onAuthStateChange: callback => {
       authCallbacks.add(callback);
       return { data: { subscription: { unsubscribe: () => authCallbacks.delete(callback) } } };
@@ -195,7 +196,7 @@ async function createDevice(server, seed = {}) {
     queueMicrotask, crypto, Error, navigator: { locks }, Date: FixtureDate });
   client.deserialize = value => vm.runInContext('JSON.parse', context)(JSON.stringify(value));
   const cache = new Map();
-  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/languageStorageBoundary.ts', 'app/data/cloudSyncConflicts.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
+  const allowed = new Set(['app/data/cloudSync.ts', 'app/data/languageStorageBoundary.ts', 'app/data/cloudSyncConflicts.ts', 'app/data/appRecordReset.ts', 'app/data/storageTransaction.ts', 'app/data/authenticatedStorageOwner.ts', 'app/data/workoutCompletion.ts', 'app/data/dietPlans.ts']);
   function load(path) {
     if (cache.has(path)) return cache.get(path);
     assert.ok(allowed.has(path), `Unexpected module ${path}`);
@@ -217,6 +218,7 @@ async function createDevice(server, seed = {}) {
   const conflicts = load('app/data/cloudSyncConflicts.ts');
   const reset = load('app/data/appRecordReset.ts');
   const events = load('app/data/storageTransaction.ts');
+  const authOwner = load('app/data/authenticatedStorageOwner.ts');
   const workouts = load('app/data/workoutCompletion.ts');
   const panelPath = 'app/components/CloudSyncPanel.tsx';
   const source = readFileSync(resolve(root, panelPath), 'utf8');
@@ -248,8 +250,9 @@ async function createDevice(server, seed = {}) {
   const refs = { lastSynced: { current: '' }, syncing: { current: false },
     authUserId: { current: null }, authEpoch: { current: null }, cancelSync: { current: null },
     completedBinding: { current: null }, liveSync: { current: null }, cancelAuth: { current: null },
+    sessionRetirement: { current: null }, cancelRecovery: { current: null },
     heldReview: { current: null }, submitConflicts: { current: null } };
-  Object.assign(context, cloud, conflicts, reset, events, refs, {
+  Object.assign(context, cloud, conflicts, reset, events, authOwner, refs, {
     migrateLegacyWorkoutWeekdays: workouts.migrateLegacyWorkoutWeekdays,
     user: null, userId: undefined, supabase: client,
     syncRequest: 0, authRevision: 0, authBinding: { userId: null, epoch: null }, retryAuth: { current: null },
@@ -284,7 +287,10 @@ async function createDevice(server, seed = {}) {
   // synchronizer survives Next.js client navigation; full unmount still cleans up.
   const rootOwnsSync = /<CloudSyncPanel\b/.test(readFileSync(resolve(root, 'app/layout.tsx'), 'utf8'));
   return {
-    cloud, window, storage,
+    cloud, window, storage, authOwner, events,
+    get authReads() { return authReads; },
+    issueProof: () => authOwner.verifyAuthenticatedStorageOwner(storage, async () => ({ data: { user: { id: 'fixture-user' } }, error: null }), cloud.prepareLocalCloudState),
+    readyEvent: proof => window.dispatchEvent(new CustomEvent(authOwner.AUTHENTICATED_STORAGE_OWNER_READY_EVENT, { detail: proof })),
     holdLocalLock: () => {
       const arrived = deferred(), release = deferred();
       void locks.request('yeoni-shared-local-storage-v2', { mode: 'exclusive' }, () => { arrived.resolve(); return release.promise; });
@@ -425,6 +431,31 @@ async function check(name, body) {
   try { await body(); cases.push({ name, result: 'PASS' }); }
   catch (error) { cases.push({ name, result: 'FAIL', detail: error.message }); }
 }
+
+await check('VM owner proof: copied, revoked and foreign leases fail; registered proof starts one fresh authenticated loop', async () => {
+  const server = new FakeServer(), device = await createDevice(server), foreignDevice = await createDevice(new FakeServer());
+  try {
+    await device.mount(); assert.equal(device.status, 'synced');
+    device.storage.removeItem(device.events.STORAGE_READY_KEY);
+    device.window.dispatchEvent(new Event(device.cloud.CLOUD_SESSION_CHANGED_EVENT));
+    assert.equal(device.status, 'error');
+    await device.cloud.prepareLocalCloudState('fixture-user');
+    const valid = await device.issueProof(), revoked = await device.issueProof(), foreign = await foreignDevice.issueProof();
+    device.authOwner.revokeAuthenticatedStorageOwner(revoked);
+    const reads = server.requests.length, authReads = device.authReads;
+    for (const invalid of [{ ...valid }, revoked, foreign]) {
+      assert.throws(() => device.authOwner.assertAuthenticatedStorageOwner(invalid), { name: 'StorageSessionChangedError' });
+      device.readyEvent(invalid); await device.commitAuth();
+      assert.equal(device.authReads, authReads); assert.equal(server.requests.length, reads);
+      assert.equal(device.status, 'error');
+    }
+    device.authOwner.assertAuthenticatedStorageOwner(valid);
+    device.readyEvent(valid); await device.commitAuth();
+    assert.equal(device.authReads, authReads + 1); assert.equal(server.requests.length, reads + 1);
+    assert.equal(device.status, 'synced'); expectState(device.read(), fixture, 'Proof recovery changed original records');
+    assert.equal(server.requests.filter(request => request.method === 'POST').length, 0);
+  } finally { device.unmount(); foreignDevice.unmount(); }
+});
 
 await check('로그아웃·재로그인: 합성 원본 17개 키 보존, 로그인 직후 빈 PATCH 없음', async () => {
   const original = { ...copy(fixture), ...Object.fromEntries(Array.from({ length: 15 }, (_, i) => [`ai-fitness-fixture-${i}`, { value: i }])) };
