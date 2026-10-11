@@ -24,10 +24,11 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { strongPasswordError } from "../lib/passwordPolicy";
 import { isRecordResetRunning, RECORD_RESET_EVENT, RECORD_RESET_APPS, resetMarkerKey } from "../data/appRecordReset";
 
-import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, readDesiredStorageOwner, readStorageSnapshot, STORAGE_JOURNAL_KEY, StorageSessionChangedError, StorageSnapshotBusyError } from "../data/storageTransaction";
+import { CLOUD_RECORDS_REFRESH_EVENT, RECORDS_CHANGED_EVENT, hasStorageTransaction, readDesiredStorageOwner, readStorageSnapshot, STORAGE_JOURNAL_KEY, STORAGE_LOCK_NAME, requireStorageLocks, StorageSessionChangedError, StorageSnapshotBusyError, type StorageOwnerToken } from "../data/storageTransaction";
 import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT,
   assertAuthenticatedStorageOwner, assertAuthenticatedStorageOwnerRecheckProof, cancelAuthenticatedStorageOwnerRecheck,
   consumeAuthenticatedStorageOwnerRecheck, createAuthenticatedStorageOwnerRecheck, isRequestedAuthenticatedStorageOwnerProof, type AuthenticatedStorageOwner, type AuthenticatedStorageOwnerRecheck } from "../data/authenticatedStorageOwner";
+import { emitOwnerSyncDiagnostic, classifyOwnerSyncDiagnosticFailure } from "../data/ownerSyncDiagnostics";
 import { requestSafeReload } from "../lib/unsavedChanges";
 import { classifyCloudSyncConflicts, createCloudSyncConflictReview, resolveCloudSyncConflictReview, CloudSyncConflictStaleError } from "../data/cloudSyncConflicts";
 import type { CloudSyncConflictReview as ConflictReview, CloudSyncConflictChoice } from "../data/cloudSyncConflicts";
@@ -72,7 +73,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
   const liveSync = useRef<SyncRegistration | null>(null);
   const sessionRetirement = useRef<SyncRegistration | null>(null);
   const cancelRecovery = useRef<(() => void) | null>(null);
-  const requestOwnerRecheck = useRef<((retired: SyncRegistration) => void) | null>(null);
+  const requestOwnerRecheck = useRef<((retired: SyncRegistration, target: StorageOwnerToken) => void) | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -80,9 +81,15 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     let authVersion = 0;
     const seenProofs = new WeakSet<object>();
     let recheck: AuthenticatedStorageOwnerRecheck | null = null;
-    let recheckTimer: ReturnType<typeof setTimeout> | undefined;
+    type Observation = { retired: SyncRegistration; target: StorageOwnerToken; version: number; controller: AbortController;
+      request: AuthenticatedStorageOwnerRecheck | null; timer?: ReturnType<typeof setTimeout> };
+    let observation: Observation | null = null;
     const discardRecheck = () => {
-      clearTimeout(recheckTimer); recheckTimer = undefined;
+      const queued = observation; observation = null;
+      if (queued) {
+        emitOwnerSyncDiagnostic('panel', 'observation-cancelled', { failure: 'aborted' });
+        clearTimeout(queued.timer); queued.controller.abort();
+      }
       const pending = recheck; recheck = null;
       cancelAuthenticatedStorageOwnerRecheck(pending);
     };
@@ -91,18 +98,49 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       cancelRecovery.current?.();
       sessionRetirement.current = null;
     };
-    requestOwnerRecheck.current = retired => {
-      if (retired.budget.used) return;
+    const assertObservationCurrent = (pending: Observation) => {
+      const retired = pending.retired, desired = readDesiredStorageOwner(window.localStorage);
+      // While queued, peer writes may still be in progress. Only identity and
+      // lifecycle fence this wait; coherent readiness is checked under the lock.
+      if (!active || observation !== pending || pending.controller.signal.aborted || pending.version !== authVersion
+        || sessionRetirement.current !== retired || retired.active || (liveSync.current && liveSync.current !== retired)
+        || authUserId.current !== retired.userId || isRecordResetRunning()
+        || desired?.userId !== pending.target.userId || desired.epoch !== pending.target.epoch) throw new StorageSessionChangedError();
+    };
+    requestOwnerRecheck.current = (retired, target) => {
+      if (retired.budget.used) { emitOwnerSyncDiagnostic('panel', 'observation-refused', { outcome: 'seen' }); return; }
       retired.budget.used = true;
-      // One deferred observation, not a polling retry or storage-derived proof.
-      // Missing readiness leaves normal auth/preparation in charge.
-      recheckTimer = setTimeout(() => {
-        recheckTimer = undefined;
-        if (!active || sessionRetirement.current !== retired || retired.active
-          || (liveSync.current && liveSync.current !== retired) || authUserId.current !== retired.userId) return;
-        try { recheck = createAuthenticatedStorageOwnerRecheck(window.localStorage, retired, retired); }
-        catch { return; }
-        window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, { detail: recheck }));
+      // Capture the already-desired same-owner target and cancellation before
+      // yielding. The stopped loop's old epoch never becomes new authority.
+      const pending: Observation = { retired, target: Object.freeze({ ...target }), version: authVersion,
+        controller: new AbortController(), request: null };
+      observation = pending;
+      emitOwnerSyncDiagnostic('panel', 'observation-queued');
+      pending.timer = setTimeout(() => {
+        pending.timer = undefined;
+        void (async () => {
+          try {
+            assertObservationCurrent(pending);
+            await requireStorageLocks().request(STORAGE_LOCK_NAME, { mode: 'shared', signal: pending.controller.signal }, () => {
+              assertObservationCurrent(pending);
+              emitOwnerSyncDiagnostic('panel', 'observation-acquired');
+              // One read-only observation, no preparation, recovery or network.
+              pending.request = createAuthenticatedStorageOwnerRecheck(window.localStorage, pending.target, retired);
+              recheck = pending.request;
+            });
+            // Callback return is not native lock release. Await the outer promise
+            // before dispatch, and fence cancellation even after a granted lock.
+            assertObservationCurrent(pending);
+            if (!pending.request || recheck !== pending.request) throw new StorageSessionChangedError();
+            observation = null;
+            emitOwnerSyncDiagnostic('panel', 'request-dispatched');
+            window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, { detail: pending.request }));
+          } catch (error) {
+            emitOwnerSyncDiagnostic('panel', 'observation-refused', { failure: pending.controller.signal.aborted ? 'aborted' : classifyOwnerSyncDiagnosticFailure(error) });
+            // A late cancelled acquisition cannot clear a newer request/binding.
+            if (observation === pending || (pending.request && recheck === pending.request)) discardRecheck();
+          }
+        })();
       }, 0);
     };
     const applyUser = async (nextUser: User | null, version: number) => {
@@ -187,15 +225,20 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       });
     };
     const recoverOwner = (proof: AuthenticatedStorageOwner, request?: AuthenticatedStorageOwnerRecheck): boolean => {
-      try { assertAuthenticatedStorageOwner(proof); } catch { return false; }
+      const kind = request ? 'correlated' : 'ordinary';
+      try { assertAuthenticatedStorageOwner(proof); }
+      catch (error) { emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'invalid', failure: classifyOwnerSyncDiagnosticFailure(error) }); return false; }
       // A proof seen before retirement is not saved for later replay.
-      if (seenProofs.has(proof)) return false;
+      if (seenProofs.has(proof)) { emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'seen' }); return false; }
       seenProofs.add(proof);
       const retired = sessionRetirement.current;
       // A cancelled pending effect may already have cleaned up the retired
       // registration. Its retirement marker survives only until a real boundary.
-      if (!retired || retired.active || (liveSync.current && liveSync.current !== retired) || authUserId.current !== proof.userId
-        || retired.userId !== proof.userId || isRecordResetRunning()) return false;
+      if (!retired) { emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'no-retirement' }); return false; }
+      if (retired.active || (liveSync.current && liveSync.current !== retired) || authUserId.current !== proof.userId
+        || retired.userId !== proof.userId || isRecordResetRunning()) {
+        emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'wrong-current-binding' }); return false;
+      }
       const assertProofReady = () => {
         if (request) assertAuthenticatedStorageOwnerRecheckProof(request, proof, window.localStorage, retired);
         assertAuthenticatedStorageOwner(proof);
@@ -203,13 +246,16 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           || readStorageSnapshot(window.localStorage).pending || hasStorageTransaction(window.localStorage)
           || !isCurrentCloudSession(proof.userId, proof.epoch)) throw new StorageSessionChangedError();
       };
-      try { assertProofReady(); } catch { return false; }
+      try { assertProofReady(); }
+      catch (error) { emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'invalid', failure: classifyOwnerSyncDiagnosticFailure(error) }); return false; }
+      emitOwnerSyncDiagnostic('panel', 'proof-received', { proof: kind, outcome: 'accepted' });
       if (!request) discardRecheck();
       cancelRecovery.current?.();
       const version = ++authVersion;
       let pending = true, activated = false;
       let binding: AuthBinding | undefined;
       const cancel = () => {
+        if (pending) emitOwnerSyncDiagnostic('panel', 'recovery-cancelled');
         pending = false;
         proof.signal.removeEventListener('abort', cancel);
         request?.signal.removeEventListener('abort', cancel);
@@ -231,6 +277,7 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       lastSynced.current = ""; setLastSyncedAt(null);
       // The Gate proof only authorizes this wake. The global panel establishes
       // independent authority with its own fresh lookup, never callback data.
+      emitOwnerSyncDiagnostic('panel', 'panel-auth-started');
       void supabase!.auth.getUser().then(verified => {
         assertRecoveryCurrent();
         if (verified.error || verified.data.user?.id !== proof.userId) throw new Error("로그인 상태를 확인하지 못했습니다. 다시 시도하여 계정을 확인해 주세요.");
@@ -250,12 +297,15 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
           }
           if (cancelRecovery.current === cancel) cancelRecovery.current = null;
           sessionRetirement.current = null;
+          emitOwnerSyncDiagnostic('panel', 'binding-activated');
         } };
         authEpoch.current = proof.epoch;
         completedBinding.current = binding;
         setAuthBinding(binding);
         setUser(verified.data.user);
+        emitOwnerSyncDiagnostic('panel', 'binding-published');
       }).catch(error => {
+        emitOwnerSyncDiagnostic('panel', 'panel-auth-refused', { failure: classifyOwnerSyncDiagnosticFailure(error) });
         if (active && version === authVersion && pending) {
           setStatus("error");
           setMessage(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
@@ -277,6 +327,9 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
     const onRecoveryBoundary = () => {
       if (!sessionRetirement.current) return;
       try {
+        if (observation) {
+          try { assertObservationCurrent(observation); } catch { discardRecheck(); }
+        }
         if (recheck && readCloudSyncEpoch() !== recheck.epoch) discardRecheck();
         if (readDesiredStorageOwner(window.localStorage)?.userId !== sessionRetirement.current.userId) discardRecovery();
       } catch { discardRecovery(); }
@@ -343,11 +396,18 @@ export default function CloudSyncPanel({ hideSignedOut = false }: { hideSignedOu
       if (!active || isCurrentCloudSession(userId, epoch)) return;
       stop();
       // A genuine different owner or sign-out is never an automatic recovery.
-      try { if (readDesiredStorageOwner(window.localStorage)?.userId === userId) {
-        sessionRetirement.current = registration;
-        requestOwnerRecheck.current?.(registration);
-      } }
-      catch { /* Unavailable or corrupt storage stays explicitly blocked. */ }
+      try {
+        const desired = readDesiredStorageOwner(window.localStorage);
+        emitOwnerSyncDiagnostic('panel', 'retired', {
+          ownerRelation: !desired?.userId ? 'no-owner' : desired.userId === userId ? 'same-owner' : 'different-owner',
+          epochRelation: !desired ? 'unavailable' : desired.epoch === epoch ? 'same-as-loop' : 'different-from-loop',
+        });
+        if (desired?.userId === userId) {
+          sessionRetirement.current = registration;
+          requestOwnerRecheck.current?.(registration, desired);
+        }
+      }
+      catch { emitOwnerSyncDiagnostic('panel', 'retired', { ownerRelation: 'unavailable', epochRelation: 'unavailable' }); }
       setStatus("error");
       setMessage("다른 창에서 로그인 상태가 변경되었습니다. 다시 시도하여 계정을 확인해 주세요.");
     };

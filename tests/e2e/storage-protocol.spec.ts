@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect, login, synced, localState, original, assertOriginalPreserved, today, isSharedSyncWrite, mealMemo, mealSaved } from './fixture';
 import { reauthenticateFixtureAccount } from './fixture-account-auth';
 import { failureLabel } from './navigation-diagnostics';
-import { ownerSwitchDiagnostic, type OwnerSwitchPhase } from './owner-switch-diagnostics';
+import { installOwnerSyncDiagnostics, ownerSwitchDiagnostic, type OwnerSwitchPhase } from './owner-switch-diagnostics';
 import { installOwnerRecheckHarness, triggerOwnerRecheck, holdFreshOwnerVerification, assertRecheckBytesUnchanged } from './owner-recheck-harness';
 
 // Authored acceptance for the disposable local Supabase fixture only. These
@@ -113,6 +113,7 @@ test('real shared Web Lock serializes two tabs without losing independent diet e
 });
 
 test('queued owner A edit cannot enter owner B after a real sign-out and login transition', async ({ page, context, qa }) => {
+  await installOwnerSyncDiagnostics(context);
   const other = await qa.createAccount();
   const otherState = { ...original, [DIET]: { ...(original[DIET] as object), [today()]: { dietMemo: 'CI owner B only', hunger: 'no' } } };
   expect((await other.client.from('user_app_state').update({ state: otherState }).eq('user_id', other.id)).error).toBeNull();

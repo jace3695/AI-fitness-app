@@ -55,6 +55,35 @@ const ownerSwitch = data => ({
   probe: choice(data.probe, ['unavailable']),
   failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
 });
+const ownerSyncLifecycleEnums = {
+  component: ['panel', 'gate'],
+  stage: ['retired', 'observation-queued', 'observation-acquired', 'observation-refused', 'observation-cancelled',
+    'request-dispatched', 'proof-received', 'panel-auth-started', 'panel-auth-refused', 'binding-published', 'binding-activated',
+    'recovery-cancelled', 'ordinary-proof-published', 'request-claimed', 'request-refused', 'gate-auth-started',
+    'gate-auth-refused', 'pin-refused', 'requested-proof-published', 'request-cancelled'],
+  ownerRelation: ['same-owner', 'different-owner', 'no-owner', 'unavailable'],
+  epochRelation: ['same-as-loop', 'different-from-loop', 'unavailable'],
+  failure: ['snapshot-busy', 'session-changed', 'corrupt', 'locks-unavailable', 'aborted', 'other'],
+  proof: ['ordinary', 'correlated'],
+  outcome: ['accepted', 'seen', 'no-retirement', 'wrong-current-binding', 'invalid'],
+  reason: ['auth-callback', 'manual-retry', 'signout', 'reset', 'epoch-or-owner', 'unmount', 'superseded', 'other'],
+};
+const ownerSyncLifecycleEvent = data => {
+  if (!data || Array.isArray(data) || typeof data !== 'object' || count(data.index) === null || data.index < 1
+    || !ownerSyncLifecycleEnums.component.includes(data.component) || !ownerSyncLifecycleEnums.stage.includes(data.stage)) return [];
+  const result = { index: data.index, component: data.component, stage: data.stage };
+  for (const key of ['ownerRelation', 'epochRelation', 'failure', 'proof', 'outcome', 'reason']) {
+    if (typeof data[key] === 'string' && ownerSyncLifecycleEnums[key].includes(data[key])) result[key] = data[key];
+  }
+  if (count(data.retirementIndex) !== null && data.retirementIndex >= 1) result.retirementIndex = data.retirementIndex;
+  return [result];
+};
+const ownerSyncLifecycle = data => ({
+  phase: choice(data.phase, ['owner-a-ready', 'holder-a-ready', 'lock-held', 'edit-queued', 'signout-clicked', 'owner-cleared', 'lock-released', 'signed-out', 'before-b-login', 'after-b-login', 'owner-b-ready', 'isolation-verified', 'before-reload', 'after-reload', 'complete']),
+  tab: choice(data.tab, ['first', 'holder']), failed: bit(data.failed),
+  events: Array.isArray(data.events) ? data.events.slice(0, 8).flatMap(ownerSyncLifecycleEvent) : [],
+  dropped: count(data.dropped), probe: choice(data.probe, ['unavailable']),
+});
 const basicsReset = data => ({
   phase: choice(data.phase, ['armed', 'before-save', 'save-clicked', 'marker-get-confirmed', 'reset-confirmed', 'rpc-rejected', 'rejection-visible', 'pending-preserved', 'records-empty', 'before-reload', 'after-reload', 'ready-after-reload', 'complete', 'failure']),
   event: choice(data.event, ['milestone', 'document-request', 'document-response', 'frame-navigated', 'dom-content-loaded', 'load', 'auth-request', 'marker-request', 'progress-request', 'auth-response', 'marker-response', 'progress-response']),
@@ -73,7 +102,7 @@ const routeContinue = data => ({
   requestFailure: choice(data.requestFailure, ['none', 'unavailable', 'webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
   ...fields(data, ['pageClosed', 'navigationRequest', 'mainFrame', 'frameDetached'], bit),
 });
-const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_BASICS_RESET_BOUNDARY: basicsReset, QA_ROUTINE_RECOVERY_PHASE: routineRecovery, QA_ROUTE_CONTINUE_FAILURE: routeContinue };
+const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_OWNER_SYNC_LIFECYCLE: ownerSyncLifecycle, QA_BASICS_RESET_BOUNDARY: basicsReset, QA_ROUTINE_RECOVERY_PHASE: routineRecovery, QA_ROUTE_CONTINUE_FAILURE: routeContinue };
 export function projectStateDiagnostic(line) {
   if (typeof line !== 'string' || line.length > 8192) return null;
   const delimiter = line.indexOf(' '), prefix = line.slice(0, delimiter);

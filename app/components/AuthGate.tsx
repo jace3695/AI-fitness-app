@@ -7,6 +7,7 @@ import { CLOUD_SESSION_CHANGED_EVENT, clearLocalCloudState, isCurrentCloudSessio
 import { AUTHENTICATED_STORAGE_OWNER_READY_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_EVENT, AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT,
   assertAuthenticatedStorageOwnerRecheck, claimAuthenticatedStorageOwnerRecheck, registerAuthenticatedStorageOwnerRecheckProof, cancelAuthenticatedStorageOwnerRecheck,
   AuthenticatedStorageOwnerUnavailableError, revokeAuthenticatedStorageOwner, verifyAuthenticatedStorageOwner, type AuthenticatedStorageOwner, type AuthenticatedStorageOwnerRecheck } from "../data/authenticatedStorageOwner.ts";
+import { emitOwnerSyncDiagnostic, classifyOwnerSyncDiagnosticFailure } from "../data/ownerSyncDiagnostics.ts";
 import { RECORD_RESET_EVENT } from "../data/appRecordReset.ts";
 import { AuthenticatedStorageOwnerProvider } from "./AuthenticatedStorageOwner.tsx";
 import {
@@ -143,6 +144,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setAuthCheckError(false); setLoading(false);
       // Never serialize this proof or emit from callback session data. The
       // global panel may use this completed verification as a one-shot wake.
+      emitOwnerSyncDiagnostic('gate', 'ordinary-proof-published');
       window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_READY_EVENT, { detail: lease }));
     };
     const initializeAuth = async () => {
@@ -195,7 +197,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       // Readiness must already be complete before this can supersede a normal
       // pending preparer. A request cannot repair, adopt or write any epoch.
       try { claimAuthenticatedStorageOwnerRecheck(request, window.localStorage); }
-      catch { return; }
+      catch (error) { emitOwnerSyncDiagnostic('gate', 'request-refused', { failure: classifyOwnerSyncDiagnosticFailure(error) }); return; }
+      emitOwnerSyncDiagnostic('gate', 'request-claimed');
       const preserve = editorDisplayedRef.current && confirmedUserId === request.userId && ownerLeaseRef.current?.epoch === request.epoch
         && ownerLeaseRef.current.isCurrent();
       const version = ++authVersion;
@@ -213,6 +216,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         if (cancelRecheck === cancel) cancelRecheck = undefined;
       };
       const cancel = () => {
+        emitOwnerSyncDiagnostic('gate', 'request-cancelled');
         detach();
         cancelAuthenticatedStorageOwnerRecheck(request);
         if (!current(version, signal)) return;
@@ -228,6 +232,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       void (async () => {
         let verifiedUser: User | null = null, lease: AuthenticatedStorageOwner | null = null;
         try {
+          emitOwnerSyncDiagnostic('gate', 'gate-auth-started');
           lease = await verifyAuthenticatedStorageOwner(window.localStorage, async () => {
             const result = await authClient.auth.getUser();
             assertReady();
@@ -241,6 +246,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             assertReady();
             if (configured && !isPinSessionUnlocked(id)) {
               setUser(verifiedUser); setPinRequired(true); setBiometricEnabled(hasDeviceBiometric(id));
+              emitOwnerSyncDiagnostic('gate', 'pin-refused');
               throw new DevicePinRequiredError();
             }
           });
@@ -252,8 +258,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           confirmedUserId = request.userId; confirmedEpoch = request.epoch; confirming = false;
           confirmedSignOutRef.current = false;
           setAuthCheckError(false); setLoading(false);
+          emitOwnerSyncDiagnostic('gate', 'requested-proof-published');
           window.dispatchEvent(new CustomEvent(AUTHENTICATED_STORAGE_OWNER_RECHECK_READY_EVENT, { detail: { request, proof: lease } }));
         } catch (error) {
+          emitOwnerSyncDiagnostic('gate', 'gate-auth-refused', { failure: classifyOwnerSyncDiagnosticFailure(error) });
           if (lease) revokeAuthenticatedStorageOwner(lease);
           detach(); cancelAuthenticatedStorageOwnerRecheck(request);
           failed(version, signal, error);

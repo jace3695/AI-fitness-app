@@ -6,6 +6,7 @@ import ts from 'typescript';
 import { failureLabel } from './e2e/navigation-diagnostics.ts';
 import { projectStateDiagnostic } from '../scripts/qa-state-diagnostics.mjs';
 import * as transactions from '../app/data/storageTransaction.ts';
+import * as ownerSyncDiagnostics from '../app/data/ownerSyncDiagnostics.ts';
 
 const source = readFileSync(new URL('./e2e/owner-switch-diagnostics.ts', import.meta.url), 'utf8');
 function fixture(owner: 'A' | 'B' | null = 'A') {
@@ -27,6 +28,7 @@ function fixture(owner: 'A' | 'B' | null = 'A') {
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   vm.runInNewContext(`(function(exports, require) { ${compiled}\n})`, {
     Error,
+    window: {},
     console: { log(message: string) { messages.push(message); } },
     localStorage: values,
     navigator: { locks: { async query() { return { held: [{ name: 'yeoni-shared-local-storage-v2' }, { name: 'PRIVATE_OTHER_LOCK' }], pending: [{ name: 'yeoni-shared-local-storage-v2' }] }; } } },
@@ -38,6 +40,7 @@ function fixture(owner: 'A' | 'B' | null = 'A') {
     },
   })(exports, (name: string) => {
     if (name === '../../app/data/storageTransaction') return transactions;
+    if (name === '../../app/data/ownerSyncDiagnostics') return ownerSyncDiagnostics;
     assert.equal(name, './navigation-diagnostics'); return { failureLabel };
   });
   const run = exports.ownerSwitchDiagnostic as (page: unknown, phase: string, refs: unknown, tab?: string, failed?: boolean) => Promise<void>;
@@ -45,7 +48,7 @@ function fixture(owner: 'A' | 'B' | null = 'A') {
   const page = { evaluate: async (read: (args: unknown) => unknown, args: unknown) => read(args) };
   return { env, values, messages, page,
     run: (phase = 'owner-b-ready', failed = false) => run(page, phase, { ownerA, ownerB, stateA, stateB, traffic: { entries } }, 'first', failed),
-    result() { assert.equal(messages.length, 1); assert.doesNotMatch(messages[0], /PRIVATE|2001-01-02/); return JSON.parse(messages[0].slice('QA_OWNER_SWITCH_STATE '.length)); },
+    result() { const state = messages.filter(message => message.startsWith('QA_OWNER_SWITCH_STATE ')); assert.equal(state.length, 1); assert.doesNotMatch(messages.join('\n'), /PRIVATE|2001-01-02/); return JSON.parse(state[0].slice('QA_OWNER_SWITCH_STATE '.length)); },
   };
 }
 

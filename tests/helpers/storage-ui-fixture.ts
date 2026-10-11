@@ -42,18 +42,41 @@ export function storageBrowser(initial: Record<string, string> = {}) {
   let maxActive = 0;
   const calls: { name: string; mode: string }[] = [];
   const writes: { document: string; key: string; value: string | null }[] = [];
-  const locks = { request<T>(name: string, options: { mode: string }, callback: () => T | Promise<T>): Promise<T> {
+  const lockRequests: { name: string; mode: string; signal?: AbortSignal; granted: boolean; cancelled: boolean; callbackReturned: boolean; released: boolean }[] = [];
+  const sharedReleaseHolds: ReturnType<typeof deferred<void>>[] = [];
+  const locks = { request<T>(name: string, options: { mode: string; signal?: AbortSignal }, callback: () => T | Promise<T>): Promise<T> {
     calls.push({ name, mode: options.mode });
+    const record = { name, mode: options.mode, signal: options.signal, granted: false, cancelled: false, callbackReturned: false, released: false };
+    lockRequests.push(record);
     const failure = lockFailure; lockFailure = undefined;
+    const result = deferred<T>();
+    const abort = () => {
+      // Native queued cancellation rejects immediately and never invokes the
+      // callback. Once granted, abort no longer releases the held lock.
+      if (record.granted || record.cancelled) return;
+      record.cancelled = true;
+      options.signal?.removeEventListener('abort', abort);
+      result.reject(new Error('synthetic queued lock aborted'));
+    };
+    options.signal?.addEventListener('abort', abort, { once: true });
+    if (options.signal?.aborted) abort();
     const operation = (tails.get(name) ?? Promise.resolve()).catch(() => {}).then(async () => {
-      if (failure) throw failure;
+      if (record.cancelled) return;
+      options.signal?.removeEventListener('abort', abort);
+      if (failure) { result.reject(failure); return; }
+      record.granted = true;
       const count = (active.get(name) ?? 0) + 1;
       active.set(name, count); maxActive = Math.max(maxActive, count);
-      assert.equal(count, 1, 'The synthetic LockManager never runs two writers together');
-      try { return await callback(); } finally { active.set(name, count - 1); }
+      assert.equal(count, 1, 'The synthetic LockManager serializes all observations and writers');
+      try {
+        const value = await callback(); record.callbackReturned = true;
+        if (options.mode === 'shared') { const held = sharedReleaseHolds.shift(); if (held) await held.promise; }
+        active.set(name, count - 1); record.released = true;
+        result.resolve(value);
+      } catch (error) { active.set(name, count - 1); record.released = true; result.reject(error); }
     });
     tails.set(name, operation);
-    return operation;
+    return result.promise;
   } };
   function notify(writer: string, key: string) {
     for (const [id, dispatch] of documents) if (id !== writer) queueMicrotask(() => dispatch({ type: 'storage', key }));
@@ -75,7 +98,9 @@ export function storageBrowser(initial: Record<string, string> = {}) {
     };
   }
   return {
-    values, local, documents, locks, calls, writes,
+    values, local, documents, locks, calls, writes, lockRequests,
+    get activeLocks() { return [...active.values()].reduce((sum, value) => sum + value, 0); },
+    holdNextSharedRelease() { const held = deferred<void>(); sharedReleaseHolds.push(held); return () => held.resolve(); },
     get maxActive() { return maxActive; },
     holdLock() {
       const held = deferred<void>();
