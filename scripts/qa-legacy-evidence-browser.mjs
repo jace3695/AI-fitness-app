@@ -91,6 +91,30 @@ const DETAIL_PREFIX = '[legacy-evidence-b2-detail] ';
 const CHILD_LABELS = new Set(['sql', 'inactive-build', 'enabled-build', 'discovery', 'browser', 'server']);
 const CHILD_OPERATIONS = new Set(['spawn', 'spawn-event', 'register', 'process-sample', 'disk-sample', 'completion', 'shutdown']);
 const SYSTEM_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'EIO', 'ENOSPC', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR']);
+const PROCESS_STAT_READS = new Set(['ok', 'invalid-stat', 'ENOENT', 'ESRCH', 'EACCES', 'EPERM', 'EIO', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR', 'other']);
+const PROCESS_IDENTITY_SITES = new Set(['registration-validation', 'registration-recheck', 'leader-snapshot']);
+const PROCESS_IDENTITY_REASONS = new Set(['invalid-observed-identity', 'current-unavailable', 'pid-mismatch', 'start-mismatch', 'group-mismatch', 'session-mismatch', 'multiple-mismatch']);
+// Only our exact refusal Error can carry identity detail. Error properties,
+// including valid-looking enum values from another source, confer no authority.
+const processIdentityDetails = new WeakMap();
+function refuseProcessIdentity(site, observed, current, statRead) {
+  const error = Object.assign(new Error('B2 refused: process_identity'), { code: 'process_identity' });
+  try {
+    if (site === 'registration-validation' || !current || (detailObject(observed) && detailObject(current))) {
+      const mismatches = current && site !== 'registration-validation' ? ['pid', 'start', 'group', 'session'].filter(field => detailField(observed, field) !== detailField(current, field)) : [];
+      const reason = site === 'registration-validation' ? 'invalid-observed-identity' : !current ? 'current-unavailable' : mismatches.length === 1 ? `${mismatches[0]}-mismatch` : 'multiple-mismatch';
+      if (PROCESS_IDENTITY_SITES.has(site) && PROCESS_IDENTITY_REASONS.has(reason)) processIdentityDetails.set(error, Object.freeze({
+        identitySite: site, identityReason: reason,
+        ...(site === 'registration-recheck' && PROCESS_STAT_READS.has(statRead) ? { statRead } : {}),
+      }));
+    }
+  } catch { /* Classification must not replace the original refusal. */ }
+  throw error;
+}
+function processIdentityDetail(error) {
+  try { return safeFailure(error) === 'process_identity' ? processIdentityDetails.get(error) ?? {} : {}; }
+  catch { return {}; }
+}
 const FAILURE_KINDS = new Set(['webkit-internal', 'crash', 'closed-or-disconnected', 'timeout', 'aborted', 'connection-reset', 'other']);
 const FAILURE_FILES = new Set(['auth.spec.ts', 'legacy-evidence-review.spec.ts', 'fixture.ts', 'fixture-account-auth.ts',
   'route-drain.ts', 'route-continue-diagnostics.ts', 'navigation-diagnostics.ts'].map(file => `tests/e2e/${file}`));
@@ -125,7 +149,7 @@ export function childOperationObserver(child, sink = detailSink) {
       // Error.stack may be a native lazy accessor. Inspect only code's own
       // descriptor, never the Error object or its other properties.
       const code = error && typeof error === 'object' && !types.isProxy(error) ? Object.getOwnPropertyDescriptor(error, 'code')?.value : undefined;
-      emitDetailRecords([{ kind: 'child-operation', child, operation, code: safeFailure(error), systemCode: SYSTEM_CODES.has(code) ? code : 'other' }], sink);
+      emitDetailRecords([{ kind: 'child-operation', child, operation, code: safeFailure(error), systemCode: SYSTEM_CODES.has(code) ? code : 'other', ...processIdentityDetail(error) }], sink);
     } catch { /* Retain first-cause ordering even if projection or the sink fails. */ }
   };
 }
@@ -494,7 +518,18 @@ export function parseProcessStat(text) {
   const fields = match[3].split(' '); const result = { pid: Number(match[1]), state: match[2], parent: Number(fields[0]), group: Number(fields[1]), session: Number(fields[2]), start: fields[18] };
   return Number.isSafeInteger(result.pid) && /^\d+$/.test(result.start ?? '') ? result : null;
 }
-const processInfo = pid => { try { return parseProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8')); } catch { return null; } };
+function processInfo(pid, observe) {
+  let result = null, statRead = 'other';
+  try { result = parseProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8')); statRead = result ? 'ok' : 'invalid-stat'; }
+  catch (error) {
+    try {
+      const code = error && typeof error === 'object' && !types.isProxy(error) ? Object.getOwnPropertyDescriptor(error, 'code')?.value : undefined;
+      if (PROCESS_STAT_READS.has(code) && !['ok', 'invalid-stat'].includes(code)) statRead = code;
+    } catch { /* An unreadable stat still has the original null result. */ }
+  }
+  try { if (observe) observe(statRead); } catch { /* Same-read observation never changes the result. */ }
+  return result;
+}
 export function sameProcess(record, current) { return !!current && record.pid === current.pid && record.start === current.start && record.group === current.group && record.session === current.session; }
 export async function stopOwnedProcesses(records, boundary = {}) {
   const inspect = boundary.inspect ?? processInfo, kill = boundary.kill ?? ((pid, signal) => process.kill(pid, signal)), wait = boundary.wait ?? delay, now = boundary.now ?? Date.now;
@@ -507,10 +542,11 @@ export async function stopOwnedProcesses(records, boundary = {}) {
   if (running().length) refuse('cleanup_failed'); return true;
 }
 function registerProcess(owner, discovered, label) {
-  if (!discovered || !Number.isSafeInteger(discovered.pid) || !/^\d+$/.test(discovered.start ?? '') || !Number.isSafeInteger(discovered.group) || !Number.isSafeInteger(discovered.session)) refuse('process_identity');
-  const current = processInfo(discovered.pid);
+  if (!discovered || !Number.isSafeInteger(discovered.pid) || !/^\d+$/.test(discovered.start ?? '') || !Number.isSafeInteger(discovered.group) || !Number.isSafeInteger(discovered.session)) refuseProcessIdentity('registration-validation', discovered);
+  let statRead;
+  const current = processInfo(discovered.pid, outcome => { statRead = outcome; });
   // The observed birth, not a later occupant of this PID, established ownership.
-  if (!sameProcess(discovered, current)) refuse('process_identity');
+  if (!sameProcess(discovered, current)) refuseProcessIdentity('registration-recheck', discovered, current, statRead);
   const row = { pid: discovered.pid, start: discovered.start, group: discovered.group, session: discovered.session, label, nonce: owner.nonce };
   writeJson(join(owner.directory, 'processes', `${row.pid}-${row.start}.json`), row); return row;
 }
@@ -523,7 +559,7 @@ function scanOwned(owner) {
   const records = processRecords(owner), processes = readdirSync('/proc').filter(name => /^\d+$/.test(name)).map(name => processInfo(Number(name))).filter(Boolean);
   for (const record of records.filter(row => row.pid === row.group)) {
     const leader = processes.find(row => row.pid === record.pid);
-    if (leader && !sameProcess(record, leader)) refuse('process_identity');
+    if (leader && !sameProcess(record, leader)) refuseProcessIdentity('leader-snapshot', record, leader);
   }
   const owned = new Set(records.filter(row => sameProcess(row, processes.find(p => p.pid === row.pid))).map(row => row.pid));
   let changed = true;

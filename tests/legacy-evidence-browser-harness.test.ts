@@ -8,6 +8,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
+import { types } from 'node:util';
 import * as filesystem from 'node:fs';
 import * as paths from 'node:path';
 import ts from 'typescript';
@@ -40,7 +41,24 @@ function functionSource(name: string) {
   return declaration.getText(runnerAst).replace(/^export\s+/, '');
 }
 function privateFunction(name: string, bindings: Record<string, unknown>) {
+  if (['registerProcess', 'scanOwned'].includes(name) && !Object.hasOwn(bindings, 'refuseProcessIdentity')) bindings = { refuseProcessIdentity: processDiagnosticBoundary().refuseIdentity, ...bindings };
   return new Function(...Object.keys(bindings), `${functionSource(name)}\nreturn ${name};`)(...Object.values(bindings));
+}
+function fixedSet(name: string) {
+  const declaration = runnerAst.statements.filter(ts.isVariableStatement).flatMap(node => [...node.declarationList.declarations]).find(node => ts.isIdentifier(node.name) && node.name.text === name);
+  assert.ok(declaration?.initializer && ts.isNewExpression(declaration.initializer));
+  assert.equal(declaration.initializer.expression.getText(runnerAst), 'Set');
+  const values = declaration.initializer.arguments?.[0]; assert.ok(values && ts.isArrayLiteralExpression(values));
+  return new Set(values.elements.map(value => { assert.ok(ts.isStringLiteral(value)); return value.text; }));
+}
+function processDiagnosticBoundary() {
+  const processIdentityDetails = new WeakMap<object, object>();
+  const detailObject = privateFunction('detailObject', { types }), detailField = privateFunction('detailField', { detailObject });
+  const refuseIdentity = privateFunction('refuseProcessIdentity', { processIdentityDetails, detailObject, detailField, PROCESS_IDENTITY_SITES: fixedSet('PROCESS_IDENTITY_SITES'), PROCESS_IDENTITY_REASONS: fixedSet('PROCESS_IDENTITY_REASONS'), PROCESS_STAT_READS: fixedSet('PROCESS_STAT_READS') });
+  const detail = privateFunction('processIdentityDetail', { processIdentityDetails, safeFailure: harness.safeFailure });
+  const observer = privateFunction('childOperationObserver', { detailSink: () => {}, CHILD_LABELS: fixedSet('CHILD_LABELS'), CHILD_OPERATIONS: fixedSet('CHILD_OPERATIONS'), SYSTEM_CODES: fixedSet('SYSTEM_CODES'), types, safeFailure: harness.safeFailure, processIdentityDetail: detail, emitDetailRecords: privateFunction('emitDetailRecords', { DETAIL_PREFIX: '[legacy-evidence-b2-detail] ' }) });
+  const inspect = (read: (path: string, encoding: string) => string) => privateFunction('processInfo', { readFileSync: read, parseProcessStat: harness.parseProcessStat, types, PROCESS_STAT_READS: fixedSet('PROCESS_STAT_READS') });
+  return { refuseIdentity, detail, observer, inspect };
 }
 function tiny(t: { after: (fn: () => void) => void }) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'b2-pure-test-')));
@@ -850,7 +868,7 @@ test('native focused config fails closed for absent/malformed ownership and reje
 });
 
 // The fake transport also covers failures between spawn and persisted ownership.
-function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow>; diskError?: string; resourceError?: string } = {}) {
+function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow>; diskError?: string; resourceError?: string; resourceFailure?: unknown; diagnostics?: ReturnType<typeof processDiagnosticBoundary> } = {}) {
   let time = 0, nextTimer = 1, spawnCount = 0;
   const timers = new Map<number, { callback: () => void; at: number; repeat: number }>();
   const identity = row(401, { parent: 9999, ...options.firstIdentity }), live = new Map([[identity.pid, identity]]), records: ProcessRow[] = [], stopped: ProcessRow[][] = [];
@@ -862,14 +880,14 @@ function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; 
   const registration = privateFunction('registerProcess', { processInfo: (pid: number) => live.get(pid) ?? null, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => records.push(value) });
   const run = privateFunction('runFixed', {
     ROOT: env.GITHUB_WORKSPACE, process: { execPath: '/synthetic/node', env, pid: 9999, kill: (pid: number, signal: string) => { signals.push([pid, signal]); live.delete(pid); } },
-    childOperationObserver: (label: string) => harness.childOperationObserver(label, (line: string) => details.push(line)),
+    childOperationObserver: (label: string) => (options.diagnostics?.observer ?? harness.childOperationObserver)(label, (line: string) => details.push(line)),
     runtimeStop: controller, refuse, LIMITS: harness.LIMITS, safeFailure: harness.safeFailure, sameProcess: harness.sameProcess,
     spawn: (_command: string, _args: string[], supplied: Record<string, unknown>) => { spawnCount++; spawnOptions.push(supplied); if (options.spawnFails) throw Object.assign(new Error('synthetic-spawn-failure'), { code: 'EACCES' }); queueMicrotask(() => child.emit('spawn')); return child; },
     processInfo: (pid: number) => live.get(pid) ?? null,
     registerProcess: (owner: unknown, discovered: ProcessRow, label: string) => { assert.equal(typeof discovered, 'object', 'The original birth tuple must reach registration'); if (options.registerFails) refuse('ownership_invalid'); if (options.reuseBeforeRegister) live.set(discovered.pid, { ...discovered, start: '900000' }); return registration(owner, discovered, label); },
     processRecords: () => records, scanOwned: () => records,
     stopOwnedProcesses: async (owned: ProcessRow[]) => { stopped.push(owned); if (options.stopFails) refuse('cleanup_failed'); for (const info of owned) { const current = live.get(info.pid); if (current && !harness.sameProcess(info, current)) refuse('process_identity'); live.delete(info.pid); } return true; },
-    resourceSample: () => { if (options.resourceError) throw Object.assign(new Error('SENTINEL_SECRET_PROCESS'), { code: options.resourceError }); return 1024; },
+    resourceSample: () => { if (options.resourceFailure) throw options.resourceFailure; if (options.resourceError) throw Object.assign(new Error('SENTINEL_SECRET_PROCESS'), { code: options.resourceError }); return 1024; },
     ownedUsage: () => { if (options.diskError) throw Object.assign(new Error('SENTINEL_SECRET_DISK'), { code: options.diskError }); return 2048; }, Date: { now: () => time },
     setInterval: (callback: () => void, ms: number) => schedule(callback, ms, ms), clearInterval: (id: number) => timers.delete(id),
     setTimeout: (callback: () => void, ms: number) => schedule(callback, ms, 0), clearTimeout: (id: number) => timers.delete(id),
@@ -1729,4 +1747,133 @@ test('timeout budget abort and capture cutoff retain first-cause detail before l
     assert.deepEqual(parseDetails(fake.details), [{ kind: 'child-operation', child: 'browser', operation: 'completion', code, systemCode: 'other' }]);
     assert.deepEqual(fake.signals, [[401, 'SIGTERM']]); assert.equal(fake.timers.size, 0);
   }
+});
+
+test('process identity diagnostic vocabularies and annotated refusal sites stay exact', () => {
+  assert.deepEqual([...fixedSet('PROCESS_IDENTITY_SITES')], ['registration-validation', 'registration-recheck', 'leader-snapshot']);
+  assert.deepEqual([...fixedSet('PROCESS_IDENTITY_REASONS')], ['invalid-observed-identity', 'current-unavailable', 'pid-mismatch', 'start-mismatch', 'group-mismatch', 'session-mismatch', 'multiple-mismatch']);
+  assert.deepEqual([...fixedSet('PROCESS_STAT_READS')], ['ok', 'invalid-stat', 'ENOENT', 'ESRCH', 'EACCES', 'EPERM', 'EIO', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR', 'other']);
+  const calls: ts.CallExpression[] = [];
+  function visit(node: ts.Node) { if (ts.isCallExpression(node) && node.expression.getText(runnerAst) === 'refuseProcessIdentity') calls.push(node); ts.forEachChild(node, visit); }
+  visit(runnerAst); assert.equal(calls.length, 3);
+  assert.deepEqual(calls.map(call => call.arguments[0].getText(runnerAst)), ["'registration-validation'", "'registration-recheck'", "'leader-snapshot'"]);
+  assert.match(functionSource('registerProcess'), /if \(!sameProcess\(discovered, current\)\) refuseProcessIdentity/);
+  assert.match(functionSource('scanOwned'), /if \(leader && !sameProcess\(record, leader\)\) refuseProcessIdentity/);
+  assert.equal((functionSource('processInfo').match(/readFileSync\(/g) ?? []).length, 1);
+  assert.equal((functionSource('registerProcess').match(/processInfo\(/g) ?? []).length, 1);
+});
+
+test('same stat read supplies a closed outcome without changing parsed null or throwing-observer results', () => {
+  const diagnostic = processDiagnosticBoundary(), identity = row(801);
+  const cases: { input: string | Error; outcome: string; expected: ProcessRow | null }[] = [
+    { input: statLine(identity), outcome: 'ok', expected: identity },
+    { input: 'SENTINEL_SECRET_INVALID_STAT', outcome: 'invalid-stat', expected: null },
+    ...['ENOENT', 'ESRCH', 'EACCES', 'EPERM', 'EIO', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR', 'other', 'ok', 'invalid-stat', 'SENTINEL_SECRET_CODE'].map(code => ({ input: Object.assign(new Error('SENTINEL_SECRET_PATH'), { code }), outcome: ['ok', 'invalid-stat', 'SENTINEL_SECRET_CODE'].includes(code) ? 'other' : code, expected: null })),
+  ];
+  for (const { input, outcome, expected } of cases) for (const throwing of [false, true]) {
+    let reads = 0; const observations: string[] = [];
+    const inspect = diagnostic.inspect((path, encoding) => { reads++; assert.equal(path, '/proc/801/stat'); assert.equal(encoding, 'utf8'); if (input instanceof Error) throw input; return input; });
+    assert.deepEqual(inspect(801, (value: string) => { observations.push(value); if (throwing) throw new Error('SENTINEL_SECRET_OBSERVER'); }), expected);
+    assert.equal(reads, 1); assert.deepEqual(observations, [outcome]);
+  }
+});
+
+test('stat failure observation never executes accessor proxy inherited code or raw serialization', () => {
+  const diagnostic = processDiagnosticBoundary(); let accessed = 0;
+  const getter = Object.defineProperty(new Error('secret'), 'code', { get: () => { accessed++; throw new Error('secret'); } });
+  const proxy = new Proxy({ code: 'ENOENT' }, { get: () => { accessed++; throw new Error('secret'); }, getOwnPropertyDescriptor: () => { accessed++; throw new Error('secret'); } });
+  const inherited = Object.create({ code: 'ENOENT' });
+  const serializable = Object.defineProperty({ code: 'EIO' }, 'toJSON', { get: () => { accessed++; throw new Error('secret'); } });
+  for (const [error, expected] of [[getter, 'other'], [proxy, 'other'], [inherited, 'other'], [serializable, 'EIO'], ['ENOENT', 'other']] as const) {
+    const observations: string[] = []; let reads = 0;
+    const inspect = diagnostic.inspect(() => { reads++; throw error; });
+    assert.equal(inspect(801, (value: string) => observations.push(value)), null); assert.equal(reads, 1); assert.deepEqual(observations, [expected]);
+  }
+  assert.equal(accessed, 0);
+});
+
+test('registration diagnostic subtypes preserve refusal code reads and nonpersistence across all identity mismatches', () => {
+  const diagnostic = processDiagnosticBoundary(), discovered = row(811), saved: ProcessRow[] = [];
+  const cases: { current: ProcessRow | null; reason: string; outcome: string }[] = [
+    { current: null, reason: 'current-unavailable', outcome: 'ENOENT' },
+    { current: null, reason: 'current-unavailable', outcome: 'EACCES' },
+    { current: null, reason: 'current-unavailable', outcome: 'invalid-stat' },
+    { current: { ...discovered, pid: 812 }, reason: 'pid-mismatch', outcome: 'ok' },
+    { current: { ...discovered, start: '900000' }, reason: 'start-mismatch', outcome: 'ok' },
+    { current: { ...discovered, group: 812 }, reason: 'group-mismatch', outcome: 'ok' },
+    { current: { ...discovered, session: 812 }, reason: 'session-mismatch', outcome: 'ok' },
+    { current: { ...discovered, start: '900000', group: 812 }, reason: 'multiple-mismatch', outcome: 'ok' },
+  ];
+  for (const { current, reason, outcome } of cases) {
+    let reads = 0;
+    const register = privateFunction('registerProcess', { processInfo: (_pid: number, observe: (value: string) => void) => { reads++; observe(outcome); return current; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+    let caught: unknown; try { register(ownerRecord(), discovered, 'descendant'); } catch (error) { caught = error; }
+    assert.equal(harness.safeFailure(caught), 'process_identity'); assert.equal((caught as Error).message, 'B2 refused: process_identity');
+    assert.equal(reads, 1); assert.deepEqual(saved, []);
+    assert.deepEqual(diagnostic.detail(caught), { identitySite: 'registration-recheck', identityReason: reason, statRead: outcome });
+  }
+  let reads = 0;
+  const register = privateFunction('registerProcess', { processInfo: () => { reads++; return discovered; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+  let invalid: unknown; try { register(ownerRecord(), { ...discovered, group: NaN }, 'descendant'); } catch (error) { invalid = error; }
+  assert.equal(harness.safeFailure(invalid), 'process_identity'); assert.equal(reads, 0); assert.deepEqual(saved, []);
+  assert.deepEqual(diagnostic.detail(invalid), { identitySite: 'registration-validation', identityReason: 'invalid-observed-identity' });
+  register(ownerRecord(), discovered, 'descendant'); assert.equal(reads, 1); assert.equal(saved.length, 1);
+});
+
+test('leader snapshot failure stays distinct and carries no invented stat observation or adopted child', () => {
+  const diagnostic = processDiagnosticBoundary(), leader = row(821), replacement = { ...leader, start: '900000' }, foreign = row(822, { parent: 821 });
+  const saved = [leader], reads: number[] = [];
+  const scan = privateFunction('scanOwned', { processRecords: () => saved, readdirSync: () => ['821', '822'], processInfo: (pid: number) => { reads.push(pid); return pid === 821 ? replacement : foreign; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, readFileSync: () => assert.fail('A failed leader cannot authorize any environment read'), registerProcess: () => assert.fail('A failed leader cannot authorize adoption'), refuse });
+  let caught: unknown; try { scan(ownerRecord()); } catch (error) { caught = error; }
+  assert.equal(harness.safeFailure(caught), 'process_identity'); assert.deepEqual(reads, [821, 822]); assert.deepEqual(saved, [leader]);
+  assert.deepEqual(diagnostic.detail(caught), { identitySite: 'leader-snapshot', identityReason: 'start-mismatch' });
+});
+
+test('untrusted valid-looking error properties never create identity detail or reclassify failure', () => {
+  const diagnostic = processDiagnosticBoundary(); let accessed = 0;
+  const forged = { identitySite: 'registration-recheck', identityReason: 'current-unavailable', statRead: 'ENOENT' };
+  const own = Object.assign(new Error('SENTINEL_SECRET_ERROR'), { code: 'process_identity', ...forged });
+  const inherited = Object.assign(Object.create(forged), { code: 'process_identity' });
+  const getter = Object.defineProperty({ code: 'process_identity' }, 'identitySite', { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); } });
+  const proxy = new Proxy(own, { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); }, getOwnPropertyDescriptor: () => { accessed++; throw new Error('SENTINEL_SECRET'); } });
+  const toJSON = Object.defineProperty({ code: 'process_identity' }, 'toJSON', { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); } });
+  for (const error of [own, inherited, getter, proxy, toJSON, { code: 'EIO', ...forged }]) {
+    const lines: string[] = []; diagnostic.observer('browser', (line: string) => lines.push(line))('process-sample', error);
+    const code = harness.safeFailure(error);
+    assert.deepEqual(parseDetails(lines), [{ kind: 'child-operation', child: 'browser', operation: 'process-sample', code, systemCode: error === proxy ? 'other' : Object.getOwnPropertyDescriptor(error, 'code')?.value === 'EIO' ? 'EIO' : 'other' }]);
+    assert.doesNotMatch(lines.join('\n'), /SENTINEL|identitySite|identityReason|statRead/);
+  }
+  assert.equal(accessed, 0);
+});
+
+test('identity classification cannot throw a replacement or serialize hostile tuples and invalid enums', () => {
+  const diagnostic = processDiagnosticBoundary(), discovered = row(831); let accessed = 0;
+  const hostile = new Proxy({}, { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); }, getOwnPropertyDescriptor: () => { accessed++; throw new Error('SENTINEL_SECRET'); } });
+  const getter = Object.defineProperty({ ...discovered }, 'start', { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); } });
+  for (const [site, observed, current, outcome] of [['registration-recheck', hostile, discovered, 'ok'], ['registration-recheck', getter, discovered, 'ok'], ['registration-recheck', discovered, getter, 'ok'], ['SENTINEL_SECRET_SITE', discovered, null, 'ENOENT']] as const) {
+    let caught: unknown; try { diagnostic.refuseIdentity(site, observed, current, outcome); } catch (error) { caught = error; }
+    assert.equal(harness.safeFailure(caught), 'process_identity'); assert.deepEqual(diagnostic.detail(caught), {});
+  }
+  assert.equal(accessed, 0);
+  let caught: unknown; try { diagnostic.refuseIdentity('registration-recheck', discovered, null, 'SENTINEL_SECRET_STAT'); } catch (error) { caught = error; }
+  assert.deepEqual(diagnostic.detail(caught), { identitySite: 'registration-recheck', identityReason: 'current-unavailable' });
+  assert.equal(Object.isFrozen(diagnostic.detail(caught)), true);
+  (caught as { code: string }).code = 'EIO'; assert.deepEqual(diagnostic.detail(caught), {}); assert.equal(harness.safeFailure(caught), 'harness_failed');
+});
+
+test('identity detail preserves first-cause ordering through sampling termination zero exit and sink failure', async () => {
+  const diagnostic = processDiagnosticBoundary(); let failure: unknown;
+  try { diagnostic.refuseIdentity('registration-recheck', row(841), null, 'ENOENT'); } catch (error) { failure = error; }
+  const expected = { kind: 'child-operation', child: 'browser', operation: 'process-sample', code: 'process_identity', systemCode: 'other', identitySite: 'registration-recheck', identityReason: 'current-unavailable', statRead: 'ENOENT' };
+  const fake = fakeLauncher({ resourceFailure: failure, diagnostics: diagnostic, diskError: 'EIO' });
+  const pending = assert.rejects(fake.run(ownerRecord(), 'browser', []), { code: 'process_identity' });
+  await flushMicrotasks(); fake.advance(100); fake.advance(5000); fake.child.emit('close', 0); await pending;
+  assert.deepEqual(parseDetails(fake.details), [expected]); assert.deepEqual(fake.signals, [[401, 'SIGTERM']]); assert.equal(fake.stopped.length, 1); assert.equal(fake.timers.size, 0);
+  const lines: string[] = [], observe = diagnostic.observer('browser', (line: string) => { lines.push(line); throw new Error('SENTINEL_SECRET_SINK'); });
+  assert.doesNotThrow(() => observe('process-sample', failure)); observe('completion', { code: 'cleanup_failed' });
+  assert.deepEqual(parseDetails(lines), [expected]);
+  const timeout = fakeLauncher({ resourceFailure: failure, diagnostics: diagnostic });
+  const interrupted = assert.rejects(timeout.run(ownerRecord(), 'browser', []), { code: 'interrupted' });
+  await flushMicrotasks(); timeout.controller.abort(); timeout.advance(100); timeout.child.emit('close', 0); await interrupted;
+  assert.deepEqual(parseDetails(timeout.details), [{ kind: 'child-operation', child: 'browser', operation: 'completion', code: 'interrupted', systemCode: 'other' }]);
 });
