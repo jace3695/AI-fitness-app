@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1510,
-  "byteCount": 71029079,
-  "digest": "85ac40a2a49d3364a3e445c6ecaae2cb6eb1f2711840ae18302e596973da7733",
+  "byteCount": 71042580,
+  "digest": "3cd5683ebfac5bb40a5805616f4f887c5e0772d1037765fc58a546959c18d483",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -4927,8 +4927,8 @@
     {
       "path": "playwright.legacy-evidence.config.ts",
       "mode": 33188,
-      "bytes": 1941,
-      "sha256": "7e440264adfc759d4d7b2db525e68218d8a66d9d5dc469ad18d553c016a7efd8"
+      "bytes": 2208,
+      "sha256": "d468516e5cdb196e551aaec9315b99278c99f49b722771676e81fc8b5010289e"
     },
     {
       "path": "postcss.config.js",
@@ -8785,8 +8785,8 @@
     {
       "path": "tests/legacy-evidence-browser-harness.test.ts",
       "mode": 33188,
-      "bytes": 130846,
-      "sha256": "c9a0f4e12bf7af71f677404847947ace8ce74ce034744f9b3a410350d64c7d49"
+      "bytes": 144080,
+      "sha256": "5433b7697a63adbec4fef9fdd99141eb0a89587e33c596c118ba088c510f9686"
     },
     {
       "path": "tests/legacy-evidence-ci-diagnostics.test.ts",

@@ -7,14 +7,16 @@ import { tmpdir } from 'node:os';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import * as filesystem from 'node:fs';
 import * as paths from 'node:path';
 import ts from 'typescript';
 import * as harness from '../scripts/qa-legacy-evidence-browser.mjs';
 
-// These are pure contract tests. Only tiny fixtures below may touch the disk.
-// No imported CLI main, child process, browser, SQL, Docker, install or network
-// boundary is executed. Private lifecycle functions are evaluated with fakes.
+// Contract tests use tiny disk fixtures and fake lifecycle boundaries, except
+// the explicitly bounded installed-Playwright --list regression below. That
+// regression loads authored config/specs without executing callbacks, servers,
+// browsers, authentication, SQL, Docker, installs or network operations.
 const runnerSource = readFileSync(new URL('../scripts/qa-legacy-evidence-browser.mjs', import.meta.url), 'utf8');
 const runnerAst = ts.createSourceFile('qa-legacy-evidence-browser.mjs', runnerSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
 const releaseBytes = readFileSync(new URL('../app/data/languageLegacyEvidenceRelease.ts', import.meta.url));
@@ -640,34 +642,35 @@ test('cleanup refuses invalid ownership before deleting any directory or record'
   await assert.rejects(cleanup(), { code: 'ownership_invalid' }); assert.deepEqual(removals, []);
 });
 
-// Config modules are transpiled into a closed fake require; Playwright and Next
-// are never loaded. Device fixtures retain distinguishable engine identities.
-function evaluateConfig(path: string, imports: Record<string, unknown>, inputEnv: Record<string, string>) {
+// Selector unit tests transpile configs into a closed fake require, awaiting
+// the focused config default promise. The native loader regression below is
+// separate: transpilation alone cannot detect ESM/CommonJS interop failures.
+async function evaluateConfig(path: string, imports: Record<string, unknown>, inputEnv: Record<string, string>) {
   const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
   const exports: Record<string, unknown> = {};
   new Function('require', 'exports', 'process', compiled)((name: string) => { assert.ok(Object.hasOwn(imports, name), `Unexpected config import ${name}`); return imports[name]; }, exports, { env: inputEnv });
-  return exports.default as ReturnType<typeof configShape>;
+  return await (exports.default as ReturnType<typeof configShape> | Promise<ReturnType<typeof configShape>>);
 }
 function configShape() {
   return {} as { grepInvert?: RegExp | RegExp[]; fullyParallel: boolean; workers: number; retries: number; timeout: number; expect: { timeout: number }; reporter: unknown; outputDir: string; use: { baseURL: string; actionTimeout: number; navigationTimeout: number; timezoneId: string; locale: string; serviceWorkers: string; trace: string; screenshot: string; video: string }; projects: { name: string; testMatch?: string | string[]; grep?: RegExp; grepInvert?: RegExp | RegExp[]; dependencies?: string[]; use: { browserName: string; launchOptions?: { env: Record<string, string> } } }[]; webServer?: { command: string; cwd: string; env: Record<string, string>; url: string; reuseExistingServer: boolean; timeout: number; gracefulShutdown: { signal: string; timeout: number }; stdout: string; stderr: string } };
 }
 const fakePlaywright = { defineConfig: (value: unknown) => value, devices: { 'Desktop Chrome': { browserName: 'chromium' }, 'iPhone 13': { browserName: 'webkit' } } };
 function defaultConfig() { return evaluateConfig('playwright.config.ts', { '@playwright/test': fakePlaywright }, { ...env, YEONI_E2E: '1' }); }
-function focusedConfig(phase: 'inactive' | 'enabled', discovery = false) {
-  const defaults = defaultConfig(); let reads = 0;
-  const result = evaluateConfig('playwright.legacy-evidence.config.ts', { '@playwright/test': fakePlaywright, './playwright.config': { __esModule: true, default: defaults }, './scripts/qa-legacy-evidence-browser.mjs': { ROOT: env.GITHUB_WORKSPACE, readPhaseConfiguration: (root: string, configEnv: unknown) => { assert.equal(root, env.GITHUB_WORKSPACE); assert.equal(configEnv, env); reads++; return { phase, discovery, outputDir: `/synthetic/runner/yeoni-b2-abc/results/${phase}` }; } } }, env);
+async function focusedConfig(phase: 'inactive' | 'enabled', discovery = false) {
+  const defaults = await defaultConfig(); let reads = 0;
+  const result = await evaluateConfig('playwright.legacy-evidence.config.ts', { '@playwright/test': fakePlaywright, './playwright.config': { __esModule: true, default: defaults }, './scripts/qa-legacy-evidence-browser.mjs': { ROOT: env.GITHUB_WORKSPACE, readPhaseConfiguration: (root: string, configEnv: unknown) => { assert.equal(root, env.GITHUB_WORKSPACE); assert.equal(configEnv, env); reads++; return { phase, discovery, outputDir: `/synthetic/runner/yeoni-b2-abc/results/${phase}` }; } } }, env);
   assert.equal(reads, 1); return result;
 }
-test('general config excludes only the exact enabled tag and explicitly retains WebKit B2 coverage', () => {
-  const config = defaultConfig(); assert.ok(config.grepInvert instanceof RegExp);
+test('general config excludes only the exact enabled tag and explicitly retains WebKit B2 coverage', async () => {
+  const config = await defaultConfig(); assert.ok(config.grepInvert instanceof RegExp);
   for (const title of harness.SCENARIO_TITLES.enabled) assert.equal(config.grepInvert.test(title), true);
   for (const title of [...harness.AUTH_TITLES, ...harness.SCENARIO_TITLES.inactive, 'ordinary existing test', '@b2-enabled-other', 'prefix@b2-enabled', '@b2-inactive']) assert.equal(config.grepInvert.test(title), false, title);
   const webkit = config.projects.find(project => project.name === 'webkit-small'); assert.ok(webkit); assert.equal(webkit.use.browserName, 'webkit'); assert.ok(Array.isArray(webkit.testMatch)); assert.ok(webkit.testMatch.includes('**/legacy-evidence-review.spec.ts')); assert.equal(webkit.use.launchOptions?.env.LD_PRELOAD, env.QA_SOUP_LIBRARY);
 });
-test('focused phase selectors preserve four auth dependencies and select both engines without launching a server', () => {
+test('focused phase selectors preserve four auth dependencies and select both engines without launching a server', async () => {
   for (const phase of ['inactive', 'enabled'] as const) {
-    const config = focusedConfig(phase, true); assert.equal(config.webServer, undefined); assert.deepEqual(config.projects.map(project => project.name), ['auth-preservation', 'chromium', 'webkit-small']);
+    const config = await focusedConfig(phase, true); assert.equal(config.webServer, undefined); assert.deepEqual(config.projects.map(project => project.name), ['auth-preservation', 'chromium', 'webkit-small']);
     const auth = config.projects[0]; assert.equal(auth.testMatch, '**/auth.spec.ts'); assert.deepEqual(auth.grepInvert, []);
     for (const title of harness.AUTH_TITLES) assert.ok(auth.grep?.test(title));
     for (const project of config.projects.slice(1)) {
@@ -680,18 +683,170 @@ test('focused phase selectors preserve four auth dependencies and select both en
     if (phase === 'enabled') assert.deepEqual(config.grepInvert, []); else assert.ok(config.grepInvert instanceof RegExp);
   }
 });
-test('focused execution preserves limits/privacy and uses only the fixed closed-environment serve launcher', () => {
-  const config = focusedConfig('enabled'); assert.equal(config.fullyParallel, false); assert.equal(config.workers, 1); assert.equal(config.retries, 0); assert.equal(config.timeout, 90_000); assert.equal(config.expect.timeout, 15_000);
+test('focused execution preserves limits/privacy and uses only the fixed closed-environment serve launcher', async () => {
+  const config = await focusedConfig('enabled'); assert.equal(config.fullyParallel, false); assert.equal(config.workers, 1); assert.equal(config.retries, 0); assert.equal(config.timeout, 90_000); assert.equal(config.expect.timeout, 15_000);
   assert.deepEqual(config.reporter, [['./tests/e2e/reporter.ts']]); assert.equal(config.use.baseURL, 'http://127.0.0.1:3000'); assert.equal(config.use.actionTimeout, 15_000); assert.equal(config.use.navigationTimeout, 30_000); assert.equal(config.use.locale, 'ko-KR'); assert.equal(config.use.timezoneId, 'Asia/Seoul'); assert.equal(config.use.serviceWorkers, 'block');
   assert.equal(config.use.trace, 'off'); assert.equal(config.use.screenshot, 'off'); assert.equal(config.use.video, 'off');
   assert.deepEqual(config.webServer, { command: 'node scripts/qa-legacy-evidence-browser.mjs serve', cwd: env.GITHUB_WORKSPACE, env: { B2_PHASE: 'enabled' }, url: 'http://127.0.0.1:3000/diet/settings', reuseExistingServer: false, timeout: 120_000, gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 }, stdout: 'ignore', stderr: 'ignore' });
   assert.equal(config.outputDir, '/synthetic/runner/yeoni-b2-abc/results/enabled');
 });
-test('focused config rejects missing required engines rather than reducing coverage or skipping', () => {
-  const defaults = defaultConfig(); defaults.projects = defaults.projects.filter(project => project.name !== 'webkit-small');
-  assert.throws(() => evaluateConfig('playwright.legacy-evidence.config.ts', { '@playwright/test': fakePlaywright, './playwright.config': { __esModule: true, default: defaults }, './scripts/qa-legacy-evidence-browser.mjs': { ROOT: env.GITHUB_WORKSPACE, readPhaseConfiguration: () => ({ phase: 'enabled', discovery: true }) } }, env), /Missing required B2 browser project/);
+test('focused config rejects missing required engines rather than reducing coverage or skipping', async () => {
+  const defaults = await defaultConfig(); defaults.projects = defaults.projects.filter(project => project.name !== 'webkit-small');
+  await assert.rejects(() => evaluateConfig('playwright.legacy-evidence.config.ts', { '@playwright/test': fakePlaywright, './playwright.config': { __esModule: true, default: defaults }, './scripts/qa-legacy-evidence-browser.mjs': { ROOT: env.GITHUB_WORKSPACE, readPhaseConfiguration: () => ({ phase: 'enabled', discovery: true }) } }, env), /Missing required B2 browser project/);
 });
 
+
+// Exercise the actual pinned loader. Only config/driver bytes and tiny forwarding
+// modules are copied; the two authored specs and their imports remain untouched.
+// Synthetic ownership records exist exclusively under this temporary root.
+const repoRoot = realpathSync(new URL('..', import.meta.url));
+const repoRequire = createRequire(new URL('../package.json', import.meta.url));
+function nativeListFixture(t: { after: (fn: () => void) => void }) {
+  const root = tiny(t), checkout = join(root, 'checkout'), runner = join(root, 'runner');
+  mkdirSync(checkout); mkdirSync(runner);
+  const directory = mkdtempSync(join(runner, 'yeoni-b2-')); chmodSync(directory, 0o700);
+  for (const child of ['home', 'tmp', 'results', 'processes', 'browser-cache']) mkdirSync(join(directory, child), { mode: 0o700 });
+  const configPath = 'playwright.legacy-evidence.config.ts', driverPath = 'scripts/qa-legacy-evidence-browser.mjs';
+  for (const path of [configPath, driverPath]) {
+    const source = readFileSync(join(repoRoot, path)), copy = put(checkout, path, source);
+    assert.deepEqual(readFileSync(copy), source);
+    assert.notEqual(statSync(copy).ino, statSync(join(repoRoot, path)).ino);
+  }
+  // Resolve the same installed package, without a copied dependency tree, loader
+  // hook, aliased driver, fake reader, hardlink, or symlink back into the checkout.
+  put(checkout, 'node_modules/@playwright/test/package.json', JSON.stringify({ main: 'index.cjs' }));
+  put(checkout, 'node_modules/@playwright/test/index.cjs', `module.exports = require(${JSON.stringify(repoRequire.resolve('@playwright/test'))});\n`);
+  put(checkout, 'playwright.config.ts', `import defaults from ${JSON.stringify(join(repoRoot, 'playwright.config.ts'))};\nexport default { ...defaults, testDir: ${JSON.stringify(join(repoRoot, 'tests/e2e'))} };\n`);
+  // Playwright resolves authored reporter paths before applying the fixed JSON CLI override.
+  put(checkout, 'tests/e2e/reporter.ts', `export { default } from ${JSON.stringify(join(repoRoot, 'tests/e2e/reporter.ts'))};\n`);
+  const info = statSync(directory), owner = { schemaVersion: 1, run: '123', attempt: '1', job: 'b2-list-regression', commit,
+    directory, dev: info.dev, ino: info.ino, nonce, state: 'created' };
+  const ownerFile = '.e2e/legacy-evidence-b2-owner.json';
+  put(checkout, ownerFile, JSON.stringify(owner), 0o600); put(directory, 'owner.json', JSON.stringify(owner), 0o600);
+  put(directory, 'state.json', JSON.stringify({ browserCache: join(directory, 'browser-cache') }), 0o600);
+  const started = Date.now();
+  // Deliberately omit NODE_ENV, matching the runner's closed environment. Next
+  // augments ProcessEnv to require it, although Node permits its absence; narrow
+  // type-only casts at Node/reader boundaries must not add a runtime variable.
+  const childEnv: Record<string, string> = {
+    PATH: `${dirname(process.execPath)}:/usr/bin:/bin`, HOME: join(directory, 'home'), TMPDIR: join(directory, 'tmp'),
+    LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', CI: 'true', GITHUB_ACTIONS: 'true',
+    GITHUB_RUN_ID: owner.run, GITHUB_RUN_ATTEMPT: owner.attempt, GITHUB_JOB: owner.job, QA_HEAD_SHA: commit,
+    GITHUB_WORKSPACE: checkout, RUNNER_TEMP: runner, QA_SOUP_VARIANT: 'fixed', QA_SOUP_LIBRARY: join(runner, 'webkit-soup/lib/libsoup-3.0.so.0'),
+    NEXT_PUBLIC_SUPABASE_URL: API, NEXT_PUBLIC_SUPABASE_ANON_KEY: 'synthetic-anon', YEONI_E2E: '1', NEXT_TELEMETRY_DISABLED: '1',
+    B2_JOB_STARTED_MS: String(started), B2_JOB_DEADLINE_MS: String(started + harness.LIMITS.jobMs),
+    B2_STOP_AT_MS: String(started + harness.LIMITS.jobMs - harness.LIMITS.reserveMs),
+    B2_PHASE: 'inactive', B2_DISCOVERY: '1', B2_PROCESS_TAG: nonce, PLAYWRIGHT_BROWSERS_PATH: join(directory, 'browser-cache'),
+  };
+  const sentinel = join(root, 'forbidden-execution.json');
+  // This preload only guards I/O boundaries, never config/module resolution or
+  // Playwright's loader. An attempted server/browser/worker/network operation,
+  // or entry into the real account fixture, is recorded and refused immediately.
+  const guard = put(root, 'list-only-boundary.cjs', `
+const fs = require('node:fs');
+const { syncBuiltinESMExports } = require('node:module');
+const record = fs.writeFileSync;
+function forbidden(kind) { record(${JSON.stringify(sentinel)}, JSON.stringify({ kind })); throw new Error('B2_LIST_FORBIDDEN_' + kind); }
+const cp = require('node:child_process');
+for (const name of ['spawn', 'spawnSync', 'fork', 'exec', 'execSync', 'execFile', 'execFileSync']) cp[name] = () => forbidden('child-process');
+require('node:net').Socket.prototype.connect = () => forbidden('network');
+require('node:net').Server.prototype.listen = () => forbidden('server');
+const read = fs.readFileSync;
+fs.readFileSync = function(file, ...args) {
+  if (String(file).replaceAll('\\\\', '/').endsWith('.e2e/stack-status.json')) forbidden('account-fixture');
+  return read.call(this, file, ...args);
+};
+syncBuiltinESMExports();
+`);
+  function setPhase(phase: 'inactive' | 'enabled', discovery = true) {
+    childEnv.B2_PHASE = phase;
+    if (discovery) childEnv.B2_DISCOVERY = '1'; else delete childEnv.B2_DISCOVERY;
+    put(directory, 'phase.json', JSON.stringify({ phase, nonce, commit, state: 'ready' }), 0o600);
+  }
+  const listDeadline = Date.now() + 60_000;
+  function list() {
+    const remaining = listDeadline - Date.now(); assert.ok(remaining > 0, 'Native list fixture has one fixed 60-second total budget');
+    const args = ['--require', guard, repoRequire.resolve('@playwright/test/cli'), 'test', `--config=${join(checkout, configPath)}`, '--list', '--reporter=json'];
+    const result = spawnSync(process.execPath, args, { cwd: checkout, env: childEnv as NodeJS.ProcessEnv, encoding: 'utf8',
+      timeout: Math.min(15_000, remaining), killSignal: 'SIGKILL', maxBuffer: 1024 ** 2, stdio: ['ignore', 'pipe', 'pipe'] });
+    assert.equal(result.error, undefined, 'Bounded native list subprocess must finish normally');
+    assert.equal(result.signal, null);
+    assert.equal(existsSync(sentinel), false, existsSync(sentinel) ? readFileSync(sentinel, 'utf8') : 'No execution boundary may be entered');
+    assert.deepEqual(filesystem.readdirSync(join(directory, 'browser-cache')), [], 'No browser is installed or started');
+    assert.deepEqual(filesystem.readdirSync(join(directory, 'results')), [], 'List mode must not create execution output');
+    assert.equal(existsSync(join(checkout, '.e2e/stack-status.json')), false);
+    assert.equal(existsSync(join(checkout, '.e2e/evidence')), false);
+    return result;
+  }
+  setPhase('inactive');
+  return { root, checkout, directory, owner, ownerFile, childEnv, setPhase, list };
+}
+test('installed Playwright list mode has no setup, server, worker or test-execution task', () => {
+  assert.equal(repoRequire('@playwright/test/package.json').version, '1.63.0');
+  const runner = readFileSync(join(dirname(repoRequire.resolve('playwright/package.json')), 'lib/runner/index.js'), 'utf8');
+  const ast = ts.createSourceFile('installed-playwright-runner.js', runner, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  const run = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'runAllTestsWithConfig');
+  assert.ok(run && ts.isFunctionDeclaration(run) && run.body);
+  const tasks = run.body.statements.flatMap(node => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : []).find(node => node.name.getText(ast) === 'tasks')?.initializer;
+  assert.ok(tasks && ts.isConditionalExpression(tasks)); assert.equal(tasks.condition.getText(ast), 'options.listMode');
+  assert.ok(ts.isArrayLiteralExpression(tasks.whenTrue));
+  assert.deepEqual(tasks.whenTrue.elements.map(node => ts.isCallExpression(node) ? node.expression.getText(ast) : 'unexpected task'), ['createLoadTask', 'createReportBeginTask']);
+  const load = tasks.whenTrue.elements[0]; assert.ok(ts.isCallExpression(load));
+  assert.equal(load.arguments[0].getText(ast), '"in-process"');
+  assert.match(tasks.whenFalse.getText(ast), /createGlobalSetupTasks\(config2\)/);
+  assert.match(tasks.whenFalse.getText(ast), /createRunTestsTasks\(config2\)/);
+});
+test('native focused config lists exact authored inactive/enabled cases and awaits real owner authority', { timeout: 70_000 }, t => {
+  const fixture = nativeListFixture(t);
+  for (const phase of ['inactive', 'enabled'] as const) for (const discovery of [true, false]) {
+    fixture.setPhase(phase, discovery);
+    assert.deepEqual(harness.readPhaseConfiguration(fixture.checkout, fixture.childEnv as NodeJS.ProcessEnv), {
+      phase, discovery, outputDir: join(fixture.directory, 'results', phase),
+    });
+    const result = fixture.list(); assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout), cases = harness.projectDiscovery(report, phase);
+    assert.equal(report.config.configFile, join(fixture.checkout, 'playwright.legacy-evidence.config.ts'));
+    assert.equal(report.config.rootDir, join(repoRoot, 'tests/e2e'));
+    assert.equal(cases.length, phase === 'inactive' ? 8 : 28);
+    assert.deepEqual(cases.filter(row => row.project === 'auth-preservation'), harness.expectedCases(phase).filter(row => row.project === 'auth-preservation'));
+    assert.deepEqual(cases, harness.expectedCases(phase));
+    assert.deepEqual(report.errors, []);
+    assert.equal(report.stats.expected, 0); assert.equal(report.stats.unexpected, 0);
+    for (const suite of report.suites) for (const spec of suite.specs) for (const row of spec.tests) assert.deepEqual(row.results, [], 'No authored test/fixture callback executes');
+    // Even without B2_DISCOVERY, the real server config is loaded but --list
+    // never starts it. Its exact command/cwd/env remain covered above.
+    assert.equal(Boolean(report.config.webServer), !discovery);
+    if (!discovery) assert.equal(report.config.webServer.command, 'node scripts/qa-legacy-evidence-browser.mjs serve');
+  }
+});
+test('native focused config fails closed for absent/malformed ownership and rejected authority inputs', { timeout: 70_000 }, t => {
+  const fixture = nativeListFixture(t), baseline = { ...fixture.childEnv };
+  const ownerJson = JSON.stringify(fixture.owner), phaseJson = JSON.stringify({ phase: 'inactive', nonce, commit, state: 'ready' });
+  const negatives = [
+    { name: 'missing owner', error: /ENOENT/, change: () => rmSync(join(fixture.checkout, fixture.ownerFile)) },
+    { name: 'malformed owner JSON', error: /SyntaxError/, change: () => put(fixture.checkout, fixture.ownerFile, '{', 0o600) },
+    { name: 'wrong owner inode', error: /ownership_invalid/, change: () => put(fixture.checkout, fixture.ownerFile, JSON.stringify({ ...fixture.owner, ino: fixture.owner.ino + 1 }), 0o600) },
+    { name: 'missing nonce', error: /environment_override/, change: () => { delete fixture.childEnv.B2_PROCESS_TAG; } },
+    { name: 'malformed nonce', error: /environment_override/, change: () => { fixture.childEnv.B2_PROCESS_TAG = 'bad'; } },
+    { name: 'mismatched nonce', error: /ownership_invalid/, change: () => { fixture.childEnv.B2_PROCESS_TAG = 'c'.repeat(64); } },
+    { name: 'stale phase nonce', error: /ownership_invalid/, change: () => put(fixture.directory, 'phase.json', JSON.stringify({ phase: 'inactive', nonce: 'c'.repeat(64), commit, state: 'ready' }), 0o600) },
+    { name: 'phase not ready', error: /ownership_invalid/, change: () => put(fixture.directory, 'phase.json', JSON.stringify({ phase: 'inactive', nonce, commit, state: 'building' }), 0o600) },
+    { name: 'malformed discovery flag', error: /ownership_invalid/, change: () => { fixture.childEnv.B2_DISCOVERY = '0'; } },
+    { name: 'non-enum phase', error: /ownership_invalid/, change: () => { fixture.childEnv.B2_PHASE = '../enabled'; } },
+    { name: 'wrong browser cache', error: /ownership_invalid/, change: () => { fixture.childEnv.PLAYWRIGHT_BROWSERS_PATH = fixture.directory; } },
+    { name: 'invalid runner identity', error: /runner_required/, change: () => { fixture.childEnv.GITHUB_RUN_ID = 'not-a-run'; } },
+    { name: 'credential environment override', error: /environment_override/, change: () => { fixture.childEnv.SUPABASE_SERVICE_ROLE_KEY = 'synthetic-rejected'; } },
+  ];
+  for (const negative of negatives) {
+    for (const key of Object.keys(fixture.childEnv)) delete fixture.childEnv[key]; Object.assign(fixture.childEnv, baseline);
+    put(fixture.checkout, fixture.ownerFile, ownerJson, 0o600); put(fixture.directory, 'phase.json', phaseJson, 0o600);
+    negative.change();
+    assert.throws(() => harness.readPhaseConfiguration(fixture.checkout, fixture.childEnv as NodeJS.ProcessEnv), negative.error, negative.name);
+    const result = fixture.list(); assert.notEqual(result.status, 0, negative.name);
+    assert.match(result.stderr, negative.error, negative.name);
+    assert.equal(result.stdout.trim(), '', 'Rejected authority never reaches test discovery');
+  }
+});
 
 // The fake transport also covers failures between spawn and persisted ownership.
 function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow> } = {}) {
