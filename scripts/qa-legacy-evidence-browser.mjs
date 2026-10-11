@@ -70,6 +70,21 @@ export function safeFailure(error) {
   const descriptor = Object.getOwnPropertyDescriptor(error, 'code');
   return descriptor && typeof descriptor.value === 'string' && CODES.has(descriptor.value) ? descriptor.value : 'harness_failed';
 }
+const DIAGNOSTIC_STAGES = new Set(['harness', 'run-bootstrap', 'serve-bootstrap', 'cleanup-bootstrap', 'finalize-bootstrap',
+  'runner-preflight', 'checkout-preflight', 'owned-directory', 'owned-state', 'stack-before', 'sql-gate', 'sql-result', 'stack-after',
+  'source-copy', 'dependencies-main', 'dependencies-browser-qa', 'copy-result',
+  ...['inactive', 'enabled'].flatMap(phase => ['build', 'build-reap', 'build-identity', 'discovery', 'browser', 'browser-result', 'phase-reap', 'source-check'].map(stage => `${phase}-${stage}`)),
+  'run-cleanup-processes', 'run-cleanup-source', 'run-cleanup-build', 'cleanup-processes', 'cleanup-source', 'cleanup-build', 'cleanup-copy', 'finalize-stack', 'finalize-result']);
+export function diagnosticLine(stage, status, error) {
+  // Project before serialization. No raw error, path, environment or child
+  // output can cross this fixed console boundary, including through getters.
+  const safeStage = DIAGNOSTIC_STAGES.has(stage) ? stage : 'harness';
+  const safeStatus = ['passed', 'failed', 'unverified'].includes(status) ? status : 'failed';
+  return `[legacy-evidence-b2] ${JSON.stringify({ stage: safeStage, status: safeStatus, ...(safeStatus === 'failed' ? { code: safeFailure(error) } : {}) })}`;
+}
+function emitDiagnostic(stage, status, error) {
+  try { console.error(diagnosticLine(stage, status, error)); } catch { /* Diagnostics must never change refusal or cleanup behavior. */ }
+}
 export function validateRelativePath(path) {
   if (typeof path !== 'string' || !path || path.length > 512 || isAbsolute(path) || path.includes('\\') || /[\x00-\x1f\x7f]/.test(path) || path.split('/').some(p => !p || p === '.' || p === '..')) refuse('source_path');
   return path;
@@ -483,59 +498,64 @@ async function serve() {
   } finally { process.off('SIGTERM',signal); process.off('SIGINT',signal); await stop(); if(readiness)await readiness; }
 }
 async function run() {
-  const report = initialReport(); let owner, identity, normalBuild, state;
+  const report = initialReport(); let owner, identity, normalBuild, state; let stage = 'runner-preflight';
   const interrupt = () => runtimeStop.abort(); process.on('SIGINT', interrupt); process.on('SIGTERM', interrupt);
   try {
     const budget = validateRunner(process.env,ROOT); if (process.env.PLAYWRIGHT_BROWSERS_PATH || process.env.B2_PROCESS_TAG) refuse('environment_override'); if (Date.now() >= budget.stop) refuse('budget_exhausted');
-    identity = verifyCheckout(); noListener(); owner = createOwner(ROOT,process.env);
+    stage = 'checkout-preflight'; identity = verifyCheckout(); noListener(); stage = 'owned-directory'; owner = createOwner(ROOT,process.env);
     report.identity = { commit:identity.commit,tree:identity.tree,fullTrackedDigest:identity.fullTrackedDigest,protectedDigest:identity.protectedDigest,protectedFileCount:identity.protectedFileCount,inventory: { digest:identity.manifest.digest,files:identity.manifest.fileCount,bytes:identity.manifest.byteCount },controls:identity.controls };
     report.job = { run:owner.run,attempt:owner.attempt,job:owner.job,start:budget.start,deadline:budget.deadline,stop:budget.stop };
-    state = { source: { commit:identity.commit,tree:identity.tree,fullTrackedDigest:identity.fullTrackedDigest },builds:{},browserCache:join(realpathSync(process.env.HOME),'.cache/ms-playwright'),report }; writeJson(join(owner.directory,'state.json'),state);
-    const stackBefore = await stackIdentity(); state.stack=stackBefore.identity; writeJson(join(owner.directory,'state.json'),state);
-    const sqlPath=join(ROOT,SQL_REPORT); retireReport(sqlPath); const sqlStarted=Date.now();
+    stage = 'owned-state'; state = { source: { commit:identity.commit,tree:identity.tree,fullTrackedDigest:identity.fullTrackedDigest },builds:{},browserCache:join(realpathSync(process.env.HOME),'.cache/ms-playwright'),report }; writeJson(join(owner.directory,'state.json'),state);
+    stage = 'stack-before'; const stackBefore = await stackIdentity(); state.stack=stackBefore.identity; writeJson(join(owner.directory,'state.json'),state);
+    stage = 'sql-gate'; const sqlPath=join(ROOT,SQL_REPORT); retireReport(sqlPath); const sqlStarted=Date.now();
     const sql = await runFixed(owner,'sql',['--experimental-strip-types','scripts/qa-legacy-evidence-postgres.mjs'],{ env:{ ...process.env,B2_PROCESS_TAG:owner.nonce },timeout:5*60_000,stopAt:budget.stop });
-    const sqlReport=freshReport(sqlPath,sqlStarted); const { CASES }=await import('./qa-legacy-evidence-postgres.mjs');
+    if(sql.code!==0)emitDiagnostic('sql-gate','failed',{code:'sql_failed'});
+    stage = 'sql-result'; const sqlReport=freshReport(sqlPath,sqlStarted); const { CASES }=await import('./qa-legacy-evidence-postgres.mjs');
     if (sql.code!==0 || sqlReport.status!=='passed' || sqlReport.cleanup!=='passed' || sqlReport.http?.status!=='passed' || JSON.stringify(sqlReport.cases?.map(row=>row.name))!==JSON.stringify(CASES) || sqlReport.cases.some(row=>row.status!=='passed')) refuse('sql_failed');
-    const stackAfter=await stackIdentity(); if(JSON.stringify(stackBefore.identity)!==JSON.stringify(stackAfter.identity)) refuse('sql_failed');
+    stage = 'stack-after'; const stackAfter=await stackIdentity(); if(JSON.stringify(stackBefore.identity)!==JSON.stringify(stackAfter.identity)) refuse('sql_failed');
     report.sql={status:'passed',summaryDigest:sha256(readFileSync(sqlPath)),stackDigest:sha256(JSON.stringify(stackBefore.identity)),sameJobProcess:true,httpCleanup:'passed-by-terminal-process',durationMs:sql.durationMs};
     const app=join(owner.directory,'enabled-app'), copyStarted=Date.now();
     const copyCheckpoint=()=>{if(runtimeStop.signal.aborted)refuse('interrupted');if(Date.now()>=budget.stop)refuse('budget_exhausted');};
-    report.copy=copySources(ROOT,app,identity.manifest,copyCheckpoint);
-    report.dependencies={ main:copyDependencyTree(join(ROOT,'node_modules'),join(app,'node_modules'),json(join(ROOT,'package-lock.json')),{checkpoint:copyCheckpoint,maxBytes:LIMITS.ownedBytes-ownedUsage(owner.directory)}),
-      browserQa:copyDependencyTree(join(ROOT,'scripts/browser-qa/node_modules'),join(app,'scripts/browser-qa/node_modules'),json(join(ROOT,'scripts/browser-qa/package-lock.json')),{checkpoint:copyCheckpoint,maxBytes:LIMITS.ownedBytes-ownedUsage(owner.directory)}) };
-    report.copy.durationMs=Date.now()-copyStarted; report.copy.bytes=ownedUsage(owner.directory); report.copy.peakControllerRss=process.resourceUsage().maxRSS*1024;
+    stage = 'source-copy'; report.copy=copySources(ROOT,app,identity.manifest,copyCheckpoint);
+    stage = 'dependencies-main'; const mainDependencies=copyDependencyTree(join(ROOT,'node_modules'),join(app,'node_modules'),json(join(ROOT,'package-lock.json')),{checkpoint:copyCheckpoint,maxBytes:LIMITS.ownedBytes-ownedUsage(owner.directory)});
+    stage = 'dependencies-browser-qa'; const browserQaDependencies=copyDependencyTree(join(ROOT,'scripts/browser-qa/node_modules'),join(app,'scripts/browser-qa/node_modules'),json(join(ROOT,'scripts/browser-qa/package-lock.json')),{checkpoint:copyCheckpoint,maxBytes:LIMITS.ownedBytes-ownedUsage(owner.directory)});
+    report.dependencies={ main:mainDependencies, browserQa:browserQaDependencies };
+    stage = 'copy-result'; report.copy.durationMs=Date.now()-copyStarted; report.copy.bytes=ownedUsage(owner.directory); report.copy.peakControllerRss=process.resourceUsage().maxRSS*1024;
     for (const phase of ['inactive','enabled']) {
-      if(Date.now()>=budget.stop) refuse('budget_exhausted'); noListener();
+      stage = `${phase}-build`; if(Date.now()>=budget.stop) refuse('budget_exhausted'); noListener();
       const cwd=phase==='inactive'?ROOT:app;
       const built=await runFixed(owner,`${phase}-build`,[join(cwd,'node_modules/next/dist/bin/next'),'build'],{cwd,env:closedApplicationEnvironment(process.env,owner,stackBefore.stack.status),timeout:10*60_000,stopAt:budget.stop});
-      await reap(owner); if(built.code!==0) refuse('build_failed');
-      state.builds[phase]=buildIdentity(cwd); if(phase==='inactive')normalBuild=state.builds.inactive;
+      if(built.code!==0)emitDiagnostic(`${phase}-build`,'failed',{code:'build_failed'});
+      stage = `${phase}-build-reap`; await reap(owner); stage = `${phase}-build`; if(built.code!==0) refuse('build_failed');
+      stage = `${phase}-build-identity`; state.builds[phase]=buildIdentity(cwd); if(phase==='inactive')normalBuild=state.builds.inactive;
       report.phases[phase].build={...state.builds[phase],durationMs:built.durationMs,peakRss:built.peakRss,peakDisk:built.peakDisk};
       writeJson(join(owner.directory,'state.json'),state); writeJson(join(owner.directory,'phase.json'),{phase,nonce:owner.nonce,commit:owner.commit,state:'ready'});
-      const list=await runFixed(owner,'discovery',['node_modules/@playwright/test/cli.js','test',`--config=${CONFIG}`,'--list','--reporter=json'],{env:runEnvironment(owner,phase,true),capture:true,timeout:60_000,stopAt:budget.stop});
+      stage = `${phase}-discovery`; const list=await runFixed(owner,'discovery',['node_modules/@playwright/test/cli.js','test',`--config=${CONFIG}`,'--list','--reporter=json'],{env:runEnvironment(owner,phase,true),capture:true,timeout:60_000,stopAt:budget.stop});
       if(list.code!==0)refuse('discovery_invalid'); const discovered=projectDiscovery(JSON.parse(list.output),phase); noListener();
       const summary=join(ROOT,SUMMARY); retireReport(summary); const start=Date.now(); const cleanupRows=[];
-      let executionFailure; let result;
+      stage = `${phase}-browser`; let executionFailure; let result;
       try { result=await runFixed(owner,'browser',['scripts/qa-playwright.mjs',`--config=${CONFIG}`],{env:runEnvironment(owner,phase),timeout:budget.stop-Date.now(),stopAt:budget.stop,onLine:line=>{
         if(!line.startsWith('QA_CLEANUP '))return; try{const row=JSON.parse(line.slice(11));if(discovered.some(item=>item.title===row.title)&&Number.isSafeInteger(row.accountsRemoved)&&row.accountsRemoved>=1&&row.accountsRemoved<=2&&row.rowsRemaining===0&&Array.isArray(row.blockedOrigins)&&row.blockedOrigins.length===0)cleanupRows.push({title:row.title,count:row.accountsRemoved});}catch{/* No arbitrary output is retained. */}
-      }}); } catch(error) { executionFailure=error; result={code:1,durationMs:Date.now()-start,peakRss:null,peakDisk:null}; }
-      const readinessPath=join(owner.directory,`${phase}-readiness.json`);
+      }}); } catch(error) { emitDiagnostic(stage,'failed',error); executionFailure=error; result={code:1,durationMs:Date.now()-start,peakRss:null,peakDisk:null}; }
+      if(!executionFailure&&result.code!==0)emitDiagnostic(`${phase}-browser`,'failed',{code:'browser_failed'});
+      stage = `${phase}-browser-result`; const readinessPath=join(owner.directory,`${phase}-readiness.json`);
       if(existsSync(readinessPath)){const ready=json(regularPath(owner.directory,`${phase}-readiness.json`));if(ready.phase!==phase||ready.nonce!==owner.nonce||!Number.isSafeInteger(ready.readinessMs)||ready.readinessMs<0||ready.readinessMs>120_000)refuse('report_invalid');report.phases[phase].serverReadinessMs=ready.readinessMs;}
       const execution=existsSync(summary)?projectExecution(freshReport(summary,start),phase,identity.commit):{...unrunPhase(phase),status:'failed',discovered:discovered.length};
       report.phases[phase]={...report.phases[phase],...execution,durationMs:result.durationMs,peakRss:result.peakRss,peakDisk:result.peakDisk,
         accounts:{created:cleanupRows.length===discovered.length?cleanupRows.reduce((n,row)=>n+row.count,0):null,deleted:cleanupRows.reduce((n,row)=>n+row.count,0),verified:cleanupRows.length===discovered.length}};
-      const teardownStarted=Date.now(); await reap(owner); report.phases[phase].ownedTeardownMs=Date.now()-teardownStarted; if(JSON.stringify(buildIdentity(ROOT))!==JSON.stringify(normalBuild))refuse('source_changed');
-      if(executionFailure)throw executionFailure;
+      if(!executionFailure&&result.code===0&&(execution.status!=='passed'||cleanupRows.length!==discovered.length||report.phases[phase].serverReadinessMs===undefined))emitDiagnostic(`${phase}-browser`,'failed',{code:'browser_failed'});
+      stage = `${phase}-phase-reap`; const teardownStarted=Date.now(); await reap(owner); report.phases[phase].ownedTeardownMs=Date.now()-teardownStarted; if(JSON.stringify(buildIdentity(ROOT))!==JSON.stringify(normalBuild))refuse('source_changed');
+      stage = `${phase}-browser`; if(executionFailure)throw executionFailure;
       if(result.code!==0||execution.status!=='passed'||cleanupRows.length!==discovered.length||report.phases[phase].serverReadinessMs===undefined)refuse('browser_failed');
-      if(verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed'); verifyCopiedSources(app,identity.manifest); saveReport(report);
+      stage = `${phase}-source-check`; if(verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed'); verifyCopiedSources(app,identity.manifest); saveReport(report);
     }
     report.cleanup.accounts='passed'; report.status='awaiting-cleanup'; delete report.failureCode;
-  } catch(error) { report.status='failed';report.failureCode=safeFailure(error); }
+  } catch(error) { emitDiagnostic(stage,'failed',error);report.status='failed';report.failureCode=safeFailure(error); }
   finally {
     if(owner) {
-      try{await reap(owner);report.cleanup.processes='passed';}catch{report.cleanup.processes='failed';report.status='failed';report.failureCode='cleanup_failed';}
-      try{if(!identity||verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed');report.cleanup.source='passed';}catch{report.cleanup.source='failed';report.status='failed';report.failureCode='source_changed';}
-      try{if(normalBuild&&JSON.stringify(buildIdentity(ROOT))===JSON.stringify(normalBuild))report.cleanup.normalBuild='passed';else report.cleanup.normalBuild='unverified';}catch{report.cleanup.normalBuild='failed';report.status='failed';report.failureCode='source_changed';}
+      try{await reap(owner);report.cleanup.processes='passed';emitDiagnostic('run-cleanup-processes','passed');}catch(error){emitDiagnostic('run-cleanup-processes','failed',error);report.cleanup.processes='failed';report.status='failed';report.failureCode='cleanup_failed';}
+      try{if(!identity||verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed');report.cleanup.source='passed';emitDiagnostic('run-cleanup-source','passed');}catch(error){emitDiagnostic('run-cleanup-source','failed',error);report.cleanup.source='failed';report.status='failed';report.failureCode='source_changed';}
+      try{if(normalBuild&&JSON.stringify(buildIdentity(ROOT))===JSON.stringify(normalBuild))report.cleanup.normalBuild='passed';else report.cleanup.normalBuild='unverified';emitDiagnostic('run-cleanup-build',report.cleanup.normalBuild);}catch(error){emitDiagnostic('run-cleanup-build','failed',error);report.cleanup.normalBuild='failed';report.status='failed';report.failureCode='source_changed';}
       state={...state,report};writeJson(join(owner.directory,'state.json'),state);
     }
     saveReport(report); process.off('SIGINT', interrupt); process.off('SIGTERM', interrupt);
@@ -546,31 +566,32 @@ async function cleanup() {
   validateRunner(process.env,ROOT,Date.now(),true);
   if(!existsSync(join(ROOT,OWNER_PATH))) {
     const report=existsSync(join(ROOT,REPORT_PATH))?json(join(ROOT,REPORT_PATH)):initialReport();
-    if(report.cleanup.copy!=='passed'){report.status='failed';report.cleanup.copy='unverified';saveReport(report);process.exitCode=1;}return;
+    if(report.cleanup.copy!=='passed'){report.status='failed';report.cleanup.copy='unverified';saveReport(report);process.exitCode=1;}emitDiagnostic('cleanup-copy',report.cleanup.copy);return;
   }
   const cleanupStarted=Date.now(), cleanupDeadline=ownedCleanupDeadline(process.env,cleanupStarted); const owner=readOwner();
   const state=existsSync(join(owner.directory,'state.json'))?json(regularPath(owner.directory,'state.json')):{};
   const report=state.report??initialReport(); let processesStopped=false;
-  try { await reap(owner,cleanupDeadline);report.cleanup.processes='passed';processesStopped=true; }
-  catch(error){report.cleanup.processes='failed';report.status='failed';report.failureCode=safeFailure(error);}
+  try { await reap(owner,cleanupDeadline);report.cleanup.processes='passed';processesStopped=true;emitDiagnostic('cleanup-processes','passed'); }
+  catch(error){emitDiagnostic('cleanup-processes','failed',error);report.cleanup.processes='failed';report.status='failed';report.failureCode=safeFailure(error);}
   try {
     assertCleanupTime(cleanupDeadline); const identity=verifyCheckout();
     if(state.source&&identity.fullTrackedDigest!==state.source.fullTrackedDigest)refuse('source_changed');
-    report.cleanup.source='passed';
-  }catch(error){report.cleanup.source='failed';report.status='failed';report.failureCode=safeFailure(error);}
+    report.cleanup.source='passed';emitDiagnostic('cleanup-source','passed');
+  }catch(error){emitDiagnostic('cleanup-source','failed',error);report.cleanup.source='failed';report.status='failed';report.failureCode=safeFailure(error);}
   try {
     assertCleanupTime(cleanupDeadline); if(!state.builds?.inactive)report.cleanup.normalBuild='unverified';
     else if(JSON.stringify(buildIdentity(ROOT))!==JSON.stringify(state.builds.inactive))refuse('source_changed');
     else report.cleanup.normalBuild='passed';
-  }catch(error){report.cleanup.normalBuild='failed';report.status='failed';report.failureCode=safeFailure(error);}
+    emitDiagnostic('cleanup-build',report.cleanup.normalBuild);
+  }catch(error){emitDiagnostic('cleanup-build','failed',error);report.cleanup.normalBuild='failed';report.status='failed';report.failureCode=safeFailure(error);}
   try {
     assertCleanupTime(cleanupDeadline); if(!processesStopped)refuse('cleanup_failed');
     ownedUsage(owner.directory,false);validateOwnerRecord(owner,ROOT,process.env);
     // The fixed receipt survives removal without retaining application bytes.
     if(state.stack)writeJson(join(ROOT,'.e2e/legacy-evidence-b2-stack-cleanup.json'),{run:owner.run,attempt:owner.attempt,job:owner.job,commit:owner.commit,stack:state.stack});
     assertCleanupTime(cleanupDeadline); rmSync(owner.directory,{recursive:true});if(existsSync(owner.directory))refuse('cleanup_failed');
-    rmSync(join(ROOT,OWNER_PATH));report.cleanup.copy='passed';
-  }catch(error){report.status='failed';report.failureCode=safeFailure(error);report.cleanup.copy='failed';}
+    rmSync(join(ROOT,OWNER_PATH));report.cleanup.copy='passed';emitDiagnostic('cleanup-copy','passed');
+  }catch(error){emitDiagnostic('cleanup-copy','failed',error);report.status='failed';report.failureCode=safeFailure(error);report.cleanup.copy='failed';}
   report.ownedCleanupDurationMs=Date.now()-cleanupStarted; saveReport(report);if(report.status==='failed')process.exitCode=1;
 }
 async function finalize() {
@@ -580,13 +601,13 @@ async function finalize() {
     if(process.env.B2_STACK_STOP_EXIT!=='0'||proof.run!==process.env.GITHUB_RUN_ID||proof.attempt!==process.env.GITHUB_RUN_ATTEMPT||proof.job!==process.env.GITHUB_JOB||proof.commit!==process.env.QA_HEAD_SHA||!proof.stack||existsSync(join(ROOT,'.e2e/stack-status.json'))||existsSync(join(ROOT,'.e2e/stack'))||existsSync(join(ROOT,OWNER_PATH)))refuse('stack_cleanup_failed');
     const docker=args=>execFileSync('docker',['--context','default',...args],{encoding:'utf8',timeout:15000,maxBuffer:4*1024**2,stdio:['ignore','pipe','pipe']}).trim().split('\n');
     const containers=docker(['ps','--all','--no-trunc','--format','{{.ID}}']),volumes=docker(['volume','ls','--format','{{.Name}}']);
-    if(proof.stack.ids.some(id=>containers.includes(id))||proof.stack.volumes.some(name=>volumes.includes(name)))refuse('stack_cleanup_failed');report.cleanup.stack='passed';
+    if(proof.stack.ids.some(id=>containers.includes(id))||proof.stack.volumes.some(name=>volumes.includes(name)))refuse('stack_cleanup_failed');report.cleanup.stack='passed';emitDiagnostic('finalize-stack','passed');
     if(report.status==='awaiting-cleanup'&&Object.values(report.cleanup).every(value=>value==='passed'))report.status='passed';else report.status='failed';
-  }catch(error){report.status='failed';report.failureCode=safeFailure(error);report.cleanup.stack='unverified';}
-  saveReport(report);if(report.status!=='passed')process.exitCode=1;
+  }catch(error){emitDiagnostic('finalize-stack','failed',error);report.status='failed';report.failureCode=safeFailure(error);report.cleanup.stack='unverified';}
+  emitDiagnostic('finalize-result',report.status,{code:report.failureCode});saveReport(report);if(report.status!=='passed')process.exitCode=1;
 }
 export async function main() {
   if(process.argv.length!==3||!['run','serve','cleanup','finalize'].includes(process.argv[2]))refuse('runner_required');
   if(process.argv[2]==='serve')return serve();if(process.argv[2]==='cleanup')return cleanup();if(process.argv[2]==='finalize')return finalize();return run();
 }
-if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url)main().catch(error=>{console.error(`B2 ${safeFailure(error)}`);process.exitCode=1;});
+if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url)main().catch(error=>{emitDiagnostic(`${process.argv[2]}-bootstrap`,'failed',error);process.exitCode=1;});

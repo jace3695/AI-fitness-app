@@ -175,6 +175,94 @@ test('fixed failure sanitizer ignores unknown strings, accessors, prototypes and
   assert.equal(reads, 0);
   assert.equal(harness.safeFailure({ code: 'build_failed', message: 'secret-message', stack: 'secret-stack' }), 'build_failed');
 });
+const diagnosticPrefix = '[legacy-evidence-b2] ';
+const diagnosticCodes = ['runner_required', 'deadline_invalid', 'budget_exhausted', 'environment_override', 'source_identity',
+  'inventory_invalid', 'source_path', 'source_changed', 'release_changed', 'dependency_invalid', 'resource_limit',
+  'ownership_invalid', 'process_identity', 'process_limit', 'cleanup_failed', 'port_occupied', 'discovery_invalid',
+  'report_invalid', 'sql_failed', 'build_failed', 'browser_failed', 'interrupted', 'stack_cleanup_failed', 'harness_failed'];
+const diagnosticStages = ['harness', 'run-bootstrap', 'serve-bootstrap', 'cleanup-bootstrap', 'finalize-bootstrap',
+  'runner-preflight', 'checkout-preflight', 'owned-directory', 'owned-state', 'stack-before', 'sql-gate', 'sql-result', 'stack-after',
+  'source-copy', 'dependencies-main', 'dependencies-browser-qa', 'copy-result',
+  ...['inactive', 'enabled'].flatMap(phase => ['build', 'build-reap', 'build-identity', 'discovery', 'browser', 'browser-result', 'phase-reap', 'source-check'].map(stage => `${phase}-${stage}`)),
+  'run-cleanup-processes', 'run-cleanup-source', 'run-cleanup-build', 'cleanup-processes', 'cleanup-source', 'cleanup-build', 'cleanup-copy', 'finalize-stack', 'finalize-result'];
+function diagnosticRecord(stage: unknown, status: unknown, error?: unknown) {
+  const line = harness.diagnosticLine(stage, status, error);
+  assert.equal(typeof line, 'string'); assert.equal(line.startsWith(diagnosticPrefix), true);
+  assert.doesNotMatch(line, /[\r\n\x1b]/, 'Diagnostics must remain one fixed-prefix line without terminal escapes');
+  const record = JSON.parse(line.slice(diagnosticPrefix.length));
+  assert.deepEqual(Object.keys(record).sort(), record.status === 'failed' ? ['code', 'stage', 'status'] : ['stage', 'status']);
+  assert.ok(diagnosticStages.includes(record.stage)); assert.ok(['passed', 'failed', 'unverified'].includes(record.status));
+  if (record.status === 'failed') assert.ok(diagnosticCodes.includes(record.code));
+  return record;
+}
+test('diagnostic projection admits only the fixed lifecycle vocabulary and omits codes on nonfailures', () => {
+  for (const stage of diagnosticStages) for (const status of ['passed', 'failed', 'unverified']) {
+    assert.deepEqual(diagnosticRecord(stage, status, { code: 'source_changed', secret: 'SENTINEL_SECRET' }),
+      { stage, status, ...(status === 'failed' ? { code: 'source_changed' } : {}) });
+  }
+  for (const stage of ['', 'INACTIVE-BUILD', 'inactive-build\n', 'enabled', 'cleanup', 'arbitrary-stage']) {
+    assert.deepEqual(diagnosticRecord(stage, 'passed'), { stage: 'harness', status: 'passed' });
+  }
+  for (const status of ['', 'PASSED', 'passed\n', 'awaiting-cleanup', 'unrun', 'skipped']) {
+    assert.deepEqual(diagnosticRecord('harness', status, { code: 'build_failed' }), { stage: 'harness', status: 'failed', code: 'build_failed' });
+  }
+  const error = Object.defineProperty({}, 'code', { get() { assert.fail('Successful and unverified diagnostics must not inspect error details'); } });
+  for (const status of ['passed', 'unverified']) assert.deepEqual(diagnosticRecord('harness', status, error), { stage: 'harness', status });
+});
+test('diagnostic projection never coerces hostile stage/status/error objects or invokes their accessors', () => {
+  let reads = 0;
+  const poisoned = () => { reads++; throw new Error('SENTINEL_SECRET_ACCESSOR'); };
+  const object = Object.defineProperties({}, {
+    code: { get: poisoned }, toJSON: { get: poisoned }, message: { get: poisoned }, stack: { get: poisoned },
+    toString: { value: poisoned }, valueOf: { value: poisoned }, [Symbol.toPrimitive]: { value: poisoned },
+  });
+  const proxy = new Proxy({}, { get: poisoned, getOwnPropertyDescriptor: poisoned, getPrototypeOf: poisoned, ownKeys: poisoned, has: poisoned });
+  const revoked = Proxy.revocable({}, {}); revoked.revoke();
+  for (const value of [null, undefined, 1, true, BigInt(1), Symbol('SENTINEL_SECRET_SYMBOL'), 'SENTINEL_SECRET\n[legacy-evidence-b2] {"status":"passed"}\u001b[31m', object, proxy, revoked.proxy, Object.create({ code: 'build_failed' })]) {
+    assert.deepEqual(diagnosticRecord(value, value, value), { stage: 'harness', status: 'failed', code: 'harness_failed' });
+  }
+  assert.equal(reads, 0);
+});
+test('diagnostic projection copies only a reviewed own failure code and no error context', () => {
+  let reads = 0;
+  for (const code of diagnosticCodes) {
+    const error = Object.assign(new Error('SENTINEL_SECRET_MESSAGE'), {
+      code, stack: 'SENTINEL_SECRET_STACK', output: 'SENTINEL_SECRET_OUTPUT', path: '/SENTINEL_SECRET_PATH',
+      env: { TOKEN: 'SENTINEL_SECRET_TOKEN' }, nonce: 'SENTINEL_SECRET_NONCE', attachments: ['SENTINEL_SECRET_ATTACHMENT'],
+    });
+    Object.defineProperty(error, 'toJSON', { get() { reads++; throw new Error('SENTINEL_SECRET_JSON'); } });
+    assert.deepEqual(diagnosticRecord('harness', 'failed', error), { stage: 'harness', status: 'failed', code });
+    assert.doesNotMatch(harness.diagnosticLine('harness', 'failed', error), /SENTINEL_SECRET|"(?:message|stack|output|path|env|nonce|attachments)"/);
+  }
+  for (const code of ['SENTINEL_SECRET_CODE', 'BUILD_FAILED', 'build_failed\n', { toString: () => 'build_failed' }]) {
+    assert.deepEqual(diagnosticRecord('harness', 'failed', { code }), { stage: 'harness', status: 'failed', code: 'harness_failed' });
+  }
+  assert.equal(reads, 0);
+});
+test('all console diagnostics cross one closed projection and CLI failures use a bounded bootstrap stage', () => {
+  const calls: ts.CallExpression[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(runnerAst) === 'console') calls.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(runnerAst); assert.equal(calls.length, 1);
+  assert.equal(calls[0].getText(runnerAst), 'console.error(diagnosticLine(stage, status, error))');
+  assert.match(runnerSource, /main\(\)\.catch\(error=>\{emitDiagnostic\(`\$\{process\.argv\[2\]\}-bootstrap`,'failed',error\);process\.exitCode=1;/);
+});
+test('run failure stages are assigned before the original boundary and preserved before cleanup starts', () => {
+  const source = functionSource('run');
+  ordered(source, ["let stage = 'runner-preflight'", 'validateRunner(process.env,ROOT)', "stage = 'checkout-preflight'", 'identity = verifyCheckout()',
+    "stage = 'owned-directory'", 'owner = createOwner(', "stage = 'owned-state'", "stage = 'stack-before'", 'await stackIdentity()',
+    "stage = 'sql-gate'", "runFixed(owner,'sql'", "stage = 'sql-result'", 'freshReport(sqlPath,sqlStarted)', "stage = 'stack-after'",
+    "stage = 'source-copy'", 'copySources(ROOT,app', "stage = 'dependencies-main'", "join(ROOT,'node_modules')",
+    "stage = 'dependencies-browser-qa'", "join(ROOT,'scripts/browser-qa/node_modules')", "stage = 'copy-result'",
+    'stage = `${phase}-build`', 'runFixed(owner,`${phase}-build`', 'stage = `${phase}-build-reap`', 'await reap(owner)',
+    'stage = `${phase}-build-identity`', 'buildIdentity(cwd)', 'stage = `${phase}-discovery`', "runFixed(owner,'discovery'",
+    'stage = `${phase}-browser`', "runFixed(owner,'browser'", "emitDiagnostic(stage,'failed',error)", 'executionFailure=error',
+    'stage = `${phase}-browser-result`', 'const readinessPath=', 'stage = `${phase}-phase-reap`', 'await reap(owner)',
+    'stage = `${phase}-browser`', 'if(executionFailure)throw executionFailure', 'stage = `${phase}-source-check`',
+    "} catch(error) { emitDiagnostic(stage,'failed',error)", 'finally {', "emitDiagnostic('run-cleanup-processes'", "emitDiagnostic('run-cleanup-source'", "emitDiagnostic('run-cleanup-build'"]);
+});
 function discovery(phase: string) {
   const expected = harness.expectedCases(phase);
   return { suites: ['auth.spec.ts', 'legacy-evidence-review.spec.ts'].map(file => ({
@@ -698,17 +786,241 @@ test('process shutdown shares a finite cleanup deadline instead of claiming a fr
   await assert.rejects(harness.stopOwnedProcesses([process], { ...expired.boundary, deadline: -1 }), { code: 'cleanup_failed' }); assert.equal(expired.elapsed(), 0); assert.deepEqual(expired.signals, [[741, 'SIGTERM'], [741, 'SIGKILL']]);
 });
 
+function diagnosticCollector() {
+  const records: { stage: string; status: string; code?: string }[] = [];
+  return { records, emitDiagnostic: (stage: unknown, status: unknown, error?: unknown) => { records.push(diagnosticRecord(stage, status, error)); } };
+}
+function runPhaseFragment(start: string, end: string, bindings: Record<string, unknown>) {
+  const declaration = runnerAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'run');
+  assert.ok(declaration && ts.isFunctionDeclaration(declaration));
+  const operation = declaration.body?.statements.find(ts.isTryStatement); assert.ok(operation?.catchClause);
+  const source = functionSource('run'), first = source.indexOf(start), last = source.indexOf(end, first + start.length);
+  assert.ok(first >= 0 && last > first, 'The probe must use the original bounded phase source');
+  return new Function(...Object.keys(bindings), `return (async () => { let stage; try { ${source.slice(first, last)} } ${operation.catchClause.getText(runnerAst)} })();`)(...Object.values(bindings));
+}
+test('a nonzero SQL child is diagnosed before its report read fails without reaching the SQL module import', async () => {
+  for (const code of [0, 1]) {
+    const diagnostics = diagnosticCollector(), report = { status: 'awaiting-cleanup', failureCode: '' }, owner = ownerRecord();
+    let children = 0, reads = 0;
+    const original = code === 0 ? [] : [{ stage: 'sql-gate', status: 'failed', code: 'sql_failed' }];
+    await runPhaseFragment("stage = 'sql-gate';", "stage = 'stack-after';", {
+      report, owner, budget: { stop: START + 1000 }, Date: { now: () => START }, ROOT: env.GITHUB_WORKSPACE, join,
+      SQL_REPORT: '/synthetic/sql-report.json', process: { env }, retireReport: () => {},
+      runFixed: async (_owner: unknown, label: string) => { children++; assert.equal(label, 'sql'); return { code, output: 'SENTINEL_SECRET_SQL_OUTPUT' }; },
+      freshReport: () => {
+        reads++; assert.deepEqual(diagnostics.records, original, 'The child exit is diagnosed before reading any result bytes');
+        throw Object.assign(new Error('SENTINEL_SECRET_REPORT_READ'), { code: 'report_invalid' });
+      }, refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic,
+    });
+    assert.deepEqual(diagnostics.records, [...original, { stage: 'sql-result', status: 'failed', code: 'report_invalid' }]);
+    assert.equal(children, 1); assert.equal(reads, 1); assert.equal(report.status, 'failed'); assert.equal(report.failureCode, 'report_invalid');
+    assert.doesNotMatch(JSON.stringify(diagnostics.records), /SENTINEL_SECRET/);
+  }
+});
+test('a nonzero build emits its original failure before a later reap failure in both phases', async () => {
+  for (const phase of ['inactive', 'enabled']) {
+    const diagnostics = diagnosticCollector(), report = { status: 'awaiting-cleanup', failureCode: '' }, owner = ownerRecord();
+    let builds = 0, reaps = 0;
+    await runPhaseFragment('stage = `${phase}-build`; if(Date.now()', 'stage = `${phase}-build-identity`', {
+      phase, report, owner, budget: { stop: START + 1000 }, Date: { now: () => START }, ROOT: env.GITHUB_WORKSPACE, app: '/synthetic/enabled-app', join,
+      process: { env }, stackBefore: { stack: { status: {} } }, closedApplicationEnvironment: () => ({}), noListener: () => {},
+      runFixed: async (_owner: unknown, label: string) => { builds++; assert.equal(label, `${phase}-build`); return { code: 1, output: 'SENTINEL_SECRET_BUILD_OUTPUT' }; },
+      reap: async () => {
+        reaps++; assert.deepEqual(diagnostics.records, [{ stage: `${phase}-build`, status: 'failed', code: 'build_failed' }]);
+        throw Object.assign(new Error('SENTINEL_SECRET_REAP'), { code: 'process_identity' });
+      }, refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic,
+    });
+    assert.deepEqual(diagnostics.records, [
+      { stage: `${phase}-build`, status: 'failed', code: 'build_failed' },
+      { stage: `${phase}-build-reap`, status: 'failed', code: 'process_identity' },
+    ]);
+    assert.equal(builds, 1); assert.equal(reaps, 1); assert.equal(report.status, 'failed'); assert.equal(report.failureCode, 'process_identity');
+    assert.doesNotMatch(JSON.stringify(diagnostics.records), /SENTINEL_SECRET/);
+  }
+});
+test('a nonzero browser result survives later report or reap failures and a prior exception is not relabeled', async () => {
+  for (const phase of ['inactive', 'enabled']) for (const throws of [false, true]) for (const failsAtRead of [false, true]) {
+    const diagnostics = diagnosticCollector(), owner = ownerRecord();
+    const report = { status: 'awaiting-cleanup', failureCode: '', phases: { [phase]: { serverReadinessMs: 1 } } };
+    const originalCode = throws ? 'resource_limit' : 'browser_failed'; let browsers = 0, reaps = 0;
+    await runPhaseFragment('stage = `${phase}-browser`; let executionFailure;', 'stage = `${phase}-source-check`', {
+      phase, report, owner, budget: { stop: START + 1000 }, Date: { now: () => START }, ROOT: env.GITHUB_WORKSPACE, join,
+      CONFIG: 'playwright.legacy-evidence.config.ts', start: START, summary: '/synthetic/results.json', cleanupRows: [], discovered: [], identity: { commit },
+      runEnvironment: () => ({}), existsSync: (path: string) => path === '/synthetic/results.json',
+      freshReport: () => {
+        assert.deepEqual(diagnostics.records, [{ stage: `${phase}-browser`, status: 'failed', code: originalCode }]);
+        if (failsAtRead) throw Object.assign(new Error('SENTINEL_SECRET_REPORT_READ'), { code: 'report_invalid' });
+        return {};
+      },
+      projectExecution: () => ({ status: 'passed', discovered: 0, executed: 0 }),
+      runFixed: async (_owner: unknown, label: string) => {
+        browsers++; assert.equal(label, 'browser');
+        if (throws) throw Object.assign(new Error('SENTINEL_SECRET_BROWSER'), { code: 'resource_limit' });
+        return { code: 1, durationMs: 1, peakRss: null, peakDisk: null, output: 'SENTINEL_SECRET_BROWSER_OUTPUT' };
+      },
+      reap: async () => {
+        reaps++; assert.deepEqual(diagnostics.records, [{ stage: `${phase}-browser`, status: 'failed', code: originalCode }]);
+        throw Object.assign(new Error('SENTINEL_SECRET_REAP'), { code: 'cleanup_failed' });
+      }, refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic,
+    });
+    assert.deepEqual(diagnostics.records, [
+      { stage: `${phase}-browser`, status: 'failed', code: originalCode },
+      { stage: `${phase}-${failsAtRead ? 'browser-result' : 'phase-reap'}`, status: 'failed', code: failsAtRead ? 'report_invalid' : 'cleanup_failed' },
+    ]);
+    assert.equal(browsers, 1); assert.equal(reaps, failsAtRead ? 0 : 1); assert.equal(report.status, 'failed'); assert.equal(report.failureCode, failsAtRead ? 'report_invalid' : 'cleanup_failed');
+    assert.doesNotMatch(JSON.stringify(diagnostics.records), /SENTINEL_SECRET/);
+  }
+});
+test('an original run failure survives later teardown failures and throwing console sinks without skipping persistence', async () => {
+  for (const cleanupFails of [false, true]) for (const sinkThrows of [false, true]) {
+    const owner = ownerRecord(), diagnostics = diagnosticCollector(), actions: string[] = [];
+    const emitDiagnostic = privateFunction('emitDiagnostic', {
+      diagnosticLine: harness.diagnosticLine,
+      console: { error: (line: string) => {
+        assert.equal(line.startsWith(diagnosticPrefix), true); diagnostics.records.push(JSON.parse(line.slice(diagnosticPrefix.length)));
+        if (sinkThrows) throw new Error('SENTINEL_SECRET_CONSOLE_SINK');
+      } },
+    });
+    const report = { status: 'failed', failureCode: 'harness_failed', cleanup: { processes: 'unverified', source: 'unverified', normalBuild: 'unverified' } };
+    const identity = { commit, tree: 'c'.repeat(40), fullTrackedDigest: 'd'.repeat(64), protectedDigest: 'e'.repeat(64), protectedFileCount: 1, manifest: { digest: 'f'.repeat(64), fileCount: 2, byteCount: 1 }, controls: [] };
+    const fakeProcess = Object.assign(new EventEmitter(), { env: { ...env, HOME: '/synthetic/SENTINEL_SECRET_HOME', TOKEN: 'SENTINEL_SECRET_TOKEN' }, exitCode: 0 });
+    let checkoutReads = 0;
+    const run = privateFunction('run', {
+      initialReport: () => report, runtimeStop: new AbortController(), process: fakeProcess, Date: { now: () => START }, ROOT: env.GITHUB_WORKSPACE,
+      validateRunner: () => harness.validateBudget(env, START), verifyCheckout: () => {
+        if (++checkoutReads > 1 && cleanupFails) throw Object.assign(new Error('SENTINEL_SECRET_SOURCE'), { code: 'source_path' });
+        return identity;
+      }, noListener: () => {}, createOwner: () => owner, join, realpathSync: (path: string) => path,
+      writeJson: (_path: string, value: { report: unknown }) => { assert.equal(value.report, report); actions.push('state'); },
+      stackIdentity: async () => { throw Object.assign(new Error('SENTINEL_SECRET_ORIGINAL'), { code: 'sql_failed', output: 'SENTINEL_SECRET_CHILD_OUTPUT' }); },
+      reap: async () => { assert.equal(diagnostics.records[0]?.code, 'sql_failed', 'The original failure must be emitted before any finally cleanup'); actions.push('reap'); if (cleanupFails) throw Object.assign(new Error('SENTINEL_SECRET_PROCESS'), { code: 'process_identity' }); },
+      buildIdentity: () => assert.fail('No build ran, so its identity must remain unverified'),
+      safeFailure: harness.safeFailure, refuse, emitDiagnostic,
+      saveReport: (value: unknown) => { assert.equal(value, report); actions.push('report'); },
+    });
+    await run();
+    assert.deepEqual(diagnostics.records, [
+      { stage: 'stack-before', status: 'failed', code: 'sql_failed' },
+      { stage: 'run-cleanup-processes', status: cleanupFails ? 'failed' : 'passed', ...(cleanupFails ? { code: 'process_identity' } : {}) },
+      { stage: 'run-cleanup-source', status: cleanupFails ? 'failed' : 'passed', ...(cleanupFails ? { code: 'source_path' } : {}) },
+      { stage: 'run-cleanup-build', status: 'unverified' },
+    ]);
+    assert.deepEqual(actions, ['state', 'reap', 'state', 'report']); assert.equal(checkoutReads, 2);
+    assert.equal(report.status, 'failed'); assert.equal(report.failureCode, cleanupFails ? 'source_changed' : 'sql_failed', 'Existing report failure precedence is unchanged');
+    assert.equal(fakeProcess.exitCode, 1); assert.equal(fakeProcess.listenerCount('SIGINT'), 0); assert.equal(fakeProcess.listenerCount('SIGTERM'), 0);
+    assert.doesNotMatch(JSON.stringify(diagnostics.records), /SENTINEL_SECRET/);
+  }
+});
+test('run preflight failure is diagnosed without inventing cleanup for an owner that was never created', async () => {
+  const diagnostics = diagnosticCollector(), report = { status: 'failed', failureCode: 'harness_failed' };
+  const fakeProcess = Object.assign(new EventEmitter(), { env, exitCode: 0 }); let saved = 0;
+  const run = privateFunction('run', {
+    initialReport: () => report, runtimeStop: new AbortController(), process: fakeProcess, ROOT: env.GITHUB_WORKSPACE,
+    validateRunner: () => { throw Object.assign(new Error('SENTINEL_SECRET_PREFLIGHT'), { code: 'environment_override' }); },
+    safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic, saveReport: () => { saved++; },
+    reap: () => assert.fail('No owner exists to reap'), verifyCheckout: () => assert.fail('Failed preflight cannot inspect checkout'),
+  });
+  await run(); assert.deepEqual(diagnostics.records, [{ stage: 'runner-preflight', status: 'failed', code: 'environment_override' }]);
+  assert.equal(saved, 1); assert.equal(report.failureCode, 'environment_override'); assert.equal(fakeProcess.exitCode, 1);
+});
+
 test('expired owned cleanup still attempts verified process stop and saves failure without deleting unchecked data', async () => {
-  const owner = ownerRecord(), fakeProcess = { env, exitCode: 0 }, actions: string[] = [];
+  const owner = ownerRecord(), fakeProcess = { env, exitCode: 0 }, actions: string[] = [], diagnostics = diagnosticCollector();
   const report = { status: 'awaiting-cleanup', cleanup: { processes: 'unverified', source: 'unverified', normalBuild: 'unverified', copy: 'unverified', stack: 'unverified' } };
   const cleanup = privateFunction('cleanup', {
     validateRunner: () => {}, process: fakeProcess, ROOT: env.GITHUB_WORKSPACE, OWNER_PATH: '.e2e/legacy-evidence-b2-owner.json', existsSync: () => true,
     join, readOwner: () => owner, ownedCleanupDeadline: () => 0, regularPath: (_root: string, path: string) => path, json: () => ({ report }), Date: { now: () => 1 },
     reap: async (_owner: unknown, deadline: number) => { assert.equal(deadline, 0); actions.push('stop-owned'); }, assertCleanupTime: (deadline: number) => harness.assertCleanupTime(deadline, 1),
-    safeFailure: harness.safeFailure, saveReport: (value: unknown) => { assert.equal(value, report); actions.push('report'); }, rmSync: () => assert.fail('expired cleanup must not delete unchecked source'),
+    safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic, saveReport: (value: unknown) => { assert.equal(value, report); actions.push('report'); }, rmSync: () => assert.fail('expired cleanup must not delete unchecked source'),
     verifyCheckout: () => assert.fail('expired cleanup must not start source traversal'),
   });
   await cleanup(); assert.deepEqual(actions, ['stop-owned', 'report']); assert.equal(report.status, 'failed'); assert.equal(report.cleanup.processes, 'passed'); assert.equal(report.cleanup.copy, 'failed'); assert.equal(fakeProcess.exitCode, 1);
+  assert.deepEqual(diagnostics.records, [
+    { stage: 'cleanup-processes', status: 'passed' },
+    { stage: 'cleanup-source', status: 'failed', code: 'cleanup_failed' },
+    { stage: 'cleanup-build', status: 'failed', code: 'cleanup_failed' },
+    { stage: 'cleanup-copy', status: 'failed', code: 'cleanup_failed' },
+  ]);
+});
+test('owned cleanup diagnoses each independent failure instead of exporting only the last overwritten report code', async () => {
+  const owner = ownerRecord(), diagnostics = diagnosticCollector(), fakeProcess = { env, exitCode: 0 };
+  const report = { status: 'failed', failureCode: 'browser_failed', cleanup: { processes: 'unverified', source: 'unverified', normalBuild: 'unverified', copy: 'unverified' } };
+  const fail = (code: string): never => { throw Object.assign(new Error('SENTINEL_SECRET_CLEANUP'), { code, output: 'SENTINEL_SECRET_OUTPUT' }); };
+  let saved = 0;
+  const cleanup = privateFunction('cleanup', {
+    validateRunner: () => {}, process: fakeProcess, ROOT: env.GITHUB_WORKSPACE, OWNER_PATH: '.e2e/legacy-evidence-b2-owner.json', existsSync: () => true,
+    join, readOwner: () => owner, ownedCleanupDeadline: () => START + 1000, regularPath: (_root: string, path: string) => path,
+    json: () => ({ report, builds: { inactive: {} } }), Date: { now: () => START }, assertCleanupTime: () => {},
+    reap: async () => fail('process_identity'), verifyCheckout: () => fail('source_path'), buildIdentity: () => fail('report_invalid'),
+    ownedUsage: () => assert.fail('An unreaped copy must not be traversed for deletion'), rmSync: () => assert.fail('An unreaped copy must not be deleted'),
+    refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic, saveReport: () => { saved++; },
+  });
+  await cleanup();
+  assert.deepEqual(diagnostics.records, [
+    { stage: 'cleanup-processes', status: 'failed', code: 'process_identity' },
+    { stage: 'cleanup-source', status: 'failed', code: 'source_path' },
+    { stage: 'cleanup-build', status: 'failed', code: 'report_invalid' },
+    { stage: 'cleanup-copy', status: 'failed', code: 'cleanup_failed' },
+  ]);
+  assert.equal(report.failureCode, 'cleanup_failed'); assert.equal(saved, 1); assert.equal(fakeProcess.exitCode, 1);
+});
+test('successful owned cleanup emits four passed outcomes while preserving an earlier run failure', async () => {
+  const owner = ownerRecord(), diagnostics = diagnosticCollector(), fakeProcess = { env, exitCode: 0 }, removed: string[] = [];
+  const report = { status: 'failed', failureCode: 'sql_failed', cleanup: { processes: 'unverified', source: 'unverified', normalBuild: 'unverified', copy: 'unverified' } };
+  const state = { report, source: { fullTrackedDigest: 'synthetic-source' }, builds: { inactive: { digest: 'synthetic-build' } } };
+  let ownedExists = true, saved = 0;
+  const cleanup = privateFunction('cleanup', {
+    validateRunner: () => {}, process: fakeProcess, ROOT: env.GITHUB_WORKSPACE, OWNER_PATH: '.e2e/legacy-evidence-b2-owner.json', existsSync: (path: string) => path === owner.directory ? ownedExists : true,
+    join, readOwner: () => owner, ownedCleanupDeadline: () => START + 1000, regularPath: (_root: string, path: string) => path,
+    json: () => state, Date: { now: () => START }, assertCleanupTime: () => {}, reap: async () => {}, verifyCheckout: () => state.source, buildIdentity: () => state.builds.inactive,
+    ownedUsage: () => 0, validateOwnerRecord: () => {}, rmSync: (path: string) => { removed.push(path); if (path === owner.directory) ownedExists = false; },
+    refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic, saveReport: () => { saved++; },
+  });
+  await cleanup(); assert.deepEqual(diagnostics.records, ['processes', 'source', 'build', 'copy'].map(stage => ({ stage: `cleanup-${stage}`, status: 'passed' })));
+  assert.deepEqual(removed, [owner.directory, join(env.GITHUB_WORKSPACE, '.e2e/legacy-evidence-b2-owner.json')]);
+  assert.equal(report.status, 'failed'); assert.equal(report.failureCode, 'sql_failed'); assert.equal(saved, 1); assert.equal(fakeProcess.exitCode, 1);
+});
+test('cleanup without an owner reports only a previously verified copy result or an unverified outcome', async () => {
+  for (const priorCopy of ['passed', 'unverified', 'failed']) {
+    const diagnostics = diagnosticCollector(), fakeProcess = { env, exitCode: 0 };
+    const report = { status: 'awaiting-cleanup', cleanup: { copy: priorCopy } }; let saved = 0;
+    const cleanup = privateFunction('cleanup', {
+      validateRunner: () => {}, process: fakeProcess, ROOT: env.GITHUB_WORKSPACE, OWNER_PATH: '.e2e/legacy-evidence-b2-owner.json', REPORT_PATH: '.e2e/evidence/legacy-evidence-b2-results.json',
+      existsSync: (path: string) => path.endsWith('legacy-evidence-b2-results.json'), join, json: () => report,
+      emitDiagnostic: diagnostics.emitDiagnostic, saveReport: () => { saved++; },
+      readOwner: () => assert.fail('Absent ownership cannot be inspected'), reap: () => assert.fail('Absent ownership cannot be reaped'),
+    });
+    await cleanup(); assert.deepEqual(diagnostics.records, [{ stage: 'cleanup-copy', status: priorCopy === 'passed' ? 'passed' : 'unverified' }]);
+    assert.equal(fakeProcess.exitCode, priorCopy === 'passed' ? 0 : 1); assert.equal(saved, priorCopy === 'passed' ? 0 : 1);
+  }
+});
+test('finalize separately diagnoses stack proof and aggregate status without curing an earlier failure', async () => {
+  for (const outcome of ['passed', 'prior-failure', 'stack-failure', 'unknown-stack-failure']) {
+    const diagnostics = diagnosticCollector(), fakeProcess = { env: { ...env, B2_STACK_STOP_EXIT: '0' }, exitCode: 0 };
+    const report = { status: outcome === 'prior-failure' ? 'failed' : 'awaiting-cleanup', failureCode: outcome === 'prior-failure' ? 'browser_failed' : undefined,
+      cleanup: { processes: 'passed', source: 'passed', normalBuild: 'passed', copy: 'passed', accounts: 'passed', stack: 'unverified' } };
+    const proof = { run: env.GITHUB_RUN_ID, attempt: env.GITHUB_RUN_ATTEMPT, job: env.GITHUB_JOB, commit, stack: { ids: ['synthetic-id'], volumes: ['synthetic-volume'] } };
+    const root = env.GITHUB_WORKSPACE, reportPath = '.e2e/evidence/legacy-evidence-b2-results.json'; let saved = 0, inspections = 0;
+    const finalize = privateFunction('finalize', {
+      process: fakeProcess, ROOT: root, REPORT_PATH: reportPath, OWNER_PATH: '.e2e/legacy-evidence-b2-owner.json', join,
+      existsSync: (path: string) => path === join(root, reportPath), json: (path: string) => path === join(root, reportPath) ? report : proof,
+      regularPath: (root: string, path: string) => join(root, path), validateRunner: () => {},
+      execFileSync: (command: string, args: string[]) => {
+        assert.equal(command, 'docker'); assert.deepEqual(args.slice(0, 2), ['--context', 'default']); inspections++;
+        if (outcome.includes('stack-failure')) throw Object.assign(new Error('SENTINEL_SECRET_STACK'), { code: outcome === 'stack-failure' ? 'ownership_invalid' : 'SENTINEL_SECRET_CODE' });
+        return '';
+      }, refuse, safeFailure: harness.safeFailure, emitDiagnostic: diagnostics.emitDiagnostic, saveReport: () => { saved++; },
+    });
+    await finalize();
+    const stackFailed = outcome.includes('stack-failure'), code = stackFailed ? outcome === 'stack-failure' ? 'ownership_invalid' : 'harness_failed' : 'browser_failed';
+    assert.deepEqual(diagnostics.records, [
+      { stage: 'finalize-stack', status: stackFailed ? 'failed' : 'passed', ...(stackFailed ? { code } : {}) },
+      { stage: 'finalize-result', status: outcome === 'passed' ? 'passed' : 'failed', ...(outcome === 'passed' ? {} : { code }) },
+    ]);
+    assert.equal(report.cleanup.stack, stackFailed ? 'unverified' : 'passed'); assert.equal(report.status, outcome === 'passed' ? 'passed' : 'failed');
+    assert.equal(saved, 1); assert.equal(inspections, stackFailed ? 1 : 2); assert.equal(fakeProcess.exitCode, outcome === 'passed' ? 0 : 1);
+    assert.doesNotMatch(JSON.stringify(diagnostics.records), /SENTINEL_SECRET/);
+  }
 });
 
 const scenarioSource = readFileSync(new URL('./e2e/legacy-evidence-review.spec.ts', import.meta.url), 'utf8');

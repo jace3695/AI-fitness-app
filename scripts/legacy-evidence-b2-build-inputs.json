@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1509,
-  "byteCount": 70954078,
-  "digest": "0fbcfe6c42e4dde93f432505c611d9e040bc9579c28e1ab8f9ac959d1b824267",
+  "byteCount": 70985383,
+  "digest": "fbec9de82ea3c905d58860e504306585ac0ad5e70ab6fc55fc6acce7aabc2fd0",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -6583,8 +6583,8 @@
     {
       "path": "scripts/qa-legacy-evidence-browser.mjs",
       "mode": 33188,
-      "bytes": 58012,
-      "sha256": "359571c6c050625af24705245f375ace088e81918445c1543458f47a530ce0e3"
+      "bytes": 61704,
+      "sha256": "9b4cbb4e94855ed17e351889834b5daaf913fca99586391dcada6907547ca8ae"
     },
     {
       "path": "scripts/qa-legacy-evidence-http.mjs",
@@ -8779,8 +8779,8 @@
     {
       "path": "tests/legacy-evidence-browser-harness.test.ts",
       "mode": 33188,
-      "bytes": 87871,
-      "sha256": "ee083ee5f41cfc48073292e977fb12160f4993a20510b479050ae64fe69087be"
+      "bytes": 115484,
+      "sha256": "7ae7e3536edc2232ea7252e51aac91cb93150c002a0535ddc7ae5630f1351f7a"
     },
     {
       "path": "tests/legacy-evidence-ci-diagnostics.test.ts",
