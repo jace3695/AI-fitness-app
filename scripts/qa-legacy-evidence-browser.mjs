@@ -85,6 +85,96 @@ export function diagnosticLine(stage, status, error) {
 function emitDiagnostic(stage, status, error) {
   try { console.error(diagnosticLine(stage, status, error)); } catch { /* Diagnostics must never change refusal or cleanup behavior. */ }
 }
+// Detail diagnostics are independent of acceptance. They serialize only new
+// objects assembled from fixed vocabularies and own data descriptors.
+const DETAIL_PREFIX = '[legacy-evidence-b2-detail] ';
+const CHILD_LABELS = new Set(['sql', 'inactive-build', 'enabled-build', 'discovery', 'browser', 'server']);
+const CHILD_OPERATIONS = new Set(['spawn', 'spawn-event', 'register', 'process-sample', 'disk-sample', 'completion', 'shutdown']);
+const SYSTEM_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'EIO', 'ENOSPC', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR']);
+const FAILURE_KINDS = new Set(['webkit-internal', 'crash', 'closed-or-disconnected', 'timeout', 'aborted', 'connection-reset', 'other']);
+const FAILURE_FILES = new Set(['auth.spec.ts', 'legacy-evidence-review.spec.ts', 'fixture.ts', 'fixture-account-auth.ts',
+  'route-drain.ts', 'route-continue-diagnostics.ts', 'navigation-diagnostics.ts'].map(file => `tests/e2e/${file}`));
+const STEP_CATEGORIES = new Set(['expect', 'fixture', 'hook', 'pw:api', 'test.step', 'test.attach', 'other']);
+function detailObject(value) {
+  if (!value || typeof value !== 'object' || types.isProxy(value)) return false;
+  const own = Object.getOwnPropertyDescriptors(value);
+  return !Object.hasOwn(own, 'toJSON') && Object.values(own).every(item => Object.hasOwn(item, 'value'));
+}
+function detailField(value, key) { return detailObject(value) ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined; }
+function detailArray(value, maximum) {
+  if (!value || typeof value !== 'object' || types.isProxy(value) || !Array.isArray(value)) return null;
+  // Bound before inspecting indexes/descriptors; sparse or accessor entries fail closed.
+  const length = Object.getOwnPropertyDescriptor(value, 'length')?.value;
+  if (!Number.isSafeInteger(length) || length < 0 || length > maximum || !detailObject(value)) return null;
+  const rows = [];
+  for (let index = 0; index < length; index++) { const item = Object.getOwnPropertyDescriptor(value, String(index)); if (!item || !Object.hasOwn(item, 'value')) return null; rows.push(item.value); }
+  return rows;
+}
+function detailSink(line) { console.error(line); }
+function emitDetailRecords(records, sink) {
+  // records are created only by the closed projectors below, never child output.
+  for (const record of records) { try { sink(DETAIL_PREFIX + JSON.stringify(record)); } catch { /* Observation cannot affect a gate or cleanup. */ } }
+}
+export function childOperationObserver(child, sink = detailSink) {
+  let observed = false;
+  return (operation, error) => {
+    if (observed) return;
+    observed = true;
+    try {
+      if (!CHILD_LABELS.has(child) || !CHILD_OPERATIONS.has(operation)) return;
+      // Error.stack may be a native lazy accessor. Inspect only code's own
+      // descriptor, never the Error object or its other properties.
+      const code = error && typeof error === 'object' && !types.isProxy(error) ? Object.getOwnPropertyDescriptor(error, 'code')?.value : undefined;
+      emitDetailRecords([{ kind: 'child-operation', child, operation, code: safeFailure(error), systemCode: SYSTEM_CODES.has(code) ? code : 'other' }], sink);
+    } catch { /* Retain first-cause ordering even if projection or the sink fails. */ }
+  };
+}
+export function reportStateObserver(phase, sink = detailSink) {
+  let observed = false;
+  return state => {
+    if (observed) return;
+    observed = true;
+    try { if (['inactive', 'enabled'].includes(phase) && ['validated', 'missing', 'stale', 'invalid'].includes(state)) emitDetailRecords([{ kind: 'phase-report', phase, state }], sink); } catch { /* Diagnostic only. */ }
+  };
+}
+function detailLocation(value) {
+  const file = detailField(value, 'file'), line = detailField(value, 'line'), column = detailField(value, 'column');
+  if (!FAILURE_FILES.has(file) || ![line, column].every(number => Number.isSafeInteger(number) && number > 0 && number <= 1_000_000)) return null;
+  return { file, line, column };
+}
+function detailFailure(value) {
+  const errors = detailArray(detailField(value, 'errors'), 8), steps = detailArray(detailField(value, 'steps'), 8);
+  if (!errors || !steps) return undefined;
+  const error = row => { const kind = detailField(row, 'kind'); return { kind: FAILURE_KINDS.has(kind) ? kind : 'other', location: detailLocation(detailField(row, 'location')) }; };
+  return { errors: errors.map(error), steps: steps.map(row => { const category = detailField(row, 'category'); return { category: STEP_CATEGORIES.has(category) ? category : 'other', ...error(row) }; }) };
+}
+export function emitExecutionDiagnostics(raw, execution, phase, sink = detailSink) {
+  try {
+    if (!['inactive', 'enabled'].includes(phase)) return;
+    const expected = expectedCases(phase), cases = detailArray(detailField(execution, 'cases'), expected.length);
+    const results = detailArray(detailField(raw, 'results'), expected.length);
+    const status = detailField(execution, 'status'), discovered = detailField(execution, 'discovered'), executed = detailField(execution, 'executed');
+    if (!cases || cases.length !== expected.length || !['passed', 'failed'].includes(status) || discovered !== expected.length || !Number.isSafeInteger(executed) || executed < 0 || executed > expected.length) return;
+    const records = [];
+    for (let index = 0; index < expected.length; index++) {
+      const canonical = expected[index], row = cases[index], caseStatus = detailField(row, 'status');
+      if (['project', 'file', 'title'].some(key => detailField(row, key) !== canonical[key]) || !['passed', 'failed', 'timedOut', 'interrupted', 'unrun'].includes(caseStatus)) return;
+      const caseId = canonical.project === 'auth-preservation' ? `A${index + 1}` : `${phase === 'inactive' ? 'I' : 'E'}${SCENARIO_TITLES[phase].indexOf(canonical.title) + 1}`;
+      const record = { kind: 'case', phase, project: canonical.project, case: caseId, status: caseStatus };
+      if (!['passed', 'unrun'].includes(caseStatus) && results) {
+        const title = `${canonical.project} / ${canonical.file} / ${canonical.title}`;
+        const matched = results.filter(result => [title, ` / ${title}`].includes(detailField(result, 'title')));
+        if (matched.length === 1) { const failure = detailFailure(detailField(matched[0], 'failure')); if (failure) record.failure = failure; }
+      }
+      records.push(record);
+    }
+    emitDetailRecords([{ kind: 'execution-summary', phase, executionStatus: status, discovered, executed,
+      passed: records.filter(row => row.status === 'passed').length,
+      failed: records.filter(row => ['failed', 'timedOut', 'interrupted'].includes(row.status)).length,
+      unrun: records.filter(row => row.status === 'unrun').length }, ...records], sink);
+  } catch { /* Optional metadata must never add a failure or bypass a gate. */ }
+}
+
 export function validateRelativePath(path) {
   if (typeof path !== 'string' || !path || path.length > 512 || isAbsolute(path) || path.includes('\\') || /[\x00-\x1f\x7f]/.test(path) || path.split('/').some(p => !p || p === '.' || p === '..')) refuse('source_path');
   return path;
@@ -470,14 +560,16 @@ async function runFixed(owner, label, args, { cwd = ROOT, env = process.env, tim
   if (!['sql','inactive-build','enabled-build','discovery','browser','server'].includes(label)) refuse('process_identity');
   let child, output = '', lineBuffer = '', timer, sample, killed = false, failure, forceTimer, settleTimer, rejectCompletion, spawnedIdentity;
   let abort;
+  const observeFailure = childOperationObserver(label); let operation = 'spawn';
   if (runtimeStop.signal.aborted) refuse('interrupted');
   try {
     child = spawn(process.execPath, args, { cwd, env, detached: true, stdio: ['ignore','pipe','pipe'] });
-    await new Promise((resolve,reject) => { child.once('spawn',resolve); child.once('error',reject); });
+    operation = 'spawn-event'; await new Promise((resolve,reject) => { child.once('spawn',resolve); child.once('error',reject); });
+    operation = 'register';
     spawnedIdentity = processInfo(child.pid);
     if (!spawnedIdentity || spawnedIdentity.parent !== process.pid || spawnedIdentity.group !== child.pid || spawnedIdentity.session !== child.pid) { spawnedIdentity = undefined; refuse('process_identity'); }
     registerProcess(owner, spawnedIdentity, label);
-    const terminate = code => { if (!failure) failure = code; if (!killed) { killed = true; const current = processInfo(spawnedIdentity.pid); if (current && !sameProcess(spawnedIdentity, current)) failure = 'process_identity'; else if (current && current.state !== 'Z') child.kill('SIGTERM'); forceTimer = setTimeout(() => { try { const rows = scanOwned(owner); for (const row of rows) { const current = processInfo(row.pid); if (row.pid !== process.pid && sameProcess(row, current) && current.state !== 'Z') process.kill(row.pid, 'SIGKILL'); } } catch { /* Cleanup below must report a failed identity; never kill an unknown PID. */ } }, 20_000); settleTimer = setTimeout(() => rejectCompletion?.(Object.assign(new Error('B2 process did not exit'), { code: 'cleanup_failed' })), 25_000); } };
+    const terminate = code => { if (!failure) { observeFailure('completion', { code }); failure = code; } if (!killed) { killed = true; const current = processInfo(spawnedIdentity.pid); if (current && !sameProcess(spawnedIdentity, current)) failure = 'process_identity'; else if (current && current.state !== 'Z') child.kill('SIGTERM'); forceTimer = setTimeout(() => { try { const rows = scanOwned(owner); for (const row of rows) { const current = processInfo(row.pid); if (row.pid !== process.pid && sameProcess(row, current) && current.state !== 'Z') process.kill(row.pid, 'SIGKILL'); } } catch { /* Cleanup below must report a failed identity; never kill an unknown PID. */ } }, 20_000); settleTimer = setTimeout(() => rejectCompletion?.(Object.assign(new Error('B2 process did not exit'), { code: 'cleanup_failed' })), 25_000); } };
     abort = () => terminate('interrupted'); runtimeStop.signal.addEventListener('abort', abort, { once: true });
     const ingest = chunk => {
       if (capture) { output += String(chunk); if (Buffer.byteLength(output) > LIMITS.captureBytes) terminate('resource_limit'); }
@@ -485,12 +577,13 @@ async function runFixed(owner, label, args, { cwd = ROOT, env = process.env, tim
     };
     child.stdout.on('data', ingest); child.stderr.on('data', capture ? () => {} : ingest);
     const started = Date.now(); let peakRss = 0, peakDisk = 0;
-    sample = setInterval(() => { try { peakRss = Math.max(peakRss, resourceSample(owner)); if (Date.now() >= (stopAt ?? Infinity)) terminate('budget_exhausted'); if (Date.now() - started > timeout) terminate(label.endsWith('build') ? 'build_failed' : 'browser_failed'); } catch (error) { terminate(safeFailure(error)); } }, 100);
-    timer = setInterval(() => { try { peakDisk = Math.max(peakDisk, ownedUsage(owner.directory)); } catch (error) { terminate(safeFailure(error)); } }, 5000);
-    const code = await new Promise((resolve, reject) => { rejectCompletion = reject; child.once('close', resolve); });
+    sample = setInterval(() => { try { peakRss = Math.max(peakRss, resourceSample(owner)); if (Date.now() >= (stopAt ?? Infinity)) terminate('budget_exhausted'); if (Date.now() - started > timeout) terminate(label.endsWith('build') ? 'build_failed' : 'browser_failed'); } catch (error) { observeFailure('process-sample', error); terminate(safeFailure(error)); } }, 100);
+    timer = setInterval(() => { try { peakDisk = Math.max(peakDisk, ownedUsage(owner.directory)); } catch (error) { observeFailure('disk-sample', error); terminate(safeFailure(error)); } }, 5000);
+    operation = 'completion'; const code = await new Promise((resolve, reject) => { rejectCompletion = reject; child.once('close', resolve); });
     if (failure) refuse(failure);
     return { code, output, durationMs: Date.now()-started, peakRss, peakDisk };
   } catch (error) {
+    observeFailure(operation, error);
     // If persistence fails after spawn, retain the exact in-memory birth identity
     // and stop that child before returning; a PID alone never authorizes a kill.
     if (spawnedIdentity) await stopOwnedProcesses([spawnedIdentity]);
@@ -498,7 +591,15 @@ async function runFixed(owner, label, args, { cwd = ROOT, env = process.env, tim
   }
   finally { clearInterval(timer); clearInterval(sample); clearTimeout(forceTimer); clearTimeout(settleTimer); if (abort) runtimeStop.signal.removeEventListener('abort', abort); }
 }
-function freshReport(path, started) { const info = lstatSync(path); if (!info.isFile() || info.isSymbolicLink() || info.mtimeMs < started - 1000 || info.size > 2 * 1024 ** 2) refuse('report_invalid'); return json(path); }
+function freshReport(path, started, onState = () => {}) {
+  const note = state => { try { onState(state); } catch { /* Diagnostic only. */ } };
+  try {
+    const info = lstatSync(path);
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 2 * 1024 ** 2) refuse('report_invalid');
+    if (info.mtimeMs < started - 1000) { note('stale'); refuse('report_invalid'); }
+    return json(path);
+  } catch (error) { note('invalid'); throw error; }
+}
 const retireReport = path => { if (existsSync(path)) { if (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) refuse('report_invalid'); rmSync(path); } };
 function runEnvironment(owner, phase, discovery = false) {
   const keys = ['GITHUB_ACTIONS','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GITHUB_JOB','GITHUB_WORKSPACE','RUNNER_TEMP','CI','QA_HEAD_SHA','QA_SOUP_VARIANT','QA_SOUP_LIBRARY','B2_JOB_STARTED_MS','B2_JOB_DEADLINE_MS','B2_STOP_AT_MS','YEONI_E2E','NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY'];
@@ -598,7 +699,11 @@ async function run() {
       if(!executionFailure&&result.code!==0)emitDiagnostic(`${phase}-browser`,'failed',{code:'browser_failed'});
       stage = `${phase}-browser-result`; const readinessPath=join(owner.directory,`${phase}-readiness.json`);
       if(existsSync(readinessPath)){const ready=json(regularPath(owner.directory,`${phase}-readiness.json`));if(ready.phase!==phase||ready.nonce!==owner.nonce||!Number.isSafeInteger(ready.readinessMs)||ready.readinessMs<0||ready.readinessMs>120_000)refuse('report_invalid');report.phases[phase].serverReadinessMs=ready.readinessMs;}
-      const execution=existsSync(summary)?projectExecution(freshReport(summary,start),phase,identity.commit):{...unrunPhase(phase),status:'failed',discovered:discovered.length};
+      const reportState=reportStateObserver(phase); let execution;
+      if(existsSync(summary)) {
+        try { const raw=freshReport(summary,start,reportState); execution=projectExecution(raw,phase,identity.commit); reportState('validated'); emitExecutionDiagnostics(raw,execution,phase); }
+        catch(error) { reportState('invalid'); throw error; }
+      } else { reportState('missing'); execution={...unrunPhase(phase),status:'failed',discovered:discovered.length}; }
       report.phases[phase]={...report.phases[phase],...execution,durationMs:result.durationMs,peakRss:result.peakRss,peakDisk:result.peakDisk,
         accounts:{created:cleanupRows.length===discovered.length?cleanupRows.reduce((n,row)=>n+row.count,0):null,deleted:cleanupRows.reduce((n,row)=>n+row.count,0),verified:cleanupRows.length===discovered.length}};
       if(!executionFailure&&result.code===0&&(execution.status!=='passed'||cleanupRows.length!==discovered.length||report.phases[phase].serverReadinessMs===undefined))emitDiagnostic(`${phase}-browser`,'failed',{code:'browser_failed'});

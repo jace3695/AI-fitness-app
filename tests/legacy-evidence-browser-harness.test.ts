@@ -247,8 +247,9 @@ test('all console diagnostics cross one closed projection and CLI failures use a
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.expression.getText(runnerAst) === 'console') calls.push(node);
     ts.forEachChild(node, visit);
   }
-  visit(runnerAst); assert.equal(calls.length, 1);
-  assert.equal(calls[0].getText(runnerAst), 'console.error(diagnosticLine(stage, status, error))');
+  visit(runnerAst); assert.deepEqual(calls.map(call => call.getText(runnerAst)), ['console.error(diagnosticLine(stage, status, error))', 'console.error(line)']);
+  assert.match(functionSource('detailSink'), /console\.error\(line\)/);
+  assert.match(functionSource('emitDetailRecords'), /sink\(DETAIL_PREFIX \+ JSON\.stringify\(record\)\)/);
   assert.match(runnerSource, /main\(\)\.catch\(error=>\{emitDiagnostic\(`\$\{process\.argv\[2\]\}-bootstrap`,'failed',error\);process\.exitCode=1;/);
 });
 test('run failure stages are assigned before the original boundary and preserved before cleanup starts', () => {
@@ -331,7 +332,7 @@ test('fresh execution report reads only new regular bounded files and rejects st
   refused(() => fresh(root, started), 'report_invalid');
   const oversized = privateFunction('freshReport', { lstatSync: () => ({ isFile: () => true, isSymbolicLink: () => false, mtimeMs: started, size: 2 * 1024 ** 2 + 1 }), refuse, json: () => assert.fail('oversize report was parsed') });
   refused(() => oversized(path, started), 'report_invalid');
-  const run = functionSource('run'); assert.ok(run.indexOf('retireReport(summary)') < run.indexOf("runFixed(owner,'browser'")); assert.match(run, /freshReport\(summary,start\)/);
+  const run = functionSource('run'); assert.ok(run.indexOf('retireReport(summary)') < run.indexOf("runFixed(owner,'browser'")); assert.match(run, /freshReport\(summary,start,reportState\)/);
 });
 
 // Dependencies are copied, never installed, hardlinked or linked out.
@@ -849,10 +850,11 @@ test('native focused config fails closed for absent/malformed ownership and reje
 });
 
 // The fake transport also covers failures between spawn and persisted ownership.
-function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow> } = {}) {
+function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow>; diskError?: string; resourceError?: string } = {}) {
   let time = 0, nextTimer = 1, spawnCount = 0;
   const timers = new Map<number, { callback: () => void; at: number; repeat: number }>();
   const identity = row(401, { parent: 9999, ...options.firstIdentity }), live = new Map([[identity.pid, identity]]), records: ProcessRow[] = [], stopped: ProcessRow[][] = [];
+  const details: string[] = [];
   const signals: [number, string][] = [], spawnOptions: Record<string, unknown>[] = [];
   const child = Object.assign(new EventEmitter(), { pid: identity.pid, stdout: new PassThrough(), stderr: new PassThrough(), kill: (signal: string) => { signals.push([identity.pid, signal]); return true; } });
   const controller = new AbortController();
@@ -860,17 +862,19 @@ function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; 
   const registration = privateFunction('registerProcess', { processInfo: (pid: number) => live.get(pid) ?? null, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => records.push(value) });
   const run = privateFunction('runFixed', {
     ROOT: env.GITHUB_WORKSPACE, process: { execPath: '/synthetic/node', env, pid: 9999, kill: (pid: number, signal: string) => { signals.push([pid, signal]); live.delete(pid); } },
+    childOperationObserver: (label: string) => harness.childOperationObserver(label, (line: string) => details.push(line)),
     runtimeStop: controller, refuse, LIMITS: harness.LIMITS, safeFailure: harness.safeFailure, sameProcess: harness.sameProcess,
     spawn: (_command: string, _args: string[], supplied: Record<string, unknown>) => { spawnCount++; spawnOptions.push(supplied); if (options.spawnFails) throw Object.assign(new Error('synthetic-spawn-failure'), { code: 'EACCES' }); queueMicrotask(() => child.emit('spawn')); return child; },
     processInfo: (pid: number) => live.get(pid) ?? null,
     registerProcess: (owner: unknown, discovered: ProcessRow, label: string) => { assert.equal(typeof discovered, 'object', 'The original birth tuple must reach registration'); if (options.registerFails) refuse('ownership_invalid'); if (options.reuseBeforeRegister) live.set(discovered.pid, { ...discovered, start: '900000' }); return registration(owner, discovered, label); },
     processRecords: () => records, scanOwned: () => records,
     stopOwnedProcesses: async (owned: ProcessRow[]) => { stopped.push(owned); if (options.stopFails) refuse('cleanup_failed'); for (const info of owned) { const current = live.get(info.pid); if (current && !harness.sameProcess(info, current)) refuse('process_identity'); live.delete(info.pid); } return true; },
-    resourceSample: () => 1024, ownedUsage: () => 2048, Date: { now: () => time },
+    resourceSample: () => { if (options.resourceError) throw Object.assign(new Error('SENTINEL_SECRET_PROCESS'), { code: options.resourceError }); return 1024; },
+    ownedUsage: () => { if (options.diskError) throw Object.assign(new Error('SENTINEL_SECRET_DISK'), { code: options.diskError }); return 2048; }, Date: { now: () => time },
     setInterval: (callback: () => void, ms: number) => schedule(callback, ms, ms), clearInterval: (id: number) => timers.delete(id),
     setTimeout: (callback: () => void, ms: number) => schedule(callback, ms, 0), clearTimeout: (id: number) => timers.delete(id),
   });
-  return { run, child, identity, live, records, stopped, signals, spawnOptions, controller, spawnCount: () => spawnCount, timers,
+  return { run, child, identity, live, records, stopped, signals, details, spawnOptions, controller, spawnCount: () => spawnCount, timers,
     advance(ms: number) { time += ms; for (const [id, timer] of [...timers]) if (timer.at <= time) { if (timer.repeat) timer.at = time + timer.repeat; else timers.delete(id); timer.callback(); } },
   };
 }
@@ -1282,6 +1286,7 @@ function diagnosticCollector() {
   return { records, emitDiagnostic: (stage: unknown, status: unknown, error?: unknown) => { records.push(diagnosticRecord(stage, status, error)); } };
 }
 function runPhaseFragment(start: string, end: string, bindings: Record<string, unknown>) {
+  bindings = { reportStateObserver: () => () => {}, emitExecutionDiagnostics: () => {}, ...bindings };
   const declaration = runnerAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'run');
   assert.ok(declaration && ts.isFunctionDeclaration(declaration));
   const operation = declaration.body?.statements.find(ts.isTryStatement); assert.ok(operation?.catchClause);
@@ -1615,4 +1620,113 @@ test('registered child reused before first shutdown receives neither TERM nor KI
   fake.advance(20_000); assert.deepEqual(fake.signals, [], 'Forced KILL must not target the replacement either');
   fake.advance(5_000); await rejected;
   assert.deepEqual(fake.signals, []); assert.equal(fake.live.get(fake.identity.pid), replacement); assert.equal(fake.records[0].start, fake.identity.start); assert.equal(fake.timers.size, 0);
+});
+
+// Bounded detail diagnostics never change report acceptance or process behavior.
+const detailPrefix = '[legacy-evidence-b2-detail] ';
+const parseDetails = (lines: string[]) => lines.map(line => { assert.ok(line.startsWith(detailPrefix)); assert.doesNotMatch(line, /[\r\n\x1b]|SENTINEL_SECRET/); return JSON.parse(line.slice(detailPrefix.length)); });
+function executionDetails(phase: 'inactive' | 'enabled', raw = execution(phase)) {
+  const lines: string[] = []; const projected = harness.projectExecution(raw, phase, commit);
+  harness.emitExecutionDiagnostics(raw, projected, phase, (line: string) => lines.push(line));
+  return parseDetails(lines);
+}
+test('detail summaries use canonical case IDs and distinguish execution from harness acceptance', () => {
+  for (const phase of ['inactive', 'enabled'] as const) {
+    const raw = execution(phase); raw.results[0].status = 'timedOut'; raw.results[1].status = 'skipped'; raw.results.pop();
+    const records = executionDetails(phase, raw), expected = phase === 'inactive' ? 8 : 28;
+    assert.deepEqual(records[0], { kind: 'execution-summary', phase, executionStatus: 'failed', discovered: expected, executed: expected - 1, passed: expected - 3, failed: 1, unrun: 2 });
+    assert.equal(records.length, expected + 1); assert.deepEqual(records[1], { kind: 'case', phase, project: 'auth-preservation', case: 'A1', status: 'timedOut' });
+    assert.equal(records[5].case, phase === 'inactive' ? 'I1' : 'E1');
+    assert.doesNotMatch(JSON.stringify(records), /"title"|duration|harnessStatus/);
+  }
+});
+test('failed-case details reproject only fixed kinds, categories and exact source locations', () => {
+  const raw = execution('enabled'); raw.results[4].status = 'failed';
+  Object.assign(raw.results[4], { failure: { errors: [
+    { kind: 'timeout', location: { file: 'tests/e2e/legacy-evidence-review.spec.ts', line: 487, column: 7 }, message: 'SENTINEL_SECRET' },
+    { kind: 'SENTINEL_SECRET', location: { file: '/secret/tests/e2e/fixture.ts', line: 1, column: 1 } },
+  ], steps: [{ category: 'expect', kind: 'other', location: { file: 'tests/e2e/fixture.ts', line: 1, column: 1 }, title: 'SENTINEL_SECRET' }] }, attachments: ['SENTINEL_SECRET'] });
+  const record = executionDetails('enabled', raw)[5];
+  assert.deepEqual(record.failure, { errors: [{ kind: 'timeout', location: { file: 'tests/e2e/legacy-evidence-review.spec.ts', line: 487, column: 7 } }, { kind: 'other', location: null }], steps: [{ category: 'expect', kind: 'other', location: { file: 'tests/e2e/fixture.ts', line: 1, column: 1 } }] });
+  for (const file of ['tests/e2e/other.spec.ts', 'tests/e2e/../e2e/fixture.ts', 'tests\\e2e\\fixture.ts', 'https://secret/fixture.ts']) {
+    (raw.results[4] as unknown as { failure: { errors: { location: { file: string } }[] } }).failure.errors[0].location.file = file;
+    assert.equal(executionDetails('enabled', raw)[5].failure.errors[0].location, null);
+  }
+});
+test('diagnostic projection never invokes nested getters, proxies or toJSON and bounds arrays before traversal', () => {
+  let reads = 0; const poison = () => { reads++; throw new Error('SENTINEL_SECRET'); };
+  const accessor = Object.defineProperty({}, 'errors', { get: poison });
+  const proxy = new Proxy({}, { get: poison, getOwnPropertyDescriptor: poison, ownKeys: poison, getPrototypeOf: poison });
+  const revoked = Proxy.revocable({}, {}); revoked.revoke();
+  const oversized = new Array(100_000); Object.defineProperty(oversized, '0', { get: poison });
+  const withJson = { errors: [], steps: [], toJSON: poison };
+  for (const failure of [accessor, proxy, revoked.proxy, withJson, { errors: oversized, steps: [] }, { errors: [proxy], steps: [accessor] }, { errors: [], steps: Object.defineProperty([], 'toJSON', { get: poison }) }]) {
+    const raw = execution('inactive'); raw.results[0].status = 'failed'; Object.assign(raw.results[0], { failure });
+    assert.doesNotThrow(() => executionDetails('inactive', raw));
+  }
+  for (const status of ['passed', 'skipped']) {
+    const raw = execution('inactive'); raw.results[0].status = status; Object.defineProperty(raw.results[0], 'failure', { get: poison });
+    const records = executionDetails('inactive', raw); assert.equal(records.length, 9); assert.equal(records[1].failure, undefined);
+  }
+  const raw = execution('inactive'), projected = harness.projectExecution(raw, 'inactive', commit);
+  for (const malformed of [proxy, revoked.proxy, accessor, { ...projected, cases: oversized }, { ...projected, toJSON: poison }]) {
+    const lines: string[] = []; harness.emitExecutionDiagnostics(raw, malformed, 'inactive', (line: string) => lines.push(line)); assert.deepEqual(lines, []);
+  }
+  assert.equal(reads, 0);
+});
+test('detail projection rejects forged tuples and does not forward spoofed raw diagnostic prefixes', () => {
+  const raw = execution('inactive'), projected = harness.projectExecution(raw, 'inactive', commit);
+  const lines: string[] = [];
+  projected.cases[0].title = '[legacy-evidence-b2-detail] {"kind":"case","status":"passed"} SENTINEL_SECRET';
+  harness.emitExecutionDiagnostics(raw, projected, 'inactive', (line: string) => lines.push(line)); assert.equal(lines.length, 0);
+  for (const value of ['QA_FAILURE_LOCATION SENTINEL_SECRET', '[legacy-evidence-b2-detail] {"status":"passed"}', 'passed: SENTINEL_SECRET']) {
+    harness.emitExecutionDiagnostics(value, value, 'inactive', (line: string) => lines.push(line));
+  }
+  assert.deepEqual(lines, []);
+  const run = functionSource('run'); assert.match(run, /if\(!line\.startsWith\('QA_CLEANUP '\)\)return/);
+});
+test('first operation detail preserves the allowlisted system code before generic recoding and ignores a failing sink', () => {
+  const lines: string[] = [], observe = harness.childOperationObserver('browser', (line: string) => { lines.push(line); throw new Error('SENTINEL_SECRET_SINK'); });
+  observe('disk-sample', Object.assign(new Error('SENTINEL_SECRET_PATH'), { code: 'ENOENT' }));
+  observe('shutdown', { code: 'cleanup_failed' });
+  assert.deepEqual(parseDetails(lines), [{ kind: 'child-operation', child: 'browser', operation: 'disk-sample', code: 'harness_failed', systemCode: 'ENOENT' }]);
+  for (const code of ['ENOENT', 'EACCES', 'EPERM', 'EIO', 'ENOSPC', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR', 'SENTINEL_SECRET']) {
+    const output: string[] = []; harness.childOperationObserver('browser', (line: string) => output.push(line))('spawn', { code });
+    assert.equal(parseDetails(output)[0].systemCode, code === 'SENTINEL_SECRET' ? 'other' : code);
+  }
+});
+test('sampled filesystem failure remains fatal even with a later zero exit and retains first diagnostic cause', async () => {
+  for (const resourceError of [undefined, 'EIO']) {
+    const fake = fakeLauncher({ diskError: 'ENOENT', resourceError }), pending = assert.rejects(fake.run(ownerRecord(), 'browser', []), { code: 'harness_failed' });
+    await flushMicrotasks(); fake.advance(5000); fake.child.emit('close', 0); await pending;
+    assert.deepEqual(fake.signals, [[401, 'SIGTERM']]); assert.equal(fake.stopped.length, 1); assert.equal(fake.timers.size, 0);
+    assert.deepEqual(parseDetails(fake.details), [{ kind: 'child-operation', child: 'browser', operation: resourceError ? 'process-sample' : 'disk-sample', code: 'harness_failed', systemCode: resourceError ?? 'ENOENT' }]);
+  }
+});
+test('report states distinguish missing stale and invalid without serializing cases or changing refusal', t => {
+  const root = tiny(t), file = put(root, 'result.json', JSON.stringify(execution('inactive'))), start = Date.now();
+  const fresh = privateFunction('freshReport', { lstatSync, refuse, json: (path: string) => JSON.parse(readFileSync(path, 'utf8')) });
+  for (const kind of ['stale', 'invalid'] as const) {
+    writeFileSync(file, kind === 'invalid' ? '{' : JSON.stringify(execution('inactive')));
+    utimesSync(file, new Date(start - (kind === 'stale' ? 10000 : 0)), new Date(start - (kind === 'stale' ? 10000 : 0)));
+    const lines: string[] = [], observer = harness.reportStateObserver('inactive', (line: string) => { lines.push(line); throw new Error('SENTINEL_SECRET_SINK'); });
+    assert.throws(() => fresh(file, start, observer)); observer('validated');
+    assert.deepEqual(parseDetails(lines), [{ kind: 'phase-report', phase: 'inactive', state: kind }]);
+  }
+  const lines: string[] = []; harness.reportStateObserver('enabled', (line: string) => lines.push(line))('missing');
+  assert.deepEqual(parseDetails(lines), [{ kind: 'phase-report', phase: 'enabled', state: 'missing' }]);
+});
+test('timeout budget abort and capture cutoff retain first-cause detail before later sampler failures', async () => {
+  for (const first of ['timeout', 'budget', 'abort', 'capture']) {
+    const fake = fakeLauncher({ diskError: 'ENOENT' });
+    const code = first === 'timeout' ? 'browser_failed' : first === 'budget' ? 'budget_exhausted' : first === 'abort' ? 'interrupted' : 'resource_limit';
+    const pending = assert.rejects(fake.run(ownerRecord(), 'browser', [], { timeout: first === 'timeout' ? 10 : 120_000, stopAt: first === 'budget' ? 10 : Infinity, capture: first === 'capture' }), { code });
+    await flushMicrotasks();
+    if (first === 'abort') fake.controller.abort();
+    else if (first === 'capture') fake.child.stdout.emit('data', Buffer.alloc(harness.LIMITS.captureBytes + 1));
+    else fake.advance(100);
+    fake.advance(5000); fake.child.emit('close', 0); await pending;
+    assert.deepEqual(parseDetails(fake.details), [{ kind: 'child-operation', child: 'browser', operation: 'completion', code, systemCode: 'other' }]);
+    assert.deepEqual(fake.signals, [[401, 'SIGTERM']]); assert.equal(fake.timers.size, 0);
+  }
 });
