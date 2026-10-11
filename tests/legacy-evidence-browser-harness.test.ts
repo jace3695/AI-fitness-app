@@ -42,6 +42,7 @@ function functionSource(name: string) {
 }
 function privateFunction(name: string, bindings: Record<string, unknown>) {
   if (['registerProcess', 'scanOwned'].includes(name) && !Object.hasOwn(bindings, 'refuseProcessIdentity')) bindings = { refuseProcessIdentity: processDiagnosticBoundary().refuseIdentity, ...bindings };
+  if (['processRecords', 'writeProcessRecord'].includes(name) && !Object.hasOwn(bindings, 'refuseProcessOwnership')) bindings = { refuseProcessOwnership: processOwnershipBoundary().refuseOwnership, ...bindings };
   return new Function(...Object.keys(bindings), `${functionSource(name)}\nreturn ${name};`)(...Object.values(bindings));
 }
 function fixedSet(name: string) {
@@ -56,9 +57,16 @@ function processDiagnosticBoundary() {
   const detailObject = privateFunction('detailObject', { types }), detailField = privateFunction('detailField', { detailObject });
   const refuseIdentity = privateFunction('refuseProcessIdentity', { processIdentityDetails, detailObject, detailField, PROCESS_IDENTITY_SITES: fixedSet('PROCESS_IDENTITY_SITES'), PROCESS_IDENTITY_REASONS: fixedSet('PROCESS_IDENTITY_REASONS'), PROCESS_STAT_READS: fixedSet('PROCESS_STAT_READS') });
   const detail = privateFunction('processIdentityDetail', { processIdentityDetails, safeFailure: harness.safeFailure });
-  const observer = privateFunction('childOperationObserver', { detailSink: () => {}, CHILD_LABELS: fixedSet('CHILD_LABELS'), CHILD_OPERATIONS: fixedSet('CHILD_OPERATIONS'), SYSTEM_CODES: fixedSet('SYSTEM_CODES'), types, safeFailure: harness.safeFailure, processIdentityDetail: detail, emitDetailRecords: privateFunction('emitDetailRecords', { DETAIL_PREFIX: '[legacy-evidence-b2-detail] ' }) });
+  const observer = privateFunction('childOperationObserver', { detailSink: () => {}, CHILD_LABELS: fixedSet('CHILD_LABELS'), CHILD_OPERATIONS: fixedSet('CHILD_OPERATIONS'), SYSTEM_CODES: fixedSet('SYSTEM_CODES'), types, safeFailure: harness.safeFailure, processIdentityDetail: detail, processOwnershipDetail: () => ({}), emitDetailRecords: privateFunction('emitDetailRecords', { DETAIL_PREFIX: '[legacy-evidence-b2-detail] ' }) });
   const inspect = (read: (path: string, encoding: string) => string) => privateFunction('processInfo', { readFileSync: read, parseProcessStat: harness.parseProcessStat, types, PROCESS_STAT_READS: fixedSet('PROCESS_STAT_READS') });
   return { refuseIdentity, detail, observer, inspect };
+}
+function processOwnershipBoundary() {
+  const processOwnershipDetails = new WeakMap<object, object>();
+  const refuseOwnership = privateFunction('refuseProcessOwnership', { processOwnershipDetails, PROCESS_OWNERSHIP_SITES: fixedSet('PROCESS_OWNERSHIP_SITES'), PROCESS_OWNERSHIP_REASONS: fixedSet('PROCESS_OWNERSHIP_REASONS') });
+  const detail = privateFunction('processOwnershipDetail', { processOwnershipDetails, safeFailure: harness.safeFailure });
+  const observer = privateFunction('childOperationObserver', { detailSink: () => {}, CHILD_LABELS: fixedSet('CHILD_LABELS'), CHILD_OPERATIONS: fixedSet('CHILD_OPERATIONS'), SYSTEM_CODES: fixedSet('SYSTEM_CODES'), types, safeFailure: harness.safeFailure, processIdentityDetail: () => ({}), processOwnershipDetail: detail, emitDetailRecords: privateFunction('emitDetailRecords', { DETAIL_PREFIX: '[legacy-evidence-b2-detail] ' }) });
+  return { refuseOwnership, detail, observer };
 }
 function tiny(t: { after: (fn: () => void) => void }) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'b2-pure-test-')));
@@ -877,7 +885,7 @@ function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; 
   const child = Object.assign(new EventEmitter(), { pid: identity.pid, stdout: new PassThrough(), stderr: new PassThrough(), kill: (signal: string) => { signals.push([identity.pid, signal]); return true; } });
   const controller = new AbortController();
   const schedule = (callback: () => void, ms: number, repeat: number) => { const id = nextTimer++; timers.set(id, { callback, at: time + ms, repeat }); return id; };
-  const registration = privateFunction('registerProcess', { processInfo: (pid: number) => live.get(pid) ?? null, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => records.push(value) });
+  const registration = privateFunction('registerProcess', { processInfo: (pid: number) => live.get(pid) ?? null, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => records.push(value) });
   const run = privateFunction('runFixed', {
     ROOT: env.GITHUB_WORKSPACE, process: { execPath: '/synthetic/node', env, pid: 9999, kill: (pid: number, signal: string) => { signals.push([pid, signal]); live.delete(pid); } },
     childOperationObserver: (label: string) => (options.diagnostics?.observer ?? harness.childOperationObserver)(label, (line: string) => details.push(line)),
@@ -1174,7 +1182,7 @@ test('closed app environment inherits only the owned nonce for detached compiler
 
 test('registration retains exact observed PID/start/group/session and rejects birth replacement before persistence', () => {
   const discovered = row(701), saved: ProcessRow[] = []; let current: ProcessRow | null = discovered;
-  const register = privateFunction('registerProcess', { processInfo: () => current, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+  const register = privateFunction('registerProcess', { processInfo: () => current, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
   const owner = ownerRecord(); const result = register(owner, discovered, 'server');
   assert.deepEqual(result, { pid: discovered.pid, start: discovered.start, group: discovered.group, session: discovered.session, label: 'server', nonce });
   for (const patch of [{ start: '900000' }, { group: 999 }, { session: 999 }]) {
@@ -1187,7 +1195,7 @@ test('snapshot-owned child replacement between discovery and registration is nev
   const leader = row(711), child = row(712, { parent: 711, group: 711, session: 711 });
   const replacement = row(712, { start: '900000' }), saved: ProcessRow[] = [{ ...leader, nonce, label: 'server' }]; let reads = 0;
   const processInfo = (pid: number) => pid === leader.pid ? leader : pid === child.pid ? (++reads === 1 ? child : replacement) : null;
-  const register = privateFunction('registerProcess', { processInfo, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+  const register = privateFunction('registerProcess', { processInfo, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
   const scan = privateFunction('scanOwned', { processRecords: () => saved, readdirSync: () => ['711', '712'], processInfo, sameProcess: harness.sameProcess, readFileSync: () => Buffer.from('PATH=/usr/bin\0'), registerProcess: register, refuse });
   refused(() => scan(ownerRecord()), 'process_identity'); assert.equal(saved.length, 1); assert.equal(saved.some(value => value.pid === replacement.pid), false);
   const live = new Map([[leader.pid, leader], [replacement.pid, replacement]]), signals: [number, string][] = [];
@@ -1207,7 +1215,7 @@ test('marked detached compiler is recovered and reaped after its build parent di
   const appEnv = harness.closedApplicationEnvironment(env, owner, { API_URL: API, ANON_KEY: 'synthetic-anon' });
   assert.equal(appEnv.B2_PROCESS_TAG, nonce); let portChecks = 0;
   const processInfo = (pid: number) => live.get(pid) ?? null;
-  const register = privateFunction('registerProcess', { processInfo, sameProcess: harness.sameProcess, refuse, join, writeJson: (_path: string, value: ProcessRow) => records.push(value) });
+  const register = privateFunction('registerProcess', { processInfo, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => records.push(value) });
   const scan = privateFunction('scanOwned', {
     processRecords: () => records, readdirSync: () => [...live.keys()].map(String), processInfo, sameProcess: harness.sameProcess, registerProcess: register, refuse,
     readFileSync: (path: string) => Buffer.from(path === `/proc/${compiler.pid}/environ` ? Object.entries(appEnv).map(([key, value]) => `${key}=${value}\0`).join('') : 'PATH=/usr/bin\0'),
@@ -1806,14 +1814,14 @@ test('registration diagnostic subtypes preserve refusal code reads and nonpersis
   ];
   for (const { current, reason, outcome } of cases) {
     let reads = 0;
-    const register = privateFunction('registerProcess', { processInfo: (_pid: number, observe: (value: string) => void) => { reads++; observe(outcome); return current; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+    const register = privateFunction('registerProcess', { processInfo: (_pid: number, observe: (value: string) => void) => { reads++; observe(outcome); return current; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
     let caught: unknown; try { register(ownerRecord(), discovered, 'descendant'); } catch (error) { caught = error; }
     assert.equal(harness.safeFailure(caught), 'process_identity'); assert.equal((caught as Error).message, 'B2 refused: process_identity');
     assert.equal(reads, 1); assert.deepEqual(saved, []);
     assert.deepEqual(diagnostic.detail(caught), { identitySite: 'registration-recheck', identityReason: reason, statRead: outcome });
   }
   let reads = 0;
-  const register = privateFunction('registerProcess', { processInfo: () => { reads++; return discovered; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeJson: (_path: string, value: ProcessRow) => saved.push(value) });
+  const register = privateFunction('registerProcess', { processInfo: () => { reads++; return discovered; }, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
   let invalid: unknown; try { register(ownerRecord(), { ...discovered, group: NaN }, 'descendant'); } catch (error) { invalid = error; }
   assert.equal(harness.safeFailure(invalid), 'process_identity'); assert.equal(reads, 0); assert.deepEqual(saved, []);
   assert.deepEqual(diagnostic.detail(invalid), { identitySite: 'registration-validation', identityReason: 'invalid-observed-identity' });
@@ -1876,4 +1884,177 @@ test('identity detail preserves first-cause ordering through sampling terminatio
   const interrupted = assert.rejects(timeout.run(ownerRecord(), 'browser', []), { code: 'interrupted' });
   await flushMicrotasks(); timeout.controller.abort(); timeout.advance(100); timeout.child.emit('close', 0); await interrupted;
   assert.deepEqual(parseDetails(timeout.details), [{ kind: 'child-operation', child: 'browser', operation: 'completion', code: 'interrupted', systemCode: 'other' }]);
+});
+
+// Registry publication stages outside the strict committed inventory. All
+// interleavings below are deterministic tiny filesystem/fake-process fixtures.
+function registryFixture(t: { after: (fn: () => void) => void }) {
+  const directory = tiny(t), info = statSync(directory);
+  const owner = { ...ownerRecord(), directory, dev: info.dev, ino: info.ino };
+  const committed = join(directory, 'processes'), staging = join(directory, 'process-staging');
+  mkdirSync(committed, { mode: 0o700 }); mkdirSync(staging, { mode: 0o700 });
+  const diagnostic = processOwnershipBoundary();
+  const records = privateFunction('processRecords', { readdirSync: filesystem.readdirSync, join, LIMITS: harness.LIMITS, refuse, refuseProcessOwnership: diagnostic.refuseOwnership, regularPath: harness.regularPath, json: (path: string) => JSON.parse(readFileSync(path, 'utf8')) });
+  const publish = (bindings: Record<string, unknown> = {}) => privateFunction('writeProcessRecord', { lstatSync, realpathSync, join, process: { pid: 901 }, randomBytes: () => Buffer.alloc(16, 1), writeFileSync, renameSync: filesystem.renameSync, refuseProcessOwnership: diagnostic.refuseOwnership, ...bindings });
+  const record = { ...row(902), label: 'server', nonce };
+  return { owner, committed, staging, record, diagnostic, records, publish };
+}
+
+test('process registry publication keeps first and final scans strict throughout staging and atomic rename', t => {
+  const fixture = registryFixture(t), observed: string[] = [];
+  const inspectRegistry = () => fixture.records(fixture.owner);
+  const scanRegistry = () => {
+    let registryReads = 0;
+    const scan = privateFunction('scanOwned', { processRecords: () => { registryReads++; return inspectRegistry(); }, readdirSync: () => [String(fixture.record.pid)], processInfo: () => fixture.record, sameProcess: harness.sameProcess, readFileSync: () => Buffer.from(''), registerProcess: () => assert.fail('No new ownership is conferred by publication'), refuse });
+    const result = scan(fixture.owner); assert.equal(registryReads, 2); return result;
+  };
+  const publish = fixture.publish({ writeFileSync: (path: string, bytes: string, options: filesystem.WriteFileOptions) => {
+    assert.equal(dirname(path), fixture.staging); assert.deepEqual(options, { mode: 0o600, flag: 'wx' });
+    writeFileSync(path, bytes, options); assert.equal(statSync(path).mode & 0o777, 0o600);
+    assert.deepEqual(inspectRegistry(), []); assert.deepEqual(scanRegistry(), []); observed.push('inflight-stage');
+  }, renameSync: (from: string, to: string) => {
+    assert.equal(dirname(from), fixture.staging); assert.equal(to, join(fixture.committed, `${fixture.record.pid}-${fixture.record.start}.json`));
+    assert.deepEqual(inspectRegistry(), []); assert.deepEqual(scanRegistry(), []); filesystem.renameSync(from, to);
+    assert.deepEqual(inspectRegistry(), [fixture.record]); assert.deepEqual(scanRegistry(), [fixture.record]); observed.push('published');
+  } });
+  publish(fixture.owner, fixture.record);
+  assert.deepEqual(observed, ['inflight-stage', 'published']); assert.deepEqual(filesystem.readdirSync(fixture.staging), []);
+  assert.equal(statSync(join(fixture.committed, `${fixture.record.pid}-${fixture.record.start}.json`)).mode & 0o777, 0o600);
+  assert.deepEqual(scanRegistry(), [fixture.record]);
+});
+
+test('two process registry writers publish complete same-birth and distinct-birth rows without sharing stages', t => {
+  const fixture = registryFixture(t), stages: string[] = [];
+  const second = { ...fixture.record, label: 'descendant' };
+  const secondWriter = fixture.publish({ process: { pid: 903 }, writeFileSync: (path: string, bytes: string, options: filesystem.WriteFileOptions) => { stages.push(path); writeFileSync(path, bytes, options); } });
+  const firstWriter = fixture.publish({ writeFileSync: (path: string, bytes: string, options: filesystem.WriteFileOptions) => { stages.push(path); writeFileSync(path, bytes, options); }, renameSync: (from: string, to: string) => {
+    secondWriter(fixture.owner, second); assert.deepEqual(fixture.records(fixture.owner), [second]);
+    filesystem.renameSync(from, to);
+  } });
+  firstWriter(fixture.owner, fixture.record); assert.equal(new Set(stages).size, 2);
+  assert.deepEqual(fixture.records(fixture.owner), [fixture.record]); assert.deepEqual(filesystem.readdirSync(fixture.staging), []);
+  secondWriter(fixture.owner, { ...fixture.record, start: '9999' });
+  assert.equal(fixture.records(fixture.owner).length, 2, 'Different births retain distinct committed records and existing identity fences');
+});
+
+test('failed process publication preserves the first syscall error and leaves stages for owned cleanup only', t => {
+  const fixture = registryFixture(t);
+  for (const [index, code] of ['EIO', 'EXDEV'].entries()) {
+    const failure = Object.assign(new Error('SENTINEL_SECRET_PATH'), { code });
+    const publish = fixture.publish({ randomBytes: () => Buffer.alloc(16, index + 2), renameSync: () => { throw failure; } });
+    assert.throws(() => publish(fixture.owner, fixture.record), error => error === failure);
+    assert.deepEqual(fixture.records(fixture.owner), []); assert.equal(harness.safeFailure(failure), 'harness_failed');
+  }
+  assert.equal(filesystem.readdirSync(fixture.staging).length, 2);
+  assert.equal(harness.ownedUsage(fixture.owner.directory), Buffer.byteLength(JSON.stringify(fixture.record) + '\n') * 2);
+  const partial = Object.assign(new Error('SENTINEL_SECRET_PARTIAL'), { code: 'ENOSPC' }); let renamed = false;
+  const publish = fixture.publish({ randomBytes: () => Buffer.alloc(16, 4), writeFileSync: (path: string, _bytes: string, options: filesystem.WriteFileOptions) => { writeFileSync(path, '{', options); throw partial; }, renameSync: () => { renamed = true; } });
+  assert.throws(() => publish(fixture.owner, fixture.record), error => error === partial);
+  assert.equal(renamed, false); assert.deepEqual(fixture.records(fixture.owner), []); assert.equal(filesystem.readdirSync(fixture.staging).length, 3);
+  assert.doesNotMatch(functionSource('writeProcessRecord'), /rmSync|unlink|copyFile|mkdirSync/);
+  assert.match(functionSource('cleanup'), /if\(!processesStopped\)refuse\('cleanup_failed'\)/);
+});
+
+test('process staging exclusivity refuses stale regular symlink and hardlink collisions without touching targets', t => {
+  for (const kind of ['regular', 'symlink', 'hardlink']) {
+    const fixture = registryFixture(t), name = `${fixture.record.pid}-${fixture.record.start}.json.901.${'01'.repeat(16)}.tmp`;
+    const target = put(fixture.owner.directory, `target-${kind}`, 'SENTINEL_TARGET', 0o600), stage = join(fixture.staging, name);
+    if (kind === 'regular') writeFileSync(stage, 'SENTINEL_STAGE', { mode: 0o600 });
+    else if (kind === 'symlink') symlinkSync(target, stage);
+    else filesystem.linkSync(target, stage);
+    assert.throws(() => fixture.publish()(fixture.owner, fixture.record), { code: 'EEXIST' });
+    assert.equal(readFileSync(target, 'utf8'), 'SENTINEL_TARGET'); assert.deepEqual(fixture.records(fixture.owner), []);
+    assert.equal(lstatSync(stage).isSymbolicLink(), kind === 'symlink');
+  }
+});
+
+test('process publisher rejects unsafe owner and sibling directory identities before any write', () => {
+  const owner = ownerRecord(), diagnostic = processOwnershipBoundary();
+  const committed = join(owner.directory, 'processes'), staging = join(owner.directory, 'process-staging');
+  const normal = { dev: owner.dev, ino: owner.ino, mode: 0o40700, isDirectory: () => true };
+  const cases = [
+    ...[owner.directory, committed, staging].flatMap(path => [
+      { path, patch: { isDirectory: () => false } }, { path, patch: { mode: 0o40750 } }, { path, patch: { dev: 999 } }, { path, real: '/SENTINEL_SECRET_ALIAS' },
+    ]), { path: owner.directory, patch: { ino: 999 } },
+  ];
+  for (const value of cases) {
+    let writes = 0; const publish = privateFunction('writeProcessRecord', {
+      lstatSync: (path: string) => ({ ...normal, ...(path === value.path && 'patch' in value ? value.patch : {}) }), realpathSync: (path: string) => path === value.path && 'real' in value ? value.real : path,
+      join, process: { pid: 901 }, randomBytes: () => assert.fail('Unsafe directories cannot reach random stage creation'), writeFileSync: () => { writes++; }, renameSync: () => assert.fail('Unsafe directories cannot rename'), refuseProcessOwnership: diagnostic.refuseOwnership,
+    });
+    let caught: unknown; try { publish(owner, row(902)); } catch (error) { caught = error; }
+    assert.equal(harness.safeFailure(caught), 'ownership_invalid'); assert.equal(writes, 0);
+    const reason = value.path === owner.directory ? 'unsafe-owner-directory' : value.path === committed ? 'unsafe-committed-directory' : 'unsafe-staging-directory';
+    assert.deepEqual(diagnostic.detail(caught), { ownershipSite: 'registry-publication', ownershipReason: reason });
+  }
+});
+
+test('process publisher refuses actual symlink siblings and keeps existing committed cap and row checks', t => {
+  for (const name of ['processes', 'process-staging']) {
+    const fixture = registryFixture(t), destination = join(fixture.owner.directory, name), target = join(fixture.owner.directory, 'alias-target');
+    mkdirSync(target, { mode: 0o700 }); rmSync(destination, { recursive: true }); symlinkSync(target, destination);
+    refused(() => fixture.publish()(fixture.owner, fixture.record), 'ownership_invalid'); assert.deepEqual(filesystem.readdirSync(target), []);
+  }
+  const fixture = registryFixture(t);
+  for (let index = 0; index < harness.LIMITS.processCount; index++) put(fixture.committed, `${index + 1}-${index + 1}.json`, JSON.stringify({ ...fixture.record, pid: index + 1, start: String(index + 1) }), 0o600);
+  put(fixture.staging, 'inflight.tmp', 'partial', 0o600); assert.equal(fixture.records(fixture.owner).length, 512);
+  put(fixture.committed, '9999-9999.json', JSON.stringify(fixture.record), 0o600); refused(() => fixture.records(fixture.owner), 'process_limit');
+});
+
+test('ownership registry diagnostics cover original invalid-name and all invalid-row predicates without extra data reads', () => {
+  const diagnostic = processOwnershipBoundary(), owner = ownerRecord(), valid = { ...row(902), nonce };
+  let file = '902-1902.json', value: unknown = valid, reads = 0;
+  const records = privateFunction('processRecords', { readdirSync: () => [file], join, LIMITS: harness.LIMITS, refuse, refuseProcessOwnership: diagnostic.refuseOwnership, regularPath: () => 'synthetic', json: () => { reads++; return value; } });
+  for (const name of ['902-1902.json.901.tmp', '../../SENTINEL_SECRET']) {
+    file = name; let caught: unknown; try { records(owner); } catch (error) { caught = error; }
+    assert.equal(reads, 0); assert.deepEqual(diagnostic.detail(caught), { ownershipSite: 'registry-entry', ownershipReason: 'invalid-name' });
+  }
+  file = '902-1902.json';
+  for (const patch of [{ nonce: 'wrong' }, { pid: 1.5 }, { start: 'bad' }, { group: 1.5 }, { session: 1.5 }]) {
+    value = { ...valid, ...patch }; const before = reads; let caught: unknown; try { records(owner); } catch (error) { caught = error; }
+    assert.equal(reads, before + 1); assert.equal(harness.safeFailure(caught), 'ownership_invalid');
+    assert.deepEqual(diagnostic.detail(caught), { ownershipSite: 'registry-record', ownershipReason: 'invalid-row' });
+  }
+  value = null; assert.throws(() => records(owner), TypeError, 'Pre-existing malformed JSON value failure is not reclassified');
+  const source = functionSource('processRecords');
+  assert.match(source, /files.length > LIMITS.processCount/); assert.match(source, /row.nonce !== owner.nonce \|\| !Number.isSafeInteger\(row.pid\) \|\| !\/\^\\d\+\$\/.test\(row.start\) \|\| !Number.isSafeInteger\(row.group\) \|\| !Number.isSafeInteger\(row.session\)/);
+});
+
+test('ownership detail trusts only exact refusal errors and preserves first cause despite forged data and failing sinks', async () => {
+  const diagnostic = processOwnershipBoundary(); let failure: unknown;
+  try { diagnostic.refuseOwnership('registry-entry', 'invalid-name'); } catch (error) { failure = error; }
+  assert.equal(Object.isFrozen(diagnostic.detail(failure)), true);
+  const fake = fakeLauncher({ resourceFailure: failure, diagnostics: { ...processDiagnosticBoundary(), observer: diagnostic.observer } });
+  const pending = assert.rejects(fake.run(ownerRecord(), 'browser', []), { code: 'ownership_invalid' });
+  await flushMicrotasks(); fake.advance(100); fake.child.emit('close', 0); await pending;
+  assert.deepEqual(parseDetails(fake.details), [{ kind: 'child-operation', child: 'browser', operation: 'process-sample', code: 'ownership_invalid', systemCode: 'other', ownershipSite: 'registry-entry', ownershipReason: 'invalid-name' }]);
+  let accessed = 0; const forged = { code: 'ownership_invalid', ownershipSite: 'registry-entry', ownershipReason: 'invalid-name' };
+  for (const error of [forged, Object.create(forged), Object.defineProperty({ code: 'ownership_invalid' }, 'ownershipSite', { get: () => { accessed++; throw new Error('SENTINEL_SECRET'); } }), new Proxy(forged, { getOwnPropertyDescriptor: () => { accessed++; throw new Error('SENTINEL_SECRET'); } })]) {
+    assert.deepEqual(diagnostic.detail(error), {}); const lines: string[] = [];
+    diagnostic.observer('browser', (line: string) => lines.push(line))('process-sample', error);
+    assert.doesNotMatch(lines.join('\n'), /ownershipSite|ownershipReason|SENTINEL/);
+  }
+  assert.equal(accessed, 0); const lines: string[] = [], observe = diagnostic.observer('browser', (line: string) => { lines.push(line); throw new Error('SENTINEL_SECRET_SINK'); });
+  assert.doesNotThrow(() => observe('process-sample', failure)); observe('completion', { code: 'cleanup_failed' }); assert.equal(lines.length, 1);
+  (failure as { code: string }).code = 'EIO'; assert.deepEqual(diagnostic.detail(failure), {});
+  let unknown: unknown; try { diagnostic.refuseOwnership('SENTINEL_SECRET_SITE', 'invalid-row'); } catch (error) { unknown = error; }
+  assert.equal(harness.safeFailure(unknown), 'ownership_invalid'); assert.deepEqual(diagnostic.detail(unknown), {});
+});
+
+test('ownership diagnostic vocabulary and publisher scope stay bounded without changing inherited disk sampling', () => {
+  assert.deepEqual([...fixedSet('PROCESS_OWNERSHIP_SITES')], ['registry-entry', 'registry-record', 'registry-publication']);
+  assert.deepEqual([...fixedSet('PROCESS_OWNERSHIP_REASONS')], ['invalid-name', 'invalid-row', 'unsafe-owner-directory', 'unsafe-committed-directory', 'unsafe-staging-directory']);
+  assert.match(functionSource('createOwner'), /'processes', 'process-staging'/);
+  assert.equal((functionSource('writeProcessRecord').match(/renameSync\(/g) ?? []).length, 1);
+  assert.match(functionSource('writeProcessRecord'), /randomBytes\(16\)/);
+  assert.match(functionSource('ownedUsage'), /lstatSync\(full\)/, 'Enumeration-to-lstat ENOENT remains strict and is not solved by registry publication');
+});
+
+test('ownership metadata attachment failure never replaces the original refusal', () => {
+  const fail = () => { throw new Error('SENTINEL_SECRET_METADATA'); };
+  for (const patch of [{ processOwnershipDetails: { set: fail } }, { PROCESS_OWNERSHIP_SITES: { has: fail } }, { PROCESS_OWNERSHIP_REASONS: { has: fail } }]) {
+    const reject = privateFunction('refuseProcessOwnership', { processOwnershipDetails: new WeakMap(), PROCESS_OWNERSHIP_SITES: fixedSet('PROCESS_OWNERSHIP_SITES'), PROCESS_OWNERSHIP_REASONS: fixedSet('PROCESS_OWNERSHIP_REASONS'), ...patch });
+    let caught: unknown; try { reject('registry-record', 'invalid-row'); } catch (error) { caught = error; }
+    assert.equal(harness.safeFailure(caught), 'ownership_invalid'); assert.equal((caught as Error).message, 'B2 refused: ownership_invalid');
+  }
 });

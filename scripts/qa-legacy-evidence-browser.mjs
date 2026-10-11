@@ -97,6 +97,20 @@ const PROCESS_IDENTITY_REASONS = new Set(['invalid-observed-identity', 'current-
 // Only our exact refusal Error can carry identity detail. Error properties,
 // including valid-looking enum values from another source, confer no authority.
 const processIdentityDetails = new WeakMap();
+const PROCESS_OWNERSHIP_SITES = new Set(['registry-entry', 'registry-record', 'registry-publication']);
+const PROCESS_OWNERSHIP_REASONS = new Set(['invalid-name', 'invalid-row', 'unsafe-owner-directory', 'unsafe-committed-directory', 'unsafe-staging-directory']);
+const processOwnershipDetails = new WeakMap();
+function refuseProcessOwnership(site, reason) {
+  const error = Object.assign(new Error('B2 refused: ownership_invalid'), { code: 'ownership_invalid' });
+  try {
+    if (PROCESS_OWNERSHIP_SITES.has(site) && PROCESS_OWNERSHIP_REASONS.has(reason)) processOwnershipDetails.set(error, Object.freeze({ ownershipSite: site, ownershipReason: reason }));
+  } catch { /* Metadata failure cannot replace the original refusal. */ }
+  throw error;
+}
+function processOwnershipDetail(error) {
+  try { return safeFailure(error) === 'ownership_invalid' ? processOwnershipDetails.get(error) ?? {} : {}; }
+  catch { return {}; }
+}
 function refuseProcessIdentity(site, observed, current, statRead) {
   const error = Object.assign(new Error('B2 refused: process_identity'), { code: 'process_identity' });
   try {
@@ -149,7 +163,7 @@ export function childOperationObserver(child, sink = detailSink) {
       // Error.stack may be a native lazy accessor. Inspect only code's own
       // descriptor, never the Error object or its other properties.
       const code = error && typeof error === 'object' && !types.isProxy(error) ? Object.getOwnPropertyDescriptor(error, 'code')?.value : undefined;
-      emitDetailRecords([{ kind: 'child-operation', child, operation, code: safeFailure(error), systemCode: SYSTEM_CODES.has(code) ? code : 'other', ...processIdentityDetail(error) }], sink);
+      emitDetailRecords([{ kind: 'child-operation', child, operation, code: safeFailure(error), systemCode: SYSTEM_CODES.has(code) ? code : 'other', ...processIdentityDetail(error), ...processOwnershipDetail(error) }], sink);
     } catch { /* Retain first-cause ordering even if projection or the sink fails. */ }
   };
 }
@@ -458,7 +472,7 @@ export function createOwner(root, env) {
   const directory = mkdtempSync(join(runnerTemp, 'yeoni-b2-')); chmodSync(directory, 0o700);
   const info = statSync(directory), owner = { schemaVersion: 1, run: env.GITHUB_RUN_ID, attempt: env.GITHUB_RUN_ATTEMPT, job: env.GITHUB_JOB,
     commit: env.QA_HEAD_SHA, directory, dev: info.dev, ino: info.ino, nonce: randomBytes(32).toString('hex'), state: 'created' };
-  for (const name of ['home', 'tmp', 'results', 'processes']) mkdirSync(join(directory, name), { mode: 0o700 });
+  for (const name of ['home', 'tmp', 'results', 'processes', 'process-staging']) mkdirSync(join(directory, name), { mode: 0o700 });
   writeJson(join(directory, 'owner.json'), owner); writeJson(join(root, OWNER_PATH), owner); return owner;
 }
 export function validateOwnerRecord(owner, root, env, inspect = path => { const { dev, ino, mode } = statSync(path); return { real: realpathSync(path), dev, ino, mode }; }) {
@@ -548,12 +562,30 @@ function registerProcess(owner, discovered, label) {
   // The observed birth, not a later occupant of this PID, established ownership.
   if (!sameProcess(discovered, current)) refuseProcessIdentity('registration-recheck', discovered, current, statRead);
   const row = { pid: discovered.pid, start: discovered.start, group: discovered.group, session: discovered.session, label, nonce: owner.nonce };
-  writeJson(join(owner.directory, 'processes', `${row.pid}-${row.start}.json`), row); return row;
+  writeProcessRecord(owner, row); return row;
+}
+
+function writeProcessRecord(owner, row) {
+  const owned = lstatSync(owner.directory);
+  if (!owned.isDirectory() || realpathSync(owner.directory) !== owner.directory || owned.dev !== owner.dev || owned.ino !== owner.ino || (owned.mode & 0o077)) refuseProcessOwnership('registry-publication', 'unsafe-owner-directory');
+  const committed = join(owner.directory, 'processes'), staging = join(owner.directory, 'process-staging');
+  for (const [directory, reason] of [[committed, 'unsafe-committed-directory'], [staging, 'unsafe-staging-directory']]) {
+    const info = lstatSync(directory);
+    if (!info.isDirectory() || realpathSync(directory) !== directory || info.dev !== owned.dev || (info.mode & 0o077)) refuseProcessOwnership('registry-publication', reason);
+  }
+  // Multiple harness processes publish concurrently. Only complete records enter
+  // the strict registry; unique exclusive stages cannot reuse another writer's file.
+  const name = `${row.pid}-${row.start}.json`;
+  const temporary = join(staging, `${name}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`);
+  writeFileSync(temporary, JSON.stringify(row) + '\n', { mode: 0o600, flag: 'wx' });
+  // Never copy across devices or remove a failed stage here. Existing post-reap
+  // whole-owner cleanup accounts for residue without masking the original error.
+  renameSync(temporary, join(committed, name));
 }
 
 function processRecords(owner) {
   const files = readdirSync(join(owner.directory, 'processes')); if (files.length > LIMITS.processCount) refuse('process_limit');
-  return files.map(file => { if (!/^\d+-\d+\.json$/.test(file)) refuse('ownership_invalid'); const row = json(regularPath(owner.directory, `processes/${file}`)); if (row.nonce !== owner.nonce || !Number.isSafeInteger(row.pid) || !/^\d+$/.test(row.start) || !Number.isSafeInteger(row.group) || !Number.isSafeInteger(row.session)) refuse('ownership_invalid'); return row; });
+  return files.map(file => { if (!/^\d+-\d+\.json$/.test(file)) refuseProcessOwnership('registry-entry', 'invalid-name'); const row = json(regularPath(owner.directory, `processes/${file}`)); if (row.nonce !== owner.nonce || !Number.isSafeInteger(row.pid) || !/^\d+$/.test(row.start) || !Number.isSafeInteger(row.group) || !Number.isSafeInteger(row.session)) refuseProcessOwnership('registry-record', 'invalid-row'); return row; });
 }
 function scanOwned(owner) {
   const records = processRecords(owner), processes = readdirSync('/proc').filter(name => /^\d+$/.test(name)).map(name => processInfo(Number(name))).filter(Boolean);
