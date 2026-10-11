@@ -23,7 +23,7 @@ export const CONTROL_PATHS = Object.freeze([
 ].sort());
 export const LIMITS = Object.freeze({ jobMs: 75 * 60_000, reserveMs: 15 * 60_000, cleanupMs: 5 * 60_000,
   freeBytes: 6 * 1024 ** 3, ownedBytes: 4 * 1024 ** 3, captureBytes: 1024 ** 2, processCount: 512 });
-export const BUILD_EXCLUSIONS = Object.freeze(['cache/', 'trace', 'trace-build', 'diagnostics/']);
+export const BUILD_EXCLUSIONS = Object.freeze(['cache/', 'trace', 'trace-build', 'diagnostics/', 'server/route-cache/']);
 const OWNER_PATH = '.e2e/legacy-evidence-b2-owner.json';
 const REPORT_PATH = '.e2e/evidence/legacy-evidence-b2-results.json';
 const SQL_REPORT = '.e2e/evidence/legacy-evidence-postgres.json';
@@ -291,10 +291,42 @@ export function copyDependencyTree(source, destination, lock, { checkpoint = () 
   for (const entry of entries) if (entry.link && (!existsSync(join(destination, entry.path)) || !inside(destination, realpathSync(join(destination, entry.path))))) refuse('dependency_invalid');
   return { files: entries.length, bytes: entries.reduce((n,e) => n + (e.bytes ?? 0), 0), digest: sha256(JSON.stringify(entries)), installedVersions: versions, excludedFixtures };
 }
-export function buildIdentity(app) {
+function validateRuntimeBuildCache(root, fresh) {
+  const rootInfo = lstatSync(root);
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink() || realpathSync(root) !== root) refuse('source_changed');
+  if (fresh && readdirSync(root).length) refuse('source_changed');
+  let bytes = 0;
+  const walk = parts => { for (const name of readdirSync(join(root, ...parts))) {
+    const next = [...parts, name], full = join(root, ...next), info = lstatSync(full);
+    if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile()) || realpathSync(full) !== full) refuse('source_changed');
+    if (!['APP_PAGE', 'PAGES', 'APP_ROUTE'].includes(next[0]) ||
+      (next.length > 1 && !/^[a-f0-9]{64}$/.test(next[1])) ||
+      (next.length > 2 && next[2] !== '$') ||
+      (next.length <= 3 && !info.isDirectory())) refuse('source_changed');
+    const route = next.slice(3);
+    if (route.join('/').length > 512 || route.some(part => !part || part === '.' || part === '..' || /[\\\x00-\x1f\x7f]/.test(part))) refuse('source_changed');
+    const segment = route.findIndex(part => part.endsWith('.segments'));
+    if (segment !== -1) {
+      if (next[0] !== 'APP_PAGE' || route[segment] === '.segments' || route.slice(segment + 1).some(part => part.endsWith('.segments')) ||
+        (info.isFile() && (segment === route.length - 1 || !name.endsWith('.segment.rsc') || name === '.segment.rsc'))) refuse('source_changed');
+    } else if (info.isFile()) {
+      const suffixes = next[0] === 'APP_PAGE' ? ['.html', '.meta', '.rsc'] : next[0] === 'PAGES' ? ['.html', '.meta', '.json'] : ['.body', '.meta'];
+      if (!suffixes.some(suffix => name.endsWith(suffix) && name.length > suffix.length) || name.endsWith('.segment.rsc')) refuse('source_changed');
+    }
+    if (info.isDirectory()) walk(next);
+    else { bytes += info.size; if (bytes > LIMITS.ownedBytes) refuse('resource_limit'); }
+  } }; walk([]);
+}
+export function buildIdentity(app, cacheState = 'fresh') {
+  if (!['fresh', 'runtime'].includes(cacheState)) refuse('source_changed');
   const root = join(app, '.next'), entries = [];
+  if (!lstatSync(root).isDirectory() || realpathSync(root) !== root) refuse('source_changed');
   const walk = path => { for (const name of readdirSync(join(root, path)).sort()) {
     const file = path ? `${path}/${name}` : name;
+    // Next 16.3.8 promotes immutable prerender seeds here on the readiness GET.
+    // A fresh no-adapter build must not contain cache payloads. Later reads may
+    // ignore only structurally validated runtime responses, never build seeds.
+    if (file === 'server/route-cache') { validateRuntimeBuildCache(join(root, file), cacheState === 'fresh'); continue; }
     if (BUILD_EXCLUSIONS.some(exclude => exclude.endsWith('/') ? file.startsWith(exclude) || file === exclude.slice(0,-1) : file === exclude)) continue;
     const full = join(root, file), info = lstatSync(full); if (info.isSymbolicLink()) refuse('source_changed');
     if (info.isDirectory()) walk(file); else if (info.isFile()) entries.push({ path: file, sha256: sha256(readFileSync(full)), bytes: info.size }); else refuse('source_changed');
@@ -498,7 +530,7 @@ async function serve() {
   if (state.source.fullTrackedDigest !== identity.fullTrackedDigest) refuse('source_changed');
   const app = config.phase === 'inactive' ? ROOT : join(owner.directory,'enabled-app');
   if (config.phase === 'enabled') verifyCopiedSources(app, identity.manifest);
-  if (JSON.stringify(buildIdentity(app)) !== JSON.stringify(state.builds[config.phase])) refuse('source_changed');
+  if (JSON.stringify(buildIdentity(app, 'runtime')) !== JSON.stringify(state.builds[config.phase])) refuse('source_changed');
   const status = json(regularPath(ROOT,'.e2e/stack-status.json'));
   registerProcess(owner,processInfo(process.pid),'server-launcher'); noListener();
   let stopping = false;
@@ -570,7 +602,7 @@ async function run() {
       report.phases[phase]={...report.phases[phase],...execution,durationMs:result.durationMs,peakRss:result.peakRss,peakDisk:result.peakDisk,
         accounts:{created:cleanupRows.length===discovered.length?cleanupRows.reduce((n,row)=>n+row.count,0):null,deleted:cleanupRows.reduce((n,row)=>n+row.count,0),verified:cleanupRows.length===discovered.length}};
       if(!executionFailure&&result.code===0&&(execution.status!=='passed'||cleanupRows.length!==discovered.length||report.phases[phase].serverReadinessMs===undefined))emitDiagnostic(`${phase}-browser`,'failed',{code:'browser_failed'});
-      stage = `${phase}-phase-reap`; const teardownStarted=Date.now(); await reap(owner); report.phases[phase].ownedTeardownMs=Date.now()-teardownStarted; if(JSON.stringify(buildIdentity(ROOT))!==JSON.stringify(normalBuild))refuse('source_changed');
+      stage = `${phase}-phase-reap`; const teardownStarted=Date.now(); await reap(owner); report.phases[phase].ownedTeardownMs=Date.now()-teardownStarted; if(JSON.stringify(buildIdentity(ROOT,'runtime'))!==JSON.stringify(normalBuild))refuse('source_changed');
       stage = `${phase}-browser`; if(executionFailure)throw executionFailure;
       if(result.code!==0||execution.status!=='passed'||cleanupRows.length!==discovered.length||report.phases[phase].serverReadinessMs===undefined)refuse('browser_failed');
       stage = `${phase}-source-check`; if(verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed'); verifyCopiedSources(app,identity.manifest); saveReport(report);
@@ -581,7 +613,7 @@ async function run() {
     if(owner) {
       try{await reap(owner);report.cleanup.processes='passed';emitDiagnostic('run-cleanup-processes','passed');}catch(error){emitDiagnostic('run-cleanup-processes','failed',error);report.cleanup.processes='failed';report.status='failed';report.failureCode='cleanup_failed';}
       try{if(!identity||verifyCheckout().fullTrackedDigest!==identity.fullTrackedDigest)refuse('source_changed');report.cleanup.source='passed';emitDiagnostic('run-cleanup-source','passed');}catch(error){emitDiagnostic('run-cleanup-source','failed',error);report.cleanup.source='failed';report.status='failed';report.failureCode='source_changed';}
-      try{if(normalBuild&&JSON.stringify(buildIdentity(ROOT))===JSON.stringify(normalBuild))report.cleanup.normalBuild='passed';else report.cleanup.normalBuild='unverified';emitDiagnostic('run-cleanup-build',report.cleanup.normalBuild);}catch(error){emitDiagnostic('run-cleanup-build','failed',error);report.cleanup.normalBuild='failed';report.status='failed';report.failureCode='source_changed';}
+      try{if(normalBuild&&JSON.stringify(buildIdentity(ROOT,'runtime'))===JSON.stringify(normalBuild))report.cleanup.normalBuild='passed';else report.cleanup.normalBuild='unverified';emitDiagnostic('run-cleanup-build',report.cleanup.normalBuild);}catch(error){emitDiagnostic('run-cleanup-build','failed',error);report.cleanup.normalBuild='failed';report.status='failed';report.failureCode='source_changed';}
       state={...state,report};writeJson(join(owner.directory,'state.json'),state);
     }
     saveReport(report); process.off('SIGINT', interrupt); process.off('SIGTERM', interrupt);
@@ -606,7 +638,7 @@ async function cleanup() {
   }catch(error){emitDiagnostic('cleanup-source','failed',error);report.cleanup.source='failed';report.status='failed';report.failureCode=safeFailure(error);}
   try {
     assertCleanupTime(cleanupDeadline); if(!state.builds?.inactive)report.cleanup.normalBuild='unverified';
-    else if(JSON.stringify(buildIdentity(ROOT))!==JSON.stringify(state.builds.inactive))refuse('source_changed');
+    else if(JSON.stringify(buildIdentity(ROOT,'runtime'))!==JSON.stringify(state.builds.inactive))refuse('source_changed');
     else report.cleanup.normalBuild='passed';
     emitDiagnostic('cleanup-build',report.cleanup.normalBuild);
   }catch(error){emitDiagnostic('cleanup-build','failed',error);report.cleanup.normalBuild='failed';report.status='failed';report.failureCode=safeFailure(error);}

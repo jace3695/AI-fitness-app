@@ -942,10 +942,155 @@ test('dependency copy refuses simulated hardlink inodes rather than silently sha
 });
 test('immutable build identity excludes only fixed runtime caches and detects server/static mutations', t => {
   const root = tiny(t); put(root, '.next/BUILD_ID', 'synthetic-build'); put(root, '.next/server/a.js', 'server'); put(root, '.next/static/a.js', 'static'); put(root, '.next/build-manifest.json', '{}'); put(root, '.next/cache/a', 'cache'); put(root, '.next/trace', 'trace');
-  const first = harness.buildIdentity(root); assert.deepEqual(first.exclusions, ['cache/', 'trace', 'trace-build', 'diagnostics/']); assert.equal(first.fileCount, 4);
+  const first = harness.buildIdentity(root); assert.deepEqual(first.exclusions, ['cache/', 'trace', 'trace-build', 'diagnostics/', 'server/route-cache/']); assert.equal(first.fileCount, 4);
   put(root, '.next/cache/a', 'changed cache'); put(root, '.next/trace', 'changed trace'); assert.deepEqual(harness.buildIdentity(root), first);
   put(root, '.next/server/a.js', 'mutated server'); assert.notEqual(harness.buildIdentity(root).digest, first.digest);
   symlinkSync('a.js', join(root, '.next/server/link')); refused(() => harness.buildIdentity(root), 'source_changed');
+});
+
+test('installed Next seed promotion and regeneration preserve immutable build identity without a server', async t => {
+  assert.equal(repoRequire('next/package.json').version, '16.3.8');
+  const { default: FileSystemCache } = repoRequire('next/dist/server/lib/incremental-cache/file-system-cache');
+  const { getRouteCacheKey } = repoRequire('next/dist/server/lib/route-cache-key');
+  const { nodeFs } = repoRequire('next/dist/server/lib/node-fs-methods');
+  const root = tiny(t), server = join(root, '.next/server');
+  const owner = { kind: 'APP_PAGE', sourceRoute: '/diet/settings/page' };
+  const key = getRouteCacheKey('/diet/settings', owner);
+  const segments = ['/_tree', '/_full', '/diet/settings/__PAGE__'];
+  const meta = { headers: {}, segmentPaths: segments, routeCache: { key, owner, isFallback: false } };
+  const seeds = new Map([
+    ['.next/BUILD_ID', 'synthetic-build'], ['.next/server/chunks/app.js', 'immutable compiled module'],
+    ['.next/build-manifest.json', '{}'], ['.next/server/app/diet/settings.html', '<html>synthetic seed</html>'],
+    ['.next/server/app/diet/settings.rsc', 'synthetic rsc'], ['.next/server/app/diet/settings.meta', JSON.stringify(meta)],
+    ...segments.map(segment => [`.next/server/app/diet/settings.segments${segment}.segment.rsc`, `synthetic ${segment}`] as const),
+  ]);
+  for (const [path, bytes] of seeds) put(root, path, bytes);
+  const before = harness.buildIdentity(root), fs = { ...nodeFs }, writes: string[] = [];
+  for (const name of ['readFile', 'readFileSync', 'existsSync', 'stat', 'mkdir', 'writeFile', 'writeFileAtomic']) {
+    fs[name] = (...args: [string, ...unknown[]]) => {
+      assert.ok(args[0].startsWith(root + '/'), 'Only synthetic cache files may be accessed');
+      if (['mkdir', 'writeFile', 'writeFileAtomic'].includes(name)) writes.push(args[0]);
+      return nodeFs[name](...args);
+    };
+  }
+  const cache = new FileSystemCache({ fs, flushToDisk: true, serverDistDir: server, revalidatedTags: [], maxMemoryCacheSize: 0 });
+  assert.deepEqual(harness.buildIdentity(root), before); assert.equal(writes.length, 0);
+  const context = { kind: 'APP_PAGE', isFallback: false, isRoutePPREnabled: false };
+  const loaded = await cache.get(key, context);
+  assert.equal(loaded.value.html, '<html>synthetic seed</html>');
+  assert.ok(writes.length > 0);
+  assert.ok(writes.every(path => path.startsWith(join(server, 'route-cache') + '/')));
+  assert.deepEqual(harness.buildIdentity(root, 'runtime'), before);
+  refused(() => harness.buildIdentity(root), 'source_changed');
+  // set() legitimately changes response bytes; they need not equal build seeds.
+  await cache.set(key, { kind: 'APP_PAGE', html: '<html>synthetic regeneration</html>', rscData: Buffer.from('regenerated rsc'),
+    headers: {}, segmentData: new Map(segments.map(segment => [segment, Buffer.from(`regenerated ${segment}`)])) }, context);
+  assert.equal(readFileSync(join(server, `${key}.html`), 'utf8'), '<html>synthetic regeneration</html>');
+  assert.deepEqual(harness.buildIdentity(root, 'runtime'), before);
+  for (const [path, bytes] of seeds) assert.equal(readFileSync(join(root, path), 'utf8'), bytes);
+});
+
+test('fresh identity rejects every populated route cache and accepts only an absent or empty real root', t => {
+  const root = tiny(t); put(root, '.next/BUILD_ID', 'synthetic-build');
+  const before = harness.buildIdentity(root);
+  mkdirSync(join(root, '.next/server/route-cache'), { recursive: true });
+  assert.deepEqual(harness.buildIdentity(root), before);
+  mkdirSync(join(root, '.next/server/route-cache/APP_PAGE'));
+  refused(() => harness.buildIdentity(root), 'source_changed');
+  assert.deepEqual(harness.buildIdentity(root, 'runtime'), before);
+  for (const mode of ['arbitrary', '', undefined, null, true]) {
+    if (mode === undefined) continue; // Omission deliberately selects fresh.
+    refused(() => harness.buildIdentity(root, mode as string), 'source_changed');
+  }
+});
+
+test('runtime response cache accepts only the pinned kind-specific namespace and payload shapes', t => {
+  const root = tiny(t); put(root, '.next/BUILD_ID', 'synthetic-build'); const before = harness.buildIdentity(root);
+  const hash = 'a'.repeat(64);
+  for (const [kind, files] of [
+    ['APP_PAGE', ['route.html', 'route.meta', 'route.rsc', 'route.segments/_tree.segment.rsc', 'route.segments/nested/한글.segment.rsc']],
+    ['PAGES', ['route.html', 'route.meta', 'route.json']], ['APP_ROUTE', ['route.body', 'route.meta']],
+  ] as const) for (const file of files) put(root, `.next/server/route-cache/${kind}/${hash}/$/nested/${file}`, 'mutable runtime response');
+  assert.deepEqual(harness.buildIdentity(root, 'runtime'), before);
+  const invalid = [
+    'OTHER/' + hash + '/$/route.html', 'app_page/' + hash + '/$/route.html',
+    'APP_PAGE/' + 'A'.repeat(64) + '/$/route.html', 'APP_PAGE/abc/$/route.html',
+    `APP_PAGE/${hash}/wrong/route.html`, `APP_PAGE/${hash}/$/route.js`, `APP_PAGE/${hash}/$/route.json`,
+    `APP_PAGE/${hash}/$/route.body`, `APP_PAGE/${hash}/$/.html`, `APP_PAGE/${hash}/$/route.segment.rsc`,
+    `APP_PAGE/${hash}/$/route.segments/chunk.js`, `APP_PAGE/${hash}/$/route.segments/.segment.rsc`,
+    `APP_PAGE/${hash}/$/route.segments/nested.segments/chunk.segment.rsc`,
+    `PAGES/${hash}/$/route.rsc`, `PAGES/${hash}/$/route.segments/chunk.segment.rsc`,
+    `APP_ROUTE/${hash}/$/route.html`, `APP_ROUTE/${hash}/$/route.json`,
+    `APP_PAGE/${hash}/$/bad\\name/route.html`, `APP_PAGE/${hash}/$/bad\nname/route.html`,
+    `APP_PAGE/${hash}/$/route.html.11111111-1111-4111-8111-111111111111.tmp`,
+  ];
+  for (let index = 0; index < invalid.length; index++) {
+    const app = join(root, `invalid-${index}`); put(app, '.next/BUILD_ID', 'synthetic-build');
+    put(app, `.next/server/route-cache/${invalid[index]}`, 'must refuse');
+    refused(() => harness.buildIdentity(app, 'runtime'), 'source_changed');
+  }
+  for (const path of ['APP_PAGE', `APP_PAGE/${hash}`, `APP_PAGE/${hash}/$`]) {
+    const app = join(root, `file-${path.split('/').length}`); put(app, '.next/BUILD_ID', 'synthetic-build');
+    put(app, `.next/server/route-cache/${path}`, 'namespace must be a directory');
+    refused(() => harness.buildIdentity(app, 'runtime'), 'source_changed');
+  }
+});
+
+test('runtime cache validation refuses symlink roots, ancestors, descendants and special objects', t => {
+  const root = tiny(t), outside = join(root, 'outside'); mkdirSync(outside);
+  for (const [index, linkPath] of ['.next', '.next/server', '.next/server/route-cache', '.next/server/route-cache/APP_PAGE', `.next/server/route-cache/APP_PAGE/${'a'.repeat(64)}/$/route.html`].entries()) {
+    const app = join(root, `link-${index}`); mkdirSync(app);
+    if (linkPath !== '.next') put(app, '.next/BUILD_ID', 'synthetic-build');
+    mkdirSync(dirname(join(app, linkPath)), { recursive: true }); symlinkSync(outside, join(app, linkPath));
+    refused(() => harness.buildIdentity(app, 'runtime'), 'source_changed');
+  }
+  const app = join(root, 'file-root'); put(app, '.next/BUILD_ID', 'synthetic-build'); put(app, '.next/server/route-cache', 'not a directory');
+  refused(() => harness.buildIdentity(app, 'runtime'), 'source_changed');
+  const fakeRoot = '/synthetic/route-cache';
+  const validator = privateFunction('validateRuntimeBuildCache', {
+    lstatSync: (path: string) => ({ isDirectory: () => path === fakeRoot, isFile: () => false, isSymbolicLink: () => false }),
+    readdirSync: () => ['APP_PAGE'], realpathSync: (path: string) => path, join, refuse, LIMITS: harness.LIMITS,
+  });
+  refused(() => validator(fakeRoot, false), 'source_changed');
+  const names = ['APP_PAGE', 'a'.repeat(64), '$', 'route.html'];
+  const oversized = privateFunction('validateRuntimeBuildCache', {
+    lstatSync: (path: string) => ({ isDirectory: () => !path.endsWith('.html'), isFile: () => path.endsWith('.html'), isSymbolicLink: () => false, size: harness.LIMITS.ownedBytes + 1 }),
+    readdirSync: (path: string) => [names[path === fakeRoot ? 0 : path.slice(fakeRoot.length + 1).split('/').length]],
+    realpathSync: (path: string) => path, join, refuse, LIMITS: harness.LIMITS,
+  });
+  refused(() => oversized(fakeRoot, false), 'resource_limit');
+});
+
+test('runtime cache classification retains immutable seed, chunk, manifest and lookalike identity checks', t => {
+  const root = tiny(t); put(root, '.next/BUILD_ID', 'synthetic-build');
+  const paths = ['server/app/diet/settings.html', 'server/app/diet/settings.meta', 'server/app/diet/settings.rsc',
+    'server/pages/index.html', 'server/chunks/app.js', 'static/chunk.js', 'build-manifest.json',
+    'server/route-cache-lookalike/APP_PAGE/cache.html', 'server/app/route-cache/cache.html'];
+  for (const path of paths) put(root, `.next/${path}`, 'immutable');
+  const before = harness.buildIdentity(root);
+  put(root, `.next/server/route-cache/APP_PAGE/${'a'.repeat(64)}/$/route.html`, 'mutable');
+  assert.deepEqual(harness.buildIdentity(root, 'runtime'), before);
+  for (const path of paths) {
+    put(root, `.next/${path}`, 'tampered'); assert.notEqual(harness.buildIdentity(root, 'runtime').digest, before.digest, path);
+    put(root, `.next/${path}`, 'immutable');
+  }
+});
+
+test('only fresh post-build capture omits runtime cache mode and later integrity comparisons keep it explicit', () => {
+  const calls: ts.CallExpression[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'buildIdentity') calls.push(node);
+    ts.forEachChild(node, visit);
+  }
+  visit(runnerAst);
+  assert.equal(calls.length, 5);
+  assert.deepEqual(calls.filter(call => call.arguments.length === 1).map(call => call.getText(runnerAst)), ['buildIdentity(cwd)']);
+  for (const call of calls.filter(call => call.arguments.length !== 1)) {
+    assert.equal(call.arguments.length, 2); assert.equal(call.arguments[1].getText(runnerAst), "'runtime'");
+  }
+  const run = functionSource('run');
+  ordered(run, ['stage = `${phase}-build-reap`', 'await reap(owner)', 'stage = `${phase}-build-identity`', 'state.builds[phase]=buildIdentity(cwd)', 'writeJson(join(owner.directory,\'phase.json\')']);
+  assert.doesNotMatch(functionSource('validateRuntimeBuildCache'), /readFile|rmSync|unlink|rename|writeFile|chmod|console/);
 });
 
 test('stale group-leader birth identity cannot adopt an unrelated reused session', () => {
