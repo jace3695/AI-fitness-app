@@ -6,6 +6,7 @@ import ts from 'typescript';
 import type { Request } from '@playwright/test';
 import { RouteContinueDiagnostics, routeContinueFailure } from './e2e/route-continue-diagnostics.ts';
 import { failureLabel } from './e2e/navigation-diagnostics.ts';
+import { RouteDrain } from './e2e/route-drain.ts';
 
 const fixture = readFileSync(new URL('./e2e/fixture.ts', import.meta.url), 'utf8');
 // Execute the shipped helper body with synthetic Playwright boundaries. This
@@ -128,6 +129,7 @@ function request(patch: Record<string, unknown> = {}): Request {
   const page = { isClosed: () => true, mainFrame: () => frame };
   return {
     method: () => 'GET', resourceType: () => 'script', isNavigationRequest: () => false, frame: () => frame,
+    failure: () => null,
     url: () => { assert.fail('Diagnostics must not read URLs'); },
     headers: () => { assert.fail('Diagnostics must not read headers'); },
     postData: () => { assert.fail('Diagnostics must not read bodies'); },
@@ -137,10 +139,69 @@ function request(patch: Record<string, unknown> = {}): Request {
 
 test('route continue failures retain only fixed method/resource/failure labels and lifecycle flags', () => {
   const detail = routeContinueFailure(request(), new Error('Target page closed: private account / secret response'));
-  assert.deepEqual(detail, { method: 'GET', resourceClass: 'script', failure: 'closed-or-disconnected', pageClosed: true, navigationRequest: false, mainFrame: true, frameDetached: false });
+  assert.deepEqual(detail, { method: 'GET', resourceClass: 'script', failure: 'closed-or-disconnected', routeError: 'other', requestFailure: 'none', pageClosed: true, navigationRequest: false, mainFrame: true, frameDetached: false });
   const unknown = routeContinueFailure(request({ method: () => 'secret-method', resourceType: () => 'private-resource', frame: () => { throw new Error('private-frame'); } }), new Error('private-message'));
-  assert.deepEqual(unknown, { method: 'OTHER', resourceClass: 'other', failure: 'other', pageClosed: null, navigationRequest: false, mainFrame: null, frameDetached: null });
+  assert.deepEqual(unknown, { method: 'OTHER', resourceClass: 'other', failure: 'other', routeError: 'other', requestFailure: 'none', pageClosed: null, navigationRequest: false, mainFrame: null, frameDetached: null });
   assert.doesNotMatch(JSON.stringify([detail, unknown]), /private|secret/);
+});
+
+test('route failure classification separates known handling errors and cancelled requests without exporting text', () => {
+  const failed = request({ failure: () => ({ errorText: 'net::ERR_ABORTED private-request' }) });
+  const handled = routeContinueFailure(failed, new Error('route.continue: Route is already handled!'));
+  assert.equal(handled.routeError, 'already-handled'); assert.equal(handled.requestFailure, 'aborted');
+  const protocol = routeContinueFailure(request(), new Error('route.continue: Protocol error (Network.interceptWithRequest): private-response'));
+  assert.equal(protocol.routeError, 'protocol-error'); assert.equal(protocol.requestFailure, 'none');
+  for (const value of ['private-response', { message: 'Route is already handled! private' }, new Error('private Route is already handled!')]) {
+    assert.equal(routeContinueFailure(request(), value).routeError, 'other');
+  }
+  const unavailable = routeContinueFailure(request({ failure: () => { throw new Error('private-failure'); } }), new Error('private-error'));
+  assert.equal(unavailable.requestFailure, 'unavailable');
+  const hostile = new Error(); Object.defineProperty(hostile, 'message', { get() { throw new Error('private-accessor'); } });
+  const unknown = routeContinueFailure(request(), hostile);
+  assert.equal(unknown.failure, 'other'); assert.equal(unknown.routeError, 'other');
+  let messageReads = 0, failureReads = 0;
+  const stateful = new Error();
+  Object.defineProperty(stateful, 'message', { get() { assert.equal(++messageReads, 1); return 'Route is already handled!'; } });
+  const statefulFailure = { get errorText() { assert.equal(++failureReads, 1); return 'net::ERR_ABORTED private-request'; } };
+  const captured = routeContinueFailure(request({ failure: () => statefulFailure }), stateful);
+  assert.equal(captured.routeError, 'already-handled'); assert.equal(captured.requestFailure, 'aborted');
+  assert.equal(messageReads, 1); assert.equal(failureReads, 1);
+  assert.doesNotMatch(JSON.stringify([handled, protocol, unavailable]), /private|interceptWithRequest/);
+});
+
+for (const diagnosticFailure of ['none', 'record', 'sink']) test(`shipped Traffic rethrows the identical route error when diagnostic failure is ${diagnosticFailure}`, async () => {
+  const ast = ts.createSourceFile('fixture.ts', fixture, ts.ScriptTarget.Latest, true);
+  const declaration = ast.statements.find(statement => ts.isClassDeclaration(statement) && statement.name?.text === 'Traffic');
+  assert.ok(declaration);
+  const output = ts.transpileModule(declaration.getText(ast), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const exports: Record<string, unknown> = {}, logs: string[] = [];
+  class Diagnostics extends RouteContinueDiagnostics {
+    record(...args: Parameters<RouteContinueDiagnostics['record']>) {
+      if (diagnosticFailure === 'record') throw new Error('private-diagnostic-failure');
+      return super.record(...args);
+    }
+  }
+  vm.runInNewContext(output, { exports, RouteDrain, RouteContinueDiagnostics: Diagnostics, sharedSyncRpcPath: '/rest/v1/rpc/save_cloud_state_if_unchanged',
+    URL, console: { log: (line: string) => { logs.push(line); if (diagnosticFailure === 'sink') throw new Error('private-log-failure'); } } });
+  const Traffic = exports.Traffic as new () => { install(context: unknown): Promise<void>; drain(): Promise<void> };
+  let callback!: (route: unknown) => Promise<void>;
+  const traffic = new Traffic();
+  await traffic.install({ route: async (_pattern: string, handler: typeof callback) => { callback = handler; } });
+  const originalError = new Error('route.continue: Route is already handled!');
+  let continuations = 0;
+  const route = {
+    request: () => request({ url: () => 'http://127.0.0.1:3000/growth?private-token', resourceType: () => 'fetch',
+      failure: () => ({ errorText: 'net::ERR_ABORTED private-request' }) }),
+    continue: async () => { continuations++; throw originalError; },
+    fallback: () => assert.fail('No replacement handling'), abort: () => assert.fail('No ignored cancellation'), fulfill: () => assert.fail('No synthetic success'),
+  };
+  await assert.rejects(callback(route), error => error === originalError);
+  await traffic.drain(); assert.equal(continuations, 1); assert.equal(logs.length, diagnosticFailure === 'record' ? 0 : 1);
+  if (logs.length) {
+    assert.match(logs[0], /^QA_ROUTE_CONTINUE_FAILURE /); assert.doesNotMatch(logs[0], /private|127\.0\.0\.1/);
+    const data = JSON.parse(logs[0].slice('QA_ROUTE_CONTINUE_FAILURE '.length));
+    assert.equal(data.routeError, 'already-handled'); assert.equal(data.requestFailure, 'aborted');
+  }
 });
 
 test('route continue diagnostics emit at most 40 entries and count dropped failures', () => {

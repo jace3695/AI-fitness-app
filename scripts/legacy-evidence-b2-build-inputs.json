@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1510,
-  "byteCount": 71042580,
-  "digest": "3cd5683ebfac5bb40a5805616f4f887c5e0772d1037765fc58a546959c18d483",
+  "byteCount": 71051427,
+  "digest": "d58ef4e73404210bb62cca29f6351a0a4d4770d607bb6cc70c3e922a32572696",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -6619,8 +6619,8 @@
     {
       "path": "scripts/qa-state-diagnostics.mjs",
       "mode": 33188,
-      "bytes": 8496,
-      "sha256": "1442cf680c213b55671605ea057e5df2992cf7ba8dc5e84e0aaf9d20cf096614"
+      "bytes": 9716,
+      "sha256": "e393a84d418d1da7a996994df95066b260657e0f2495852e5a6858ecb93895c4"
     },
     {
       "path": "scripts/render-drawing-review.mjs",
@@ -7969,8 +7969,8 @@
     {
       "path": "tests/e2e-fixture-lifecycle.test.ts",
       "mode": 33188,
-      "bytes": 13062,
-      "sha256": "7cc1dd5897256fcde6d6a2ab1ad2d6036da77ea42d273c9f9bb281282cc77809"
+      "bytes": 17916,
+      "sha256": "7704f245662c9ed38c0deb0306d81da4f15d7383ad084706cb1ab45e175ddb62"
     },
     {
       "path": "tests/e2e/README.md",
@@ -8131,8 +8131,8 @@
     {
       "path": "tests/e2e/fixture.ts",
       "mode": 33188,
-      "bytes": 25352,
-      "sha256": "4513470c174a39ea3b94ad14f72d6c77dcd6c26d0f84affc908257b09495634f"
+      "bytes": 25461,
+      "sha256": "cc1088adff1a99403854c0441aa9081583f8cdd87f97f5ea7d27b5e5ffbd5c5d"
     },
     {
       "path": "tests/e2e/free-advice.spec.ts",
@@ -8305,8 +8305,8 @@
     {
       "path": "tests/e2e/route-continue-diagnostics.ts",
       "mode": 33188,
-      "bytes": 1671,
-      "sha256": "bd06703c11cc20b3f5960dded86e21989aaacf116e6cf1583af68e78097893af"
+      "bytes": 2590,
+      "sha256": "4690206076bc87b9e3041419c7cf135363c2d55caa7683b468538ffb08cbea51"
     },
     {
       "path": "tests/e2e/route-drain.ts",
@@ -8959,8 +8959,8 @@
     {
       "path": "tests/state-diagnostic-forwarding.test.ts",
       "mode": 33188,
-      "bytes": 9709,
-      "sha256": "c905b0a7be58efca91239f95c80f574b163c0bc15a2cbee60224959a14463541"
+      "bytes": 11454,
+      "sha256": "df8c15019fce259a0fbf93c345639f9eae19fe19e3d1f5a1d14079eea17dd1d2"
     },
     {
       "path": "tests/test-runner-contract.test.ts",

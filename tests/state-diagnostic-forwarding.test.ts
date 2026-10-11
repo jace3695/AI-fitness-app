@@ -5,7 +5,7 @@ import { GUIDED_CONVERSATION_PILOT } from '../data/guidedConversationPilot.ts';
 import { findGuidedConversationCatalogScript } from '../data/guidedConversationCatalog.ts';
 import { projectStateDiagnostic, stateDiagnosticCollector } from '../scripts/qa-state-diagnostics.mjs';
 
-const prefixes = ['QA_GUIDED_BOUNDARY', 'QA_STORAGE_PROTOCOL_STATE', 'QA_HANDWRITING_RECOVERY_STATE', 'QA_HANDWRITING_SAVE_BOUNDARY', 'QA_OWNER_SWITCH_STATE'];
+const prefixes = ['QA_GUIDED_BOUNDARY', 'QA_STORAGE_PROTOCOL_STATE', 'QA_HANDWRITING_RECOVERY_STATE', 'QA_HANDWRITING_SAVE_BOUNDARY', 'QA_OWNER_SWITCH_STATE', 'QA_ROUTINE_RECOVERY_PHASE', 'QA_ROUTE_CONTINUE_FAILURE'];
 function read(prefix: string, data: unknown) {
   const projected = projectStateDiagnostic(`${prefix} ${JSON.stringify(data)}`);
   assert.ok(projected); assert.equal(projected.prefix, prefix);
@@ -131,4 +131,25 @@ test('checkpoint refusal diagnostics retain only closed reasons and kinds', () =
   assert.doesNotMatch(JSON.stringify(value), /PRIVATE/);
   const unknown = read('QA_GUIDED_BOUNDARY', { checkpointKind: 'PRIVATE_KIND', proof: 'PRIVATE_REASON' });
   assert.equal(unknown.checkpointKind, 'unknown'); assert.equal(unknown.proof, 'unknown');
+});
+
+test('routine recovery phases and continuation failures survive the actual bounded collector', () => {
+  const collector = stateDiagnosticCollector();
+  for (const phase of ['lost-response', 'reload', 'unknown-retry', 'confirm-retry', 'verify-row', 'complete']) {
+    const data = { mode: 'manual', committed: true, phase, posts: 1, calls: 6 };
+    const line = 'QA_ROUTINE_RECOVERY_PHASE ' + JSON.stringify(data);
+    assert.equal(collector.ingest(line), line);
+  }
+  for (const mode of ['active', 'manual', 'quick']) assert.equal(read('QA_ROUTINE_RECOVERY_PHASE', { mode }).mode, mode);
+  assert.deepEqual(read('QA_ROUTINE_RECOVERY_PHASE', { mode: {}, committed: 'true', phase: ['complete'], posts: -1, calls: 10001 }),
+    { mode: 'unknown', committed: null, phase: 'unknown', posts: null, calls: null });
+  const route = { method: 'GET', resourceClass: 'fetch', failure: 'other', routeError: 'already-handled', requestFailure: 'aborted',
+    pageClosed: false, navigationRequest: false, mainFrame: true, frameDetached: false };
+  assert.equal(collector.ingest('QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(route)), 'QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(route));
+  assert.equal(read('QA_ROUTE_CONTINUE_FAILURE', { requestFailure: 'none', routeError: 'protocol-error' }).requestFailure, 'none');
+  assert.equal(read('QA_ROUTE_CONTINUE_FAILURE', { routeError: 'protocol-error' }).routeError, 'protocol-error');
+  for (const value of [-1, 10001, 0.5, '3', false, {}, null]) {
+    assert.equal(read('QA_ROUTINE_RECOVERY_PHASE', { posts: value, calls: value }).posts, null);
+    assert.equal(read('QA_ROUTINE_RECOVERY_PHASE', { posts: value, calls: value }).calls, null);
+  }
 });

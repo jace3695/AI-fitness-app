@@ -108,8 +108,10 @@ export class Traffic {
         catch (error) {
           note('continue-rejected');
           if (!document) {
-            const diagnostic = this.continueFailures.record(request, error);
-            if (diagnostic) console.log('QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(diagnostic));
+            try {
+              const diagnostic = this.continueFailures.record(request, error);
+              if (diagnostic) console.log('QA_ROUTE_CONTINUE_FAILURE ' + JSON.stringify(diagnostic));
+            } catch { /* Diagnostics must never replace the original route error. */ }
           }
           throw error;
         }

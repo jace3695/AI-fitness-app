@@ -60,7 +60,20 @@ const basicsReset = data => ({
   event: choice(data.event, ['milestone', 'document-request', 'document-response', 'frame-navigated', 'dom-content-loaded', 'load', 'auth-request', 'marker-request', 'progress-request', 'auth-response', 'marker-response', 'progress-response']),
   ...fields(data, ['documentRequests', 'documentResponses', 'frameNavigations', 'domContentLoads', 'pageLoads', 'authRequests', 'markerRequests', 'progressRequests', 'authResponses', 'markerResponses', 'progressResponses', 'droppedEvents'], count),
 });
-const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_BASICS_RESET_BOUNDARY: basicsReset };
+const routineRecovery = data => ({
+  mode: choice(data.mode, ['active', 'manual', 'quick']), committed: bit(data.committed),
+  phase: choice(data.phase, ['lost-response', 'reload', 'unknown-retry', 'confirm-retry', 'verify-row', 'complete']),
+  ...fields(data, ['posts', 'calls'], count),
+});
+const routeContinue = data => ({
+  method: choice(data.method, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'CONNECT', 'TRACE', 'OTHER']),
+  resourceClass: choice(data.resourceClass, ['document', 'stylesheet', 'image', 'media', 'font', 'script', 'texttrack', 'xhr', 'fetch', 'eventsource', 'websocket', 'manifest', 'other']),
+  failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+  routeError: choice(data.routeError, ['already-handled', 'protocol-error', 'other']),
+  requestFailure: choice(data.requestFailure, ['none', 'unavailable', 'webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+  ...fields(data, ['pageClosed', 'navigationRequest', 'mainFrame', 'frameDetached'], bit),
+});
+const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_BASICS_RESET_BOUNDARY: basicsReset, QA_ROUTINE_RECOVERY_PHASE: routineRecovery, QA_ROUTE_CONTINUE_FAILURE: routeContinue };
 export function projectStateDiagnostic(line) {
   if (typeof line !== 'string' || line.length > 8192) return null;
   const delimiter = line.indexOf(' '), prefix = line.slice(0, delimiter);
