@@ -521,30 +521,42 @@ test('E2 typed answer IME retry and prospective privacy @b2-enabled', async ({ p
     await expect(button(page, '다시 풀어볼래요')).toBeEnabled();
     let local = await native(page); expect(events(local).length).toBe(2);
     const wrong = checkpoints(local)[0].handoff!;
-    requireTrue(wrong.answer === sentinel && !wrong.correct && wrong.status === 'applied' && wrong.observation.modality === 'typing' && Number.isFinite(wrong.observation.responseMs), 'Exact typed response exists only in intended local compatibility handoff');
-    requireTrue(events(local).every(event => !event.canonical.includes(sentinel)), 'Canonical evidence never contains the typed sentinel');
-    const committedDraft = wrong.draftToken;
+    expect(Boolean(wrong.answer === sentinel && !wrong.correct && wrong.status === 'applied' && wrong.observation.modality === 'typing' && Number.isFinite(wrong.observation.responseMs)), 'B2_E2_EXACT_LOCAL_HANDOFF').toBe(true);
+    expect(Boolean(events(local).every(event => !event.canonical.includes(sentinel))), 'B2_E2_CANONICAL_PRIVACY').toBe(true);
+    const committedDraft = wrong.draftToken, committedEvents = events(local), originalRun = runs(local)[0];
     await button(page, '다시 풀어볼래요').click(); await expect(input(page)).toBeEditable(); await expect(input(page)).toHaveValue('');
-    requireTrue(checkpoints(await native(page))[0].handoff === null, 'Explicit retry clears only acknowledged local handoff');
+    const retried = await native(page), retryRun = runs(retried).find(row => row.immutable.runId === originalRun.immutable.runId);
+    const retryCheckpoint = checkpoints(retried).find(cp => cp.sourceSlotKey === originalRun.immutable.sourceSlotKey);
+    const retryAcknowledgement = journals(retried).find(row => row.runId === originalRun.immutable.runId && row.transitionId === retryRun?.state.latestTransitionId);
+    // The applied old handoff is durable history. Retry clears the rendered draft,
+    // binds a new token, and acknowledges that clear without rewriting history.
+    expect(Boolean(retryCheckpoint?.handoff?.status === 'applied' && retryCheckpoint.handoff.draftToken === committedDraft
+      && canonical(retryCheckpoint.handoff) === canonical(wrong)), 'B2_E2_RETRY_RETAINS_APPLIED_HANDOFF').toBe(true);
+    expect(Boolean(retryRun && retryRun.state.currentDraftToken !== committedDraft && retryCheckpoint?.answerReady === true
+      && retryRun.state.phase === 'answerable' && retryRun.state.action === null), 'B2_E2_RETRY_NEW_DRAFT_READY').toBe(true);
+    expect(Boolean(retryAcknowledgement?.operation.kind === 'ack_retry' && canonical(retryAcknowledgement.after.runState) === canonical(retryRun?.state)), 'B2_E2_RETRY_CLEAR_ACKNOWLEDGED').toBe(true);
+    expect(Boolean(canonical(events(retried)) === canonical(committedEvents)), 'B2_E2_RETRY_NO_ANSWER_EVENT').toBe(true);
+    await expect(page.locator('[data-review-surface="feedback"]')).toHaveCount(0);
+    await expect(page.locator('[data-review-surface="hint"]')).toHaveCount(0);
     await answer(page); local = await native(page);
     expect(events(local).length).toBe(3); const run = runs(local)[0], correct = checkpoints(local)[0].handoff!;
-    requireTrue(run.state.hadWrong && correct.draftToken !== committedDraft && correct.correct, 'Retry retains cumulative wrong semantics and uses a new draft identity');
+    expect(Boolean(run.state.hadWrong && correct.draftToken !== committedDraft && correct.correct), 'B2_E2_RETRY_CUMULATIVE_WRONG').toBe(true);
     const answerEvents = events(local).map(event => JSON.parse(event.canonical)).filter(event => event.kind === 'answer_submitted');
     expect(answerEvents.length).toBe(2);
-    requireTrue(answerEvents[0].correct === false && answerEvents[1].correct === true && answerEvents[1].isRetry === true && answerEvents[1].answerPreviouslyRevealed === true, 'Retry evidence never claims a clean first attempt');
+    expect(Boolean(answerEvents[0].correct === false && answerEvents[1].correct === true && answerEvents[1].isRetry === true && answerEvents[1].answerPreviouslyRevealed === true), 'B2_E2_RETRY_EVIDENCE').toBe(true);
     await button(page, '복습 결과 저장 · 다음 문제').click();
     await expect.poll(async () => {
       const state = await qa.readLanguage(); const doc = languageDocument(state[KEY] as string, 'array');
       return doc.get([0, 'reviewCount']) === 5;
     }, { message: 'Original legacy scheduling reaches authenticated storage' }).toBe(true);
     const saved = await qa.readLanguage(), doc = languageDocument(saved[KEY] as string, 'array');
-    equal(doc.rawAt([1]), historicalRow, 'Unrelated historical response row is preserved byte-for-byte');
-    requireTrue(doc.get([0, 'wrongCount']) === 3 && doc.get([0, 'lastNeededHelp']) === true && doc.get([0, 'successStreak']) === 0 && doc.get([0, 'intervalDays']) === 1, 'Legacy cumulative wrong/help/scheduling semantics remain exact');
-    requireTrue(doc.get([0, 'lastModality']) === correct.observation.modality && doc.get([0, 'lastResponseMs']) === Math.round(correct.observation.responseMs!), 'Original legacy observation receives the exact modality and rounded timing');
+    expect(Boolean(doc.rawAt([1]) === historicalRow), 'B2_E2_HISTORICAL_BYTES').toBe(true);
+    expect(Boolean(doc.get([0, 'wrongCount']) === 3 && doc.get([0, 'lastNeededHelp']) === true && doc.get([0, 'successStreak']) === 0 && doc.get([0, 'intervalDays']) === 1), 'B2_E2_LEGACY_SCHEDULE').toBe(true);
+    expect(Boolean(doc.get([0, 'lastModality']) === correct.observation.modality && doc.get([0, 'lastResponseMs']) === Math.round(correct.observation.responseMs!)), 'B2_E2_LEGACY_OBSERVATION').toBe(true);
     const last = JSON.parse(doc.get([0, 'languageLastOperationV1', 'payload']) as string);
-    requireTrue(!Object.hasOwn(last, 'response') && last.hadWrong === true && last.correct === true && canonical(last.observation) === canonical(correct.observation), 'New LAST payload omits response prospectively and preserves original observation');
-    requireTrue(!JSON.stringify(saved).includes(sentinel) && !JSON.stringify(qa.traffic.entries).includes(sentinel) && !JSON.stringify(traffic.entries).includes(sentinel), 'Typed sentinel does not enter legacy, sync, LAST or evidence wire data');
-    requireTrue(!JSON.stringify(await facts(page)).includes(sentinel), 'Bounded native diagnostics contain no typed input');
+    expect(Boolean(!Object.hasOwn(last, 'response') && last.hadWrong === true && last.correct === true && canonical(last.observation) === canonical(correct.observation)), 'B2_E2_LAST_PRIVACY').toBe(true);
+    expect(Boolean(!JSON.stringify(saved).includes(sentinel) && !JSON.stringify(qa.traffic.entries).includes(sentinel) && !JSON.stringify(traffic.entries).includes(sentinel)), 'B2_E2_WIRE_PRIVACY').toBe(true);
+    expect(Boolean(!JSON.stringify(await facts(page)).includes(sentinel)), 'B2_E2_DIAGNOSTIC_PRIVACY').toBe(true);
     await checkNativeSafety(page);
     // Synthetic composition/Enter guards are covered; native OS IME is not.
   });
@@ -622,7 +634,17 @@ test('E4 overlapping Starts and native read interruption @b2-enabled', async ({ 
     await button(page, '다시 풀어볼래요').click(); await expect(input(page)).toBeEditable();
     const retried = await native(page), typedRun = runs(retried).find(row => row.immutable.runId === selected.runId)!;
     const currentDraft = typedRun.state.currentDraftToken;
-    requireTrue(currentDraft !== selected.initialDraftToken && checkpoints(retried).find(cp => cp.sourceSlotKey === selected.sourceSlotKey)?.handoff === null, 'Retry establishes a new durable typed draft with no pending handoff');
+    const priorHandoff = checkpoints(after).find(cp => cp.sourceSlotKey === selected.sourceSlotKey)?.handoff;
+    const retryCheckpoint = checkpoints(retried).find(cp => cp.sourceSlotKey === selected.sourceSlotKey);
+    const retryAcknowledgement = journals(retried).find(row => row.runId === selected.runId && row.transitionId === typedRun.state.latestTransitionId);
+    expect(Boolean(priorHandoff?.status === 'applied' && retryCheckpoint?.handoff?.status === 'applied'
+      && retryCheckpoint.handoff.draftToken === priorHandoff.draftToken && canonical(retryCheckpoint.handoff) === canonical(priorHandoff)), 'B2_E4_RETRY_RETAINS_APPLIED_HANDOFF').toBe(true);
+    expect(Boolean(currentDraft !== selected.initialDraftToken && currentDraft !== priorHandoff?.draftToken && retryCheckpoint?.answerReady === true
+      && typedRun.state.phase === 'answerable' && typedRun.state.action === null), 'B2_E4_RETRY_NEW_DRAFT_READY').toBe(true);
+    expect(Boolean(retryAcknowledgement?.operation.kind === 'ack_retry' && canonical(retryAcknowledgement.after.runState) === canonical(typedRun.state)), 'B2_E4_RETRY_CLEAR_ACKNOWLEDGED').toBe(true);
+    expect(Boolean(canonical(events(retried)) === canonical(events(after))), 'B2_E4_RETRY_NO_ANSWER_EVENT').toBe(true);
+    await expect(input(page)).toHaveValue(''); await expect(page.locator('[data-review-surface="feedback"]')).toHaveCount(0);
+    await expect(page.locator('[data-review-surface="hint"]')).toHaveCount(0);
     // A fresh peer view explicitly acquires the current draft before another
     // supported run creates the hint. An old retained token cannot explain refusal.
     await peer.reload(); await foreground(peer); await begin(peer);
@@ -746,27 +768,65 @@ test('E7 offline outbox preserves predecessor order @b2-enabled', async ({ page,
 });
 
 test('E8 pinned source and held retirement closure @b2-enabled', async ({ page, context, qa }) => {
-  await runObserved(context, async () => {
+  await runObserved(context, async traffic => {
     const source = await seed(qa.account, true); await enter(page, qa.account); await begin(page);
     const run = runs(await native(page))[0];
     equal(run.immutable.originalSource.arrayBytes, source.array, 'Captured episode pins whole-array source encoding');
     equal(run.immutable.originalSource.rowBytes, source.row, 'Captured episode pins unknown-field row encoding');
-    const held = qa.traffic.holdNext('PATCH', 'response', 'language_user_state');
-    await button(page, '내일 다시 볼래요').click(); await held.arrived;
-    const server = await qa.readLanguage(), changed = languageDocument(server[KEY] as string, 'array');
-    changed.set([0, 'unknownSyntheticField'], 'changed-through-owner-client');
-    const changedState = { ...server, [KEY]: changed.text() };
-    const update = await qa.account.client.from('language_user_state').update({ state: changedState, updated_at: new Date().toISOString() }).eq('user_id', qa.account.id);
-    requireTrue(!update.error, 'Normal independently authenticated owner changes the source while response is held');
-    await page.evaluate(url => history.pushState(null, '', url), captureUrl(sample.meaning.id));
-    requireTrue(await question(page).getAttribute('data-review-run') === run.immutable.runId, 'Same-page query navigation cannot retarget the pending episode');
-    held.release(); await qa.traffic.drain(); await expect(recoverButton(page)).toBeEnabled();
+    // The existing mutation hook acknowledges local durable storage independently
+    // of its background PATCH. Hold the actual authority read needed by closure.
+    const statusMark = traffic.entries.length, held = traffic.hold(rpc.status, 'loss');
+    let retiringRun!: ReviewRun, retirementJournal!: ReviewJournalPayload, legacyOperation: unknown;
+    try {
+      await button(page, '내일 다시 볼래요').click(); await held.arrived;
+      const heldStatus = traffic.entries.slice(statusMark).find(entry => entry.name === rpc.status);
+      const proof = heldStatus?.response as { status?: string; ownerId?: string; resetMarker?: unknown; currentContext?: ServerEvidenceContext } | undefined;
+      expect(Boolean(heldStatus?.upstream && heldStatus.status >= 200 && heldStatus.status < 300 && !heldStatus.delivered
+        && heldStatus.body.expected_owner === qa.account.id && canonical(heldStatus.body.expected_marker) === canonical({ present: false, value: null })
+        && proof?.status === 'enrolled' && proof.ownerId === qa.account.id && proof.currentContext?.ownerId === qa.account.id
+        && proof.currentContext.generationId === run.generationId && canonical(proof.resetMarker) === canonical({ present: false, value: null })
+        && canonical(proof.currentContext.resetMarker) === canonical(proof.resetMarker)), 'B2_E8_CLOSURE_AUTHORITY_HELD').toBe(true);
+      const heldNative = await native(page);
+      retiringRun = runs(heldNative).find(row => row.immutable.runId === run.immutable.runId)!;
+      retirementJournal = journals(heldNative).find(row => row.runId === run.immutable.runId && row.transitionId === retiringRun?.state.latestTransitionId)!;
+      expect(Boolean(retiringRun && canonical(retiringRun.immutable) === canonical(run.immutable) && retiringRun.state.lifecycle === 'retiring'
+        && retiringRun.state.retirement?.kind === 'defer' && retiringRun.state.retirement.outcome === null
+        && retirementJournal?.operation.kind === 'begin_retirement' && retirementJournal.operation.retirementKind === 'defer'
+        && retirementJournal.scope.ownerId === qa.account.id && retirementJournal.scope.generationId === run.generationId
+        && retirementJournal.actionId === retiringRun.state.retirement.retirementId
+        && canonical(retirementJournal.after.runState) === canonical(retiringRun.state)), 'B2_E8_EXACT_RETIREMENT_HELD').toBe(true);
+      expect(Boolean(!journals(heldNative).some(row => row.runId === run.immutable.runId && row.operation.kind === 'close_retirement')), 'B2_E8_NO_CLOSE_BEFORE_AUTHORITY').toBe(true);
+      await expect(recoverButton(page)).toBeDisabled();
+      await expect.poll(async () => {
+        const server = await qa.readLanguage(), doc = languageDocument(server[KEY] as string, 'array');
+        return typeof doc.get([0, 'languageLastOperationV1', 'operationId']) === 'string';
+      }, { message: 'The first genuine legacy mirror save precedes the independent source change' }).toBe(true);
+      await expect(ordinaryReady(page)).toBeVisible();
+      const server = await qa.readLanguage(), changed = languageDocument(server[KEY] as string, 'array');
+      legacyOperation = changed.get([0, 'languageLastOperationV1']);
+      expect(Boolean(typeof changed.get([0, 'languageLastOperationV1', 'operationId']) === 'string'
+        && qa.traffic.entries.filter(entry => entry.table === 'language_user_state' && entry.method === 'PATCH').length === 1), 'B2_E8_SINGLE_LEGACY_SAVE_ACKNOWLEDGED').toBe(true);
+      changed.set([0, 'unknownSyntheticField'], 'changed-through-owner-client');
+      const changedState = { ...server, [KEY]: changed.text() };
+      const update = await qa.account.client.from('language_user_state').update({ state: changedState, updated_at: new Date().toISOString() }).eq('user_id', qa.account.id);
+      expect(Boolean(!update.error), 'B2_E8_OWNER_SOURCE_CHANGE').toBe(true);
+      await page.evaluate(url => history.pushState(null, '', url), captureUrl(sample.meaning.id));
+      expect(Boolean(await question(page).getAttribute('data-review-run') === run.immutable.runId), 'B2_E8_QUERY_RETAINS_PINNED_RUN').toBe(true);
+    } finally { held.release(); }
+    await traffic.drain.wait(); await expect(recoverButton(page)).toBeEnabled();
+    await expect(page.getByText('복습 저장 결과를 아직 확정하지 못했어요. 새 저장을 만들지 말고 같은 저장을 확인해 주세요.', { exact: true })).toBeVisible();
     const writes = qa.traffic.entries.filter(entry => entry.table === 'language_user_state' && entry.method === 'PATCH').length;
     await page.goto(captureUrl(sample.typed.id)); await foreground(page); await startButton(page).click();
     await expect(page.getByText('복습 저장 결과를 아직 확정하지 못했어요. 새 저장을 만들지 말고 같은 저장을 확인해 주세요.', { exact: true })).toBeVisible();
     await expect(question(page)).toHaveCount(0); await expect(button(page, '기록형 복습 종료 확인')).toHaveCount(0);
     expect(qa.traffic.entries.filter(entry => entry.table === 'language_user_state' && entry.method === 'PATCH').length).toBe(writes);
-    requireTrue(runs(await native(page)).find(row => row.immutable.runId === run.immutable.runId)?.state.lifecycle === 'retiring', 'Reload preserves unresolved retirement rather than inferring row disappearance');
+    const reloaded = await native(page), reloadedRun = runs(reloaded).find(row => row.immutable.runId === run.immutable.runId);
+    expect(Boolean(reloadedRun?.state.lifecycle === 'retiring' && canonical(reloadedRun) === canonical(retiringRun)
+      && canonical(journals(reloaded).find(row => row.transitionId === retirementJournal.transitionId)) === canonical(retirementJournal)
+      && !journals(reloaded).some(row => row.runId === run.immutable.runId && ['close_retirement', 'close_unavailable'].includes(row.operation.kind))), 'B2_E8_RELOAD_RETAINS_EXACT_RETIREMENT').toBe(true);
+    const afterReload = languageDocument((await qa.readLanguage())[KEY] as string, 'array');
+    expect(Boolean(canonical(afterReload.get([0, 'languageLastOperationV1'])) === canonical(legacyOperation)
+      && afterReload.get([0, 'unknownSyntheticField']) === 'changed-through-owner-client'), 'B2_E8_RELOAD_NEVER_REDISPATCHES_LEGACY_SAVE').toBe(true);
     // A separate supported row exercises an acknowledged save whose local
     // closure aborts. The original unresolved episode remains untouched.
     await page.goto(captureUrl(sample.meaning.id)); await foreground(page); await begin(page, sample.meaning.id);

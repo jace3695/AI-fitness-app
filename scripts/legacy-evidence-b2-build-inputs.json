@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1519,
-  "byteCount": 71317095,
-  "digest": "82b1b2ab100e62e820aa5669e6f43586230cf6b86a6a49d556139717553dce8b",
+  "byteCount": 71345185,
+  "digest": "dee20ba33ea1fa895ca7c85787d6e4e1b73a3b18ffc4bc42efd96c298d466825",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -811,8 +811,8 @@
     {
       "path": "app/components/RecordResetPanel.tsx",
       "mode": 33188,
-      "bytes": 7755,
-      "sha256": "7e3026f23e6f536c3ac116f66d00da8f67b858ac6f0bcdf31af29753e97c64dd"
+      "bytes": 9126,
+      "sha256": "5f9beb334ab6200df6e2c442c5348a2e1ed99c70504baaf49e6c5e0c59e7508c"
     },
     {
       "path": "app/components/RecordTrendChart.tsx",
@@ -8281,8 +8281,8 @@
     {
       "path": "tests/e2e/legacy-evidence-review.spec.ts",
       "mode": 33188,
-      "bytes": 79480,
-      "sha256": "233f096c1a9bf631fff47d665d0b99da79ca590ea7050dd2ee54c31ef6ef9ac4"
+      "bytes": 86078,
+      "sha256": "ef1eaf92293e97da2224763b3dd28088a8f022eb0b2d8a00c28985b8342f67ff"
     },
     {
       "path": "tests/e2e/mobile.spec.ts",
@@ -8767,8 +8767,8 @@
     {
       "path": "tests/language-reset-ui.test.ts",
       "mode": 33188,
-      "bytes": 7817,
-      "sha256": "5e4080494d14164fccc4ab32069e325361c95d4a0506dad54c2f0769014a1320"
+      "bytes": 16833,
+      "sha256": "86fe0d66990878e5a9365a920b9e749cd52d6bba34fd6137411538d8198f9782"
     },
     {
       "path": "tests/language-review-writers-ui.test.ts",
@@ -8821,8 +8821,8 @@
     {
       "path": "tests/legacy-evidence-browser-harness.test.ts",
       "mode": 33188,
-      "bytes": 197159,
-      "sha256": "aedea0eab731a46202e3b3c7cc2258c9dcf0baeabbe870a22a70f795283fea1b"
+      "bytes": 204594,
+      "sha256": "760a2b902573da4034c56468fd42707356899344b7146a18eba8dd164a2ad960"
     },
     {
       "path": "tests/legacy-evidence-ci-diagnostics.test.ts",
@@ -8863,8 +8863,8 @@
     {
       "path": "tests/legacy-evidence-review-adapter.test.ts",
       "mode": 33188,
-      "bytes": 73166,
-      "sha256": "81a05542419e6b8334989d03ae53f6a9cd25b9fef414f1115c5db2c6519f3ca5"
+      "bytes": 76836,
+      "sha256": "650294732bfcfe167b872c06a6139c9919d6bf2eb7ead821e906b373bcc60f19"
     },
     {
       "path": "tests/legacy-evidence-review-component-sql.test.ts",

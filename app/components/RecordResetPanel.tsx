@@ -7,8 +7,11 @@ import { supabase } from "../lib/supabase";
 import { readPendingLanguageReset } from "../data/languageResetFence.ts";
 import { LANGUAGE_RESET_FENCE_KEY } from "../data/languageStorageBoundary.ts";
 import { captureStorageOwner, isStorageOwnerCurrent, RECORDS_CHANGED_EVENT } from "../data/storageTransaction.ts";
+import { useAuthenticatedStorageOwner } from "./AuthenticatedStorageOwner.tsx";
+import { assertAuthenticatedStorageOwner } from "../data/authenticatedStorageOwner.ts";
 
 export default function RecordResetPanel({ app }: { app: RecordResetApp }) {
+  const lease = useAuthenticatedStorageOwner();
   const info = APP_RESET_INFO[app];
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -62,7 +65,7 @@ export default function RecordResetPanel({ app }: { app: RecordResetApp }) {
       setAccountEmail(data.user.email ?? "");
       try {
         const key = `record-reset-receipt:${data.user.id}:${app}`;
-        if (window.sessionStorage.getItem(key)) {
+        if (app !== "language" && window.sessionStorage.getItem(key)) {
           setMessage(`${info.label} 기록을 초기화했어요. 유지되는 항목은 아래에서 확인해 주세요.`);
           window.sessionStorage.removeItem(key);
         }
@@ -80,6 +83,24 @@ export default function RecordResetPanel({ app }: { app: RecordResetApp }) {
       window.removeEventListener(RECORDS_CHANGED_EVENT, inspectIncomplete);
     };
   }, [app, info.label]);
+
+  useEffect(() => {
+    if (app !== "language" || !mounted.current || !lease) return;
+    // INITIAL_SESSION may invalidate the panel's first getUser callback. The
+    // Gate's registered, PIN-checked lease independently authorizes this notice.
+    // A callback session or copied owner/epoch is never a substitute for it.
+    try {
+      assertAuthenticatedStorageOwner(lease);
+      const owner = captureStorageOwner();
+      if (owner.userId !== lease.userId || owner.epoch !== lease.epoch || readPendingLanguageReset(lease.userId)) return;
+      const key = `record-reset-receipt:${lease.userId}:language`;
+      if (!window.sessionStorage.getItem(key)) return;
+      assertAuthenticatedStorageOwner(lease);
+      if (!mounted.current || !isStorageOwnerCurrent(window.localStorage, owner) || readPendingLanguageReset(lease.userId)) return;
+      window.sessionStorage.removeItem(key);
+      setMessage(`${info.label} 기록을 초기화했어요. 유지되는 항목은 아래에서 확인해 주세요.`);
+    } catch { /* Preserve the receipt until this owner has a current, ready lease. */ }
+  }, [app, info.label, lease]);
 
   const reset = async () => {
     if (submitting.current || confirmation !== "초기화" || !acknowledged) return;

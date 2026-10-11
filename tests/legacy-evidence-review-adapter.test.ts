@@ -115,10 +115,21 @@ test('answer, exact local publication, observed feedback and retry preserve inde
   assert.equal(await publish(adapter), true); assert.equal(run(f, adapter).state.compatibilityApplied, true);
   assert.equal(adapter.view().status, 'feedback_pending'); assert.equal(run(f, adapter).state.feedbackObserved, false);
   assert.equal(await observeReview(adapter, 'feedback'), true); assert.equal(adapter.view().status, 'answered');
+  const appliedHandoff = structuredClone(checkpoint(f, adapter).handoff), beforeRetryEvents = f.idb.entries('events');
   assert.equal(await adapter.retryAnswer(), true); assert.equal(adapter.view().status, 'retry_pending');
   assert.notEqual(adapter.view().draftToken, beforeDraft); assert.equal(run(f, adapter).state.action?.kind, 'retry');
   assert.equal(await adapter.cleared({ runId: adapter.view().runId!, draftToken: adapter.view().draftToken!, answer: '', hintShown: false, feedbackShown: false }), true);
   assert.equal(adapter.view().status, 'ready'); assert.equal(adapter.view().showHint, false);
+  equalPrivate(checkpoint(f, adapter).handoff, appliedHandoff, 'Retry retains the exact applied historical handoff');
+  assert.equal(checkpoint(f, adapter).handoff?.status, 'applied');
+  assert.equal(checkpoint(f, adapter).handoff?.draftToken, beforeDraft);
+  assert.notEqual(checkpoint(f, adapter).handoff?.draftToken, adapter.view().draftToken);
+  assert.equal(checkpoint(f, adapter).answerReady, true);
+  assert.equal(run(f, adapter).state.phase, 'answerable'); assert.equal(run(f, adapter).state.action, null);
+  const retryAcknowledgement = journals(f).find(row => row.transitionId === run(f, adapter).state.latestTransitionId);
+  assert.equal(retryAcknowledgement?.operation.kind, 'ack_retry');
+  equalPrivate(retryAcknowledgement?.after.runState, run(f, adapter).state);
+  equalPrivate(f.idb.entries('events'), beforeRetryEvents, 'Retry and clear acknowledgement do not add an answer event');
   assert.equal(run(f, adapter).state.hadWrong, true); assert.equal(run(f, adapter).state.neededHelp, true);
   assert.equal(checkpoint(f, adapter).hintUsed, true); assert.equal(checkpoint(f, adapter).answerPreviouslyRevealed, true); assert.equal(checkpoint(f, adapter).nextSequence, 2);
   const correct = adapter.surface.authored.targetText;
@@ -190,6 +201,40 @@ test('legacy commit with lost acknowledgement recovers the same registered opera
   assert.equal(f.outcomes[1].status, 'already-applied'); assert.equal(f.outcomes[0].operationId, f.outcomes[1].operationId);
   equalPrivate(f.source().snapshot.records[COURSE_REVIEW_KEY], bytes, 'Read-first recovery must not rewrite an acknowledged legacy row');
   equalPrivate(f.intents[0].payload.kind === 'schedule' && f.intents[0].payload.observation, observation);
+});
+
+test('lost closure authority after acknowledged local save retains the exact retirement across a fresh adapter', async t => {
+  const f = await createLegacyReviewCaptureFixture(t), adapter = await ready(f);
+  const original = run(f, adapter).immutable, arrived = deferred<void>(), released = deferred<void>();
+  t.after(() => released.resolve());
+  f.rpcHooks(undefined, async name => {
+    if (name !== 'read_language_legacy_evidence_status') return;
+    arrived.resolve(); await released.promise; throw Error('Synthetic closure status response loss');
+  });
+  const saving = adapter.retire('defer'); await arrived.promise;
+  assert.equal(f.outcomes.length, 1); assert.equal(f.outcomes[0].acknowledged, true);
+  assert.equal(f.submitted.length, 1); assert.equal(f.syncCalls.filter(call => call.name === 'update').length, 0,
+    'The real local mutation acknowledgement does not depend on background cloud synchronization');
+  const heldRun = structuredClone(run(f, adapter)), heldJournals = f.idb.entries('reviewTransitions');
+  assert.equal(heldRun.state.lifecycle, 'retiring'); assert.equal(heldRun.state.retirement?.outcome, null);
+  assert.equal(adapter.view().showQuestion, true);
+  const begin = journals(f).find(row => row.transitionId === heldRun.state.latestTransitionId);
+  assert.equal(begin?.operation.kind, 'begin_retirement');
+  assert.equal(begin?.actionId, heldRun.state.retirement?.retirementId);
+  assert.ok(!journals(f).some(row => row.runId === original.runId && row.operation.kind === 'close_retirement'));
+  const savedBytes = f.source().snapshot.records[COURSE_REVIEW_KEY];
+  released.resolve(); assert.equal(await saving, false);
+  assert.equal(adapter.view().failure, 'uncertain_retirement'); assert.equal(adapter.view().busy, false);
+  equalPrivate(run(f, adapter), heldRun); equalPrivate(f.idb.entries('reviewTransitions'), heldJournals);
+  adapter.dispose(); f.rpcHooks();
+  const fresh = captureLanguageRows(f.source().snapshot, COURSE_REVIEW_KEY);
+  for (const row of fresh) { const id = (row.value as { id: string }).id; assert.equal(typeof id, 'string'); f.handles.set(id, row.handle); }
+  const reloaded = f.create(); assert.equal(await reloaded.start(), false);
+  assert.equal(reloaded.view().failure, 'uncertain_retirement'); assert.equal(reloaded.view().showQuestion, false);
+  equalPrivate(runs(f).find(row => row.immutable.runId === original.runId), heldRun);
+  equalPrivate(f.idb.entries('reviewTransitions'), heldJournals);
+  equalPrivate(f.source().snapshot.records[COURSE_REVIEW_KEY], savedBytes);
+  assert.equal(f.submitted.length, 1); assert.equal(f.intents.length, 1); assert.equal(f.retryCount, 0);
 });
 
 test('post-acknowledgement local admission read failure keeps retirement unresolved and recovery never retries legacy mutation', async t => {

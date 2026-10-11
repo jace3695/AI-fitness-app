@@ -1560,6 +1560,20 @@ function scenarioBody(prefix: string) {
   assert.ok(statement && ts.isExpressionStatement(statement) && ts.isCallExpression(statement.expression));
   return statement.expression.arguments[1].getText(scenarioAst);
 }
+function scenarioBoolean(label: string, bindings: Record<string, unknown>): boolean {
+  let expression: ts.Expression | undefined;
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'expect' && node.arguments.length >= 2
+      && ts.isStringLiteral(node.arguments[1]) && node.arguments[1].text === label) {
+      assert.equal(expression, undefined, 'The fixed assertion label must be unique'); expression = node.arguments[0];
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(scenarioAst); assert.ok(expression && ts.isCallExpression(expression));
+  assert.equal(expression.expression.getText(scenarioAst), 'Boolean', 'Private values must be projected before assertion');
+  const compiled = ts.transpileModule(`const result = ${expression.getText(scenarioAst)};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  return new Function(...Object.keys(bindings), `${compiled}\nreturn result;`)(...Object.values(bindings));
+}
 function ordered(source: string, fragments: string[]) {
   let offset = 0;
   for (const fragment of fragments) { const next = source.indexOf(fragment, offset); assert.ok(next >= offset, `Missing ordered barrier ${fragment}`); offset = next + fragment.length; }
@@ -1618,6 +1632,75 @@ test('E4 pending-hint proof acquires the current draft and targets its input bef
   const scenario = scenarioBody('E4 ');
   ordered(scenario, ['const currentDraft = typedRun.state.currentDraftToken', 'await peer.reload()', 'await begin(peer)', 'peerRun.state.currentDraftToken === currentDraft', "getAttribute('data-review-draft') === currentDraft", "await page.evaluate(() => window.__b2.armAbort('observed_hint'))", 'await recoverButton(peer).click()', 'await expect(input(peer)).toBeEditable()', 'await expect(recoverButton(peer)).toHaveCount(0)', 'recoveredRun.state.currentDraftToken === currentDraft', "await input(peer).fill('b2-pending-hint-answer')", 'await input(peer).focus()', 'await expect(input(peer)).toBeFocused()', "await input(peer).press('Enter')", 'await expect(recoverButton(peer)).toBeEnabled()', "await expect(input(peer)).not.toBeEditable()", 'const refused = await native(peer)', 'typedBeforeHintAnswer']);
   assert.doesNotMatch(scenario.slice(scenario.indexOf('const currentDraft')), /peer\.keyboard\.press\(/);
+});
+
+test('E2 and E4 retry assertions retain applied history and reject changed or pending handoffs', () => {
+  const applied = { status: 'applied', draftToken: 'old-draft', eventId: 'old-event', answer: 'synthetic-private-answer' };
+  const canonical = JSON.stringify;
+  for (const prefix of ['E2', 'E4']) {
+    const bindings = { canonical, committedDraft: 'old-draft', wrong: applied, priorHandoff: applied, retryCheckpoint: { handoff: applied } };
+    const label = `B2_${prefix}_RETRY_RETAINS_APPLIED_HANDOFF`;
+    assert.equal(scenarioBoolean(label, bindings), true);
+    for (const handoff of [null, { ...applied, status: 'pending' }, { ...applied, draftToken: 'new-draft' }, { ...applied, eventId: 'other-event' }, { ...applied, answer: 'changed' }]) {
+      assert.equal(scenarioBoolean(label, { ...bindings, retryCheckpoint: { handoff } }), false);
+    }
+    const body = scenarioBody(`${prefix} `);
+    ordered(body, [`B2_${prefix}_RETRY_RETAINS_APPLIED_HANDOFF`, `B2_${prefix}_RETRY_NEW_DRAFT_READY`, `B2_${prefix}_RETRY_CLEAR_ACKNOWLEDGED`, `B2_${prefix}_RETRY_NO_ANSWER_EVENT`]);
+    assert.doesNotMatch(body.slice(body.indexOf('const retried')), /handoff\s*===\s*null/);
+    assert.ok(body.includes('retryAcknowledgement.after.runState'));
+    assert.ok(body.includes('retryRun?.state.latestTransitionId') || body.includes('typedRun.state.latestTransitionId'));
+  }
+  assert.doesNotMatch(scenarioBody('E2 '), /\brequireTrue\(/, 'E2 boolean assertions keep distinct sanitized source locations');
+});
+
+test('E8 closure authority checks reject a foreign, undelivered-as-success, or mismatched status', () => {
+  const marker = { present: false, value: null }, context = { ownerId: 'owner', generationId: 'generation', resetMarker: marker };
+  const heldStatus = { upstream: true, status: 200, delivered: false, body: { expected_owner: 'owner', expected_marker: marker } };
+  const proof = { status: 'enrolled', ownerId: 'owner', resetMarker: marker, currentContext: context };
+  const bindings = { canonical: JSON.stringify, qa: { account: { id: 'owner' } }, run: { generationId: 'generation' }, heldStatus, proof };
+  const label = 'B2_E8_CLOSURE_AUTHORITY_HELD'; assert.equal(scenarioBoolean(label, bindings), true);
+  for (const patch of [{ upstream: false }, { status: 500 }, { delivered: true },
+    { body: { ...heldStatus.body, expected_owner: 'foreign' } }, { body: { ...heldStatus.body, expected_marker: { present: true, value: 'other' } } }]) {
+    assert.equal(scenarioBoolean(label, { ...bindings, heldStatus: { ...heldStatus, ...patch } }), false);
+  }
+  for (const patch of [{ status: 'unenrolled' }, { ownerId: 'foreign' }, { resetMarker: { present: true, value: 'other' } },
+    { currentContext: { ...context, ownerId: 'foreign' } }, { currentContext: { ...context, generationId: 'other' } },
+    { currentContext: { ...context, resetMarker: { present: true, value: 'other' } } }]) {
+    assert.equal(scenarioBoolean(label, { ...bindings, proof: { ...proof, ...patch } }), false);
+  }
+});
+
+test('E8 exact retirement checks bind the run and journal before intentional status loss', () => {
+  const immutable = { runId: 'run', sourceSlotKey: 'slot', originalSource: { arrayBytes: 'synthetic' } };
+  const state = { lifecycle: 'retiring', retirement: { kind: 'defer', outcome: null, retirementId: 'retirement' } };
+  const retiringRun = { immutable, state };
+  const retirementJournal = { operation: { kind: 'begin_retirement', retirementKind: 'defer' }, scope: { ownerId: 'owner', generationId: 'generation' }, actionId: 'retirement', after: { runState: state } };
+  const bindings = { canonical: JSON.stringify, qa: { account: { id: 'owner' } }, run: { immutable, generationId: 'generation' }, retiringRun, retirementJournal };
+  const label = 'B2_E8_EXACT_RETIREMENT_HELD'; assert.equal(scenarioBoolean(label, bindings), true);
+  for (const patch of [{ immutable: { ...immutable, runId: 'foreign' } }, { state: { ...state, lifecycle: 'closed' } },
+    { state: { ...state, retirement: { ...state.retirement, kind: 'schedule' } } }, { state: { ...state, retirement: { ...state.retirement, outcome: {} } } }]) {
+    assert.equal(scenarioBoolean(label, { ...bindings, retiringRun: { ...retiringRun, ...patch } }), false);
+  }
+  for (const patch of [{ operation: { kind: 'close_retirement' } }, { scope: { ownerId: 'foreign', generationId: 'generation' } },
+    { scope: { ownerId: 'owner', generationId: 'foreign' } }, { actionId: 'other' }, { after: { runState: { ...state, lifecycle: 'closed' } } }]) {
+    assert.equal(scenarioBoolean(label, { ...bindings, retirementJournal: { ...retirementJournal, ...patch } }), false);
+  }
+  const body = scenarioBody('E8 ');
+  ordered(body, ["traffic.hold(rpc.status, 'loss')", "await button(page, '내일 다시 볼래요').click()", 'await held.arrived',
+    'B2_E8_CLOSURE_AUTHORITY_HELD', 'B2_E8_EXACT_RETIREMENT_HELD', 'B2_E8_NO_CLOSE_BEFORE_AUTHORITY', 'await expect.poll(',
+    'await expect(ordinaryReady(page)).toBeVisible()', 'B2_E8_SINGLE_LEGACY_SAVE_ACKNOWLEDGED', "changed.set([0, 'unknownSyntheticField']",
+    'B2_E8_QUERY_RETAINS_PINNED_RUN', 'held.release()', 'await traffic.drain.wait()', 'await expect(recoverButton(page)).toBeEnabled()',
+    'await page.goto(captureUrl(sample.typed.id))', 'B2_E8_RELOAD_RETAINS_EXACT_RETIREMENT', 'B2_E8_RELOAD_NEVER_REDISPATCHES_LEGACY_SAVE',
+    "window.__b2.armAbort('close_retirement')", 'await recover(page)', 'Closure recovery never redispatches or edits original legacy schedule']);
+  assert.match(body, /finally\s*\{\s*held\.release\(\);\s*\}/);
+  assert.doesNotMatch(body, /holdNext\('PATCH'/, 'Background synchronization cannot substitute for the closure authority barrier');
+  assert.ok(body.includes("button(page, '기록형 복습 종료 확인')).toHaveCount(0)"));
+});
+
+test('E4 and E12 retain genuine focus-loss assertions without synthetic focus substitution', () => {
+  assert.ok(scenarioBody('E4 ').includes("await expect.poll(() => peer.evaluate(() => !document.hasFocus()), { message: 'Competing action genuinely loses focus' }).toBe(true)"));
+  assert.ok(scenarioBody('E12 ').includes("await expect.poll(() => page.evaluate(() => !document.hasFocus()), { message: 'Interruption uses genuine page blur' }).toBe(true)"));
+  assert.doesNotMatch(scenarioSource, /newCDPSession|setFocusEmulationEnabled|setActiveAndFocused|dispatchEvent\(['"](?:blur|visibilitychange)/);
 });
 
 test('native frame observation counts distinct original timestamps and still invokes every original callback', () => {
