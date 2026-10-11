@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Locator, Page } from '@playwright/test';
+import type { Frame, Locator, Page, Request, Response } from '@playwright/test';
 import { test, expect, login, synced } from './fixture';
 import { RouteDrain } from './route-drain';
 import { TYPING_LESSONS } from '../../app/data/typingBasics';
@@ -114,20 +114,95 @@ test('delayed A basics save leaves its checkpoint when account B opens and A rec
     expect(posts).toBe(1); const rows = (await qa.account.client.from('growth_sessions').select('*')).data!; expect(rows).toHaveLength(2); expect(rows.find(row => row.id === original.id)).toEqual(original);
   } finally { release(); await drain.wait(); await page.unroute(pattern); }
 });
+type BasicsResetPhase = 'armed' | 'before-save' | 'save-clicked' | 'marker-get-confirmed' | 'reset-confirmed' | 'rpc-rejected'
+  | 'rejection-visible' | 'pending-preserved' | 'records-empty' | 'before-reload' | 'after-reload' | 'ready-after-reload' | 'complete' | 'failure';
+/** Passive Node-side milestones survive a stalled renderer without evaluating it.
+ * No URLs, request bodies, auth headers, owner IDs, markers or DOM text are logged. */
+function observeBasicsResetBoundary(page: Page) {
+  let phase: BasicsResetPhase = 'armed', emittedEvents = 0;
+  const counts = { documentRequests: 0, documentResponses: 0, frameNavigations: 0, domContentLoads: 0, pageLoads: 0,
+    authRequests: 0, markerRequests: 0, progressRequests: 0, authResponses: 0, markerResponses: 0, progressResponses: 0, droppedEvents: 0 };
+  const emit = (event: string) => console.log('QA_BASICS_RESET_BOUNDARY ' + JSON.stringify({ phase, event, ...counts }));
+  const event = (name: string, key: keyof typeof counts) => {
+    counts[key] = Math.min(10000, counts[key] + 1);
+    if (emittedEvents++ < 64) emit(name);
+    else counts.droppedEvents = Math.min(10000, counts.droppedEvents + 1);
+  };
+  const isBasicsDocument = (request: Request) => {
+    try { const url = new URL(request.url()); return request.isNavigationRequest() && request.resourceType() === 'document'
+      && url.origin === 'http://127.0.0.1:3000' && url.pathname === '/growth/typing/basics'; } catch { return false; }
+  };
+  const request = (request: Request) => {
+    if (isBasicsDocument(request)) { event('document-request', 'documentRequests'); return; }
+    try {
+      const url = new URL(request.url());
+      if (url.origin !== 'http://127.0.0.1:54321' || request.method() !== 'GET') return;
+      if (url.pathname === '/auth/v1/user') event('auth-request', 'authRequests');
+      if (url.pathname === '/rest/v1/user_app_state') event('marker-request', 'markerRequests');
+      if (url.pathname === '/rest/v1/growth_sessions') event('progress-request', 'progressRequests');
+    } catch { /* Malformed/unrelated URLs have no diagnostic content. */ }
+  };
+  const response = (response: Response) => {
+    const request = response.request();
+    if (isBasicsDocument(request)) { event('document-response', 'documentResponses'); return; }
+    try {
+      const url = new URL(request.url());
+      if (url.origin !== 'http://127.0.0.1:54321' || request.method() !== 'GET') return;
+      if (url.pathname === '/auth/v1/user') event('auth-response', 'authResponses');
+      if (url.pathname === '/rest/v1/user_app_state') event('marker-response', 'markerResponses');
+      if (url.pathname === '/rest/v1/growth_sessions') event('progress-response', 'progressResponses');
+    } catch { /* Malformed/unrelated URLs have no diagnostic content. */ }
+  };
+  const frame = (frame: Frame) => { if (frame === page.mainFrame()) event('frame-navigated', 'frameNavigations'); };
+  const dom = () => event('dom-content-loaded', 'domContentLoads');
+  const load = () => event('load', 'pageLoads');
+  page.on('request', request); page.on('response', response); page.on('framenavigated', frame); page.on('domcontentloaded', dom); page.on('load', load);
+  return {
+    mark(next: BasicsResetPhase) { phase = next; emit('milestone'); },
+    stop() { page.off('request', request); page.off('response', response); page.off('framenavigated', frame); page.off('domcontentloaded', dom); page.off('load', load); },
+  };
+}
+
 test('different-device reset between marker GET and basics RPC cannot resurrect an old lesson', async ({ page, qa }) => {
   await seed(qa.account); const other = await qa.createAccount(), otherOriginal = await seed(other); await open(page, qa.account); await finish(page);
-  const rpc = '**/rest/v1/rpc/save_sentence_typing_session', drain = new RouteDrain(); let posts = 0;
+  const before = await qa.read(), otherBefore = await qa.read(other), initial = await recovered(page, qa.account.id);
+  const markerKey = 'ai-fitness-record-reset-growth', trafficStart = qa.traffic.entries.length;
+  const boundary = observeBasicsResetBoundary(page), rpc = '**/rest/v1/rpc/save_sentence_typing_session', drain = new RouteDrain();
+  let posts = 0, resetMarker: string | undefined;
   await page.route(rpc, route => drain.run(async () => {
-    posts++; expect((await qa.account.client.rpc('reset_my_app_records', { p_app: 'growth', p_request_id: randomUUID(), p_confirmation: '초기화' })).error).toBeNull();
-    const response = await route.fetch({ maxRetries: 0 }); expect(response.ok()).toBe(false); await route.fulfill({ response });
+    const request = route.request(), payload = request.postDataJSON();
+    expect(request.method()).toBe('POST'); expect(payload.p_expected_owner).toBe(qa.account.id); expect(payload.p_payload.user_id).toBe(qa.account.id);
+    posts++;
+    // This is the browser's real authenticated, delivered GET after Save, not a
+    // fixture read or a synthetic marker response. Reset only after proving it.
+    const markerRead = qa.traffic.entries.slice(trafficStart).filter(entry => entry.table === 'user_app_state' && entry.method === 'GET'
+      && entry.owner === qa.account.id && entry.status === 200 && entry.delivered && !entry.synthetic).at(-1);
+    expect(markerRead).toBeDefined();
+    expect(payload.p_expected_reset_marker).toBe(initial.resetMarker);
+    expect(payload.p_expected_reset_marker).toBe(markerRead?.receivedState?.[markerKey] ?? null);
+    boundary.mark('marker-get-confirmed');
+    const requestId = randomUUID();
+    const reset = await qa.account.client.rpc('reset_my_app_records', { p_app: 'growth', p_request_id: requestId, p_confirmation: '초기화' });
+    expect(reset.error).toBeNull(); expect(reset.data).toMatchObject({ app: 'growth', user_id: qa.account.id, marker: expect.any(String) });
+    resetMarker = reset.data.marker; expect(resetMarker).not.toBe(payload.p_expected_reset_marker); expect(resetMarker!.split('|')[1]).toBe(requestId);
+    boundary.mark('reset-confirmed');
+    const response = await route.fetch({ maxRetries: 0 }); expect(response.ok()).toBe(false);
+    expect(await response.json()).toMatchObject({ code: '40001', message: 'typing_reset_changed' });
+    boundary.mark('rpc-rejected'); await route.fulfill({ response });
   }));
   try {
-    await save(page).click(); await expect(page.getByRole('status').filter({ hasText: '기록 초기화 이후' })).toBeVisible(); await expect(retry(page)).toBeDisabled();
-    expect((await recovered(page, qa.account.id)).pending).not.toBeNull(); expect((await qa.account.client.from('growth_sessions').select('*')).data).toEqual([]);
-    await page.reload(); await expect(pad(page)).toBeEnabled(); await expect(page.getByLabel('다음 키 안내')).toContainText('1 / 12');
+    boundary.mark('before-save'); await save(page).click(); boundary.mark('save-clicked');
+    await expect(page.getByRole('status').filter({ hasText: '기록 초기화 이후' })).toBeVisible(); await expect(retry(page)).toBeDisabled(); boundary.mark('rejection-visible');
+    expect((await recovered(page, qa.account.id)).pending).not.toBeNull(); boundary.mark('pending-preserved');
+    expect((await qa.account.client.from('growth_sessions').select('*')).data).toEqual([]); boundary.mark('records-empty');
+    boundary.mark('before-reload'); await page.reload(); boundary.mark('after-reload');
+    await expect(pad(page)).toBeEnabled(); boundary.mark('ready-after-reload'); await expect(page.getByLabel('다음 키 안내')).toContainText('1 / 12');
     expect((await qa.account.client.from('growth_sessions').select('*')).data).toEqual([]); expect(posts).toBe(1);
     expect((await other.client.from('growth_sessions').select('*')).data).toEqual([otherOriginal]);
-  } finally { await drain.wait(); await page.unroute(rpc); }
+    expect(await qa.read()).toEqual({ ...before, [markerKey]: resetMarker }); expect(await qa.read(other)).toEqual(otherBefore);
+    boundary.mark('complete');
+  } catch (error) { boundary.mark('failure'); throw error; }
+  finally { boundary.stop(); await drain.wait(); await page.unroute(rpc); }
 });
 test('missing basics RPC preserves immutable pending request until an exact read-first retry', async ({ page, qa }) => {
   const original = await seed(qa.account); await open(page, qa.account); await finish(page);

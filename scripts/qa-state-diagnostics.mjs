@@ -55,7 +55,12 @@ const ownerSwitch = data => ({
   probe: choice(data.probe, ['unavailable']),
   failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
 });
-const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch };
+const basicsReset = data => ({
+  phase: choice(data.phase, ['armed', 'before-save', 'save-clicked', 'marker-get-confirmed', 'reset-confirmed', 'rpc-rejected', 'rejection-visible', 'pending-preserved', 'records-empty', 'before-reload', 'after-reload', 'ready-after-reload', 'complete', 'failure']),
+  event: choice(data.event, ['milestone', 'document-request', 'document-response', 'frame-navigated', 'dom-content-loaded', 'load', 'auth-request', 'marker-request', 'progress-request', 'auth-response', 'marker-response', 'progress-response']),
+  ...fields(data, ['documentRequests', 'documentResponses', 'frameNavigations', 'domContentLoads', 'pageLoads', 'authRequests', 'markerRequests', 'progressRequests', 'authResponses', 'markerResponses', 'progressResponses', 'droppedEvents'], count),
+});
+const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_BASICS_RESET_BOUNDARY: basicsReset };
 export function projectStateDiagnostic(line) {
   if (typeof line !== 'string' || line.length > 8192) return null;
   const delimiter = line.indexOf(' '), prefix = line.slice(0, delimiter);

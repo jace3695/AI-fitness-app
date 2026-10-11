@@ -18,9 +18,9 @@
     "tests/legacy-evidence-ci-harness.test.ts",
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
-  "fileCount": 1509,
-  "byteCount": 70985383,
-  "digest": "fbec9de82ea3c905d58860e504306585ac0ad5e70ab6fc55fc6acce7aabc2fd0",
+  "fileCount": 1510,
+  "byteCount": 71000103,
+  "digest": "1cb2f0adf6b9db5c505d2b3e76c00e2191395e5bc387155327ad4f3189405072",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -6619,8 +6619,8 @@
     {
       "path": "scripts/qa-state-diagnostics.mjs",
       "mode": 33188,
-      "bytes": 7661,
-      "sha256": "d9804510a28514d546c04f26d94b9ff29c254f34fc5f17f2189f29df7369051c"
+      "bytes": 8496,
+      "sha256": "1442cf680c213b55671605ea057e5df2992cf7ba8dc5e84e0aaf9d20cf096614"
     },
     {
       "path": "scripts/render-drawing-review.mjs",
@@ -7859,6 +7859,12 @@
       "sha256": "5f7a657fec0e36865ef725eb2f60883a756e73825299060a3f47f13295779145"
     },
     {
+      "path": "tests/basics-reset-diagnostics.test.ts",
+      "mode": 33188,
+      "bytes": 8229,
+      "sha256": "4182ce274a0e65f426e2b6e9357674ed469f3f0abd82359fbed3ad8f7fb1df39"
+    },
+    {
       "path": "tests/body-calendar-storage-ui.test.ts",
       "mode": 33188,
       "bytes": 24112,
@@ -8353,8 +8359,8 @@
     {
       "path": "tests/e2e/typing-basics-recovery.spec.ts",
       "mode": 33188,
-      "bytes": 17618,
-      "sha256": "b1f0f568ccd8ab63e72f9cb5aeac9646b20c575f883c492ff1c94020cda56587"
+      "bytes": 23274,
+      "sha256": "5630225984379a15f0a7639e27619d7d0ff2266d4f1e089c34a19009d1776a74"
     },
     {
       "path": "tests/e2e/typing-basics.spec.ts",
