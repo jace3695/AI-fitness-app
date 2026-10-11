@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1510,
-  "byteCount": 71051427,
-  "digest": "d58ef4e73404210bb62cca29f6351a0a4d4770d607bb6cc70c3e922a32572696",
+  "byteCount": 71053202,
+  "digest": "fecc0885793a64ef4a1dd70e5409a61ae9ad6356376b2cf873e195cccbfb4317",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -8803,8 +8803,8 @@
     {
       "path": "tests/legacy-evidence-ci-wiring.test.ts",
       "mode": 33188,
-      "bytes": 24031,
-      "sha256": "aaa4a7acdd91a42d5e7eff8aebc261c032bcbdb45a04b2829c7024982ea66e24"
+      "bytes": 25806,
+      "sha256": "d485e7948a583afc17cf31f2672cda31349c519a07456384f14249fad33a97e2"
     },
     {
       "path": "tests/legacy-evidence-installation-fixture.test.ts",

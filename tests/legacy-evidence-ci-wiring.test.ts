@@ -182,9 +182,11 @@ test('B2 fixed setup wrappers preserve every pinned recipe and pure preflight co
   assert.equal(b2Steps.indexOf(checkout), 2); assert.equal(b2Steps.indexOf(node), 3);
   assert.equal(fixedSetupRecipe('Install locked app dependencies'), 'npm ci');
   assert.equal(fixedSetupRecipe('Install locked browser QA dependencies'), 'npm --prefix scripts/browser-qa ci --ignore-scripts');
-  for (const name of ['Install real browsers', 'Build fixed library for isolated browser comparison', 'Start disposable database and auth']) {
+  for (const name of ['Install real browsers', 'Build fixed library for isolated browser comparison']) {
     assert.equal(fixedSetupRecipe(name), runBody(step(name)));
   }
+  assert.equal(fixedSetupRecipe('Start disposable database and auth'),
+    'SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws ' + runBody(step('Start disposable database and auth')));
   assert.equal(fixedSetupRecipe('Verify pure B2 harness and source wiring'),
     'node --experimental-strip-types --test tests/legacy-evidence-browser-harness.test.ts tests/legacy-evidence-ci-wiring.test.ts');
   const preflight = b2Step('Verify pure B2 harness and source wiring');
@@ -192,6 +194,31 @@ test('B2 fixed setup wrappers preserve every pinned recipe and pure preflight co
   assert.ok(b2Steps.indexOf(preflight) < b2Steps.indexOf(b2Step('Start disposable database and auth')));
   assert.match(b2Workflow, /QA_SOUP_VARIANT: fixed/);
   assert.doesNotMatch(b2Workflow, /(?:run: |^          )(?:npm test|npm run build|node scripts\/qa-playwright\.mjs)|--repeat-each|--retries|--workers|--shard|--no-deps/m);
+});
+
+test('B2 pins only bounded stack startup to the locked CLI supported ECR registry', () => {
+  // v2.117.0 apps/cli/src/command-internal/legacy-docker-registry.ts:
+  // legacyGetRegistryOverride reads this fixed env key; the candidate helper
+  // returns only legacyGetRegistryImageUrl for an explicit nonempty registry.
+  // https://github.com/supabase/cli/blob/v2.117.0/apps/cli/src/command-internal/legacy-docker-registry.ts
+  const prefix = 'SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws';
+  const start = b2Step('Start disposable database and auth');
+  assert.equal(fixedSetupRecipe('Start disposable database and auth'), `${prefix} node scripts/e2e-stack.mjs start`);
+  assert.equal(b2Workflow.split('SUPABASE_INTERNAL_IMAGE_REGISTRY').length, 2);
+  assert.doesNotMatch(b2Workflow.replace(start, ''), /SUPABASE_INTERNAL_IMAGE_REGISTRY/);
+  assert.doesNotMatch(start, /\n        env:|GITHUB_ENV.*SUPABASE|export SUPABASE/);
+  assert.doesNotMatch(workflow, /SUPABASE_INTERNAL_IMAGE_REGISTRY/);
+  assert.doesNotMatch(source('scripts/e2e-stack.mjs'), /SUPABASE_INTERNAL_IMAGE_REGISTRY/);
+  const declared = JSON.parse(source('package.json'));
+  const locked = JSON.parse(source('package-lock.json'));
+  assert.equal(declared.devDependencies.supabase, '2.117.0');
+  assert.equal(locked.packages[''].devDependencies.supabase, '2.117.0');
+  assert.equal(locked.packages['node_modules/supabase'].version, '2.117.0');
+  for (const [path, value] of Object.entries(locked.packages)) {
+    if (path.startsWith('node_modules/@supabase/cli-')) {
+      assert.equal((value as { version: string }).version, '2.117.0', path);
+    }
+  }
 });
 
 test('B2 setup and main runner refuse at the cutoff with TERM plus KILL grace inside it', () => {

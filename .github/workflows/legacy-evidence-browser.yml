@@ -244,7 +244,7 @@ jobs:
           remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
           test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
           timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
-          node scripts/e2e-stack.mjs start
+          SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws node scripts/e2e-stack.mjs start
           B2_FIXED_SETUP
       - name: Validate inactive and disposable enabled browser artifacts
         # The fixed outer backstop also bounds synchronous hashing and finally.
