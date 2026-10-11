@@ -147,6 +147,104 @@ test('Docker discovery requires exact immutable container identity, label, image
   ]) { const invalid = metadata(); mutate(invalid); assert.throws(() => selectDatabaseContainer([invalid], expected), /harness-refused/); }
 });
 
+const identityFailures = [
+  { name: 'id', message: 'database container id mismatch', refusal: 'container_id_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.Id = 'private-invalid-container-id'; },
+    poisonLater(row: ReturnType<typeof metadata>, poison: () => never) {
+      let reads = 0;
+      Object.defineProperty(row, 'Name', { get() { return reads++ === 0 ? '/supabase_db_isolated_stack' : poison(); } });
+    } },
+  { name: 'name', message: 'database container name mismatch', refusal: 'container_name_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.Name = '/supabase_db_private-other-name'; },
+    poisonLater: (row: ReturnType<typeof metadata>, poison: () => never) => { Object.defineProperty(row, 'State', { get: poison }); } },
+  { name: 'running state', message: 'database container running state mismatch', refusal: 'container_running_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.State.Running = false; },
+    poisonLater: (row: ReturnType<typeof metadata>, poison: () => never) => { Object.defineProperty(row, 'Config', { get: poison }); } },
+  { name: 'project label', message: 'database container project label mismatch', refusal: 'container_project_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.Config.Labels['com.supabase.cli.project'] = 'private-other-project'; },
+    poisonLater: (row: ReturnType<typeof metadata>, poison: () => never) => { Object.defineProperty(row.Config, 'Image', { get: poison }); } },
+  { name: 'image reference', message: 'database image reference mismatch', refusal: 'container_image_reference_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.Config.Image = 'private-registry.invalid/private-image:17.6'; },
+    poisonLater: (row: ReturnType<typeof metadata>, poison: () => never) => { Object.defineProperty(row, 'Image', { get: poison }); } },
+  { name: 'image digest', message: 'database image digest mismatch', refusal: 'container_image_digest_mismatch',
+    invalidate: (row: ReturnType<typeof metadata>) => { row.Image = 'private-invalid-image-digest'; },
+    poisonLater: (row: ReturnType<typeof metadata>, poison: () => never) => { Object.defineProperty(row, 'NetworkSettings', { get: poison }); } },
+];
+
+for (const failure of identityFailures) {
+  test(`container identity isolates the ${failure.name} refusal without exposing inspected values`, () => {
+    const row = metadata(); failure.invalidate(row);
+    assert.throws(() => selectDatabaseContainer([row], { projectId: 'isolated_stack', major: '17' }), {
+      name: 'Error', message: `legacy-evidence-harness-refused: ${failure.message}`,
+      code: 'legacy_harness_refused', refusal: failure.refusal,
+    });
+  });
+
+  test(`container identity stops at ${failure.name} before reading later metadata`, () => {
+    const row = metadata(); let reads = 0; failure.invalidate(row);
+    failure.poisonLater(row, () => { reads++; throw new Error('private later metadata must not be inspected'); });
+    assert.throws(() => selectDatabaseContainer([row], { projectId: 'isolated_stack', major: '17' }), {
+      message: `legacy-evidence-harness-refused: ${failure.message}`, refusal: failure.refusal,
+    });
+    assert.equal(reads, 0);
+  });
+}
+
+test('container identity retains the exact frozen successful return for both accepted image references', () => {
+  for (const image of ['public.ecr.aws/supabase/postgres:17.6.1.063', 'supabase/postgres:17.6.1.063']) {
+    const row = metadata(); row.Config.Image = image;
+    const result = selectDatabaseContainer([row], { projectId: 'isolated_stack', major: '17' });
+    assert.deepEqual(result, { id: 'a'.repeat(64), imageDigest: `sha256:${'b'.repeat(64)}`, projectId: 'isolated_stack' });
+    assert.equal(Object.isFrozen(result), true);
+  }
+});
+
+test('container identity refuses plausible GHCR, wrong-major and untrusted image references without expanding the allowlist', () => {
+  for (const image of ['ghcr.io/supabase/postgres:17.6.1.167', 'public.ecr.aws/supabase/postgres:16.6.1.063',
+    'supabase/postgres:16.6.1.063', 'untrusted/postgres:17.6.1.167']) {
+    const row = metadata(); row.Config.Image = image;
+    assert.throws(() => selectDatabaseContainer([row], { projectId: 'isolated_stack', major: '17' }), {
+      message: 'legacy-evidence-harness-refused: database image reference mismatch',
+      code: 'legacy_harness_refused', refusal: 'container_image_reference_mismatch',
+    });
+  }
+});
+
+test('container identity keeps first-failure precedence with multiple invalid fields and the unchanged port guard', () => {
+  const row = metadata(), expected = { projectId: 'isolated_stack', major: '17' };
+  for (const failure of identityFailures) failure.invalidate(row);
+  // A differently named discovery candidate still needs the matching project
+  // label. Once its name is exact, discovery permits an invalid label again.
+  row.Config.Labels['com.supabase.cli.project'] = expected.projectId;
+  row.NetworkSettings.Ports['5432/tcp'][0].HostPort = '5432';
+  const restore = [
+    () => { row.Id = metadata().Id; },
+    () => { row.Name = metadata().Name; identityFailures[3].invalidate(row); },
+    () => { row.State.Running = true; },
+    () => { row.Config.Labels['com.supabase.cli.project'] = expected.projectId; },
+    () => { row.Config.Image = metadata().Config.Image; },
+    () => { row.Image = metadata().Image; },
+  ];
+  identityFailures.forEach((failure, index) => {
+    assert.throws(() => selectDatabaseContainer([row], expected), {
+      message: `legacy-evidence-harness-refused: ${failure.message}`, refusal: failure.refusal,
+    });
+    restore[index]();
+  });
+  assert.throws(() => selectDatabaseContainer([row], expected), {
+    message: 'legacy-evidence-harness-refused: database port metadata mismatch', refusal: 'container_port_mismatch',
+  });
+});
+
+test('container identity retains invalid inspection and ambiguous discovery refusals ahead of metadata validation', () => {
+  const row = metadata(), expected = { projectId: 'isolated_stack', major: '17' };
+  Object.defineProperty(row, 'Id', { get() { throw new Error('discovery must refuse before reading the id'); } });
+  for (const rows of [null, {}]) assert.throws(() => selectDatabaseContainer(rows, expected), { refusal: 'invalid_container_inspection' });
+  for (const rows of [[], [row, row], [{ ...metadata(), Name: '/unrelated', Config: { Labels: {} } }]]) {
+    assert.throws(() => selectDatabaseContainer(rows, expected), { refusal: 'ambiguous_container' });
+  }
+});
+
 test('HTTP origin barrier rejects providers, redirects and credentials before invoking fetch', async () => {
   let requests = 0;
   const transport = loopbackFetch(async (_input: unknown, init: RequestInit) => { requests++; assert.equal(init.redirect, 'error'); return new Response('{}'); });

@@ -91,9 +91,12 @@ export function selectDatabaseContainer(inspections, config) {
   const candidates = inspections.filter(row => row?.Name === expected || (row?.Config?.Labels?.['com.supabase.cli.project'] === config.projectId && /(?:^|\/)supabase_db_/.test(row?.Name ?? '')));
   if (candidates.length !== 1) refuse('missing or ambiguous disposable database container');
   const row = candidates[0];
-  if (!/^[0-9a-f]{64}$/.test(row.Id) || row.Name !== expected || row.State?.Running !== true || row.Config?.Labels?.['com.supabase.cli.project'] !== config.projectId ||
-      !new RegExp(`^(?:public\\.ecr\\.aws/supabase/|supabase/)postgres:${config.major}\\.[A-Za-z0-9._-]+$`).test(row.Config?.Image ?? '') ||
-      !/^sha256:[0-9a-f]{64}$/.test(row.Image ?? '')) refuse('database image or project metadata mismatch');
+  if (!/^[0-9a-f]{64}$/.test(row.Id)) refuse('database container id mismatch');
+  if (row.Name !== expected) refuse('database container name mismatch');
+  if (row.State?.Running !== true) refuse('database container running state mismatch');
+  if (row.Config?.Labels?.['com.supabase.cli.project'] !== config.projectId) refuse('database container project label mismatch');
+  if (!new RegExp(`^(?:public\\.ecr\\.aws/supabase/|supabase/)postgres:${config.major}\\.[A-Za-z0-9._-]+$`).test(row.Config?.Image ?? '')) refuse('database image reference mismatch');
+  if (!/^sha256:[0-9a-f]{64}$/.test(row.Image ?? '')) refuse('database image digest mismatch');
   const ports = row.NetworkSettings?.Ports?.['5432/tcp'];
   if (!Array.isArray(ports) || !ports.length || ports.some(port => port.HostPort !== '54322' || !['127.0.0.1', '::1', '0.0.0.0', '::'].includes(port.HostIp))) refuse('database port metadata mismatch');
   return Object.freeze({ id: row.Id, imageDigest: row.Image, projectId: config.projectId });

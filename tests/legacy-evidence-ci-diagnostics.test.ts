@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
 import { CASES, REFUSALS, EXECUTOR_DEPENDENCIES, AUTH_INSTALLER_CAPABILITIES, DIAGNOSTIC_LINE_LIMIT, DIAGNOSTIC_CHARACTER_LIMIT, createLegacyEvidenceDiagnostics, diagnosticAssert, rememberSqlDenial, safeCode } from '../scripts/legacy-evidence-ci-diagnostics.mjs';
-import { validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
+import { selectDatabaseContainer, validateEnvironment } from '../scripts/qa-legacy-evidence-postgres.mjs';
 
 const capture = () => {
   const lines: string[] = [];
@@ -94,6 +94,74 @@ test('preflight refusal codes cover actual authored paths without reading native
   const failed = entries().at(-1);
   assert.equal(failed.code, 'legacy_harness_refused'); assert.equal(failed.refusal, 'runner_required');
   assert.equal(failed.sources, undefined);
+});
+
+const identityMetadata = () => ({
+  Id: 'c'.repeat(64), Name: '/supabase_db_private-project-sentinel', State: { Running: true },
+  Config: { Labels: { 'com.supabase.cli.project': 'private-project-sentinel' }, Image: 'supabase/postgres:17.private-image-sentinel' },
+  Image: `sha256:${'d'.repeat(64)}`,
+  NetworkSettings: { Ports: { '5432/tcp': [{ HostIp: '127.0.0.1', HostPort: '54322' }] } },
+});
+const identityDiagnosticFailures = [
+  { message: 'database container id mismatch', refusal: 'container_id_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.Id = 'private-invalid-container-id'; } },
+  { message: 'database container name mismatch', refusal: 'container_name_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.Name = '/supabase_db_private-other-name'; } },
+  { message: 'database container running state mismatch', refusal: 'container_running_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.State.Running = false; } },
+  { message: 'database container project label mismatch', refusal: 'container_project_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.Config.Labels['com.supabase.cli.project'] = 'private-other-project'; } },
+  { message: 'database image reference mismatch', refusal: 'container_image_reference_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.Config.Image = 'private-registry.invalid/private-image:17.6'; } },
+  { message: 'database image digest mismatch', refusal: 'container_image_digest_mismatch',
+    invalidate: (row: ReturnType<typeof identityMetadata>) => { row.Image = 'private-invalid-image-digest'; } },
+];
+
+for (const failure of identityDiagnosticFailures) {
+  test(`container identity diagnostics expose only the closed ${failure.refusal} classification`, async () => {
+    const { diagnostics, entries, lines } = capture(), row = identityMetadata(); failure.invalidate(row);
+    const secret = 'private-error-metadata; token=secret; person@example.invalid';
+    const raw = [row.Id, row.Name, row.Config.Labels['com.supabase.cli.project'], row.Config.Image, row.Image, secret];
+    let original: unknown, reads = 0;
+    await assert.rejects(diagnostics.run('preflight', 'container_identity', () => {
+      try { selectDatabaseContainer([row], { projectId: 'private-project-sentinel', major: '17' }); }
+      catch (error) {
+        original = error; assert.ok(error instanceof Error);
+        assert.equal(error.message, `legacy-evidence-harness-refused: ${failure.message}`);
+        for (const value of raw) assert.equal(error.message.includes(value), false);
+        Object.assign(error, { stdout: secret, stderr: secret, inspection: row, headers: { Authorization: secret } });
+        Object.defineProperties(error, Object.fromEntries(['stack', 'cause', 'toJSON'].map(key => [key, {
+          configurable: true, get() { reads++; throw new Error('private accessor must never be inspected'); },
+        }])));
+        throw error;
+      }
+      assert.fail('invalid identity must refuse');
+    }), error => error === original);
+    diagnostics.failed(original);
+    assert.deepEqual(entries(), [
+      { phase: 'preflight', checkpoint: 'container_identity', status: 'running' },
+      { phase: 'preflight', checkpoint: 'container_identity', status: 'failed', code: 'legacy_harness_refused', refusal: failure.refusal },
+    ]);
+    for (const value of [...raw, 'stdout', 'stderr', 'inspection', 'Authorization']) assert.equal(lines.join('\n').includes(value), false);
+    assert.equal(reads, 0);
+    assert.ok(lines.every(line => line.length <= DIAGNOSTIC_CHARACTER_LIMIT));
+
+    const broken = createLegacyEvidenceDiagnostics(() => { throw new Error(secret); });
+    await assert.rejects(broken.run('preflight', 'container_identity', () => { throw original; }), error => error === original);
+    assert.equal(reads, 0);
+  });
+}
+
+test('container identity diagnostics retain the original generic refusal classification for compatibility', () => {
+  assert.equal(REFUSALS['database image or project metadata mismatch'], 'container_identity_mismatch');
+  const { diagnostics, entries } = capture();
+  diagnostics.start('preflight', 'container_identity');
+  diagnostics.failed(Object.assign(new Error('private legacy identity payload'), {
+    code: 'legacy_harness_refused', refusal: 'container_identity_mismatch',
+  }));
+  assert.deepEqual(entries().at(-1), {
+    phase: 'preflight', checkpoint: 'container_identity', status: 'failed', code: 'legacy_harness_refused', refusal: 'container_identity_mismatch',
+  });
 });
 
 test('console line count, source frame count and line lengths remain bounded', () => {
