@@ -131,7 +131,7 @@
     "app/diet/settings/page.tsx": "4338f9f9b2af4a1e21794f40a62b32aaab58aea7d6a95a6ccd19a2c705f07055",
     "app/fitness/page.tsx": "7b40d584e271cde2a5b46125586ba76c59d7c364fd8f8070a4ce89cfde21561f",
     "app/fitness/settings/page.tsx": "33edd59b98c4e1b6789508a66adeedb2314465f02ae4c59342ce045b08a78153",
-    "app/growth/handwriting/compare/page.tsx": "fce725e074036f6e8c3251621705687ffad6ff1d628bd68fcbfee2ec1cb5b44c",
+    "app/growth/handwriting/compare/page.tsx": "da8f3cec3923a22df855e65ff457b92bc6a51f7ba1f92c95d0f215994f0e5893",
     "app/growth/handwriting/compare/useSavedHandwritingComparison.ts": "830fb8b51a4464a4afa6132f3233246da3c8bff42fc88226f901e06783328f13",
     "app/growth/handwriting/free/page.tsx": "cffe17b7f660fda0450bb7b2bb1e1b03aa5f65aa02e598d949b2f09102e96b54",
     "app/growth/handwriting/page.tsx": "0399774bf7b5c185fb929d5a3b910f9ad153c1b98bc6fc5d367681794462cde3",

@@ -398,6 +398,11 @@ test('native comparison zoom retains its DOM while exact-ready recheck releases 
   const dialog = page.getByRole('dialog', { name: '기준 기록 크게 보기', exact: true }); await expect(dialog).toBeVisible();
   const node = await dialog.elementHandle(); expect(node).not.toBeNull();
   expect(await node!.evaluate(element => (element as HTMLDialogElement).open && element.matches(':modal'))).toBe(true);
+  const close = dialog.getByRole('button', { name: '닫기', exact: true }); await expect(close).toBeFocused();
+  for (const key of ['Tab', 'Shift+Tab']) {
+    await page.keyboard.press(key); await expect(close).toBeFocused();
+    expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  }
   const before = await snapshot(qa.account), traffic = audit(page, before.state), hold = await holdFreshOwnerVerification(page, qa.account.id);
   try {
     await triggerOwnerRecheck(page); await hold.arrived();
@@ -415,7 +420,13 @@ test('native comparison zoom retains its DOM while exact-ready recheck releases 
     // React user-close path or destroy the resumed native dialog.
     await node!.evaluate(element => element.dispatchEvent(new Event('close'))); await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('img')).toHaveJSProperty('naturalWidth', saved.width);
+    await expect(close).toBeFocused();
     await page.keyboard.press('Tab'); expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    await expect(close).toBeFocused();
+    for (const key of ['Shift+Tab', 'Tab', 'Shift+Tab']) {
+      await page.keyboard.press(key); await expect(close).toBeFocused();
+      expect(await dialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+    }
     await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(zoom).toBeFocused();
     expect(await node!.evaluate(element => element.isConnected)).toBe(false);
     traffic.assertReadOnly(); expect(await snapshot(qa.account)).toEqual(before);

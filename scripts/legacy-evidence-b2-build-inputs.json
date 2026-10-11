@@ -19,8 +19,8 @@
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
   "fileCount": 1517,
-  "byteCount": 71221275,
-  "digest": "34199d9dea53abcb370cde73c032444ce5df13ac18e7457cb497fd846f7a13ff",
+  "byteCount": 71230340,
+  "digest": "e71737870daf564c243f934593c11512c55f45fa4d79d5f60b5dd8cf3c7428dd",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -1903,8 +1903,8 @@
     {
       "path": "app/growth/handwriting/compare/page.tsx",
       "mode": 33188,
-      "bytes": 19425,
-      "sha256": "fce725e074036f6e8c3251621705687ffad6ff1d628bd68fcbfee2ec1cb5b44c"
+      "bytes": 20600,
+      "sha256": "da8f3cec3923a22df855e65ff457b92bc6a51f7ba1f92c95d0f215994f0e5893"
     },
     {
       "path": "app/growth/handwriting/compare/useSavedHandwritingComparison.ts",
@@ -8221,8 +8221,8 @@
     {
       "path": "tests/e2e/handwriting-comparison.spec.ts",
       "mode": 33188,
-      "bytes": 41226,
-      "sha256": "220c9eb52ecab9589d2d18865ab591dc1e55717feabe2f505b4f93c81d8c75c7"
+      "bytes": 41873,
+      "sha256": "35fd35d7b2b464c317ace31c5e302073cdc7daefa8ca7d5e6fb44c71277cee14"
     },
     {
       "path": "tests/e2e/handwriting-course.spec.ts",
@@ -8551,8 +8551,8 @@
     {
       "path": "tests/handwriting-image-dialog-lifecycle.test.ts",
       "mode": 33188,
-      "bytes": 8611,
-      "sha256": "87efd65eb1b090e0a9334d1aeb0b57d6d0706ac3b7dc4933982669dbb277e85b"
+      "bytes": 15854,
+      "sha256": "9d02944acafa863f095f0421b7f47987b515abaaf7977283ed6dd73762d8a987"
     },
     {
       "path": "tests/handwriting-materials-hook.test.ts",
@@ -8612,7 +8612,7 @@
       "path": "tests/helpers/languageStorageCapabilities.json",
       "mode": 33188,
       "bytes": 17392,
-      "sha256": "68c281bf4c85251c80b0944ae048db7fcfe5eb759de45d4ae633d534bcbe380e"
+      "sha256": "06de89dc64c9c3a6b2e2935ba1d1dfa5c1835f267a537e96f12584acf7b68d92"
     },
     {
       "path": "tests/helpers/languageWriterFixture.ts",

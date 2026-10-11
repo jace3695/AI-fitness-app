@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { flushSync } from 'react-dom';
 import AppIdentity from '@/app/components/AppIdentity';
 import { getLocalDateKey } from '@/utils/dateKey';
@@ -114,6 +114,7 @@ function ComparisonImagePane({ pane, index, title, reader, onZoom }: { pane: Com
 }
 function ImageDialog({ pane, title, onClose, onError }: { pane: ComparisonPane; title: string; onClose: () => void; onError: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const lease = useAuthenticatedStorageOwner();
   const original = useRef({ owner: pane.attempt?.owner, epoch: lease?.epoch });
   const currentLease = useRef(lease);
@@ -124,6 +125,20 @@ function ImageDialog({ pane, title, onClose, onError }: { pane: ComparisonPane; 
       assertAuthenticatedStorageOwner(owner); return true;
     } catch { return false; }
   }, []);
+  const retainTabFocus = (event: ReactKeyboardEvent<HTMLDialogElement>) => {
+    if (event.key !== 'Tab' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    // Checking freshness can synchronously revoke the lease and close the modal.
+    if (!canPresent(currentLease.current)) return;
+    const dialog = ref.current, target = closeRef.current;
+    const available = (element: HTMLElement) => element.isConnected && element.getClientRects().length > 0
+      && !element.closest('[hidden], [inert], [aria-hidden="true"]')
+      && !['hidden', 'collapse'].includes(getComputedStyle(element).visibility);
+    if (!dialog?.open || !dialog.matches(':modal') || !available(dialog)
+      || !target || !dialog.contains(target) || target.disabled || target.tabIndex < 0 || !available(target)) return;
+    // Close is this image-only dialog's sole tabbable control. Native modality
+    // makes the background inert but does not itself wrap the in-dialog cycle.
+    event.preventDefault(); target.focus();
+  };
   useLayoutEffect(() => { currentLease.current = lease; }, [lease]);
   useLayoutEffect(() => {
     prior.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -151,5 +166,5 @@ function ImageDialog({ pane, title, onClose, onError }: { pane: ComparisonPane; 
     // Fresh registered context is the only reopening wake. Programmatic close
     // has no onClose state callback, so the same native node/image survives.
   }, [lease, canPresent]);
-  return <dialog ref={ref} aria-label={`${title} 크게 보기`} onCancel={event => { event.preventDefault(); onClose(); }} className="max-h-[95dvh] w-[96vw] max-w-6xl overflow-auto rounded-2xl p-3 backdrop:bg-black/60"><div className="sticky top-0 flex items-center justify-between gap-2 bg-white pb-3"><h2 className="font-bold">{title} · 전체 원본</h2><button autoFocus className={buttonClass} onClick={onClose}>닫기</button></div><Image unoptimized src={pane.url} width={pane.width} height={pane.height} alt={`${title} 저장한 연습장 전체 이미지`} className="h-auto w-full object-contain" onError={onError} /><p className="mt-2 text-xs">{pane.width} × {pane.height}픽셀. 확대는 보기만 바꾸며 원본은 편집하지 않아요.</p></dialog>;
+  return <dialog ref={ref} aria-label={`${title} 크게 보기`} onKeyDown={retainTabFocus} onCancel={event => { event.preventDefault(); onClose(); }} className="max-h-[95dvh] w-[96vw] max-w-6xl overflow-auto rounded-2xl p-3 backdrop:bg-black/60"><div className="sticky top-0 flex items-center justify-between gap-2 bg-white pb-3"><h2 className="font-bold">{title} · 전체 원본</h2><button ref={closeRef} autoFocus className={buttonClass} onClick={onClose}>닫기</button></div><Image unoptimized src={pane.url} width={pane.width} height={pane.height} alt={`${title} 저장한 연습장 전체 이미지`} className="h-auto w-full object-contain" onError={onError} /><p className="mt-2 text-xs">{pane.width} × {pane.height}픽셀. 확대는 보기만 바꾸며 원본은 편집하지 않아요.</p></dialog>;
 }
