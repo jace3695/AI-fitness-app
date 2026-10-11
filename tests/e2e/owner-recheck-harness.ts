@@ -84,13 +84,20 @@ export async function assertRecheckBytesUnchanged(page: Page) {
   expect(await page.evaluate(() => (window as unknown as Window & { ownerRecheckFixture: BrowserProbe }).ownerRecheckFixture.unchanged())).toBe(true);
 }
 
-/** Hold delivery of one genuine successful owner verification, never its body. */
+/** Hold delivery of one genuine successful owner verification, never its body.
+ * Requires the qa fixture's shared context interceptor to remain installed.
+ * Keeping both handlers at context scope lets close remove only this helper
+ * without retiring a page interceptor that still owns a pending dispatch. */
 export async function holdFreshOwnerVerification(page: Page, ownerId: string) {
   let received = false, armed = true, release!: () => void;
   const wait = new Promise<void>(resolve => { release = resolve; }), drain = new RouteDrain();
+  const context = page.context();
   const pattern = 'http://127.0.0.1:54321/auth/v1/user';
   const route = (intercept: Route) => drain.run(async () => {
-    if (!armed || intercept.request().method() !== 'GET') { await intercept.continue(); return; }
+    const request = intercept.request();
+    let samePage = false;
+    try { samePage = request.frame().page() === page; } catch { /* Service-worker requests may have no frame. */ }
+    if (!samePage || !armed || request.method() !== 'GET') { await intercept.fallback(); return; }
     armed = false;
     const response = await intercept.fetch({ maxRetries: 0 });
     const body = await response.json();
@@ -98,7 +105,7 @@ export async function holdFreshOwnerVerification(page: Page, ownerId: string) {
     expect(body?.id === ownerId, 'Real fixture authentication kept the exact owner').toBe(true);
     received = true; await wait; await intercept.fulfill({ response });
   });
-  await page.route(pattern, route);
+  await context.route(pattern, route);
   return { arrived: () => expect.poll(() => received).toBe(true), release: () => release(),
-    async close() { release(); await drain.wait(); await page.unroute(pattern, route); } };
+    async close() { release(); await drain.wait(); await context.unroute(pattern, route); } };
 }

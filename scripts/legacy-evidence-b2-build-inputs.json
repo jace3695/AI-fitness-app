@@ -18,9 +18,9 @@
     "tests/legacy-evidence-ci-harness.test.ts",
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
-  "fileCount": 1519,
-  "byteCount": 71345185,
-  "digest": "dee20ba33ea1fa895ca7c85787d6e4e1b73a3b18ffc4bc42efd96c298d466825",
+  "fileCount": 1520,
+  "byteCount": 71362438,
+  "digest": "64633bfd8eaece565bf1c8d226222d7da2a580f89551b12c5f249fcf20691fe6",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -8299,8 +8299,8 @@
     {
       "path": "tests/e2e/owner-recheck-harness.ts",
       "mode": 33188,
-      "bytes": 7207,
-      "sha256": "49965b6597984b9ec0b017c895e50d7fa1d4531a717cc4eca14b3f78f1598f57"
+      "bytes": 7659,
+      "sha256": "90296127b7304602a1b6836deaaea534979eba9dd47cbd2e9857413ac77037a4"
     },
     {
       "path": "tests/e2e/owner-switch-diagnostics.ts",
@@ -8907,6 +8907,12 @@
       "mode": 33188,
       "bytes": 18454,
       "sha256": "9b8593e75a4558995d4c7c519f0e05913a22d398e3328b24ec0fd7f77fa9ed5b"
+    },
+    {
+      "path": "tests/owner-recheck-route-lifecycle.test.ts",
+      "mode": 33188,
+      "bytes": 16801,
+      "sha256": "2fb58c2688baffb0439d882a206d5cacac858cac1525254cca5d000541471c04"
     },
     {
       "path": "tests/owner-switch-diagnostics.test.ts",
