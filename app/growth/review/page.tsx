@@ -5,7 +5,10 @@ import AppCompanion from "@/components/AppCompanion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AppIdentity from "../../components/AppIdentity";
-import type { GrowthAiReviewRow } from "../../data/growthPlatform";
+import { getLocalDateKey } from "@/utils/dateKey";
+import { growthSuggestionCanApply } from "../../data/growthRoutineProgression";
+import { periodStart } from "../../data/growthPlatform";
+import type { GrowthRoutineRow, GrowthSessionRow, GrowthAiReviewRow } from "../../data/growthPlatform";
 import { includesRetiredGrowthContent, isRetiredGrowthRoutine } from "../../data/growthRoutines";
 import { supabase } from "../../lib/supabase";
 import { useGrowthData } from "../useGrowthData";
@@ -28,11 +31,18 @@ export default function GrowthReviewPage() {
   const [deciding, setDeciding] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const latest = reviews[0] ?? null;
+  const today = getLocalDateKey();
+  const selectedValid = Boolean(selected.length && growth.dataReady && latest && selected.every(id => {
+    const suggestion = latest.suggestions.find(item => item.id === id);
+    return suggestion && growthSuggestionCanApply(suggestion, growth.routines.find(item => item.id === suggestion.routineId), growth.sessions, today);
+  }));
 
   const load = useCallback(async () => {
     if (!supabase || !growthUser) return;
     setLoading(true);
     const result = await supabase.from("growth_ai_reviews").select("*").eq("user_id", growthUser.id).order("created_at", { ascending: false }).limit(8);
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || auth.user?.id !== growthUser.id) { setReviews([]); setSelected([]); setLoading(false); return; }
     if (result.error) setGrowthNotice("지난 코칭을 불러오지 못했어요.");
     else setReviews(((result.data ?? []) as GrowthAiReviewRow[]).filter((review) => !includesRetiredGrowthContent({ summary: review.summary, suggestions: review.suggestions })));
     setLoading(false);
@@ -51,6 +61,11 @@ export default function GrowthReviewPage() {
       const response = await fetch("/api/growth/coach", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ force }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "코칭을 만들지 못했습니다.");
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || auth.user?.id !== growth.user?.id || payload.review?.user_id !== growth.user?.id) {
+        setReviews([]); setSelected([]);
+        throw new Error("계정이 변경되어 코칭을 표시하지 않았어요. 현재 계정에서 다시 확인해 주세요.");
+      }
       setReviews((current) => [payload.review as GrowthAiReviewRow, ...current.filter((review) => review.id !== payload.review.id)]);
       setSelected([]);
       growth.setNotice(payload.reused ? "오늘 만든 코칭을 다시 보여드려요. 추가 비용은 들지 않았습니다." : "새 주간 코칭을 저장했어요. 아직 어떤 제안도 적용하지 않았습니다.");
@@ -65,15 +80,48 @@ export default function GrowthReviewPage() {
     setDeciding(true);
     growth.setNotice('');
     try {
+      const ownerId = growth.user.id;
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || auth.user?.id !== ownerId || latest.user_id !== ownerId) throw new Error('계정이 변경되었어요. 다시 로그인해 최신 코칭을 확인해 주세요.');
+      if (decision !== 'kept') {
+        if (!selectedValid) throw new Error('제안의 근거나 현재 목표가 달라졌어요. 새로 분석한 뒤 확인해 주세요.');
+        // Check current records before the existing atomic decision RPC. A deleted or changed
+        // feedback record cannot be silently replaced by an old page snapshot.
+        const [routineResult, sessionResult] = await Promise.all([
+          supabase.from('growth_routines').select('*').eq('user_id', ownerId),
+          supabase.from('growth_sessions').select('*').eq('user_id', ownerId).gte('session_date', periodStart(today, 14)),
+        ]);
+        if (routineResult.error || sessionResult.error) throw new Error('최신 근거를 확인하지 못했어요. 루틴은 변경하지 않았습니다.');
+        if (selected.some(id => {
+          const suggestion = latest.suggestions.find(item => item.id === id)!;
+          return !growthSuggestionCanApply(suggestion, (routineResult.data as GrowthRoutineRow[]).find(item => item.id === suggestion.routineId), sessionResult.data as GrowthSessionRow[], today);
+        })) throw new Error('제안의 근거나 현재 목표가 달라졌어요. 새로 분석한 뒤 확인해 주세요.');
+      }
       const { data, error } = await supabase.rpc('decide_growth_review', {
         p_review_id: latest.id,
         p_selection: decision === 'kept' ? [] : selected,
         p_expected_routines: Object.fromEntries(growth.routines.map(routine => [routine.id, routine.updated_at])),
       });
       if (error) throw error;
-      setReviews(current => current.map(review => review.id === latest.id ? data as GrowthAiReviewRow : review));
+      if (!data || data.id !== latest.id || data.user_id !== ownerId) throw new Error('저장 응답을 확인하지 못했어요. 최신 코칭을 다시 확인해 주세요.');
+      const [readback, targets, currentAuth] = await Promise.all([
+        supabase.from('growth_ai_reviews').select('*').eq('id', latest.id).eq('user_id', ownerId).single(),
+        supabase.from('growth_routines').select('*').eq('user_id', ownerId),
+        supabase.auth.getUser(),
+      ]);
+      const expectedSelection = decision === 'kept' ? [] : selected;
+      if (currentAuth.error || currentAuth.data.user?.id !== ownerId) {
+        setReviews([]); setSelected([]);
+        throw new Error('계정이 변경되어 저장 결과를 확인하지 못했어요. 원래 계정에서 다시 확인해 주세요.');
+      }
+      if (readback.error || targets.error || !readback.data?.decision
+        || JSON.stringify([...readback.data.decision_selection].sort()) !== JSON.stringify([...expectedSelection].sort())
+        || latest.suggestions.filter(item => expectedSelection.includes(item.id)).some(item => !targets.data?.some(row => row.id === item.routineId && row.target_minutes === item.recommendedMinutes))) {
+        throw new Error('결정 요청 후 저장 결과를 재확인하지 못했어요. 다시 불러와 확인해 주세요.');
+      }
+      setReviews(current => current.map(review => review.id === latest.id ? readback.data as GrowthAiReviewRow : review));
       await growth.refresh();
-      growth.setNotice(decision === 'kept' ? '현재 루틴을 유지하기로 저장했어요.' : '선택한 제안과 적용 이력을 함께 저장했어요.');
+      growth.setNotice(decision === 'kept' ? '현재 루틴 유지 결정을 다시 조회해 확인했어요.' : '선택한 목표와 적용 이력을 다시 조회해 확인했어요.');
     } catch (error) {
       await growth.refresh();
       await load();
@@ -85,7 +133,7 @@ export default function GrowthReviewPage() {
     <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="growth" title="주간 성장 코칭" subtitle="기록을 보고 제안만 만드는 연이" /><Link href="/growth" className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">자기계발 홈</Link></div></header>
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-9">
       <AppCompanion compact quiet>쌓인 기록을 함께 돌아보고, 다음 주에 할 작은 목표를 골라봐요.</AppCompanion>
-      <section className="rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-lg sm:p-8"><p className="text-sm font-bold text-white/70">기록을 계산하는 무료 주간 코칭</p><h1 className="mt-2 text-3xl font-bold">이번 주 기록을 살펴보고,<br />다음 주 목표를 조정해요.</h1><p className="mt-3 text-sm leading-6 text-white/75">최근 루틴별 횟수·시간·완료 상태와 선택한 중단 이유를 집계합니다. 유료 AI 요청 없이 결과를 확인할 수 있어요.</p><div className="mt-5 flex flex-wrap gap-2"><button disabled={generating || deciding || growth.loading} onClick={() => void generate(false)} className="min-h-12 rounded-xl bg-white px-5 text-sm font-bold text-[#5146A6] disabled:opacity-50">{generating ? "코칭 만드는 중…" : latest ? "오늘 코칭 보기" : "주간 코칭 만들기"}</button>{latest && <button disabled={generating || deciding} onClick={() => void generate(true)} className="min-h-12 rounded-xl bg-white/10 px-5 text-sm font-bold ring-1 ring-white/30">새로 분석</button>}</div></section>
+      <section className="rounded-[30px] bg-gradient-to-br from-[#5146A6] to-[#766DCE] p-6 text-white shadow-lg sm:p-8"><p className="text-sm font-bold text-white/70">기록을 계산하는 무료 주간 코칭</p><h1 className="mt-2 text-3xl font-bold">이번 주 기록을 살펴보고,<br />다음 주 목표를 조정해요.</h1><p className="mt-3 text-sm leading-6 text-white/75">최근 루틴별 횟수·시간·완료 상태와 선택한 중단 이유·난이도를 집계합니다. 유료 AI 요청 없이 결과를 확인할 수 있어요.</p><div className="mt-5 flex flex-wrap gap-2"><button disabled={generating || deciding || growth.loading} onClick={() => void generate(false)} className="min-h-12 rounded-xl bg-white px-5 text-sm font-bold text-[#5146A6] disabled:opacity-50">{generating ? "코칭 만드는 중…" : latest ? "오늘 코칭 보기" : "주간 코칭 만들기"}</button>{latest && <button disabled={generating || deciding} onClick={() => void generate(true)} className="min-h-12 rounded-xl bg-white/10 px-5 text-sm font-bold ring-1 ring-white/30">새로 분석</button>}</div></section>
 
       <GrowthPatterns routines={growth.routines} sessions={growth.sessions} workoutRecords={growth.workoutRecords} ready={growth.dataReady} loading={growth.loading} onRefresh={growth.refresh} />
       {growth.notice && <p role="status" className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{growth.notice}</p>}
@@ -93,8 +141,9 @@ export default function GrowthReviewPage() {
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold text-violet-600">{latest.period_start} ~ {latest.period_end}</p><h2 className="mt-1 text-2xl font-bold">이번 주 요약</h2></div><span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{sourceLabel(latest.source)}</span></div><p className="mt-5 rounded-2xl bg-[#F7F6FF] p-4 text-sm leading-7 text-gray-700">{latest.summary.overview || "기록을 더 모으면 요약이 나타납니다."}</p><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-2xl bg-emerald-50 p-4"><h3 className="font-bold text-emerald-800">잘 이어간 점</h3><ul className="mt-2 space-y-1 text-sm leading-6 text-emerald-950">{latest.summary.positives?.length ? latest.summary.positives.map((item) => <li key={item}>• {item}</li>) : <li>• 첫 기록부터 차근차근 모아보세요.</li>}</ul></div><div className="rounded-2xl bg-amber-50 p-4"><h3 className="font-bold text-amber-800">주의할 점</h3><ul className="mt-2 space-y-1 text-sm leading-6 text-amber-950">{latest.summary.cautions?.length ? latest.summary.cautions.map((item) => <li key={item}>• {item}</li>) : <li>• 무리하게 시간을 늘리지 않아도 됩니다.</li>}</ul></div></div></section>
 
         {latest.summary.nextWeek?.length ? <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm" aria-label="다음 주 참고"><h2 className="text-lg font-bold">다음 주 참고</h2><ul className="mt-3 space-y-2 text-sm leading-6 text-gray-600">{latest.summary.nextWeek.map((item, index) => <li key={index}>{item}</li>)}</ul></section> : null}
-        <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6"><p className="text-xs font-bold text-violet-600">사용자 확인 필수</p><h2 className="mt-1 text-xl font-bold">적용할 제안만 고르세요</h2><p className="mt-2 text-sm text-gray-500">버튼을 누르기 전에는 루틴이 바뀌지 않습니다.</p><div className="mt-4 space-y-3">{latest.suggestions.length ? latest.suggestions.map((suggestion) => { const routine = growth.routines.find((item) => item.id === suggestion.routineId && !isRetiredGrowthRoutine(item)); const checked = selected.includes(suggestion.id); return <label key={suggestion.id} className={`flex cursor-pointer gap-3 rounded-2xl border p-4 ${checked ? "border-violet-400 bg-violet-50" : "border-gray-100"}`}><input type="checkbox" disabled={deciding || generating || Boolean(latest.decision) || !routine || !suggestion.recommendedMinutes} checked={checked} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== suggestion.id) : [...current, suggestion.id])} className="mt-1 h-5 w-5 accent-violet-600" /><span><strong className="block">{suggestion.title}</strong><span className="mt-1 block text-sm leading-6 text-gray-600">{suggestion.reason}</span>{routine && suggestion.recommendedMinutes && <span className="mt-2 block text-xs font-bold text-violet-700">{routine.title}: {routine.target_minutes}분 → {suggestion.recommendedMinutes}분</span>}</span></label>; }) : <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">지금 바꿀 제안이 없습니다. 현재 루틴을 유지해도 좋아요.</p>}</div>{latest.decision ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">결정 저장됨: {latest.decision === "kept" ? "현재 유지" : "선택 제안 적용"}</p> : <div className="mt-5 grid grid-cols-2 gap-3"><button disabled={deciding || generating} onClick={() => void saveDecision("kept")} className="min-h-12 rounded-xl bg-gray-100 text-sm font-bold text-gray-700">현재 루틴 유지</button><button disabled={deciding || generating || !selected.length} onClick={() => void saveDecision(selected.length === latest.suggestions.length ? "applied" : "partial")} className="min-h-12 rounded-xl bg-violet-600 text-sm font-bold text-white disabled:bg-gray-300">{deciding ? "저장 확인 중…" : "선택한 제안 적용"}</button></div>}</section>
+        <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6"><p className="text-xs font-bold text-violet-600">사용자 확인 필수</p><h2 className="mt-1 text-xl font-bold">적용할 제안만 고르세요</h2><p className="mt-2 text-sm text-gray-500">버튼을 누르기 전에는 루틴이 바뀌지 않습니다. 다음 단계는 최근 14일 중 3일 이상 현재 목표를 완료하고 너무 쉬웠다고 응답했을 때 최대 5분을 더해 보는 앱 규칙입니다. 적정 학습량이나 운동 강도를 판정하지 않습니다.</p><div className="mt-4 space-y-3">{latest.suggestions.length ? latest.suggestions.map((suggestion) => { const routine = growth.routines.find((item) => item.id === suggestion.routineId && !isRetiredGrowthRoutine(item)); const checked = selected.includes(suggestion.id); const canApply = growth.dataReady && growthSuggestionCanApply(suggestion, routine, growth.sessions, today); return <label key={suggestion.id} className={`flex cursor-pointer gap-3 rounded-2xl border p-4 ${checked ? "border-violet-400 bg-violet-50" : "border-gray-100"}`}><input type="checkbox" disabled={deciding || generating || Boolean(latest.decision) || !canApply} checked={checked} onChange={() => setSelected((current) => checked ? current.filter((id) => id !== suggestion.id) : [...current, suggestion.id])} className="mt-1 h-5 w-5 accent-violet-600" /><span><strong className="block">{suggestion.title}</strong><span className="mt-1 block text-sm leading-6 text-gray-600">{suggestion.reason}</span>{routine && suggestion.recommendedMinutes && <span className="mt-2 block text-xs font-bold text-violet-700">{routine.title}: {suggestion.progression?.targetMinutes ?? routine.target_minutes}분 → {suggestion.recommendedMinutes}분</span>}{suggestion.progression && <span className="mt-2 block text-xs leading-5 text-gray-600">쉬움 응답 날짜: {suggestion.progression.dates.join(" · ")}</span>}{!latest.decision && !canApply && <span className="mt-2 block text-xs text-amber-700">최신 기록과 목표를 확인할 때까지 적용할 수 없어요. 새로 분석해 주세요.</span>}</span></label>; }) : <p className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">지금 바꿀 제안이 없습니다. 현재 루틴을 유지해도 좋아요.</p>}</div>{latest.decision ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">결정 저장됨: {latest.decision === "kept" ? "현재 유지" : "선택 제안 적용"}</p> : <div className="mt-5 grid grid-cols-2 gap-3"><button disabled={deciding || generating} onClick={() => void saveDecision("kept")} className="min-h-12 rounded-xl bg-gray-100 text-sm font-bold text-gray-700">현재 루틴 유지</button><button disabled={deciding || generating || !selectedValid} onClick={() => void saveDecision(selected.length === latest.suggestions.length ? "applied" : "partial")} className="min-h-12 rounded-xl bg-violet-600 text-sm font-bold text-white disabled:bg-gray-300">{deciding ? "저장 확인 중…" : "선택한 제안 적용"}</button></div>}</section>
       </> : <section className="mt-5 rounded-[28px] bg-white p-8 text-center shadow-sm"><p className="text-4xl">🌱</p><h2 className="mt-3 text-xl font-bold">아직 만든 코칭이 없습니다</h2><p className="mt-2 text-sm text-gray-500">위 버튼을 누르면 최근 기록으로 첫 코칭을 만들어요.</p></section>}
+      {reviews.length > 1 && <details className="mt-5 rounded-[28px] bg-white p-5 shadow-sm" aria-label="지난 코칭 결정 이력"><summary className="min-h-11 cursor-pointer font-bold">지난 코칭 결정 이력</summary><div className="mt-3 space-y-3">{reviews.slice(1).map(review => <article key={review.id} className="rounded-2xl bg-gray-50 p-4 text-sm"><p className="font-bold">{review.period_end} · {review.decision === "kept" ? "현재 유지" : review.decision ? "선택 제안 적용" : "미결정"}</p>{review.suggestions.map(suggestion => <p key={suggestion.id} className="mt-2 leading-6">{suggestion.title}{suggestion.progression ? ` · ${suggestion.progression.targetMinutes}분 → ${suggestion.recommendedMinutes}분 · 근거 ${suggestion.progression.dates.join(" · ")}` : ""}{review.decision_selection.includes(suggestion.id) ? " · 적용" : " · 미적용"}</p>)}</article>)}</div></details>}
     </div>
   </main>;
 }

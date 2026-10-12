@@ -24,7 +24,7 @@ interface DailyWorkoutEditorProps {
   recommendedGroupId: string;
   recommendationReason: string;
   settings: UserWorkoutSettings;
-  onChange: (settings: UserWorkoutSettings) => void;
+  onChange: (settings: UserWorkoutSettings) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -50,7 +50,7 @@ export default function DailyWorkoutEditor({
   recommendedGroupId,
   recommendationReason,
   settings,
-  onChange,
+  onChange: persistSettings,
   onClose,
 }: DailyWorkoutEditorProps) {
   const [scope, setScope] = useState<EditScope>("date");
@@ -95,6 +95,10 @@ export default function DailyWorkoutEditor({
     (item) => item.type !== "choice" || dayId === "sat",
   );
 
+  const onChange = async (next: UserWorkoutSettings) => {
+    try { await persistSettings(next); setNotice('변경한 운동 설정을 저장했어요.'); return true; }
+    catch (error) { setNotice(error instanceof Error ? error.message : '저장하지 못했어요. 입력을 보존했습니다.'); return false; }
+  };
   const clearCurrentDateRoutine = () => {
     const dateOverrides = { ...settings.dateOverrides };
     if (dateOverride?.method) {
@@ -108,14 +112,14 @@ export default function DailyWorkoutEditor({
   const updateEdit = (edit: DayRoutineEdit) => {
     setNotice("");
     if (scope === "weekly") {
-      onChange({
+      return onChange({
         ...settings,
         weeklyEdits: { ...settings.weeklyEdits, [dayId]: edit },
         dateOverrides: clearCurrentDateRoutine(),
       });
       return;
     }
-    onChange({
+    return onChange({
       ...settings,
       dateOverrides: {
         ...settings.dateOverrides,
@@ -125,7 +129,7 @@ export default function DailyWorkoutEditor({
   };
 
   const changeGroup = (nextGroupId: string) => {
-    setNotice("기본 루틴을 바꿨어요. 이제 필요한 운동만 빼거나 더하세요.");
+
     if (scope === "weekly") {
       onChange({
         ...settings,
@@ -145,7 +149,7 @@ export default function DailyWorkoutEditor({
   };
 
   const resetChanges = () => {
-    setNotice("기본 운동표로 돌아왔어요.");
+
     if (scope === "weekly") {
       const weeklyGroups = { ...settings.weeklyGroups };
       const weeklyEdits = { ...settings.weeklyEdits };
@@ -188,13 +192,13 @@ export default function DailyWorkoutEditor({
   };
 
   const restoreExercise = (exerciseId: string) => {
-    updateEdit({
+    return updateEdit({
       ...currentEdit,
       removed: (currentEdit.removed || []).filter((id) => id !== exerciseId),
     });
   };
 
-  const addExercise = (candidate?: WorkoutGroupExercise) => {
+  const addExercise = async (candidate?: WorkoutGroupExercise) => {
     const name = candidate?.name || newExerciseName.trim();
     if (!name) return;
 
@@ -202,9 +206,7 @@ export default function DailyWorkoutEditor({
       (exercise) => exercise.name === name && removedIds.has(exercise.exerciseId),
     );
     if (removedBase) {
-      restoreExercise(removedBase.exerciseId);
-      setNewExerciseName("");
-      setNotice(`${name}을(를) 다시 넣었어요.`);
+      if (await restoreExercise(removedBase.exerciseId)) setNewExerciseName(current => current.trim() === name ? "" : current);
       return;
     }
 
@@ -216,7 +218,7 @@ export default function DailyWorkoutEditor({
     const customExercise = candidate
       ? toCustomExercise(candidate)
       : { id: `custom-${Date.now()}`, name, reps: 10, sets: 2 };
-    updateEdit({
+    const saved = await updateEdit({
       ...currentEdit,
       customExercises: [
         ...(currentEdit.customExercises || []),
@@ -227,8 +229,7 @@ export default function DailyWorkoutEditor({
         customExercise.id,
       ],
     });
-    setNewExerciseName("");
-    setNotice(`${name}을(를) 추가했어요.`);
+    if (saved) setNewExerciseName(current => current.trim() === name ? "" : current);
   };
 
   return (

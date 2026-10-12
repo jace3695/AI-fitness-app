@@ -1,0 +1,41 @@
+# Legacy course evidence: A2-local inactive foundation
+
+Baseline: `3dba1f42f4954abf7cd20eef7be1c36ef87390e1`. Local, synthetic implementation only, 2026-10-09 UTC. Read with [A1](phase-a1.md). This is a bounded part of A2.0, not A2 acceptance, G4 acceptance, actual learner capture, or permission to activate it.
+
+## Implemented boundary
+
+All new runtime code is under `lib/language-legacy-evidence/`. Nothing outside that directory imports these modules. No existing A1 schema, canonical serializer, source-slot identity, catalogue, projection, grading, completion, scheduling, selection or summary semantics were changed.
+
+- `persistence-types.ts`: local context/fence data, typed failures, immutable events/batches, exact checkpoint expectations, local compatibility handoff, separate delivery metadata, and an opaque future authenticated-readback contract. A context object or owner ID is data, not authentication. A future integration must acquire and continuously revalidate the authenticated owner/reset epoch and generation.
+- `canonical-hash.ts`: schema/source-validated A1 canonical UTF-8 bytes and Web Crypto SHA-256, frozen copies, strict recanonicalization and independent hash checking. Optional `undefined` fields are omitted before canonicalizing; unknown schema fields are rejected. Fixed SHA/canonical vectors are included. Hash equality proves byte integrity only.
+- `capture.ts`: pure prospective presentation, answer and checkpoint reducers. The caller supplies observed timestamps, IDs, visibility and lifecycle facts; these functions do not observe the app. A stored mutation discriminator is verified by exact reducer output, so a checkpoint cannot acquire played-audio, reset sticky help, clear a pending handoff, or regain timing by changing a few persisted fields.
+- `local-store.ts`: versioned IndexedDB transaction code for immutable events, checkpoints, commit journals, delivery metadata, batch intents and audio-request bindings. No database is opened until a caller explicitly creates/uses a store.
+- `outbox.ts`: strict frozen one-slot batches, predecessor/order/count/byte validation, and local pending/readback-required/quarantined transitions. Restart discovery reads exact owner/generation events and batch intents. No network repository, append function, authenticated receipt acknowledgement, receipt cache, or complete-server-prefix reader exists here.
+
+## Capture and durability rules
+
+The new presentation is sequence 0; a first answer is sequence 1 and subsequent answers require an explicit retry transition. Old attempted slots and lost checkpoints are unsupported, never manufactured into a new first answer. An old unattempted slot has unknown earlier help/exposure. Genuine new sessions remain a future integration decision; the local helper cannot infer one from missing storage.
+
+Hint/reveal is sticky, as are typed target/reading/choice exposure and listening target/reading/translation exposure. Ordinary listening choices remain allowed under A1. Every answer makes later retries revealed. An interruption permanently makes this checkpoint's timing unknown and invalidates retained audio continuity. Request-bound start/end callbacks are required for completed audio; absent, stale, wrong-episode and post-answer callbacks cannot upgrade a frozen response. Request IDs bind once per local owner/generation, including across episodes. These are synthetic contracts, not evidence that audio played or was heard.
+
+Event ID, timestamp, payload, owner/generation/epoch and compatibility input freeze before asynchronous hashing. Crypto is completed before starting a write transaction. The transaction compares the exact checkpoint revision, predecessor and canonical checkpoint, then atomically adds event + checkpoint + compatibility handoff + commit journal + pending delivery metadata. A checkpoint row must match its latest immutable commit journal before read or replacement.
+
+Transaction completion is followed by independent exact readback. An uncertain result reads first; an absent write may retry only the same frozen transition. A read failure is unconfirmed/unavailable, never absent success. Exact older replay returns the current durable checkpoint, retaining an already-applied handoff. A competing answer is not automatically rebased to a new sequence or event ID. Same-ID divergent bytes persistently quarantine the existing episode's delivery records without changing event bytes. Quarantined predecessors, replay and batch creation are blocked. Ordinary losing checkpoint CAS does not poison the winner.
+
+Compatibility input is local-only: at most 4,096 UTF-16 code units for the exact entered answer and a bounded caller-supplied exact-draft token. This new local cap does not truncate input or change the existing UI's input behavior. The handoff contains the original legacy observation, including fractional response time, without forcing it to match or replace the separate evidence timer. Raw entered answers never enter event canonical bytes, payload hashes, batch intents, receipts, network output or logs. They remain in local checkpoint/commit-journal records until generation cleanup; no retention/compaction policy is added in this slice.
+
+No legacy callback is implemented. A future caller must compare the exact surviving current draft before applying the existing callback, then durably mark the handoff applied. A crash between that callback and its applied marker remains a non-atomic boundary requiring exact compatible-state/idempotency checks; this module does not promise exactly-once legacy side effects. It never reconstructs a missing draft, lesson, completion or aggregate history.
+
+Storage-unavailable, quota, abort, blocked opening, version change, read failure, corruption and quarantine have explicit failures. There is no localStorage fallback. Queue limits fail without truncating/evicting pending evidence. Cleanup requires an injected still-current fence plus a context marked fresh; it removes only that owner's other generations, checks the result, and retains the selected fresh generation and other owners. The freshness marker is not authentication: a future repository must establish it before calling cleanup. No reset hook or owner-change listener is installed.
+
+## Verification and limits
+
+Focused command: `node --experimental-strip-types --test lib/language-legacy-evidence/*.test.ts`.
+
+The final local focused run is recorded by the parent after source freeze. It includes the unchanged A1 41-test baseline plus new canonical, transition, fault, concurrency, restart, compatibility, quarantine and cleanup tests. Focused ESLint is run over this directory. Root aggregate tests, whole-repository TypeScript/build and independent review are reported separately by the parent, not inferred from these unit tests.
+
+`idb-test-adapter.ts` extends the repository's existing dependency-free fake-IDB pattern. It serializes transactions, clones values, models unique indexes/atomic rollback and injects quota, abort, read, blocked-open, versionchange and lost-completion faults. It intentionally serializes readonly work too and does not establish browser-engine conformance, task-boundary transaction inactivity, physical disk durability, real blocked-upgrade continuation, crash persistence, eviction resistance or real multi-tab scheduling. Browser tests were not run or authorized for this slice. No dependency was added.
+
+Still unimplemented/unverified: authenticated context acquisition; current server generation while offline; server immutable receipts; SQL/hash parity/RLS/roles/locks; remote replay and complete-prefix paging; cross-device reset; actual visibility/teaching manifest; capture hooks; exact surviving legacy draft recovery; production audio observation; save/reload/reset integration; real browser and physical-device behavior. A stored caller hash, cached flag, local completion, or successful future append must not be converted into authenticated receipt proof.
+
+No SQL/migration/roles/grants, production imports, hooks, UI, audio, provider, Live, reset integration, network repository, hosted operation, browser access, private learner data, commit, push or publication is part of this change. Same-item listening/typing practice and G4 UI/assistant acceptance remain later work.

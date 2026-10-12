@@ -3,13 +3,26 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BEGINNER_KANA_GROUPS } from "@/data/beginnerKana";
-import { loadCurriculumProgress, saveCurriculumProgress } from "@/utils/curriculumProgress";
+import { CURRICULUM_PROGRESS_KEY, curriculumProgressReadError, loadCurriculumProgress } from "@/utils/curriculumProgress";
+import { useLanguageRecordSnapshot } from "./useLanguageRecordSnapshot";
+import { createCourseMutation, createExplicitCourseSave, runCourseMutation, type CourseMutation, type CourseOutcome } from "@/app/data/languageCourseMutations";
+import { getLanguageMutationOutcome, languageMutationError, reconcileLanguageMutation, requireLanguageMutationAcknowledged } from "@/app/data/languageRecordMutations";
+import { isLanguageRecordContextCurrent, type LanguageRecordSnapshot } from "@/app/data/languageCloudSync";
 import { useYeoniPreferences } from "@/components/useYeoniPreferences";
 import LearningCompanion from "./LearningCompanion";
 import { useLearningAudio } from "./useLearningAudio";
 import styles from "./learning-focus.module.css";
 
 export default function KanaStarter() {
+  const access = useLanguageRecordSnapshot();
+  const contextRef = useRef(access.context); contextRef.current = access.context;
+  const source = useRef<LanguageRecordSnapshot | null>(null);
+  const pending = useRef<CourseMutation | null>(null);
+  const superseded = useRef<CourseMutation[]>([]);
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [groupIndex, setGroupIndex] = useState(0);
   const [letterIndex, setLetterIndex] = useState(0);
   const [mode, setMode] = useState<"learn" | "quiz" | "done">("learn");
@@ -34,21 +47,37 @@ export default function KanaStarter() {
     }
   }, [loaded, showCompanion, group.id, mode, letterIndex]);
   useEffect(() => {
-    const progress = loadCurriculumProgress();
+    if (source.current || !access.snapshot) return;
+    source.current = access.snapshot;
+    const progress = loadCurriculumProgress(access.records[CURRICULUM_PROGRESS_KEY]);
     const next = BEGINNER_KANA_GROUPS.findIndex((item) => !progress.kanaCompletedGroups?.includes(item.id));
     setGroupIndex(Math.max(0, next));
     setLoaded(true);
-  }, []);
-  const next = () => {
+  }, [access.snapshot, access.records]);
+  const next = async (newSave = false) => {
+    if (busy.current) return;
     audio.stop();
     if (letterIndex < chars.length - 1) { setPicked(null); setLetterIndex((index) => index + 1); return; }
     if (mode === "learn") { setPicked(null); setLetterIndex(0); setMode("quiz"); return; }
+    busy.current = true; setSaving(true);
     try {
-      const progress = loadCurriculumProgress();
-      saveCurriculumProgress({ ...progress, kanaCompletedGroups: [...new Set([...(progress.kanaCompletedGroups ?? []), group.id])] });
-      setMode("done");
-      setError("");
-    } catch { setError("결과를 저장하지 못했어요. 다시 저장해 주세요."); }
+      const context = contextRef.current;
+      if (!context || !source.current) throw new Error("학습 기록 연결을 다시 확인해 주세요. 현재 답은 보존됩니다.");
+      if (newSave && pending.current) {
+        const old = pending.current;
+        const next = createExplicitCourseSave(context, old.source, old.payload, old);
+        superseded.current.push(old); pending.current = next;
+      }
+      pending.current ??= createCourseMutation(context, source.current, { kind: "kana", groupId: group.id });
+      const intent = pending.current;
+      const committed = intent.context === context && !["committed", "unknown"].includes(getLanguageMutationOutcome(intent))
+        ? requireLanguageMutationAcknowledged(await runCourseMutation(intent))
+        : reconcileLanguageMutation<CourseMutation["payload"], CourseOutcome>(intent, context);
+      if (!mounted.current || contextRef.current !== context || !isLanguageRecordContextCurrent(context) || !committed.source) throw new Error("저장 확인 중 연결이 바뀌었어요. 현재 답과 저장 요청은 보존됩니다.");
+      source.current = committed.source; pending.current = null;
+      setMode("done"); setError("");
+    } catch (error) { if (mounted.current) setError(languageMutationError(error)); }
+    finally { busy.current = false; if (mounted.current) setSaving(false); }
   };
   if (!loaded) return <p role="status">첫 글자를 준비하고 있어요.</p>;
   return <section className={styles.focus}>
@@ -65,8 +94,9 @@ export default function KanaStarter() {
     </div>
     {audio.playing && <div className={styles.row}><button type="button" onClick={audio.stop}>■ 소리 멈추기</button></div>}
     {audio.audioError && <p role="status" className={styles.error}>{audio.audioError}</p>}
-    {error && <p role="alert" className={styles.error}>{error}</p>}
-    {mode !== "done" && <footer className={styles.actions}><button type="button" disabled={letterIndex === 0} onClick={() => { audio.stop(); setLetterIndex((index) => index - 1); setPicked(null); }}>이전</button><button type="button" className={styles.primary} disabled={mode === "quiz" && picked !== current} onClick={next}>{letterIndex < chars.length - 1 ? "다음 글자" : mode === "learn" ? "배운 글자 찾아보기" : "이번 묶음 저장하기"}</button></footer>}
+    {(error || access.error || curriculumProgressReadError(access.records[CURRICULUM_PROGRESS_KEY])) && <p role="alert" className={styles.error}>{error || access.error || curriculumProgressReadError(access.records[CURRICULUM_PROGRESS_KEY])}</p>}
+    {error && pending.current && ["created", "not-committed"].includes(getLanguageMutationOutcome(pending.current)) && <button type="button" disabled={saving || !access.context} onClick={() => void next(true)}>현재 답으로 새 저장 시도</button>}
+    {mode !== "done" && <footer className={styles.actions}><button type="button" disabled={saving || letterIndex === 0} onClick={() => { audio.stop(); setLetterIndex((index) => index - 1); setPicked(null); }}>이전</button><button type="button" className={styles.primary} disabled={saving || mode === "quiz" && picked !== current} onClick={() => void next()}>{letterIndex < chars.length - 1 ? "다음 글자" : mode === "learn" ? "배운 글자 찾아보기" : "이번 묶음 저장하기"}</button></footer>}
     {mode !== "done" && <p className={styles.muted}>묶음을 끝내면 진도가 저장돼요. <Link href="/language/learn?lesson=f01">이미 읽을 수 있어요 · 인사말로 이동</Link></p>}
   </section>;
 }

@@ -3,13 +3,16 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { planLegacyMutation, projectLegacyRows, legacyCatalogueRow } from "@/app/data/languageLegacyMutations";
+
 import { SENTENCES, type SentenceItem as Sentence } from "@/data/sentences";
 import { speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 import WritingPracticePad from "@/components/WritingPracticePad";
 
 const STORAGE_KEY = "savedSentences";
-const WRONG_SENTENCES_KEY = "wrongSentences";
 
 type Category = "전체" | "여행" | "업무" | "친구" | "일상";
 type LevelFilter = "all" | "beginner" | "basic" | "practical";
@@ -201,7 +204,16 @@ function JapaneseTextBlock({
 
 export default function SentencesPage() {
   const router = useRouter();
-  const [savedSentences, setSavedSentences] = useState<Sentence[]>([]);
+  const source = useLanguageRecordSnapshot(['savedSentences']);
+  const settingsError = languageSettingsProjectionError({ japaneseAppSettings: source.records.japaneseAppSettings });
+  const answer = useLanguageMutationAction(source, planLegacyMutation);
+  const save = useLanguageMutationAction(source, planLegacyMutation, { strictSource: true });
+  const hasPendingAnswer = answer.isPending, hasPendingSave = save.isPending;
+  const answered = useRef(false);
+  const blocked = answer.pending || save.pending || !source.context;
+
+  const savedProjection = projectLegacyRows<Sentence>(source.records.savedSentences, (item): item is Sentence => !!item && typeof item === 'object' && ['japanese', 'meaning', 'category'].every(field => typeof (item as Record<string, unknown>)[field] === 'string'));
+  const savedSentences = savedProjection.value;
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<Mode>("학습");
   const [category, setCategory] = useState<Category>("전체");
@@ -240,8 +252,8 @@ export default function SentencesPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(APP_SETTINGS_KEY);
-      if (!raw) return;
+      const raw = source.records[APP_SETTINGS_KEY];
+      if (!raw || languageSettingsProjectionError({ japaneseAppSettings: raw })) { setSettings(DEFAULT_SETTINGS); return; }
 
       const parsed = JSON.parse(raw) as SettingsPayload;
       const sectionSettings = {
@@ -259,20 +271,8 @@ export default function SentencesPage() {
     } catch {
       setSettings(DEFAULT_SETTINGS);
     }
-  }, []);
+  }, [source.records]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        setSavedSentences(Array.isArray(parsed) ? (parsed as Sentence[]) : []);
-      }
-    } catch {
-      // 무시
-      setSavedSentences([]);
-    }
-  }, []);
 
   const filteredSentences = SENTENCES.filter(
     (s) => (category === "전체" || s.category === category) && (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope)
@@ -290,6 +290,8 @@ export default function SentencesPage() {
   });
 
   const startQuiz = useCallback(() => {
+    if (hasPendingAnswer() || hasPendingSave()) return;
+    answered.current = false;
     const pool = SENTENCES.filter(
       (s) =>
         (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope) &&
@@ -300,13 +302,14 @@ export default function SentencesPage() {
     if (pool.length < 4) return;
     setQuiz(generateQuiz(pool));
     setScore({ correct: 0, total: 0 });
-  }, [category, levelFilter, patternFilter, practiceScope]);
+  }, [category, levelFilter, patternFilter, practiceScope, hasPendingAnswer, hasPendingSave]);
 
   useEffect(() => {
     if (mode === "퀴즈") {
       startQuiz();
     }
-  }, [mode, startQuiz]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, category, levelFilter, patternFilter, practiceScope]);
 
   const isSameSentence = (a: Sentence, b: Sentence) =>
     a.japanese === b.japanese &&
@@ -332,81 +335,28 @@ export default function SentencesPage() {
   const isSaved = (s: Sentence) =>
     savedSentences.some((x) => isSameSentence(x, s));
 
-  const handleSave = (s: Sentence) => {
-    const next = isSaved(s)
-      ? savedSentences.filter((x) => !isSameSentence(x, s))
-      : [...savedSentences, s];
-
-    setSavedSentences(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  };
-
-  const saveWrongSentence = (q: QuizState) => {
-    try {
-      const raw = localStorage.getItem(WRONG_SENTENCES_KEY);
-      const prev: Array<{
-        japanese: string;
-        reading?: string;
-        meaning: string;
-        category: string;
-        note: string;
-        quizType: QuizType;
-        createdAt: string;
-      }> = raw ? JSON.parse(raw) : [];
-
-      const isDuplicate = prev.some(
-        (x) => x.japanese === q.question.japanese && x.quizType === q.quizType
-      );
-      if (isDuplicate) return;
-
-      const next = [
-        ...prev,
-        {
-          japanese: q.question.japanese,
-          reading: q.question.reading,
-          rubySegments: q.question.rubySegments,
-          meaning: q.question.meaning,
-          category: q.question.category,
-          note: q.question.note,
-          quizType: q.quizType,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      localStorage.setItem(WRONG_SENTENCES_KEY, JSON.stringify(next));
-    } catch {
-      // 무시
-    }
+  const handleSave = (sentence: Sentence) => {
+    if (blocked || answer.isPending() || save.isPending()) return;
+    void save.submit({ kind: 'toggle-saved', key: STORAGE_KEY, row: legacyCatalogueRow(sentence) });
   };
 
   const handleChoiceSelect = (choice: string) => {
-    if (!quiz || quiz.selected !== null) return;
-
-    const correctAnswer =
-      quiz.quizType === "jp-to-kr"
-        ? quiz.question.meaning
-        : quiz.question.japanese;
-
-    const isCorrect = choice === correctAnswer;
-
-    const updatedQuiz = { ...quiz, selected: choice, isCorrect };
-    setQuiz(updatedQuiz);
-    setScore((prev) => {
-      const nextTotal = prev.total + 1;
-      if (nextTotal === 3) {
-        markTodayRoutineCompleted("sentences");
-      }
-      return {
-        correct: prev.correct + (isCorrect ? 1 : 0),
-        total: nextTotal,
-      };
-    });
-
-    if (!isCorrect) {
-      saveWrongSentence(updatedQuiz);
-    }
+    if (!quiz || quiz.selected !== null || answered.current || blocked || answer.isPending() || save.isPending()) return;
+    answered.current = true;
+    const isCorrect = choice === (quiz.quizType === 'jp-to-kr' ? quiz.question.meaning : quiz.question.japanese);
+    setQuiz({ ...quiz, selected: choice, isCorrect });
+    const nextScore = { correct: score.correct + (isCorrect ? 1 : 0), total: score.total + 1 };
+    if (isCorrect && nextScore.total !== 3) { setScore(nextScore); return; }
+    const question = quiz.question;
+    void answer.submit({ kind: 'answer',
+      ...(!isCorrect ? { wrong: { key: 'wrongSentences' as const, row: legacyCatalogueRow({ japanese: question.japanese, reading: question.reading, rubySegments: question.rubySegments, meaning: question.meaning, category: question.category, note: question.note, quizType: quiz.quizType }) } } : {}),
+      ...(nextScore.total === 3 ? { routine: 'sentences' as const } : {}),
+    }, () => setScore(nextScore));
   };
 
   const handleNextQuiz = () => {
+    if (blocked || answer.isPending() || save.isPending()) return;
+    answered.current = false;
     const pool = SENTENCES.filter(
       (s) =>
         (practiceScope === "all" || (s.practiceGroup ?? "core") === practiceScope) &&
@@ -457,6 +407,10 @@ export default function SentencesPage() {
 
   return (
     <section className="mx-auto w-full max-w-6xl">
+      {(answer.error || save.error || source.error || settingsError || savedProjection.error) && <p role="alert">{answer.error || save.error || source.error || settingsError || savedProjection.error}</p>}
+      {(answer.pending || save.pending) && <div role="status">답과 저장 요청을 보존하고 있어요. <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) void answer.retry(); else void save.retry(); }}>저장 다시 확인</button> {(answer.canResubmit || save.canResubmit) && <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) void answer.resubmit(); else void save.resubmit(); }}>최신 상태에서 새로 저장</button>} <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) { answer.discard(); setQuiz(quiz ? { ...quiz, selected: null, isCorrect: null } : null); answered.current = false; } else save.discard(); }}>보류한 입력 버리기</button></div>}
+      <fieldset disabled={blocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+
       <div
         style={{
           marginBottom: "18px",
@@ -922,6 +876,7 @@ export default function SentencesPage() {
           ) : null}
         </div>
       )}
+      </fieldset>
     </section>
   );
 }

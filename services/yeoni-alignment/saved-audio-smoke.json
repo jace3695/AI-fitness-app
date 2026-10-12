@@ -1,0 +1,352 @@
+{
+  "date": "2026-10-08",
+  "engine": "MFA 3.4.2",
+  "scope": "Local real engine on existing saved MP3; not deployed service, new TTS, phonetic review or browser playback.",
+  "modelAcousticSha256": "46f7a73ab46828c679562b160e0577beecfb4a9a827efe5ab392aee947451a4d",
+  "modelDictionarySha256": "75683f4dc2a7dd95295a068206d248a30bd2f4f2231fd4449210c91d1e78150b",
+  "firstRunSeconds": 12.97,
+  "isolatedSingleThreadRunSeconds": 4.2,
+  "appValidation": "passed",
+  "manifest": {
+    "version": 1,
+    "language": "ko-KR",
+    "voice": "ko-KR-Chirp3-HD-Zephyr",
+    "spokenText": "안녕하세요. 오늘 일정을 알려드릴게요. 오늘은 조금 쉬는 게 좋겠어요.",
+    "audioSha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+    "textSha256": "697b27268b9d28f86429464c9fe4552d60f1dbf024f4642b480cc891ab8165e6",
+    "durationMs": 5376,
+    "alignment": "automatic-phonemes",
+    "cues": [
+      {
+        "startMs": 0,
+        "endMs": 70,
+        "phone": "sil"
+      },
+      {
+        "startMs": 70,
+        "endMs": 150,
+        "phone": "ɐ"
+      },
+      {
+        "startMs": 150,
+        "endMs": 180,
+        "phone": "n"
+      },
+      {
+        "startMs": 180,
+        "endMs": 240,
+        "phone": "ɲ"
+      },
+      {
+        "startMs": 240,
+        "endMs": 310,
+        "phone": "ʌ"
+      },
+      {
+        "startMs": 310,
+        "endMs": 350,
+        "phone": "ŋ"
+      },
+      {
+        "startMs": 350,
+        "endMs": 360,
+        "phone": "h"
+      },
+      {
+        "startMs": 360,
+        "endMs": 420,
+        "phone": "ɐ"
+      },
+      {
+        "startMs": 420,
+        "endMs": 500,
+        "phone": "sʰ"
+      },
+      {
+        "startMs": 500,
+        "endMs": 640,
+        "phone": "e"
+      },
+      {
+        "startMs": 640,
+        "endMs": 650,
+        "phone": "j"
+      },
+      {
+        "startMs": 650,
+        "endMs": 950,
+        "phone": "o"
+      },
+      {
+        "startMs": 950,
+        "endMs": 1120,
+        "phone": "sil"
+      },
+      {
+        "startMs": 1120,
+        "endMs": 1240,
+        "phone": "o"
+      },
+      {
+        "startMs": 1240,
+        "endMs": 1310,
+        "phone": "n"
+      },
+      {
+        "startMs": 1310,
+        "endMs": 1330,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 1330,
+        "endMs": 1390,
+        "phone": "ɭ"
+      },
+      {
+        "startMs": 1390,
+        "endMs": 1460,
+        "phone": "i"
+      },
+      {
+        "startMs": 1460,
+        "endMs": 1540,
+        "phone": "ʎ"
+      },
+      {
+        "startMs": 1540,
+        "endMs": 1620,
+        "phone": "tɕ"
+      },
+      {
+        "startMs": 1620,
+        "endMs": 1680,
+        "phone": "ʌ"
+      },
+      {
+        "startMs": 1680,
+        "endMs": 1730,
+        "phone": "ŋ"
+      },
+      {
+        "startMs": 1730,
+        "endMs": 1750,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 1750,
+        "endMs": 1820,
+        "phone": "ɭ"
+      },
+      {
+        "startMs": 1820,
+        "endMs": 1880,
+        "phone": "ɐ"
+      },
+      {
+        "startMs": 1880,
+        "endMs": 1980,
+        "phone": "ʎː"
+      },
+      {
+        "startMs": 1980,
+        "endMs": 2050,
+        "phone": "ʌ"
+      },
+      {
+        "startMs": 2050,
+        "endMs": 2110,
+        "phone": "t"
+      },
+      {
+        "startMs": 2110,
+        "endMs": 2130,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 2130,
+        "endMs": 2180,
+        "phone": "ɾʲ"
+      },
+      {
+        "startMs": 2180,
+        "endMs": 2220,
+        "phone": "i"
+      },
+      {
+        "startMs": 2220,
+        "endMs": 2250,
+        "phone": "ɭ"
+      },
+      {
+        "startMs": 2250,
+        "endMs": 2380,
+        "phone": "ɡ"
+      },
+      {
+        "startMs": 2380,
+        "endMs": 2510,
+        "phone": "e"
+      },
+      {
+        "startMs": 2510,
+        "endMs": 2520,
+        "phone": "j"
+      },
+      {
+        "startMs": 2520,
+        "endMs": 2720,
+        "phone": "o"
+      },
+      {
+        "startMs": 2720,
+        "endMs": 3370,
+        "phone": "sil"
+      },
+      {
+        "startMs": 3370,
+        "endMs": 3480,
+        "phone": "o"
+      },
+      {
+        "startMs": 3480,
+        "endMs": 3530,
+        "phone": "n"
+      },
+      {
+        "startMs": 3530,
+        "endMs": 3550,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 3550,
+        "endMs": 3640,
+        "phone": "ɭ"
+      },
+      {
+        "startMs": 3640,
+        "endMs": 3660,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 3660,
+        "endMs": 3740,
+        "phone": "n"
+      },
+      {
+        "startMs": 3740,
+        "endMs": 3790,
+        "phone": "tɕ"
+      },
+      {
+        "startMs": 3790,
+        "endMs": 3860,
+        "phone": "o"
+      },
+      {
+        "startMs": 3860,
+        "endMs": 3920,
+        "phone": "ɡ"
+      },
+      {
+        "startMs": 3920,
+        "endMs": 3940,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 3940,
+        "endMs": 4020,
+        "phone": "m"
+      },
+      {
+        "startMs": 4020,
+        "endMs": 4030,
+        "phone": "sʷ"
+      },
+      {
+        "startMs": 4030,
+        "endMs": 4060,
+        "phone": "iː"
+      },
+      {
+        "startMs": 4060,
+        "endMs": 4140,
+        "phone": "sil"
+      },
+      {
+        "startMs": 4140,
+        "endMs": 4220,
+        "phone": "n"
+      },
+      {
+        "startMs": 4220,
+        "endMs": 4240,
+        "phone": "ɨ"
+      },
+      {
+        "startMs": 4240,
+        "endMs": 4310,
+        "phone": "n"
+      },
+      {
+        "startMs": 4310,
+        "endMs": 4370,
+        "phone": "k"
+      },
+      {
+        "startMs": 4370,
+        "endMs": 4410,
+        "phone": "eː"
+      },
+      {
+        "startMs": 4410,
+        "endMs": 4490,
+        "phone": "tɕ"
+      },
+      {
+        "startMs": 4490,
+        "endMs": 4530,
+        "phone": "o"
+      },
+      {
+        "startMs": 4530,
+        "endMs": 4570,
+        "phone": "t̚"
+      },
+      {
+        "startMs": 4570,
+        "endMs": 4630,
+        "phone": "k"
+      },
+      {
+        "startMs": 4630,
+        "endMs": 4670,
+        "phone": "e"
+      },
+      {
+        "startMs": 4670,
+        "endMs": 4820,
+        "phone": "t̚"
+      },
+      {
+        "startMs": 4820,
+        "endMs": 4970,
+        "phone": "ʌ"
+      },
+      {
+        "startMs": 4970,
+        "endMs": 4980,
+        "phone": "j"
+      },
+      {
+        "startMs": 4980,
+        "endMs": 5200,
+        "phone": "o"
+      },
+      {
+        "startMs": 5200,
+        "endMs": 5376,
+        "phone": "sil"
+      }
+    ]
+  }
+}

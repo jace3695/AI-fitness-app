@@ -1,0 +1,128 @@
+// This is an output boundary, not a general JSON logger. Reconstruct only known
+// fixed diagnostic fields; never echo arbitrary keys, strings, or malformed data.
+const choice = (value, allowed) => typeof value === 'string' && allowed.includes(value) ? value : 'unknown';
+const bit = value => typeof value === 'boolean' ? value : null;
+const count = value => Number.isInteger(value) && value >= 0 && value <= 10000 ? value : null;
+const fields = (data, names, project) => Object.fromEntries(names.map(name => [name, project(data[name])]));
+const exposureValues = ['shown', 'not-shown', 'unknown'];
+const guided = data => ({
+  level: choice(data.level, ['beginner', 'elementary', 'intermediate']), step: count(data.step),
+  phase: choice(data.phase, ['step-visible', 'exposure-ready', 'input-filled', 'save-clicked', 'saved', 'reloaded', 'send-clicked', 'sent', 'before-close', 'before-recovery', 'recovered', 'pending-close-confirmed', 'close-abandoned', 'replacement-close-clicked', 'close-clicked', 'closed', 'finished', 'checkpoint-refused']),
+  checkpointKind: choice(data.checkpointKind, ['draft', 'append', 'close']),
+  proof: choice(data.proof, ['invalid-envelope', 'changed-scope', 'authority-or-status', 'wrong-step', 'progress-or-editor', 'pending-kind', 'draft-transition', 'command-boundary', 'operation-identity', 'command-payload', 'unresolved-operation', 'terminal-transition', 'missing-storage', 'read-failed', 'changed-after-observation']),
+  surface: choice(data.surface, ['present', 'missing', 'unavailable']),
+  status: choice(data.status, ['unavailable', 'idle', 'unsaved', 'saving', 'pending', 'uncertain', 'saved']),
+  ...fields(data, ['available', 'busy', 'contextCurrent', 'editorPresent', 'editorDirty', 'editorOnActiveStep', 'closedBoundary'], bit),
+  errorCode: choice(data.errorCode, ['none', 'changed-before-action', 'capacity-exceeded', 'source-conflict', 'storage-unconfirmed', 'other-safe-error']),
+  commandKind: choice(data.commandKind, ['none', 'append', 'close']),
+  commandBoundary: choice(data.commandBoundary, ['none', 'entered', 'head-changed', 'editor-changed', 'saving-draft', 'after-save-changed', 'pre-capture-changed', 'captured', 'staged', 'applied', 'failed']),
+  ...fields(data, ['stepIndex', 'submittedSteps', 'totalSteps', 'turnCount', 'draftCount'], count),
+  pendingKind: choice(data.pendingKind, ['none', 'append', 'close', 'create', 'draft', 'cancel', 'delete']),
+  exposure: fields(data.exposure && typeof data.exposure === 'object' ? data.exposure : {}, ['example', 'reading', 'meaning', 'hint'], value => choice(value, exposureValues)),
+});
+const storage = data => ({
+  phase: choice(data.phase, ['editor-ready', 'first-edit', 'peer-edit', 'queued-newer-input', 'released', 'journal-injected', 'blocked-save', 'reload-blocked', 'failure']),
+  tab: choice(data.tab, ['first', 'peer']),
+  visibility: choice(data.visibility, ['visible', 'hidden']),
+  authGate: choice(data.authGate, ['failed', 'login', 'editor', 'pending']),
+  editor: choice(data.editor, ['hydrated', 'read-blocked', 'pending']),
+  ...fields(data, ['hungerVisible', 'hungerDisabled', 'hungerYes', 'hungerNo', 'saveVisible', 'saveDisabled', 'recordPresent', 'savedHungerYes', 'savedHungerNo', 'savedWater500', 'waterStore500', 'legacyPresent'], bit),
+  savedHunger: choice(data.savedHunger, ['absent', 'yes', 'no', 'unrecorded', 'other']),
+  savedWater: choice(data.savedWater, ['absent', 'zero', '500', 'other']),
+  protocolState: choice(data.protocolState, ['absent', 'prepared', 'committed', 'other']),
+  probe: choice(data.probe, ['unavailable']),
+  failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+});
+const handwriting = data => ({
+  ...fields(data, ['savePresent', 'saveDisabled', 'saveInProgress', 'materialVisible', 'storageFailure', 'draftConflict', 'recoveryFailure', 'saveUnconfirmed', 'resetFenced', 'localActive', 'hasWorksheet', 'hasRaster', 'hasPending', 'hasPendingPng', 'checksComplete', 'hasStrokes', 'paperMinutesValid', 'unavailable'], bit),
+});
+const handwritingSave = data => ({
+  phase: choice(data.phase, ['idle', 'encoding-png', 'encoded-png', 'staging-png', 'pending-request-succeeded', 'pending-transaction-completed', 'pending-transaction-aborted']),
+  ...fields(data, ['encodingRequested', 'encodingReturned', 'encodingPngValid', 'pendingPutAttempted', 'pendingPutHasBlob', 'pendingPutReturned', 'pendingRequestSucceeded', 'pendingRequestFailed', 'pendingTransactionCompleted', 'pendingTransactionAborted', 'unavailable'], bit),
+  errorBoundary: choice(data.errorBoundary, ['none', 'png-call', 'pending-put', 'pending-request', 'pending-transaction']),
+  errorName: choice(data.errorName, ['none', 'AbortError', 'ConstraintError', 'DataCloneError', 'DataError', 'InvalidStateError', 'NotSupportedError', 'QuotaExceededError', 'ReadOnlyError', 'TransactionInactiveError', 'UnknownError', 'other']),
+});
+const ownerSwitch = data => ({
+  phase: choice(data.phase, ['owner-a-ready', 'holder-a-ready', 'lock-held', 'edit-queued', 'signout-clicked', 'owner-cleared', 'lock-released', 'signed-out', 'before-b-login', 'after-b-login', 'owner-b-ready', 'isolation-verified', 'before-reload', 'after-reload', 'complete']),
+  tab: choice(data.tab, ['first', 'holder']), visibility: choice(data.visibility, ['visible', 'hidden']),
+  authGate: choice(data.authGate, ['failed', 'login', 'editor', 'pending']),
+  sync: choice(data.sync, ['synced', 'error', 'conflict', 'syncing', 'pending', 'absent']),
+  ...fields(data, ['owner', 'desiredOwner', 'readyOwner', 'lastReadOwner'], value => choice(value, ['A', 'B', 'none', 'other'])),
+  ...fields(data, ['failed', 'readyMatchesEpoch', 'localEmpty', 'localMatchesA', 'localMatchesB', 'editorPrivate', 'editorPresent', 'legacyPresent', 'sessionChangedNotice'], bit),
+  ...fields(data, ['lockHeld', 'lockPending', 'reads', 'writes'], count),
+  protocolState: choice(data.protocolState, ['absent', 'prepared', 'committed', 'other']),
+  lastReadResult: choice(data.lastReadResult, ['absent', 'pending', 'ok', 'not-confirmed']),
+  probe: choice(data.probe, ['unavailable']),
+  failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+});
+const ownerSyncLifecycleEnums = {
+  component: ['panel', 'gate'],
+  stage: ['retired', 'observation-queued', 'observation-acquired', 'observation-refused', 'observation-cancelled',
+    'request-dispatched', 'proof-received', 'panel-auth-started', 'panel-auth-refused', 'binding-published', 'binding-activated',
+    'recovery-cancelled', 'ordinary-proof-published', 'request-claimed', 'request-refused', 'gate-auth-started',
+    'gate-auth-refused', 'pin-refused', 'requested-proof-published', 'request-cancelled'],
+  ownerRelation: ['same-owner', 'different-owner', 'no-owner', 'unavailable'],
+  epochRelation: ['same-as-loop', 'different-from-loop', 'unavailable'],
+  failure: ['snapshot-busy', 'session-changed', 'corrupt', 'locks-unavailable', 'aborted', 'other'],
+  proof: ['ordinary', 'correlated'],
+  outcome: ['accepted', 'seen', 'no-retirement', 'wrong-current-binding', 'invalid'],
+  reason: ['auth-callback', 'manual-retry', 'signout', 'reset', 'epoch-or-owner', 'unmount', 'superseded', 'other'],
+};
+const ownerSyncLifecycleEvent = data => {
+  if (!data || Array.isArray(data) || typeof data !== 'object' || count(data.index) === null || data.index < 1
+    || !ownerSyncLifecycleEnums.component.includes(data.component) || !ownerSyncLifecycleEnums.stage.includes(data.stage)) return [];
+  const result = { index: data.index, component: data.component, stage: data.stage };
+  for (const key of ['ownerRelation', 'epochRelation', 'failure', 'proof', 'outcome', 'reason']) {
+    if (typeof data[key] === 'string' && ownerSyncLifecycleEnums[key].includes(data[key])) result[key] = data[key];
+  }
+  if (count(data.retirementIndex) !== null && data.retirementIndex >= 1) result.retirementIndex = data.retirementIndex;
+  return [result];
+};
+const ownerSyncLifecycle = data => ({
+  phase: choice(data.phase, ['owner-a-ready', 'holder-a-ready', 'lock-held', 'edit-queued', 'signout-clicked', 'owner-cleared', 'lock-released', 'signed-out', 'before-b-login', 'after-b-login', 'owner-b-ready', 'isolation-verified', 'before-reload', 'after-reload', 'complete']),
+  tab: choice(data.tab, ['first', 'holder']), failed: bit(data.failed),
+  events: Array.isArray(data.events) ? data.events.slice(0, 8).flatMap(ownerSyncLifecycleEvent) : [],
+  dropped: count(data.dropped), probe: choice(data.probe, ['unavailable']),
+});
+const basicsReset = data => ({
+  phase: choice(data.phase, ['armed', 'before-save', 'save-clicked', 'marker-get-confirmed', 'reset-confirmed', 'rpc-rejected', 'rejection-visible', 'pending-preserved', 'records-empty', 'before-reload', 'after-reload', 'ready-after-reload', 'complete', 'failure']),
+  event: choice(data.event, ['milestone', 'document-request', 'document-response', 'frame-navigated', 'dom-content-loaded', 'load', 'auth-request', 'marker-request', 'progress-request', 'auth-response', 'marker-response', 'progress-response']),
+  ...fields(data, ['documentRequests', 'documentResponses', 'frameNavigations', 'domContentLoads', 'pageLoads', 'authRequests', 'markerRequests', 'progressRequests', 'authResponses', 'markerResponses', 'progressResponses', 'droppedEvents'], count),
+});
+const routineRecovery = data => ({
+  mode: choice(data.mode, ['active', 'manual', 'quick']), committed: bit(data.committed),
+  phase: choice(data.phase, ['lost-response', 'reload', 'unknown-retry', 'confirm-retry', 'verify-row', 'complete']),
+  ...fields(data, ['posts', 'calls'], count),
+});
+const routeContinue = data => ({
+  method: choice(data.method, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'CONNECT', 'TRACE', 'OTHER']),
+  resourceClass: choice(data.resourceClass, ['document', 'stylesheet', 'image', 'media', 'font', 'script', 'texttrack', 'xhr', 'fetch', 'eventsource', 'websocket', 'manifest', 'other']),
+  failure: choice(data.failure, ['webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+  routeError: choice(data.routeError, ['already-handled', 'protocol-error', 'other']),
+  requestFailure: choice(data.requestFailure, ['none', 'unavailable', 'webkit-internal', 'crash', 'timeout', 'closed-or-disconnected', 'aborted', 'connection-reset', 'other']),
+  ...fields(data, ['pageClosed', 'navigationRequest', 'mainFrame', 'frameDetached'], bit),
+});
+const projectors = { QA_GUIDED_BOUNDARY: guided, QA_STORAGE_PROTOCOL_STATE: storage, QA_HANDWRITING_RECOVERY_STATE: handwriting, QA_HANDWRITING_SAVE_BOUNDARY: handwritingSave, QA_OWNER_SWITCH_STATE: ownerSwitch, QA_OWNER_SYNC_LIFECYCLE: ownerSyncLifecycle, QA_BASICS_RESET_BOUNDARY: basicsReset, QA_ROUTINE_RECOVERY_PHASE: routineRecovery, QA_ROUTE_CONTINUE_FAILURE: routeContinue };
+export function projectStateDiagnostic(line) {
+  if (typeof line !== 'string' || line.length > 8192) return null;
+  const delimiter = line.indexOf(' '), prefix = line.slice(0, delimiter);
+  if (!Object.hasOwn(projectors, prefix)) return null;
+  let data;
+  try { data = JSON.parse(line.slice(delimiter + 1)); } catch { return null; }
+  if (!data || Array.isArray(data) || typeof data !== 'object') return null;
+  const projected = `${prefix} ${JSON.stringify(projectors[prefix](data))}`;
+  return projected.length <= 4096 ? { prefix, line: projected } : null;
+}
+export function stateDiagnosticCollector() {
+  const emitted = Object.fromEntries(Object.keys(projectors).map(key => [key, 0]));
+  const dropped = Object.fromEntries(Object.keys(projectors).map(key => [key, 0]));
+  return {
+    ingest(line) {
+      const result = projectStateDiagnostic(line);
+      if (!result) return null;
+      if (emitted[result.prefix] >= 512) { dropped[result.prefix] = Math.min(10000, dropped[result.prefix] + 1); return null; }
+      emitted[result.prefix]++; return result.line;
+    },
+    snapshot: () => ({ emitted: { ...emitted }, dropped: { ...dropped } }),
+  };
+}

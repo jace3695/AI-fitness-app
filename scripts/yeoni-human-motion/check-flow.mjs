@@ -121,11 +121,27 @@ try {
     }
     await button('배경 바꾸기').click(); await page.screenshot({ path: `${out}/dark.png` });
   });
-  await test('denied preference storage still stops the current animation', async () => {
+  await test('denied preference storage preserves explicit stop/hide through lifecycle refreshes', async () => {
     await button('움직임 켜기').click(); await running(true);
+    const saved = await page.evaluate(() => localStorage.getItem('yeoniAppearanceSettingsV1'));
     await page.evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('fixture', 'QuotaExceededError'); }; });
     await button('움직임 멈추기').click(); await stable();
     assert.ok(await page.getByText('설정을 저장하지 못했지만 지금 화면에는 적용했어요.').isVisible());
+    for (const event of ['focus', 'pageshow', 'yeoni-records-changed', 'ai-yeoni-record-reset', 'yeoni-cloud-session-changed', 'storage']) {
+      await page.evaluate(type => window.dispatchEvent(new Event(type)), event);
+      await stable();
+      assert.ok(await page.getByRole('button', { name: '움직임 켜기', exact: true }).isVisible(), `${event} must not undo an unsaved stop`);
+    }
+    await button('연이 숨기기').click();
+    for (const event of ['focus', 'pageshow']) {
+      await page.evaluate(type => window.dispatchEvent(new Event(type)), event);
+      assert.equal(await canvas().count(), 0, `${event} must not undo an unsaved hide`);
+      assert.ok(await page.getByRole('button', { name: '연이 보이기', exact: true }).isVisible());
+      assert.equal(await page.evaluate(() => window.__pendingFrames()), 0);
+    }
+    await button('다른 화면으로 이동').click(); await button('연이 화면 돌아오기').click();
+    assert.equal(await canvas().count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem('yeoniAppearanceSettingsV1')), saved);
   });
   await test('canvas unavailable still displays approved human and explanation', async () => {
     const other = await context.newPage();

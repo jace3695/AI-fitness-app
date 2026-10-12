@@ -1,4 +1,7 @@
+import { validateReplyAlignment } from './yeoni/speech-alignment.ts';
+import type { LipSyncManifest } from './yeoni/lip-sync.ts';
 import { YEONI_VOICE_NAME, YEONI_VOICE_PENDING_MESSAGE } from './yeoni-voice-policy.ts';
+import { normalizeKoreanCurrencySpeech } from './yeoni/korean-currency-speech.ts';
 
 export function prepareZephyrSpeech(value: string) {
   const clean = value.replace(/https?:\/\/\S+/g, '화면의 링크')
@@ -8,16 +11,19 @@ export function prepareZephyrSpeech(value: string) {
         `${start}${startUnit || endUnit || ''}에서 ${end}${endUnit || startUnit || ''}`)
     .replace(/[*#_~`]/g, '').replace(/\s+/g, ' ').trim();
   const characters = Array.from(clean);
-  return { text: characters.slice(0, 1200).join(''), characters: Math.min(characters.length, 1200), truncated: characters.length > 1200 };
+  // Preserve the original prepared text: existing attempt keys must not change after this fix.
+  const text = characters.slice(0, 1200).join('');
+  return { text, characters: Array.from(normalizeKoreanCurrencySpeech(text)).length, truncated: characters.length > 1200 };
 }
 
-type AudioResult = { audioContent: string; remainingCharacters: number };
+type AudioResult = { audioContent: string; remainingCharacters: number; alignment?: LipSyncManifest };
 type Dependencies = {
   request: (init: RequestInit) => Promise<Response>;
   storage: Pick<Storage, 'getItem' | 'setItem'>;
   now?: Date;
   // Short workout cues may survive a reload in this tab. General answers do not.
   retainWorkoutAudio?: boolean;
+  includeAlignment?: boolean;
 };
 
 // General answers stay in memory. Short workout cues can opt into tab storage.
@@ -40,9 +46,10 @@ export class ZephyrAudioCache {
     catch (error) { if (this.entries.get(key) === pending) this.entries.delete(key); throw error; }
   }
 
-  private async generate(key: string, text: string, { request, storage, retainWorkoutAudio }: Dependencies): Promise<AudioResult> {
-    const characters = Array.from(text).length;
-    if (!characters || characters > 1200) throw new Error('읽을 답변을 확인해 주세요.');
+  private async generate(key: string, text: string, { request, storage, retainWorkoutAudio, includeAlignment }: Dependencies): Promise<AudioResult> {
+    const spokenText = normalizeKoreanCurrencySpeech(text);
+    const characters = Array.from(spokenText).length;
+    if (!characters || characters > 1200 || Array.from(text).length > 1200) throw new Error('실제로 읽을 문장은 1자 이상 1,200자 이하로 입력해 주세요.');
     let previous: string | null;
     try { previous = storage.getItem(key); }
     catch { throw new Error('중복 생성 방지 기록을 보관할 수 없어 음성을 생성하지 않았어요.'); }
@@ -74,8 +81,8 @@ export class ZephyrAudioCache {
     } catch { throw new Error('중복 생성 방지 기록을 보관할 수 없어 음성을 생성하지 않았어요.'); }
 
     // No retry, including a timeout or an ambiguous provider response.
-    const response = await request({ method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(45_000),
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId }) });
+    const response = await request({ method: 'POST', cache: 'no-store', signal: AbortSignal.timeout(includeAlignment ? 95_000 : 45_000),
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, requestId, ...(includeAlignment ? { includeAlignment: true } : {}) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || '음성 생성 완료 여부를 확인하지 못했어요. 추가 생성은 멈췄어요.');
     if (data.voice !== YEONI_VOICE_NAME || data.useDeviceVoice !== false || data.requestId !== requestId
@@ -84,7 +91,12 @@ export class ZephyrAudioCache {
       || !Number.isSafeInteger(data.remainingCharacters) || data.remainingCharacters < 0) {
       throw new Error('생성된 음성을 확인하지 못했어요. 추가 생성은 멈췄어요.');
     }
-    const result = { audioContent: data.audioContent, remainingCharacters: data.remainingCharacters };
+    let alignment: LipSyncManifest | undefined;
+    if (includeAlignment && data.alignment) {
+      try { alignment = await validateReplyAlignment(Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0)).buffer, spokenText, data.alignment); }
+      catch { /* Invalid alignment must never discard valid audio or trigger regeneration. */ }
+    }
+    const result: AudioResult = { audioContent: data.audioContent, remainingCharacters: data.remainingCharacters, ...(alignment ? { alignment } : {}) };
     if (retainWorkoutAudio && characters <= 200 && data.audioContent.length <= 600_000) {
       // Best effort: quota failure leaves the original receipt and memory audio intact.
       // The owner/month/text hash keeps this separate from records and other accounts.

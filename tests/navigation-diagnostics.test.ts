@@ -11,6 +11,9 @@ test('navigation diagnostics never export tokens, arbitrary paths or exception t
   assert.equal(routeLabel('secret'), 'unknown');
   assert.equal(failureLabel('page.goto: WebKit encountered an internal error secret'), 'webkit-internal');
   assert.equal(failureLabel('private response body'), 'other');
+  assert.equal(failureLabel('The exact image must be staged before upload/reset injection.'), 'other');
+  assert.equal(failureLabel('record reset marker differs'), 'other');
+  for (const message of ['read ECONNRESET', 'net::ERR_CONNECTION_RESET', 'Connection reset by peer', 'The connection was reset']) assert.equal(failureLabel(message), 'connection-reset');
 });
 
 test('page errors preserve only fixed failure categories and route labels', () => {

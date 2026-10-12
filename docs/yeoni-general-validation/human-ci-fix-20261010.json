@@ -1,0 +1,252 @@
+{
+  "recordedAtUtc": "2026-10-09T15:28:22.507008+00:00",
+  "baseRemoteCommit": "54bf2b0d521168956307d347daed22c23691e16c",
+  "failedCi": {
+    "run": 37943569416,
+    "speechJob": 113863872241,
+    "artifact": 11622022655,
+    "artifactSha256": "8993a54411b825e9ab89e0fb2c3da2d7738c61c685c410d4d12ddb7e37ead059",
+    "originalErrors": {
+      "chromium": [
+        {
+          "name": "record actual normal-speed MP3 playback and return to the original closed mouth",
+          "passed": true
+        },
+        {
+          "passed": false,
+          "error": "AssertionError [ERR_ASSERTION]: {\"media\":133.115,\"rendered\":100.022,\"shape\":\"a\",\"eye\":\"open\",\"opaqueChanged\":1935,\"alphaMax\":0,\"neckMin\":255}\n\n1935 !== 0\n"
+        }
+      ],
+      "webkit": [
+        {
+          "name": "record actual normal-speed MP3 playback and return to the original closed mouth",
+          "passed": true
+        },
+        {
+          "passed": false,
+          "error": "AssertionError [ERR_ASSERTION]: {\"media\":92.02348,\"rendered\":92.02348,\"shape\":\"a\",\"eye\":\"open\",\"opaqueChanged\":2401,\"alphaMax\":0,\"neckMin\":255}\n\n2401 !== 0\n"
+        }
+      ]
+    }
+  },
+  "rootCauses": [
+    "Archived PHASE8/9 HTML differs from current production bundle; CSS and embedded original artwork match.",
+    "Old speech comparator used the raw viseme and ignored the displayed mouth pose.",
+    "Static motion probe retained the new default rest mouth pose while overriding raw viseme.",
+    "Equivalent border interpolation rounded 199 to 198.99999999999997; floor omitted 112 right-edge pixels for recorded ratios."
+  ],
+  "unitTests": {
+    "newMeshRegression": 1,
+    "existingMouthMotion": 7,
+    "passed": 8,
+    "failed": 0,
+    "redEvidence": {
+      "ratio": 0.2776178368200754,
+      "size": [
+        200,
+        112
+      ],
+      "oldUnwrittenRightEdgePixels": 112,
+      "fixed": 0
+    }
+  },
+  "chromiumSpeech": {
+    "browser": "chromium",
+    "version": "153.0.8010.0",
+    "results": [
+      {
+        "name": "record actual normal-speed MP3 playback and return to the original closed mouth",
+        "passed": true
+      },
+      {
+        "name": "actual speech pixels match approved face patches and neck remains opaque",
+        "passed": true
+      },
+      {
+        "name": "comparison rejects raw-viseme substitution and an altered face pixel",
+        "passed": true
+      },
+      {
+        "name": "original comparison sheets capture natural speech states and end state",
+        "passed": true
+      },
+      {
+        "name": "offline HTML loads its embedded MP3 and face assets without external requests or autoplay",
+        "passed": true
+      },
+      {
+        "name": "no runtime exceptions or external requests",
+        "passed": true
+      }
+    ],
+    "sampleCount": 64,
+    "errors": [],
+    "external": []
+  },
+  "speechPixels": {
+    "frames": 64,
+    "maxOpaqueChanged": 0,
+    "maxAlphaDifference": 0,
+    "minimumNeckAlpha": 255
+  },
+  "chromiumMotion": {
+    "browser": "chromium",
+    "version": "153.0.8010.0",
+    "results": [
+      {
+        "name": "all 21 resting states preserve approved opaque pixels and alpha at render resolution",
+        "passed": true
+      },
+      {
+        "name": "near-neutral inverse sampling preserves opacity with no triangle cracks or doubled hair alpha",
+        "passed": true
+      },
+      {
+        "name": "all 21 facial states remain on the rigid face during maximum idle tilt",
+        "passed": true
+      },
+      {
+        "name": "neck remains opaque across y740 split and complete motion cycle",
+        "passed": true
+      },
+      {
+        "name": "full portrait extremes face zoom original overlay and dark backdrop are captured",
+        "passed": true
+      },
+      {
+        "name": "render work is bounded at both regular and high-DPR maximum sizes",
+        "passed": true
+      },
+      {
+        "name": "offline preview starts still loads assets and plays without external requests",
+        "passed": true
+      },
+      {
+        "name": "disposing releases resources clears pixels and prevents stale drawing",
+        "passed": true
+      },
+      {
+        "name": "no runtime errors or external requests",
+        "passed": true
+      }
+    ],
+    "nearNeutral": {
+      "alphaMax": 0,
+      "opaqueMax": 0
+    },
+    "neckResults": {
+      "min": 255,
+      "samples": 723520
+    },
+    "performanceResults": [
+      {
+        "requestedSize": 360,
+        "width": 360,
+        "samples": 90,
+        "median": 11.099999994039536,
+        "p95": 14.299999997019768,
+        "max": 24.69999998807907,
+        "average": 11.51888888809416
+      },
+      {
+        "requestedSize": 720,
+        "width": 512,
+        "samples": 90,
+        "median": 21,
+        "p95": 25.399999991059303,
+        "max": 100.40000000596046,
+        "average": 22.50111111154159
+      }
+    ],
+    "errors": [],
+    "external": []
+  },
+  "currentMotionHtmlAdditionalCheck": "Actual Chromium: ready, no initial motion, start/stop, zero runtime errors and external requests; rechecked current isolated HTML after replacing the archived path.",
+  "preservedArchives": [
+    {
+      "archive": "docs/yeoni-phase8/Yeoni_Human_Motion_Preview.html",
+      "sha256": "ba24011448863bd5ad6b6eaa9f41d66399b7c0966de9880377393981b38f94b5",
+      "archiveBytesUnchanged": true,
+      "currentEmbeddedImagesMatchArchive": true
+    },
+    {
+      "archive": "docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html",
+      "sha256": "46e6123f71888899b5e45ce66c129a68e98d0f05348585345643c2b961ae2f4a",
+      "archiveBytesUnchanged": true,
+      "currentEmbeddedImagesMatchArchive": true
+    }
+  ],
+  "previewSha256": {
+    "motion": "079da724b6998b951af8003bfb778fd45d5eea8a2b0c72f14b881c8d849cabe6",
+    "speech": "37ac74072057bc9bb8d297f9afa72446e648ee78047fd9be57c5651cac6440dc"
+  },
+  "visualReview": "Inspected original-versus-playback face sheet; no visible displaced eyes/mouth or double contours. Headless Korean font typography is not certified.",
+  "limits": [
+    "Local WebKit binary downloaded, but missing system dependencies; standard dependency install was blocked by setgroups/seteuid permissions. No bypass; WebKit validation remains for GitHub CI.",
+    "These are local source-component and offline-preview checks, not authenticated live Preview or physical-device acceptance.",
+    "The previously running whole-app CI must complete before branch update; this evidence does not claim its outcome."
+  ],
+  "preservation": {
+    "newTtsCalls": 0,
+    "newAlignmentJobs": 0,
+    "newReviewVideos": 0,
+    "originalVoiceAndRequestRecordsChanged": false,
+    "productionDeploymentPerformed": false
+  },
+  "followupCat": {
+    "observedCiRun": 37953913220,
+    "failedJob": 113899440652,
+    "failure": "Explicit mouth a compared against default smooth rest pose: 1238 changed pixels; exact same synthetic-fixture mismatch as human motion.",
+    "fix": "Static motion probe requests direct mode; production controller and renderer unchanged.",
+    "localChecks": [
+      {
+        "name": "all 21 resting states match the approved original and patches pixel for pixel",
+        "passed": true
+      },
+      {
+        "name": "near-neutral mesh has no bright diagonal rasterization seams",
+        "passed": true
+      },
+      {
+        "name": "21 eye/mouth combinations remain attached during the tilt gesture",
+        "passed": true
+      },
+      {
+        "name": "all four gestures have continuous start middle end and source comparison sheets",
+        "passed": true
+      },
+      {
+        "name": "continuous motion has finite bounded render cost at 360px",
+        "passed": true
+      },
+      {
+        "name": "renderer disposal clears pixels and prevents stale drawing",
+        "passed": true
+      },
+      {
+        "name": "no runtime errors or external requests",
+        "passed": true
+      }
+    ],
+    "identityStates": 21,
+    "maxChangedPixels": 0,
+    "errors": [],
+    "externalRequests": [],
+    "reviewVideoRequested": false
+  },
+  "githubHumanVerification": {
+    "commit": "b602d97c87f8e625805759d26ec5c9247c578430",
+    "run": 37953913220,
+    "humanMotionJob": 113899440633,
+    "humanSpeechJob": 113899440706,
+    "bothJobs": "success",
+    "scope": "Includes unchanged Chromium and WebKit checks for both human jobs."
+  },
+  "priorWholeAppCi": {
+    "commit": "54bf2b0d521168956307d347daed22c23691e16c",
+    "run": 37943581831,
+    "completedKst": "2026-10-10 00:43:15",
+    "passed": 438,
+    "failed": 0
+  }
+}

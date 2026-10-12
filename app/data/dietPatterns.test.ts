@@ -43,3 +43,21 @@ test('기록 없음은 0%가 아니라 비율 미기록이며 미래·오래된 
   assert.equal(result.lateSnackDelta, null);
   assert.deepEqual(result.current.days, []);
 });
+
+test('복통·설사를 포함한 두 기간은 실제 응답 분모로 비교하며 이전 JSON을 변경하지 않는다', () => {
+  const data = {
+    ...Object.fromEntries(['abdominal_pain', 'diarrhea', 'heartburn', 'bloated', 'nausea', 'comfortable', 'comfortable', 'unrecorded', 'future-status'].map((digestionStatus, index) => [`2026-09-${String(index + 1).padStart(2, '0')}`, { digestionStatus, preserved: { index } }])),
+    ...Object.fromEntries(['abdominal_pain', 'diarrhea', 'comfortable', 'comfortable', 'comfortable', 'comfortable', 'comfortable'].map((digestionStatus, index) => [`2026-08-${String(index + 1).padStart(2, '0')}`, { digestionStatus }])),
+    '2026-09-10': { dietMemo: '소화 상태 응답 없음' },
+  };
+  const before = JSON.stringify(data);
+  const result = dietPatterns(data, '2026-09-17')!;
+  assert.deepEqual(result.current.digestion, { answers: 7, count: 5, rate: 71 });
+  assert.deepEqual(result.previous.digestion, { answers: 7, count: 2, rate: 29 });
+  assert.equal(result.digestionDelta, 43);
+  assert.equal(result.current.days.find(day => day.date === '2026-09-01')?.digestion, 'abdominal_pain');
+  assert.equal(result.current.days.find(day => day.date === '2026-09-02')?.digestion, 'diarrhea');
+  assert.equal(result.current.days.filter(day => day.digestion === 'unrecorded').length, 3);
+  assert.deepEqual(result.current.lateSnack, { answers: 0, count: 0, rate: null });
+  assert.equal(JSON.stringify(data), before);
+});

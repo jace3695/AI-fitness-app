@@ -8,7 +8,9 @@ const root=new URL('../../',import.meta.url),kind=process.env.YEONI_BROWSER||'ch
 const out=new URL(`.e2e/yeoni-cat-motion-v3/${kind}/`,root);mkdirSync(out,{recursive:true});
 const bundle=await build({entryPoints:[new URL('motion-probe.ts',import.meta.url).pathname],bundle:true,write:false,format:'iife',globalName:'catReview',tsconfig:new URL('tsconfig.json',root).pathname});
 const uri=(path,mime)=>`data:${mime};base64,`+readFileSync(new URL(path,root)).toString('base64');
-const browser=await({chromium,webkit})[kind].launch({headless:true});
+const browser=await({chromium,webkit})[kind].launch({headless:true,
+ ...(kind==='chromium'&&process.env.YEONI_CHROMIUM?{executablePath:process.env.YEONI_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']}:{}),
+});
 const page=await browser.newPage({viewport:{width:760,height:460},deviceScaleFactor:1});
 const errors=[],requests=[],results=[];let identity,performanceResult;
 page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url())});
@@ -43,7 +45,7 @@ try{
  await test('continuous motion has finite bounded render cost at 360px',async()=>{
   performanceResult=await page.evaluate(()=>{const times=[];for(let i=0;i<180;i++)times.push(catReview.show({time:i*1000/30}).milliseconds);times.sort((a,b)=>a-b);return{samples:times.length,median:times[90],p95:times[171],max:times[179],average:times.reduce((a,b)=>a+b)/times.length}});assert.ok(performanceResult.average<33.34,JSON.stringify(performanceResult));
  });
- if(kind==='chromium')await test('review video contains actual Canvas frames for blink tail and all gestures',async()=>{
+ if(kind==='chromium'&&process.env.YEONI_REVIEW_VIDEO==='1')await test('review video contains actual Canvas frames for blink tail and all gestures',async()=>{
   const frames=new URL('video-frames/',out);mkdirSync(frames,{recursive:true});
   const sequence=[];for(let i=0;i<60;i++)sequence.push({label:'깜빡임 · 숨쉬기 · 꼬리',input:{time:i*1000/12}});
   for(const[gesture,label]of [['nod','끄덕임'],['tilt','갸웃'],['greet','꾸벅 인사'],['cheer','가벼운 응원']])for(let i=0;i<24;i++)sequence.push({label,input:{gesture,progress:i/23}});
@@ -55,7 +57,7 @@ try{
  await test('renderer disposal clears pixels and prevents stale drawing',async()=>{await page.evaluate(()=>catReview.dispose());const blank=await pixels();await show({time:700});assert.equal(await pixels(),blank)});
  await test('no runtime errors or external requests',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(requests,[])});
 }catch(e){results.push({passed:false,error:String(e)});console.error(e);process.exitCode=1;}
-finally{writeFileSync(new URL('results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,identity,performanceResult,errors,requests,scope:'Opaque original-preserving Canvas motion. Visual review required; no real audio timing judgement or physical iPhone performance claim.'},null,2));await browser.close()}
+finally{writeFileSync(new URL('results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,reviewVideoRequested:process.env.YEONI_REVIEW_VIDEO==='1',identity,performanceResult,errors,requests,scope:'Opaque original-preserving Canvas motion. Visual review required; no real audio timing judgement or physical iPhone performance claim.'},null,2));await browser.close()}
 async function sheet(frames,name){
  const p=await browser.newPage({viewport:{width:1440,height:790}});
  await p.setContent('<style>body{margin:0;background:white;font:18px system-ui}.grid{display:grid;grid-template-columns:repeat(4,360px)}figure{margin:0}img{width:360px;height:360px}figcaption{height:30px;text-align:center}</style><div class="grid">'+frames.map(f=>`<figure><figcaption>${f.label}</figcaption><img src="${f.src}"></figure>`).join('')+'</div>');

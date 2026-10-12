@@ -1,6 +1,8 @@
-import { DIET_SYMPTOMS_KEY, SOCIAL_MEAL_MODE_KEY, DietSymptomMap, getLocalDateKey } from './dietPlans';
-import { readJson, writeJson } from './recordStorage';
-import { WorkoutDayId } from './workoutCompletion';
+import { DIET_SYMPTOMS_KEY, SOCIAL_MEAL_MODE_KEY, type DietSymptomMap, getLocalDateKey } from './dietPlans.ts';
+import { readJson } from './recordStorage.ts';
+import { readStorageSnapshot, type StorageOwnerToken } from './storageTransaction.ts';
+import { readFitnessValue, updateFitnessValues } from './fitnessStorageUpdates.ts';
+import type { WorkoutDayId } from './workoutCompletion.ts';
 
 export const RECOVERY_MODE_DAYS_KEY = 'ai-fitness-recovery-mode-days';
 export const DAILY_CONDITION_KEY = 'ai-fitness-daily-condition';
@@ -70,59 +72,38 @@ export function readDailyCondition(dateKey = getLocalDateKey()) {
   return readJson<DailyConditionStore>(DAILY_CONDITION_KEY, {})[dateKey];
 }
 
-export function saveDailyCondition(dateKey: string, signals: ConditionSignalId[], memo = '') {
-  const current = readJson<DailyConditionStore>(DAILY_CONDITION_KEY, {});
-  const previousReasonIds = new Set((current[dateKey]?.signals || []).map((signal) => conditionReasonMap[signal]));
-  if (previousReasonIds.size) {
-    const recoveryStore = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
-    const savedRecovery = recoveryStore[dateKey];
-    if (savedRecovery) {
-      writeJson(RECOVERY_MODE_DAYS_KEY, {
-        ...recoveryStore,
-        [dateKey]: {
-          ...savedRecovery,
-          reasons: savedRecovery.reasons.filter((reason) => !previousReasonIds.has(reason)),
-        },
-      });
-    }
-  }
-  const record: DailyConditionRecord = {
-    signals,
-    recommendation: getConditionRecommendation(signals),
-    memo: memo.trim() || undefined,
-    updatedAt: new Date().toISOString(),
-  };
-  writeJson(DAILY_CONDITION_KEY, { ...current, [dateKey]: record });
-  return record;
+export function saveDailyCondition(dateKey: string, signals: ConditionSignalId[], memo = '', owner?: StorageOwnerToken) {
+  return updateFitnessValues(snapshot => {
+    const current = readFitnessValue<DailyConditionStore>(snapshot, DAILY_CONDITION_KEY, {});
+    const recovery = readFitnessValue<RecoveryModeStore>(snapshot, RECOVERY_MODE_DAYS_KEY, {});
+    const reasons = new Set((current[dateKey]?.signals || []).map(signal => conditionReasonMap[signal]));
+    const record: DailyConditionRecord = { signals, recommendation: getConditionRecommendation(signals), memo: memo.trim() || undefined, updatedAt: new Date().toISOString() };
+    const changes: Record<string, string> = { [DAILY_CONDITION_KEY]: JSON.stringify({ ...current, [dateKey]: record }) };
+    if (reasons.size && recovery[dateKey]) changes[RECOVERY_MODE_DAYS_KEY] = JSON.stringify({ ...recovery, [dateKey]: { ...recovery[dateKey], reasons: recovery[dateKey].reasons.filter(reason => !reasons.has(reason)) } });
+    return { changes, value: record };
+  }, owner);
 }
 
-export function clearDailyCondition(dateKey: string) {
-  const current = readJson<DailyConditionStore>(DAILY_CONDITION_KEY, {});
-  const conditionReasons = new Set((current[dateKey]?.signals || []).map((signal) => conditionReasonMap[signal]));
-  const { [dateKey]: _removed, ...next } = current;
-  writeJson(DAILY_CONDITION_KEY, next);
-  if (conditionReasons.size) {
-    const recoveryStore = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
-    const savedRecovery = recoveryStore[dateKey];
-    if (savedRecovery) {
-      writeJson(RECOVERY_MODE_DAYS_KEY, {
-        ...recoveryStore,
-        [dateKey]: {
-          ...savedRecovery,
-          reasons: savedRecovery.reasons.filter((reason) => !conditionReasons.has(reason)),
-        },
-      });
-    }
-  }
+export function clearDailyCondition(dateKey: string, owner?: StorageOwnerToken) {
+  return updateFitnessValues(snapshot => {
+    const current = readFitnessValue<DailyConditionStore>(snapshot, DAILY_CONDITION_KEY, {});
+    const recovery = readFitnessValue<RecoveryModeStore>(snapshot, RECOVERY_MODE_DAYS_KEY, {});
+    const reasons = new Set((current[dateKey]?.signals || []).map(signal => conditionReasonMap[signal]));
+    const next = { ...current }; delete next[dateKey];
+    const changes: Record<string, string> = { [DAILY_CONDITION_KEY]: JSON.stringify(next) };
+    if (reasons.size && recovery[dateKey]) changes[RECOVERY_MODE_DAYS_KEY] = JSON.stringify({ ...recovery, [dateKey]: { ...recovery[dateKey], reasons: recovery[dateKey].reasons.filter(reason => !reasons.has(reason)) } });
+    return { changes, value: undefined };
+  }, owner);
 }
 
 function previousDateKey(dateKey: string) { const [y, m, d] = dateKey.split('-').map(Number); const date = new Date(y, (m || 1) - 1, d || 1); date.setDate(date.getDate() - 1); return getLocalDateKey(date); }
 
-export function assessRecoveryMode(dateKey = getLocalDateKey(), workoutDayId?: WorkoutDayId | null): RecoveryDayRecord {
-  const symptomsStore = readJson<Record<string, DietSymptomMap>>(DIET_SYMPTOMS_KEY, {});
-  const socialStore = readJson<Record<string, string>>(SOCIAL_MEAL_MODE_KEY, {});
-  const savedRecovery = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
-  const condition = readDailyCondition(dateKey);
+export function assessRecoveryMode(dateKey = getLocalDateKey(), workoutDayId?: WorkoutDayId | null, source?: Pick<Storage, 'getItem'>): RecoveryDayRecord {
+  const snapshot = source ?? (typeof window === 'undefined' ? undefined : readStorageSnapshot(window.localStorage));
+  const symptomsStore = readJson<Record<string, DietSymptomMap>>(DIET_SYMPTOMS_KEY, {}, snapshot);
+  const socialStore = readJson<Record<string, string>>(SOCIAL_MEAL_MODE_KEY, {}, snapshot);
+  const savedRecovery = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {}, snapshot);
+  const condition = readJson<DailyConditionStore>(DAILY_CONDITION_KEY, {}, snapshot)[dateKey];
   const symptoms = symptomsStore[dateKey] || {};
   const reasons = new Set<RecoveryReasonId>(savedRecovery[dateKey]?.reasons || []);
 
@@ -137,12 +118,13 @@ export function assessRecoveryMode(dateKey = getLocalDateKey(), workoutDayId?: W
   return { recoveryMode: isRecovery, reasons: reasonList, completedAsRecovery: saved?.completedAsRecovery, recoveryPriorityOnly: saved?.recoveryPriorityOnly, intensity: isRecovery ? (requiresRecovery ? 'recovery' : '70%') : 'normal', recoveryMemo: saved?.recoveryMemo || condition?.memo, updatedAt: saved?.updatedAt || condition?.updatedAt };
 }
 
-export function saveRecoveryRecord(dateKey: string, patch: Partial<RecoveryDayRecord>) {
-  const current = readJson<RecoveryModeStore>(RECOVERY_MODE_DAYS_KEY, {});
-  const assessed = assessRecoveryMode(dateKey);
-  const next: RecoveryModeStore = { ...current, [dateKey]: { ...assessed, ...current[dateKey], ...patch, updatedAt: new Date().toISOString() } };
-  writeJson(RECOVERY_MODE_DAYS_KEY, next);
-  return next[dateKey];
+export function saveRecoveryRecord(dateKey: string, patch: Partial<RecoveryDayRecord>, owner?: StorageOwnerToken) {
+  return updateFitnessValues(snapshot => {
+    const current = readFitnessValue<RecoveryModeStore>(snapshot, RECOVERY_MODE_DAYS_KEY, {});
+    const assessed = assessRecoveryMode(dateKey, null, snapshot);
+    const record = { ...assessed, ...current[dateKey], ...patch, updatedAt: new Date().toISOString() };
+    return { changes: { [RECOVERY_MODE_DAYS_KEY]: JSON.stringify({ ...current, [dateKey]: record }) }, value: record };
+  }, owner);
 }
 
 export const RECOVERY_ROUTINE = ['폼롤러 회복 5~10분', '가벼운 호흡 1~2분', '가벼운 스트레칭 3~5분', '허리 아래쪽 직접 폼롤링 금지', '종아리·허벅지 앞·허벅지 바깥쪽·엉덩이·등 위쪽 중심'];

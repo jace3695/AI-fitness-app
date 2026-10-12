@@ -2,6 +2,8 @@ import { test, expect, login, synced } from './fixture';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import pack from '../../content/drawing/foundations-v1.json';
+import { delayDrawingCheckpointUntilConfirmation, localDrawingConfirmation } from './drawing-checkpoint-race';
+import { RouteDrain } from './route-drain';
 
 async function draw(page:Page) {
   const canvas=page.getByLabel('내 그림 연습장',{exact:true});
@@ -17,6 +19,49 @@ async function chooseProject(page:Page,id:string) {
   await page.locator('summary').filter({hasText:`${id} · ${project.title}`}).click();
   await page.getByRole('button',{name:`${id} 시작·이어하기`,exact:true}).click();
 }
+
+test('drawing simple: menus wait for loaded records and open with one click after reload', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page); const original = await qa.read();
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/growth/drawing');
+  await page.getByRole('button', { name: '처음 그림 그리기', exact: true }).click();
+  await draw(page);
+  await page.getByRole('button', { name: '여기까지 저장', exact: true }).click();
+  await expect(page.getByText('저장했어요. 화면을 닫아도 나중에 이어 할 수 있어요.', { exact: true })).toBeVisible();
+  const saved = await qa.account.client.from('growth_drawing_attempts').select('*').single();
+  expect(saved.error).toBeNull(); expect(saved.data.document.strokes).toHaveLength(1);
+
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  let arrived!: () => void; const received = new Promise<void>(resolve => { arrived = resolve; });
+  const pattern = '**/rest/v1/growth_drawing_attempts*', drain = new RouteDrain();
+  await page.route(pattern, route => drain.run(async () => {
+    if (route.request().method() !== 'GET') { await route.fallback(); return; }
+    // Keep the real authenticated database response; delay delivery only.
+    const response = await route.fetch({ maxRetries: 0 });
+    expect(response.status()).toBe(200); arrived(); await held;
+    await route.fulfill({ response });
+  }));
+  try {
+    await page.reload(); await received;
+    await expect(page.getByText('저장한 그림을 확인하고 있어요…', { exact: true })).toBeVisible();
+    const menu = page.getByRole('navigation', { name: '그림 연습 메뉴' });
+    await expect(menu.getByRole('button')).toHaveCount(3);
+    for (const button of await menu.getByRole('button').all()) await expect(button).toBeDisabled();
+    release();
+    const toggle = menu.getByRole('button', { name: '전체 도구 보기', exact: true });
+    await expect(toggle).toBeEnabled();
+    await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#drawing-map')).toBeVisible();
+    await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await menu.getByRole('button', { name: '다른 수업 고르기', exact: true }).click();
+    await expect(page.locator('#drawing-map')).toBeVisible();
+    await menu.getByRole('button', { name: '내 그림 1장', exact: true }).click();
+    await page.getByRole('button', { name: '열고 이어 그리기', exact: true }).click();
+    await expect(page.getByRole('button', { name: '되돌리기', exact: true })).toBeEnabled();
+    expect((await qa.account.client.from('growth_drawing_attempts').select('*').single()).data).toEqual(saved.data);
+    expect(await qa.read()).toEqual(original);
+  } finally { release(); await drain.wait(); await page.unroute(pattern); }
+});
+
 for(const width of [320,390]) test(`drawing simple: first start, partial save, resume and finish at ${width}px`,async({page,qa},info)=>{
   await login(page,qa.account);await synced(page);const original=await qa.read();
   await page.setViewportSize({width,height:844});await page.goto('/growth/drawing');
@@ -54,6 +99,32 @@ for(const width of [320,390]) test(`drawing simple: first start, partial save, r
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await qa.read()).toEqual(original);
   await page.getByRole('button',{name:'처음 화면',exact:true}).click();
   await expect(page.getByRole('navigation',{name:'AI 연이 공통 메뉴'})).toBeVisible();
+});
+
+test('drawing simple: delayed local checkpoint cannot replace a confirmed save before resume', async ({ page, qa }) => {
+  await login(page, qa.account); await synced(page); const original = await qa.read();
+  await page.setViewportSize({ width: 320, height: 844 }); await page.goto('/growth/drawing');
+  await expect(page.getByRole('button', { name: '처음 그림 그리기', exact: true })).toBeEnabled();
+  await delayDrawingCheckpointUntilConfirmation(page);
+  await page.getByRole('button', { name: '처음 그림 그리기', exact: true }).click();
+  await draw(page);
+  await page.getByRole('button', { name: '다음 행동', exact: true }).click();
+  await page.getByRole('button', { name: '여기까지 저장', exact: true }).click();
+  await expect(page.getByText('저장했어요. 화면을 닫아도 나중에 이어 할 수 있어요.', { exact: true })).toBeVisible();
+  const first = (await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+  expect(first.revision).toBe(1); expect(first.status).toBe('draft'); expect(first.document.strokes).toHaveLength(1);
+  expect(await localDrawingConfirmation(page, qa.account.id, first.id)).toEqual({ pending: false, revision: first.revision, baseRevision: first.revision });
+  await page.reload(); await page.getByRole('button', { name: '하던 그림 이어 그리기', exact: true }).click();
+  await expect(page.getByRole('region', { name: '한 동작씩 보기' })).toContainText('2 / 6');
+  for (let i = 2; i < 6; i++) await page.getByRole('button', { name: '다음 행동', exact: true }).click();
+  await page.getByRole('button', { name: '도움을 받았어요', exact: true }).click();
+  await page.getByRole('button', { name: '오늘 연습 마치고 저장', exact: true }).click();
+  await expect(page.getByRole('region', { name: '연이의 연습 정리' })).toBeVisible();
+  const saved = (await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+  expect(saved.id).toBe(first.id); expect(saved.revision).toBe(2); expect(saved.status).toBe('completed');
+  expect(saved.document.strokes).toEqual(first.document.strokes); expect(saved.document.check).toBe('assisted');
+  expect(await localDrawingConfirmation(page, qa.account.id, saved.id)).toEqual({ pending: false, revision: saved.revision, baseRevision: saved.revision });
+  expect(await qa.read()).toEqual(original);
 });
 
 test('drawing simple: no saved project source gives an actionable route to first lesson',async({page,qa})=>{

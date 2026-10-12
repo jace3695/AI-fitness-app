@@ -1,0 +1,305 @@
+name: Disposable legacy evidence browser validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/browser-verification.yml'
+      - '.github/workflows/legacy-evidence-browser.yml'
+      - 'app/budget/lib/pending-save.ts'
+      - 'app/components/RecordResetPanel.tsx'
+      - 'app/data/appRecordReset.ts'
+      - 'app/data/authenticatedStorageOwner.ts'
+      - 'app/data/cloudSync.ts'
+      - 'app/data/cloudSyncConflicts.ts'
+      - 'app/data/growthRoutines.ts'
+      - 'app/data/languageCloudSync.ts'
+      - 'app/data/languageLegacyEvidenceRelease.ts'
+      - 'app/data/languageLegacyEvidenceRepository.ts'
+      - 'app/data/languageLegacyReviewCapture.ts'
+      - 'app/data/languageLocalParticipants.ts'
+      - 'app/data/languageRecordDocuments.ts'
+      - 'app/data/languageRecordIdentity.ts'
+      - 'app/data/languageRecordMutations.ts'
+      - 'app/data/languageResetFence.ts'
+      - 'app/data/languageReviewMutations.ts'
+      - 'app/data/languageStorageBoundary.ts'
+      - 'app/data/languageSyncCoordinator.ts'
+      - 'app/data/storageTransaction.ts'
+      - 'app/language/review/page.tsx'
+      - 'app/language/settings/page.tsx'
+      - 'app/lib/resetAppRecords.ts'
+      - 'components/language/CapturedCourseReviewQuestion.tsx'
+      - 'components/language/CourseReviewQuestion.tsx'
+      - 'components/language/learning-focus.module.css'
+      - 'components/language/useLanguageMutationAction.ts'
+      - 'components/language/useLanguageRecordSnapshot.ts'
+      - 'data/curriculum.ts'
+      - 'docs/language-legacy-evidence-gate-b2.md'
+      - 'lib/conversation-session/contracts.ts'
+      - 'lib/language-legacy-evidence/canonical-hash.ts'
+      - 'lib/language-legacy-evidence/capture.ts'
+      - 'lib/language-legacy-evidence/catalogue.ts'
+      - 'lib/language-legacy-evidence/idb-test-adapter.ts'
+      - 'lib/language-legacy-evidence/identity-manifest.ts'
+      - 'lib/language-legacy-evidence/local-store.ts'
+      - 'lib/language-legacy-evidence/outbox.ts'
+      - 'lib/language-legacy-evidence/persistence-types.ts'
+      - 'lib/language-legacy-evidence/projection.ts'
+      - 'lib/language-legacy-evidence/receipt-proof.ts'
+      - 'lib/language-legacy-evidence/review-capture.ts'
+      - 'lib/language-legacy-evidence/server-types.ts'
+      - 'lib/language-legacy-evidence/store-admission-types.ts'
+      - 'lib/language-legacy-evidence/study-policy.ts'
+      - 'lib/language-legacy-evidence/types.ts'
+      - 'lib/language-legacy-evidence/validation.ts'
+      - 'next.config.mjs'
+      - 'package-lock.json'
+      - 'package.json'
+      - 'playwright.config.ts'
+      - 'playwright.legacy-evidence.config.ts'
+      - 'scripts/browser-qa/package-lock.json'
+      - 'scripts/browser-qa/package.json'
+      - 'scripts/e2e-stack.mjs'
+      - 'scripts/legacy-evidence-activation-fixture.mjs'
+      - 'scripts/legacy-evidence-auth-owner-fixture.mjs'
+      - 'scripts/legacy-evidence-b2-build-inputs.json'
+      - 'scripts/legacy-evidence-ci-diagnostics.mjs'
+      - 'scripts/legacy-evidence-installation-fixture.mjs'
+      - 'scripts/qa-browser-environment.mjs'
+      - 'scripts/qa-drawing-protocol.mjs'
+      - 'scripts/qa-http-observer.mjs'
+      - 'scripts/qa-legacy-evidence-browser.mjs'
+      - 'scripts/qa-legacy-evidence-http.mjs'
+      - 'scripts/qa-legacy-evidence-postgres.mjs'
+      - 'scripts/qa-native-labels.mjs'
+      - 'scripts/qa-playwright.mjs'
+      - 'scripts/qa-state-diagnostics.mjs'
+      - 'supabase/migrations/20260915034857_assistant_task_command_history.sql'
+      - 'supabase/migrations/20260915052413_chatgpt_scoped_connection.sql'
+      - 'supabase/migrations/20260916043619_assistant_language_commands.sql'
+      - 'supabase/migrations/20260916045546_language_history_reset_triggers.sql'
+      - 'supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql'
+      - 'supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql'
+      - 'tests/e2e/auth.spec.ts'
+      - 'tests/e2e/fixture.ts'
+      - 'tests/e2e/legacy-evidence-review.spec.ts'
+      - 'tests/e2e/reporter.ts'
+      - 'tests/e2e/schema.sql'
+      - 'tests/helpers/languageFixture.ts'
+      - 'tests/helpers/legacyEvidenceRepositoryHarness.ts'
+      - 'tests/helpers/storageProtocol.ts'
+      - 'tests/legacy-evidence-activation-fixture.test.ts'
+      - 'tests/legacy-evidence-auth-owner-fixture.test.ts'
+      - 'tests/legacy-evidence-browser-harness.test.ts'
+      - 'tests/legacy-evidence-ci-diagnostics.test.ts'
+      - 'tests/legacy-evidence-ci-harness.test.ts'
+      - 'tests/legacy-evidence-ci-wiring.test.ts'
+      - 'tests/legacy-evidence-installation-fixture.test.ts'
+      - 'tsconfig.json'
+      - 'utils/integratedLearningSettings.ts'
+      - 'utils/learningReview.ts'
+      - 'utils/learningSession.ts'
+      - 'utils/reviewFocus.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# This independent job must never cancel the general browser regression.
+concurrency:
+  group: legacy-evidence-b2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  legacy-evidence-b2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      CI: 'true'
+      QA_SOUP_VARIANT: fixed
+      NEXT_TELEMETRY_DISABLED: '1'
+      QA_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Anchor the absolute validation and cleanup budget
+        shell: bash
+        run: |
+          started="$(date +%s%3N)"
+          deadline="$((started + 75 * 60 * 1000))"
+          stop_at="$((deadline - 15 * 60 * 1000))"
+          printf 'B2_JOB_STARTED_MS=%s\nB2_JOB_DEADLINE_MS=%s\nB2_STOP_AT_MS=%s\n' "$started" "$deadline" "$stop_at" >> "$GITHUB_ENV"
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 5
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - name: Install locked app dependencies
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          npm ci
+          B2_FIXED_SETUP
+      - name: Install locked browser QA dependencies
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          npm --prefix scripts/browser-qa ci --ignore-scripts
+          B2_FIXED_SETUP
+      - name: Verify pure B2 harness and source wiring
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          node --experimental-strip-types --test tests/legacy-evidence-browser-harness.test.ts tests/legacy-evidence-ci-wiring.test.ts
+          B2_FIXED_SETUP
+      - name: Install real browsers
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          npx playwright install --with-deps chromium webkit
+          B2_FIXED_SETUP
+      - name: Reserve the complete libsoup checkout allowance
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          # Reserve the complete five-minute action timeout and transition margin.
+          test "$((B2_STOP_AT_MS - now))" -ge "$((5 * 60 * 1000 + 15 * 1000))" || { echo 'B2 action budget exhausted.'; exit 1; }
+      - name: Checkout official libsoup 3.6.6 source
+        timeout-minutes: 5
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: GNOME/libsoup
+          ref: 25eac153004f777581ca2d95e31a02ca96844332
+          path: .e2e/libsoup-source
+          persist-credentials: false
+      - name: Build fixed library for isolated browser comparison
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build build-essential pkg-config libglib2.0-dev libnghttp2-dev libsqlite3-dev libpsl-dev libbrotli-dev glib-networking
+          meson setup .e2e/libsoup-build .e2e/libsoup-source --prefix="$RUNNER_TEMP/webkit-soup" --libdir=lib --wrap-mode=nofallback -Dgssapi=disabled -Dvapi=disabled -Dntlm=disabled -Dsysprof=disabled -Dautobahn=disabled -Dpkcs11_tests=disabled -Dintrospection=disabled -Ddocs=disabled -Dtests=false
+          meson compile -C .e2e/libsoup-build
+          meson install -C .e2e/libsoup-build
+          echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
+          B2_FIXED_SETUP
+      - name: Start disposable database and auth
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws node scripts/e2e-stack.mjs start
+          B2_FIXED_SETUP
+      - name: Validate inactive and disposable enabled browser artifacts
+        # The fixed outer backstop also bounds synchronous hashing and finally.
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          remaining="$(((B2_STOP_AT_MS - now) / 1000 - 15))"
+          test "$remaining" -gt 0 || { echo 'B2 work budget exhausted.'; exit 1; }
+          timeout --signal=TERM --kill-after=10s "${remaining}s" bash --noprofile --norc -e -o pipefail <<'B2_FIXED_SETUP'
+          node --experimental-strip-types scripts/qa-legacy-evidence-browser.mjs run
+          B2_FIXED_SETUP
+      - name: Remove owned B2 processes and private artifacts
+        if: always()
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          [[ "$B2_JOB_STARTED_MS" =~ ^[1-9][0-9]{12}$ && "$B2_JOB_DEADLINE_MS" =~ ^[1-9][0-9]{12}$ && "$B2_STOP_AT_MS" =~ ^[1-9][0-9]{12}$ ]]
+          now="$(date +%s%3N)"
+          [[ "$now" =~ ^[1-9][0-9]{12}$ ]]
+          test "$now" -ge "$B2_JOB_STARTED_MS"
+          test "$B2_JOB_DEADLINE_MS" -eq "$((B2_JOB_STARTED_MS + 75 * 60 * 1000))"
+          test "$B2_STOP_AT_MS" -eq "$((B2_JOB_DEADLINE_MS - 15 * 60 * 1000))"
+          # Share the original cutoff with run() shutdown; never restart five minutes.
+          remaining="$(((B2_STOP_AT_MS + 5 * 60 * 1000 - 45 * 1000 - now) / 1000 - 15))"
+          if test "$remaining" -gt 0; then
+            if test "$remaining" -gt 240; then remaining=240; fi
+            timeout --signal=TERM --kill-after=10s "${remaining}s" node --experimental-strip-types scripts/qa-legacy-evidence-browser.mjs cleanup
+          else
+            # A short final attempt must still be followed by stack stop and failure.
+            set +e
+            timeout --signal=TERM --kill-after=5s 5s node --experimental-strip-types scripts/qa-legacy-evidence-browser.mjs cleanup
+            exit 1
+          fi
+      - name: Remove disposable database and keys
+        if: always()
+        run: |
+          set +e
+          node scripts/e2e-stack.mjs stop
+          status=$?
+          B2_STACK_STOP_EXIT="$status" node scripts/qa-legacy-evidence-browser.mjs finalize
+          finalized=$?
+          test "$status" -eq 0 && test "$finalized" -eq 0
+      - name: Publish sanitized B2 evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: legacy-evidence-b2-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            .e2e/evidence/legacy-evidence-b2-results.json
+            .e2e/evidence/legacy-evidence-postgres.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

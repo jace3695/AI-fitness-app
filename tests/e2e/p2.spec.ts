@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import {
   assertOriginalPreserved,
   expect,
+  isSharedSyncWrite,
+  localState,
   login,
   original,
   originalLanguage,
@@ -673,13 +675,57 @@ test('diet workout context distinguishes malformed workout data from an empty hi
   const before=await qa.read();
   const state={...before,'ai-fitness-workout-completed-days':[]};
   expect((await qa.account.client.from('user_app_state').update({state}).eq('user_id',qa.account.id)).error).toBeNull();
-  await login(page,qa.account); await synced(page); await page.goto('/diet',{waitUntil:'domcontentloaded'});
-  const panel=page.getByRole('region',{name:'운동과 식사 기록 함께 보기'});
-  await expect(panel.getByRole('alert')).toContainText('기록 형식을 확인할 수 없어');
-  await expect(panel).not.toContainText('운동 표시 0일');
+  const acknowledgement=()=>page.evaluate(owner=>({
+    base:localStorage.getItem(`fitness-cloud-sync-base:${owner}`),
+    acknowledgement:localStorage.getItem(`fitness-cloud-sync-ack:${owner}`),
+  }),qa.account.id);
+  const blockedRemote=async()=>{
+    await expect(page.getByText('기록 동기화 실패',{exact:true})).toBeVisible();
+    await expect(page.getByText('이전 형식의 기록을 안전하게 해석하지 못했습니다. 기기와 서버 원본을 보존했으니 기록 형식을 확인해 주세요.',{exact:true})).toBeVisible();
+    await expect(page.getByText('서버 반영 완료',{exact:true})).toHaveCount(0);
+    expect(await acknowledgement()).toEqual({base:null,acknowledgement:null});
+    expect(await localState(page)).toEqual({});
+    expect(await qa.read()).toEqual(state);
+    expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
+  };
+  // Authentication succeeds, but a malformed remote map must never be imported
+  // or acknowledged as an empty history, including after a fresh document load.
+  await login(page,qa.account); await blockedRemote();
+  await page.reload({waitUntil:'domcontentloaded'}); await blockedRemote();
+
+  // Only this disposable-account fixture repairs its deliberately invalid seed.
   const repaired={...state,'ai-fitness-workout-completed-days':{}};
   expect((await qa.account.client.from('user_app_state').update({state:repaired}).eq('user_id',qa.account.id)).error).toBeNull();
+  await page.getByRole('button',{name:'다시 시도',exact:true}).click(); await synced(page);
+  await page.goto('/diet',{waitUntil:'domcontentloaded'}); await synced(page);
+  const panel=page.getByRole('region',{name:'운동과 식사 기록 함께 보기'});
+  await expect(panel).toContainText('운동 표시 0일');
+  expect(await localState(page)).toEqual(repaired); expect(await qa.read()).toEqual(repaired);
+
+  // Exercise the actual diet reader's malformed-cache warning independently of
+  // the cloud importer, which correctly refuses malformed remote maps above.
+  const beforeCorruption=await acknowledgement();
+  await page.evaluate(()=>{
+    localStorage.setItem('ai-fitness-workout-completed-days','[]');
+    window.dispatchEvent(new Event('yeoni-records-changed'));
+  });
+  const blockedLocal=async()=>{
+    await expect(panel.getByRole('alert')).toContainText('기록 형식을 확인할 수 없어');
+    await expect(panel).not.toContainText('운동 표시 0일');
+    await expect(page.getByText('기록 동기화 실패',{exact:true})).toBeVisible();
+    await expect(page.getByText('서버 반영 완료',{exact:true})).toHaveCount(0);
+    expect(await page.evaluate(()=>localStorage.getItem('ai-fitness-workout-completed-days'))).toBe('[]');
+    expect(await localState(page)).toEqual(state);
+    expect(await acknowledgement()).toEqual(beforeCorruption);
+    expect(await qa.read()).toEqual(repaired);
+    expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
+  };
+  await blockedLocal();
+  await page.reload({waitUntil:'domcontentloaded'}); await blockedLocal();
+  // Explicitly restore only the local corruption introduced by this fixture.
+  await page.evaluate(()=>localStorage.setItem('ai-fitness-workout-completed-days','{}'));
   await page.reload({waitUntil:'domcontentloaded'}); await synced(page);
   await expect(panel).toContainText('운동 표시 0일'); await expect(panel.getByRole('alert')).toHaveCount(0);
-  expect(await qa.read()).toEqual(repaired);
+  expect(await localState(page)).toEqual(repaired); expect(await qa.read()).toEqual(repaired);
+  expect(qa.traffic.entries.filter(isSharedSyncWrite)).toHaveLength(0);
 });

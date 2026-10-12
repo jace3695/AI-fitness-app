@@ -1,18 +1,37 @@
-// Opt-in development diagnostics. No auth traffic, headers, persistence or uploads.
+// Opt-in development diagnostics. State, owners, tokens and hashes never enter
+// the snapshot/export. These metadata cannot prove saved-content equality.
 export type SyncQaFault = 'hold-request' | 'hold-response' | 'drop-response' | 'fail-get';
-type Rule = { method: 'GET' | 'PATCH'; fault: SyncQaFault };
+export type SyncQaMethod = 'GET' | 'PATCH' | 'POST';
+type Rule = { method: SyncQaMethod; fault: SyncQaFault };
+const syncRpcPath = '/rest/v1/rpc/save_cloud_state_if_unchanged';
 export type SyncQaEntry = {
-  id: number; client: string; method: string; query: string;
+  id: number; client: string; method: string;
+  operation: 'read-state' | 'conditional-save' | 'legacy-update' | 'legacy-insert';
   startedAt: string; sentAt?: string; receivedAt?: string; deliveredAt?: string;
-  requestBody: unknown; response?: { status: number; body: unknown; synthetic?: boolean };
+  request?: { stateKeys?: number; expectedStateKeys?: number; condition: 'owner-content-version' | 'owner-absent' | 'owner-timestamp' | 'incomplete' };
+  response?: { status: number; rowCount?: number; stateKeys?: number; matched?: boolean; synthetic?: boolean };
   phase: string; fault?: SyncQaFault; error?: string;
 };
-const privateKeys = /^(user_id|access_token|refresh_token|authorization|apikey|password|cookie|set-cookie)$/i;
-function decodedBody(raw: string): unknown {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw, (key, value) => privateKeys.test(key) ? '[redacted]' : value);
-  } catch { return '[non-JSON body omitted]'; }
+const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+function decodedBody(raw: string): unknown { try { return JSON.parse(raw); } catch { return null; } }
+function requestMetadata(raw: string, rpc: boolean, url: URL): SyncQaEntry['request'] {
+  const body = decodedBody(raw);
+  if (!record(body)) return { condition: 'incomplete' };
+  if (!rpc) return { ...(record(body.state) ? { stateKeys: Object.keys(body.state).length } : {}),
+    condition: url.searchParams.get('user_id')?.startsWith('eq.') && url.searchParams.get('updated_at')?.startsWith('eq.') ? 'owner-timestamp' : 'incomplete' };
+  const owner = typeof body.p_owner === 'string' && Boolean(body.p_owner);
+  return { ...(record(body.p_state) ? { stateKeys: Object.keys(body.p_state).length } : {}),
+    ...(record(body.p_expected_state) ? { expectedStateKeys: Object.keys(body.p_expected_state).length } : {}),
+    condition: owner && record(body.p_state) && body.p_expected_state === null && body.p_expected_updated_at === null ? 'owner-absent'
+      : owner && record(body.p_state) && record(body.p_expected_state) && typeof body.p_expected_updated_at === 'string' && Boolean(body.p_expected_updated_at) ? 'owner-content-version' : 'incomplete' };
+}
+function responseMetadata(status: number, body: unknown, rpc: boolean, method: string): SyncQaEntry['response'] {
+  if (status < 200 || status >= 300) return { status };
+  if (rpc) return { status, ...(typeof body === 'boolean' ? { matched: body } : {}) };
+  const row = Array.isArray(body) ? body[0] : body;
+  return { status, rowCount: Array.isArray(body) ? body.length : record(row) ? 1 : 0,
+    ...(method === 'PATCH' ? { matched: Boolean(row) } : {}),
+    ...(record(row) && record(row.state) ? { stateKeys: Object.keys(row.state).length } : {}) };
 }
 
 export function createSyncQaTrace(options: { origin: string; client: string; send: typeof fetch; maxEntries?: number; holdMs?: number }) {
@@ -44,36 +63,38 @@ export function createSyncQaTrace(options: { origin: string; client: string; sen
   const tracedFetch: typeof fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
-    if (!active || url.origin !== options.origin || url.pathname !== '/rest/v1/user_app_state' || !['GET', 'PATCH', 'POST'].includes(method)) {
+    const rpc = url.pathname === syncRpcPath && method === 'POST';
+    if (!active || url.origin !== options.origin || (!rpc && (url.pathname !== '/rest/v1/user_app_state' || !['GET', 'PATCH', 'POST'].includes(method)))) {
       return options.send(input, init);
     }
     const selected = rule?.method === method ? rule : null;
     // GET retries belong to the SDK. Keep this fault armed until explicit release
     // so a one-off 503 cannot silently turn an intended error case into success.
     if (selected && selected.fault !== 'fail-get') rule = null;
-    const query = new URLSearchParams();
-    for (const name of ['select', 'updated_at']) if (url.searchParams.has(name)) query.set(name, url.searchParams.get(name)!);
-    if (url.searchParams.has('user_id')) query.set('user_id', '[redacted]');
-    const entry: SyncQaEntry = { id: ++sequence, client: options.client, method, query: query.toString(), startedAt: now(), requestBody: null, phase: 'preparing', fault: selected?.fault };
+    const entry: SyncQaEntry = { id: ++sequence, client: /^[AB]$/.test(options.client) ? options.client : 'browser', method,
+      operation: rpc ? 'conditional-save' : method === 'GET' ? 'read-state' : method === 'PATCH' ? 'legacy-update' : 'legacy-insert',
+      startedAt: now(), phase: 'preparing', fault: selected?.fault };
     if (entries.length < (options.maxEntries ?? 100)) entries.push(entry); else overflow = true;
     inFlight++; emit();
     try {
       const raw = typeof init?.body === 'string' ? init.body : input instanceof Request ? await input.clone().text() : '';
-      entry.requestBody = decodedBody(raw);
+      if (method !== 'GET') entry.request = requestMetadata(raw, rpc, url);
       const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+      signal?.throwIfAborted();
       if (selected?.fault === 'hold-request') { entry.phase = 'held-before-send'; await waitForRelease(entry, signal); }
       if (selected?.fault === 'fail-get') {
         entry.phase = 'synthetic-get-error';
-        entry.response = { status: 503, body: { message: 'QA simulated GET failure' }, synthetic: true };
+        entry.response = { status: 503, synthetic: true };
         entry.deliveredAt = now();
-        return new Response(JSON.stringify(entry.response.body), { status: 503, headers: { 'Content-Type': 'application/json' } });
+        return new Response('{"message":"QA simulated GET failure"}', { status: 503, headers: { 'Content-Type': 'application/json' } });
       }
       entry.phase = 'sent'; entry.sentAt = now(); emit();
       const response = await options.send(input, init);
       entry.receivedAt = now();
-      try { entry.response = { status: response.status, body: decodedBody(await response.clone().text()) }; }
+      try { entry.response = responseMetadata(response.status, decodedBody(await response.clone().text()), rpc, method); }
       catch { entry.error = 'Response body capture failed'; }
       if (selected?.fault === 'hold-response') { entry.phase = 'held-after-response'; await waitForRelease(entry, signal); }
+      signal?.throwIfAborted();
       if (selected?.fault === 'drop-response') {
         // Actual server response is captured; only delivery to the SDK is rejected.
         entry.phase = 'response-withheld';
@@ -82,7 +103,8 @@ export function createSyncQaTrace(options: { origin: string; client: string; sen
       entry.phase = 'delivered'; entry.deliveredAt = now();
       return response;
     } catch (error) {
-      entry.error ??= entry.phase === 'response-withheld' ? 'QA response withheld' : error instanceof Error ? error.name : 'Fetch failed';
+      entry.error ??= entry.phase === 'response-withheld' ? 'QA response withheld'
+        : error instanceof Error && error.name === 'AbortError' ? 'AbortError' : 'Fetch failed';
       if (entry.phase !== 'response-withheld') entry.phase = 'rejected';
       throw error;
     } finally { inFlight--; emit(); }
@@ -98,7 +120,8 @@ export function createSyncQaTrace(options: { origin: string; client: string; sen
     release() { rule = null; for (const resume of [...held.values()]) resume(); emit(); },
     clear() { if (inFlight || rule) throw new Error('요청이 끝난 뒤 증거를 비우세요.'); entries.length = 0; overflow = false; emit(); },
     stop() { if (inFlight || rule) throw new Error('대기 제어를 해제하고 요청이 끝난 뒤 종료하세요.'); active = false; entries.length = 0; emit(); },
-    exportJson() { return JSON.stringify({ format: 'yeoni-sync-qa-v1', serverOrigin: options.origin, scope: 'SDK fetch JSON; headers and user_id omitted; record bodies remain private', ...snapshot() }, null, 2); },
+    exportJson() { return JSON.stringify({ format: 'yeoni-sync-qa-v1', bodyPolicy: 'metadata-only',
+      scope: 'Operation, timing, status and counts only. No state, owner, headers, tokens or hashes. Saved-content equality is unverified.', ...snapshot() }, null, 2); },
   };
 }
 

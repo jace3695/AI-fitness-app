@@ -54,6 +54,38 @@ function isRealDate(value: string) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
+function isGoogleEventDate(value: unknown): value is GoogleEventDate {
+  if (!value || typeof value !== "object") return false;
+  const date = value as Record<string, unknown>;
+  return (date.date === undefined || typeof date.date === "string" && isRealDate(date.date))
+    && (date.dateTime === undefined || typeof date.dateTime === "string" && Number.isFinite(Date.parse(date.dateTime)))
+    && (date.timeZone === undefined || typeof date.timeZone === "string");
+}
+
+// Reject a malformed upstream success instead of filtering bad items into a
+// falsely empty month. Cancelled events legitimately omit their date fields.
+export function parseGoogleCalendarItems(value: unknown): GoogleEventResource[] | null {
+  if (!value || typeof value !== "object" || "error" in value
+    || "kind" in value && value.kind !== "calendar#events") return null;
+  // Google's official quickstarts also handle omitted items as an empty page.
+  // Require the collection envelope so an arbitrary {} cannot confirm emptiness.
+  if (!("items" in value)) {
+    return "kind" in value && value.kind === "calendar#events"
+      && "etag" in value && typeof value.etag === "string" && value.etag.trim() ? [] : null;
+  }
+  if (!Array.isArray(value.items)) return null;
+  const valid = value.items.every((item: unknown): item is GoogleEventResource => {
+    if (!item || typeof item !== "object") return false;
+    const event = item as Record<string, unknown>;
+    if (typeof event.id !== "string" || !event.id
+      || !["summary", "description", "htmlLink", "status"].every(key => event[key] === undefined || typeof event[key] === "string")) return false;
+    if (event.status === "cancelled") return true;
+    return isGoogleEventDate(event.start) && Boolean(event.start.date || event.start.dateTime)
+      && (event.end === undefined || isGoogleEventDate(event.end));
+  });
+  return valid ? value.items : null;
+}
+
 export function addCalendarDays(value: string, days: number) {
   if (!isRealDate(value)) throw new Error("올바른 날짜가 아닙니다.");
   const [year, month, day] = value.split("-").map(Number);

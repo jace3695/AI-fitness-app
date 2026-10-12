@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 import {server} from './server.mjs';
+import {humanPreviewPath} from '../browser-qa/human-preview-path.mjs';
 const root=new URL('../../',import.meta.url),kind=process.env.YEONI_BROWSER||'chromium',out=new URL(`.e2e/yeoni-human-speech/${kind}/`,root);
 mkdirSync(out,{recursive:true});
 const dir=new URL('public/yeoni/human/rig-v4/',root),spec=JSON.parse(readFileSync(new URL('manifest.json',dir))),assets={};
@@ -12,7 +13,9 @@ const uri=url=>'data:image/'+(url.pathname.endsWith('.png')?'png':'webp')+';base
 for(const p of [spec.source,...Object.values(spec.layers),...Object.values(spec.faceParts).flat()]){
  assert.equal(createHash('sha256').update(readFileSync(new URL(p.image,dir))).digest('hex'),p.sha256);assets[p.image]=uri(new URL(p.image,dir));
 }
-const browser=await({chromium,webkit})[kind].launch({headless:true}),context=await browser.newContext({viewport:{width:800,height:1150},reducedMotion:'no-preference'});
+const browser=await({chromium,webkit})[kind].launch({headless:true,
+ ...(kind==='chromium'&&process.env.YEONI_CHROMIUM?{executablePath:process.env.YEONI_CHROMIUM,args:['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']}:{}),
+}),context=await browser.newContext({viewport:{width:800,height:1150},reducedMotion:'no-preference'});
 const errors=[],external=[],results=[];let comparison=[],sampleCount=0,video;
 context.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));
 context.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith('http://127.0.0.1:8879/'))external.push(r.url())});
@@ -35,6 +38,12 @@ try{
   comparison=await page.evaluate(input=>speechReview.compare(input),{samples,spec,assets});
   for(const row of comparison){assert.equal(row.opaqueChanged,0,JSON.stringify(row));assert.ok(row.alphaMax<=1,JSON.stringify(row));assert.equal(row.neckMin,255,JSON.stringify(row));}
   assert.ok(new Set(comparison.map(r=>r.shape)).size>=6);
+  assert.ok(comparison.some(r=>r.mouth.from!==r.mouth.to&&r.mouth.mix>0&&r.mouth.mix<1));
+ });
+ await test('comparison rejects raw-viseme substitution and an altered face pixel',async()=>{
+  const controls=await page.evaluate(input=>speechReview.negativeControls(input),{samples,spec,assets});
+  assert.equal(controls.length,2);
+  for(const row of controls)assert.ok(row.opaqueChanged>0,JSON.stringify(row));
  });
  await test('original comparison sheets capture natural speech states and end state',async()=>{
   const choices=[{label:'승인 원본 A안',png:assets[spec.source.image]}];
@@ -46,13 +55,13 @@ try{
   }
  });
  await test('offline HTML loads its embedded MP3 and face assets without external requests or autoplay',async()=>{
-  const p=await context.newPage();await p.goto(pathToFileURL(new URL('docs/yeoni-phase9/Yeoni_Human_Speech_Preview.html',root).pathname).href);
+  const p=await context.newPage();await p.goto(pathToFileURL(humanPreviewPath('speech')).href);
   await p.locator('[data-human-status="ready"]').waitFor();await p.getByRole('button',{name:'저장된 연이 음성 불러오기',exact:true}).click();await p.locator('[data-speech-state="ready"]').waitFor();
   assert.equal(await p.locator('audio').evaluate(a=>a.paused),true);await p.getByRole('button',{name:'재생',exact:true}).click();await p.locator('[data-speech-state="playing"]').waitFor();
   await p.waitForFunction(()=>document.querySelector('.portrait canvas').dataset.viseme==='a');await p.getByRole('button',{name:'일시정지',exact:true}).click();
   await p.screenshot({path:new URL('offline.png',out).pathname});await p.close();
  });
- if(kind==='chromium')await test('review MP4 reuses the original voice with timestamped actual browser frames',async()=>{
+ if(kind==='chromium'&&process.env.YEONI_REVIEW_VIDEO==='1')await test('review MP4 reuses the original voice with timestamped actual browser frames',async()=>{
   const p=await context.newPage();await p.setViewportSize({width:736,height:600});
   await p.setContent('<style>body{margin:0;background:#f4f0fa}</style><canvas width="736" height="600"></canvas>');
   await p.evaluate(async data=>{window.framesToShow=await Promise.all(data.map(async s=>{const img=new Image();img.src=s.png;await img.decode();return{...s,img}}));},[{media:-1,png:assets[spec.source.image]},...samples]);
@@ -70,4 +79,4 @@ try{
  });
  await test('no runtime exceptions or external requests',async()=>{assert.deepEqual(errors,[]);assert.deepEqual(external,[])});
 }catch(e){results.push({passed:false,error:String(e)});console.error(e);process.exitCode=1;}
-finally{writeFileSync(new URL('visual-results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,sampleCount,comparison,video,errors,external,scope:'Actual saved MP3 and approved human artwork. Automatic alignment/listening and physical-device latency remain unverified.'},null,2));await browser.close();await new Promise(resolve=>server.close(resolve));}
+finally{writeFileSync(new URL('visual-results.json',out),JSON.stringify({browser:kind,version:browser.version(),results,reviewVideoRequested:process.env.YEONI_REVIEW_VIDEO==='1',sampleCount,comparison,video,errors,external,scope:'Actual saved MP3 and approved human artwork. Automatic alignment/listening and physical-device latency remain unverified.'},null,2));await browser.close();await new Promise(resolve=>server.close(resolve));}

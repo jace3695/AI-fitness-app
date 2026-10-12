@@ -1,3 +1,6 @@
+import { readStorageSnapshot, type StorageOwnerToken } from './storageTransaction.ts';
+import { readFitnessValue, updateFitnessValues } from './fitnessStorageUpdates.ts';
+import { EMPTY_USER_WORKOUT_SETTINGS, USER_WORKOUT_SETTINGS_KEY, type UserWorkoutSettings } from './userWorkoutSettings.ts';
 import type { WorkoutDayId } from "./workoutCompletion.ts";
 import type { WorkoutPlanProposal } from "./workoutPlanProposal.ts";
 
@@ -56,7 +59,7 @@ export function readWorkoutPlanDecisionHistory(): WorkoutPlanDecisionRecord[] {
   if (typeof window === "undefined") return [];
   try {
     const value = JSON.parse(
-      window.localStorage.getItem(WORKOUT_PLAN_DECISION_HISTORY_KEY) || "[]",
+      readStorageSnapshot(window.localStorage).getItem(WORKOUT_PLAN_DECISION_HISTORY_KEY) || "[]",
     );
     return Array.isArray(value)
       ? value.flatMap((item) => {
@@ -76,8 +79,10 @@ export function saveWorkoutPlanDecision(
     dayIds?: WorkoutDayId[];
     exerciseNames?: string[];
   },
+  settingsTransform?: (current: UserWorkoutSettings, source: Pick<Storage, 'getItem'>) => UserWorkoutSettings,
+  owner?: StorageOwnerToken,
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return Promise.resolve(undefined);
   const allDayIds = proposal.days.map((day) => day.dayId);
   const allExerciseNames = proposal.exerciseTargets.map(
     (target) => target.exerciseName,
@@ -95,9 +100,14 @@ export function saveWorkoutPlanDecision(
         : selection?.exerciseNames ?? allExerciseNames,
     changeSummary: proposal.changes,
   };
-  const next = [record, ...readWorkoutPlanDecisionHistory()].slice(0, 20);
-  window.localStorage.setItem(
-    WORKOUT_PLAN_DECISION_HISTORY_KEY,
-    JSON.stringify(next),
-  );
+  return updateFitnessValues(snapshot => {
+    const history = readFitnessValue<WorkoutPlanDecisionRecord[]>(snapshot, WORKOUT_PLAN_DECISION_HISTORY_KEY, []);
+    const changes: Record<string, string> = { [WORKOUT_PLAN_DECISION_HISTORY_KEY]: JSON.stringify([record, ...history].slice(0, 20)) };
+    let settings: UserWorkoutSettings | undefined;
+    if (settingsTransform) {
+      settings = settingsTransform({ ...EMPTY_USER_WORKOUT_SETTINGS, ...readFitnessValue<UserWorkoutSettings>(snapshot, USER_WORKOUT_SETTINGS_KEY, EMPTY_USER_WORKOUT_SETTINGS) }, snapshot);
+      changes[USER_WORKOUT_SETTINGS_KEY] = JSON.stringify(settings);
+    }
+    return { changes, value: settings };
+  }, owner);
 }

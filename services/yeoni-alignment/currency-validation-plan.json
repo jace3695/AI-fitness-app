@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-09",
+  "status": "approved-2026-10-09T11:51:49+09:00",
+  "voice": "ko-KR-Chirp3-HD-Zephyr",
+  "language": "ko-KR",
+  "maximumCalls": 1,
+  "automaticRetries": false,
+  "cases": [
+    {
+      "id": "currency-20261009",
+      "text": "예상 비용은 만이천오백원이에요.",
+      "requestText": "예상 비용은 12,500원이에요.",
+      "requestId": "8e6dada6-c377-4a6d-854f-f9ecf310d9fa"
+    }
+  ],
+  "limits": "Only the final 17-character Korean input is approved for one Google request. The numeric requestText exercises server normalization. Preserve all three previous samples, IDs and receipts. Never retry or replace an ambiguous result. Production merge and general alignment activation are not approved."
+}

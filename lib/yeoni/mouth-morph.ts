@@ -54,7 +54,9 @@ export function morphMouthPixels(a: Uint8ClampedArray, b: Uint8ClampedArray, out
   if (mix <= 0) { output.set(a); return; } if (mix >= 1) { output.set(b); return; }
   if (from === to && a === b) { output.set(a); return; }
   const sourceA = mouthMesh(from, width, height), sourceB = mouthMesh(to, width, height);
-  const target = sourceA.map((p, i) => ({ x: p.x * (1 - mix) + sourceB[i].x * mix, y: p.y * (1 - mix) + sourceB[i].y * mix }));
+  // Identical border coordinates must remain exact: 199*(1-t)+199*t can
+  // become 198.99999999999997, making floor(maxX) omit the entire last column.
+  const target = sourceA.map((p, i) => ({ x: p.x + (sourceB[i].x - p.x) * mix, y: p.y + (sourceB[i].y - p.y) * mix }));
   const channels = new Float64Array(3);
   const sample = (data: Uint8ClampedArray, sx: number, sy: number, weight: number, add: boolean) => {
     const xx = Math.max(0, Math.min(width - 1, sx)), yy = Math.max(0, Math.min(height - 1, sy));

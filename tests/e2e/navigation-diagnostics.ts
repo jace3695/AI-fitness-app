@@ -17,7 +17,7 @@ export function failureLabel(raw: string): string {
   if (/closed|disconnected/i.test(raw)) return 'closed-or-disconnected';
   if (/timeout|timed out/i.test(raw)) return 'timeout';
   if (/abort|cancel|ERR_ABORTED/i.test(raw)) return 'aborted';
-  if (/reset|ECONNRESET/i.test(raw)) return 'connection-reset';
+  if (/ECONNRESET|ERR_CONNECTION_RESET|connection (?:was )?reset(?: by peer)?|reset by peer/i.test(raw)) return 'connection-reset';
   return 'other';
 }
 

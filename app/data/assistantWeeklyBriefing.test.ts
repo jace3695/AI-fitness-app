@@ -71,3 +71,14 @@ test("조회 실패 영역은 0으로 오해하지 않고 카드와 추천 후�
   assert.deepEqual(briefing.cards, []);
   assert.equal(briefing.recommendation.area, "calendar");
 });
+
+test('weekly growth brief distinguishes unknown-only quick time from measured zero without losing active days', () => {
+  const base = { todayKey: '2026-10-09', items: [], budgetTransactions: [], appState: {}, languageState: {} };
+  const unknown = { routine_id: 'one', session_date: '2026-10-09', status: 'completed', actual_minutes: 0, metrics: { actualMinutesRecorded: false } };
+  const card = buildAssistantWeeklyBriefing({ ...base, growthSessions: [unknown] }).cards.find(card => card.area === 'growth')!;
+  assert.equal(card.value, '1일 실행'); assert.equal(card.detail, '시간 미기록 1회'); assert.doesNotMatch(card.detail, /0분/);
+  const mixed = buildAssistantWeeklyBriefing({ ...base, growthSessions: [unknown, { ...unknown, session_date: '2026-10-08', actual_minutes: '20', metrics: {} }] }).cards.find(card => card.area === 'growth')!;
+  assert.equal(mixed.value, '2일 실행'); assert.equal(mixed.detail, '기록 20분 · 시간 미기록 1회 제외');
+  const measuredZero = buildAssistantWeeklyBriefing({ ...base, growthSessions: [{ ...unknown, metrics: { actualMinutesRecorded: true } }] }).cards.find(card => card.area === 'growth')!;
+  assert.equal(measuredZero.detail, '기록 0분');
+});

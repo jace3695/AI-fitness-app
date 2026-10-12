@@ -6,8 +6,50 @@ import {
   getGoogleCalendarDayPreview,
   isSameGoogleCalendarEvent,
   mapGoogleCalendarEvent,
+  parseGoogleCalendarItems,
   parseGoogleCalendarEventInput,
 } from "../../lib/google-calendar.ts";
+
+test("Google 성공 응답도 일정 배열이 확인되지 않으면 빈 달로 처리하지 않는다", () => {
+  for (const malformed of [null, {}, [], "not json", { items: null }, { items: {} }, { items: [], error: { message: "failure" } }, { items: [null] }, { items: [{}] }]) {
+    assert.equal(parseGoogleCalendarItems(malformed), null);
+  }
+  assert.deepEqual(parseGoogleCalendarItems({ items: [] }), []);
+});
+
+test("Google 일정 배열은 정상 일정과 취소된 일정을 보존한다", () => {
+  const items = [
+    { id: "all-day", start: { date: "2026-10-12" }, end: { date: "2026-10-13" } },
+    { id: "timed", summary: "합성 일정", start: { dateTime: "2026-10-12T09:00:00+09:00", timeZone: "Asia/Seoul" } },
+    { id: "cancelled", status: "cancelled" },
+  ];
+  assert.equal(parseGoogleCalendarItems({ items, nextPageToken: "unchanged-page-token" }), items);
+  assert.deepEqual(parseGoogleCalendarItems({ items: [], nextPageToken: "unchanged-page-token" }), []);
+  assert.equal(mapGoogleCalendarEvent(items[2]), null);
+});
+
+test("items 생략은 확인된 Google 일정 컬렉션에서만 빈 페이지로 처리한다", () => {
+  const envelope = { kind: "calendar#events", etag: '"synthetic-etag"' };
+  assert.deepEqual(parseGoogleCalendarItems(envelope), []);
+  for (const malformed of [
+    { kind: "calendar#events" }, { etag: '"synthetic-etag"' },
+    { ...envelope, etag: "" }, { ...envelope, etag: 123 },
+    { ...envelope, kind: "calendar#calendarList" },
+    { ...envelope, items: null }, { ...envelope, items: undefined },
+    { ...envelope, error: {} }, { ...envelope, kind: "calendar#calendarList", items: [] },
+  ]) assert.equal(parseGoogleCalendarItems(malformed), null);
+});
+
+test("손상된 Google 일정 필드를 성공한 빈 목록으로 바꾸지 않는다", () => {
+  const item = { id: "synthetic", start: { date: "2026-10-12" } };
+  for (const malformed of [
+    { ...item, id: "" }, { ...item, start: undefined }, { ...item, start: {} },
+    { ...item, start: { date: "2026-02-30" } }, { ...item, start: { dateTime: "invalid" } },
+    { ...item, end: { dateTime: 123 } }, { ...item, summary: 123 }, { ...item, htmlLink: {} },
+  ]) {
+    assert.equal(parseGoogleCalendarItems({ items: [malformed] }), null);
+  }
+});
 
 test("달력 칸에는 첫 Google 일정 제목과 나머지 개수를 보여준다", () => {
   const preview = getGoogleCalendarDayPreview([

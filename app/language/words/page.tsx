@@ -3,32 +3,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 
-import { markTodayRoutineCompleted } from "@/utils/dailyRoutineProgress";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
+import { useLanguageRecordSnapshot } from "@/components/language/useLanguageRecordSnapshot";
+import { useLanguageMutationAction } from "@/components/language/useLanguageMutationAction";
+import { planLegacyMutation, projectLegacyRows, legacyCatalogueRow } from "@/app/data/languageLegacyMutations";
+
 import { WORDS, type WordItem as Word } from "@/data/words";
-import type { RubySegment } from "@/data/words";
 import { speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
 import WritingPracticePad from "@/components/WritingPracticePad";
 
 const STORAGE_KEY = "savedWords";
-const WRONG_WORDS_KEY = "wrongWords";
 type CategoryFilter = "전체" | "여행" | "업무" | "일상" | "친구";
 type LevelFilter = "all" | "beginner" | "basic" | "practical";
 type PartOfSpeechFilter = "all" | "noun" | "verb" | "i-adjective" | "na-adjective" | "adverb" | "expression" | "particle" | "other";
 type QuizType = "jp-to-kr" | "kr-to-jp";
 type PageMode = "study" | "quiz";
-
-type WrongWord = {
-  word: string;
-  reading?: string;
-  rubySegments?: RubySegment[];
-  meaning: string;
-  example: string;
-  exampleReading?: string;
-  exampleRubySegments?: RubySegment[];
-  category: Word["category"];
-  quizType: QuizType;
-  createdAt: string;
-};
 
 type AppSettings = {
   ttsRate: number;
@@ -112,36 +101,6 @@ function normalizeSavedWord(item: Partial<Word>): Word | null {
   };
 }
 
-function saveWrongWord(w: Word, quizType: QuizType) {
-  try {
-    const raw = localStorage.getItem(WRONG_WORDS_KEY);
-    const prev: WrongWord[] = raw ? JSON.parse(raw) : [];
-    const currentWordKey = getWordKey(w);
-    const alreadyExists = prev.some(
-      (item) =>
-        getWordKey(item) === currentWordKey &&
-        item.quizType === quizType
-    );
-    if (alreadyExists) return;
-    const next: WrongWord[] = [
-      ...prev,
-      {
-        word: w.word,
-        reading: w.reading,
-        rubySegments: w.rubySegments,
-        meaning: w.meaning,
-        example: w.example,
-        exampleReading: w.exampleReading,
-        exampleRubySegments: w.exampleRubySegments,
-        category: w.category,
-        quizType,
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    localStorage.setItem(WRONG_WORDS_KEY, JSON.stringify(next));
-  } catch {}
-}
-
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -161,7 +120,16 @@ function getChoices(correct: Word, pool: Word[], quizType: QuizType): string[] {
 
 export default function WordsPage() {
   const router = useRouter();
-  const [savedWords, setSavedWords] = useState<Word[]>([]);
+  const source = useLanguageRecordSnapshot(['savedWords']);
+  const settingsError = languageSettingsProjectionError({ japaneseAppSettings: source.records.japaneseAppSettings });
+  const answer = useLanguageMutationAction(source, planLegacyMutation);
+  const save = useLanguageMutationAction(source, planLegacyMutation, { strictSource: true });
+  const hasPendingAnswer = answer.isPending, hasPendingSave = save.isPending;
+  const answered = useRef(false);
+  const blocked = answer.pending || save.pending || !source.context;
+
+  const savedProjection = projectLegacyRows<Word>(source.records.savedWords, (item): item is Word => !!item && typeof item === 'object' && ['word', 'meaning', 'category', 'example'].every(field => typeof (item as Record<string, unknown>)[field] === 'string' && !!(item as Record<string, unknown>)[field]));
+  const savedWords = savedProjection.value.map(item => normalizeSavedWord(item)!).filter(Boolean);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<PageMode>("study");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("전체");
@@ -183,8 +151,8 @@ export default function WordsPage() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(APP_SETTINGS_KEY);
-      if (!raw) return;
+      const raw = source.records[APP_SETTINGS_KEY];
+      if (!raw || languageSettingsProjectionError({ japaneseAppSettings: raw })) { setSettings(DEFAULT_SETTINGS); return; }
 
       const parsed = JSON.parse(raw) as SettingsPayload;
       const sectionSettings = {
@@ -202,40 +170,16 @@ export default function WordsPage() {
     } catch {
       setSettings(DEFAULT_SETTINGS);
     }
-  }, []);
+  }, [source.records]);
 
   useEffect(() => {
     setShowQuizKoreanPronunciation(settings.showKoreanPronunciation);
   }, [settings.showKoreanPronunciation]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw) as Partial<Word>[];
-      if (!Array.isArray(parsed)) return;
-
-      const next = parsed
-        .map((item) => normalizeSavedWord(item))
-        .filter((item): item is Word => item !== null);
-
-      setSavedWords(next);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {}
-  }, []);
-
-  const isSaved = (w: Word) =>
-    savedWords.some((s) => getWordKey(s) === getWordKey(w));
-
+  const isSaved = (w: Word) => savedWords.some((item) => getWordKey(item) === getWordKey(w));
   const handleSaveToggle = (w: Word) => {
-    const targetKey = getWordKey(w);
-    const next = isSaved(w)
-      ? savedWords.filter((saved) => getWordKey(saved) !== targetKey)
-      : [...savedWords, w];
-
-    setSavedWords(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    if (blocked || answer.isPending() || save.isPending()) return;
+    void save.submit({ kind: 'toggle-saved', key: STORAGE_KEY, row: legacyCatalogueRow(w) });
   };
 
   const filteredWords = WORDS.filter((word) =>
@@ -256,6 +200,8 @@ export default function WordsPage() {
 
   const generateQuiz = useCallback(
     (pool: Word[]) => {
+      if (hasPendingAnswer() || hasPendingSave()) return;
+      answered.current = false;
       if (pool.length < 4) return;
       const word = pool[Math.floor(Math.random() * pool.length)];
       const randomQuizType: QuizType = Math.random() < 0.5 ? "jp-to-kr" : "kr-to-jp";
@@ -264,7 +210,7 @@ export default function WordsPage() {
       setChoices(getChoices(word, pool, randomQuizType));
       setSelected(null);
     },
-    []
+    [hasPendingAnswer, hasPendingSave]
   );
 
   useEffect(() => {
@@ -275,31 +221,20 @@ export default function WordsPage() {
   }, [mode, categoryFilter, levelFilter, partOfSpeechFilter, practiceScope]);
 
   const handleAnswer = (choice: string) => {
-    if (selected !== null || !currentWord) return;
+    if (answered.current || selected !== null || !currentWord || blocked || answer.isPending() || save.isPending()) return;
+    answered.current = true;
     setSelected(choice);
-    const correctAnswer =
-      quizType === "jp-to-kr"
-        ? currentWord.meaning
-        : currentWord.word;
-    const isCorrect = choice === correctAnswer;
-    if (!isCorrect) {
-      saveWrongWord(currentWord, quizType);
-    }
-    setScore((s) => {
-      const nextTotal = s.total + 1;
-      if (nextTotal >= 5) {
-        markTodayRoutineCompleted("words");
-      }
-      return {
-        correct: s.correct + (isCorrect ? 1 : 0),
-        total: nextTotal,
-      };
-    });
+    const isCorrect = choice === (quizType === 'jp-to-kr' ? currentWord.meaning : currentWord.word);
+    const nextScore = { correct: score.correct + (isCorrect ? 1 : 0), total: score.total + 1 };
+    if (isCorrect && nextScore.total < 5) { setScore(nextScore); return; }
+    const w = currentWord;
+    void answer.submit({ kind: 'answer',
+      ...(!isCorrect ? { wrong: { key: 'wrongWords' as const, row: legacyCatalogueRow({ word: w.word, reading: w.reading, rubySegments: w.rubySegments, meaning: w.meaning, example: w.example, exampleReading: w.exampleReading, exampleRubySegments: w.exampleRubySegments, category: w.category, quizType }) } } : {}),
+      ...(nextScore.total >= 5 ? { routine: 'words' as const } : {}),
+    }, () => setScore(nextScore));
   };
 
-  const handleNext = () => {
-    generateQuiz(quizPool);
-  };
+  const handleNext = () => { if (blocked || answer.isPending() || save.isPending()) return; generateQuiz(quizPool); };
 
   const correctAnswer = currentWord
     ? quizType === "jp-to-kr"
@@ -358,6 +293,10 @@ export default function WordsPage() {
 
   return (
     <section className="mx-auto w-full max-w-6xl">
+      {(answer.error || save.error || source.error || settingsError || savedProjection.error) && <p role="alert">{answer.error || save.error || source.error || settingsError || savedProjection.error}</p>}
+      {(answer.pending || save.pending) && <div role="status">답과 저장 요청을 보존하고 있어요. <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) void answer.retry(); else void save.retry(); }}>저장 다시 확인</button> {(answer.canResubmit || save.canResubmit) && <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) void answer.resubmit(); else void save.resubmit(); }}>최신 상태에서 새로 저장</button>} <button disabled={answer.busy || save.busy} onClick={() => { if (answer.pending) { answer.discard(); setSelected(null); answered.current = false; } else save.discard(); }}>보류한 입력 버리기</button></div>}
+      <fieldset disabled={blocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+
       <div className="page-header" style={{ marginBottom: "16px" }}>
         <h1 style={{ color: "#1e3a8a" }}>단어 학습</h1>
         <p className="muted" style={{ margin: 0, color: "#42526b" }}>
@@ -370,7 +309,7 @@ export default function WordsPage() {
       <div style={{ display: "flex", gap: "8px", marginBottom: "20px", background: "#eff6ff", border: "1px solid #dbeafe", borderRadius: "14px", padding: "6px" }}>
         <button
           className="btn"
-          onClick={() => setMode("study")}
+          onClick={() => { if (!blocked) setMode("study"); }}
           style={{
             flex: 1,
             background: mode === "study" ? "#2563eb" : "#ffffff",
@@ -385,6 +324,7 @@ export default function WordsPage() {
         <button
           className="btn"
           onClick={() => {
+            if (blocked || answer.isPending() || save.isPending()) return;
             setMode("quiz");
             setScore({ correct: 0, total: 0 });
           }}
@@ -834,6 +774,7 @@ export default function WordsPage() {
           )}
         </div>
       )}
+      </fieldset>
     </section>
   );
 }

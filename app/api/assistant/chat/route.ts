@@ -1,3 +1,4 @@
+import { growthDurationLabel, summarizeGrowthDuration } from '@/app/data/growthPlatform';
 import { detectAdviceScope } from '@/lib/assistant-advice-intent';
 import { buildReplyPlan } from '@/lib/yeoni/reply-plan';
 import type { FreeAdviceScope } from '@/lib/free-advice-context';
@@ -282,7 +283,7 @@ async function processSingleCommand(
       supabase.from("user_app_state").select("state").eq("user_id", userId).maybeSingle(),
       supabase.from("language_user_state").select("state").eq("user_id", userId).maybeSingle(),
       supabase.from("growth_routines").select("id,title").eq("user_id", userId).eq("enabled", true),
-      supabase.from("growth_sessions").select("routine_id,actual_minutes,status").eq("user_id", userId).eq("session_date", today),
+      supabase.from("growth_sessions").select("routine_id,actual_minutes,status,metrics").eq("user_id", userId).eq("session_date", today),
     ]);
     const failures = [taskResult.error&&'할 일',budgetResult.error&&'가계부',fitnessResult.error&&'운동·식단',languageResult.error&&'언어학습',(growthRoutineResult.error||growthSessionResult.error)&&'자기계발'].filter(Boolean);
     const spent = (budgetResult.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
@@ -293,14 +294,14 @@ async function processSingleCommand(
     const visibleGrowthRoutineIds = new Set(visibleGrowthRoutines.map((routine) => routine.id));
     const visibleGrowthSessions = (growthSessionResult.data ?? []).filter((row) => row.routine_id && visibleGrowthRoutineIds.has(row.routine_id));
     const growthCompleted = new Set(visibleGrowthSessions.filter((row) => row.status === "completed").map((row) => row.routine_id)).size;
-    const growthMinutes = visibleGrowthSessions.reduce((sum, row) => sum + Number(row.actual_minutes || 0), 0);
+    const growthDuration = summarizeGrowthDuration(visibleGrowthSessions);
     const taskText = taskResult.data?.length ? taskResult.data.map((item, index) => `${index + 1}. ${item.title}`).join(" · ") : "오늘 마감 할 일 없음";
     const sections = [
       !taskResult.error && `할 일: ${taskText}.`,
       !budgetResult.error && `이번 달 지출은 ${won(spent)}입니다.`,
       !fitnessResult.error && `운동: ${workoutText}.`,
       !languageResult.error && `언어 학습은 ${language.completedIds.length}/${LANGUAGE_ROUTINES.length}개 완료했고 복습 대기는 ${language.totalReview}개입니다.`,
-      !growthRoutineResult.error && !growthSessionResult.error && `자기계발은 활성 루틴 중 ${growthCompleted}개 완료, ${growthMinutes}분 기록했습니다.`,
+      !growthRoutineResult.error && !growthSessionResult.error && `자기계발은 활성 루틴 중 ${growthCompleted}개 완료, ${growthDurationLabel(growthDuration)}입니다.`,
     ].filter(Boolean);
     result = { reply: `${/저녁/.test(message)?'저녁':/아침/.test(message)?'아침':'오늘'} 브리핑입니다. ${sections.join(' ')}${failures.length?` 조회 실패: ${failures.join(' · ')}. 해당 영역은 미기록으로 판단하지 않았습니다.`:''}`, action: { label: "통합 브리핑 자세히 보기", href: "/assistant" } };
   } else if (/(이번\s*달|월).*(지출|소비)|(지출|소비).*(이번\s*달|월)/.test(message)) {
@@ -373,16 +374,16 @@ async function processSingleCommand(
   } else if (/(자기계발|성장|타자|손글씨).*(현황|진도|뭐|알려|보여|몇)/.test(message)) {
     const [routines, sessions] = await Promise.all([
       supabase.from("growth_routines").select("id,title,target_minutes").eq("user_id", userId).eq("enabled", true).order("sort_order"),
-      supabase.from("growth_sessions").select("routine_id,status,actual_minutes").eq("user_id", userId).eq("session_date", today),
+      supabase.from("growth_sessions").select("routine_id,status,actual_minutes,metrics").eq("user_id", userId).eq("session_date", today),
     ]);
     if (routines.error || sessions.error) throw new Error("자기계발 현황을 불러오지 못했습니다.");
     const visibleRoutines = (routines.data ?? []).filter((routine) => !isRetiredGrowthRoutine(routine));
     const visibleRoutineIds = new Set(visibleRoutines.map((routine) => routine.id));
     const visibleSessions = (sessions.data ?? []).filter((session) => Boolean(session.routine_id && visibleRoutineIds.has(session.routine_id)));
     const completedIds = new Set(visibleSessions.filter((session) => session.status === "completed" && session.routine_id).map((session) => session.routine_id));
-    const minutes = visibleSessions.reduce((sum, session) => sum + Number(session.actual_minutes || 0), 0);
+    const duration = summarizeGrowthDuration(visibleSessions);
     const next = visibleRoutines.find((routine) => !completedIds.has(routine.id));
-    result = { reply: `오늘 자기계발은 ${completedIds.size}/${visibleRoutines.length}개 완료했고 ${minutes}분 기록했습니다.${next ? ` 다음은 ‘${next.title}’ ${next.target_minutes}분을 추천해요.` : " 오늘 루틴을 모두 마쳤어요."}`, action: { label: next ? "다음 루틴 시작" : "성장 기록 보기", href: "/growth" } };
+    result = { reply: `오늘 자기계발은 ${completedIds.size}/${visibleRoutines.length}개 완료했고 ${growthDurationLabel(duration)}입니다.${next ? ` 다음은 ‘${next.title}’ ${next.target_minutes}분을 추천해요.` : " 오늘 루틴을 모두 마쳤어요."}`, action: { label: next ? "다음 루틴 시작" : "성장 기록 보기", href: "/growth" } };
   } else if (/(자기계발|성장|타자|손글씨).*(시작|해보자|하자)/.test(message)) {
     result = { reply: "자기계발 실행 화면을 준비했습니다. 루틴의 ‘시작’ 버튼을 누르면 시간 측정과 중단·완료 기록을 함께 남길 수 있어요.", action: { label: "자기계발 시작", href: "/growth" } };
   } else if (/(일본어|언어|가나|히라가나|카타카나|단어|문장|문법|복습).*(완료|끝|마쳤|했어|했어요)/.test(message)) {

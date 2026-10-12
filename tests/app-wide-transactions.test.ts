@@ -29,12 +29,13 @@ before(async () => {
   `);
   const growth = readFileSync(new URL('../supabase/migrations/20260902120000_add_growth_platform.sql', import.meta.url), 'utf8');
   await db.exec(growth.split('alter table public.growth_routines enable row level security;')[0]);
-  for (const table of ['budget_income','budget_savings','budget_transactions','assistant_items','growth_routines','growth_ai_reviews']) {
+  for (const table of ['budget_income','budget_savings','budget_transactions','assistant_items','growth_routines','growth_sessions','growth_ai_reviews']) {
     await db.exec(`alter table public.${table} enable row level security;
       create policy owner on public.${table} to authenticated using(auth.uid()=user_id) with check(auth.uid()=user_id);
       grant select,insert,update,delete on public.${table} to authenticated;`);
   }
   await db.exec(readFileSync(new URL('../supabase/migrations/20260908233141_app_wide_reliability.sql', import.meta.url), 'utf8'));
+  await db.exec(readFileSync(new URL('../supabase/migrations/20261009190454_validate_growth_progression_evidence.sql', import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
 beforeEach(async () => {

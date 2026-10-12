@@ -1,0 +1,218 @@
+{
+  "recordedAtUtc": "2026-10-10T04:54:47.967967+00:00",
+  "scope": "Source-reviewed transitive digest refresh plus a mandatory real-export local regression. No new browser acceptance claim.",
+  "failedCi": {
+    "commit": "1e6356137ba426821e535bc96645b93292ece492",
+    "runId": 38025159449,
+    "motionJob": 114134343262,
+    "speechJob": 114134343150,
+    "failure": "Unchanged complete-HTML SHA-256 check failed before the human-preview browser assertions."
+  },
+  "localBaseCommit": "e073621aee74e2ae62e3212a1cf8d5959d8251dd",
+  "localBaseTree": "8b51fec893046b29b9b865b3454f465e5f160f92",
+  "previousReviewedCommit": "6a3527623e6a5cd3ef00bcbf09cd3e303270c72a",
+  "attribution": {
+    "sourceCommit": "861d3bae627bee2c684a229aae79356aafac2a95",
+    "onlyChangedBundledSource": "app/data/languageStorageBoundary.ts",
+    "sourceSha256": "2d364ddb7924d599273bc6502c4e64b9e4986c5147d48975596abd8c752af5b9",
+    "proof": "Two unmodified actual exporter runs in separate temporary roots reproduce both failed CI hashes byte for byte. An isolated esbuild onLoad override of only languageStorageBoundary.ts with its 6a35276 source reproduces both previous reviewed complete-HTML hashes exactly. Reconstructing the current HTML through the same diagnostic wrapper matches the actual exporter bytes. No checkout source is reverted.",
+    "inputGraphAdded": [],
+    "inputGraphRemoved": [],
+    "bundledJavaScriptIncreaseBytesEach": 297,
+    "runtimeReview": [
+      "parseLanguageResetFence rejects malformed, unsupported or extra evidenceCleanup metadata instead of treating it as clean.",
+      "readLanguageBoundary withholds legacy preference fallback for a completed fence while evidenceCleanup is pending; absent legacy cleanup metadata and verified cleanup remain readable.",
+      "planLanguageOwnerTransition also retains verified cached language bytes while cleanup is pending; this owner-transition path is tree-shaken out of both preview bundles.",
+      "No provider, network, database or reset repository import is added to either preview. Device preferences and explicit denied-save choices remain independent from borrowed language fallback."
+    ],
+    "applicationSourceChangesForThisFix": false
+  },
+  "dependencies": {
+    "node": "24.19.0",
+    "esbuild": "0.28.2",
+    "react": "19.2.4",
+    "reactDom": "19.2.4",
+    "scheduler": "0.27.0",
+    "packageAndLockFilesUnchangedFromPreviousReview": true
+  },
+  "previewBuilds": {
+    "motion": {
+      "previousReviewedSha256": "46713c1bd5541dedbfe1ae45b697961d6aa12a3555cc5cb053631999326f43b1",
+      "htmlSha256": "5609bb8cee2acb7af93accf45263c0a950eb74a5ec7ca4c5ba73c284423c3643",
+      "htmlBytes": 4641692,
+      "jsBytes": 232217,
+      "jsDeltaBytes": 297,
+      "cssSha256": "5a0a3d74ab0a20367be07a534d2b102db3f37939db31d20b5509f367cc79d5d6",
+      "embeddedImageMapSha256": "088ecdc20417b13672108dafcff7a478dad74825d90c54864ddcd40e43c1508b",
+      "embeddedImagesMatchSource": true,
+      "embeddedImageCount": 13,
+      "twoIndependentExportsByteIdentical": true,
+      "sourceInputs": [
+        "app/data/appRecordReset.ts",
+        "app/data/languageStorageBoundary.ts",
+        "app/data/storageTransaction.ts",
+        "components/useYeoniPreferences.ts",
+        "components/yeoni/HumanAnimationStage.tsx",
+        "components/yeoni/human-animation.module.css",
+        "components/yeoni/useCharacterStage.ts",
+        "lib/yeoni/character-controller.ts",
+        "lib/yeoni/character-expression.ts",
+        "lib/yeoni/character-stage.ts",
+        "lib/yeoni/human-art.ts",
+        "lib/yeoni/human-renderer.ts",
+        "lib/yeoni/human-warp.ts",
+        "lib/yeoni/japanese-phones.ts",
+        "lib/yeoni/korean-mfa-phones.ts",
+        "lib/yeoni/lip-sync.ts",
+        "lib/yeoni/mouth-morph.ts",
+        "lib/yeoni/mouth-motion.ts",
+        "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "node_modules/react-dom/cjs/react-dom.production.js",
+        "node_modules/react-dom/client.js",
+        "node_modules/react-dom/index.js",
+        "node_modules/react/cjs/react-jsx-runtime.production.js",
+        "node_modules/react/cjs/react.production.js",
+        "node_modules/react/index.js",
+        "node_modules/react/jsx-runtime.js",
+        "node_modules/scheduler/cjs/scheduler.production.js",
+        "node_modules/scheduler/index.js",
+        "public/yeoni/human/rig-v4/manifest.json",
+        "scripts/yeoni-human-motion/browser.tsx",
+        "scripts/yeoni-poc/lab.css",
+        "utils/yeoniPreferences.ts"
+      ]
+    },
+    "speech": {
+      "previousReviewedSha256": "098240dfee139c28643238904dba9f5d2902c883c83363b8f447fb345f5734ca",
+      "htmlSha256": "a0e2b0167efe1ec15d26f8ce68ac281d4fd77bb571118cb816c1f6b2630dbaa2",
+      "htmlBytes": 7639208,
+      "jsBytes": 283264,
+      "jsDeltaBytes": 297,
+      "cssSha256": "2c3cab56fee4ef72bb0780bc74dbe12b90513245acc7ce740aead830db7c0245",
+      "embeddedImageMapSha256": "3c9cd192dc9dafc3f77ccda0d05e70487cdf18120db950f6feb8d289fe37a47e",
+      "embeddedImagesMatchSource": true,
+      "embeddedImageCount": 14,
+      "twoIndependentExportsByteIdentical": true,
+      "savedMp3EmbeddedUnchanged": true,
+      "sourceInputs": [
+        "app/data/appRecordReset.ts",
+        "app/data/languageStorageBoundary.ts",
+        "app/data/storageTransaction.ts",
+        "components/useYeoniPreferences.ts",
+        "components/yeoni/HumanAnimationStage.tsx",
+        "components/yeoni/human-animation.module.css",
+        "components/yeoni/useCharacterStage.ts",
+        "docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3",
+        "docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json",
+        "lib/yeoni/character-controller.ts",
+        "lib/yeoni/character-expression.ts",
+        "lib/yeoni/character-stage.ts",
+        "lib/yeoni/human-art.ts",
+        "lib/yeoni/human-renderer.ts",
+        "lib/yeoni/human-warp.ts",
+        "lib/yeoni/japanese-phones.ts",
+        "lib/yeoni/korean-mfa-phones.ts",
+        "lib/yeoni/lip-sync-player.ts",
+        "lib/yeoni/lip-sync.ts",
+        "lib/yeoni/mouth-morph.ts",
+        "lib/yeoni/mouth-motion.ts",
+        "node_modules/react-dom/cjs/react-dom-client.production.js",
+        "node_modules/react-dom/cjs/react-dom.production.js",
+        "node_modules/react-dom/client.js",
+        "node_modules/react-dom/index.js",
+        "node_modules/react/cjs/react-jsx-runtime.production.js",
+        "node_modules/react/cjs/react.production.js",
+        "node_modules/react/index.js",
+        "node_modules/react/jsx-runtime.js",
+        "node_modules/scheduler/cjs/scheduler.production.js",
+        "node_modules/scheduler/index.js",
+        "public/yeoni/human/rig-v4/manifest.json",
+        "scripts/yeoni-human-speech/HumanMouthPalette.tsx",
+        "scripts/yeoni-human-speech/browser.tsx",
+        "scripts/yeoni-human-speech/speech.css",
+        "scripts/yeoni-poc/lab.css",
+        "scripts/yeoni-speech-poc/ListeningReview.tsx",
+        "scripts/yeoni-speech-poc/SpeechLab.tsx",
+        "scripts/yeoni-speech-poc/fixture.ts",
+        "scripts/yeoni-speech-poc/real-fixture.ts",
+        "scripts/yeoni-speech-poc/review-playback.ts",
+        "scripts/yeoni-speech-poc/speech.css",
+        "utils/yeoniPreferences.ts"
+      ]
+    }
+  },
+  "preservedAssets": {
+    "trackedAssetFilesByteEqualToPreviousReview": 94,
+    "checkedPaths": [
+      "public/yeoni/",
+      "docs/yeoni-phase5/fixtures/",
+      "docs/yeoni-phase8/",
+      "docs/yeoni-phase9/"
+    ],
+    "savedMp3Sha256": "f598b457e49734e75a83a04e57b28f47f7a8d98ceb1aff1549942a5264b9ef2d",
+    "savedTimelineSha256": "47a1ba59e4d361302c90dd96a9d1b4a7faa911feab3c5d876b57b65b083bc049"
+  },
+  "localGate": {
+    "test": "tests/human-preview-build.test.ts",
+    "entryPoint": "npm test -> scripts/test.mjs automatic *.test.ts discovery",
+    "behavior": "Run both unmodified real exporters and the production checker against source-reviewed expectations in automatically removed temporary roots. No skip on missing dependencies, digest refresh, browser, server or provider invocation. Credentials, NODE_OPTIONS and ESBUILD_BINARY_PATH are not inherited.",
+    "subprocessTimeoutMs": 30000,
+    "perTestTimeoutMs": 70000,
+    "beforeRefresh": {
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "reason": "Both production checker invocations reject the stale digests, matching CI.",
+      "durationMs": 500
+    },
+    "afterRefreshFocused": {
+      "tests": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 1788,
+      "motionRealExportAndCheckMs": 211,
+      "speechRealExportAndCheckMs": 246
+    },
+    "behaviorRegression": "Three shipped preference-hook scenarios exercise pending, malformed, verified and legacy cleanup fences across focus, pageshow, records, reset, session and storage events. Borrowed fallback is withheld when required, saved/unsaved explicit choices are preserved, and reads do not write stored bytes.",
+    "afterFinalTestEnvChange": {
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 1548,
+      "motionRealExportAndCheckMs": 517,
+      "speechRealExportAndCheckMs": 670
+    },
+    "intermediateChecks": {
+      "typescriptNoEmit": "passed",
+      "eslint": "passed",
+      "gitDiffCheck": "passed",
+      "wholeRepositoryTest": {
+        "tests": 3080,
+        "passed": 3080,
+        "failed": 0,
+        "skipped": 0,
+        "durationMs": 121394,
+        "finalIntegratedGate": false
+      }
+    }
+  },
+  "ciPrerequisites": {
+    "changedWorkflows": [
+      ".github/workflows/browser-verification.yml",
+      ".github/workflows/drawing-usability-review.yml"
+    ],
+    "addedStep": "npm --prefix scripts/browser-qa ci --ignore-scripts before npm test",
+    "newDependencies": false,
+    "lockChanges": false,
+    "inspection": "The nested package contains only pinned esbuild and optional per-platform binaries; @esbuild/linux-x64 0.28.2 is present in its existing lock. Runtime resolution uses that packaged binary and fails if missing; npm lifecycle installation fallbacks are disabled by --ignore-scripts. No browser dependency or browser-download script is present.",
+    "freshInstallExecutedForThisFix": false
+  },
+  "guardPolicy": "No changes to the complete-byte checker, exporters, import guards or application code. Expectations changed only after exact attribution, behavior review and unchanged-assets verification. Existing synthetic byte-tamper checker regressions remain in npm test.",
+  "limits": [
+    "No browser launch or retry, current Chromium/WebKit interaction, original pixel comparison, listening or physical-device check was performed for this patch.",
+    "No new TTS, alignment, provider/network request, dependency installation, hosted data change, commit, push, CI cancellation or rerun.",
+    "Concurrent catalogue work means intermediate whole-repository tests are not the final integrated tree gate; the parent will rerun the aggregate after both changes freeze."
+  ]
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CONDITION_SIGNAL_OPTIONS,
   ConditionSignalId,
@@ -10,8 +10,8 @@ import {
 
 interface ConditionCheckCardProps {
   value?: DailyConditionRecord;
-  onSave: (signals: ConditionSignalId[], memo: string) => void;
-  onClear: () => void;
+  onSave: (signals: ConditionSignalId[], memo: string) => void | Promise<void>;
+  onClear: () => void | Promise<void>;
 }
 
 const RECOMMENDATION_COPY = {
@@ -33,19 +33,31 @@ const RECOMMENDATION_COPY = {
 } as const;
 
 export default function ConditionCheckCard({ value, onSave, onClear }: ConditionCheckCardProps) {
+  const dirty = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
   const [signals, setSignals] = useState<ConditionSignalId[]>(value?.signals ?? []);
   const [memo, setMemo] = useState(value?.memo ?? '');
   const [isOpen, setIsOpen] = useState(Boolean(value));
 
   useEffect(() => {
+    if (dirty.current) return;
     setSignals(value?.signals ?? []);
     setMemo(value?.memo ?? '');
   }, [value?.updatedAt, value?.memo, value?.signals]);
 
+  const save = async (clear = false) => {
+    if (pending) return;
+    setPending(true); setError('');
+    try { await (clear ? onClear() : onSave(signals, memo)); dirty.current = false; if (clear) { setSignals([]); setMemo(''); } }
+    catch (error) { setError(error instanceof Error ? error.message : '저장하지 못했어요. 입력을 보존했습니다.'); }
+    finally { setPending(false); }
+  };
   const recommendation = getConditionRecommendation(signals);
   const copy = RECOMMENDATION_COPY[recommendation];
 
   const toggleSignal = (signal: ConditionSignalId) => {
+    dirty.current = true;
     setSignals((current) => {
       const withoutOpposite = signal === 'mild-back-discomfort'
         ? current.filter((item) => item !== 'marked-back-pain')
@@ -89,7 +101,7 @@ export default function ConditionCheckCard({ value, onSave, onClear }: Condition
           <span className={`rounded-full border px-3 py-1.5 text-[11px] font-bold ${copy.tone}`}>{copy.label}</span>
         </div>
       </summary>
-      <section className="border-t border-gray-100 p-4 sm:p-5">
+      <fieldset disabled={pending} onChangeCapture={() => { dirty.current = true; }} className="border-t border-gray-100 p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[12px] font-bold text-[#534AB7]">운동 전 30초 체크</p>
@@ -123,18 +135,14 @@ export default function ConditionCheckCard({ value, onSave, onClear }: Condition
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
-          onClick={() => onSave(signals, memo)}
+          onClick={() => void save()}
           className="rounded-xl bg-[#534AB7] px-4 py-3 text-[13px] font-bold text-white"
         >
           {value ? '오늘 상태 수정 저장' : '오늘 상태 저장'}
         </button>
         <button
           type="button"
-          onClick={() => {
-            setSignals([]);
-            setMemo('');
-            onClear();
-          }}
+          onClick={() => void save(true)}
           className="rounded-xl bg-gray-100 px-4 py-3 text-[13px] font-bold text-gray-600"
         >
           기록 초기화
@@ -144,7 +152,8 @@ export default function ConditionCheckCard({ value, onSave, onClear }: Condition
       <p className="mt-3 text-[10px] leading-relaxed text-red-600">
         양쪽 다리의 심해지는 저림·무력, 대소변 변화, 회음부 감각 저하는 앱 판단 대상이 아닙니다. 이런 증상은 운동하지 말고 즉시 응급 진료를 받으세요.
       </p>
-      </section>
+      {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+      </fieldset>
     </details>
   );
 }

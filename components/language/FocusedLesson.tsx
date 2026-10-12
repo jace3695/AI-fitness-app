@@ -5,10 +5,17 @@ import { useYeoniPreferences } from "@/components/useYeoniPreferences";
 import { useEffect, useRef, useState } from "react";
 import { TRACKS, getTrackLessons, type CurriculumLesson } from "@/data/curriculum";
 import { toKoreanPronunciation } from "@/data/learningDataExpansion";
-import { CURRICULUM_REVIEW_KEY, loadCurriculumProgress, saveCurriculumProgress, type CurriculumReviewItem } from "@/utils/curriculumProgress";
-import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
-import { answerSessionQuestion, createLearningSession, getSessionQuizIndices, getSessionResult, normalizeLearningSession, retrySessionQuestion, updateSessionReviews, withLearningSessionDraft, withoutLearningSessionDraft } from "@/utils/learningSession";
+import { CURRICULUM_PROGRESS_KEY } from "@/utils/curriculumProgress";
+import { useLanguageRecordSnapshot } from "./useLanguageRecordSnapshot";
+import { isLanguageRecordContextCurrent, type LanguageRecordContext, type LanguageRecordSnapshot } from "@/app/data/languageCloudSync";
+import { advanceCourseDraftSource, createCourseMutation, createExplicitCourseSave, runCourseMutation, verifyCourseFinishReceipt, type CourseMutation, type CourseOutcome } from "@/app/data/languageCourseMutations";
+import { getLanguageMutationOutcome, languageMutationError, reconcileLanguageMutation, requireLanguageMutationAcknowledged } from "@/app/data/languageRecordMutations";
+import { languageSettingsProjectionError } from "@/app/data/languageSettingsMutations";
+import { languageDocument } from "@/app/data/languageRecordDocuments";
 import { getLocalDateKey } from "@/utils/dateKey";
+import type { LearningSession } from "@/utils/learningSession";
+import { DEFAULT_INTEGRATED_LEARNING_SETTINGS, INTEGRATED_LEARNING_SETTINGS_KEY, loadIntegratedLearningSettings } from "@/utils/integratedLearningSettings";
+import { answerSessionQuestion, createLearningSession, getSessionQuizIndices, getSessionResult, normalizeLearningSession, retrySessionQuestion } from "@/utils/learningSession";
 import LearningCompanion from "./LearningCompanion";
 import LearningQuestion from "./LearningQuestion";
 import { useLearningAudio } from "./useLearningAudio";
@@ -19,6 +26,17 @@ const stageGuides = ["처음부터 외우지 않아도 돼요. 뜻을 보고 소
 
 export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) {
   const preferences = useYeoniPreferences();
+  const access = useLanguageRecordSnapshot();
+  const settingsWarning = languageSettingsProjectionError({ [INTEGRATED_LEARNING_SETTINGS_KEY]: access.records[INTEGRATED_LEARNING_SETTINGS_KEY] });
+  const contextRef = useRef(access.context);
+  contextRef.current = access.context;
+  const [saving, setSaving] = useState(false);
+  const superseded = useRef<CourseMutation[]>([]);
+  const editor = useRef<{
+    source: LanguageRecordSnapshot; session: LearningSession; sequence: number; savedSequence: number;
+    editContext: LanguageRecordContext | null; queued: { operationId: string; timestamp: string; date: string };
+    pending: { intent: CourseMutation; sequence: number } | null; promise: Promise<void> | null; failed: boolean; blocked: boolean;
+  } | null>(null);
   const [settings, setSettings] = useState(DEFAULT_INTEGRATED_LEARNING_SETTINGS);
   const [session, setSession] = useState(() => createLearningSession(lesson.id, 10, "starter"));
   const [loaded, setLoaded] = useState(false);
@@ -46,27 +64,98 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
   const nextLesson = trackLessons[trackLessons.findIndex((item) => item.id === lesson.id) + 1];
 
   useEffect(() => {
-    const storedSettings = loadIntegratedLearningSettings();
-    const progress = loadCurriculumProgress();
-    const draft = normalizeLearningSession(progress.lessonDrafts?.[lesson.id] ?? progress.activeSession, lesson);
+    if (editor.current || !access.snapshot || !access.context) return;
+    const source = access.snapshot;
+    const storedSettings = loadIntegratedLearningSettings(source.records[INTEGRATED_LEARNING_SETTINGS_KEY]);
+    let blocked = false;
+    let draft: LearningSession | undefined;
+    try {
+      const doc = languageDocument(source.records[CURRICULUM_PROGRESS_KEY], "object");
+      const hasSaved = doc.has(["lessonDrafts", lesson.id]);
+      const saved = doc.get(["lessonDrafts", lesson.id]);
+      const active = doc.has(["activeSession"]) ? languageDocument(doc.rawAt(["activeSession"]), "object") : null;
+      const candidate = hasSaved ? saved : active?.get(["lessonId"]) === lesson.id ? active.get() : undefined;
+      draft = normalizeLearningSession(candidate, lesson);
+      if (candidate !== undefined && (!draft || typeof (candidate as LearningSession).id !== "string" || !(candidate as LearningSession).id)) {
+        blocked = true;
+        setSaveError("이어할 학습의 형식을 안전하게 저장할 수 없어요. 기존 기록을 보존했습니다.");
+      }
+    } catch (error) { blocked = true; setSaveError(languageMutationError(error)); }
     setSettings(storedSettings);
     const restored = draft ?? createLearningSession(lesson.id, storedSettings.dailyMinutes, storedSettings.learnerMode);
-    if (restored.stage === 3 && (!storedSettings.includeSpeaking || restored.minutes === 5)) restored.stage = 4;
-    setSession(restored);
+    // A normalized display is never written on mount. Stage hiding is a view concern.
+    const visible = restored.stage === 3 && (!storedSettings.includeSpeaking || restored.minutes === 5) ? { ...restored, stage: 4 } : restored;
+    editor.current = { source, session: visible, editContext: access.context, queued: { operationId: crypto.randomUUID(), timestamp: new Date().toISOString(), date: getLocalDateKey() }, sequence: 0, savedSequence: draft || blocked ? 0 : -1, pending: null, promise: null, failed: false, blocked };
+    setSession(visible);
     setResumed(Boolean(draft));
     setLoaded(true);
-  }, [lesson]);
+  }, [access.snapshot, access.context, lesson]);
+
+  const editSession = (change: (value: LearningSession) => LearningSession) => {
+    const current = editor.current;
+    if (!current || finishing.current || current.pending?.intent.payload.kind === "finish") return;
+    const next = change(current.session);
+    current.session = next;
+    current.sequence += 1;
+    current.editContext = contextRef.current;
+    const now = new Date(); current.queued = { operationId: crypto.randomUUID(), timestamp: now.toISOString(), date: getLocalDateKey(now) };
+    setSession(next);
+  };
+
+  const persist = async (retry = false) => {
+    const current = editor.current;
+    if (!current || current.blocked || current.promise || (current.failed && !retry)) return;
+    const task = async () => {
+      setSaving(true);
+      try {
+        while (mounted.current && (current.pending || current.savedSequence < current.sequence)) {
+          if (finishing.current && !current.pending) break;
+          const context = contextRef.current;
+          if (!context || !isLanguageRecordContextCurrent(context)) throw new Error("학습 기록 연결을 다시 확인해 주세요. 입력은 보존됩니다.");
+          if (!current.pending) {
+            if (current.editContext !== context || !current.editContext || !isLanguageRecordContextCurrent(current.editContext)) throw new Error("입력 당시의 연결이 바뀌었어요. 입력을 보존했으니 최신 기록을 확인해 주세요.");
+            current.pending = { intent: createCourseMutation(current.editContext, current.source, { kind: "draft", lesson, session: current.session }, current.queued), sequence: current.sequence };
+          }
+          const pending = current.pending;
+          const committed = pending.intent.context === context && !["committed", "unknown"].includes(getLanguageMutationOutcome(pending.intent))
+            ? requireLanguageMutationAcknowledged(await runCourseMutation(pending.intent))
+            : reconcileLanguageMutation<CourseMutation["payload"], CourseOutcome>(pending.intent, context);
+          if (!mounted.current || contextRef.current !== context || !isLanguageRecordContextCurrent(context) || !committed.source) throw new Error("저장 확인 중 연결이 바뀌었어요. 입력과 저장 요청을 보존했습니다.");
+          current.source = advanceCourseDraftSource(committed, pending.intent);
+          current.savedSequence = pending.sequence;
+          current.pending = null;
+          current.failed = false;
+          if (current.sequence === pending.sequence) setSaveError("");
+          if (finishing.current) break;
+        }
+      } catch (error) { current.failed = true; if (mounted.current) setSaveError(languageMutationError(error)); }
+      finally { if (mounted.current) setSaving(false); }
+    };
+    const promise = task(); current.promise = promise;
+    try { await promise; } finally { if (current.promise === promise) current.promise = null; }
+  };
+
+  const recoverDraft = async () => {
+    const current = editor.current, context = contextRef.current;
+    if (!current || !context || current.blocked || current.promise || finishing.current) return;
+    try {
+      const previous = current.pending?.intent;
+      const kind = previous?.payload.kind === "finish" ? "finish" : "draft";
+      const intent = createExplicitCourseSave(context, previous?.source ?? current.source, { kind, lesson, session: current.session }, previous);
+      if (previous) superseded.current.push(previous);
+      current.pending = { intent, sequence: current.sequence };
+      current.editContext = context;
+      current.failed = false;
+      if (kind === "finish") await finish();
+      else await persist(true);
+    } catch (error) { current.failed = true; setSaveError(languageMutationError(error)); }
+  };
 
   useEffect(() => {
-    if (!loaded || finished || finishing.current) return;
-    try {
-      const latest = loadCurriculumProgress();
-      saveCurriculumProgress(withLearningSessionDraft(latest, session));
-      setSaveError("");
-    } catch {
-      setSaveError("이 기기에 이어할 내용을 저장하지 못했어요. 저장 공간이나 비공개 브라우징 설정을 확인해 주세요.");
-    }
-  }, [loaded, finished, session]);
+    if (loaded && !finished && !finishing.current) void persist();
+    // Each real edit changes session; a paused editor retains its exact original pending intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, finished, session, access.context]);
 
   useEffect(() => {
     mounted.current = true;
@@ -103,7 +192,7 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
     stop();
     stopRecording();
     setResumed(false);
-    setSession((previous) => ({ ...previous, stage }));
+    editSession((previous) => ({ ...previous, stage }));
   };
 
   const toggleRecording = async () => {
@@ -134,51 +223,49 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
     } catch { allocatedStream?.getTracks().forEach((track) => track.stop()); if (mounted.current) setRecordError("마이크를 사용할 수 없어요. 녹음 없이 듣고 따라 말해도 학습을 계속할 수 있어요."); }
   };
 
-  const finish = () => {
-    if (!result.complete || finishing.current) return;
+  const finish = async () => {
+    const current = editor.current;
+    if (!result.complete || !current || current.blocked || finishing.current) return;
     finishing.current = true;
-    stop();
-    stopRecording();
+    const context = contextRef.current;
+    const now = new Date(), options = { operationId: crypto.randomUUID(), timestamp: now.toISOString(), date: getLocalDateKey(now) };
+    const finalSession = current.session, finalSequence = current.sequence;
+    stop(); stopRecording(); setSaving(true);
     try {
-      const now = new Date();
-      const latest = loadCurriculumProgress();
-      const raw = localStorage.getItem(CURRICULUM_REVIEW_KEY);
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(parsed)) throw new Error("Review data is not an array");
-      const previousReviews = parsed.filter((item): item is CurriculumReviewItem => Boolean(item && typeof item === "object" && typeof item.id === "string"));
-      const reviews = updateSessionReviews(previousReviews, lesson, session, now);
-      localStorage.setItem(CURRICULUM_REVIEW_KEY, JSON.stringify(reviews));
-      saveCurriculumProgress({
-        ...withoutLearningSessionDraft(latest, session), selectedTrack: lesson.track, lastLessonId: lesson.id,
-        completedLessonIds: [...new Set([...latest.completedLessonIds, lesson.id])],
-        quizScores: { ...latest.quizScores, [lesson.id]: result.score },
-        lessonAttempts: { ...latest.lessonAttempts, [lesson.id]: [...(latest.lessonAttempts[lesson.id] ?? []).filter((attempt) => attempt.sessionId !== session.id), { score: result.score, completedAt: now.toISOString(), sessionId: session.id }].slice(-20) },
-        activityDates: [...new Set([...latest.activityDates, getLocalDateKey()])].sort(),
-      });
-      setSaveError("");
-      setFinished(true);
-    } catch {
-      setSaveError("학습 결과를 저장하지 못했어요. 이 화면을 닫지 말고 저장을 다시 시도해 주세요. 기존 기록은 초기화하지 않습니다.");
-      finishing.current = false;
-    }
+      await current.promise;
+      if (current.pending && current.pending.intent.payload.kind !== "finish") {
+        await persist(true);
+        if (current.pending || current.failed) return;
+      }
+      if (!context || contextRef.current !== context || !isLanguageRecordContextCurrent(context)) throw new Error("학습 기록 연결을 다시 확인해 주세요. 입력은 보존됩니다.");
+      if (!current.pending) current.pending = { intent: createCourseMutation(context, current.source, { kind: "finish", lesson, session: finalSession }, options), sequence: finalSequence };
+      const pending = current.pending;
+      const committed = pending.intent.context === context && !["committed", "unknown"].includes(getLanguageMutationOutcome(pending.intent))
+        ? requireLanguageMutationAcknowledged(await runCourseMutation(pending.intent))
+        : reconcileLanguageMutation(pending.intent, context, verifyCourseFinishReceipt);
+      if (!mounted.current || contextRef.current !== context || current.sequence !== pending.sequence || !isLanguageRecordContextCurrent(context) || !committed.source) throw new Error("저장 확인 중 연결이나 입력이 바뀌었어요. 입력과 저장 요청을 보존했습니다.");
+      current.source = committed.source; current.pending = null; current.failed = false;
+      setSaveError(""); setFinished(true);
+    } catch (error) { current.failed = true; if (mounted.current) setSaveError(languageMutationError(error)); }
+    finally { finishing.current = false; if (mounted.current) setSaving(false); }
   };
 
   if (!loaded) return <div className={styles.focus} role="status">이어할 학습을 준비하고 있어요.</div>;
   const stagePosition = visibleStages.indexOf(session.stage);
   const next = () => {
     if (session.stage === 0 && session.wordIndex < lesson.words.length - 1) {
-      stop(); setSession((previous) => ({ ...previous, wordIndex: previous.wordIndex + 1 })); return;
+      stop(); editSession((previous) => ({ ...previous, wordIndex: previous.wordIndex + 1 })); return;
     }
     if (session.stage === 4) {
-      if (session.quizCursor < quizIndices.length - 1) { stop(); setSession((previous) => ({ ...previous, quizCursor: previous.quizCursor + 1 })); }
-      else finish();
+      if (session.quizCursor < quizIndices.length - 1) { stop(); editSession((previous) => ({ ...previous, quizCursor: previous.quizCursor + 1 })); }
+      else void finish();
       return;
     }
     changeStage(visibleStages[stagePosition + 1] ?? 4);
   };
   const previous = () => {
-    if (session.stage === 0 && session.wordIndex > 0) { stop(); setSession((value) => ({ ...value, wordIndex: value.wordIndex - 1 })); }
-    else if (session.stage === 4 && session.quizCursor > 0) { stop(); setSession((value) => ({ ...value, quizCursor: value.quizCursor - 1 })); }
+    if (session.stage === 0 && session.wordIndex > 0) { stop(); editSession((value) => ({ ...value, wordIndex: value.wordIndex - 1 })); }
+    else if (session.stage === 4 && session.quizCursor > 0) { stop(); editSession((value) => ({ ...value, quizCursor: value.quizCursor - 1 })); }
     else changeStage(visibleStages[Math.max(0, stagePosition - 1)]);
   };
 
@@ -195,20 +282,22 @@ export default function FocusedLesson({ lesson }: { lesson: CurriculumLesson }) 
       {finished ? result.needsPractice ? "끝까지 해봤네요! 아직 어려운 문제는 함께 한 번 더 살펴봐요." : "잘했어요! 오늘 연습한 표현을 생활 속에서도 한 번 써봐요." : stageGuides[session.stage]}
     </LearningCompanion>
     {resumed && !finished && <p className={styles.muted}>지난번 멈춘 곳에서 이어해요. 소리와 녹음은 꺼진 상태로 시작해요.</p>}
-    {saveError && <p className={styles.error} role="alert">{saveError}</p>}
+    {(saveError || access.error || settingsWarning) && <p className={styles.error} role="alert">{saveError || access.error || settingsWarning}</p>}
+    {saveError && !finished && <button type="button" disabled={saving || !access.context} onClick={() => { if (editor.current?.pending?.intent.payload.kind === "finish") void finish(); else void persist(true); }}>저장 다시 확인하기</button>}
+    {saveError && !finished && !editor.current?.blocked && (!editor.current?.pending || ["created", "not-committed"].includes(getLanguageMutationOutcome(editor.current.pending.intent))) && <button type="button" disabled={saving || !access.context} onClick={() => void recoverDraft()}>현재 입력으로 새 저장 시도</button>}
     {audio.audioError && <p className={styles.error} role="status">{audio.audioError}</p>}
-    <div className={styles.card}>
+    <fieldset className={styles.card} disabled={finishing.current || editor.current?.pending?.intent.payload.kind === "finish"}>
       {!finished && session.stage === 0 && <><p className={styles.kicker}>오늘의 표현 {session.wordIndex + 1} / {lesson.words.length}</p>
         <div className={styles.word}><strong className={styles.japanese} lang="ja">{word.japanese}</strong>{settings.showReading && <span className={styles.reading} lang="ja">{word.reading}</span>}{settings.showKoreanHint && <span className={styles.korean}>발음 도움: {toKoreanPronunciation(word.reading)}</span>}{settings.showMeaning && <p className={styles.meaning}>{word.meaning}</p>}</div>
         <div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(word.japanese, settings.audioRate)}>▶ 소리 듣기</button></div>
       </>}
       {!finished && session.stage === 1 && <><p className={styles.kicker}>이럴 때 쓰면 돼요</p><h2>{lesson.pattern.explanation}</h2><div className={styles.word}><strong className={styles.japanese} lang="ja">{lesson.pattern.example}</strong>{settings.showMeaning && <p className={styles.meaning}>{lesson.pattern.meaning}</p>}</div><div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(lesson.pattern.example, settings.audioRate)}>▶ 문장 듣기</button></div><details className={styles.details}><summary>문장 모양 살펴보기</summary><p>{lesson.pattern.label}</p></details></>}
       {!finished && session.stage === 2 && <><p className={styles.kicker}>상황 속에서 만나기</p><h2>짧은 대화를 들어봐요</h2><div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(lesson.dialogue.map((line) => line.japanese).join(" "), settings.audioRate)}>▶ 대화 듣기</button><button type="button" onClick={() => setShowDialogue((value) => !value)}>{showDialogue ? "자막 없이 듣기" : "자막 보기"}</button></div><div className={styles.dialogue}>{lesson.dialogue.map((line, index) => <article key={index}><small>{line.speaker === "A" ? "먼저 말해요" : "이렇게 답해요"}</small>{showDialogue && <><strong lang="ja">{line.japanese}</strong>{settings.showReading && <span className={styles.reading} lang="ja">{line.reading}</span>}{settings.showMeaning && <p>{line.meaning}</p>}</>}<div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(line.japanese, settings.audioRate)}>▶ 이 문장 듣기</button></div></article>)}</div></>}
-      {!finished && session.stage === 3 && <><p className={styles.kicker}>입으로 한 번 해보기</p><h2>소리를 듣고 따라 말해봐요</h2><strong className={styles.japanese} lang="ja">{lesson.speak}</strong><div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(lesson.speak, 0.8)}>▶ 천천히 듣기</button><button type="button" disabled={audio.playing} onClick={() => void play(lesson.speak, settings.audioRate, session.minutes === 20 ? 3 : 1)}>▶ {session.minutes === 20 ? "세 번" : "한 번"} 더 듣기</button></div><div className={styles.row}>{Array.from({ length: session.minutes === 20 ? 3 : 1 }, (_, index) => <button type="button" key={index} aria-pressed={session.speakingChecks[index]} onClick={() => setSession((value) => ({ ...value, speakingChecks: value.speakingChecks.map((checked, position) => position === index ? !checked : checked) }))}>{session.speakingChecks[index] ? "✓ " : ""}{index + 1}번 말해봤어요</button>)}</div><details className={styles.details}><summary>내 목소리도 들어볼래요 · 선택</summary><p className={styles.muted}>녹음은 전송하지 않아요. 이 화면을 떠나면 사라집니다.</p><div className={styles.row}><button type="button" onClick={() => void toggleRecording()}>{recording ? "■ 녹음 끝내기" : "● 녹음 시작"}</button></div>{recordingUrl && <audio controls src={recordingUrl} style={{ width: "100%" }} />}{recordError && <p role="status" className={styles.error}>{recordError}</p>}</details></>}
-      {!finished && session.stage === 4 && <><p className={styles.kicker}>확인 문제 {session.quizCursor + 1} / {quizIndices.length}</p><LearningQuestion key={questionIndex} lesson={lesson} index={questionIndex} mode={session.mode} showCompanion={preferences.visible} answer={session.answers[questionIndex]} response={session.responses[questionIndex]} onAnswer={(correct, response, observation) => setSession((value) => answerSessionQuestion(value, questionIndex, correct, response, observation))} onRetry={() => setSession((value) => retrySessionQuestion(value, questionIndex))} play={(text) => void play(text, settings.audioRate)} playing={audio.playing} /></>}
+      {!finished && session.stage === 3 && <><p className={styles.kicker}>입으로 한 번 해보기</p><h2>소리를 듣고 따라 말해봐요</h2><strong className={styles.japanese} lang="ja">{lesson.speak}</strong><div className={styles.row}><button type="button" disabled={audio.playing} onClick={() => void play(lesson.speak, 0.8)}>▶ 천천히 듣기</button><button type="button" disabled={audio.playing} onClick={() => void play(lesson.speak, settings.audioRate, session.minutes === 20 ? 3 : 1)}>▶ {session.minutes === 20 ? "세 번" : "한 번"} 더 듣기</button></div><div className={styles.row}>{Array.from({ length: session.minutes === 20 ? 3 : 1 }, (_, index) => <button type="button" key={index} aria-pressed={session.speakingChecks[index]} onClick={() => editSession((value) => ({ ...value, speakingChecks: value.speakingChecks.map((checked, position) => position === index ? !checked : checked) }))}>{session.speakingChecks[index] ? "✓ " : ""}{index + 1}번 말해봤어요</button>)}</div><details className={styles.details}><summary>내 목소리도 들어볼래요 · 선택</summary><p className={styles.muted}>녹음은 전송하지 않아요. 이 화면을 떠나면 사라집니다.</p><div className={styles.row}><button type="button" onClick={() => void toggleRecording()}>{recording ? "■ 녹음 끝내기" : "● 녹음 시작"}</button></div>{recordingUrl && <audio controls src={recordingUrl} style={{ width: "100%" }} />}{recordError && <p role="status" className={styles.error}>{recordError}</p>}</details></>}
+      {!finished && session.stage === 4 && <><p className={styles.kicker}>확인 문제 {session.quizCursor + 1} / {quizIndices.length}</p><LearningQuestion key={questionIndex} lesson={lesson} index={questionIndex} mode={session.mode} showCompanion={preferences.visible} answer={session.answers[questionIndex]} response={session.responses[questionIndex]} onAnswer={(correct, response, observation) => editSession((value) => answerSessionQuestion(value, questionIndex, correct, response, observation))} onRetry={() => editSession((value) => retrySessionQuestion(value, questionIndex))} play={(text) => void play(text, settings.audioRate)} playing={audio.playing} /></>}
       {finished && <div className={styles.success}><span className={styles.successMark} aria-hidden="true">✓</span><h2>오늘의 연습을 저장했어요</h2><p>{lesson.goal}</p><div className={styles.score}><div><span>첫 선택 · 힌트 포함</span><strong>{result.firstCorrect} / {result.total}</strong></div><div><span>다시 풀기까지</span><strong>{result.correct} / {result.total}</strong></div></div><p>{result.needsPractice ? "아직 어려운 문제는 지금 복습에서 다시 볼 수 있어요." : result.firstCorrect < result.total ? "다시 맞힌 문제는 내일 복습에서 한 번 더 만나요." : "오늘 배운 내용을 잘 골랐어요. 다음에도 기억나는지 확인해봐요."}</p><div className={styles.row}>{result.needsPractice ? <Link href="/language/review" className={styles.primary}>어려웠던 문제 다시 보기</Link> : nextLesson ? <Link href={"/language/learn?lesson=" + nextLesson.id} className={styles.primary}>다음 수업 보기</Link> : <Link href="/language/progress" className={styles.primary}>내 학습 보기</Link>}<Link href="/language">오늘은 여기까지</Link></div>{nextLesson && result.needsPractice && <Link className={styles.back} href={"/language/learn?lesson=" + nextLesson.id}>다음 수업도 살펴보기</Link>}{lesson.practice && <div className={styles.row}><Link href={lesson.practice.href.startsWith("/language/") ? lesson.practice.href : "/language" + lesson.practice.href}>더 연습: {lesson.practice.label}</Link></div>}</div>}
-    </div>
+    </fieldset>
     {audio.playing && <div className={styles.row}><button type="button" onClick={stop}>■ 소리 멈추기</button></div>}
-    {!finished && <><footer className={styles.actions}><button type="button" disabled={session.stage === 0 && session.wordIndex === 0} onClick={previous}>이전</button><button type="button" className={styles.primary} disabled={session.stage === 4 && session.answers[questionIndex] === undefined} onClick={next}>{session.stage === 4 ? session.quizCursor === quizIndices.length - 1 ? "오늘 연습 저장하기" : session.answers[questionIndex] === false ? "복습에 남기고 다음" : "다음 문제" : session.stage === 0 && session.wordIndex < lesson.words.length - 1 ? "다음 표현" : "다음으로"}</button></footer><details className={styles.details}><summary>읽기 도움 조절</summary><label><input type="checkbox" checked={settings.showReading} onChange={(event) => setSettings((value) => ({ ...value, showReading: event.target.checked }))} /> 일본어 읽는 법</label><label><input type="checkbox" checked={settings.showMeaning} onChange={(event) => setSettings((value) => ({ ...value, showMeaning: event.target.checked }))} /> 한국어 뜻</label><label><input type="checkbox" checked={settings.showKoreanHint} onChange={(event) => setSettings((value) => ({ ...value, showKoreanHint: event.target.checked }))} /> 단어 한글 발음 도움</label><p className={styles.muted}>한글은 대략적인 도움말이에요. 실제 소리는 듣기 버튼으로 확인해요. 이 화면의 조절은 이번 학습에만 적용돼요.</p></details></>}
+    {!finished && <><footer className={styles.actions}><button type="button" disabled={saving && finishing.current || session.stage === 0 && session.wordIndex === 0} onClick={previous}>이전</button><button type="button" className={styles.primary} disabled={saving && finishing.current || session.stage === 4 && session.answers[questionIndex] === undefined} onClick={next}>{session.stage === 4 ? session.quizCursor === quizIndices.length - 1 ? "오늘 연습 저장하기" : session.answers[questionIndex] === false ? "복습에 남기고 다음" : "다음 문제" : session.stage === 0 && session.wordIndex < lesson.words.length - 1 ? "다음 표현" : "다음으로"}</button></footer><details className={styles.details}><summary>읽기 도움 조절</summary><label><input type="checkbox" checked={settings.showReading} onChange={(event) => setSettings((value) => ({ ...value, showReading: event.target.checked }))} /> 일본어 읽는 법</label><label><input type="checkbox" checked={settings.showMeaning} onChange={(event) => setSettings((value) => ({ ...value, showMeaning: event.target.checked }))} /> 한국어 뜻</label><label><input type="checkbox" checked={settings.showKoreanHint} onChange={(event) => setSettings((value) => ({ ...value, showKoreanHint: event.target.checked }))} /> 단어 한글 발음 도움</label><p className={styles.muted}>한글은 대략적인 도움말이에요. 실제 소리는 듣기 버튼으로 확인해요. 이 화면의 조절은 이번 학습에만 적용돼요.</p></details></>}
   </section>;
 }

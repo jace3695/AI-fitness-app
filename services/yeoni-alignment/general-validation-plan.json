@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-08",
+  "baseCommit": "ae67db5933070dc28329df7e5b90fbe23e99a01e",
+  "status": "approved-2026-10-08T20:52:58+09:00",
+  "voice": "ko-KR-Chirp3-HD-Zephyr",
+  "language": "ko-KR",
+  "generation": {
+    "maximumCalls": 3,
+    "callsPerCase": 1,
+    "automaticRetries": false,
+    "requireExistingFreeBudgetGuard": true,
+    "paidUpgrade": false
+  },
+  "cases": [
+    {
+      "id": "short",
+      "text": "반가워요. 오늘 하루는 어땠나요? 편하게 이야기해 주세요.",
+      "purpose": "새 단어와 의문문, 문장 사이 쉼",
+      "requestId": "fd002e38-7817-4846-a5b5-b247edb63df1"
+    },
+    {
+      "id": "numbers",
+      "text": "오늘 오후 3시 30분에 약속이 있어요. 준비물은 2개이고, 예상 비용은 12,500원이에요.",
+      "purpose": "시간, 개수, 쉼표가 있는 금액의 실제 발음과 정렬",
+      "requestId": "332e052e-595c-4ecd-b710-029592eec14b"
+    },
+    {
+      "id": "long",
+      "text": "오늘 해야 할 일을 함께 정리해 볼까요? 먼저 가장 중요한 일부터 하나씩 확인해요. 급하지 않은 일은 잠시 미뤄도 괜찮아요. 중간에 계획이 달라지면 남은 시간을 살펴보고 순서를 바꾸면 돼요. 잠깐 쉬었다가 다시 시작해도 괜찮으니 너무 서두르지 마세요. 하루를 마무리할 때는 끝낸 일을 돌아보고, 내일 준비할 것을 적어 두면 좋아요. 작은 일 하나를 마친 것도 충분히 의미 있는 진전이에요.",
+      "purpose": "여러 문장의 쉼, 후반부 동기화 누적 오차, 긴 음성 처리 시간",
+      "requestId": "5f2f9546-7649-436d-8c55-bb273536887f"
+    }
+  ],
+  "checks": [
+    "Use the exact normalized text; verify free configuration and remaining allowance before each generation",
+    "Persist approved samples once; reuse those exact bytes for alignment and playback, never regenerate after ambiguous failure",
+    "Validate audio/text SHA256, voice/language, automatic phones, unknown phones, cue order and duration",
+    "Measure generation separately from alignment, do not report end-to-end TTS latency from alignment-only timing",
+    "Review beginning/middle/end phoneme boundaries against audio; phone count alone does not prove accuracy",
+    "Verify both appearances, manual replay, pause/end neutral and failure-to-audio-only behavior",
+    "User listens on iPhone to these new samples; do not repeat the old ten-minute heat or completed saved-PoC checklist",
+    "After candidate acceptance, verify release commit/config/auth/fallback before production; verify deployed release afterward"
+  ],
+  "limits": "Three cases are representative checks, not proof for every Korean utterance or the 1200-character maximum. General alignment remains OFF. No new TTS has been generated."
+}

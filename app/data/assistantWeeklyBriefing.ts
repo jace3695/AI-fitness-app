@@ -1,3 +1,4 @@
+import { growthDurationLabel, summarizeGrowthDuration } from './growthPlatform.ts';
 import { isWorkoutPerformed, type WorkoutCompletionStore } from "./workoutCompletion.ts";
 
 export type AssistantWeeklyArea = "tasks" | "budget" | "fitness" | "diet" | "language" | "growth";
@@ -14,6 +15,7 @@ type WeeklyGrowthSession = {
   session_date: string;
   status: string;
   actual_minutes: number | string;
+  metrics?: Record<string, unknown> | null;
 };
 
 export type AssistantWeeklyCard = {
@@ -186,15 +188,12 @@ export function buildAssistantWeeklyBriefing(input: AssistantWeeklyBriefingInput
     inRange(session.session_date, startDate, input.todayKey)
   );
   const growthDays = new Set(weeklyGrowthSessions.map((session) => session.session_date)).size;
-  const growthMinutes = weeklyGrowthSessions.reduce((sum, session) => {
-    const minutes = Number(session.actual_minutes);
-    return sum + (Number.isFinite(minutes) ? Math.max(0, minutes) : 0);
-  }, 0);
+  const growthDuration = summarizeGrowthDuration(weeklyGrowthSessions);
   if (available.growth) cards.push({
     area: "growth",
     label: "자기계발",
     value: `${growthDays}일 실행`,
-    detail: `기록 ${Math.round(growthMinutes)}분`,
+    detail: growthDurationLabel(growthDuration),
     href: "/growth",
   });
 

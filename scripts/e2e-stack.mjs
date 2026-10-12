@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { buildLegacyEvidenceInstallationFixture } from './legacy-evidence-installation-fixture.mjs';
 
 // No login/link/db-push, hosted URL, project credentials, or personal backups.
 if (process.env.GITHUB_ACTIONS !== 'true' || !process.env.RUNNER_TEMP) {
@@ -30,6 +31,7 @@ try {
     if (!/^sign_in_sign_ups\s*=\s*\d+/m.test(config)) throw new Error('Pinned CLI rate-limit config changed');
     writeFileSync(configPath, config.replace(/^sign_in_sign_ups\s*=\s*\d+/m, 'sign_in_sign_ups = 600'));
     copyFileSync('tests/e2e/schema.sql', `${workdir}/supabase/seed.sql`);
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('tests/e2e/growth-reset-contract.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260901125340_add_fitness_ai_review_history.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260908233141_app_wide_reliability.sql', 'utf8').split('alter table public.assistant_items')[0]);
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260914113147_budget_category_history.sql', 'utf8'));
@@ -39,7 +41,18 @@ try {
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915034857_assistant_task_command_history.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260915052413_chatgpt_scoped_connection.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916043619_assistant_language_commands.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009164307_language_live_report_history.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009173440_language_live_learning_history.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009184604_language_live_preparations.sql', 'utf8'));
+    // Disposable fixture cleanup only; production migration grants stay unchanged.
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\ngrant select on public.language_live_lessons,public.language_live_learning_batches,public.language_live_preparations to service_role;\n');
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916045546_language_history_reset_triggers.sql', 'utf8'));
+    // Supabase's postgres installer is not a superuser. The disposable adapter
+    // restores temporary ownership-installation privileges before EACH COMMIT.
+    // Production migrations and additive Gate A default write denial are unchanged.
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + buildLegacyEvidenceInstallationFixture(
+      readFileSync('supabase/migrations/20261010025109_language_legacy_evidence_ledger.sql', 'utf8'),
+      readFileSync('supabase/migrations/20261010040739_language_legacy_evidence_enrollment.sql', 'utf8'), 'deferred-owner-stage'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916094552_assistant_workout_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916104440_assistant_diet_commands.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260916113939_assistant_growth_commands.sql', 'utf8'));
@@ -60,10 +73,16 @@ try {
       grant all on public.growth_resources to service_role;
     ` + resourcePolicies);
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260902223000_harden_growth_routine_links.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009183602_save_sentence_typing_session.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917084426_growth_resource_usage.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917114328_diet_meal_favorites.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20260917133223_workout_actual_times.sql', 'utf8'));
     appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + growthSchema.slice(growthSchema.indexOf('insert into storage.buckets')));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009190454_validate_growth_progression_evidence.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009193716_save_handwriting_attempt.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009210000_save_free_handwriting_attempt.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009210500_save_routine_session.sql', 'utf8'));
+    appendFileSync(`${workdir}/supabase/seed.sql`, '\n' + readFileSync('supabase/migrations/20261009212500_save_cloud_state_if_unchanged.sql', 'utf8'));
     console.log('Starting isolated Auth, PostgREST, Storage and Postgres…');
     run('start', '--exclude', 'studio,imgproxy,realtime,edge-runtime,logflare,vector,supavisor');
     const status = JSON.parse(run('status', '--output', 'json'));
@@ -71,6 +90,10 @@ try {
       throw new Error('The disposable stack did not return the expected local credentials.');
     }
     writeFileSync('.e2e/stack-status.json', JSON.stringify(status), { mode: 0o600 });
+    // Default-denied seed alone is incomplete. The approved fixed owner process
+    // must finish and exit before app environment/readiness or ordinary tests.
+    const { verifyDisposableStack, provisionDisposableAuthUsage } = await import('./qa-legacy-evidence-postgres.mjs');
+    provisionDisposableAuthUsage(verifyDisposableStack());
     // The service-role key stays in the runner's ignored fixture file, never in
     // the Next/browser environment or uploaded reports. Public anon JWT only.
     console.log(`::add-mask::${status.ANON_KEY}`);

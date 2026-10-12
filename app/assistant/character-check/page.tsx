@@ -4,12 +4,22 @@ import { notFound } from 'next/navigation';
 import { characterReplyEnabled } from '@/lib/yeoni/reply-plan';
 import CharacterCheck from './CharacterCheck';
 import DeviceCheck from './DeviceCheck';
+import AlignmentCheck from './AlignmentCheck';
+import GeneralAlignmentCheck from './GeneralAlignmentCheck';
+import CurrencyBackup from './CurrencyBackup';
+import CurrencyFileReview from './CurrencyFileReview';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '연이 답변과 캐릭터 연결', robots: { index: false, follow: false } };
 export default async function Page({ searchParams }: { searchParams: Promise<{ mode?: string | string[] }> }) {
   if (!characterReplyEnabled(process.env)) notFound();
-  const deviceReview = (await searchParams).mode === 'device';
+  const mode = (await searchParams).mode;
+  if (mode === 'currency-file') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><CurrencyFileReview /></main>;
+  if (mode === 'currency-backup') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><CurrencyBackup /></main>;
+  if (mode === 'alignment') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><AlignmentCheck /></main>;
+  if (mode === 'general') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><GeneralAlignmentCheck /></main>;
+  if (mode === 'currency') return <main className="mx-auto max-w-4xl px-4 py-6 pb-32"><GeneralAlignmentCheck key="currency-20261009" currencyOnly /></main>;
+  const deviceReview = mode === 'device';
   const [ko, ja] = await Promise.all([
     readFile(path.join(process.cwd(), 'docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3'), 'base64'),
     readFile(path.join(process.cwd(), 'docs/yeoni-voice-comparison/media/gemini-zephyr-ja-user.wav'), 'base64'),

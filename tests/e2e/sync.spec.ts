@@ -1,4 +1,4 @@
-import { test, expect, login, synced, localState, assertOriginalPreserved, saveMeal, mealSaved, mealMemo, today } from './fixture';
+import { test, expect, login, synced, localState, assertOriginalPreserved, saveMeal, mealSaved, mealMemo, today, isSharedSyncWrite, sharedSyncRpc } from './fixture';
 
 test('first GET delivery delayed while a real form saves: originals and new input survive', async ({ page, qa }) => {
   const hold = qa.traffic.holdNext('GET', 'response');
@@ -26,7 +26,7 @@ for (const direction of ['A-after-B', 'B-after-A']) {
       const heldPage = direction === 'A-after-B' ? page : other;
       const winningPage = direction === 'A-after-B' ? other : page;
       const heldTraffic = direction === 'A-after-B' ? qa.traffic : otherTraffic;
-      const hold = heldTraffic.holdNext('PATCH', 'request');
+      const hold = heldTraffic.holdNext('POST', 'request');
       await saveMeal(heldPage, `CI ${direction}`); await hold.arrived;
       await winningPage.getByRole('button', { name: '+500mL', exact: true }).click();
       await winningPage.getByRole('button', { name: '오늘 식단 저장', exact: true }).click();
@@ -35,7 +35,7 @@ for (const direction of ['A-after-B', 'B-after-A']) {
       expect((await qa.read())['ai-fitness-water-intake']).toMatchObject({ [today()]: 500 });
       hold.release();
       await expect(heldPage.getByText('기록 동기화 실패', { exact: true })).toBeVisible();
-      expect(heldTraffic.entries.some(e => e.method === 'PATCH' && e.cas && e.status === 200 && e.matched === false), 'The stale conditional update actually matched zero rows').toBe(true);
+      expect(heldTraffic.entries.some(e => e.rpc === sharedSyncRpc && e.method === 'POST' && e.cas && e.status === 200 && e.matched === false), 'The real conditional RPC rejected stale owner/content/timestamp evidence').toBe(true);
       await heldPage.getByRole('button', { name: '다시 시도', exact: true }).click(); await synced(heldPage);
       const state = await qa.read(); assertOriginalPreserved(state);
       expect(mealMemo(state)).toBe(`CI ${direction}`);
@@ -49,9 +49,9 @@ for (const direction of ['A-after-B', 'B-after-A']) {
   });
 }
 
-test('a PATCH response pending during another save and page exit preserves the latest edit', async ({ page, qa }) => {
+test('a conditional RPC response pending during another save and page exit preserves the latest edit', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
-  const hold = qa.traffic.holdNext('PATCH', 'response');
+  const hold = qa.traffic.holdNext('POST', 'response');
   await saveMeal(page, 'CI first edit'); await hold.arrived;
   expect(mealMemo(await qa.read())).toBe('CI first edit');
   await saveMeal(page, 'CI second edit');
@@ -65,22 +65,27 @@ test('a PATCH response pending during another save and page exit preserves the l
   await expect(page.getByLabel('메모', { exact: true })).toHaveValue('CI second edit');
 });
 
-test('committed PATCH with response loss keeps local data and recovers by a real GET', async ({ page, qa }) => {
+test('committed conditional RPC with response loss keeps local data and recovers by a real GET', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
-  const hold = qa.traffic.holdNext('PATCH', 'loss');
+  const mark = qa.traffic.entries.length;
+  const hold = qa.traffic.holdNext('POST', 'loss');
   await saveMeal(page, 'CI lost response'); await hold.arrived;
   expect(mealMemo(await qa.read())).toBe('CI lost response');
   hold.release(); await expect(page.getByText('기록 동기화 실패', { exact: true })).toBeVisible();
   expect(mealMemo(await localState(page))).toBe('CI lost response');
   await page.getByRole('button', { name: '다시 시도', exact: true }).click(); await synced(page);
   const state = await qa.read(); assertOriginalPreserved(state); expect(mealMemo(state)).toBe('CI lost response');
-  expect(qa.traffic.entries.some(e => e.method === 'PATCH' && e.status === 200 && e.delivered === false)).toBe(true);
-  expect(qa.traffic.entries.at(-1)?.receivedState).toEqual(state);
+  const writes = qa.traffic.entries.slice(mark).filter(isSharedSyncWrite);
+  expect(writes, 'Recovery confirms the committed RPC without publishing again').toHaveLength(1);
+  expect(writes[0]).toMatchObject({ rpc: sharedSyncRpc, method: 'POST', cas: true, status: 200, matched: true, delivered: false, owner: qa.account.id });
+  const readback = qa.traffic.entries.filter(e => e.table === 'user_app_state' && e.method === 'GET' && e.status === 200 && e.delivered).at(-1)!;
+  expect(readback.receivedState).toEqual(state); expect(readback.owner).toBe(qa.account.id);
+  expect(readback.started).toBeGreaterThanOrEqual(writes[0].received);
 });
 
 test('failed confirmation GET never shows success; edits survive SDK retries and manual recovery', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
-  const hold = qa.traffic.holdNext('PATCH', 'response');
+  const hold = qa.traffic.holdNext('POST', 'response');
   await saveMeal(page, 'CI confirmation interrupted'); await hold.arrived;
   qa.traffic.failReads = true; hold.release();
   await expect(page.getByText('기록 동기화 실패', { exact: true })).toBeVisible();
@@ -95,7 +100,7 @@ test('failed confirmation GET never shows success; edits survive SDK retries and
 test('deleting the synthetic day then leaving does not resurrect it on reload', async ({ page, qa }) => {
   await login(page, qa.account); await synced(page); await page.goto('/diet'); await synced(page);
   await saveMeal(page, 'CI remove this day'); await mealSaved(page, qa, 'CI remove this day');
-  const hold = qa.traffic.holdNext('PATCH', 'response');
+  const hold = qa.traffic.holdNext('POST', 'response');
   await page.getByRole('button', { name: '오늘 기록 초기화', exact: true }).click(); await hold.arrived;
   await page.getByRole('link', { name: '설정', exact: true }).click(); hold.release(); await synced(page);
   const state = await qa.read(); assertOriginalPreserved(state); expect(mealMemo(state)).toBeUndefined();

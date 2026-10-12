@@ -1,6 +1,6 @@
 import { DEFAULT_LUNCH_PROTEIN_RECORD, normalizeDinnerCarbRecord, normalizeLunchCarbRecord, normalizeLunchProteinRecord, type DietMealLog, type DinnerCarbRecord, type LunchProteinRecord } from './dietPlans.ts';
 
-export const DIGESTION_LABELS = { unrecorded: '미기록', comfortable: '편안함', heartburn: '속쓰림', bloated: '더부룩함', nausea: '메스꺼움' };
+export const DIGESTION_LABELS = { unrecorded: '미기록', comfortable: '편안함', heartburn: '속쓰림', bloated: '더부룩함', nausea: '메스꺼움', abdominal_pain: '복통', diarrhea: '설사' };
 export type DigestionStatus = keyof typeof DIGESTION_LABELS;
 export type MealCheck = 'unrecorded' | 'yes' | 'no';
 export function normalizeDigestion(value: unknown): DigestionStatus {

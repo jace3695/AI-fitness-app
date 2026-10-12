@@ -10,7 +10,8 @@ import ExerciseRecordEditor from './ExerciseRecordEditor';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { elapsedSecondsSince, remainingSecondsUntil } from '../data/timerClock';
 import { IntervalTimer } from './WorkoutControls';
-import { notifyRecordsChanged } from '../data/storageTransaction';
+import { readStorageSnapshot, updateStorageBatch } from '../data/storageTransaction';
+import { captureFitnessEditorOwner, fitnessStorageError } from '../data/fitnessStorageUpdates';
 import { useWorkoutVoice } from './useWorkoutVoice';
 
 type SessionMode = 'exercise' | 'setRest' | 'rest' | 'pain' | 'summary';
@@ -92,12 +93,30 @@ function getSessionDraftKey(exerciseSignature: string) {
 function readSessionDraft(key: string, exerciseSignature: string, exerciseCount: number) {
   if (typeof window === 'undefined') return null;
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(key) || 'null') as WorkoutSessionDraft | null;
+    const parsed = JSON.parse(readStorageSnapshot(window.localStorage).getItem(key) || 'null') as WorkoutSessionDraft | null;
     if (!parsed || parsed.version !== 2 || parsed.exerciseSignature !== exerciseSignature) return null;
-    if (parsed.currentIndex < 0 || parsed.currentIndex >= exerciseCount || !Array.isArray(parsed.exerciseRecords)) return null;
+    if (parsed.feedbackVersion !== undefined && parsed.feedbackVersion !== 1) return null;
+    if (!Number.isInteger(parsed.currentIndex) || parsed.currentIndex < 0 || parsed.currentIndex >= exerciseCount || !Array.isArray(parsed.exerciseRecords) || parsed.exerciseRecords.length !== exerciseCount) return null;
+    if (!['exercise', 'setRest', 'rest', 'pain', 'summary'].includes(parsed.mode) || !['completed', 'partial', 'stopped'].includes(parsed.overallStatus)) return null;
+    if (![parsed.completed, parsed.skipped].every(items => Array.isArray(items) && items.every(index => Number.isInteger(index) && index >= 0 && index < exerciseCount))) return null;
+    if (![parsed.elapsedSeconds, parsed.timerSeconds, parsed.restSeconds, parsed.painScore, parsed.savedAt].every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0)) return null;
+    if (![parsed.painSymptoms, parsed.neurologicalSymptoms].every(items => Array.isArray(items) && items.every(value => typeof value === 'string')) || typeof parsed.painMemo !== 'string') return null;
+    const optionalNumber = (value: unknown) => value === undefined || (typeof value === 'number' && Number.isFinite(value));
+    if (![parsed.painSet, parsed.fatigue, parsed.lastSetRpe].every(optionalNumber)) return null;
+    if (![parsed.painExercise, parsed.painArea].every(value => value === undefined || typeof value === 'string')) return null;
+    if (parsed.backStatus !== undefined && !['none', 'stiff', 'pain', 'worse'].includes(parsed.backStatus)) return null;
+    if (parsed.difficulty !== undefined && !['easy', 'moderate', 'hard'].includes(parsed.difficulty)) return null;
+    if (!parsed.exerciseRecords.every(record => {
+      if (!record || typeof record !== 'object' || typeof record.exerciseName !== 'string' || !['pending', 'completed', 'partial', 'skipped'].includes(record.status)) return false;
+      if (![record.durationMinutes, record.distanceKm, record.stepCount, record.intervalWorkSeconds, record.intervalRestSeconds, record.intervalRounds, record.painScore].every(optionalNumber)) return false;
+      if (record.summary !== undefined && typeof record.summary !== 'string') return false;
+      return record.sets === undefined || (Array.isArray(record.sets) && record.sets.every(set =>
+        set && typeof set === 'object' && Number.isInteger(set.setNumber) && set.setNumber > 0 && typeof set.completed === 'boolean'
+        && [set.reps, set.weightKg, set.durationSeconds, set.leftReps, set.rightReps, set.restAfterSeconds, set.plannedReps, set.plannedDurationSeconds, set.plannedRestSeconds].every(optionalNumber)
+        && (set.bandLevel === undefined || typeof set.bandLevel === 'string')));
+    })) return null;
     return parsed;
   } catch {
-    window.localStorage.removeItem(key);
     return null;
   }
 }
@@ -355,7 +374,7 @@ export default function WorkoutSession({
   startIndex?: number;
   intensity?: WorkoutIntensity;
   onClose: () => void;
-  onFinish?: (result: WorkoutSessionResult) => void;
+  onFinish?: (result: WorkoutSessionResult) => void | Promise<void>;
 }) {
   useUnsavedChanges(true);
   const dialogRef = useRef<HTMLElement>(null);
@@ -363,6 +382,19 @@ export default function WorkoutSession({
   const safeStartIndex = Math.min(Math.max(0, startIndex), Math.max(0, exercises.length - 1));
   const exerciseSignature = useMemo(() => getExerciseSignature(exercises), [exercises]);
   const draftKey = useMemo(() => getSessionDraftKey(`${exerciseSignature}:${intensity}`), [exerciseSignature, intensity]);
+  const [owner] = useState(captureFitnessEditorOwner);
+  const [storageNotice, setStorageNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const completionSaved = useRef(false);
+  const [cleanupPending, setCleanupPending] = useState(false);
+  const draftQueue = useRef<Promise<void>>(Promise.resolve());
+  const draftRevision = useRef(0);
+  const expectedDraft = useRef<string | null | undefined>(undefined);
+  if (expectedDraft.current === undefined) {
+    try { expectedDraft.current = typeof window === 'undefined' ? null : readStorageSnapshot(window.localStorage).getItem(draftKey); }
+    catch { expectedDraft.current = null; }
+  }
   const [initialDraft] = useState(() => readSessionDraft(draftKey, exerciseSignature, exercises.length));
   const [currentIndex, setCurrentIndex] = useState(initialDraft?.currentIndex ?? safeStartIndex);
   const [mode, setMode] = useState<SessionMode>(initialDraft?.mode ?? 'exercise');
@@ -387,7 +419,8 @@ export default function WorkoutSession({
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(() => initialDraft?.exerciseRecords ?? exercises.map((item) => buildExerciseRecord(item, intensity)));
   const [restoredDraftVisible, setRestoredDraftVisible] = useState(Boolean(initialDraft));
   const [previousRecords] = useState<Record<string, ExerciseRecord>>(() => {
-    const store = readWorkoutCompletionStore();
+    let store;
+    try { store = readWorkoutCompletionStore(); } catch { return {}; }
     return exercises.reduce<Record<string, ExerciseRecord>>((records, item) => {
       const previous = getPreviousExerciseRecord(store, item.name);
       if (previous) records[item.name] = { ...previous, summary: summarizeExerciseRecord(previous) };
@@ -396,6 +429,7 @@ export default function WorkoutSession({
   });
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const shouldPersistDraftRef = useRef(true);
+  const persistedOnce = useRef(false);
   const elapsedSecondsRef = useRef(initialElapsedSeconds);
   const timerSecondsRef = useRef(initialDraft?.timerSeconds ?? getRecommendedExerciseSeconds(exercises[safeStartIndex], intensity));
   const restSecondsRef = useRef(initialDraft?.restSeconds ?? 0);
@@ -505,6 +539,7 @@ export default function WorkoutSession({
   const persistDraft = useCallback(() => {
     if (!shouldPersistDraftRef.current) return;
     const draft: WorkoutSessionDraft = {
+      ...initialDraft,
       version: 2,
       feedbackVersion: 1,
       exerciseSignature,
@@ -530,12 +565,20 @@ export default function WorkoutSession({
       painArea:painArea||undefined,
       exerciseRecords,
     };
-    try {
-      window.localStorage.setItem(draftKey, JSON.stringify(draft));
-    } catch {
-      // 사생활 보호 모드나 저장공간 제한에서는 세션을 중단하지 않고 자동저장만 생략합니다.
-    }
-  }, [lastSetRpe, painArea, backStatus, completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, neurologicalSymptoms, overallStatus, painExercise, painMemo, painScore, painSet, painSymptoms, skipped]);
+    const revision = ++draftRevision.current;
+    const encoded = JSON.stringify(draft);
+    draftQueue.current = draftQueue.current.catch(() => {}).then(async () => {
+      let wrote = false;
+      await updateStorageBatch(window.localStorage, snapshot => {
+        if (!shouldPersistDraftRef.current || revision !== draftRevision.current) return {};
+        if (snapshot.getItem(draftKey) !== expectedDraft.current || (expectedDraft.current !== null && !initialDraft && draftRevision.current === revision && !persistedOnce.current)) throw new Error('다른 창의 임시 기록 또는 읽을 수 없는 기록을 보존했습니다. 이 운동의 입력은 현재 화면에 남아 있어요.');
+        wrote = true;
+        return { [draftKey]: encoded };
+      }, { owner });
+      if (wrote) { expectedDraft.current = encoded; persistedOnce.current = true; setStorageNotice(''); }
+    }).catch(error => { setStorageNotice(fitnessStorageError(error)); });
+
+  }, [initialDraft, owner, lastSetRpe, painArea, backStatus, completed, currentIndex, difficulty, draftKey, exerciseRecords, exerciseSignature, fatigue, mode, neurologicalSymptoms, overallStatus, painExercise, painMemo, painScore, painSet, painSymptoms, skipped]);
 
   useEffect(() => {
     persistDraft();
@@ -573,11 +616,23 @@ export default function WorkoutSession({
     setNeurologicalSymptoms((current) => current.includes(symptom) ? current.filter((item) => item !== symptom) : [...current, symptom]);
   };
 
-  const completeSession = () => {
+  const removeDraft = async () => {
+    await draftQueue.current;
+    await updateStorageBatch(window.localStorage, snapshot => {
+      if (expectedDraft.current !== null && !initialDraft && !persistedOnce.current) throw new Error('읽을 수 없는 이전 임시 기록을 보존했습니다. 별도 복구가 필요해 임시 기록을 정리하지 않았어요.');
+      if (snapshot.getItem(draftKey) !== expectedDraft.current) throw new Error('다른 창에서 임시 기록이 바뀌어 보존했습니다. 다시 확인해 주세요.');
+      return { [draftKey]: null };
+    }, { owner });
+    expectedDraft.current = null;
+  };
+  const completeSession = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true);
     shouldPersistDraftRef.current = false;
-    window.localStorage.removeItem(draftKey);
-    notifyRecordsChanged();
-    onFinish?.({
+    try {
+    await draftQueue.current;
+    if (!completionSaved.current) {
+    await onFinish?.({
       pain: painScore > 0 || painSymptoms.length > 0 || Boolean(painArea),
       memo: buildSessionMemo({
         elapsedSeconds: elapsedSecondsRef.current,
@@ -602,10 +657,23 @@ export default function WorkoutSession({
       painExercise: painExercise || undefined,
       painSet,
     });
+    completionSaved.current = true; setCleanupPending(true);
+    }
+    await removeDraft();
     onClose();
+    } catch (error) { shouldPersistDraftRef.current = !completionSaved.current; setStorageNotice(completionSaved.current ? `${onFinish ? '운동 결과는 저장했지만' : '운동 따라하기는 마쳤지만'} 임시 기록 정리를 확인하지 못했어요. 다시 완료를 누르면 정리만 다시 시도합니다. ${fitnessStorageError(error)}` : fitnessStorageError(error)); }
+    finally { savingRef.current = false; setSaving(false); }
+  };
+  const discardSession = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true; setSaving(true); shouldPersistDraftRef.current = false;
+    try { await removeDraft(); onClose(); }
+    catch (error) { shouldPersistDraftRef.current = !completionSaved.current; setStorageNotice(fitnessStorageError(error)); }
+    finally { savingRef.current = false; setSaving(false); }
   };
 
   const skipCurrent = () => {
+    if (completionSaved.current) return;
     stopVoice();
     setSkipped((current) => new Set(current).add(currentIndex));
     setExerciseRecords((records) => records.map((record, index) => index === currentIndex ? { ...record, status: 'skipped' } : record));
@@ -617,7 +685,8 @@ export default function WorkoutSession({
     // Cover global navigation (90) and install/update notices (110) for the whole session.
     <div className="fixed inset-0 z-[120] bg-[#111827] p-0 sm:p-3" ref={dialogRef as React.RefObject<HTMLDivElement>} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${title} 따라하기`} onClickCapture={voice.unlock}>
       <audio ref={voice.audio} preload="none" aria-label="연이 운동 안내 음성" data-voice="ko-KR-Chirp3-HD-Zephyr" className="hidden" />
-      <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-3xl">
+      <fieldset disabled={saving || cleanupPending} className="mx-auto min-w-0 flex h-full w-full max-w-4xl flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] sm:rounded-3xl">
+        {storageNotice && <p role="alert" className="shrink-0 bg-red-50 p-3 text-xs text-red-700">{storageNotice}</p>}
         <header className="shrink-0 border-b border-gray-100 bg-white px-4 pb-3 pt-4 sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -814,12 +883,13 @@ export default function WorkoutSession({
               <p className="mt-2 text-[13px] text-gray-500">저장 없이 종료하면 자동 저장된 임시 진행상태도 삭제됩니다.</p>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setShowExitConfirm(false)} className="rounded-xl bg-gray-100 px-3 py-3 text-[13px] font-bold text-gray-700">계속 운동</button>
-                <button type="button" onClick={() => { window.localStorage.removeItem(draftKey); shouldPersistDraftRef.current = false; notifyRecordsChanged(); onClose(); }} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
+                <button type="button" onClick={() => void discardSession()} className="rounded-xl bg-red-600 px-3 py-3 text-[13px] font-bold text-white">저장 없이 종료</button>
               </div>
             </section>
           </div>
         )}
-      </div>
+      </fieldset>
+      {cleanupPending && !saving && <button type="button" onClick={() => void completeSession()} className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-xl bg-[#534AB7] px-5 py-3 text-sm font-bold text-white shadow-lg">임시 기록 정리 다시 시도</button>}
     </div>
   );
 }
