@@ -13,6 +13,7 @@ import * as filesystem from 'node:fs';
 import * as paths from 'node:path';
 import ts from 'typescript';
 import * as harness from '../scripts/qa-legacy-evidence-browser.mjs';
+import * as resetDiagnostics from '../scripts/legacy-evidence-reset-diagnostics.mjs';
 
 // Contract tests use tiny disk fixtures and fake lifecycle boundaries, except
 // the explicitly bounded installed-Playwright --list regression below. That
@@ -734,7 +735,7 @@ function nativeListFixture(t: { after: (fn: () => void) => void }) {
   const directory = mkdtempSync(join(runner, 'yeoni-b2-')); chmodSync(directory, 0o700);
   for (const child of ['home', 'tmp', 'results', 'processes', 'browser-cache']) mkdirSync(join(directory, child), { mode: 0o700 });
   const configPath = 'playwright.legacy-evidence.config.ts', driverPath = 'scripts/qa-legacy-evidence-browser.mjs';
-  for (const path of [configPath, driverPath]) {
+  for (const path of [configPath, driverPath, 'scripts/legacy-evidence-reset-diagnostics.mjs']) {
     const source = readFileSync(join(repoRoot, path)), copy = put(checkout, path, source);
     assert.deepEqual(readFileSync(copy), source);
     assert.notEqual(statSync(copy).ino, statSync(join(repoRoot, path)).ino);
@@ -910,6 +911,7 @@ test('runner import is inert with child processes, timers, network and main exec
   const blocked = (name: string) => () => { observed.push(name); assert.fail(`Import attempted ${name}`); };
   const compiled = ts.transpileModule(runnerSource.replaceAll('import.meta.url', JSON.stringify(new URL('../scripts/qa-legacy-evidence-browser.mjs', import.meta.url).href)), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   new Function('require', 'exports', 'process', 'setTimeout', 'setInterval', 'fetch', compiled)((name: string) => {
+    if (name === './legacy-evidence-reset-diagnostics.mjs') return resetDiagnostics;
     if (name === 'node:child_process') return { spawn: blocked('spawn'), execFileSync: blocked('execFileSync') };
     assert.ok(['node:crypto', 'node:fs', 'node:path', 'node:url', 'node:timers/promises', 'node:util'].includes(name), `Unreviewed import ${name}`);
     return nativeRequire(name);

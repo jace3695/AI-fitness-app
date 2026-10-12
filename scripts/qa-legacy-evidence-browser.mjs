@@ -1,3 +1,4 @@
+import { projectResetRecoveryDiagnostic } from './legacy-evidence-reset-diagnostics.mjs';
 /** Fixed disposable B2 runner. Importing this module does not start a process. */
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -202,7 +203,12 @@ export function emitExecutionDiagnostics(raw, execution, phase, sink = detailSin
       if (!['passed', 'unrun'].includes(caseStatus) && results) {
         const title = `${canonical.project} / ${canonical.file} / ${canonical.title}`;
         const matched = results.filter(result => [title, ` / ${title}`].includes(detailField(result, 'title')));
-        if (matched.length === 1) { const failure = detailFailure(detailField(matched[0], 'failure')); if (failure) record.failure = failure; }
+        if (matched.length === 1) { const failure = detailFailure(detailField(matched[0], 'failure')); if (failure) record.failure = failure;
+          if (phase === 'enabled' && caseId === 'E10') {
+            const resetRecovery = projectResetRecoveryDiagnostic(detailField(matched[0], 'resetRecovery'));
+            if (resetRecovery) record.resetRecovery = resetRecovery;
+          }
+        }
       }
       records.push(record);
     }

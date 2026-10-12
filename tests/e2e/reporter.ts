@@ -1,5 +1,6 @@
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import type { FullResult, Reporter, TestCase, TestError, TestResult } from '@playwright/test/reporter';
+import { resetRecoveryAnnotation } from '../../scripts/legacy-evidence-reset-diagnostics.mjs';
 import { failureDiagnostics } from './failure-diagnostics.ts';
 
 const redact = (message: string) => message.replace(/eyJ[A-Za-z0-9_.-]+/g, '[redacted-jwt]')
@@ -9,13 +10,15 @@ const redact = (message: string) => message.replace(/eyJ[A-Za-z0-9_.-]+/g, '[red
 export default class SafeReporter implements Reporter {
   private readonly root = process.cwd();
   private readonly sourceFiles = new Set(readdirSync('tests/e2e').map(name => `tests/e2e/${name}`));
-  private results: { title: string; status: string; durationMs: number; failure?: ReturnType<typeof failureDiagnostics> }[] = [];
+  private results: { title: string; status: string; durationMs: number; failure?: ReturnType<typeof failureDiagnostics>; resetRecovery?: ReturnType<typeof resetRecoveryAnnotation> }[] = [];
   onTestEnd(test: TestCase, result: TestResult) {
     // Never export raw errors or steps. Failed actions retain only allowlisted
     // source locations and fixed categories, also visible through qa-playwright.
     const failure = result.status === 'passed' || result.status === 'skipped' ? undefined
       : failureDiagnostics(result, this.root, this.sourceFiles);
-    this.results.push({ title: test.titlePath().join(' / '), status: result.status, durationMs: result.duration, failure });
+    const resetRecovery = failure && test.title === 'E10 required reset retires scoped evidence @b2-enabled'
+      ? resetRecoveryAnnotation(result.annotations) : undefined;
+    this.results.push({ resetRecovery, title: test.titlePath().join(' / '), status: result.status, durationMs: result.duration, failure });
     console.log(`${result.status}: ${test.titlePath().join(' / ')}`);
     if (failure) console.log('QA_FAILURE_LOCATION ' + JSON.stringify(failure));
   }

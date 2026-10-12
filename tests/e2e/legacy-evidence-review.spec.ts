@@ -1,3 +1,4 @@
+import { RESET_DIAGNOSTIC_TYPE, projectResetRecoveryDiagnostic } from '../../scripts/legacy-evidence-reset-diagnostics.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import type { BrowserContext, Locator, Page, Route } from '@playwright/test';
 import { test, expect, login, originalLanguage, canonical, type State } from './fixture';
@@ -894,8 +895,38 @@ test('E10 required reset retires scoped evidence @b2-enabled', async ({ page, co
     await recoveryPanel.getByRole('button', { name: '진행 중인 초기화 결과 확인하기', exact: true }).click();
     await recoveryPanel.getByLabel('위의 일본어 기록이 영구 삭제되는 것을 확인했어요.', { exact: true }).check();
     await recoveryPanel.getByLabel('확인을 위해 ‘초기화’를 입력해 주세요.', { exact: true }).fill('초기화');
-    await recoveryPanel.getByRole('button', { name: '같은 초기화 요청 확인', exact: true }).click();
-    await expect(settings.getByText('일본어 기록을 초기화했어요. 유지되는 항목은 아래에서 확인해 주세요.', { exact: true })).toBeVisible();
+    let recoveryNavigations = 0;
+    const observeRecoveryNavigation = (frame: import('@playwright/test').Frame) => {
+      if (frame === settings.mainFrame()) recoveryNavigations = Math.min(8, recoveryNavigations + 1);
+    };
+    settings.on('framenavigated', observeRecoveryNavigation);
+    try {
+      await recoveryPanel.getByRole('button', { name: '같은 초기화 요청 확인', exact: true }).click();
+      await expect(settings.getByText('일본어 기록을 초기화했어요. 유지되는 항목은 아래에서 확인해 주세요.', { exact: true })).toBeVisible();
+    } catch (originalError) {
+      // Observe only after the original failure. Never turn diagnostic failure
+      // into a test failure, additional authentication, or recovery action.
+      try {
+        const panels = settings.getByRole('region', { name: '일본어 기록 초기화', exact: true, includeHidden: true });
+        const notices = settings.getByText('일본어 기록을 초기화했어요. 유지되는 항목은 아래에서 확인해 주세요.', { exact: true });
+        const counts = async (locator: import('@playwright/test').Locator) => {
+          const count = Math.min(8, await locator.count()); let visible = 0;
+          for (let index = 0; index < count; index++) if (await locator.nth(index).isVisible()) visible++;
+          return { count, visible };
+        };
+        const panelCounts = await counts(panels), noticeCounts = await counts(notices);
+        const snapshot = projectResetRecoveryDiagnostic({
+          navigations: recoveryNavigations, panels: panelCounts.count, visiblePanels: panelCounts.visible,
+          notices: noticeCounts.count, visibleNotices: noticeCounts.visible,
+          receiptPresent: await settings.evaluate(owner => sessionStorage.getItem(`record-reset-receipt:${owner}:language`) !== null, qa.account.id),
+          busyVisible: await button(settings, '초기화 중…').first().isVisible(),
+          uncertainVisible: await settings.getByText('초기화 요청의 서버 처리 결과가 아직 확인되지 않았어요. 기록을 보존했으니 같은 요청으로 다시 확인해 주세요.', { exact: true }).first().isVisible(),
+          cleanupErrorVisible: await settings.getByText('클라우드 초기화는 완료됐지만 이 기기의 정리를 확인하지 못했어요. 같은 버튼으로 다시 확인해 주세요. 손상되거나 지원하지 않는 기기 기록은 별도 복구가 필요합니다.', { exact: true }).first().isVisible(),
+        });
+        if (snapshot) test.info().annotations.push({ type: RESET_DIAGNOSTIC_TYPE, description: JSON.stringify(snapshot) });
+      } catch { /* Optional observation cannot replace the original assertion. */ }
+      throw originalError;
+    } finally { settings.off('framenavigated', observeRecoveryNavigation); }
     expect(traffic.count(rpc.reset)).toBe(1);
     const after = await qa.readLanguage();
     equal(after.integratedLearningSettingsV1, source.state.integratedLearningSettingsV1, 'Reader settings survive required reset');

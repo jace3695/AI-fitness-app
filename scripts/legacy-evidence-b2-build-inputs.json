@@ -18,9 +18,9 @@
     "tests/legacy-evidence-ci-harness.test.ts",
     "tests/legacy-evidence-ci-wiring.test.ts"
   ],
-  "fileCount": 1520,
-  "byteCount": 71371982,
-  "digest": "45e96e41aaa6776ee588b949a953ddbd9af622114f180273d3ef602cd6f01201",
+  "fileCount": 1522,
+  "byteCount": 71384967,
+  "digest": "3b87779372b02742f4311e82c3442402c9d6eb788137c17abfd86418ed714ab6",
   "files": [
     {
       "path": ".eslintrc.json",
@@ -6569,6 +6569,12 @@
       "sha256": "5ca7c6a41149c7c81177ec271fe896ebfc9420b5974ee7fe2f72ec3b5d710700"
     },
     {
+      "path": "scripts/legacy-evidence-reset-diagnostics.mjs",
+      "mode": 33188,
+      "bytes": 3138,
+      "sha256": "3f30d76d5876e8f10e318a6b411d00fa4338478d3f03f41dbed3423202fb5915"
+    },
+    {
       "path": "scripts/qa-browser-environment.mjs",
       "mode": 33188,
       "bytes": 1550,
@@ -6589,8 +6595,8 @@
     {
       "path": "scripts/qa-legacy-evidence-browser.mjs",
       "mode": 33188,
-      "bytes": 79068,
-      "sha256": "3888990c29792d6fe058fa37c139f98b8fe8db70ba158cef3206229096cda287"
+      "bytes": 79412,
+      "sha256": "37d0c66ab992773aff62a9d673027bc92b5b2aeb9a974d75c4c7beeca0bb18af"
     },
     {
       "path": "scripts/qa-legacy-evidence-http.mjs",
@@ -8281,8 +8287,8 @@
     {
       "path": "tests/e2e/legacy-evidence-review.spec.ts",
       "mode": 33188,
-      "bytes": 86078,
-      "sha256": "ef1eaf92293e97da2224763b3dd28088a8f022eb0b2d8a00c28985b8342f67ff"
+      "bytes": 88767,
+      "sha256": "b9352973818cb386147f0256fec81a175305b77fe4fa10a3a1f87e16be269352"
     },
     {
       "path": "tests/e2e/mobile.spec.ts",
@@ -8323,8 +8329,8 @@
     {
       "path": "tests/e2e/reporter.ts",
       "mode": 33188,
-      "bytes": 2874,
-      "sha256": "bce74e66c2f85cdaec8b31a060ad0c968b1d996142efd45bf7e832ba3d894b7e"
+      "bytes": 3218,
+      "sha256": "e13cf65d35d586b2ef23b02abe2b59311d240cb1ef53c66e6fed4278ae35f561"
     },
     {
       "path": "tests/e2e/roadmap-completion.spec.ts",
@@ -8821,8 +8827,8 @@
     {
       "path": "tests/legacy-evidence-browser-harness.test.ts",
       "mode": 33188,
-      "bytes": 213652,
-      "sha256": "cc096cddbf77dcb9c53fb5681a49527604ead4019ffb3dfa4a62ee1b0e5e815d"
+      "bytes": 213872,
+      "sha256": "57df891cc8e295109d63b96f196026bbe11dec4b3b65df68f7c787b8e9f36d8f"
     },
     {
       "path": "tests/legacy-evidence-ci-diagnostics.test.ts",
@@ -8853,6 +8859,12 @@
       "mode": 33188,
       "bytes": 34667,
       "sha256": "c8e8591a0c2ed8618ac0d2ff90a957afa66226780f04a458eb82d1896a7096ea"
+    },
+    {
+      "path": "tests/legacy-evidence-reset-diagnostics.test.ts",
+      "mode": 33188,
+      "bytes": 6250,
+      "sha256": "b179640c301f8fc608b7038f837b21b3cb888dc12bb83326308959fa1738b4a3"
     },
     {
       "path": "tests/legacy-evidence-reset-integration.test.ts",
