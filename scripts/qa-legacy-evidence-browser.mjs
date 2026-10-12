@@ -555,10 +555,14 @@ export async function stopOwnedProcesses(records, boundary = {}) {
   while (running().length && now() < force) await wait(100);
   if (running().length) refuse('cleanup_failed'); return true;
 }
-function registerProcess(owner, discovered, label) {
+function registerProcess(owner, discovered, label, discoveryOnly = false) {
   if (!discovered || !Number.isSafeInteger(discovered.pid) || !/^\d+$/.test(discovered.start ?? '') || !Number.isSafeInteger(discovered.group) || !Number.isSafeInteger(discovered.session)) refuseProcessIdentity('registration-validation', discovered);
   let statRead;
   const current = processInfo(discovered.pid, outcome => { statRead = outcome; });
+  // A snapshot candidate can disappear before registration. Only the exact
+  // stat path's ENOENT is absence; uncertainty and changed identities still fail.
+  // No record or signal authority is created, even if this PID is reused later.
+  if (discoveryOnly === true && label === 'descendant' && current === null && statRead === 'ENOENT') return null;
   // The observed birth, not a later occupant of this PID, established ownership.
   if (!sameProcess(discovered, current)) refuseProcessIdentity('registration-recheck', discovered, current, statRead);
   const row = { pid: discovered.pid, start: discovered.start, group: discovered.group, session: discovered.session, label, nonce: owner.nonce };
@@ -599,7 +603,7 @@ function scanOwned(owner) {
   for (const row of processes) {
     let marked = false; try { marked = readFileSync(`/proc/${row.pid}/environ`).includes(Buffer.from(`B2_PROCESS_TAG=${owner.nonce}\0`)); } catch { /* Other users' processes never become ours. */ }
     const ownedGroup = records.some(record => record.pid === record.group && record.group === row.group && record.session === row.session && BigInt(row.start) >= BigInt(record.start));
-    if ((owned.has(row.pid) || marked || ownedGroup) && !records.some(record => sameProcess(record, row))) registerProcess(owner, row, 'descendant');
+    if ((owned.has(row.pid) || marked || ownedGroup) && !records.some(record => sameProcess(record, row))) registerProcess(owner, row, 'descendant', true);
   }
   return processRecords(owner);
 }

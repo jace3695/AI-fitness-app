@@ -876,7 +876,7 @@ test('native focused config fails closed for absent/malformed ownership and reje
 });
 
 // The fake transport also covers failures between spawn and persisted ownership.
-function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow>; diskError?: string; resourceError?: string; resourceFailure?: unknown; diagnostics?: ReturnType<typeof processDiagnosticBoundary> } = {}) {
+function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; stopFails?: boolean; reuseBeforeRegister?: boolean; exitBeforeRegister?: boolean; firstIdentity?: Partial<ProcessRow>; diskError?: string; resourceError?: string; resourceFailure?: unknown; diagnostics?: ReturnType<typeof processDiagnosticBoundary> } = {}) {
   let time = 0, nextTimer = 1, spawnCount = 0;
   const timers = new Map<number, { callback: () => void; at: number; repeat: number }>();
   const identity = row(401, { parent: 9999, ...options.firstIdentity }), live = new Map([[identity.pid, identity]]), records: ProcessRow[] = [], stopped: ProcessRow[][] = [];
@@ -885,14 +885,14 @@ function fakeLauncher(options: { registerFails?: boolean; spawnFails?: boolean; 
   const child = Object.assign(new EventEmitter(), { pid: identity.pid, stdout: new PassThrough(), stderr: new PassThrough(), kill: (signal: string) => { signals.push([identity.pid, signal]); return true; } });
   const controller = new AbortController();
   const schedule = (callback: () => void, ms: number, repeat: number) => { const id = nextTimer++; timers.set(id, { callback, at: time + ms, repeat }); return id; };
-  const registration = privateFunction('registerProcess', { processInfo: (pid: number) => live.get(pid) ?? null, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => records.push(value) });
+  const registration = privateFunction('registerProcess', { processInfo: (pid: number, observe: (outcome: string) => void) => { const current = live.get(pid) ?? null; observe(current ? 'ok' : 'ENOENT'); return current; }, sameProcess: harness.sameProcess, refuse, join, writeProcessRecord: (_owner: unknown, value: ProcessRow) => records.push(value) });
   const run = privateFunction('runFixed', {
     ROOT: env.GITHUB_WORKSPACE, process: { execPath: '/synthetic/node', env, pid: 9999, kill: (pid: number, signal: string) => { signals.push([pid, signal]); live.delete(pid); } },
     childOperationObserver: (label: string) => (options.diagnostics?.observer ?? harness.childOperationObserver)(label, (line: string) => details.push(line)),
     runtimeStop: controller, refuse, LIMITS: harness.LIMITS, safeFailure: harness.safeFailure, sameProcess: harness.sameProcess,
     spawn: (_command: string, _args: string[], supplied: Record<string, unknown>) => { spawnCount++; spawnOptions.push(supplied); if (options.spawnFails) throw Object.assign(new Error('synthetic-spawn-failure'), { code: 'EACCES' }); queueMicrotask(() => child.emit('spawn')); return child; },
     processInfo: (pid: number) => live.get(pid) ?? null,
-    registerProcess: (owner: unknown, discovered: ProcessRow, label: string) => { assert.equal(typeof discovered, 'object', 'The original birth tuple must reach registration'); if (options.registerFails) refuse('ownership_invalid'); if (options.reuseBeforeRegister) live.set(discovered.pid, { ...discovered, start: '900000' }); return registration(owner, discovered, label); },
+    registerProcess: (owner: unknown, discovered: ProcessRow, label: string) => { assert.equal(typeof discovered, 'object', 'The original birth tuple must reach registration'); if (options.registerFails) refuse('ownership_invalid'); if (options.reuseBeforeRegister) live.set(discovered.pid, { ...discovered, start: '900000' }); if (options.exitBeforeRegister) live.delete(discovered.pid); return registration(owner, discovered, label); },
     processRecords: () => records, scanOwned: () => records,
     stopOwnedProcesses: async (owned: ProcessRow[]) => { stopped.push(owned); if (options.stopFails) refuse('cleanup_failed'); for (const info of owned) { const current = live.get(info.pid); if (current && !harness.sameProcess(info, current)) refuse('process_identity'); live.delete(info.pid); } return true; },
     resourceSample: () => { if (options.resourceFailure) throw options.resourceFailure; if (options.resourceError) throw Object.assign(new Error('SENTINEL_SECRET_PROCESS'), { code: options.resourceError }); return 1024; },
@@ -2140,4 +2140,88 @@ test('ownership metadata attachment failure never replaces the original refusal'
     let caught: unknown; try { reject('registry-record', 'invalid-row'); } catch (error) { caught = error; }
     assert.equal(harness.safeFailure(caught), 'ownership_invalid'); assert.equal((caught as Error).message, 'B2 refused: ownership_invalid');
   }
+});
+
+test('vanished discovery accepts only the exact stat reread ENOENT and never persists uncertain identities', () => {
+  const diagnostic = processDiagnosticBoundary(), discovered = row(901), saved: ProcessRow[] = [];
+  const outcomes = [Object.assign(new Error('gone'), { code: 'ENOENT' }),
+    ...['ESRCH', 'EACCES', 'EPERM', 'EIO', 'EMFILE', 'ENFILE', 'ELOOP', 'ENOTDIR'].map(code => Object.assign(new Error('unavailable'), { code })),
+    new Error('unknown'), Object.create({ code: 'ENOENT' }),
+    Object.defineProperty(new Error('accessor'), 'code', { get: () => assert.fail('Error accessors are not evidence') }),
+    new Proxy({ code: 'ENOENT' }, { getOwnPropertyDescriptor: () => assert.fail('Proxy errors are not evidence') }), 'malformed', undefined,
+    ...[{ pid: 902 }, { start: '999999' }, { group: 902 }, { session: 902 }].map(patch => statLine({ ...discovered, ...patch }))];
+  for (const input of outcomes) {
+    let reads = 0;
+    const inspect = diagnostic.inspect((path, encoding) => { reads++; assert.equal(path, '/proc/901/stat'); assert.equal(encoding, 'utf8'); if (typeof input === 'object') throw input; return input as string; });
+    const register = privateFunction('registerProcess', { processInfo: inspect, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
+    if (input === outcomes[0]) assert.equal(register(ownerRecord(), discovered, 'descendant', true), null);
+    else refused(() => register(ownerRecord(), discovered, 'descendant', true), 'process_identity');
+    assert.equal(reads, 1); assert.deepEqual(saved, []);
+  }
+  for (const current of [null, undefined, false]) {
+    const register = privateFunction('registerProcess', { processInfo: () => current, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: () => assert.fail('Unobserved absence cannot persist') });
+    refused(() => register(ownerRecord(), discovered, 'descendant', true), 'process_identity');
+  }
+  const register = privateFunction('registerProcess', { processInfo: () => assert.fail('Invalid discovery must fail before reading'), sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: () => assert.fail('Invalid discovery cannot persist') });
+  refused(() => register(ownerRecord(), { ...discovered, group: NaN }, 'descendant', true), 'process_identity');
+});
+
+test('sampling abandons a vanished new descendant without authorizing its reused PID and retains already-registered exit behavior', async () => {
+  for (const alreadyRegistered of [false, true]) {
+    const leader = row(911), child = row(912, { parent: 911, group: 911, session: 911 }), replacement = { ...child, start: '999999' };
+    const saved = [{ ...leader, nonce, label: 'browser' }, ...(alreadyRegistered ? [{ ...child, nonce, label: 'descendant' }] : [])]; let childReads = 0;
+    const diagnostic = processDiagnosticBoundary();
+    const inspect = diagnostic.inspect(path => { if (path === '/proc/911/stat') return statLine(leader); assert.equal(path, '/proc/912/stat'); if (++childReads === 1) return statLine(child); throw Object.assign(new Error('gone'), { code: 'ENOENT' }); });
+    const register = privateFunction('registerProcess', { processInfo: inspect, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: (_owner: unknown, value: typeof saved[number]) => saved.push(value) });
+    const scan = privateFunction('scanOwned', { processRecords: () => saved, readdirSync: () => ['911', '912'], processInfo: inspect, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, readFileSync: () => Buffer.from('PATH=/usr/bin\0'), registerProcess: register, refuse });
+    const sample = privateFunction('resourceSample', { scanOwned: scan, sameProcess: harness.sameProcess, processInfo: inspect, readFileSync: () => 'VmRSS: 10 kB\n' });
+    assert.equal(sample(ownerRecord()), 10 * 1024); assert.equal(childReads, 2); assert.equal(saved.length, alreadyRegistered ? 2 : 1);
+    const live = new Map([[leader.pid, leader], [replacement.pid, replacement]]), signals: [number, string][] = [];
+    const stop = () => harness.stopOwnedProcesses(saved, { inspect: (pid: number) => live.get(pid) ?? null, kill: (pid: number, signal: string) => { signals.push([pid, signal]); live.delete(pid); }, wait: async () => {}, now: () => 0 });
+    if (alreadyRegistered) { await assert.rejects(stop(), { code: 'process_identity' }); assert.deepEqual(signals, []); }
+    else { await stop(); assert.deepEqual(signals, [[leader.pid, 'SIGTERM']]); }
+    assert.equal(live.get(replacement.pid), replacement);
+  }
+});
+
+test('direct spawned-child disappearance remains a strict registration failure', async () => {
+  const fake = fakeLauncher({ exitBeforeRegister: true });
+  await assert.rejects(fake.run(ownerRecord(), 'browser', []), { code: 'process_identity' });
+  assert.deepEqual(fake.records, []); assert.deepEqual(fake.signals, []); assert.equal(fake.timers.size, 0);
+  const diagnostic = processDiagnosticBoundary(), inspect = diagnostic.inspect(() => { throw Object.assign(new Error('gone'), { code: 'ENOENT' }); });
+  const register = privateFunction('registerProcess', { processInfo: inspect, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: () => assert.fail('No absent process is persisted') });
+  for (const label of ['browser', 'server', 'server-launcher', 'sql', 'discovery', 'inactive-build', 'enabled-build']) refused(() => register(ownerRecord(), row(921), label, true), 'process_identity');
+  refused(() => register(ownerRecord(), row(921), 'descendant'), 'process_identity');
+  const calls: ts.CallExpression[] = [];
+  function visit(node: ts.Node) { if (ts.isCallExpression(node) && node.expression.getText(runnerAst) === 'registerProcess') calls.push(node); ts.forEachChild(node, visit); }
+  visit(runnerAst); assert.equal(calls.length, 3);
+  assert.equal(calls.filter(call => call.arguments.length === 3).length, 2);
+  assert.equal(calls.filter(call => call.arguments.length === 4).length, 1);
+  assert.equal(calls.find(call => call.arguments.length === 4)?.getText(runnerAst), "registerProcess(owner, row, 'descendant', true)");
+});
+
+test('vanished discovery opt-in does not adopt unrelated missing or mismatched nonce processes', () => {
+  for (const bytes of [Buffer.from('PATH=/usr/bin\0'), Buffer.from(`B2_PROCESS_TAG=${'c'.repeat(64)}\0`)]) {
+    const foreign = row(931), saved: ProcessRow[] = [];
+    const scan = privateFunction('scanOwned', { processRecords: () => saved, readdirSync: () => ['931'], processInfo: () => foreign, sameProcess: harness.sameProcess, readFileSync: () => bytes, registerProcess: () => assert.fail('Unowned processes must never reach registration'), refuse });
+    assert.deepEqual(scan(ownerRecord()), []);
+  }
+});
+
+test('a vanished discovery candidate does not suppress registration of a later verified descendant', () => {
+  const leader = row(941), gone = row(942, { parent: 941, group: 941, session: 941 }), live = row(943, { parent: 941, group: 941, session: 941 });
+  const saved: ProcessRow[] = [{ ...leader, nonce, label: 'browser' }], diagnostic = processDiagnosticBoundary(); let goneReads = 0, nextScan = false;
+  const foreign = { ...gone, parent: 1, group: 942, session: 942, start: '999999' };
+  const inspect = diagnostic.inspect(path => {
+    if (path === '/proc/941/stat') return statLine(leader);
+    if (path === '/proc/943/stat') return statLine(live);
+    assert.equal(path, '/proc/942/stat'); if (nextScan) return statLine(foreign); if (++goneReads === 1) return statLine(gone);
+    throw Object.assign(new Error('gone'), { code: 'ENOENT' });
+  });
+  const register = privateFunction('registerProcess', { processInfo: inspect, sameProcess: harness.sameProcess, refuseProcessIdentity: diagnostic.refuseIdentity, writeProcessRecord: (_owner: unknown, value: ProcessRow) => saved.push(value) });
+  const scan = privateFunction('scanOwned', { processRecords: () => saved, readdirSync: () => ['941', '942', '943'], processInfo: inspect, sameProcess: harness.sameProcess, readFileSync: () => Buffer.from('PATH=/usr/bin\0'), registerProcess: register, refuse });
+  assert.deepEqual(scan(ownerRecord()).map((value: ProcessRow) => value.pid), [941, 943]); assert.equal(goneReads, 2);
+  assert.deepEqual(saved[1], { pid: live.pid, start: live.start, group: live.group, session: live.session, label: 'descendant', nonce });
+  nextScan = true; assert.deepEqual(scan(ownerRecord()).map((value: ProcessRow) => value.pid), [941, 943]);
+  assert.equal(saved.some(value => value.pid === foreign.pid), false, 'A later foreign occupant cannot inherit the abandoned candidate');
 });
