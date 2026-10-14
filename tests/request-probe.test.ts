@@ -6,7 +6,7 @@ import { nativeLabel } from '../scripts/qa-native-labels.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { observeNetworkLibraries } from '../scripts/qa-browser-environment.mjs';
+import { libraryIdentity, observeNetworkLibraries } from '../scripts/qa-browser-environment.mjs';
 
 test('passive HTTP observer sees real receipt and completion without leaking query, cookies or bodies', async () => {
   const rows: Record<string, unknown>[] = [];
@@ -43,9 +43,14 @@ test('network library evidence verifies mapped bytes without exporting process p
     const library = join(root, 'libsoup-3.0.so.0');
     writeFileSync(library, 'binary\0libsoup/3.6.6\0private-secret');
     writeFileSync(join(root, '101/comm'), 'WPENetworkProce\n');
-    writeFileSync(join(root, '101/maps'), `000-fff r-xp 0 0 0 ${library}\n`);
+    // /proc/maps contains POSIX paths even when this fixture runs on Windows.
+    const mappedLibrary = '/fixture/libsoup-3.0.so.0';
+    writeFileSync(join(root, '101/maps'), `000-fff r-xp 0 0 0 ${mappedLibrary}\n`);
     writeFileSync(join(root, '101/environ'), 'PRIVATE_SECRET=do-not-read');
-    const observer = observeNetworkLibraries(root); observer.sample(); observer.sample();
+    const observer = observeNetworkLibraries(root, (path: string) => {
+      assert.equal(path, mappedLibrary);
+      return libraryIdentity(library);
+    }); observer.sample(); observer.sample();
     const evidence = observer.snapshot();
     assert.equal(evidence.length, 1);
     assert.deepEqual(evidence[0].versions, ['libsoup/3.6.6']);

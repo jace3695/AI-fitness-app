@@ -1,0 +1,10 @@
+{
+  "passed": 1,
+  "scope": "Actual RecordCalendarView + browser image/canvas + OA parser/Tesseract worker and model; date/value edit, existing-record confirmation, memo preservation, save, reload and calendar re-query. Synthetic OA-layout image only, not real report accuracy.",
+  "assetRequests": [
+    "worker.min.js",
+    "tesseract-core-simd-lstm.wasm.js",
+    "eng.traineddata.gz"
+  ],
+  "externalRequestsSent": 0
+}

@@ -9,7 +9,7 @@ export function libraryIdentity(path) {
 }
 
 // Read only comm/maps, never cmdline, environ, memory or a core dump.
-export function observeNetworkLibraries(procRoot = '/proc') {
+export function observeNetworkLibraries(procRoot = '/proc', identify = libraryIdentity) {
   const records = new Map();
   const identities = new Map();
   const sample = () => {
@@ -21,7 +21,7 @@ export function observeNetworkLibraries(procRoot = '/proc') {
         for (const line of maps.split('\n')) {
           const path = line.match(/\s(\/[^\n]*\/libsoup-3\.0\.so[^\s]*)$/)?.[1];
           if (!path) continue;
-          if (!identities.has(path)) identities.set(path, libraryIdentity(path));
+          if (!identities.has(path)) identities.set(path, identify(path));
           const identity = identities.get(path);
           const key = `${pid}:${identity.sha256}`;
           if (!records.has(key)) records.set(key, { at: Date.now(), process: 'webkit-network', pid: Number(pid), ...identity });

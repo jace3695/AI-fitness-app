@@ -1,0 +1,99 @@
+(node:9816) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/currentWorkoutDirection.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+???꾩옱 ?대룞 諛⑺뼢?쇰줈 ?댁쟾?섎㈃ 媛쒖씤 湲곕줉 紐⑺몴??蹂댁〈?섍퀬 二쇨컙 猷⑦떞留??뺥솗??媛깆떊?쒕떎 (3.1656ms)
+(node:3316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/homeExerciseCatalog.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??home choices include bodyweight and exclude sliding board/bridge everywhere (2.3431ms)
+??source identity and safety guide survive JSON restart, with legacy support (0.8448ms)
+??catalog additions appear once in main, never repeated in warmup and cooldown (1.3025ms)
+(node:13496) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/localWorkoutPlanProposal.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??濡쒖뺄 怨꾪쉷? ?꾩옱 ?ㅼ젙???좎??섍퀬 7??誘몃━蹂닿린瑜?留뚮뱺??(3.3875ms)
+???듭쬆 ?좏샇???뚮났 ?대룞???먮룞 異붿쿇?섏? ?딄퀬 利앹긽 ?뺤씤???덈궡?쒕떎 (0.81ms)
+???믪? ?쇰줈??以묐떒 湲곕줉???뚮났 ?좏샇濡?泥섎━?쒕떎 (0.548ms)
+???덈━ ?낇솕???좉꼍 利앹긽? 媛뺣룄 ?곸듅 ?놁씠 ?섎즺 ?됯? ?덈궡濡??곌껐?쒕떎 (0.4774ms)
+?????덉궛 蹂댄샇 ?쒖뿉??鍮꾩슜 ?녿뒗 濡쒖뺄 怨꾪쉷???댁쑀瑜??뺥솗???뚮┛??(0.3208ms)
+??AI ?묐떟???꾩쟾?섏? ?딆븘???ы샇異??놁씠 濡쒖뺄 怨꾪쉷?쇰줈 ?꾪솚?쒕떎 (0.2522ms)
+(node:30064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/storageTransaction.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??a later local save failure preserves the entire previous snapshot (2.7541ms)
+??a full device that cannot reserve a journal does not change any record (0.35ms)
+??an interrupted save is recovered before another operation (0.2637ms)
+(node:36556) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/userWorkoutSettings.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+???대룞 ?ㅼ젙 ??μ? 怨듯넻 ?대씪?곕뱶 ?숆린?붿뿉 利됱떆 蹂寃쎌쓣 ?뚮┛??(2.0098ms)
+(node:35064) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/workoutAdaptiveReview.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??current routine starts recovery days at one round, strength days at three (1.6263ms)
+??three fully recorded comparable strength sessions propose only one weekday rep increase (35.8044ms)
+??three capped sessions propose only a 0.5kg dumbbell step and prefill the confirmed plan (5.72ms)
+??a capped band exercise advances exactly one recognized resistance level (2.1919ms)
+??a safely learned two-round variation proposes only the third round (1.7446ms)
+??keep saves a decision while preserving the entire plan (2.155ms)
+??changed records or settings invalidate a preview before applying (1.2961ms)
+??missing details, unknown back status, missing load, recovery-only and outdated sessions never increase (3.3065ms)
+??future and invalid dates do not become training evidence (0.668ms)
+??fatigue reduces only the next date and does not alter weekly recovery structure (1.387ms)
+??fatigue lowers a strength session from three to two rounds with more rest (0.8912ms)
+??all neurological symptoms, worsening back and current symptoms hold changes including stopped sessions (3.3587ms)
+??custom edits and date exceptions are not overwritten by a proposal (1.5468ms)
+??after sufficient stable practice, a replacement needs preparation and keeps five main moves (4.4575ms)
+??a lower planned round count is not a performance decline (0.6499ms)
+??Pallof press is offered only after the hamstring variation is established (7.8756ms)
+??a prior small rep increase does not prevent a later balance replacement (2.0981ms)
+??weekly limit uses the user local date, including a Korean Monday before UTC Monday (2.9338ms)
+(node:27168) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/workoutGroups.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+???щ씪?대뵫蹂대뱶 ?대룞紐낆뿉??湲곕룄 臾멸뎄瑜??욎? ?딅뒗??(1.8657ms)
+???꾩옱 湲곕낯 怨꾪쉷? ?붿닔湲?洹쇰젰쨌?붾ぉ ?뚮났?뺤씠硫??щ씪?대뵫蹂대뱶瑜?猷⑦떞?먯꽌留??쒖쇅?쒕떎 (1.3711ms)
+??洹쇰젰쨌?뚮났???쒗궥? 以鍮꾩? ?뺣━瑜???踰덈쭔 ?섍퀬 蹂몄슫?숇쭔 ?쇱슫??諛섎났?쒕떎 (1.4412ms)
+???좏깮 ?좎궛?뚯쓽 ?щ씪?대뵫蹂대뱶 ??ぉ? ?섎굹留??쒓났?쒕떎 (0.1897ms)
+(node:16444) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/workoutPlanDecision.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??釉뚮씪?곗?媛 ?꾨땲硫?怨꾪쉷 寃곗젙 湲곕줉? ?덉쟾?섍쾶 鍮꾩뼱 ?덈떎 (2.0098ms)
+(node:36224) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/data/workoutPlanProposal.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??AI ?대룞 怨꾪쉷?먯꽌 ?덉슜???붿씪쨌洹몃９쨌?대룞媛믩쭔 蹂댁〈?쒕떎 (1.5679ms)
+???ъ슜?먭? ?곸슜?덉쓣 ?뚮쭔 湲곗〈 ?ㅼ젙??AI 怨꾪쉷???⑹튇??(0.5569ms)
+???쇰? ?곸슜? ?ъ슜?먭? 怨좊Ⅸ ?붿씪怨??대룞?됰쭔 蹂寃쏀븳??(0.3258ms)
+(node:12928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/lib/bodyImport.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??measurement dates reject rollover, malformed and future values (5.4349ms)
+??import saves the measurement day only, preserving unknown fields and memo (1.1568ms)
+??new measurement date does not copy fields from another day; explicit edits win (0.5245ms)
+??session epoch invalidates even a same-account re-login (0.2897ms)
+(node:30612) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-14/task-2/AI-fitness-app/app/lib/oaReportParser.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-14\task-2\AI-fitness-app\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+???ㅼ븘 OCR???쇳몴 ?뚯닔?먭낵 ?좎궗 臾몄옄瑜??レ옄濡?蹂댁젙?쒕떎 (1.2006ms)
+???뚯닔?먯씠 ?꾨씫??泥댁?諛⑸쪧???덉슜 踰붿쐞濡?蹂듦뎄?쒕떎 (0.2151ms)
+????ぉ ?덉슜 踰붿쐞瑜?踰쀬뼱??OCR 媛믪? ????꾨낫?먯꽌 ?쒖쇅?쒕떎 (0.1718ms)
+??tests 47
+??suites 0
+??pass 47
+??fail 0
+??cancelled 0
+??skipped 0
+??todo 0
+??duration_ms 556.3136

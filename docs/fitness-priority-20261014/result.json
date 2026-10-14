@@ -1,0 +1,17 @@
+{
+  "passed": 11,
+  "checks": [
+    "detected date and draft survive calendar change",
+    "conflict cancellation leaves storage unchanged",
+    "measurement date save, memo preservation and reload",
+    "invalid date requires explicit correction",
+    "late OCR discarded after session change",
+    "cross-tab account switch clears completed draft",
+    "late OCR discarded after calendar navigation",
+    "edited value and draft survive transactional quota failure, retry saves",
+    "equipment selection source ID and guide survive reload",
+    "every equipment category excludes sliding board and hip bridge",
+    "styled 320/390/1280px layout has no horizontal overflow"
+  ],
+  "scope": "Local actual React components; synthetic OCR and storage. Not authenticated Next app or real OCR accuracy."
+}

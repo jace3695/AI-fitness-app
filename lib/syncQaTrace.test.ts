@@ -40,10 +40,24 @@ async function lab(t: TestContext) {
   }
   return { device, wire, row: () => row };
 }
-function waitForPhase(trace: ReturnType<typeof createSyncQaTrace>, phase: string) {
+function waitForPhase(trace: ReturnType<typeof createSyncQaTrace>, phase: string, timeoutMs = 10_000) {
   if (trace.snapshot().entries.some(entry => entry.phase === phase)) return Promise.resolve();
-  return new Promise<void>(resolve => { const off = trace.subscribe(() => { if (trace.snapshot().entries.some(entry => entry.phase === phase)) { off(); resolve(); } }); });
+  return new Promise<void>((resolve, reject) => {
+    const off = trace.subscribe(() => {
+      if (trace.snapshot().entries.some(entry => entry.phase === phase)) { clearTimeout(timer); off(); resolve(); }
+    });
+    const timer = setTimeout(() => {
+      off();
+      reject(new Error(`Timed out waiting for ${phase}; observed phases: ${trace.snapshot().entries.map(entry => entry.phase).join(', ')}`));
+    }, timeoutMs);
+  });
 }
+
+test('a missing QA phase fails promptly instead of leaving the suite pending', async () => {
+  const trace = createSyncQaTrace({ origin: 'https://fixture.invalid', client: 'A', send: async () => new Response('{}') });
+  await assert.rejects(waitForPhase(trace, 'held-after-response', 20), /Timed out waiting for held-after-response/);
+  trace.stop();
+});
 
 test('QA requires explicit opt-in, a loopback host and development mode', () => {
   assert.equal(isSyncQaAllowed('development', '127.0.0.1', true), true);
