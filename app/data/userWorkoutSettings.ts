@@ -4,6 +4,8 @@ import type { WorkoutDayId } from "./workoutCompletion";
 import type { WorkoutMethodConfig } from "./workoutMethods";
 import type { AdaptiveReviewDecision } from "./workoutAdaptiveReview.ts";
 import { notifyRecordsChanged } from "./storageTransaction.ts";
+import { exerciseGuides } from "./exerciseGuides.ts";
+import { isHomeSelectable } from "./homeExerciseCatalog.ts";
 
 export const USER_WORKOUT_SETTINGS_KEY = "ai-fitness-user-workout-settings";
 
@@ -17,10 +19,18 @@ export interface ExerciseTarget {
 
 export interface CustomExercise {
   id: string;
+  sourceExerciseId?: string;
   name: string;
   sets?: number;
   reps?: number;
   durationMinutes?: number;
+}
+
+export function customExerciseSource(exercise: CustomExercise): string | undefined {
+  if (exercise.sourceExerciseId && exerciseGuides[exercise.sourceExerciseId]) return exercise.sourceExerciseId;
+  // Older editor records encode the exact source ID followed by a timestamp.
+  const legacy = exercise.id.match(/^custom-(.+)-\d+$/)?.[1];
+  return legacy && exerciseGuides[legacy] ? legacy : undefined;
 }
 
 export interface DayRoutineEdit {
@@ -100,13 +110,16 @@ export function applyExerciseTargets(day: DayWorkout, targets: Record<string, Ex
   };
 }
 
-function editExercises(exercises: Exercise[], edit?: DayRoutineEdit): Exercise[] {
+function editExercises(exercises: Exercise[], edit?: DayRoutineEdit, includeCustom = true): Exercise[] {
   const allowedExercises = exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId || ""));
   if (!edit) return allowedExercises;
   const removed = new Set(edit.removed || []);
   const existing = allowedExercises.filter((exercise) => !removed.has(exercise.exerciseId || exercise.name));
-  const custom: Exercise[] = (edit.customExercises || []).filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.id)).map((exercise) => ({
+  const custom: Exercise[] = (includeCustom ? edit.customExercises || [] : []).filter((exercise) => isHomeSelectable(customExerciseSource(exercise) || exercise.id, exercise.name)).map((exercise) => ({
     exerciseId: exercise.id,
+    sourceExerciseId: customExerciseSource(exercise),
+    guide: customExerciseSource(exercise) ? exerciseGuides[customExerciseSource(exercise)!] : undefined,
+    abSlideGate: customExerciseSource(exercise) === 'ab-slider-ready-position' || exercise.name.includes('AB 슬라이더'),
     name: exercise.name,
     sets: exercise.sets ?? (exercise.reps ? 1 : 0),
     meta: exercise.durationMinutes ? `${exercise.durationMinutes}분` : [exercise.reps ? `${exercise.reps}회` : "", exercise.sets ? `${exercise.sets}세트` : ""].filter(Boolean).join(" × "),
@@ -121,14 +134,15 @@ function editExercises(exercises: Exercise[], edit?: DayRoutineEdit): Exercise[]
 
 export function applyDayRoutineEdit(day: DayWorkout, edit?: DayRoutineEdit): DayWorkout {
   if (!edit) return day;
+  const mainIndex = Math.max(0, day.phases.findIndex(phase => phase.id === 'main'));
   return {
     ...day,
-    phases: day.phases.map((phase) => ({ ...phase, exercises: editExercises(phase.exercises, edit) })),
+    phases: day.phases.map((phase, index) => ({ ...phase, exercises: editExercises(phase.exercises, edit, !day.optionalCardio && index === mainIndex) })),
     optionalCardio: day.optionalCardio ? {
       ...day.optionalCardio,
-      warmup: editExercises(day.optionalCardio.warmup, edit),
+      warmup: editExercises(day.optionalCardio.warmup, edit, false),
       options: day.optionalCardio.options.map((option) => ({ ...option, exercises: editExercises(option.exercises, edit) })),
-      cooldown: editExercises(day.optionalCardio.cooldown, edit),
+      cooldown: editExercises(day.optionalCardio.cooldown, edit, false),
     } : undefined,
   };
 }

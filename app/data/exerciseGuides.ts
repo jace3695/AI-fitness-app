@@ -331,6 +331,11 @@ for (const guide of Object.values(exerciseGuides)) {
   if (!guide.videoUrl && !guide.videoSearchQuery) guide.videoSearchQuery = `${guide.name || guide.summary} 운동 자세`;
 }
 
+// Keep legacy guides readable, but do not offer unavailable/excluded alternatives.
+for (const guide of Object.values(exerciseGuides)) {
+  if (guide.alternatives) guide.alternatives = guide.alternatives.filter(name => !/sliding[\s-]*board|hip[\s-]*bridge|슬라이딩\s*보드|힙\s*브[릿리]지/i.test(name));
+}
+
 export const getExerciseGuide = (exerciseId: string, fallbackName?: string, summary?: string) =>
   exerciseGuides[exerciseId] || fallbackExerciseGuide(fallbackName || exerciseId, summary);
 

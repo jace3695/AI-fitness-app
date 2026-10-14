@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { HOME_EQUIPMENT, homeExerciseCandidates, isHomeSelectable, type HomeEquipment } from "../data/homeExerciseCatalog";
 import {
   EXCLUDED_EXERCISE_IDS,
   getWorkoutGroupById,
@@ -36,9 +37,10 @@ function readFirstNumber(text?: string) {
 function toCustomExercise(exercise: WorkoutGroupExercise): CustomExercise {
   return {
     id: `custom-${exercise.exerciseId}-${Date.now()}`,
+    sourceExerciseId: exercise.exerciseId,
     name: exercise.name || exercise.exerciseId,
     durationMinutes: exercise.duration ? readFirstNumber(exercise.duration) : undefined,
-    reps: exercise.sets ? readFirstNumber(exercise.sets) : undefined,
+    reps: exercise.sets && /회|걸음/.test(exercise.sets) ? readFirstNumber(exercise.sets) : undefined,
     sets: exercise.sets?.match(/(\d+)\s*세트/) ? Number(exercise.sets.match(/(\d+)\s*세트/)?.[1]) : undefined,
   };
 }
@@ -56,12 +58,16 @@ export default function DailyWorkoutEditor({
   const [scope, setScope] = useState<EditScope>("date");
   const [newExerciseName, setNewExerciseName] = useState("");
   const [notice, setNotice] = useState("");
+  const [equipment, setEquipment] = useState<HomeEquipment>("맨몸");
 
   const dateOverride = settings.dateOverrides[dateKey];
   const weeklyGroupId = settings.weeklyGroups[dayId] || defaultGroupId;
   const groupId = scope === "date" ? dateOverride?.groupId || weeklyGroupId : weeklyGroupId;
   const group = getWorkoutGroupById(groupId);
   const recommendedGroup = getWorkoutGroupById(recommendedGroupId);
+  const selectableGroup = (item: typeof group) => item.type === 'choice'
+    ? item.options.every(option => option.exerciseIds.every(id => isHomeSelectable(id)))
+    : item.exercises.every(exercise => isHomeSelectable(exercise.exerciseId, exercise.name));
   const currentEdit: DayRoutineEdit = scope === "date"
     ? dateOverride?.edit || settings.weeklyEdits[dayId] || {}
     : settings.weeklyEdits[dayId] || {};
@@ -70,7 +76,7 @@ export default function DailyWorkoutEditor({
     : group.exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId));
   const recommendedExercises = recommendedGroup.type === "choice"
     ? []
-    : recommendedGroup.exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId));
+    : recommendedGroup.exercises.filter((exercise) => !EXCLUDED_EXERCISE_IDS.has(exercise.exerciseId) && isHomeSelectable(exercise.exerciseId, exercise.name));
   const removedIds = new Set(currentEdit.removed || []);
   const visibleExercises = [
     ...baseExercises.filter((exercise) => !removedIds.has(exercise.exerciseId)),
@@ -92,7 +98,7 @@ export default function DailyWorkoutEditor({
       )
     : visibleExercises;
   const routineGroups = WORKOUT_GROUPS.filter(
-    (item) => item.type !== "choice" || dayId === "sat",
+    (item) => item.id === groupId || ((item.type !== "choice" || dayId === "sat") && selectableGroup(item)),
   );
 
   const clearCurrentDateRoutine = () => {
@@ -188,6 +194,7 @@ export default function DailyWorkoutEditor({
   };
 
   const restoreExercise = (exerciseId: string) => {
+    if (!isHomeSelectable(exerciseId)) return;
     updateEdit({
       ...currentEdit,
       removed: (currentEdit.removed || []).filter((id) => id !== exerciseId),
@@ -197,6 +204,7 @@ export default function DailyWorkoutEditor({
   const addExercise = (candidate?: WorkoutGroupExercise) => {
     const name = candidate?.name || newExerciseName.trim();
     if (!name) return;
+    if (!isHomeSelectable(candidate?.exerciseId || '', name)) { setNotice("슬라이딩보드와 힙브릿지는 추가 후보에서 제외됩니다."); return; }
 
     const removedBase = baseExercises.find(
       (exercise) => exercise.name === name && removedIds.has(exercise.exerciseId),
@@ -288,6 +296,7 @@ export default function DailyWorkoutEditor({
           <button
             type="button"
             onClick={() => changeGroup(recommendedGroup.id)}
+            disabled={!selectableGroup(recommendedGroup)}
             className="rounded-xl bg-[#534AB7] px-3 py-2.5 text-[12px] font-bold text-white"
           >
             추천 루틴 사용
@@ -295,7 +304,7 @@ export default function DailyWorkoutEditor({
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {recommendedGroup.type === "choice"
-            ? recommendedGroup.options.map((option) => (
+            ? recommendedGroup.options.filter(option => option.exerciseIds.every(id => isHomeSelectable(id))).map((option) => (
                 <span key={option.id} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[#534AB7]">
                   {option.name}
                 </span>
@@ -330,7 +339,7 @@ export default function DailyWorkoutEditor({
       <div className="mt-2 grid grid-cols-2 gap-2">
         <button
           type="button"
-          onClick={() => changeGroup("cardio-foam-recovery")}
+          onClick={() => changeGroup("current-fullbody-recovery-circuit")}
           className="rounded-xl bg-emerald-50 px-3 py-2.5 text-[12px] font-bold text-emerald-700"
         >
           가볍게 회복
@@ -350,7 +359,7 @@ export default function DailyWorkoutEditor({
         </p>
         {group.type === "choice" ? (
           <p className="mt-2 rounded-xl bg-blue-50 px-3 py-3 text-[12px] text-blue-700">
-            선택 유산소는 운동 화면에서 슬라이딩보드·걷기·휴식 중 하나만 고르면 됩니다.
+            기존 선택 유산소 설정은 유지됩니다. 집에서 할 수 있는 걷기나 휴식을 선택하세요.
           </p>
         ) : (
           <div className="mt-2 grid gap-2">
@@ -386,7 +395,7 @@ export default function DailyWorkoutEditor({
             <p className="text-[11px] font-bold text-gray-500">뺀 운동 다시 넣기</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {baseExercises
-                .filter((exercise) => removedIds.has(exercise.exerciseId))
+                .filter((exercise) => removedIds.has(exercise.exerciseId) && isHomeSelectable(exercise.exerciseId, exercise.name))
                 .map((exercise) => (
                   <button
                     key={exercise.exerciseId}
@@ -404,6 +413,14 @@ export default function DailyWorkoutEditor({
 
       {group.type !== "choice" && (
         <div className="mt-4 rounded-2xl border border-gray-100 p-3">
+          <label className="block text-sm font-bold">집에서 할 운동 찾기
+            <select aria-label="보유 장비" value={equipment} onChange={event => setEquipment(event.target.value as HomeEquipment)} className="my-2 block w-full rounded border p-2">
+              {HOME_EQUIPMENT.map(item => <option key={item}>{item}</option>)}
+            </select>
+          </label>
+          <p className="text-xs text-gray-600">맨몸 운동을 기본으로 제공합니다. 장비의 실제 하중·밴드 저항은 확인되지 않았습니다. 통증 중단 기준과 고정 상태를 먼저 확인하세요. 추가 버튼을 누른 운동만 현재 루틴에 들어갑니다.</p>
+          <div className="my-3 flex flex-wrap gap-2">{homeExerciseCandidates(equipment).map(candidate => <button type="button" key={candidate.exerciseId} onClick={() => addExercise(candidate)} className="rounded border px-3 py-2 text-sm">+ {candidate.name}</button>)}</div>
+          {equipment === '케틀벨 · 바벨' && <p className="my-2 text-xs">전용 동작 안내는 준비 중입니다. 보유 세트의 덤벨 구성으로 기존 덤벨 동작을 선택할 수 있습니다.</p>}
           <label htmlFor="daily-custom-exercise" className="text-[12px] font-bold text-gray-700">
             원하는 운동 직접 추가
           </label>

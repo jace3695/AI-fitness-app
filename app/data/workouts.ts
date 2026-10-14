@@ -50,6 +50,7 @@ export interface ExerciseGuide {
 }
 export interface Exercise {
   exerciseId?: string;
+  sourceExerciseId?: string;
   name: string;
   meta?: string;
   suggestedWeightKg?: number;
