@@ -1,0 +1,24 @@
+{
+  "passed": 18,
+  "checks": [
+    "detected date and draft survive calendar change",
+    "conflict cancellation leaves storage unchanged",
+    "measurement date save, memo preservation and reload",
+    "invalid date requires explicit correction",
+    "missing OCR date remains blank until user supplies the save date",
+    "late OCR discarded after session change",
+    "cross-tab account switch clears completed draft",
+    "late OCR discarded after calendar navigation",
+    "edited value and draft survive transactional quota failure, retry saves",
+    "equipment selection source ID and guide survive reload",
+    "wall pushup starts paused, advances and pauses on request",
+    "wall pushup half-speed advances at half the normal rate",
+    "wall pushup static keyframes and manual scrubbing stay paused",
+    "wall pushup stops at cycle end when repeat is disabled",
+    "wall pushup repeat wraps continuously to the start",
+    "reduced-motion reload remains paused with static text available",
+    "every equipment category excludes sliding board and hip bridge",
+    "styled 320/390/1280px layout has no horizontal overflow"
+  ],
+  "scope": "Local actual React components; synthetic OCR and storage. Not authenticated Next app or real OCR accuracy."
+}

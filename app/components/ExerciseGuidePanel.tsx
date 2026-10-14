@@ -1,4 +1,5 @@
 import { Exercise, SAFETY_STOP_MESSAGE } from '../data/workouts';
+import WallPushupDemo from './WallPushupDemo';
 
 export function getExerciseVideoHref(exercise: Exercise) {
   const guide = exercise.guide;
@@ -24,6 +25,7 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
   if (!guide) return null;
   return (
     <div className="mt-3 space-y-2" onClick={(event) => event.stopPropagation()}>
+      {(exercise.sourceExerciseId || exercise.exerciseId) === 'wall-pushup' ? <WallPushupDemo key={exercise.exerciseId} /> : null}
       <p className="text-[13px] font-bold text-gray-800">자세 가이드</p>
       {guide.keyPoint ? <p className="rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">1) 핵심 한 줄: {guide.keyPoint}</p> : null}
       <GuideBlock title="2) 시작 자세" items={guide.setup} />

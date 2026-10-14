@@ -1,5 +1,7 @@
 # Fitness priority development — locally verified candidate
 
+Latest follow-up: see [PREDEPLOY_REVIEW.md](PREDEPLOY_REVIEW.md) for exact exercise names/counts, filter scope, all browser checks and mock boundaries. The separately implemented original wall-pushup schematic supersedes the deferred-third-deliverable paragraph below. Final follow-up checks: **742 unit tests, 18 browser checks, type check, changed-file lint and production build passed** (`full-suite-motion.log`, `result-motion.json`, `build-motion.log`). It is a limited 2D schematic with explicit limitations, not a clinically validated motion demonstration. Authenticated/cloud and physical-device checks remain unverified.
+
 ## Follow-up verification result
 
 - Full unit suite: **741 passed / 0 failed / 0 skipped**, exit 0 (`full-suite-final.log`).
