@@ -1,4 +1,5 @@
 import type { ExerciseGuide } from './workouts.ts';
+import { expandedHomeExercises } from './expandedHomeExercises.ts';
 
 export type ExerciseGuideEntry = ExerciseGuide & { summary: string; purpose: string; homeTips?: string[]; alternatives?: string[]; videoTitle?: string };
 
@@ -18,6 +19,7 @@ export const fallbackExerciseGuide = (name: string, summary?: string): ExerciseG
 });
 
 export const exerciseGuides: Record<string, ExerciseGuideEntry> = {
+  ...expandedHomeExercises,
   '지지형 햄스트링 컬': {
     summary: '지지대를 잡고 서서 무릎을 굽혀 허벅지 뒤쪽을 사용하는 운동입니다.',
     purpose: '기존 스쿼트와 사이드워크가 상대적으로 덜 다루는 허벅지 뒤쪽을 보완합니다.',

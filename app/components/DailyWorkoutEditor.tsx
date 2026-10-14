@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { expandedHomeExercises } from '../data/expandedHomeExercises';
+import ExerciseGuidePanel from './ExerciseGuidePanel';
 import { HOME_EQUIPMENT, homeExerciseCandidates, isHomeSelectable, type HomeEquipment } from "../data/homeExerciseCatalog";
 import {
   EXCLUDED_EXERCISE_IDS,
@@ -419,7 +421,15 @@ export default function DailyWorkoutEditor({
             </select>
           </label>
           <p className="text-xs text-gray-600">맨몸 운동을 기본으로 제공합니다. 장비의 실제 하중·밴드 저항은 확인되지 않았습니다. 통증 중단 기준과 고정 상태를 먼저 확인하세요. 추가 버튼을 누른 운동만 현재 루틴에 들어갑니다.</p>
-          <div className="my-3 flex flex-wrap gap-2">{homeExerciseCandidates(equipment).map(candidate => <button type="button" key={candidate.exerciseId} onClick={() => addExercise(candidate)} className="rounded border px-3 py-2 text-sm">+ {candidate.name}</button>)}</div>
+          <p className="mt-2 text-xs text-amber-800">아래는 직접 고르는 카탈로그이며 맞춤 추천이 아닙니다. 새 동작은 안내를 펼쳐 장비 조건과 중단 기준을 먼저 확인하세요.</p>
+          <div className="my-3 flex flex-wrap gap-2">{homeExerciseCandidates(equipment).map(candidate => {
+            const guide = expandedHomeExercises[candidate.exerciseId];
+            return guide ? <details key={candidate.exerciseId} className="w-full rounded border p-3">
+              <summary className="cursor-pointer text-sm font-semibold">새 동작 · {candidate.name} — {guide.target} · {guide.difficulty}</summary>
+              <ExerciseGuidePanel exercise={{ exerciseId: candidate.exerciseId, name: guide.name, guide, details: [] }} />
+              <button type="button" onClick={() => addExercise(candidate)} className="mt-2 rounded border px-3 py-2 text-sm">+ {candidate.name}</button>
+            </details> : <button type="button" key={candidate.exerciseId} onClick={() => addExercise(candidate)} className="rounded border px-3 py-2 text-sm">+ {candidate.name}</button>;
+          })}</div>
           {equipment === '케틀벨 · 바벨' && <p className="my-2 text-xs">전용 동작 안내는 준비 중입니다. 보유 세트의 덤벨 구성으로 기존 덤벨 동작을 선택할 수 있습니다.</p>}
           <label htmlFor="daily-custom-exercise" className="text-[12px] font-bold text-gray-700">
             원하는 운동 직접 추가

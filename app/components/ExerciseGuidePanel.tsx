@@ -26,6 +26,9 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
   return (
     <div className="mt-3 space-y-2" onClick={(event) => event.stopPropagation()}>
       {(exercise.sourceExerciseId || exercise.exerciseId) === 'wall-pushup' ? <WallPushupDemo key={exercise.exerciseId} /> : null}
+      {guide.catalogOnly ? <p className="rounded-lg bg-amber-50 p-2 text-xs">선택용 동작 안내입니다. 현재 통증·상태에 따른 맞춤 추천이 아니며 기존 중단 기준이 우선합니다.</p> : null}
+      {guide.equipment ? <p className="text-xs">장비: {guide.equipment} · 난이도: {guide.difficulty} · 부위: {guide.target}</p> : null}
+      {guide.sources?.map(source => <a key={source.url} className="block text-xs text-indigo-700 underline" href={source.url} target="_blank" rel="noopener noreferrer">참고 안내: {source.title}</a>)}
       <p className="text-[13px] font-bold text-gray-800">자세 가이드</p>
       {guide.keyPoint ? <p className="rounded-xl bg-[#EEEDFE] p-3 text-[13px] font-semibold text-[#3C3489]">1) 핵심 한 줄: {guide.keyPoint}</p> : null}
       <GuideBlock title="2) 시작 자세" items={guide.setup} />

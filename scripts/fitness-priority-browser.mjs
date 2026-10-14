@@ -212,6 +212,20 @@ try {
  await demo.getByRole('button',{name:'재생',exact:true}).waitFor();
  assert.ok(await demo.getByText('정지 안내:',{exact:false}).isVisible());
  checks.push('reduced-motion reload remains paused with static text available');
+ const additions=[['맨몸','지지형 양발 종아리 들기','supported-calf-raise'],['맨몸','지지형 옆 다리 들기','supported-side-leg-raise'],['맨몸','앉아서 무릎 펴기','seated-knee-extension'],['덤벨 · 1kg 아령','가벼운 덤벨 컬','light-dumbbell-curl'],['BELLE 풀업밴드','팔 붙인 밴드 외회전','band-external-rotation-at-side']];
+ for(const [equipment,name,id] of additions) {
+   await page.getByLabel('보유 장비').selectOption(equipment);
+   const preview=page.locator('details').filter({has:page.locator('summary').filter({hasText:name})});
+   await preview.locator('summary').click();
+   assert.ok(await preview.getByText('선택용 동작 안내입니다.',{exact:false}).isVisible());
+   assert.ok(await preview.getByRole('link',{name:/참고 안내:/}).isVisible());
+   if(id==='band-external-rotation-at-side') await preview.screenshot({path:resolve(output,'expanded-band-guide.png')});
+   await preview.getByRole('button',{name:'+ '+name,exact:true}).click();
+   await page.reload();
+   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
+   assert.ok(stored.dateOverrides['2026-10-14'].edit.customExercises.some(x=>x.sourceExerciseId===id));
+ }
+ checks.push('all five new sourced guides can be reviewed, selected and restored after reload');
  for(const equipment of await page.getByLabel('보유 장비').locator('option').allTextContents()) {
    await page.getByLabel('보유 장비').selectOption(equipment);
    assert.equal(await page.getByRole('button',{name:/^\+.*(슬라이딩\s*보드|힙\s*브[릿리]지)/}).count(),0);

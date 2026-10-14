@@ -25,6 +25,10 @@ export interface IntervalPlan {
   segments: IntervalSegment[];
 }
 export interface ExerciseGuide {
+  equipment?: string;
+  difficulty?: string;
+  catalogOnly?: boolean;
+  sources?: { title: string; url: string }[];
   id?: string;
   name?: string;
   category?: 'warmup' | 'cardio' | 'strength' | 'core' | 'band' | 'dumbbell' | 'pullup' | 'foamRoller' | 'cooldown' | 'recovery';

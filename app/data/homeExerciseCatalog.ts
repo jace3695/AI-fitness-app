@@ -1,4 +1,5 @@
 import { exerciseGuides } from './exerciseGuides.ts';
+import { expandedEquipmentIds } from './expandedHomeExercises.ts';
 import { WORKOUT_GROUPS, type WorkoutGroupExercise } from './workoutGroups.ts';
 
 export const HOME_EQUIPMENT = ['맨몸', '요가매트', '덤벨 · 1kg 아령', 'BELLE 풀업밴드', '코멧 루프밴드', 'AB 슬라이드', '철봉', '폼롤러', '케틀벨 · 바벨'] as const;
@@ -17,7 +18,7 @@ export function isHomeSelectable(id: string, name = '') {
   return !/sliding[\s-]*board|hip[\s-]*bridge|슬라이딩\s*보드|힙\s*브[릿리]지/i.test(`${id} ${name}`);
 }
 export function homeExerciseCandidates(equipment: HomeEquipment): WorkoutGroupExercise[] {
-  return (ids[equipment] || []).filter(id => isHomeSelectable(id) && exerciseGuides[id]).map(exerciseId => {
+  return [...(ids[equipment] || []), ...(expandedEquipmentIds[equipment] || [])].filter(id => isHomeSelectable(id) && exerciseGuides[id]).map(exerciseId => {
     const existing = WORKOUT_GROUPS.flatMap(group => group.type === 'choice' ? [] : group.exercises).find(exercise => exercise.exerciseId === exerciseId);
     return { ...existing, exerciseId, name: exerciseGuides[exerciseId].name || exerciseId };
   });

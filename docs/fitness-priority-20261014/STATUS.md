@@ -1,5 +1,7 @@
 # Fitness priority development — locally verified candidate
 
+Newest follow-up: [CATALOG_EXPANSION.md](CATALOG_EXPANSION.md). **Five new sourced exercise definitions** now extend the prior 25 to 30 selectable movements, with review-before-add guidance and no automatic recommendation membership. Independent review found one rounded-zero import-weight bug, now fixed and independently rechecked. Final unit suite **745/745**, browser **19 checks**, type/lint/production build passed. Earlier counts below describe their respective checkpoints. No remote push/merge/deploy.
+
 Latest follow-up: see [PREDEPLOY_REVIEW.md](PREDEPLOY_REVIEW.md) for exact exercise names/counts, filter scope, all browser checks and mock boundaries. The separately implemented original wall-pushup schematic supersedes the deferred-third-deliverable paragraph below. Final follow-up checks: **742 unit tests, 18 browser checks, type check, changed-file lint and production build passed** (`full-suite-motion.log`, `result-motion.json`, `build-motion.log`). It is a limited 2D schematic with explicit limitations, not a clinically validated motion demonstration. Authenticated/cloud and physical-device checks remain unverified.
 
 ## Follow-up verification result
