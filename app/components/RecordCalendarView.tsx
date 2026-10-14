@@ -912,6 +912,12 @@ export default function RecordCalendarView() {
       </section>
       <BodyRecordCard
         dateKey={selected}
+        onDateChange={(date) => {
+          // Saving an imported measurement must not discard another open editor.
+          if (editingWorkout || editingSecondary !== null || noteEdited.current) return;
+          setSelected(date);
+          setVisible(new Date(`${date.slice(0, 7)}-01T12:00:00`));
+        }}
         weights={stores.weights}
         inbody={stores.inbody}
         onChange={({ weights, inbody }) =>

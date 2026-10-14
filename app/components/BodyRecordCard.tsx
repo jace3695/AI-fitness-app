@@ -10,8 +10,13 @@ import {
   getPreviousWeightRecord,
   isTodayKey,
   writeJson,
+  readJson,
 } from "../data/recordStorage";
 import { parseOaReport } from "../lib/oaReportParser";
+import { bodyForm, bodyImportOwner, mergeBodyImport, validMeasurementDate } from "../lib/bodyImport";
+import { getLocalDateKey } from "../data/dietPlans";
+import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransaction";
+import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 
 type InbodyField = {
   key: Exclude<keyof InbodyRecord, "weight" | "memo">;
@@ -81,6 +86,7 @@ const inbodyFields = fieldGroups.flatMap((group) => group.fields);
 
 interface Props {
   dateKey: string;
+  onDateChange?: (date: string) => void;
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
   onChange: (next: {
@@ -94,15 +100,46 @@ export default function BodyRecordCard({
   weights,
   inbody,
   onChange,
+  onDateChange,
 }: Props) {
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
   const [form, setForm] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string } | null>(null);
+  useUnsavedChanges(Boolean(draft));
+  const importVersion = useRef(0);
+  const activeDate = useRef(dateKey);
+  activeDate.current = dateKey;
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [importMessage, setImportMessage] = useState("");
   const [recordMessage, setRecordMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    importVersion.current += 1;
+    setImporting(false);
+    setImportMessage("");
+  }, [dateKey]);
+
+  useEffect(() => {
+    const invalidate = () => {
+      importVersion.current += 1;
+      setDraft(null);
+      setForm({});
+      setImporting(false);
+      setImportMessage("");
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === 'fitness-cloud-sync-user' || event.key === 'fitness-cloud-sync-epoch') invalidate();
+    };
+    window.addEventListener("yeoni-cloud-session-changed", invalidate);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      importVersion.current += 1;
+      window.removeEventListener("yeoni-cloud-session-changed", invalidate);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const next: Record<string, string> = {
@@ -118,7 +155,7 @@ export default function BodyRecordCard({
     });
     setForm(next);
   }, [currentInbody, currentWeight, dateKey]);
-  useEffect(() => setRecordMessage(""), [dateKey]);
+  useEffect(() => setRecordMessage(current => current.startsWith(`${dateKey} `) ? current : ""), [dateKey]);
 
   const previous = getPreviousWeightRecord(weights, dateKey);
   const displayedWeight = Number(form.weight);
@@ -127,6 +164,36 @@ export default function BodyRecordCard({
       ? displayedWeight - previous[1].weight
       : null;
   const hasRecord = Boolean(currentWeight || currentInbody);
+  const visibleForm = draft ? { ...bodyForm(weights, inbody, draft.date), ...draft.patch } : form;
+  const editField = (key: string, value: string) => {
+    if (draft) setDraft({ ...draft, patch: { ...draft.patch, [key]: value } });
+    else setForm({ ...form, [key]: value });
+    setRecordMessage("");
+  };
+
+  const saveImport = () => {
+    if (!draft) return;
+    try {
+      if (draft.owner !== bodyImportOwner(window.localStorage)) throw new Error("계정이 변경되었습니다. 이미지를 다시 선택해 주세요.");
+      const latestWeights = readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {});
+      const latestInbody = readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {});
+      const next = mergeBodyImport(latestWeights, latestInbody, draft.date, draft.patch, getLocalDateKey());
+      if ((latestWeights[draft.date] || latestInbody[draft.date]) && !window.confirm(`${draft.date}에 기존 기록이 있습니다. 인식하거나 직접 수정한 항목만 반영할까요? 나머지 수치와 메모는 유지됩니다.`)) return;
+      if (draft.owner !== bodyImportOwner(window.localStorage)) throw new Error("계정이 변경되었습니다. 이미지를 다시 선택해 주세요.");
+      if (JSON.stringify(latestWeights) !== JSON.stringify(readJson(WEIGHT_RECORDS_KEY, {})) || JSON.stringify(latestInbody) !== JSON.stringify(readJson(INBODY_RECORDS_KEY, {}))) throw new Error("기록이 변경되었습니다. 내용을 확인한 뒤 다시 저장해 주세요.");
+      writeStorageBatch(window.localStorage, {
+        [WEIGHT_RECORDS_KEY]: JSON.stringify(next.weights),
+        [INBODY_RECORDS_KEY]: JSON.stringify(next.inbody),
+      });
+      notifyRecordsChanged();
+      onChange(next);
+      onDateChange?.(draft.date);
+      setDraft(null);
+      setRecordMessage(`${draft.date} 측정 기록을 저장했습니다.`);
+    } catch (error) {
+      setRecordMessage(error instanceof Error ? error.message : "저장하지 못했습니다. 초안을 유지합니다.");
+    }
+  };
 
   const save = () => {
     const weightInput = (form.weight ?? "").trim();
@@ -213,24 +280,28 @@ export default function BodyRecordCard({
       return;
     }
 
+    const version = ++importVersion.current;
+    const owner = bodyImportOwner(window.localStorage);
+    const originDate = dateKey;
+    const isCurrent = () => version === importVersion.current && owner === bodyImportOwner(window.localStorage) && originDate === activeDate.current;
     setImporting(true);
     setImportProgress(0);
     setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
     try {
-      const result = await parseOaReport(file, setImportProgress);
+      const result = await parseOaReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); });
+      if (!isCurrent()) return;
       if (!result.recognizedCount)
         throw new Error("보고서의 숫자를 읽지 못했습니다. 원본 이미지를 다시 선택해주세요.");
-      setForm((current) => {
-        const next = { ...current };
-        Object.entries(result.values).forEach(([key, value]) => {
-          next[key] = String(value);
-        });
-        return next;
-      });
+      const measuredDate = result.detectedDate && validMeasurementDate(result.detectedDate, getLocalDateKey()) ? result.detectedDate : "";
+      const baseline = bodyForm(weights, inbody, originDate);
+      const sameDayEdits = measuredDate === originDate
+        ? Object.fromEntries(Object.entries(form).filter(([key, value]) => value !== (baseline[key] || "")))
+        : {};
+      setDraft({ date: measuredDate, owner, patch: { ...sameDayEdits, ...Object.fromEntries(Object.entries(result.values).map(([key, value]) => [key, String(value)])) } });
       setRecordMessage("");
       const dateNotice =
         result.detectedDate && result.detectedDate !== dateKey
-          ? ` 보고서 날짜는 ${result.detectedDate}이며, 현재 선택일은 ${dateKey}입니다.`
+          ? ` 보고서에서 읽은 날짜: ${result.detectedDate}. 실제 측정일을 확인해 주세요.`
           : "";
       setImportMessage(
         result.recognizedCount < 20
@@ -238,13 +309,14 @@ export default function BodyRecordCard({
           : `${result.recognizedCount}개 항목을 채웠습니다.${dateNotice} 값을 확인한 뒤 통합 저장을 눌러주세요.`,
       );
     } catch (error) {
+      if (!isCurrent()) return;
       setImportMessage(
         error instanceof Error
           ? error.message
           : "보고서를 분석하지 못했습니다. 다시 시도해주세요.",
       );
     } finally {
-      setImporting(false);
+      if (version === importVersion.current) setImporting(false);
     }
   };
 
@@ -281,7 +353,7 @@ export default function BodyRecordCard({
           </div>
           <button
             type="button"
-            disabled={importing}
+            disabled={importing || Boolean(draft)}
             onClick={() => fileInputRef.current?.click()}
             className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-wait disabled:opacity-60"
           >
@@ -315,14 +387,23 @@ export default function BodyRecordCard({
           </p>
         )}
       </div>
+      {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
+        <p className="font-bold">가져오기 확인 · 아직 저장되지 않았습니다</p>
+        <p className="text-sm">OA 긴 건강보고서 전용입니다. 날짜와 아래 수치를 원본과 비교하고 수정한 뒤 저장하세요. 인식되지 않은 항목과 메모는 선택한 측정일의 기존 기록을 유지합니다.</p>
+        <label className="mt-2 block">측정 날짜<input aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>
+        {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
+        {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
+        <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 rounded bg-white px-3 py-2">가져오기 취소</button>
+      </section>}
       <label className="mt-3 block text-[12px] font-semibold text-gray-600">
         체중
         <div className="mt-1 flex items-center rounded-xl border border-gray-200 px-3">
           <input
             inputMode="decimal"
-            value={form.weight || ""}
+            disabled={importing}
+            value={visibleForm.weight || ""}
             onChange={(event) => {
-              setForm({ ...form, weight: event.target.value });
+              editField("weight", event.target.value);
               setRecordMessage("");
             }}
             placeholder="예: 82.4"
@@ -331,7 +412,7 @@ export default function BodyRecordCard({
           <span className="text-[11px] text-gray-400">kg</span>
         </div>
       </label>
-      {Number.isFinite(displayedWeight) && displayedWeight > 0 && (
+      {!draft && Number.isFinite(displayedWeight) && displayedWeight > 0 && (
         <p className="mt-2 text-[12px] text-gray-600">
           이전 기록 대비:{" "}
           <b>
@@ -373,9 +454,10 @@ export default function BodyRecordCard({
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-gray-200 px-2">
                     <input
                       inputMode="decimal"
-                      value={form[field.key] || ""}
+                      disabled={importing}
+                      value={visibleForm[field.key] || ""}
                       onChange={(event) => {
-                        setForm({ ...form, [field.key]: event.target.value });
+                        editField(field.key, event.target.value);
                         setRecordMessage("");
                       }}
                       placeholder="값 입력"
@@ -392,9 +474,10 @@ export default function BodyRecordCard({
         ))}
       </div>
       <textarea
-        value={form.memo || ""}
+        disabled={importing}
+        value={visibleForm.memo || ""}
         onChange={(event) => {
-          setForm({ ...form, memo: event.target.value });
+          editField("memo", event.target.value);
           setRecordMessage("");
         }}
         placeholder="체중·인바디 메모"
@@ -403,12 +486,13 @@ export default function BodyRecordCard({
       <div className="mt-2 flex gap-2">
         <button
           type="button"
-          onClick={save}
+          onClick={draft ? saveImport : save}
+          disabled={importing || Boolean(draft && !validMeasurementDate(draft.date, getLocalDateKey()))}
           className="flex-1 rounded-xl bg-[#534AB7] px-4 py-2 text-[13px] font-bold text-white"
         >
-          통합 저장
+          {draft ? "확인한 측정일에 저장" : "통합 저장"}
         </button>
-        {hasRecord && (
+        {hasRecord && !draft && !importing && (
           <button
             type="button"
             onClick={remove}
