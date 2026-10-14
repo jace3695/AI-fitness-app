@@ -23,7 +23,9 @@ export function mergeBodyImport(weights: WeightRecordStore, inbody: InbodyRecord
     const value = Number(input);
     if (input && (!Number.isFinite(value) || value < 0 || (key === 'weight' && value === 0))) throw new Error('수치를 0 이상의 숫자로 확인해 주세요. 체중은 0보다 커야 합니다.');
     if (key === 'weight') {
-      if (input) nextWeights[date] = { weight: Math.round(value * 10) / 10, recordedAt: new Date().toISOString() };
+      const rounded = Math.round(value * 10) / 10;
+      if (input && (!Number.isFinite(rounded) || rounded <= 0)) throw new Error('체중은 소수 첫째 자리 반올림 후에도 0보다 커야 합니다.');
+      if (input) nextWeights[date] = { weight: rounded, recordedAt: new Date().toISOString() };
       else delete nextWeights[date];
       delete record.weight;
     } else if (input) Object.assign(record, { [key]: value });

@@ -31,3 +31,12 @@ test('session epoch invalidates even a same-account re-login', () => {
   values.set('fitness-cloud-sync-user', 'B');
   assert.notEqual(bodyImportOwner(storage), before);
 });
+
+test('rounded import weight must remain positive and finite without mutating existing records', () => {
+  const weights = { '2026-10-01': { weight: 80, recordedAt: 'original' } };
+  for (const weight of ['0.01', '0.04', '1e308']) {
+    assert.throws(() => mergeBodyImport(weights, {}, '2026-10-01', { weight }, '2026-10-14'));
+    assert.equal(weights['2026-10-01'].weight, 80);
+  }
+  assert.equal(mergeBodyImport(weights, {}, '2026-10-01', { weight: '80.16' }, '2026-10-14').weights['2026-10-01'].weight, 80.2);
+});
