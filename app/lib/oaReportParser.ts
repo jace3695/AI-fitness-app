@@ -66,20 +66,43 @@ function loadImage(file: File) {
 function makeCrop(
   image: HTMLImageElement,
   centerY: number,
-  kind: "header" | "score" | "value" | "plainValue" | "age" | "segment",
+  kind: "header" | "weight" | "score" | "value" | "plainValue" | "segment",
   variant = false,
 ) {
   const source = {
     header: { x: 0.02, width: 0.96, height: 0.075 },
-    score: { x: 0.02, width: 0.94, height: 0.024 },
+    weight: { x: 0.06, width: 0.34, height: 0.018 },
+    // Include three score digits; smaller unit text is separated below by height.
+    score: { x: 0.065, width: 0.25, height: 0.018 },
     // 상태 배지 직전까지만 잘라 배지 글자를 숫자로 오인하지 않게 한다.
-    value: { x: variant ? 0.58 : 0.55, width: variant ? 0.39 : 0.43, height: 0.021 },
+    value: { x: 0.58, width: 0.36, height: 0.014 },
     // 상태 배지가 없는 무지방 체중은 값이 더 오른쪽에 정렬된다.
-    plainValue: { x: 0.65, width: 0.33, height: 0.021 },
-    // "40연령 단위"의 한글 획이 숫자로 합쳐지지 않도록 숫자만 자른다.
-    age: { x: 0.62, width: 0.09, height: 0.018 },
-    segment: { x: 0.68, width: 0.30, height: 0.021 },
+    plainValue: { x: 0.65, width: 0.29, height: 0.014 },
+    segment: { x: 0.68, width: 0.26, height: 0.014 },
   }[kind];
+  if (kind === "value") {
+    // OA status pills have different widths. Stop before their colored left edge,
+    // instead of including pill text or clipping a longer measurement/unit.
+    const probe = document.createElement("canvas");
+    probe.width = 320; probe.height = 24;
+    const probeContext = probe.getContext("2d", { willReadFrequently: true });
+    if (probeContext) {
+      probeContext.drawImage(image, 0, image.naturalHeight * (centerY - 0.004), image.naturalWidth, image.naturalHeight * 0.008, 0, 0, 320, 24);
+      const data = probeContext.getImageData(0, 0, 320, 24).data;
+      for (let x = 192; x < 304; x++) {
+        let colored = 0;
+        for (let y = 0; y < 24; y++) {
+          const offset = (y * 320 + x) * 4;
+          const rgb = [data[offset], data[offset + 1], data[offset + 2]];
+          if (Math.max(...rgb) - Math.min(...rgb) > 45) colored++;
+        }
+        if (colored >= 8) {
+          source.width = Math.max(0.06, x / 320 - source.x - 0.006);
+          break;
+        }
+      }
+    }
+  }
   const sourceHeight = image.naturalHeight * source.height;
   const sourceWidth = image.naturalWidth * source.width;
   const canvas = document.createElement("canvas");
@@ -145,6 +168,30 @@ function makeCrop(
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
+  }
+  if (kind === "score") {
+    const runs: { left: number; right: number; top: number; bottom: number }[] = [];
+    let run: (typeof runs)[number] | undefined;
+    for (let x = 8; x < canvas.width - 8; x++) {
+      let top = canvas.height, bottom = -1;
+      for (let y = 8; y < canvas.height - 8; y++) {
+        if (pixels.data[(y * canvas.width + x) * 4] < 180) { top = Math.min(top, y); bottom = y; }
+      }
+      if (bottom >= top) {
+        if (!run) run = { left: x, right: x, top, bottom };
+        else { run.right = x; run.top = Math.min(run.top, top); run.bottom = Math.max(run.bottom, bottom); }
+      } else if (run) { runs.push(run); run = undefined; }
+    }
+    if (run) runs.push(run);
+    const tallest = Math.max(0, ...runs.map(item => item.bottom - item.top + 1));
+    const lastDigit = Math.max(-1, ...runs.filter(item => item.bottom - item.top + 1 >= tallest * 0.65).map(item => item.right));
+    // Never erase punctuation inside/before the number; remove only smaller trailing unit glyphs.
+    for (const item of runs.filter(item => item.left > lastDigit && item.bottom - item.top + 1 < tallest * 0.65)) {
+      for (let x = item.left; x <= item.right; x++) for (let y = 8; y < canvas.height - 8; y++) {
+        const offset = (y * canvas.width + x) * 4;
+        pixels.data[offset] = pixels.data[offset + 1] = pixels.data[offset + 2] = 255;
+      }
+    }
   }
   context.putImageData(pixels, 0, 0);
   if (kind !== "header") {
@@ -216,7 +263,7 @@ export async function parseOaReport(
       const row = REPORT_ROWS[index];
       // This report uses an age category; do not convert its leading digits to years.
       if (row.key !== "bodyAge") {
-        const kind = index <= 1 ? "score" : index === 10 ? "plainValue" : index >= 16 ? "segment" : "value";
+        const kind = index === 0 ? "weight" : index === 1 ? "score" : index === 10 ? "plainValue" : index >= 16 ? "segment" : "value";
         const reads = [];
         for (const variant of [false, true]) {
           const result = await worker.recognize(makeCrop(image, row.centerY, kind, variant));

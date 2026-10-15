@@ -169,15 +169,15 @@ try {
      if(clearDecimal) {
        const canvas=document.createElement('canvas'); canvas.width=1000;canvas.height=6000;
        const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,1000,6000);ctx.fillStyle='black';ctx.textBaseline='middle';ctx.font='65px Arial';
-       ctx.fillText('2026-10-01 08:12:34',100,240);ctx.fillText('83.0',80,630);ctx.fillText('76',80,2412);ctx.fillText('24.5',760,2874);ctx.fillText('9',840,3416);
+       ctx.fillText('2026-10-01 08:12:34',100,240);ctx.fillText('83.0',80,630);ctx.fillText('76',80,2412);ctx.fillText('24.5',650,2874);ctx.fillText('9',760,3416);
        return canvas.toDataURL('image/png').split(',')[1];
      }
      const canvas=document.createElement('canvas'); canvas.width=320; canvas.height=2048;
      const ctx=canvas.getContext('2d'); ctx.fillStyle='#171717';ctx.fillRect(0,0,320,2048);ctx.fillStyle='#bababa';ctx.font='11px Arial';ctx.textBaseline='middle';
      ctx.fillText('fixture@example.test',90,28);ctx.fillText('2026-10-01 08:12:34',90,54);
      ctx.font='26px Arial';ctx.fillText('83.0',25,2048*.105);
-     ctx.font='18px Arial';ctx.fillText('A+',20,2048*.38);ctx.fillText('76',32,2048*.402);
-     ctx.font=clearDecimal?'16px Arial':'12px Arial';ctx.fillText('24.5',258,2048*.479);ctx.fillText('9',275,2048*.5693);
+     ctx.font='18px Arial';ctx.fillText('A+',20,2048*.38);ctx.fillText('76',26,2048*.402);
+     ctx.font=clearDecimal?'16px Arial':'12px Arial';ctx.fillText('24.5',240,2048*.479);ctx.fillText('9',250,2048*.5693);
      ctx.fillText('30s category',200,2048*.5923);
      return canvas.toDataURL('image/png').split(',')[1];
    },clearDecimal);
@@ -187,10 +187,10 @@ try {
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'83');
    assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),clearDecimal?'24.5':'');
    assert.equal(await page.getByLabel('점수',{exact:false}).inputValue(),'76');
-   assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).inputValue(),'9');
+   assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).inputValue(),clearDecimal?'9':'');
    assert.equal(await page.getByLabel('신체연령',{exact:false}).inputValue(),'');
-   assert.ok(await page.getByText('숫자 '+(clearDecimal?4:3)+'개를 읽었어요.',{exact:false}).isVisible());
-   if(!clearDecimal) await page.getByLabel('BMI',{exact:true}).fill('24.5');
+   assert.ok(await page.getByText('숫자 '+(clearDecimal?4:2)+'개를 읽었어요.',{exact:false}).isVisible());
+   if(!clearDecimal) { await page.getByLabel('BMI',{exact:true}).fill('24.5'); await page.getByLabel('내장 지방 지수',{exact:false}).fill('9'); }
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
    await page.locator('input[inputmode=decimal]').first().fill('82.7');
    page.once('dialog',dialog=>dialog.accept());
@@ -205,7 +205,7 @@ try {
    await page.screenshot({path:resolve(output,'real-calendar-ocr.png'),fullPage:true});
    assert.deepEqual(errors,[]);
    const result={passed:1,scope:'Actual RecordCalendarView + browser image/canvas + OA parser/Tesseract worker and model; date/value edit, existing-record confirmation, memo preservation, save, reload and calendar re-query. Synthetic OA-layout image only, not real report accuracy.',assetRequests,externalRequestsSent:0};
-   result.decimalCase=clearDecimal?'clear decimal recognized':'uncertain decimal left blank for manual correction';
+   result.decimalCase=clearDecimal?'clear decimal recognized':'uncertain decimal and disagreeing integer left blank for manual correction';
    writeFileSync(resolve(output,clearDecimal?'real-ocr-clear-result.json':'real-ocr-result.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result));
  } else {
  const upload=async(result)=>{ await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')}); await page.waitForFunction(()=>typeof window.resolveOcr==='function'); if(result) await page.evaluate(r=>window.resolveOcr(r),result); };
