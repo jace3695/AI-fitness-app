@@ -105,8 +105,10 @@ export default function BodyRecordCard({
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
   const [form, setForm] = useState<Record<string, string>>({});
+  const manualEdit = useRef({ date: dateKey, dirty: false });
+  const [manualDirty, setManualDirty] = useState(false);
   const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string } | null>(null);
-  useUnsavedChanges(Boolean(draft));
+  useUnsavedChanges(Boolean(draft) || manualDirty);
   const importVersion = useRef(0);
   const activeDate = useRef(dateKey);
   activeDate.current = dateKey;
@@ -125,6 +127,8 @@ export default function BodyRecordCard({
     const invalidate = () => {
       importVersion.current += 1;
       setDraft(null);
+      manualEdit.current.dirty = false;
+      setManualDirty(false);
       setForm({});
       setImporting(false);
       setImportMessage("");
@@ -142,6 +146,10 @@ export default function BodyRecordCard({
   }, []);
 
   useEffect(() => {
+    // A save in another panel refreshes store objects; keep this date's unsaved input.
+    if (manualEdit.current.date === dateKey && manualEdit.current.dirty) return;
+    manualEdit.current = { date: dateKey, dirty: false };
+    setManualDirty(false);
     const next: Record<string, string> = {
       weight:
         currentWeight?.weight?.toString() ??
@@ -167,7 +175,11 @@ export default function BodyRecordCard({
   const visibleForm = draft ? { ...bodyForm(weights, inbody, draft.date), ...draft.patch } : form;
   const editField = (key: string, value: string) => {
     if (draft) setDraft({ ...draft, patch: { ...draft.patch, [key]: value } });
-    else setForm({ ...form, [key]: value });
+    else {
+      manualEdit.current = { date: dateKey, dirty: true };
+      setManualDirty(true);
+      setForm({ ...form, [key]: value });
+    }
     setRecordMessage("");
   };
 
@@ -185,6 +197,8 @@ export default function BodyRecordCard({
         [WEIGHT_RECORDS_KEY]: JSON.stringify(next.weights),
         [INBODY_RECORDS_KEY]: JSON.stringify(next.inbody),
       });
+      manualEdit.current.dirty = false;
+      setManualDirty(false);
       notifyRecordsChanged();
       onChange(next);
       onDateChange?.(draft.date);
@@ -221,7 +235,7 @@ export default function BodyRecordCard({
     if (!weightInput && !hasInbodyInput && !form.memo?.trim()) {
       setRecordMessage(
         hasRecord
-          ? "모든 기록을 지우려면 전체 삭제 버튼을 사용해주세요."
+          ? "모든 기록을 지우려면 이 날짜 기록 삭제 버튼을 눌러 주세요."
           : "저장할 체중 또는 인바디 값을 입력해주세요.",
       );
       return;
@@ -248,6 +262,8 @@ export default function BodyRecordCard({
 
     writeJson(WEIGHT_RECORDS_KEY, nextWeights);
     writeJson(INBODY_RECORDS_KEY, nextInbody);
+    manualEdit.current.dirty = false;
+    setManualDirty(false);
     onChange({ weights: nextWeights, inbody: nextInbody });
     setRecordMessage(`${dateKey} 체중·인바디 기록을 저장했습니다.`);
   };
@@ -266,6 +282,8 @@ export default function BodyRecordCard({
     delete nextInbody[dateKey];
     writeJson(WEIGHT_RECORDS_KEY, nextWeights);
     writeJson(INBODY_RECORDS_KEY, nextInbody);
+    manualEdit.current.dirty = false;
+    setManualDirty(false);
     onChange({ weights: nextWeights, inbody: nextInbody });
     setForm({});
     setRecordMessage(`${dateKey} 체중·인바디 기록을 삭제했습니다.`);
@@ -301,8 +319,9 @@ export default function BodyRecordCard({
       setRecordMessage("");
       const reviewLabels = (result.reviewKeys || []).map(key => key === "weight" ? "체중" : inbodyFields.find(field => field.key === key)?.label || key);
       setImportMessage(
-        `숫자 후보 ${recognizedCount}개를 가져왔습니다. 정확성을 보장하지 않으므로 원본과 대조하세요. ${measuredDate ? "측정 날짜도 확인하세요." : "측정 날짜를 읽지 못했습니다. 직접 입력하세요."}` +
-        (reviewLabels.length ? ` 검토 필요: ${reviewLabels.join(", ")}. 인식하지 못한 항목은 새 값을 채우지 않으며 기존 기록은 유지합니다. 신체연령 범주는 자동 숫자화하지 않습니다.` : "")
+        (recognizedCount ? `숫자 ${recognizedCount}개를 읽었어요. 틀릴 수 있으니 사진과 비교해 주세요.` : "사진에서 숫자를 읽지 못했어요. 아래에 직접 입력할 수 있어요.") +
+        ` ${measuredDate ? "측정 날짜도 확인해 주세요." : "측정 날짜를 읽지 못했어요. 직접 입력해 주세요."}` +
+        (reviewLabels.length ? ` 확인할 항목: ${reviewLabels.join(", ")}. 읽지 못한 값은 비워 두며, 전에 저장한 기록은 그대로 남아요. 나이 구간은 숫자로 바꾸지 않아요.` : "")
       );
     } catch (error) {
       if (!isCurrent()) return;
@@ -321,16 +340,21 @@ export default function BodyRecordCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[15px] font-bold text-gray-800">
-            체중·인바디 기록
+            체중 기록
           </p>
           <p className="mt-1 text-[12px] text-gray-500">
-            같은 날짜의 체중과 인바디 결과를 한 번에 기록합니다.
+            체중과 몸의 근육·지방 수치를 기록해요. 직접 입력하거나 사진을 골라 주세요.
           </p>
         </div>
         <span className="rounded-full bg-[#EEEDFE] px-2 py-1 text-[11px] font-bold text-[#534AB7]">
-          통합 기록
+          체중·인바디
         </span>
       </div>
+      <ol aria-label="사진 입력 순서" className="mt-3 grid grid-cols-3 gap-1 text-center text-[12px] font-bold text-[#534AB7]">
+        <li className="rounded-lg bg-purple-50 p-2">1. 사진 선택</li>
+        <li className="rounded-lg bg-purple-50 p-2">2. 내용 확인</li>
+        <li className="rounded-lg bg-purple-50 p-2">3. 저장</li>
+      </ol>
       {isTodayKey(dateKey) && (
         <p className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-[12px] text-blue-700">
           체중은 아침 공복, 인바디는 주 1회 또는 2주 1회 같은 조건 측정을
@@ -341,19 +365,19 @@ export default function BodyRecordCard({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-bold text-[#3C3489]">
-              오아 건강보고서 불러오기
+              사진으로 입력
             </p>
             <p className="mt-0.5 text-[11px] text-gray-600">
-              오아 앱에서 저장한 긴 보고서 이미지를 기기 안에서 분석합니다.
+              오아 앱의 긴 건강보고서 사진만 읽을 수 있어요. 사진은 기기 안에서 읽어요. 저장 버튼을 눌러야 기록에 남아요.
             </p>
           </div>
           <button
             type="button"
             disabled={importing || Boolean(draft)}
             onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 rounded-xl bg-[#534AB7] px-3 py-2 text-[12px] font-bold text-white disabled:cursor-wait disabled:opacity-60"
+            className="min-h-11 shrink-0 rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60"
           >
-            {importing ? `${importProgress}%` : "이미지 선택"}
+            {importing ? `사진 읽는 중 ${importProgress}%` : "사진 선택"}
           </button>
           <input
             ref={fileInputRef}
@@ -373,23 +397,20 @@ export default function BodyRecordCard({
         )}
         {importMessage && (
           <p
-            className={`mt-2 text-[11px] ${
-              importMessage.includes("채웠습니다")
-                ? "text-emerald-700"
-                : "text-amber-700"
-            }`}
+            role="status"
+            className="mt-2 text-[12px] leading-5 text-amber-800"
           >
             {importMessage}
           </p>
         )}
       </div>
       {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
-        <p className="font-bold">가져오기 확인 · 아직 저장되지 않았습니다</p>
-        <p className="text-sm">OA 긴 건강보고서 전용입니다. 날짜와 아래 수치를 원본과 비교하고 수정한 뒤 저장하세요. 인식되지 않은 항목과 메모는 선택한 측정일의 기존 기록을 유지합니다.</p>
+        <p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
+        <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
         <label className="mt-2 block">측정 날짜<input aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>
         {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
         {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
-        <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 rounded bg-white px-3 py-2">가져오기 취소</button>
+        <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 rounded bg-white px-3 py-2">사진 입력 취소</button>
       </section>}
       <label className="mt-3 block text-[12px] font-semibold text-gray-600">
         체중
@@ -484,17 +505,17 @@ export default function BodyRecordCard({
           type="button"
           onClick={draft ? saveImport : save}
           disabled={importing || Boolean(draft && !validMeasurementDate(draft.date, getLocalDateKey()))}
-          className="flex-1 rounded-xl bg-[#534AB7] px-4 py-2 text-[13px] font-bold text-white"
+          className="min-h-12 flex-1 rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white"
         >
-          {draft ? "확인한 측정일에 저장" : "통합 저장"}
+          {draft ? "확인한 측정일에 저장" : "체중·인바디 저장"}
         </button>
         {hasRecord && !draft && !importing && (
           <button
             type="button"
             onClick={remove}
-            className="rounded-xl bg-red-50 px-4 py-2 text-[13px] font-bold text-red-600"
+            className="min-h-12 rounded-xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600"
           >
-            전체 삭제
+            이 날짜 기록 삭제
           </button>
         )}
       </div>

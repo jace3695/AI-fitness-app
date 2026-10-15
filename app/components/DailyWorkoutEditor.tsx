@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { expandedHomeExercises } from '../data/expandedHomeExercises';
+import { exerciseGuides } from '../data/exerciseGuides';
 import ExerciseGuidePanel from './ExerciseGuidePanel';
 import { HOME_EQUIPMENT, homeExerciseCandidates, isHomeSelectable, type HomeEquipment } from "../data/homeExerciseCatalog";
 import {
@@ -316,12 +316,14 @@ export default function DailyWorkoutEditor({
                   key={exercise.exerciseId}
                   type="button"
                   onClick={() => addExercise(exercise)}
-                  className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-[#534AB7]"
+                  disabled={orderedExercises.some((item) => item.name === exercise.name)}
+                  className="min-h-11 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-[#534AB7] disabled:bg-gray-100 disabled:text-gray-500"
                 >
-                  + {exercise.name || exercise.exerciseId}
+                  {orderedExercises.some((item) => item.name === exercise.name) ? "이미 추가한 운동" : "바로 추가"} · {exercise.name || exercise.exerciseId}
                 </button>
               ))}
         </div>
+        <p className="mt-2 text-[12px] text-[#625A9A]">추가하면 바로 저장돼요. 운동 방법은 아래 ‘집에서 할 운동 찾기’에서 먼저 볼 수 있어요.</p>
       </div>
 
       <label className="mt-4 block text-[13px] font-bold text-gray-800">
@@ -421,14 +423,22 @@ export default function DailyWorkoutEditor({
             </select>
           </label>
           <p className="text-xs text-gray-600">맨몸 운동을 기본으로 제공합니다. 장비의 실제 하중·밴드 저항은 확인되지 않았습니다. 통증 중단 기준과 고정 상태를 먼저 확인하세요. 추가 버튼을 누른 운동만 현재 루틴에 들어갑니다.</p>
-          <p className="mt-2 text-xs text-amber-800">아래는 직접 고르는 카탈로그이며 맞춤 추천이 아닙니다. 새 동작은 안내를 펼쳐 장비 조건과 중단 기준을 먼저 확인하세요.</p>
-          <div className="my-3 flex flex-wrap gap-2">{homeExerciseCandidates(equipment).map(candidate => {
-            const guide = expandedHomeExercises[candidate.exerciseId];
-            return guide ? <details key={candidate.exerciseId} className="w-full rounded border p-3">
-              <summary className="cursor-pointer text-sm font-semibold">새 동작 · {candidate.name} — {guide.target} · {guide.difficulty}</summary>
-              <ExerciseGuidePanel exercise={{ exerciseId: candidate.exerciseId, name: guide.name, guide, details: [] }} />
-              <button type="button" onClick={() => addExercise(candidate)} className="mt-2 rounded border px-3 py-2 text-sm">+ {candidate.name}</button>
-            </details> : <button type="button" key={candidate.exerciseId} onClick={() => addExercise(candidate)} className="rounded border px-3 py-2 text-sm">+ {candidate.name}</button>;
+          <p className="mt-2 text-xs text-amber-800">직접 고르는 운동 목록이에요. 나에게 맞춘 추천은 아니에요. 운동 방법에서 준비물과 중단 기준을 먼저 확인하세요.</p>
+          <p className="mt-2 text-sm font-semibold text-[#534AB7]">방법 보기는 기록을 바꾸지 않아요. ‘내 운동에 추가’를 누르면 바로 저장돼요.</p>
+          <div className="my-3 grid gap-3">{homeExerciseCandidates(equipment).map(candidate => {
+            const guide = exerciseGuides[candidate.exerciseId] || exerciseGuides[candidate.name || ''];
+            const name = candidate.name || candidate.exerciseId;
+            const alreadyAdded = orderedExercises.some((item) => item.name === name);
+            return <div key={candidate.exerciseId} className="rounded-xl border border-gray-200 p-3">
+              <p className="text-sm font-bold text-gray-900">{name}</p>
+              <button type="button" disabled={alreadyAdded} onClick={() => addExercise(candidate)} className="mt-2 min-h-11 w-full rounded-xl bg-[#534AB7] px-3 py-2 text-sm font-bold text-white disabled:bg-gray-100 disabled:text-gray-500">
+                {alreadyAdded ? "이미 추가한 운동" : "내 운동에 추가"} · {name}
+              </button>
+              <details className="mt-2">
+                <summary className="min-h-11 cursor-pointer rounded-xl bg-gray-50 px-3 py-3 text-sm font-semibold text-[#534AB7]">운동 방법 보기 · {name}</summary>
+                {guide ? <ExerciseGuidePanel exercise={{ exerciseId: candidate.exerciseId, name, guide, details: [] }} /> : <p className="mt-2 text-sm text-gray-600">이 운동의 상세 안내는 준비 중이에요. 동작을 모르면 추가하지 말고 안내가 있는 다른 운동을 골라 주세요.</p>}
+              </details>
+            </div>;
           })}</div>
           {equipment === '케틀벨 · 바벨' && <p className="my-2 text-xs">전용 동작 안내는 준비 중입니다. 보유 세트의 덤벨 구성으로 기존 덤벨 동작을 선택할 수 있습니다.</p>}
           <label htmlFor="daily-custom-exercise" className="text-[12px] font-bold text-gray-700">

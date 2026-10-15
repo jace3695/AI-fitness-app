@@ -11,6 +11,7 @@ import tailwindcss from 'tailwindcss';
 
 const output = resolve('scripts/browser-qa/.generated/fitness-priority');
 const realOcr = process.env.FITNESS_REAL_OCR === '1';
+const recordNavigation = process.env.FITNESS_RECORD_NAV === '1';
 mkdirSync(output, { recursive: true });
 const bundle = await build({ stdin: { contents: `
 import React, { useState } from 'react';
@@ -28,7 +29,7 @@ function App() {
  const [settings,setSettings]=useState(()=>JSON.parse(localStorage.getItem('fixture-settings')||'null')||EMPTY_USER_WORKOUT_SETTINGS);
  const edit=settings.dateOverrides['2026-10-14']?.edit;
  const custom=applyDayRoutineEdit({phases:[{exercises:[]}]},edit).phases[0].exercises;
- if (${realOcr}) return <RecordCalendarView/>;
+ if (${realOcr || recordNavigation}) return <RecordCalendarView/>;
  return <main><button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
  <BodyRecordCard dateKey={date} weights={weights} inbody={inbody} onDateChange={setDate} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}} />
  <DailyWorkoutEditor dayId="wed" dateKey="2026-10-14" defaultGroupId="current-fullbody-hamstring-circuit" recommendedGroupId="current-fullbody-hamstring-circuit" recommendationReason="합성 테스트" settings={settings} onChange={next=>{localStorage.setItem('fixture-settings',JSON.stringify(next));setSettings(next)}} onClose={()=>{}} />
@@ -66,9 +67,103 @@ try {
  await page.goto(origin);
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
- if(realOcr) {
+ if(recordNavigation) {
+   const tab = name => page.getByRole('tab',{name,exact:true});
+   const snapshot = () => page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));
+   const before = await snapshot();
+   assert.equal(await tab('통합 정보').getAttribute('aria-selected'),'true');
+   assert.equal(await page.getByRole('button',{name:'확인한 측정일에 저장'}).isVisible(),false);
+   await tab('체중관리').click();
+   const calendar=page.locator('[data-testid="record-shared-calendar"] > details');
+   assert.equal(await calendar.getAttribute('open'),null);
+   await calendar.locator(':scope > summary').click();
+   assert.equal(await calendar.getByRole('button',{name:'이전',exact:true}).isVisible(),true);
+   await calendar.locator(':scope > summary').click();
+   assert.equal(await snapshot(),before);
+   checks.push('calendar stays collapsed until requested; opening it writes nothing');
+   const weight = page.locator('input[placeholder="예: 82.4"]');
+   await weight.fill('81.4');
+   for(const name of ['운동기록','통합 정보','체중관리']) await tab(name).click();
+   assert.equal(await weight.inputValue(),'81.4');
+   assert.equal(await snapshot(),before);
+   checks.push('manual body draft survives tab round trip without any storage write');
+   await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+   await page.waitForFunction(()=>typeof window.resolveOcr==='function');
+   await tab('운동기록').click();
+   await page.evaluate(()=>window.resolveOcr({detectedDate:'2026-10-01',values:{weight:79.2,bmi:23.4},recognizedCount:2}));
+   await tab('체중관리').click();
+   await page.getByLabel('측정 날짜',{exact:true}).waitFor();
+   assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-01');
+   assert.equal(await weight.inputValue(),'79.2');
+   await weight.fill('78.6');
+   await page.getByLabel('BMI',{exact:true}).fill('23.1');
+   for(const name of ['통합 정보','운동기록','체중관리']) await tab(name).click();
+   assert.equal(await weight.inputValue(),'78.6');
+   assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),'23.1');
+   assert.equal(await snapshot(),before);
+   checks.push('OCR finishes while hidden; reviewed date and edited values survive tabs without autosave');
+   page.once('dialog',dialog=>dialog.accept());
+   await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
+   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-01'].weight),78.6);
+   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-01']),{bodyAge:40,memo:'preserve synthetic memo',bmi:23.1});
+   await weight.fill('77.8');
+   await tab('운동기록').click();
+   await page.getByPlaceholder('오늘 컨디션, 허기, 운동 느낌 등을 적어주세요.').fill('separate synthetic note');
+   await page.getByRole('button',{name:'저장',exact:true}).click();
+   await tab('체중관리').click();
+   assert.equal(await weight.inputValue(),'77.8');
+   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-01'].weight),78.6);
+   checks.push('saving a note in another tab preserves unsaved manual body edits without saving them');
+   await page.reload(); await tab('체중관리').click();
+   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-01'].weight),78.6);
+   checks.push('only explicit reviewed save writes the selected date; existing memo preserved after reload');
+   await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+   await page.waitForFunction(()=>typeof window.resolveOcr==='function');
+   await tab('운동기록').click();
+   await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-B');window.dispatchEvent(new Event('yeoni-cloud-session-changed'));window.resolveOcr({detectedDate:'2026-10-01',values:{weight:99},recognizedCount:1});});
+   await tab('체중관리').click();
+   assert.equal(await page.getByLabel('측정 날짜',{exact:true}).count(),0);
+   checks.push('account change invalidates OCR even while body panel is hidden');
+   const beforeEmpty = await snapshot();
+   await page.locator('input[type=file]').setInputFiles({name:'empty-synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+   await page.evaluate(()=>window.resolveOcr({values:{},recognizedCount:0}));
+   await page.getByText('사진에서 숫자를 읽지 못했어요.',{exact:false}).waitFor();
+   assert.equal(await page.getByRole('button',{name:'확인한 측정일에 저장'}).isDisabled(),true);
+   await page.getByRole('button',{name:'사진 입력 취소',exact:true}).click();
+   assert.equal(await snapshot(),beforeEmpty);
+   checks.push('unreadable photo uses plain failure text; cancel writes nothing');
+   await tab('운동기록').click();
+   const unchanged = await snapshot();
+   await page.getByRole('button',{name:'운동 기록 시작하기',exact:true}).click();
+   await page.getByPlaceholder('운동 이름 (예: 버드독)').fill('합성 동작 초안');
+   await page.getByPlaceholder('오늘 컨디션, 허기, 운동 느낌 등을 적어주세요.').fill('합성 메모 초안');
+   for(const name of ['체중관리','통합 정보','운동기록']) await tab(name).click();
+   assert.equal(await page.getByPlaceholder('운동 이름 (예: 버드독)').inputValue(),'합성 동작 초안');
+   assert.equal(await page.getByPlaceholder('오늘 컨디션, 허기, 운동 느낌 등을 적어주세요.').inputValue(),'합성 메모 초안');
+   assert.equal(await snapshot(),unchanged);
+   checks.push('workout and daily note drafts survive tab switches without writes');
+   await tab('통합 정보').focus(); await page.keyboard.press('ArrowRight');
+   assert.equal(await tab('체중관리').getAttribute('aria-selected'),'true');
+   await page.keyboard.press('End');
+   assert.equal(await tab('운동기록').getAttribute('aria-selected'),'true');
+   await page.keyboard.press('Home');
+   assert.equal(await tab('통합 정보').getAttribute('aria-selected'),'true');
+   assert.equal(await page.getByRole('tabpanel').count(),1);
+   checks.push('keyboard tabs activate exactly one accessible panel');
+   for(const name of ['통합 정보','체중관리','운동기록']) {
+     await tab(name).click();
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+     await page.screenshot({path:resolve(output,`record-nav-${name}.png`),fullPage:true});
+     await page.screenshot({path:resolve(output,`record-nav-${name}-viewport.png`),fullPage:false});
+   }
+   checks.push('all three record tabs fit 390px with screenshot evidence');
+   assert.deepEqual(errors,[]);
+   const result={passed:checks.length,checks,scope:'Local component with mocked OCR and synthetic localStorage; no cloud writes or OCR accuracy claim'};
+   writeFileSync(resolve(output,'record-navigation-result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+ } else if(realOcr) {
    await page.evaluate(()=>localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-02':{memo:'keep real OCR fixture memo',bodyAge:39}})));
    await page.reload();
+   await page.getByRole('tab',{name:'체중관리',exact:true}).click();
    const clearDecimal=process.env.FITNESS_OCR_CLEAR==='1';
    const data=await page.evaluate(clearDecimal=>{
      if(clearDecimal) {
@@ -94,15 +189,17 @@ try {
    assert.equal(await page.getByLabel('점수',{exact:false}).inputValue(),'76');
    assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).inputValue(),'9');
    assert.equal(await page.getByLabel('신체연령',{exact:false}).inputValue(),'');
-   assert.ok(await page.getByText('숫자 후보 '+(clearDecimal?4:3)+'개를 가져왔습니다.',{exact:false}).isVisible());
+   assert.ok(await page.getByText('숫자 '+(clearDecimal?4:3)+'개를 읽었어요.',{exact:false}).isVisible());
    if(!clearDecimal) await page.getByLabel('BMI',{exact:true}).fill('24.5');
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
    await page.locator('input[inputmode=decimal]').first().fill('82.7');
    page.once('dialog',dialog=>dialog.accept());
    await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
    await page.reload();
+   await page.getByRole('tab',{name:'체중관리',exact:true}).click();
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-02'].weight),82.7);
    assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']),{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5,bodyScore:76,visceralFatLevel:9});
+   await page.locator('[data-testid="record-shared-calendar"] > details > summary').click();
    await page.locator('button').filter({has:page.locator('span').filter({hasText:/^2$/})}).first().click();
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'82.7');
    await page.screenshot({path:resolve(output,'real-calendar-ocr.png'),fullPage:true});
@@ -173,7 +270,15 @@ try {
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-04'].weight),77.3);
  checks.push('edited value and draft survive transactional quota failure, retry saves');
  await page.getByLabel('보유 장비').selectOption('맨몸');
- await page.getByRole('button',{name:'+ 벽 푸시업',exact:true}).click();
+ const settingsBeforeGuide=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
+ const oldGuide=page.locator('summary').filter({hasText:'운동 방법 보기 · 벽 푸시업'});
+ await oldGuide.click();
+ assert.ok(await page.getByText('벽에서 팔 길이 정도 떨어져 섭니다.',{exact:false}).isVisible());
+ assert.equal(await page.evaluate(()=>localStorage.getItem('fixture-settings')),settingsBeforeGuide);
+ await oldGuide.click();
+ checks.push('existing exercise method opens without changing or saving the routine');
+ await page.getByRole('button',{name:'내 운동에 추가 · 벽 푸시업',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'이미 추가한 운동 · 벽 푸시업',exact:true}).isDisabled(),true);
  await page.reload();
  assert.ok((await page.getByText('벽에서 팔 길이 정도 떨어져 섭니다.',{exact:false}).count())>0);
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
@@ -233,12 +338,14 @@ try {
  const additions=[['맨몸','지지형 양발 종아리 들기','supported-calf-raise'],['맨몸','지지형 옆 다리 들기','supported-side-leg-raise'],['맨몸','앉아서 무릎 펴기','seated-knee-extension'],['덤벨 · 1kg 아령','가벼운 덤벨 컬','light-dumbbell-curl'],['BELLE 풀업밴드','팔 붙인 밴드 외회전','band-external-rotation-at-side']];
  for(const [equipment,name,id] of additions) {
    await page.getByLabel('보유 장비').selectOption(equipment);
+   const beforeGuide=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
    const preview=page.locator('details').filter({has:page.locator('summary').filter({hasText:name})});
    await preview.locator('summary').click();
    assert.ok(await preview.getByText('선택용 동작 안내입니다.',{exact:false}).isVisible());
    assert.ok(await preview.getByRole('link',{name:/참고 안내:/}).isVisible());
    if(id==='band-external-rotation-at-side') await preview.screenshot({path:resolve(output,'expanded-band-guide.png')});
-   await preview.getByRole('button',{name:'+ '+name,exact:true}).click();
+   assert.equal(await page.evaluate(()=>localStorage.getItem('fixture-settings')),beforeGuide);
+   await page.getByRole('button',{name:'내 운동에 추가 · '+name,exact:true}).click();
    await page.reload();
    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
    assert.ok(stored.dateOverrides['2026-10-14'].edit.customExercises.some(x=>x.sourceExerciseId===id));
@@ -246,7 +353,7 @@ try {
  checks.push('all five new sourced guides can be reviewed, selected and restored after reload');
  for(const equipment of await page.getByLabel('보유 장비').locator('option').allTextContents()) {
    await page.getByLabel('보유 장비').selectOption(equipment);
-   assert.equal(await page.getByRole('button',{name:/^\+.*(슬라이딩\s*보드|힙\s*브[릿리]지)/}).count(),0);
+   assert.equal(await page.getByRole('button',{name:/^(내 운동에 추가|바로 추가).*(슬라이딩\s*보드|힙\s*브[릿리]지)/}).count(),0);
  }
  checks.push('every equipment category excludes sliding board and hip bridge');
  for(const width of [320,390,1280]) {

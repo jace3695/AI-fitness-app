@@ -94,6 +94,7 @@ export default function RecordCalendarView() {
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selected, setSelected] = useState(todayKey);
+  const [recordTab, setRecordTab] = useState<"summary" | "body" | "workout">("summary");
   const [timePending, setTimePending] = useState(false);
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -346,24 +347,35 @@ export default function RecordCalendarView() {
     setWorkoutNotice(`${label} 기록을 삭제했습니다.`);
   };
   return (
-    <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
-      <RecordDashboard
-        stores={stores}
-        year={visible.getFullYear()}
-        monthIndex={visible.getMonth()}
-      />
-      <WeightChart
-        weights={stores.weights}
-        inbody={stores.inbody}
-        goal={stores.weightGoal}
-        year={visible.getFullYear()}
-        monthIndex={visible.getMonth()}
-        cutoffDateKey={todayKey}
-        onGoalChange={(goal) =>
-          setStores({ ...stores, weightGoal: saveWeightGoal(goal) })
-        }
-      />
-      <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
+    <div className="space-y-4">
+      <div role="tablist" aria-label="기록 메뉴" className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-100 p-1">
+        {([
+          ["summary", "통합 정보"], ["body", "체중관리"], ["workout", "운동기록"],
+        ] as const).map(([id, label], index, tabs) => (
+          <button key={id} type="button" role="tab" id={`record-tab-${id}`}
+            aria-controls={`record-panel-${id}`} aria-selected={recordTab === id}
+            tabIndex={recordTab === id ? 0 : -1}
+            onClick={() => setRecordTab(id)}
+            onKeyDown={(event) => {
+              const nextIndex = event.key === "ArrowRight" ? (index + 1) % tabs.length
+                : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+                : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : undefined;
+              if (nextIndex === undefined) return;
+              event.preventDefault();
+              const next = tabs[nextIndex][0];
+              setRecordTab(next);
+              document.getElementById(`record-tab-${next}`)?.focus();
+            }}
+            className={`min-h-11 rounded-xl px-2 py-3 text-[13px] font-bold ${recordTab === id ? "bg-white text-[#534AB7] shadow-sm" : "text-gray-500"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {/* Keep every editor mounted: changing a tab never saves or clears a draft. */}
+      <div hidden={recordTab === "summary"} data-testid="record-shared-calendar">
+      <details className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
+        <summary className="min-h-11 cursor-pointer py-3 text-[14px] font-bold text-[#534AB7]">날짜 바꾸기 · {formatKoreanDate(selected)}</summary>
+        <div className="mt-3">
         <div className="flex items-center justify-between">
           <button
             onClick={() => moveMonth(-1)}
@@ -456,12 +468,160 @@ export default function RecordCalendarView() {
             W=체중, I=인바디, ✎=메모, ⚠=안전 증상
           </p>
         </details>
+        </div>
+      </details>
+      </div>
+      <section role="tabpanel" id="record-panel-summary" aria-labelledby="record-tab-summary" hidden={recordTab !== "summary"} tabIndex={0}>
+      <RecordDashboard stores={stores} year={visible.getFullYear()} monthIndex={visible.getMonth()} view="summary" />
+        <p className="mt-3 text-[12px] text-gray-500">체중·인바디와 식사 상세는 체중관리에서, 날짜별 운동과 메모는 운동기록에서 확인하세요.</p>
       </section>
-      <MonthlySummaryCard
+      <section role="tabpanel" id="record-panel-body" aria-labelledby="record-tab-body" hidden={recordTab !== "body"} tabIndex={0}>
+        <div className="space-y-4">
+          <h2 className="text-[18px] font-bold text-gray-900">{formatKoreanDate(selected)} · 체중관리</h2>
+      <BodyRecordCard
+        dateKey={selected}
+        onDateChange={(date) => {
+          // Saving an imported measurement must not discard another open editor.
+          if (editingWorkout || editingSecondary !== null || noteEdited.current) return;
+          setSelected(date);
+          setVisible(new Date(`${date.slice(0, 7)}-01T12:00:00`));
+        }}
+        weights={stores.weights}
+        inbody={stores.inbody}
+        onChange={({ weights, inbody }) =>
+          setStores({ ...stores, weights, inbody })
+        }
+      />
+      <WeightChart
+        weights={stores.weights}
+        inbody={stores.inbody}
+        goal={stores.weightGoal}
         year={visible.getFullYear()}
         monthIndex={visible.getMonth()}
-        stores={stores}
+        cutoffDateKey={todayKey}
+        onGoalChange={(goal) =>
+          setStores({ ...stores, weightGoal: saveWeightGoal(goal) })
+        }
       />
+      <RecordDashboard stores={stores} year={visible.getFullYear()} monthIndex={visible.getMonth()} view="body" />
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+            <h3 className="text-[15px] font-bold text-gray-800">식사·수분·공복 기록</h3>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[13px] text-gray-700 sm:grid-cols-2">
+          <div className="rounded-xl bg-gray-50 p-3">
+            식단
+            <br />
+            <b>
+              {selectedDiet?.dietStatus
+                ? DIET_STATUS_LABELS[
+                    selectedDiet.dietStatus as keyof typeof DIET_STATUS_LABELS
+                  ]
+                : "미기록"}
+            </b>
+            {selectedDiet?.dietMemo && (
+              <p className="mt-1 text-[11px] text-gray-600">
+                메모: {String(selectedDiet.dietMemo)}
+              </p>
+            )}
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            공복
+            <br />
+            <b>
+              {selectedDiet?.fastingRecordStatus
+                ? FASTING_STATUS_LABELS[
+                    selectedDiet.fastingRecordStatus as keyof typeof FASTING_STATUS_LABELS
+                  ]
+                : selectedDiet?.fasting14h
+                  ? "14시간 달성"
+                  : hasSafetyAlert(selectedDiet)
+                    ? "12시간 조절 가능"
+                    : "미기록"}
+            </b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+            기존 식단 목표
+            <br />
+            <b>
+              {getDietGoalCount(selectedDiet)} / {DIET_GOAL_CHECK_ITEMS.length}
+              개 완료
+            </b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            물 섭취
+            <br />
+            <b>{selectedWater.toLocaleString()}mL</b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            저녁 18:30 이전
+            <br />
+            <b>
+              {selectedDiet?.dinnerBefore1830
+                ? "완료"
+                : selectedDinner
+                  ? `미달성(${selectedDinner})`
+                  : "미기록"}
+            </b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            공복 타이머
+            <br />
+            <b>
+              {selected === todayKey
+                ? stores.fastingStart
+                  ? `시작 ${stores.fastingStart} / 예상 종료 ${String((Number(stores.fastingStart.slice(0, 2)) + 14) % 24).padStart(2, "0")}${stores.fastingStart.slice(2)}`
+                  : "미설정"
+                : "개별 공복 기록 없음"}
+            </b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3">
+            안전 증상
+            <br />
+            <b>{hasSafetyAlert(selectedDiet) ? "기록 있음" : "없음"}</b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+            체중·인바디
+            <br />
+            <b>
+              {stores.weights[selected]?.weight
+                ? `${stores.weights[selected].weight.toFixed(1)}kg`
+                : "체중 미기록"}
+              {" · "}
+              {stores.inbody[selected] ? "인바디 기록 있음" : "인바디 미기록"}
+            </b>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+            <span>{selectedLunchCarb.rice}</span>
+            {selectedLunchCarb.carbs && (
+              <>
+                <br />
+                <b>{selectedLunchCarb.carbs}</b>
+              </>
+            )}
+            <br />
+            <span>{selectedLunchProtein}</span>
+            <p className="mt-1 text-[11px] text-gray-500">
+              점심 밥량은 조리된 밥 무게이며, 참고 탄수화물은 단백질 합계에
+              포함하지 않습니다.
+            </p>
+          </div>
+          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
+            <span>{selectedDinnerCarb.rice}</span>
+            {selectedDinnerCarb.carbs && (
+              <>
+                <br />
+                <b>{selectedDinnerCarb.carbs}</b>
+              </>
+            )}
+            <p className="mt-1 text-[11px] text-gray-500">
+              저녁 밥량은 조리된 밥 무게이며, 참고 탄수화물과 구분됩니다.
+            </p>
+          </div>
+            </div>
+          </section>
+        </div>
+      </section>
+      <section role="tabpanel" id="record-panel-workout" aria-labelledby="record-tab-workout" hidden={recordTab !== "workout"} tabIndex={0}>
+        <div className="space-y-4">
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <p className="text-[12px] font-semibold text-[#534AB7]">
           선택 날짜 상세
@@ -799,131 +959,8 @@ export default function RecordCalendarView() {
               </div> : null}
             </> : null}
           </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            식단
-            <br />
-            <b>
-              {selectedDiet?.dietStatus
-                ? DIET_STATUS_LABELS[
-                    selectedDiet.dietStatus as keyof typeof DIET_STATUS_LABELS
-                  ]
-                : "미기록"}
-            </b>
-            {selectedDiet?.dietMemo && (
-              <p className="mt-1 text-[11px] text-gray-600">
-                메모: {String(selectedDiet.dietMemo)}
-              </p>
-            )}
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            공복
-            <br />
-            <b>
-              {selectedDiet?.fastingRecordStatus
-                ? FASTING_STATUS_LABELS[
-                    selectedDiet.fastingRecordStatus as keyof typeof FASTING_STATUS_LABELS
-                  ]
-                : selectedDiet?.fasting14h
-                  ? "14시간 달성"
-                  : hasSafetyAlert(selectedDiet)
-                    ? "12시간 조절 가능"
-                    : "미기록"}
-            </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
-            기존 식단 목표
-            <br />
-            <b>
-              {getDietGoalCount(selectedDiet)} / {DIET_GOAL_CHECK_ITEMS.length}
-              개 완료
-            </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            물 섭취
-            <br />
-            <b>{selectedWater.toLocaleString()}mL</b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            저녁 18:30 이전
-            <br />
-            <b>
-              {selectedDiet?.dinnerBefore1830
-                ? "완료"
-                : selectedDinner
-                  ? `미달성(${selectedDinner})`
-                  : "미기록"}
-            </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            공복 타이머
-            <br />
-            <b>
-              {selected === todayKey
-                ? stores.fastingStart
-                  ? `시작 ${stores.fastingStart} / 예상 종료 ${String((Number(stores.fastingStart.slice(0, 2)) + 14) % 24).padStart(2, "0")}${stores.fastingStart.slice(2)}`
-                  : "미설정"
-                : "개별 공복 기록 없음"}
-            </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3">
-            안전 증상
-            <br />
-            <b>{hasSafetyAlert(selectedDiet) ? "기록 있음" : "없음"}</b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
-            체중·인바디
-            <br />
-            <b>
-              {stores.weights[selected]?.weight
-                ? `${stores.weights[selected].weight.toFixed(1)}kg`
-                : "체중 미기록"}
-              {" · "}
-              {stores.inbody[selected] ? "인바디 기록 있음" : "인바디 미기록"}
-            </b>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
-            <span>{selectedLunchCarb.rice}</span>
-            {selectedLunchCarb.carbs && (
-              <>
-                <br />
-                <b>{selectedLunchCarb.carbs}</b>
-              </>
-            )}
-            <br />
-            <span>{selectedLunchProtein}</span>
-            <p className="mt-1 text-[11px] text-gray-500">
-              점심 밥량은 조리된 밥 무게이며, 참고 탄수화물은 단백질 합계에
-              포함하지 않습니다.
-            </p>
-          </div>
-          <div className="rounded-xl bg-gray-50 p-3 sm:col-span-2">
-            <span>{selectedDinnerCarb.rice}</span>
-            {selectedDinnerCarb.carbs && (
-              <>
-                <br />
-                <b>{selectedDinnerCarb.carbs}</b>
-              </>
-            )}
-            <p className="mt-1 text-[11px] text-gray-500">
-              저녁 밥량은 조리된 밥 무게이며, 참고 탄수화물과 구분됩니다.
-            </p>
-          </div>
         </div>
       </section>
-      <BodyRecordCard
-        dateKey={selected}
-        onDateChange={(date) => {
-          // Saving an imported measurement must not discard another open editor.
-          if (editingWorkout || editingSecondary !== null || noteEdited.current) return;
-          setSelected(date);
-          setVisible(new Date(`${date.slice(0, 7)}-01T12:00:00`));
-        }}
-        weights={stores.weights}
-        inbody={stores.inbody}
-        onChange={({ weights, inbody }) =>
-          setStores({ ...stores, weights, inbody })
-        }
-      />
       <section className="rounded-2xl bg-white border border-gray-100 p-4 shadow-sm sm:p-5">
         <p className="text-[15px] font-bold text-gray-800">날짜별 메모</p>
         <textarea
@@ -952,6 +989,14 @@ export default function RecordCalendarView() {
           >
             삭제
           </button>
+        </div>
+      </section>
+      <MonthlySummaryCard
+        year={visible.getFullYear()}
+        monthIndex={visible.getMonth()}
+        stores={stores}
+      />
+      <RecordDashboard stores={stores} year={visible.getFullYear()} monthIndex={visible.getMonth()} view="workout" />
         </div>
       </section>
     </div>

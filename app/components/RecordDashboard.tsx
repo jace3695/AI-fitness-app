@@ -28,10 +28,12 @@ export default function RecordDashboard({
   stores,
   year,
   monthIndex,
+  view = "all",
 }: {
   stores: RecordStores;
   year: number;
   monthIndex: number;
+  view?: "all" | "summary" | "body" | "workout";
 }) {
   const monthly = getMonthlyWorkoutStats(
     stores.workouts,
@@ -84,7 +86,8 @@ export default function RecordDashboard({
 
   return (
     <section className="space-y-4 xl:col-span-2">
-      <FitnessAiCoachPanel stores={stores} />
+      {(view === "all" || view === "workout") && <FitnessAiCoachPanel stores={stores} />}
+      {(view === "all" || view === "summary") && <>
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -96,7 +99,7 @@ export default function RecordDashboard({
             </h2>
           </div>
           <p className="text-[11px] text-gray-400">
-            달력을 이동하면 월간 지표도 함께 바뀝니다.
+            {view === "summary" ? "체중관리·운동기록의 달력에서 월을 바꿀 수 있어요." : "달력을 이동하면 월간 지표도 함께 바뀝니다."}
           </p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -119,6 +122,13 @@ export default function RecordDashboard({
         </div>
       </div>
 
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <p className="text-[12px] text-gray-500">최근 체중</p>
+        <p className="mt-1 text-[20px] font-extrabold text-gray-900">{body.weight.at(-1)?.value !== undefined ? `${body.weight.at(-1)!.value}kg` : "기록 없음"}</p>
+        {body.weight.at(-1) && <p className="mt-1 text-[11px] text-gray-500">{formatShortDate(body.weight.at(-1)!.dateKey)}</p>}
+      </div>
+      </>}
+      {(view === "all" || view === "workout") && <>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
           <p className="text-[15px] font-bold text-gray-800">이번 달 실제 운동량</p>
@@ -323,16 +333,19 @@ export default function RecordDashboard({
         </div>
       </section>
 
+      </>}
+      {(view === "all" || view === "body" || view === "workout") && (
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
         <div>
           <p className="text-[15px] font-bold text-gray-800">
-            체성분·통증 변화
+            {view === "workout" ? "운동 통증 변화" : view === "body" ? "체성분 변화" : "체성분·통증 변화"}
           </p>
           <p className="mt-1 text-[11px] text-gray-500">
             최근 12회 기록을 기준으로 변화 방향을 확인합니다.
           </p>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {view !== "workout" && <>
           <RecordTrendChart
             title="체중"
             unit="kg"
@@ -351,14 +364,16 @@ export default function RecordDashboard({
             points={body.skeletalMuscle}
             color="#1D9A6C"
           />
-          <RecordTrendChart
+          </>}
+          {view !== "body" && <RecordTrendChart
             title="운동 불편감"
             unit="/10"
             points={pain}
             color="#C43D4B"
-          />
+          />}
         </div>
       </section>
+      )}
     </section>
   );
 }
