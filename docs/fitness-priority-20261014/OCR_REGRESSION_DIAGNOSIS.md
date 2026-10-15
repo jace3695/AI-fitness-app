@@ -51,3 +51,9 @@ This parser correction is separate from local record-tab UI commit 0342214. No n
 - NOT RUN: new protected Preview/Production smoke tests and cloud persistence tests; no new deployment and shared cloud writes are prohibited.
 
 Independent review confirmed the internal-punctuation issue is closed in code. The subsequent real Tesseract decimal regression also passed. Local browser tests use isolated synthetic storage and do not verify Supabase persistence.
+
+## Comparison method and Preview authorization
+
+The expected date and 25 numeric fields were transcribed by visually reading the explicitly supplied original, independently of parser output, into a private expected-values file outside the repository. The parser processed that same original through its normal image/canvas/Tesseract pipeline. Comparison used strict numeric equality for each expected field (no tolerance, rounding adjustment, inferred decimal or derived replacement), exact normalized YYYY-MM-DD date equality, and a key-set check for unexpected output. An expected field absent from output counts as missing; a present unequal number counts as mismatched. Passing means all 25 equal, date equal, and missing/mismatched/unexpected arrays all empty. Age category is intentionally excluded. This is a manual ground-truth check on one OA report, not an independent clinical validation or multi-format benchmark.
+
+Following these results, the parent authorized pushing the existing feature branch for one Git-triggered Preview. This supersedes the earlier pre-push release boundary only for that Preview. Production, main, shared-database writes and environment/security changes remain prohibited. The report contains no original measurements, date, image filename or private-file metadata.
