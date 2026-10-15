@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { numberFromText } from "./oaReportParser.ts";
+import { numberFromText, dateFromText, agreedNumber } from "./oaReportParser.ts";
 
-test("오아 OCR의 쉼표 소수점과 유사 문자를 숫자로 보정한다", () => {
+test("오아 OCR의 유사 문자를 숫자로 추정하지 않는다", () => {
   assert.equal(
     numberFromText("83,O kg", {
       key: "weight",
@@ -11,11 +11,11 @@ test("오아 OCR의 쉼표 소수점과 유사 문자를 숫자로 보정한다"
       max: 300,
       decimals: true,
     }),
-    83,
+    undefined,
   );
 });
 
-test("소수점이 누락된 체지방률을 허용 범위로 복구한다", () => {
+test("소수점이 누락된 체지방률을 후보에서 제외한다", () => {
   assert.equal(
     numberFromText("299", {
       key: "bodyFatPercent",
@@ -24,8 +24,29 @@ test("소수점이 누락된 체지방률을 허용 범위로 복구한다", () 
       max: 80,
       decimals: true,
     }),
-    29.9,
+    undefined,
   );
+});
+
+test('empty labels, categories, ranges and uncertain decimals remain unfilled', () => {
+  const row = { key: 'bodyScore' as const, centerY: 0, min: 1, max: 100 };
+  for (const text of ['', ' ', 'O', '7O', '1O points', 'points', 'A+ points', '0', '76 100', '70-80']) assert.equal(numberFromText(text, row), undefined);
+  const bmi = { ...row, key: 'bmi' as const, min: 5, max: 80, decimals: true };
+  assert.equal(numberFromText('26 . 4', bmi), 26.4);
+  assert.equal(numberFromText('26', bmi), undefined);
+  assert.equal(numberFromText('264', bmi), undefined);
+  assert.equal(numberFromText('30', { ...row, key: 'bodyAge', min: 10, max: 120 }), undefined);
+  assert.equal(agreedNumber([{text:'26.4',confidence:95},{text:'26',confidence:95}], bmi), undefined);
+  assert.equal(agreedNumber([{text:'26.4',confidence:40},{text:'26.4',confidence:95}], bmi), undefined);
+  assert.equal(agreedNumber([{text:'26.4',confidence:95},{text:'26.4',confidence:95}], bmi), 26.4);
+});
+
+test('multiline timestamp dates validate calendar and reject ambiguous headers', () => {
+  assert.equal(dateFromText('fixture@example.test\n2025-04-07 08:12:34'), '2025-04-07');
+  assert.equal(dateFromText('2025 / 4 / 7'), '2025-04-07');
+  assert.equal(dateFromText('2025-02-30'), undefined);
+  assert.equal(dateFromText('2025-04-07\n2025-04-08'), undefined);
+  assert.equal(dateFromText(''), undefined);
 });
 
 test("항목 허용 범위를 벗어난 OCR 값은 저장 후보에서 제외한다", () => {

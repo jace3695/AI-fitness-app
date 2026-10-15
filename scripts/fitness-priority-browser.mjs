@@ -69,29 +69,47 @@ try {
  if(realOcr) {
    await page.evaluate(()=>localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-02':{memo:'keep real OCR fixture memo',bodyAge:39}})));
    await page.reload();
-   const data=await page.evaluate(()=>{
-     const canvas=document.createElement('canvas'); canvas.width=1000; canvas.height=6000;
-     const ctx=canvas.getContext('2d'); ctx.fillStyle='white';ctx.fillRect(0,0,1000,6000);ctx.fillStyle='black';ctx.font='70px Arial';ctx.textBaseline='middle';
-     ctx.fillText('2026-10-01',140,210);ctx.fillText('83.0',80,630);ctx.font='65px Arial';ctx.fillText('24.5',600,2874);
+   const clearDecimal=process.env.FITNESS_OCR_CLEAR==='1';
+   const data=await page.evaluate(clearDecimal=>{
+     if(clearDecimal) {
+       const canvas=document.createElement('canvas'); canvas.width=1000;canvas.height=6000;
+       const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,1000,6000);ctx.fillStyle='black';ctx.textBaseline='middle';ctx.font='65px Arial';
+       ctx.fillText('2026-10-01 08:12:34',100,240);ctx.fillText('83.0',80,630);ctx.fillText('76',80,2412);ctx.fillText('24.5',760,2874);ctx.fillText('9',840,3416);
+       return canvas.toDataURL('image/png').split(',')[1];
+     }
+     const canvas=document.createElement('canvas'); canvas.width=320; canvas.height=2048;
+     const ctx=canvas.getContext('2d'); ctx.fillStyle='#171717';ctx.fillRect(0,0,320,2048);ctx.fillStyle='#bababa';ctx.font='11px Arial';ctx.textBaseline='middle';
+     ctx.fillText('fixture@example.test',90,28);ctx.fillText('2026-10-01 08:12:34',90,54);
+     ctx.font='26px Arial';ctx.fillText('83.0',25,2048*.105);
+     ctx.font='18px Arial';ctx.fillText('A+',20,2048*.38);ctx.fillText('76',32,2048*.402);
+     ctx.font=clearDecimal?'16px Arial':'12px Arial';ctx.fillText('24.5',258,2048*.479);ctx.fillText('9',275,2048*.5693);
+     ctx.fillText('30s category',200,2048*.5923);
      return canvas.toDataURL('image/png').split(',')[1];
-   });
+   },clearDecimal);
    await page.locator('input[type=file]').setInputFiles({name:'synthetic-oa-layout.png',mimeType:'image/png',buffer:Buffer.from(data,'base64')});
    await page.getByLabel('측정 날짜',{exact:true}).waitFor({timeout:90000});
    assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-01');
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'83');
+   assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),clearDecimal?'24.5':'');
+   assert.equal(await page.getByLabel('점수',{exact:false}).inputValue(),'76');
+   assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).inputValue(),'9');
+   assert.equal(await page.getByLabel('신체연령',{exact:false}).inputValue(),'');
+   assert.ok(await page.getByText('숫자 후보 '+(clearDecimal?4:3)+'개를 가져왔습니다.',{exact:false}).isVisible());
+   if(!clearDecimal) await page.getByLabel('BMI',{exact:true}).fill('24.5');
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
    await page.locator('input[inputmode=decimal]').first().fill('82.7');
    page.once('dialog',dialog=>dialog.accept());
    await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
    await page.reload();
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-02'].weight),82.7);
-   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']),{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5});
+   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']),{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5,bodyScore:76,visceralFatLevel:9});
    await page.locator('button').filter({has:page.locator('span').filter({hasText:/^2$/})}).first().click();
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'82.7');
    await page.screenshot({path:resolve(output,'real-calendar-ocr.png'),fullPage:true});
    assert.deepEqual(errors,[]);
    const result={passed:1,scope:'Actual RecordCalendarView + browser image/canvas + OA parser/Tesseract worker and model; date/value edit, existing-record confirmation, memo preservation, save, reload and calendar re-query. Synthetic OA-layout image only, not real report accuracy.',assetRequests,externalRequestsSent:0};
-   writeFileSync(resolve(output,'real-ocr-result.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result));
+   result.decimalCase=clearDecimal?'clear decimal recognized':'uncertain decimal left blank for manual correction';
+   writeFileSync(resolve(output,clearDecimal?'real-ocr-clear-result.json':'real-ocr-result.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result));
  } else {
  const upload=async(result)=>{ await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')}); await page.waitForFunction(()=>typeof window.resolveOcr==='function'); if(result) await page.evaluate(r=>window.resolveOcr(r),result); };
  const result={detectedDate:'2026-10-01',values:{weight:79.2,bmi:23},recognizedCount:2};

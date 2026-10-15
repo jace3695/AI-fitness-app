@@ -12,7 +12,7 @@ type ReportRow = {
 
 const REPORT_ROWS: ReportRow[] = [
   { key: "weight", centerY: 0.105, min: 20, max: 300, decimals: true },
-  { key: "bodyScore", centerY: 0.402, min: 0, max: 100 },
+  { key: "bodyScore", centerY: 0.402, min: 1, max: 100 },
   { key: "bodyFatPercent", centerY: 0.4341, min: 1, max: 80, decimals: true },
   { key: "musclePercent", centerY: 0.4565, min: 1, max: 90, decimals: true },
   { key: "bmi", centerY: 0.479, min: 5, max: 80, decimals: true },
@@ -44,6 +44,7 @@ export type OaReportResult = {
   values: Partial<Record<NumericKey, number>>;
   detectedDate?: string;
   recognizedCount: number;
+  reviewKeys?: NumericKey[];
 };
 
 function loadImage(file: File) {
@@ -66,22 +67,23 @@ function makeCrop(
   image: HTMLImageElement,
   centerY: number,
   kind: "header" | "score" | "value" | "plainValue" | "age" | "segment",
+  variant = false,
 ) {
   const source = {
-    header: { x: 0.12, width: 0.76, height: 0.034 },
-    score: { x: 0.04, width: 0.52, height: 0.028 },
+    header: { x: 0.02, width: 0.96, height: 0.075 },
+    score: { x: 0.02, width: 0.94, height: 0.024 },
     // 상태 배지 직전까지만 잘라 배지 글자를 숫자로 오인하지 않게 한다.
-    value: { x: 0.595, width: 0.19, height: 0.018 },
+    value: { x: variant ? 0.58 : 0.55, width: variant ? 0.39 : 0.43, height: 0.021 },
     // 상태 배지가 없는 무지방 체중은 값이 더 오른쪽에 정렬된다.
-    plainValue: { x: 0.68, width: 0.24, height: 0.018 },
+    plainValue: { x: 0.65, width: 0.33, height: 0.021 },
     // "40연령 단위"의 한글 획이 숫자로 합쳐지지 않도록 숫자만 자른다.
     age: { x: 0.62, width: 0.09, height: 0.018 },
-    segment: { x: 0.72, width: 0.22, height: 0.018 },
+    segment: { x: 0.68, width: 0.30, height: 0.021 },
   }[kind];
   const sourceHeight = image.naturalHeight * source.height;
   const sourceWidth = image.naturalWidth * source.width;
   const canvas = document.createElement("canvas");
-  const targetHeight = kind === "header" ? 160 : 192;
+  const targetHeight = kind === "header" ? 300 : variant ? 240 : 192;
   const contentHeight = targetHeight - 16;
   // 고정 최소 너비를 사용하면 320px 원본의 숫자가 가로로 2~3배
   // 찌그러진다. 원본 종횡비를 그대로 유지한 채 충분히 확대한다.
@@ -112,46 +114,85 @@ function makeCrop(
   const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   let darkest = 255;
   let lightest = 0;
+  let darkPixels = 0;
+  let contentPixels = 0;
   for (let index = 0; index < pixels.data.length; index += 4) {
+    const x = (index / 4) % canvas.width;
+    const y = Math.floor(index / 4 / canvas.width);
+    if (x < 8 || x >= canvas.width - 8 || y < 8 || y >= canvas.height - 8) continue;
     const gray =
       pixels.data[index] * 0.299 +
       pixels.data[index + 1] * 0.587 +
       pixels.data[index + 2] * 0.114;
     darkest = Math.min(darkest, gray);
     lightest = Math.max(lightest, gray);
+    contentPixels++;
+    if (gray < 128) darkPixels++;
     pixels.data[index] = gray;
     pixels.data[index + 1] = gray;
     pixels.data[index + 2] = gray;
   }
   const span = Math.max(1, lightest - darkest);
   for (let index = 0; index < pixels.data.length; index += 4) {
-    const value = Math.max(
+    const x = (index / 4) % canvas.width;
+    const y = Math.floor(index / 4 / canvas.width);
+    if (x < 8 || x >= canvas.width - 8 || y < 8 || y >= canvas.height - 8) continue;
+    const contrast = Math.max(
       0,
       Math.min(255, ((pixels.data[index] - darkest) / span) * 255),
     );
+    const value = darkPixels > contentPixels / 2 ? 255 - contrast : contrast;
     pixels.data[index] = value;
     pixels.data[index + 1] = value;
     pixels.data[index + 2] = value;
   }
   context.putImageData(pixels, 0, 0);
+  if (kind !== "header") {
+    let left = canvas.width, top = canvas.height, right = -1, bottom = -1;
+    for (let y = 8; y < canvas.height - 8; y++) for (let x = 8; x < canvas.width - 8; x++) {
+      if (pixels.data[(y * canvas.width + x) * 4] < 180) {
+        left = Math.min(left, x); right = Math.max(right, x);
+        top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+    }
+    if (right >= left && bottom >= top) {
+      const tight = document.createElement("canvas");
+      tight.width = right - left + 33; tight.height = bottom - top + 33;
+      const tightContext = tight.getContext("2d");
+      if (tightContext) {
+        tightContext.fillStyle = "white"; tightContext.fillRect(0, 0, tight.width, tight.height);
+        tightContext.drawImage(canvas, left, top, right - left + 1, bottom - top + 1, 16, 16, right - left + 1, bottom - top + 1);
+        return tight;
+      }
+    }
+  }
   return canvas;
 }
 
 export function numberFromText(text: string, row: ReportRow) {
-  const normalized = text
-    .replace(/,/g, ".")
-    .replace(/[Oo]/g, "0")
-    .replace(/[Il|]/g, "1");
-  const candidates = normalized.match(/\d+(?:\.\d+)?/g) ?? [];
-  for (const candidate of candidates) {
-    let value = Number(candidate);
-    if (!Number.isFinite(value)) continue;
-    // 소수점이 희미해 빠진 경우(예: 299 → 29.9)를 항목 범위로 복구한다.
-    if (row.decimals && !candidate.includes(".")) {
-      while (value > row.max && value / 10 >= row.min) value /= 10;
-    }
-    if (value >= row.min && value <= row.max) return value;
+  if (row.key === "bodyAge" || !/\d/.test(text)) return undefined;
+  const normalized = text.trim().replace(/,/g, ".")
+    .replace(/\s*([.,])\s*/g, "$1");
+  // One complete measurement only: never take the first digit of a label/range.
+  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:%|kg|kcal|points?)?\s*$/i);
+  if (!match || (row.decimals && !match[1].includes("."))) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value >= row.min && value <= row.max ? value : undefined;
+}
+
+export function dateFromText(text: string) {
+  const dates = new Set<string>();
+  for (const match of text.matchAll(/(?<!\d)(20\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})(?!\d)/g)) {
+    const date = `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+    const parsed = new Date(date + "T00:00:00Z");
+    if (Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date) dates.add(date);
   }
+  return dates.size === 1 ? [...dates][0] : undefined;
+}
+
+export function agreedNumber(reads: { text: string; confidence: number }[], row: ReportRow) {
+  const parsed = reads.map(read => read.confidence >= 60 ? numberFromText(read.text, row) : undefined);
+  return parsed.length >= 2 && parsed.every(value => value !== undefined && value === parsed[0]) ? parsed[0] : undefined;
 }
 
 export async function parseOaReport(
@@ -160,75 +201,35 @@ export async function parseOaReport(
 ): Promise<OaReportResult> {
   const image = await loadImage(file);
   if (image.naturalHeight / image.naturalWidth < 4.5) {
-    throw new Error("오아 앱에서 저장한 긴 건강 보고서 원본을 선택해주세요.");
+    throw new Error("오아 앱에서 저장한 긴 건강 리포트 전체 이미지를 선택해주세요.");
   }
-
   const { createWorker, PSM } = await import("tesseract.js");
   const worker = await createWorker("eng");
   const values: Partial<Record<NumericKey, number>> = {};
-  let detectedDate: string | undefined;
-
   try {
-    await worker.setParameters({
-      tessedit_pageseg_mode: PSM.SINGLE_LINE,
-      tessedit_char_whitelist: "0123456789.-%kg",
-    });
-
-    const header = makeCrop(image, 0.035, "header");
-    const headerResult = await worker.recognize(header);
-    const dateMatch = headerResult.data.text.match(
-      /(20\d{2})\D+(\d{1,2})\D+(\d{1,2})/,
-    );
-    if (dateMatch) {
-      detectedDate = `${dateMatch[1]}-${dateMatch[2].padStart(2, "0")}-${dateMatch[3].padStart(2, "0")}`;
-    }
-
+    // The top contains multiple lines (account, date and time), not one line.
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT, tessedit_char_whitelist: "" });
+    const headerResult = await worker.recognize(makeCrop(image, 0.04, "header"));
+    const detectedDate = dateFromText(headerResult.data.text);
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE, tessedit_char_whitelist: "" });
     for (let index = 0; index < REPORT_ROWS.length; index += 1) {
       const row = REPORT_ROWS[index];
-      const kind =
-        index <= 1
-          ? "score"
-          : index === 9
-            ? "age"
-            : index === 10
-              ? "plainValue"
-              : index >= 16
-                ? "segment"
-                : "value";
-      const result = await worker.recognize(makeCrop(image, row.centerY, kind));
-      const value = numberFromText(result.data.text, row);
-      if (value !== undefined) values[row.key] = value;
+      // This report uses an age category; do not convert its leading digits to years.
+      if (row.key !== "bodyAge") {
+        const kind = index <= 1 ? "score" : index === 10 ? "plainValue" : index >= 16 ? "segment" : "value";
+        const reads = [];
+        for (const variant of [false, true]) {
+          const result = await worker.recognize(makeCrop(image, row.centerY, kind, variant));
+          reads.push({ text: result.data.text, confidence: result.data.confidence });
+        }
+        const value = agreedNumber(reads, row);
+        if (value !== undefined) values[row.key] = value;
+      }
       onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
     }
-
-    // 서로 직접 환산되는 값은 OCR 앞자리 누락을 교정한다.
-    // 원본 숫자가 모두 읽힌 경우에만 적용해 사용자의 실제 측정값을 보존한다.
-    if (values.weight && values.fatMass) {
-      const derived = Number(((values.fatMass / values.weight) * 100).toFixed(1));
-      if (
-        values.bodyFatPercent === undefined ||
-        Math.abs(values.bodyFatPercent - derived) > 1
-      ) {
-        values.bodyFatPercent = derived;
-      }
-    }
-    if (values.weight && values.muscleMass) {
-      const derived = Number(
-        ((values.muscleMass / values.weight) * 100).toFixed(1),
-      );
-      if (
-        values.musclePercent === undefined ||
-        Math.abs(values.musclePercent - derived) > 1
-      ) {
-        values.musclePercent = derived;
-      }
-    }
-
-    return {
-      values,
-      detectedDate,
-      recognizedCount: Object.keys(values).length,
-    };
+    // Do not invent decimals or replace observations with derived percentages.
+    return { values, detectedDate, recognizedCount: Object.keys(values).length,
+      reviewKeys: REPORT_ROWS.filter(row => values[row.key] === undefined).map(row => row.key) };
   } finally {
     await worker.terminate();
   }

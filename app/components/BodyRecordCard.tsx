@@ -290,23 +290,19 @@ export default function BodyRecordCard({
     try {
       const result = await parseOaReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); });
       if (!isCurrent()) return;
-      if (!result.recognizedCount)
-        throw new Error("보고서의 숫자를 읽지 못했습니다. 원본 이미지를 다시 선택해주세요.");
+      const validEntries = Object.entries(result.values).filter(([, value]) => typeof value === "number" && Number.isFinite(value));
+      const recognizedCount = validEntries.length;
       const measuredDate = result.detectedDate && validMeasurementDate(result.detectedDate, getLocalDateKey()) ? result.detectedDate : "";
       const baseline = bodyForm(weights, inbody, originDate);
       const sameDayEdits = measuredDate === originDate
         ? Object.fromEntries(Object.entries(form).filter(([key, value]) => value !== (baseline[key] || "")))
         : {};
-      setDraft({ date: measuredDate, owner, patch: { ...sameDayEdits, ...Object.fromEntries(Object.entries(result.values).map(([key, value]) => [key, String(value)])) } });
+      setDraft({ date: measuredDate, owner, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])) } });
       setRecordMessage("");
-      const dateNotice =
-        result.detectedDate && result.detectedDate !== dateKey
-          ? ` 보고서에서 읽은 날짜: ${result.detectedDate}. 실제 측정일을 확인해 주세요.`
-          : "";
+      const reviewLabels = (result.reviewKeys || []).map(key => key === "weight" ? "체중" : inbodyFields.find(field => field.key === key)?.label || key);
       setImportMessage(
-        result.recognizedCount < 20
-          ? `${result.recognizedCount}개 항목을 채웠습니다. 일부 항목은 인식하지 못했으니 빈칸을 확인해주세요.${dateNotice}`
-          : `${result.recognizedCount}개 항목을 채웠습니다.${dateNotice} 값을 확인한 뒤 통합 저장을 눌러주세요.`,
+        `숫자 후보 ${recognizedCount}개를 가져왔습니다. 정확성을 보장하지 않으므로 원본과 대조하세요. ${measuredDate ? "측정 날짜도 확인하세요." : "측정 날짜를 읽지 못했습니다. 직접 입력하세요."}` +
+        (reviewLabels.length ? ` 검토 필요: ${reviewLabels.join(", ")}. 인식하지 못한 항목은 새 값을 채우지 않으며 기존 기록은 유지합니다. 신체연령 범주는 자동 숫자화하지 않습니다.` : "")
       );
     } catch (error) {
       if (!isCurrent()) return;
