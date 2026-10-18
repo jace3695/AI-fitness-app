@@ -1,9 +1,11 @@
 import type { InbodyRecord } from "../data/recordStorage";
 
 type NumericKey = Exclude<keyof InbodyRecord, "memo"> | "weight";
+type OaOnlyKey = "oaBodyMuscleMass" | "oaBodyFatMass";
+export type OaDraftMeasurement = { source: "OA"; label: string; value: number; unit: "kg" };
 
 type ReportRow = {
-  key: NumericKey;
+  key: NumericKey | OaOnlyKey;
   centerY: number;
   min: number;
   max: number;
@@ -30,12 +32,12 @@ const REPORT_ROWS: ReportRow[] = [
   // 0.75 위치의 표준 체중은 현재 기록 필드에 없으므로 건너뛴다.
   { key: "leftArmFatMass", centerY: 0.7725, min: 0.1, max: 30, decimals: true },
   { key: "rightArmFatMass", centerY: 0.7954, min: 0.1, max: 30, decimals: true },
-  { key: "bodyFatMass", centerY: 0.818, min: 0.1, max: 80, decimals: true },
+  { key: "oaBodyFatMass", centerY: 0.818, min: 0.1, max: 80, decimals: true },
   { key: "leftLegFatMass", centerY: 0.8403, min: 0.1, max: 50, decimals: true },
   { key: "rightLegFatMass", centerY: 0.8628, min: 0.1, max: 50, decimals: true },
   { key: "leftArmMuscleMass", centerY: 0.8853, min: 0.1, max: 30, decimals: true },
   { key: "rightArmMuscleMass", centerY: 0.9082, min: 0.1, max: 30, decimals: true },
-  { key: "skeletalMuscleMass", centerY: 0.9307, min: 1, max: 100, decimals: true },
+  { key: "oaBodyMuscleMass", centerY: 0.9307, min: 1, max: 100, decimals: true },
   { key: "leftLegMuscleMass", centerY: 0.9536, min: 0.1, max: 50, decimals: true },
   { key: "rightLegMuscleMass", centerY: 0.9761, min: 0.1, max: 50, decimals: true },
 ];
@@ -45,7 +47,18 @@ export type OaReportResult = {
   detectedDate?: string;
   recognizedCount: number;
   reviewKeys?: NumericKey[];
+  unmappedMeasurements?: OaDraftMeasurement[];
 };
+
+/** Numeric transcription does not establish equivalence to a clinical metric. */
+export function mapOaMeasurements(transcribed: Partial<Record<NumericKey | OaOnlyKey, number>>) {
+  const { oaBodyMuscleMass, oaBodyFatMass, skeletalMuscleMass: _skeletal, bodyFatMass: _fat, ...values } = transcribed;
+  void _skeletal; void _fat;
+  const unmappedMeasurements: OaDraftMeasurement[] = [];
+  if (oaBodyMuscleMass !== undefined) unmappedMeasurements.push({ source: "OA", label: "신체 근육량", value: oaBodyMuscleMass, unit: "kg" });
+  if (oaBodyFatMass !== undefined) unmappedMeasurements.push({ source: "OA", label: "체지방량", value: oaBodyFatMass, unit: "kg" });
+  return { values, unmappedMeasurements };
+}
 
 function loadImage(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -252,7 +265,7 @@ export async function parseOaReport(
   }
   const { createWorker, PSM } = await import("tesseract.js");
   const worker = await createWorker("eng");
-  const values: Partial<Record<NumericKey, number>> = {};
+  const transcribed: Partial<Record<NumericKey | OaOnlyKey, number>> = {};
   try {
     // The top contains multiple lines (account, date and time), not one line.
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT, tessedit_char_whitelist: "" });
@@ -270,13 +283,14 @@ export async function parseOaReport(
           reads.push({ text: result.data.text, confidence: result.data.confidence });
         }
         const value = agreedNumber(reads, row);
-        if (value !== undefined) values[row.key] = value;
+        if (value !== undefined) transcribed[row.key] = value;
       }
       onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
     }
     // Do not invent decimals or replace observations with derived percentages.
-    return { values, detectedDate, recognizedCount: Object.keys(values).length,
-      reviewKeys: REPORT_ROWS.filter(row => values[row.key] === undefined).map(row => row.key) };
+    const { values, unmappedMeasurements } = mapOaMeasurements(transcribed);
+    return { values, unmappedMeasurements, detectedDate, recognizedCount: Object.keys(transcribed).length,
+      reviewKeys: REPORT_ROWS.filter(row => row.key !== "oaBodyMuscleMass" && row.key !== "oaBodyFatMass" && transcribed[row.key] === undefined).map(row => row.key as NumericKey) };
   } finally {
     await worker.terminate();
   }

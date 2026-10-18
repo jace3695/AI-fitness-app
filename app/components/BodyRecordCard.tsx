@@ -12,7 +12,7 @@ import {
   writeJson,
   readJson,
 } from "../data/recordStorage";
-import { parseOaReport } from "../lib/oaReportParser";
+import { parseOaReport, type OaDraftMeasurement } from "../lib/oaReportParser";
 import { bodyForm, bodyImportOwner, mergeBodyImport, validMeasurementDate } from "../lib/bodyImport";
 import { getLocalDateKey } from "../data/dietPlans";
 import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransaction";
@@ -107,7 +107,7 @@ export default function BodyRecordCard({
   const [form, setForm] = useState<Record<string, string>>({});
   const manualEdit = useRef({ date: dateKey, dirty: false });
   const [manualDirty, setManualDirty] = useState(false);
-  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string } | null>(null);
+  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[] } | null>(null);
   useUnsavedChanges(Boolean(draft) || manualDirty);
   const importVersion = useRef(0);
   const activeDate = useRef(dateKey);
@@ -309,13 +309,14 @@ export default function BodyRecordCard({
       const result = await parseOaReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); });
       if (!isCurrent()) return;
       const validEntries = Object.entries(result.values).filter(([, value]) => typeof value === "number" && Number.isFinite(value));
-      const recognizedCount = validEntries.length;
+      const unmappedMeasurements = result.unmappedMeasurements || [];
+      const recognizedCount = validEntries.length + unmappedMeasurements.length;
       const measuredDate = result.detectedDate && validMeasurementDate(result.detectedDate, getLocalDateKey()) ? result.detectedDate : "";
       const baseline = bodyForm(weights, inbody, originDate);
       const sameDayEdits = measuredDate === originDate
         ? Object.fromEntries(Object.entries(form).filter(([key, value]) => value !== (baseline[key] || "")))
         : {};
-      setDraft({ date: measuredDate, owner, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])) } });
+      setDraft({ date: measuredDate, owner, unmappedMeasurements, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])) } });
       setRecordMessage("");
       const reviewLabels = (result.reviewKeys || []).map(key => key === "weight" ? "체중" : inbodyFields.find(field => field.key === key)?.label || key);
       setImportMessage(
@@ -405,6 +406,12 @@ export default function BodyRecordCard({
         )}
       </div>
       {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
+        {draft.unmappedMeasurements.length > 0 && <aside aria-label="OA 원문 참고값" className="mb-3 rounded border border-amber-300 bg-amber-50 p-3">
+          <p className="font-bold">OA 원문 참고값 · 이번 기록에는 저장하지 않아요</p>
+          <p className="text-sm">아래 값은 앱 항목과 뜻이 같은지 확인되지 않았어요. 골격근량이나 일반 체지방량으로 옮기지 않으며, 변화 평가에도 사용하지 않아요. 저장하거나 취소하면 이 참고 표시는 사라져요.</p>
+          <ul>{draft.unmappedMeasurements.map(item => <li key={item.label}>{item.source} · {item.label}: {item.value} {item.unit}</li>)}</ul>
+          <p className="text-sm">아래 골격근량·체지방량 칸에 기존 기록이 보이면 이번 사진에서 읽은 값이 아니에요.</p>
+        </aside>}
         <p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
         <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
         <label className="mt-2 block">측정 날짜<input aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>

@@ -60,3 +60,22 @@ test("항목 허용 범위를 벗어난 OCR 값은 저장 후보에서 제외한
     undefined,
   );
 });
+
+import { mapOaMeasurements } from './oaReportParser.ts';
+import { mergeBodyImport } from './bodyImport.ts';
+
+test('OA numeric transcription accepts a number without assigning clinical meaning', () => {
+  assert.equal(agreedNumber([{text:'27.4kg',confidence:95},{text:'27.4kg',confidence:94}], {key:'oaBodyMuscleMass',centerY:0,min:1,max:100,decimals:true}),27.4);
+});
+
+test('OA ambiguous source rows remain draft-only; existing manual metrics survive save', () => {
+  const mapped = mapOaMeasurements({oaBodyMuscleMass:27.4,oaBodyFatMass:11.8,fatMass:22.6,muscleMass:54.3});
+  assert.deepEqual(mapped.values,{fatMass:22.6,muscleMass:54.3});
+  assert.deepEqual(mapped.unmappedMeasurements,[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]);
+  const old = {'2025-04-07':{skeletalMuscleMass:31.7,bodyFatMass:20.3,memo:'manual fixture'}};
+  const patch = Object.fromEntries(Object.entries(mapped.values).map(([k,v])=>[k,String(v)]));
+  const saved = mergeBodyImport({},old,'2025-04-07',patch,'2026-10-18');
+  assert.deepEqual(saved.inbody['2025-04-07'],{...old['2025-04-07'],fatMass:22.6,muscleMass:54.3});
+  assert.deepEqual(old['2025-04-07'],{skeletalMuscleMass:31.7,bodyFatMass:20.3,memo:'manual fixture'});
+  assert.deepEqual(mapOaMeasurements({skeletalMuscleMass:27.4,bodyFatMass:11.8}).values,{});
+});

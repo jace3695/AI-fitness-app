@@ -209,8 +209,10 @@ try {
    writeFileSync(resolve(output,clearDecimal?'real-ocr-clear-result.json':'real-ocr-result.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result));
  } else {
  const upload=async(result)=>{ await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')}); await page.waitForFunction(()=>typeof window.resolveOcr==='function'); if(result) await page.evaluate(r=>window.resolveOcr(r),result); };
- const result={detectedDate:'2026-10-01',values:{weight:79.2,bmi:23},recognizedCount:2};
+ const result={detectedDate:'2026-10-01',values:{weight:79.2,bmi:23},recognizedCount:4,unmappedMeasurements:[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]};
  await upload(result);
+ assert.ok(await page.getByLabel('OA 원문 참고값').isVisible());
+ assert.equal(await page.getByLabel('골격근량',{exact:false}).inputValue(),'');
  await page.getByLabel('측정 날짜',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-01');
  await page.getByRole('button',{name:'달력 다른 날짜'}).click();
@@ -247,6 +249,8 @@ try {
  assert.equal(await page.getByLabel('측정 날짜',{exact:true}).count(),0);
  checks.push('late OCR discarded after session change');
  await upload(result);
+ assert.ok(await page.getByLabel('OA 원문 참고값').isVisible());
+ assert.equal(await page.getByLabel('골격근량',{exact:false}).inputValue(),'');
  const other=await page.context().newPage(); await other.goto(origin);
  await other.evaluate(()=>localStorage.setItem('fitness-cloud-sync-user','fixture-C'));
  await page.getByLabel('측정 날짜',{exact:true}).waitFor({state:'detached'});

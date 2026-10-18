@@ -7,7 +7,7 @@ import { resolve, isAbsolute, extname } from 'node:path';
 import assert from 'node:assert/strict';
 
 const mode = process.argv[2] || 'clean';
-if (!['clean', 'labels', 'badges', 'score-limit', 'score-decimal', 'low-resolution', 'private-local'].includes(mode)) throw Error('Choose clean, labels, badges, score-limit, low-resolution or private-local');
+if (!['clean', 'labels', 'badges', 'score-limit', 'score-decimal', 'semantic-mapping', 'low-resolution', 'private-local'].includes(mode)) throw Error('Choose clean, labels, badges, score-limit, low-resolution or private-local');
 const privateInput = mode === 'private-local';
 const privatePath = process.env.OA_LOCAL_IMAGE;
 const expected = privateInput && process.env.OA_EXPECTED_JSON ? JSON.parse(readFileSync(process.env.OA_EXPECTED_JSON, 'utf8')) : null;
@@ -65,14 +65,31 @@ try {
     if (mode === 'private-local') {
       const parsed = await window.parseReport(document.querySelector('input').files[0]);
       // Never return health values, raw OCR strings, dates or image bytes to the host log.
+      const transcription = {...parsed.values};
+      for (const item of parsed.unmappedMeasurements || []) transcription[item.label === '신체 근육량' ? 'skeletalMuscleMass' : 'bodyFatMass'] = item.value;
+      // Legacy expectation keys identify source rows only here, never storage semantics.
       const comparison = expected ? {
         dateMatches: parsed.detectedDate === expected.date,
-        matched: Object.keys(expected.values).filter(key => parsed.values[key] === expected.values[key]),
-        mismatched: Object.keys(expected.values).filter(key => parsed.values[key] !== undefined && parsed.values[key] !== expected.values[key]),
-        missing: Object.keys(expected.values).filter(key => parsed.values[key] === undefined),
-        unexpected: Object.keys(parsed.values).filter(key => !(key in expected.values)),
+        matched: Object.keys(expected.values).filter(key => transcription[key] === expected.values[key]),
+        mismatched: Object.keys(expected.values).filter(key => transcription[key] !== undefined && transcription[key] !== expected.values[key]),
+        missing: Object.keys(expected.values).filter(key => transcription[key] === undefined),
+        unexpected: Object.keys(transcription).filter(key => !(key in expected.values)),
+      } : undefined;
+      const storageKeys = expected ? Object.keys(expected.values).filter(key => !['skeletalMuscleMass', 'bodyFatMass'].includes(key)) : [];
+      const storageComparison = expected ? {
+        expectedCount: storageKeys.length,
+        actualCount: Object.keys(parsed.values).length,
+        matchedCount: storageKeys.filter(key => parsed.values[key] === expected.values[key]).length,
+        unexpectedCount: Object.keys(parsed.values).filter(key => !storageKeys.includes(key)).length,
+      } : undefined;
+      const referenceComparison = expected ? {
+        actualCount: (parsed.unmappedMeasurements || []).length,
+        matchedCount: [['신체 근육량', 'skeletalMuscleMass'], ['체지방량', 'bodyFatMass']].filter(([label, key]) =>
+          (parsed.unmappedMeasurements || []).filter(item => item.source === 'OA' && item.label === label && item.unit === 'kg' && item.value === expected.values[key]).length === 1).length,
       } : undefined;
       return { recognizedCount: parsed.recognizedCount, dateRecognized: !!parsed.detectedDate, comparison,
+        storageComparison, referenceComparison,
+        semanticMappingSafe: parsed.values.skeletalMuscleMass === undefined && parsed.values.bodyFatMass === undefined,
         rows: window.ocrDiagnostics.map(row => ({ key: row.key, accepted: row.accepted !== null,
           agreement: row.agreement, reads: row.reads.map(read => ({confidence: read.confidence, confidencePassed: read.confidencePassed, parseable: read.numeric !== null, rejection: read.rejection})) })) };
     }
@@ -87,6 +104,7 @@ try {
     ctx.fillText('2025-04-07 08:12:34', canvas.width * .1, canvas.height * .04);
     ctx.fillStyle = low ? '#bababa' : 'black';
     const rows = [ ['83.0', .08, .105], [mode === 'score-limit' ? '100' : mode === 'score-decimal' ? '9.5' : '76', mode === 'score-limit' ? .12 : .08, .402], ['24.5', .65, .479], ['9', .76, .5693] ];
+    if (mode === 'semantic-mapping') rows.push(['11.8', .72, .818], ['27.4', .72, .9307]);
     for (const [text, x, y] of rows) {
       ctx.font = low ? (y < .45 ? '26px Arial' : '12px Arial') : '65px Arial';
       ctx.fillText(text, canvas.width * x, canvas.height * y);
@@ -100,17 +118,24 @@ try {
     }
     const blob = await new Promise(r => canvas.toBlob(r));
     const parsed = await window.parseReport(new File([blob], 'synthetic.png', { type: 'image/png' }));
-    return { recognizedCount: parsed.recognizedCount, dateRecognized: !!parsed.detectedDate, rows: window.ocrDiagnostics.filter(r => ['weight', 'bodyScore', 'bmi', 'visceralFatLevel'].includes(r.key)) };
+    return { recognizedCount: parsed.recognizedCount, dateRecognized: !!parsed.detectedDate, values: parsed.values, unmappedMeasurements: parsed.unmappedMeasurements, rows: window.ocrDiagnostics.filter(r => ['weight', 'bodyScore', 'bmi', 'visceralFatLevel'].includes(r.key)) };
   }, {mode, expected});
   const report = { mode, syntheticOnly: !privateInput, externalRequestsSent: 0, blockedRequests: blocked.length, ...result };
   writeFileSync(resolve(output, `${mode}.json`), JSON.stringify(report, null, 2));
   if (!privateInput) {
     assert.equal(result.dateRecognized, true);
-    assert.equal(result.recognizedCount, { clean: 4, labels: 2, badges: 3, 'score-limit': 4, 'score-decimal': 4, 'low-resolution': 2 }[mode]);
+    assert.equal(result.recognizedCount, { clean: 4, labels: 2, badges: 3, 'score-limit': 4, 'score-decimal': 4, 'semantic-mapping': 6, 'low-resolution': 2 }[mode]);
     if (mode === 'score-decimal') assert.equal(result.rows.find(row => row.key === 'bodyScore').accepted, 9.5);
     if (mode === 'score-limit') assert.equal(result.rows.find(row => row.key === 'bodyScore').accepted, 100);
   }
-  if (privateInput && expected) { assert.equal(result.comparison.dateMatches, true); for (const key of ['mismatched', 'missing', 'unexpected']) assert.deepEqual(result.comparison[key], []); }
+  if (mode === 'semantic-mapping') { assert.equal(result.values.skeletalMuscleMass, undefined); assert.equal(result.values.bodyFatMass, undefined); assert.deepEqual(result.unmappedMeasurements.map(item => [item.source,item.label,item.value]), [['OA','신체 근육량',27.4],['OA','체지방량',11.8]]); }
+  if (privateInput && expected) {
+    assert.equal(result.semanticMappingSafe, true);
+    assert.equal(result.comparison.dateMatches, true);
+    for (const key of ['mismatched', 'missing', 'unexpected']) assert.deepEqual(result.comparison[key], []);
+    assert.deepEqual(result.storageComparison, {expectedCount:23,actualCount:23,matchedCount:23,unexpectedCount:0});
+    assert.deepEqual(result.referenceComparison, {actualCount:2,matchedCount:2});
+  }
   if (mode === 'badges') { const row = result.rows.find(row => row.key === 'visceralFatLevel'); assert.equal(row.accepted, null); assert.ok(row.reads.some(read => read.rejection === 'confidence-below-60')); }
   if (mode === 'labels') {
     for (const row of result.rows.filter(row => ['bmi', 'visceralFatLevel'].includes(row.key))) for (const read of row.reads) {
