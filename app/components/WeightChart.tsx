@@ -35,7 +35,7 @@ function directionLabel(direction: ChangeDirection) {
 }
 
 function metricLabel(metric: MetricChange, unit: string) {
-  if (metric.change === undefined) return metric.comparisonNote || "비교 기록 부족";
+  if (metric.change === undefined) return metric.latest === undefined ? "기록 없음" : metric.previous === undefined ? "비교 자료 부족" : "최근 비교 자료 부족";
   return `${signed(metric.change, unit)} · ${directionLabel(metric.direction)}${metric.sourceVerified ? "" : " · 출처 미확인"}`;
 }
 
@@ -422,9 +422,6 @@ export default function WeightChart({
           </p>
         )}
       </details>
-      <p className="mt-3 text-[10px] leading-4 text-gray-400">
-        인바디의 작은 변화는 수분·식사·측정 시간에 따라 달라질 수 있어 체지방률 ±0.3%p, 골격근량 ±0.2kg 이내는 유지로 표시합니다.
-      </p>
     </section>
   );
 }
