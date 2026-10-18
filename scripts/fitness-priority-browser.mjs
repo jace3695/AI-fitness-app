@@ -2,7 +2,7 @@ import { OA_REPORT_INVENTORY } from '../app/lib/oaReportInventory.ts';
 // Local component regression harness: synthetic records and a deferred OCR fixture.
 // No authenticated app, real health data, remote API, or OCR accuracy claims.
 import { build } from './browser-qa/node_modules/esbuild/lib/main.js';
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { createServer } from 'node:http';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -82,13 +82,13 @@ try {
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
  if(bodyAnalysis) {
-   await page.evaluate(()=>{const source={device:'OA Smart Scale PRO',originalLabel:'근육량',originalUnit:'kg',method:'ocr',mappingVersion:'oa-pro-v1'};localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2025-03-01':{skeletalMuscleMass:31},'2025-03-08':{skeletalMuscleMass:30},'2025-04-01':{muscleMass:51,musclePercent:60,fatMass:21,bodyFatPercent:25,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}},'2025-04-08':{muscleMass:50,musclePercent:61,fatMass:20,bodyFatPercent:24,reportedBodyAge:37,reportedBodyAgeUnit:'연령 단위',bodyAge:52,bodyFatMass:19,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}}}));localStorage.setItem('ai-fitness-weight-records',JSON.stringify({'2025-04-01':{weight:78,recordedAt:''},'2025-04-08':{weight:77,recordedAt:''}}));});
+   await page.evaluate(()=>{const source={device:'OA Smart Scale PRO',originalLabel:'근육량',originalUnit:'kg',method:'ocr',mappingVersion:'oa-pro-v1'};localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2025-03-01':{skeletalMuscleMass:31},'2025-03-08':{skeletalMuscleMass:30},'2025-04-01':{muscleMass:51,musclePercent:60,fatMass:21,bodyFatPercent:25,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}},'2025-04-08':{muscleMass:50,musclePercent:61,trunkFatMass:9.7,fatMass:20,bodyFatPercent:24,reportedBodyAge:37,reportedBodyAgeUnit:'연령 단위',bodyAge:52,bodyFatMass:19,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}}}));localStorage.setItem('ai-fitness-weight-records',JSON.stringify({'2025-04-01':{weight:78,recordedAt:''},'2025-04-08':{weight:77,recordedAt:''}}));});
    await page.reload();
    const snapshot=()=>page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));const before=await snapshot();
    assert.equal(await page.getByLabel('전체 근육량 (원문: 근육량)',{exact:false}).and(page.locator('input')).inputValue(),'50');
    assert.equal(await page.getByLabel('전체 지방량 (원문: 지방량)',{exact:false}).and(page.locator('input')).inputValue(),'20');
    const legacy=page.locator('details').filter({has:page.locator('summary').filter({hasText:'다른 기기·직접 입력 (기존 기록)'})});
-   assert.equal(await legacy.getAttribute('open'),null);await legacy.locator('summary').click();
+   assert.notEqual(await legacy.getAttribute('open'),null);
    assert.equal(await page.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).and(page.locator('input')).inputValue(),'52');
    assert.equal(await page.getByLabel('체지방량 (다른 기기·직접 입력)',{exact:false}).and(page.locator('input')).inputValue(),'19');
    assert.equal(await page.getByLabel('신체연령 원문 숫자',{exact:true}).inputValue(),'37');
@@ -108,7 +108,42 @@ try {
    await trend.screenshot({path:resolve(output,'whole-muscle-trend-mobile.png')});
    assert.equal(await snapshot(),before);
    await page.screenshot({path:resolve(output,'body-analysis-mobile.png'),fullPage:true});assert.deepEqual(errors,[]);
-   console.log(JSON.stringify({passed:10,checks:['OA whole-body fields are distinct','legacy manual values retained in separate group','raw age and unit retained','stale skeletal history does not trigger current loss or preservation claims','four distinct raw metric charts','390px no overflow and no storage mutations','kg trend works without current skeletal data','percent rise with kg fall marked divergent','unknown conditions and water effects explicit','comparison criteria visible without writes']}));
+   const groups=page.locator('[data-body-group]');
+   const legacyGroup=page.locator('[data-body-group="다른 기기·직접 입력 (기존 기록)"]');
+   for(const key of ['bodyFatMass','bodyAge','skeletalMuscleMass']) {
+     assert.equal(await groups.locator('[data-body-field="'+key+'"]').count(),1);
+     assert.equal(await legacyGroup.locator('[data-body-field="'+key+'"]').count(),1);
+     assert.equal(await page.locator('[data-body-group]:not([data-body-group="다른 기기·직접 입력 (기존 기록)"]) [data-body-field="'+key+'"]').count(),0);
+   }
+   assert.equal(await page.getByLabel('신체연령 원문',{exact:true}).count(),1);
+   assert.equal(await page.getByLabel('신체연령 원문',{exact:true}).textContent(),'37 연령 단위');
+   assert.ok(await page.getByLabel('신체연령 원문',{exact:true}).isVisible());
+   assert.equal(await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).inputValue(),'9.7');
+   assert.ok(await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).isVisible());
+   assert.equal(await page.getByLabel('신체연령 원문 숫자',{exact:true}).isVisible(),false);
+   assert.equal(await snapshot(),before);
+   await page.evaluate(()=>{const key='ai-fitness-inbody-records';const data=JSON.parse(localStorage.getItem(key));delete data['2025-04-08'].bodyAge;delete data['2025-04-08'].bodyFatMass;localStorage.setItem(key,JSON.stringify(data));});
+   await page.reload();const emptyLegacySnapshot=await snapshot();
+   assert.equal(await legacyGroup.getAttribute('open'),null);
+   assert.equal(await legacyGroup.locator('input:visible').count(),0);
+   assert.equal(await snapshot(),emptyLegacySnapshot);
+   await page.locator('[data-body-field="reportedBodyAge"] summary').click();
+   await page.getByLabel('신체연령 원문 숫자',{exact:true}).fill('38');
+   assert.equal(await page.getByLabel('신체연령 원문',{exact:true}).textContent(),'38 연령 단위');
+   await page.getByRole('button',{name:'체중·인바디 저장',exact:true}).click();await page.reload();
+   const edited=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2025-04-08']);
+   assert.equal(edited.reportedBodyAge,38);assert.equal(edited.reportedBodyAgeUnit,'연령 단위');assert.equal(edited.trunkFatMass,9.7);assert.equal(edited.bodyAge,undefined);assert.equal(edited.bodyFatMass,undefined);
+   await page.locator('[data-body-group="대사·종합 지표"]').screenshot({path:resolve(output,'oa-age-unified.png')});
+   await page.locator('[data-body-group="부위별 지방량"]').screenshot({path:resolve(output,'oa-fat-original.png')});
+   await page.evaluate(()=>localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2025-04-08':{bodyAge:52,bodyFatMass:19,skeletalMuscleMass:31}})));
+   await page.reload();
+   assert.ok(await legacyGroup.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).isVisible());
+   await legacyGroup.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).fill('53');
+   await page.getByRole('button',{name:'체중·인바디 저장',exact:true}).click();await page.reload();
+   const manual=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2025-04-08']);
+   assert.equal(manual.bodyAge,53);assert.equal(manual.bodyFatMass,19);assert.equal(manual.skeletalMuscleMass,31);assert.equal(manual.reportedBodyAge,undefined);
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({passed:18,checks:['OA whole-body fields are distinct','legacy manual values retained in separate group','raw age and unit retained','stale skeletal history does not trigger current loss or preservation claims','four distinct raw metric charts','390px no overflow and no storage mutations','kg trend works without current skeletal data','percent rise with kg fall marked divergent','unknown conditions and water effects explicit','comparison criteria visible without writes','legacy fields render only once in separate group','no legacy fields in OA main groups','raw age renders as one visible value with unit','raw age editing saves and reloads without legacy conversion','source body fat label shows trunk value','empty legacy inputs remain out of default OA view','populated legacy values remain visible and editable','non-OA manual edit and reload preserve all fields']}));
  } else if(lateProCheck) {
    const checkbox=page.getByRole('checkbox',{name:'사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.'});
    const snapshot=()=>page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));
@@ -125,7 +160,7 @@ try {
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-13');
    await checkbox.check();
    assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).and(page.locator('input')).inputValue(),'27.4');
-   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).and(page.locator('input')).inputValue(),'11.8');
+   assert.equal(await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).and(page.locator('input')).inputValue(),'11.8');
    assert.ok(await page.getByText('저장 후보 30개',{exact:false}).isVisible());
    assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-13');
    assert.equal(await snapshot(),before);
@@ -133,14 +168,14 @@ try {
    assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).and(page.locator('input')).inputValue(),'');
    await checkbox.check();
    await page.getByLabel('몸통 근육량',{exact:false}).fill('28.2');
-   await page.getByLabel('몸통 지방량',{exact:false}).fill('');
+   await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).fill('');
    await checkbox.uncheck();
    assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).and(page.locator('input')).inputValue(),'28.2');
-   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).and(page.locator('input')).inputValue(),'');
-   await page.getByLabel('몸통 지방량',{exact:false}).fill('');
+   assert.equal(await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).and(page.locator('input')).inputValue(),'');
+   await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).fill('');
    await checkbox.check();
    assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).and(page.locator('input')).inputValue(),'28.2');
-   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).and(page.locator('input')).inputValue(),'');
+   assert.equal(await page.getByLabel('체지방량 (몸통 항목)',{exact:false}).and(page.locator('input')).inputValue(),'');
    assert.equal(await snapshot(),before);
    await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-13']);
@@ -319,7 +354,7 @@ try {
    const ocrSaved=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']); const {metricSources,...ocrFields}=ocrSaved; assert.deepEqual(ocrFields,{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5,bodyScore:76,visceralFatLevel:9,measurementTime:'08:12:34'}); assert.equal(metricSources.measurementDate.method,'ocr-edited'); assert.equal(metricSources.weight.method,'ocr-edited');
    await page.locator('[data-testid="record-shared-calendar"] > details > summary').click();
    await page.locator('button').filter({has:page.locator('span').filter({hasText:/^2$/})}).first().click();
-   assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'82.7');
+   await expect(page.locator('input[inputmode=decimal]').first()).toHaveValue('82.7');
    await page.screenshot({path:resolve(output,'real-calendar-ocr.png'),fullPage:true});
    assert.deepEqual(errors,[]);
    const result={passed:1,scope:'Actual RecordCalendarView + browser image/canvas + OA parser/Tesseract worker and model; date/value edit, existing-record confirmation, memo preservation, save, reload and calendar re-query. Synthetic OA-layout image only, not real report accuracy.',assetRequests,externalRequestsSent:0};

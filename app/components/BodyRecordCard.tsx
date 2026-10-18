@@ -36,7 +36,6 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
       { key: "bmi", label: "BMI", unit: "" },
       { key: "bodyFatPercent", label: "체지방률", unit: "%" },
       { key: "fatMass", label: "전체 지방량 (원문: 지방량)", unit: "kg" },
-      { key: "skeletalMuscleMass", label: "골격근량", unit: "kg" },
       { key: "muscleMass", label: "전체 근육량 (원문: 근육량)", unit: "kg" },
       { key: "musclePercent", label: "근육률", unit: "%" },
       { key: "visceralFatLevel", label: "내장 지방 지수", unit: "" },
@@ -46,7 +45,6 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
     title: "체성분 상세",
     description: "지방·수분·단백질과 제지방 구성",
     fields: [
-      { key: "bodyFatMass", label: "체지방량", unit: "kg" },
       { key: "subcutaneousFatMass", label: "피하지방량", unit: "kg" },
       { key: "subcutaneousFatPercent", label: "피하지방률", unit: "%" },
       { key: "fatFreeMass", label: "무지방 체중", unit: "kg" },
@@ -60,7 +58,6 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
     description: "기초대사와 기기에서 산출한 종합 결과",
     fields: [
       { key: "basalMetabolicRate", label: "기초대사량", unit: "kcal" },
-      { key: "bodyAge", label: "신체연령", unit: "세" },
       { key: "bodyScore", label: "점수", unit: "점" },
       { key: "standardWeight", label: "표준 체중", unit: "kg" },
       { key: "reportedBodyAge", label: "신체연령 원문 숫자", unit: "" },
@@ -191,6 +188,9 @@ export default function BodyRecordCard({
       : null;
   const hasRecord = Boolean(currentWeight || currentInbody);
   const visibleForm = draft ? { ...bodyForm(weights, inbody, draft.date), ...draft.patch } : form;
+  const isOaRecord = Boolean(draft) || Object.values(currentInbody?.metricSources || {}).some(source => source?.device === 'OA Smart Scale PRO' || source?.device === 'OA long report');
+  const legacyHasValues = ['skeletalMuscleMass', 'bodyFatMass', 'bodyAge'].some(key => Boolean(visibleForm[key]?.trim()));
+
   const editField = (key: string, value: string) => {
     if (draft) {
       const metricSources = { ...draft.metricSources };
@@ -486,11 +486,12 @@ export default function BodyRecordCard({
           </b>
         </p>
       )}
-      <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm">OA 원문의 전체 근육량·전체 지방량은 아래에, 몸통 값은 부위별 항목에 있어요. 골격근량은 이 보고서에 미제공이므로 평가할 수 없어요. 다른 기기·직접 입력의 과거 값은 보존합니다. 신체연령 원문 숫자와 단위는 대사·종합 지표에서 함께 확인하세요.</p><div className="mt-3 space-y-2">
+      {isOaRecord && <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm">OA 원문의 전체 근육량·전체 지방량은 아래에, 몸통 값은 부위별 항목에 있어요. 골격근량은 이 보고서에 미제공이므로 평가할 수 없어요. 다른 기기·직접 입력의 과거 값은 보존합니다. 신체연령은 대사·종합 지표에서 원문 단위와 함께 확인하세요.</p>}<div className="mt-3 space-y-2">
         {fieldGroups.map((group, groupIndex) => (
           <details
             key={group.title}
-            open={groupIndex === 0 || Boolean(draft && groupIndex < fieldGroups.length - 1)}
+            data-body-group={group.title}
+            open={groupIndex === 0 || (groupIndex === fieldGroups.length - 1 && legacyHasValues) || (isOaRecord && ((group.title === '대사·종합 지표' && Boolean(visibleForm.reportedBodyAge)) || (group.title === '부위별 지방량' && Boolean(visibleForm.trunkFatMass)))) || Boolean(draft && groupIndex < fieldGroups.length - 1)}
             className="group rounded-xl border border-gray-200 bg-gray-50/60"
           >
             <summary className="cursor-pointer list-none px-3 py-3">
@@ -509,12 +510,24 @@ export default function BodyRecordCard({
               </div>
             </summary>
             <div className="grid grid-cols-1 gap-2 border-t border-gray-200 bg-white p-3 sm:grid-cols-2 xl:grid-cols-3">
-              {group.fields.map((field) => (
+              {group.fields.filter(field => field.key !== 'reportedBodyAgeUnit').map((field) => field.key === 'reportedBodyAge' ? (
+                <div key={field.key} data-body-field="reportedBodyAge" className="rounded-xl border border-gray-200 p-3 text-[12px]">
+                  <p className="font-semibold text-gray-600">신체연령 (사진 원문)</p>
+                  <output aria-label="신체연령 원문" className="mt-1 block text-[15px] font-bold">{visibleForm.reportedBodyAge ? visibleForm.reportedBodyAge + ' ' + (visibleForm.reportedBodyAgeUnit || '단위 미확인') : '미제공'}</output>
+                  <details className="mt-2"><summary className="cursor-pointer text-gray-600">신체연령 원문 수정</summary>
+                    <div className="mt-2 flex gap-2">
+                      <label className="min-w-0 flex-1">숫자<input aria-label="신체연령 원문 숫자" inputMode="decimal" disabled={importing} value={visibleForm.reportedBodyAge || ''} onChange={event => editField('reportedBodyAge', event.target.value)} className="mt-1 w-full rounded border p-2" /></label>
+                      <label className="min-w-0 flex-1">원문 단위<input aria-label="신체연령 원문 단위" disabled={importing} value={visibleForm.reportedBodyAgeUnit || ''} onChange={event => editField('reportedBodyAgeUnit', event.target.value)} className="mt-1 w-full rounded border p-2" /></label>
+                    </div>
+                  </details>
+                </div>
+              ) : (
                 <label
                   key={field.key}
+                  data-body-field={field.key}
                   className="text-[12px] font-semibold text-gray-600"
                 >
-                  {field.label}
+                  {isOaRecord && field.key === 'trunkFatMass' ? '체지방량 (몸통 항목)' : field.label}
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-gray-200 px-2">
                     <input
                       inputMode={field.text ? "text" : "decimal"}
