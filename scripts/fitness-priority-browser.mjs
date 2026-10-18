@@ -11,6 +11,7 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 
 const output = resolve('scripts/browser-qa/.generated/fitness-priority');
+const lateProCheck = process.env.FITNESS_LATE_PRO === '1';
 const trunkCheck = process.env.FITNESS_TRUNK === '1';
 const realOcr = process.env.FITNESS_REAL_OCR === '1';
 const recordNavigation = process.env.FITNESS_RECORD_NAV === '1';
@@ -75,7 +76,46 @@ try {
  await page.goto(origin);
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
- if(trunkCheck) {
+ if(lateProCheck) {
+   const checkbox=page.getByRole('checkbox',{name:'사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.'});
+   const snapshot=()=>page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));
+   const before=await snapshot();
+   await page.locator('input[type=file]').last().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+   await page.waitForFunction(()=>typeof window.resolveOcr==='function');
+   const values=Object.fromEntries(OA_REPORT_INVENTORY.slice(0,27).filter(([key])=>!['trunkMuscleMass','trunkFatMass'].includes(key)).map(([key],i)=>[key,i+10.5]));
+   await page.evaluate(values=>window.resolveOcr({values,recognizedCount:27,detectedDate:'2026-10-14',textValues:{reportedBodyAgeUnit:'연령 단위',bodyShape:'건강형',measurementTime:'08:12:34'},unmappedMeasurements:[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]}),values);
+   await page.getByLabel('측정 날짜',{exact:true}).waitFor();
+   assert.equal(await checkbox.isEnabled(),true);
+   for(const key of ['trunkMuscleMass','trunkFatMass']) { const text=await page.locator('[data-oa-field="'+key+'"]').textContent(); assert.match(text,/읽음.*기기 확인 대기.*저장 제외/);assert.doesNotMatch(text,/미인식/); }
+   assert.equal(await page.getByLabel('저장 제외 원문 출처').locator('li').count(),2);
+   assert.ok(await page.getByText('저장 후보 28개',{exact:false}).isVisible());
+   await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-13');
+   await checkbox.check();
+   assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'27.4');
+   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).inputValue(),'11.8');
+   assert.ok(await page.getByText('저장 후보 30개',{exact:false}).isVisible());
+   assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-13');
+   assert.equal(await snapshot(),before);
+   await checkbox.uncheck();
+   assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'');
+   await checkbox.check();
+   await page.getByLabel('몸통 근육량',{exact:false}).fill('28.2');
+   await page.getByLabel('몸통 지방량',{exact:false}).fill('');
+   await checkbox.uncheck();
+   assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'28.2');
+   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).inputValue(),'');
+   await page.getByLabel('몸통 지방량',{exact:false}).fill('');
+   await checkbox.check();
+   assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'28.2');
+   assert.equal(await page.getByLabel('몸통 지방량',{exact:false}).inputValue(),'');
+   assert.equal(await snapshot(),before);
+   await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
+   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-13']);
+   assert.equal(saved.trunkMuscleMass,28.2);assert.equal(saved.trunkFatMass,undefined);assert.equal(saved.metricSources.trunkMuscleMass.method,'ocr-edited');
+   await page.reload();assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'');
+   assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({passed:7,checks:['unconfirmed OCR references are read/pending, not missing','late checkbox enabled without image reselection','mapping and counts update with edited date retained','untouched automatic mappings reverse','manual edits and explicit blanks survive toggles','toggles do not write storage','explicit save preserves edited source'],externalRequestsSent:0}));
+ } else if(trunkCheck) {
    await page.getByRole('checkbox',{name:'사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.'}).check();
    await page.locator('input[type=file]').last().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
    await page.waitForFunction(()=>typeof window.resolveOcr==='function');

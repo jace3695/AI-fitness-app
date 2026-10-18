@@ -19,6 +19,7 @@ import { getLocalDateKey } from "../data/dietPlans";
 import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransaction";
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 import { OA_REPORT_INVENTORY } from '../lib/oaReportInventory';
+import { oaSourceMeasurements, setOaProMapping, OA_TRUNK_ROWS } from '../lib/oaDraftMapping';
 
 type InbodyField = {
   key: Exclude<keyof InbodyRecord, "weight" | "memo" | "metricSources">;
@@ -118,7 +119,7 @@ export default function BodyRecordCard({
   const manualEdit = useRef({ date: dateKey, dirty: false });
   const [manualDirty, setManualDirty] = useState(false);
   const [confirmedPro, setConfirmedPro] = useState(false);
-  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[]; metricSources: BodyMetricSources } | null>(null);
+  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[]; sourceMeasurements: OaDraftMeasurement[]; autoMappedKeys: string[]; metricSources: BodyMetricSources } | null>(null);
   useUnsavedChanges(Boolean(draft) || manualDirty);
   const importVersion = useRef(0);
   const activeDate = useRef(dateKey);
@@ -190,7 +191,7 @@ export default function BodyRecordCard({
       const metricSources = { ...draft.metricSources };
       if (metricSources[key] && value !== draft.patch[key]) metricSources[key] = { ...metricSources[key], method: 'ocr-edited' };
       if (key === 'reportedBodyAgeUnit' && metricSources.reportedBodyAge) metricSources.reportedBodyAge = { ...metricSources.reportedBodyAge, method: 'ocr-edited' };
-      setDraft({ ...draft, metricSources, patch: { ...draft.patch, [key]: value } });
+      setDraft({ ...draft, metricSources, autoMappedKeys: draft.autoMappedKeys.filter(item => item !== key), patch: { ...draft.patch, [key]: value } });
     }
     else {
       manualEdit.current = { date: dateKey, dirty: true };
@@ -331,7 +332,10 @@ export default function BodyRecordCard({
       const sameDayEdits = measuredDate === originDate
         ? Object.fromEntries(Object.entries(form).filter(([key, value]) => value !== (baseline[key] || "")))
         : {};
-      setDraft({ date: measuredDate, owner, unmappedMeasurements, metricSources: result.metricSources || {}, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])), ...result.textValues } });
+      const sourceMeasurements = oaSourceMeasurements(result);
+      setDraft({ date: measuredDate, owner, unmappedMeasurements, sourceMeasurements,
+        autoMappedKeys: OA_TRUNK_ROWS.filter(([key]) => result.metricSources?.[key]?.method === 'ocr' && result.values[key] !== undefined).map(([key]) => key),
+        metricSources: result.metricSources || {}, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])), ...result.textValues } });
       setRecordMessage("");
       const reviewLabels = (result.reviewKeys || []).map(key => key === "weight" ? "체중" : inbodyFields.find(field => field.key === key)?.label || key);
       setImportMessage(
@@ -420,14 +424,21 @@ export default function BodyRecordCard({
           </p>
         )}
       </div>
-      <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing || Boolean(draft)} onChange={event => setConfirmedPro(event.target.checked)} />사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.</label>
+      <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
+        const checked = event.target.checked;
+        setConfirmedPro(checked);
+        setDraft(current => current && current.owner === bodyImportOwner(window.localStorage) ? setOaProMapping(current, checked) : null);
+      }} />사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.</label>
       <p className="text-xs text-gray-600">부위 배열과 몸통 아이콘에 따른 해석입니다. 확인한 경우에만 원문의 ‘신체 근육량’·‘체지방량’을 몸통 항목으로 저장할 수 있어요. 다른 기기·양식은 선택하지 마세요.</p>
       <details className="mt-2 text-xs"><summary>사진 항목 출처·원문 보기</summary><ul aria-label="사진 항목 출처" className="mt-2 text-xs text-gray-600">{Object.entries(draft?.metricSources || currentInbody?.metricSources || {}).map(([key, source]) => <li key={key}>{OA_REPORT_INVENTORY.find(item => item[0] === key)?.[1] || key} · {source?.device} · 원문: {source?.originalLabel} {source?.originalText} · {source?.method === 'ocr-edited' ? '사진 입력 후 수정' : '사진 입력'}</li>)}</ul></details>
       {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
+        {draft.unmappedMeasurements.length > 0 && <ul aria-label="저장 제외 원문 출처" className="text-sm">{draft.unmappedMeasurements.map(item => <li key={item.label}>{item.source} 긴 보고서 · 원문: {item.label} {item.value} {item.unit} · 읽음 · {confirmedPro ? '직접 입력값 유지 · 자동 반영 제외' : '기기 확인 대기'} · 저장 제외</li>)}</ul>}
         <p className="text-sm">저장 후보 {Object.keys(draft.patch).filter(key => key !== 'memo' && key !== 'reportedBodyAgeUnit' && draft.patch[key].trim()).length + (draft.date ? 1 : 0)}개 (날짜 포함) · 저장 제외 참고값 {draft.unmappedMeasurements.length}개. 확인 후 저장해 주세요.</p>
         <p className="text-sm">이 OA 보고서에는 골격근량이 따로 제공되지 않아요. 몸통 근육량을 골격근량으로 넣거나 평가하지 않아요. 기존 골격근량 기록은 유지해요.</p>
         <details className="my-2 text-sm"><summary>원본 30개 항목 대조표 · 숫자 27개, 체형, 날짜, 시간</summary><ul>{OA_REPORT_INVENTORY.map(([key, label, unit]) => {
           const value = key === 'measurementDate' ? draft.date : draft.patch[key];
+          const reference = draft.unmappedMeasurements.find(item => OA_TRUNK_ROWS.some(([field, label]) => field === key && label === item.label));
+          if (reference) return <li key={key} data-oa-field={key}>{label}: {reference.value} {reference.unit} · 읽음 · {confirmedPro ? '직접 입력값 유지 · 자동 반영 제외' : '기기 확인 대기'} · 원문 참고값 저장 제외{value !== undefined && <> · 직접 입력: {value || '비움'}</>}</li>;
           return <li key={key} data-oa-field={key}>{label}: {value || '미인식 · 직접 확인 필요'} {value ? unit : ''} · {draft.metricSources[key] ? '사진 원문 출처 있음' : value ? '직접 입력 또는 수정' : '이번 사진에서 미확인'}</li>;
         })}</ul></details>
         {draft.unmappedMeasurements.length > 0 && <aside aria-label="OA 원문 참고값" className="mb-3 rounded border border-amber-300 bg-amber-50 p-3">
