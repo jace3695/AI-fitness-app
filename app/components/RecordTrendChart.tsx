@@ -10,12 +10,15 @@ export default function RecordTrendChart({
   points,
   color,
   digits = 1,
+  note,
 }: {
   title: string;
   unit: string;
   points: TrendPoint[];
   color: string;
   digits?: number;
+  note?: string;
+  changeUnit?: string;
 }) {
   const latest = points.at(-1);
   const first = points[0];
@@ -26,7 +29,7 @@ export default function RecordTrendChart({
     return (
       <section className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
         <p className="text-[12px] font-bold text-gray-700">{title}</p>
-        <p className="mt-3 text-[12px] text-gray-400">기록이 아직 없습니다.</p>
+        <p className="mt-3 text-[12px] text-gray-400">{note || '기록이 아직 없습니다.'}</p>
       </section>
     );
   }
@@ -43,6 +46,7 @@ export default function RecordTrendChart({
 
   return (
     <section className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+      {note && <p className="mb-2 text-[11px] text-gray-500">{note}</p>}
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[12px] font-bold text-gray-700">{title}</p>

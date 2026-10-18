@@ -1,3 +1,4 @@
+import { getBodyMetricSeries } from './bodyMetricComparison.ts';
 import { getWorkoutRecord, isWorkoutPerformed } from "./workoutCompletion.ts";
 import type {
   ExerciseRecord,
@@ -432,22 +433,8 @@ export function getBodyTrends(
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-limit)
     .map(([dateKey, record]) => ({ dateKey, value: record.weight }));
-  const bodyFat = Object.entries(inbody)
-    .filter(([, record]) => Number.isFinite(record.bodyFatPercent))
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-limit)
-    .map(([dateKey, record]) => ({
-      dateKey,
-      value: record.bodyFatPercent as number,
-    }));
-  const skeletalMuscle = Object.entries(inbody)
-    .filter(([, record]) => Number.isFinite(record.skeletalMuscleMass))
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-limit)
-    .map(([dateKey, record]) => ({
-      dateKey,
-      value: record.skeletalMuscleMass as number,
-    }));
+  const bodyFat = getBodyMetricSeries(inbody, 'bodyFatPercent', limit).points;
+  const skeletalMuscle = getBodyMetricSeries(inbody, 'skeletalMuscleMass', limit).points;
   return { weight, bodyFat, skeletalMuscle };
 }
 

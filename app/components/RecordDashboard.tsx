@@ -12,6 +12,7 @@ import {
 import { CONDITION_SIGNAL_OPTIONS } from "../data/recoveryMode";
 import RecordTrendChart from "./RecordTrendChart";
 import FitnessAiCoachPanel from "./FitnessAiCoachPanel";
+import { getBodyMetricSeries, getWholeMuscleTrend, type ComparableBodyMetric } from '../data/bodyMetricComparison';
 
 const CONDITION_LABEL_BY_ID = Object.fromEntries(
   CONDITION_SIGNAL_OPTIONS.map((item) => [item.id, item.label]),
@@ -46,6 +47,7 @@ export default function RecordDashboard({
     ...weekly.map((item) => item.minutes),
   );
   const body = getBodyTrends(stores.weights, stores.inbody);
+  const muscleTrend = getWholeMuscleTrend(stores.inbody);
   const pain = getPainTrend(stores.workouts);
   const progress = getExerciseProgress(stores.workouts);
   const bodyPartSets = getBodyPartSetBreakdown(stores.workouts, year, monthIndex);
@@ -344,6 +346,23 @@ export default function RecordDashboard({
             최근 12회 기록을 기준으로 변화 방향을 확인합니다.
           </p>
         </div>
+        {view !== "workout" && <section aria-label="전체 근육량과 근육률 추세" className="mt-4 rounded-xl bg-[#F7F6FF] p-4">
+          <h3 className="text-[13px] font-bold">전체 근육량 추정치와 근육률</h3>
+          <p className="mt-1 text-[11px]">골격근량 제공 여부와 별개로 기록 수치의 변화를 볼 수 있어요.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {[{name: '전체 근육량', item: muscleTrend.kg}, {name: '근육률', item: muscleTrend.rate}].map(({name, item}) => {
+              return <div key={name} className="rounded-lg bg-white p-3 text-[12px]">
+                <p className="font-semibold">{name} · {item.label}</p>
+                <p>{item.last ? item.last.value.toFixed(1) + (item.unit === 'kg' ? 'kg' : '%') : '미제공'}{item.delta !== undefined && <> · 차이 {item.delta > 0 ? '+' : ''}{item.delta.toFixed(1)}{item.unit}</>}</p>
+                {item.last && <p className="mt-1 text-[11px] text-gray-600">{item.first?.dateKey} ~ {item.last.dateKey} · {item.points.length}회</p>}
+              </div>;
+            })}
+          </div>
+          <p className="mt-3 text-[12px]">{muscleTrend.explanation}</p>
+          {muscleTrend.historical && <p className="mt-1 text-[11px]">전체 근육량은 가장 최근 체성분 기록에 없는 과거 수치입니다.</p>}
+          <p className="mt-2 text-[11px] leading-5">{muscleTrend.limitation}</p>
+          <details className="mt-2 text-[11px]"><summary className="cursor-pointer">수치 비교 기준</summary><p className="mt-2 leading-5">{muscleTrend.criteria}</p></details>
+        </section>}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {view !== "workout" && <>
           <RecordTrendChart
@@ -356,14 +375,23 @@ export default function RecordDashboard({
             title="체지방률"
             unit="%"
             points={body.bodyFat}
+            note={getBodyMetricSeries(stores.inbody, 'bodyFatPercent').note}
             color="#D85A30"
           />
           <RecordTrendChart
             title="골격근량"
             unit="kg"
             points={body.skeletalMuscle}
+            note={'OA 보고서에는 골격근량 미제공 · 전체/몸통 근육량으로 대체하지 않아요. ' + getBodyMetricSeries(stores.inbody, 'skeletalMuscleMass').note}
             color="#1D9A6C"
           />
+          {([
+            ['muscleMass', '전체 근육량 (원문: 근육량)'], ['musclePercent', '근육률 (원문: 근육률)'], ['fatMass', '전체 지방량 (원문: 지방량)'],
+            ['trunkMuscleMass', '몸통 근육량 (원문: 신체 근육량)'], ['trunkFatMass', '몸통 지방량 (원문: 체지방량)'],
+          ] as [ComparableBodyMetric, string][]).map(([key, title]) => {
+            const series = getBodyMetricSeries(stores.inbody, key);
+            return <RecordTrendChart key={key} title={title} unit={key === 'musclePercent' ? '%' : 'kg'} changeUnit={key === 'musclePercent' ? '%p' : 'kg'} points={series.points} color="#1D9A6C" note={series.note + ' 골격근량 평가와는 별개입니다.'} />;
+          })}
           </>}
           {view !== "body" && <RecordTrendChart
             title="운동 불편감"

@@ -43,7 +43,7 @@ test("현재·이전 7일에 두 번 이상 기록되면 평균 변화와 목표
   assert.equal(Math.round(summary.goal.progressPercent ?? -1), 16);
 });
 
-test("체지방이 줄고 골격근이 유지되면 리컴포지션을 좋은 방향으로 판정한다", () => {
+test("출처 없는 체지방·골격근 숫자 차이는 유지하되 종합 평가를 단정하지 않는다", () => {
   const summary = getWeightManagementSummary(
     { "2026-08-09": record(80) },
     {
@@ -53,7 +53,7 @@ test("체지방이 줄고 골격근이 유지되면 리컴포지션을 좋은 �
   );
   assert.equal(summary.bodyFat.direction, "down");
   assert.equal(summary.skeletalMuscle.direction, "stable");
-  assert.equal(summary.assessment.tone, "positive");
+  assert.equal(summary.assessment.tone, "insufficient");
 });
 
 test("인바디가 한 번뿐이면 변화 방향을 단정하지 않는다", () => {
@@ -107,7 +107,7 @@ test("골격근 감소가 기준을 넘으면 좋은 체중 변화만으로 성�
     },
   );
   assert.equal(summary.skeletalMuscle.direction, "down");
-  assert.equal(summary.assessment.tone, "caution");
+  assert.equal(summary.assessment.tone, "insufficient");
 });
 
 test("목표 범위는 유효한 소수만 보존하고 잘못된 값은 기본값으로 복구한다", () => {

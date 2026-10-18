@@ -35,8 +35,8 @@ function directionLabel(direction: ChangeDirection) {
 }
 
 function metricLabel(metric: MetricChange, unit: string) {
-  if (metric.change === undefined) return "비교 기록 부족";
-  return `${signed(metric.change, unit)} · ${directionLabel(metric.direction)}`;
+  if (metric.change === undefined) return metric.comparisonNote || "비교 기록 부족";
+  return `${signed(metric.change, unit)} · ${directionLabel(metric.direction)}${metric.sourceVerified ? "" : " · 출처 미확인"}`;
 }
 
 const assessmentTone = {
@@ -155,7 +155,7 @@ export default function WeightChart({
         <div>
           <p className="text-[12px] font-bold text-[#534AB7]">체중관리</p>
           <h2 className="mt-1 text-[19px] font-extrabold text-gray-900">
-            체중·체지방·골격근을 함께 봐요
+            체중과 측정된 체성분을 봐요
           </h2>
           <p className="mt-1 text-[12px] leading-5 text-gray-500">
             하루 수치보다 7일 평균과 같은 조건의 인바디 변화를 우선합니다.

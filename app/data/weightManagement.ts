@@ -4,6 +4,7 @@ import {
   type WeightGoal,
   type WeightRecordStore,
 } from "./recordStorage.ts";
+import { getBodyMetricSeries, latestBodyMeasurementDate } from './bodyMetricComparison.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_KEY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -20,6 +21,9 @@ export interface MetricChange {
   latest?: number;
   latestDateKey?: string;
   previous?: number;
+  previousDateKey?: string;
+  sourceVerified?: boolean;
+  comparisonNote?: string;
   change?: number;
   direction: ChangeDirection;
 }
@@ -114,25 +118,19 @@ function getMetricChange(
   threshold: number,
   cutoffDateKey?: string,
 ): MetricChange {
-  const points = Object.entries(inbody)
-    .filter(
-      ([dateKey, record]) =>
-        (!cutoffDateKey || dateKey <= cutoffDateKey) &&
-        Number.isFinite(record[key]),
-    )
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([dateKey, record]) => ({
-      dateKey,
-      value: record[key] as number,
-    }));
+  const series = getBodyMetricSeries(inbody, key, 2, cutoffDateKey);
+  const points = series.points;
   const latest = points.at(-1);
   const previous = points.at(-2);
-  const change =
-    latest && previous ? latest.value - previous.value : undefined;
+  const stale = latest && latest.dateKey !== latestBodyMeasurementDate(inbody, cutoffDateKey);
+  const change = latest && previous && !stale ? latest.value - previous.value : undefined;
   return {
     latest: latest?.value,
     latestDateKey: latest?.dateKey,
     previous: previous?.value,
+    previousDateKey: previous?.dateKey,
+    sourceVerified: series.sourceVerified,
+    comparisonNote: stale ? '최근 측정에 없는 항목입니다. 과거 기록을 현재 변화로 평가하지 않아요.' : series.note,
     change,
     direction: getDirection(change, threshold),
   };
@@ -190,10 +188,13 @@ function getAssessment(
   ) {
     return {
       tone: "insufficient",
-      title: "인바디 기준을 만드는 중이에요",
+      title: "측정된 항목부터 확인해요",
       description:
-        "같은 조건의 인바디 기록이 2회 이상 쌓이면 체지방 감소와 골격근 유지를 함께 판단합니다.",
+        "체중·체지방률 변화는 각각 볼 수 있어요. 골격근량이 미제공이면 골격근량 변화는 평가하지 않아요. 전체 근육량·근육률의 수치 추세는 아래에서 별도로 확인할 수 있어요. 각 지표의 유효한 기록이 2회 이상 필요합니다.",
     };
+  }
+  if (!bodyFat.sourceVerified || !skeletalMuscle.sourceVerified || bodyFat.latestDateKey !== skeletalMuscle.latestDateKey || bodyFat.previousDateKey !== skeletalMuscle.previousDateKey) {
+    return { tone: 'insufficient', title: '수치 변화와 근육 평가는 구분해요', description: '측정 출처가 확인되지 않았거나 비교 날짜가 서로 달라요. 각 지표의 수치 차이만 표시하며 지방 감소와 골격근 유지·감소를 함께 단정하지 않아요.' };
   }
   if (
     bodyFat.direction === "down" &&

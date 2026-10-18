@@ -35,9 +35,9 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
     fields: [
       { key: "bmi", label: "BMI", unit: "" },
       { key: "bodyFatPercent", label: "체지방률", unit: "%" },
-      { key: "fatMass", label: "지방량", unit: "kg" },
+      { key: "fatMass", label: "전체 지방량 (원문: 지방량)", unit: "kg" },
       { key: "skeletalMuscleMass", label: "골격근량", unit: "kg" },
-      { key: "muscleMass", label: "근육량", unit: "kg" },
+      { key: "muscleMass", label: "전체 근육량 (원문: 근육량)", unit: "kg" },
       { key: "musclePercent", label: "근육률", unit: "%" },
       { key: "visceralFatLevel", label: "내장 지방 지수", unit: "" },
     ],
@@ -71,7 +71,7 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
   },
   {
     title: "부위별 지방량",
-    description: "좌우 팔·다리의 지방 분포",
+    description: "좌우 팔·몸통·다리의 지방 분포 · 원문 체지방량은 몸통 항목",
     fields: [
       { key: "leftArmFatMass", label: "왼팔 지방량", unit: "kg" },
       { key: "trunkFatMass", label: "몸통 지방량", unit: "kg" },
@@ -82,7 +82,7 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
   },
   {
     title: "부위별 근육량",
-    description: "좌우 팔·다리의 근육 균형",
+    description: "좌우 팔·몸통·다리의 근육 분포 · 골격근량과 다른 지표",
     fields: [
       { key: "leftArmMuscleMass", label: "왼팔 근육량", unit: "kg" },
       { key: "trunkMuscleMass", label: "몸통 근육량", unit: "kg" },
@@ -93,6 +93,11 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
   },
 ];
 
+fieldGroups.push({title: '다른 기기·직접 입력 (기존 기록)', description: 'OA 원문에 없는 골격근량과 별도 단위 기록입니다. 기존 값은 유지해요.', fields: [
+ {key:'skeletalMuscleMass',label:'골격근량',unit:'kg'},
+ {key:'bodyFatMass',label:'체지방량 (다른 기기·직접 입력)',unit:'kg'},
+ {key:'bodyAge',label:'신체연령 (다른 기기·직접 입력)',unit:'세'},
+]});
 const inbodyFields = fieldGroups.flatMap((group) => group.fields);
 
 interface Props {
@@ -481,11 +486,11 @@ export default function BodyRecordCard({
           </b>
         </p>
       )}
-      <div className="mt-3 space-y-2">
+      <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm">OA 원문의 전체 근육량·전체 지방량은 아래에, 몸통 값은 부위별 항목에 있어요. 골격근량은 이 보고서에 미제공이므로 평가할 수 없어요. 다른 기기·직접 입력의 과거 값은 보존합니다. 신체연령 원문 숫자와 단위는 대사·종합 지표에서 함께 확인하세요.</p><div className="mt-3 space-y-2">
         {fieldGroups.map((group, groupIndex) => (
           <details
             key={group.title}
-            open={Boolean(draft) || groupIndex === 0}
+            open={groupIndex === 0 || Boolean(draft && groupIndex < fieldGroups.length - 1)}
             className="group rounded-xl border border-gray-200 bg-gray-50/60"
           >
             <summary className="cursor-pointer list-none px-3 py-3">
@@ -512,7 +517,7 @@ export default function BodyRecordCard({
                   {field.label}
                   <div className="mt-1 flex items-center gap-1 rounded-xl border border-gray-200 px-2">
                     <input
-                      inputMode="decimal"
+                      inputMode={field.text ? "text" : "decimal"}
                       disabled={importing}
                       value={visibleForm[field.key] || ""}
                       onChange={(event) => {
