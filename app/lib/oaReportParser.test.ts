@@ -62,6 +62,9 @@ test("항목 허용 범위를 벗어난 OCR 값은 저장 후보에서 제외한
 });
 
 import { mapOaMeasurements } from './oaReportParser.ts';
+import { ageFromText, timeFromText, shapeFromText } from './oaReportParser.ts';
+import { OA_REPORT_INVENTORY } from './oaReportInventory.ts';
+import { mergeBodyFields } from './bodyImport.ts';
 import { mergeBodyImport } from './bodyImport.ts';
 
 test('OA numeric transcription accepts a number without assigning clinical meaning', () => {
@@ -78,4 +81,49 @@ test('OA ambiguous source rows remain draft-only; existing manual metrics surviv
   assert.deepEqual(saved.inbody['2025-04-07'],{...old['2025-04-07'],fatMass:22.6,muscleMass:54.3});
   assert.deepEqual(old['2025-04-07'],{skeletalMuscleMass:31.7,bodyFatMass:20.3,memo:'manual fixture'});
   assert.deepEqual(mapOaMeasurements({skeletalMuscleMass:27.4,bodyFatMass:11.8}).values,{});
+});
+
+test('confirmed PRO trunk fields preserve per-metric provenance without clinical substitution', () => {
+ const result=mapOaMeasurements({oaBodyMuscleMass:27.4,oaBodyFatMass:11.8},true);
+ assert.deepEqual(result.values,{trunkMuscleMass:27.4,trunkFatMass:11.8});
+ assert.deepEqual(result.unmappedMeasurements,[]);
+ assert.equal(result.metricSources.trunkMuscleMass?.originalLabel,'신체 근육량');
+ const patch=Object.fromEntries(Object.entries(result.values).map(([k,v])=>[k,String(v)]));
+ const old={'2025-04-07':{skeletalMuscleMass:31.7,bodyFatMass:20.3}};
+ const saved=mergeBodyImport({},old,'2025-04-07',patch,'2026-10-18',result.metricSources);
+ assert.equal(saved.inbody['2025-04-07'].skeletalMuscleMass,31.7);
+ assert.equal(saved.inbody['2025-04-07'].bodyFatMass,20.3);
+ assert.deepEqual(saved.inbody['2025-04-07'].metricSources,result.metricSources);
+});
+
+test('source inventory covers 27 numeric items, shape, date and time independently', () => {
+ assert.equal(OA_REPORT_INVENTORY.length,30);
+ assert.equal(new Set(OA_REPORT_INVENTORY.map(row=>row[0])).size,30);
+ assert.ok(OA_REPORT_INVENTORY.some(row=>row[0]==='standardWeight'));
+ assert.ok(!OA_REPORT_INVENTORY.some(row=>String(row[0])==='skeletalMuscleMass'));
+});
+
+test('age requires the complete source unit; text and clock readings are not inferred', () => {
+ assert.deepEqual(ageFromText('37 연 령 단 위'),{value:37,unit:'연령 단위',text:'37 연 령 단 위'});
+ for(const text of ['37','37세','30대','37 연령','37 연령 단위 많다','137연령 단위']) assert.equal(ageFromText(text),undefined);
+ assert.equal(timeFromText('2025-04-07 08:12:34'),'08:12:34');
+ for(const text of ['24:00:00','08:60:00','08:12:60','08:12:34 09:12:34']) assert.equal(timeFromText(text),undefined);
+ assert.equal(shapeFromText('건 강 형'),'건강형');
+ assert.equal(shapeFromText('알 수 없음'),undefined);
+});
+
+test('new source fields survive both editor merge styles and JSON serialization without rewriting old records', () => {
+ const old={bodyAge:52,skeletalMuscleMass:31.7,memo:'synthetic'};
+ const patch={standardWeight:'61.2',reportedBodyAge:'37',reportedBodyAgeUnit:'연령 단위',bodyShape:'건강형',measurementTime:'08:12:34'};
+ const source={device:'OA Smart Scale PRO' as const,originalLabel:'신체연령',originalText:'37연령 단위',method:'ocr' as const,mappingVersion:'oa-pro-v1' as const};
+ const record=mergeBodyFields(old,patch,{reportedBodyAge:source});
+ const serialized=JSON.parse(JSON.stringify(mergeBodyFields(record,{memo:'edited'})));
+ for(const [key,value] of Object.entries(patch)) assert.equal(String(serialized[key]),value);
+ assert.equal(serialized.bodyAge,52);assert.equal(serialized.skeletalMuscleMass,31.7);
+ assert.deepEqual(old,{bodyAge:52,skeletalMuscleMass:31.7,memo:'synthetic'});
+ const edited=mergeBodyFields(record,{reportedBodyAgeUnit:'원문 단위'});
+ assert.equal(edited.metricSources?.reportedBodyAge?.method,'ocr-edited');
+ assert.equal(edited.metricSources?.reportedBodyAge?.originalText,'37연령 단위');
+ assert.throws(()=>mergeBodyFields(record,{measurementTime:'25:00:00'}));
+ assert.equal(mergeBodyFields(record,{bodyShape:''}).bodyShape,undefined);
 });

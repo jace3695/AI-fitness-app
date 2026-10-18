@@ -1,3 +1,4 @@
+import { OA_REPORT_INVENTORY } from '../app/lib/oaReportInventory.ts';
 // Local component regression harness: synthetic records and a deferred OCR fixture.
 // No authenticated app, real health data, remote API, or OCR accuracy claims.
 import { build } from './browser-qa/node_modules/esbuild/lib/main.js';
@@ -10,6 +11,7 @@ import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 
 const output = resolve('scripts/browser-qa/.generated/fitness-priority');
+const trunkCheck = process.env.FITNESS_TRUNK === '1';
 const realOcr = process.env.FITNESS_REAL_OCR === '1';
 const recordNavigation = process.env.FITNESS_RECORD_NAV === '1';
 mkdirSync(output, { recursive: true });
@@ -17,6 +19,10 @@ const bundle = await build({ stdin: { contents: `
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import BodyRecordCard from './app/components/BodyRecordCard';
+import InbodyRecordCard from './app/components/InbodyRecordCard';
+import DataBackupPanel from './app/components/DataBackupPanel';
+import { readLocalCloudState, mergeCloudStateFromBase } from './app/data/cloudSync';
+window.cloudSnapshot = readLocalCloudState; window.mergeSnapshot = mergeCloudStateFromBase;
 import RecordCalendarView from './app/components/RecordCalendarView';
 import DailyWorkoutEditor from './app/components/DailyWorkoutEditor';
 import ExerciseGuidePanel from './app/components/ExerciseGuidePanel';
@@ -30,7 +36,8 @@ function App() {
  const edit=settings.dateOverrides['2026-10-14']?.edit;
  const custom=applyDayRoutineEdit({phases:[{exercises:[]}]},edit).phases[0].exercises;
  if (${realOcr || recordNavigation}) return <RecordCalendarView/>;
- return <main><button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
+ if (window.location.search === '?legacy') return <><InbodyRecordCard dateKey={date} records={inbody} onChange={setInbody}/><DataBackupPanel/></>;
+ return <main>{${trunkCheck} && <DataBackupPanel/>}<button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
  <BodyRecordCard dateKey={date} weights={weights} inbody={inbody} onDateChange={setDate} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}} />
  <DailyWorkoutEditor dayId="wed" dateKey="2026-10-14" defaultGroupId="current-fullbody-hamstring-circuit" recommendedGroupId="current-fullbody-hamstring-circuit" recommendationReason="합성 테스트" settings={settings} onChange={next=>{localStorage.setItem('fixture-settings',JSON.stringify(next));setSettings(next)}} onClose={()=>{}} />
  {custom.map(e=><ExerciseGuidePanel key={e.exerciseId} exercise={e} />)}</main>
@@ -59,7 +66,8 @@ try {
    if(realOcr && route.request().method()==='GET') {
      if(name==='worker.min.js') file=resolve('node_modules/tesseract.js/dist/worker.min.js');
      if(/^tesseract-core[-a-z]*\.wasm(?:\.js)?$/.test(name)) file=resolve('node_modules/tesseract.js-core',name);
-     if(name==='eng.traineddata.gz') file=resolve('scripts/browser-qa/.generated/ocr-assets/node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz');
+     if(name==='kor.traineddata.gz') file=resolve('scripts/browser-qa/.generated/ocr-assets/kor.traineddata.gz');
+       if(name==='eng.traineddata.gz') file=resolve('scripts/browser-qa/.generated/ocr-assets/node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz');
    }
    if(file) { assetRequests.push(name); return route.fulfill({body:readFileSync(file),headers:{'Access-Control-Allow-Origin':'*'},contentType:name.endsWith('.js')?'text/javascript':name.endsWith('.wasm')?'application/wasm':'application/octet-stream'}); }
    return route.abort();
@@ -67,7 +75,44 @@ try {
  await page.goto(origin);
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
- if(recordNavigation) {
+ if(trunkCheck) {
+   await page.getByRole('checkbox',{name:'사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.'}).check();
+   await page.locator('input[type=file]').last().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
+   await page.waitForFunction(()=>typeof window.resolveOcr==='function');
+   const extras=Object.fromEntries(OA_REPORT_INVENTORY.slice(0,27).filter(([key])=>!['weight','trunkMuscleMass','trunkFatMass'].includes(key)).map(([key],i)=>[key,i+10.5])); extras.standardWeight=61.2; extras.reportedBodyAge=37; const textValues={reportedBodyAgeUnit:'연령 단위',bodyShape:'건강형',measurementTime:'08:12:34'};
+     const sources={trunkMuscleMass:{device:'OA Smart Scale PRO',originalLabel:'신체 근육량',method:'ocr',mappingVersion:'oa-pro-v1'},trunkFatMass:{device:'OA Smart Scale PRO',originalLabel:'체지방량',method:'ocr',mappingVersion:'oa-pro-v1'}};
+   for(const [key,label,unit] of OA_REPORT_INVENTORY) { const value=({weight:80,trunkMuscleMass:27.4,trunkFatMass:11.8,...extras,...textValues,measurementDate:'2026-10-14'})[key]; sources[key]={device:'OA Smart Scale PRO',originalLabel:label,originalUnit:unit,originalText:String(value)+unit,method:'ocr',mappingVersion:'oa-pro-v1'}; }
+     await page.evaluate(({sources,extras,textValues})=>window.resolveOcr({detectedDate:'2026-10-14',values:{weight:80,trunkMuscleMass:27.4,trunkFatMass:11.8,...extras},textValues,metricSources:sources,unmappedMeasurements:[],recognizedCount:27}),{sources,extras,textValues});
+   assert.equal(await page.locator('[data-oa-field]').count(),30);
+     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+     await page.screenshot({path:resolve(output,'complete-draft-mobile.png'),fullPage:true});
+   await page.getByLabel('몸통 근육량',{exact:false}).fill('27.5');
+   assert.equal(await page.getByLabel('골격근량',{exact:false}).inputValue(),'');
+   assert.ok(await page.getByText('저장 후보 30개',{exact:false}).isVisible());
+   await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
+   await page.reload();
+   assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).inputValue(),'27.5');
+   const read=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-14']);
+   const saved=await read(); for(const [key,value] of Object.entries({...extras,...textValues})) assert.equal(saved[key],value);
+     assert.equal(await page.getByLabel('표준 체중',{exact:false}).inputValue(),String(extras.standardWeight));
+     assert.equal(await page.getByLabel('체형 원문',{exact:true}).inputValue(),textValues.bodyShape);
+     assert.equal(await page.getByLabel('측정 시간',{exact:true}).inputValue(),textValues.measurementTime); assert.equal(saved.metricSources.trunkMuscleMass.method,'ocr-edited'); assert.deepEqual(saved.metricSources.trunkFatMass,sources.trunkFatMass);
+   await page.getByLabel('BMI',{exact:true}).fill('24'); extras.bmi=24;
+   await page.getByRole('button',{name:'체중·인바디 저장',exact:true}).click();
+   saved.metricSources.bmi.method='ocr-edited'; assert.deepEqual((await read()).metricSources,saved.metricSources);
+   await page.goto(origin+'?legacy');
+   await page.getByRole('textbox').last().fill('legacy memo');
+   await page.getByRole('button',{name:'저장',exact:true}).click();
+   const legacy=await read(); for(const [key,value] of Object.entries({...extras,...textValues})) assert.equal(legacy[key],value); assert.equal(legacy.trunkMuscleMass,27.5); assert.equal(legacy.trunkFatMass,11.8); assert.deepEqual(legacy.metricSources,saved.metricSources);
+   const downloadPromise=page.waitForEvent('download');
+   await page.getByRole('button',{name:'전체 기록 백업',exact:true}).click();
+   const download=await downloadPromise; const exported=JSON.parse(readFileSync(await download.path(),'utf8'));
+   assert.deepEqual(exported.state['ai-fitness-inbody-records']['2026-10-14'],legacy);
+   const synced=await page.evaluate(()=>{const state=JSON.parse(JSON.stringify(window.cloudSnapshot())); return window.mergeSnapshot({},state,{});});
+   assert.deepEqual(synced['ai-fitness-inbody-records']['2026-10-14'],legacy);
+   assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({passed:6,checks:['PRO confirmed draft save','edited source and reload','body editor preserves metadata','legacy editor preserves trunk and metadata','actual backup download JSON','cloud serialization and merge'],externalRequestsSent:0}));
+ } else if(recordNavigation) {
    const tab = name => page.getByRole('tab',{name,exact:true});
    const snapshot = () => page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));
    const before = await snapshot();
@@ -188,7 +233,7 @@ try {
    assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),clearDecimal?'24.5':'');
    assert.equal(await page.getByLabel('점수',{exact:false}).inputValue(),'76');
    assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).inputValue(),clearDecimal?'9':'');
-   assert.equal(await page.getByLabel('신체연령',{exact:false}).inputValue(),'');
+   assert.equal(await page.getByLabel('신체연령세',{exact:true}).inputValue(),'');
    assert.ok(await page.getByText('숫자 '+(clearDecimal?4:2)+'개를 읽었어요.',{exact:false}).isVisible());
    if(!clearDecimal) { await page.getByLabel('BMI',{exact:true}).fill('24.5'); await page.getByLabel('내장 지방 지수',{exact:false}).fill('9'); }
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
@@ -198,7 +243,7 @@ try {
    await page.reload();
    await page.getByRole('tab',{name:'체중관리',exact:true}).click();
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-02'].weight),82.7);
-   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']),{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5,bodyScore:76,visceralFatLevel:9});
+   const ocrSaved=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-02']); const {metricSources,...ocrFields}=ocrSaved; assert.deepEqual(ocrFields,{memo:'keep real OCR fixture memo',bodyAge:39,bmi:24.5,bodyScore:76,visceralFatLevel:9,measurementTime:'08:12:34'}); assert.equal(metricSources.measurementDate.method,'ocr-edited'); assert.equal(metricSources.weight.method,'ocr-edited');
    await page.locator('[data-testid="record-shared-calendar"] > details > summary').click();
    await page.locator('button').filter({has:page.locator('span').filter({hasText:/^2$/})}).first().click();
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'82.7');

@@ -1,6 +1,7 @@
-import type { InbodyRecord } from "../data/recordStorage";
+import type { InbodyRecord, BodyMetricSources } from "../data/recordStorage";
+import { OA_REPORT_INVENTORY } from './oaReportInventory.ts';
 
-type NumericKey = Exclude<keyof InbodyRecord, "memo"> | "weight";
+type NumericKey = { [K in keyof InbodyRecord]-?: NonNullable<InbodyRecord[K]> extends number ? K : never }[keyof InbodyRecord];
 type OaOnlyKey = "oaBodyMuscleMass" | "oaBodyFatMass";
 export type OaDraftMeasurement = { source: "OA"; label: string; value: number; unit: "kg" };
 
@@ -22,14 +23,14 @@ const REPORT_ROWS: ReportRow[] = [
   { key: "proteinPercent", centerY: 0.5244, min: 1, max: 40, decimals: true },
   { key: "basalMetabolicRate", centerY: 0.5469, min: 500, max: 5000 },
   { key: "visceralFatLevel", centerY: 0.5693, min: 1, max: 50 },
-  { key: "bodyAge", centerY: 0.5923, min: 10, max: 120 },
+  { key: "reportedBodyAge", centerY: 0.5923, min: 1, max: 120 },
   { key: "fatFreeMass", centerY: 0.6147, min: 10, max: 250, decimals: true },
   { key: "subcutaneousFatPercent", centerY: 0.6372, min: 1, max: 80, decimals: true },
   { key: "bodyWaterPercent", centerY: 0.6602, min: 10, max: 80, decimals: true },
   { key: "subcutaneousFatMass", centerY: 0.6826, min: 0.1, max: 150, decimals: true },
   { key: "muscleMass", centerY: 0.7051, min: 5, max: 200, decimals: true },
   { key: "fatMass", centerY: 0.728, min: 0.1, max: 150, decimals: true },
-  // 0.75 위치의 표준 체중은 현재 기록 필드에 없으므로 건너뛴다.
+  { key: "standardWeight", centerY: 0.7503, min: 10, max: 250, decimals: true },
   { key: "leftArmFatMass", centerY: 0.7725, min: 0.1, max: 30, decimals: true },
   { key: "rightArmFatMass", centerY: 0.7954, min: 0.1, max: 30, decimals: true },
   { key: "oaBodyFatMass", centerY: 0.818, min: 0.1, max: 80, decimals: true },
@@ -48,16 +49,31 @@ export type OaReportResult = {
   recognizedCount: number;
   reviewKeys?: NumericKey[];
   unmappedMeasurements?: OaDraftMeasurement[];
+  metricSources?: BodyMetricSources;
+  textValues?: Pick<InbodyRecord, 'reportedBodyAgeUnit' | 'bodyShape' | 'measurementTime'>;
+  warnings?: string[];
 };
 
 /** Numeric transcription does not establish equivalence to a clinical metric. */
-export function mapOaMeasurements(transcribed: Partial<Record<NumericKey | OaOnlyKey, number>>) {
+export function mapOaMeasurements(transcribed: Partial<Record<NumericKey | OaOnlyKey, number>>, confirmedPro = false) {
   const { oaBodyMuscleMass, oaBodyFatMass, skeletalMuscleMass: _skeletal, bodyFatMass: _fat, ...values } = transcribed;
   void _skeletal; void _fat;
+  const metricSources: BodyMetricSources = {};
+  if (confirmedPro) {
+    if (oaBodyMuscleMass !== undefined) {
+      values.trunkMuscleMass = oaBodyMuscleMass;
+      metricSources.trunkMuscleMass = { device: 'OA Smart Scale PRO', originalLabel: '신체 근육량', method: 'ocr', mappingVersion: 'oa-pro-v1' };
+    }
+    if (oaBodyFatMass !== undefined) {
+      values.trunkFatMass = oaBodyFatMass;
+      metricSources.trunkFatMass = { device: 'OA Smart Scale PRO', originalLabel: '체지방량', method: 'ocr', mappingVersion: 'oa-pro-v1' };
+    }
+    return { values, unmappedMeasurements: [], metricSources };
+  }
   const unmappedMeasurements: OaDraftMeasurement[] = [];
   if (oaBodyMuscleMass !== undefined) unmappedMeasurements.push({ source: "OA", label: "신체 근육량", value: oaBodyMuscleMass, unit: "kg" });
   if (oaBodyFatMass !== undefined) unmappedMeasurements.push({ source: "OA", label: "체지방량", value: oaBodyFatMass, unit: "kg" });
-  return { values, unmappedMeasurements };
+  return { values, unmappedMeasurements, metricSources };
 }
 
 function loadImage(file: File) {
@@ -79,11 +95,12 @@ function loadImage(file: File) {
 function makeCrop(
   image: HTMLImageElement,
   centerY: number,
-  kind: "header" | "weight" | "score" | "value" | "plainValue" | "segment",
+  kind: "header" | "weight" | "score" | "value" | "plainValue" | "segment" | "shape",
   variant = false,
 ) {
   const source = {
     header: { x: 0.02, width: 0.96, height: 0.075 },
+    shape: { x: 0.06, width: 0.5, height: 0.018 },
     weight: { x: 0.06, width: 0.34, height: 0.018 },
     // Include three score digits; smaller unit text is separated below by height.
     score: { x: 0.065, width: 0.25, height: 0.018 },
@@ -250,6 +267,22 @@ export function dateFromText(text: string) {
   return dates.size === 1 ? [...dates][0] : undefined;
 }
 
+export function timeFromText(text: string) {
+  const times = new Set([...text.matchAll(/(?<![\d:])([01]\d|2[0-3])\s*:\s*([0-5]\d)\s*:\s*([0-5]\d)(?![\d:])/g)].map(m => `${m[1]}:${m[2]}:${m[3]}`));
+  return times.size === 1 ? [...times][0] : undefined;
+}
+
+export function ageFromText(text: string) {
+  const match = text.trim().match(/^(\d{1,3})\s*연\s*령\s*단\s*위$/);
+  return match && Number(match[1]) >= 1 && Number(match[1]) <= 120
+    ? { value: Number(match[1]), unit: '연령 단위', text: text.trim() } : undefined;
+}
+
+export function shapeFromText(text: string) {
+  const value = text.replace(/\s/g, '');
+  return ['비만형', '운동선수', '통통', '근육형', '건강형', '모델형', '마름', '약간마름', '마른비만형'].includes(value) ? value : undefined;
+}
+
 export function agreedNumber(reads: { text: string; confidence: number }[], row: ReportRow) {
   const parsed = reads.map(read => read.confidence >= 60 ? numberFromText(read.text, row) : undefined);
   return parsed.length >= 2 && parsed.every(value => value !== undefined && value === parsed[0]) ? parsed[0] : undefined;
@@ -258,6 +291,7 @@ export function agreedNumber(reads: { text: string; confidence: number }[], row:
 export async function parseOaReport(
   file: File,
   onProgress?: (progress: number) => void,
+  confirmedPro = false,
 ): Promise<OaReportResult> {
   const image = await loadImage(file);
   if (image.naturalHeight / image.naturalWidth < 4.5) {
@@ -265,18 +299,22 @@ export async function parseOaReport(
   }
   const { createWorker, PSM } = await import("tesseract.js");
   const worker = await createWorker("eng");
+  let koreanWorker: Awaited<ReturnType<typeof createWorker>> | undefined;
   const transcribed: Partial<Record<NumericKey | OaOnlyKey, number>> = {};
   try {
     // The top contains multiple lines (account, date and time), not one line.
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT, tessedit_char_whitelist: "" });
     const headerResult = await worker.recognize(makeCrop(image, 0.04, "header"));
     const detectedDate = dateFromText(headerResult.data.text);
+    const textValues: NonNullable<OaReportResult['textValues']> = {};
+    const measurementTime = timeFromText(headerResult.data.text);
+    if (measurementTime) textValues.measurementTime = measurementTime;
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE, tessedit_char_whitelist: "" });
     for (let index = 0; index < REPORT_ROWS.length; index += 1) {
       const row = REPORT_ROWS[index];
-      // This report uses an age category; do not convert its leading digits to years.
-      if (row.key !== "bodyAge") {
-        const kind = index === 0 ? "weight" : index === 1 ? "score" : index === 10 ? "plainValue" : index >= 16 ? "segment" : "value";
+      // Age requires its full Korean unit, read separately below.
+      if (row.key !== "reportedBodyAge") {
+        const kind = index === 0 ? "weight" : index === 1 ? "score" : row.key === 'fatFreeMass' || row.key === 'standardWeight' ? "plainValue" : index >= 17 ? "segment" : "value";
         const reads = [];
         for (const variant of [false, true]) {
           const result = await worker.recognize(makeCrop(image, row.centerY, kind, variant));
@@ -287,11 +325,42 @@ export async function parseOaReport(
       }
       onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
     }
+    const warnings: string[] = [];
+    let ageOriginalText: string | undefined;
+    try {
+      koreanWorker = await createWorker('kor');
+      await koreanWorker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
+      const ageReads = [], shapeReads = [];
+      for (const variant of [false, true]) {
+        const age = await koreanWorker.recognize(makeCrop(image, 0.5923, 'value', variant));
+        const shape = await koreanWorker.recognize(makeCrop(image, 0.21, 'shape', variant));
+        ageReads.push({ text: age.data.text, confidence: age.data.confidence });
+        shapeReads.push({ text: shape.data.text, confidence: shape.data.confidence });
+      }
+      const ages = ageReads.map(read => read.confidence >= 60 ? ageFromText(read.text) : undefined);
+      if (ages[0] && ages[1] && ages[0].value === ages[1].value) {
+        transcribed.reportedBodyAge = ages[0].value;
+        textValues.reportedBodyAgeUnit = ages[0].unit;
+        ageOriginalText = ages[0].text;
+      }
+      const shapes = shapeReads.map(read => read.confidence >= 60 ? shapeFromText(read.text) : undefined);
+      if (shapes[0] && shapes[0] === shapes[1]) textValues.bodyShape = shapes[0];
+    } catch {
+      warnings.push('한국어 항목을 읽지 못했어요. 신체연령 숫자·단위와 체형을 사진에서 직접 확인해 입력해 주세요.');
+    }
     // Do not invent decimals or replace observations with derived percentages.
-    const { values, unmappedMeasurements } = mapOaMeasurements(transcribed);
-    return { values, unmappedMeasurements, detectedDate, recognizedCount: Object.keys(transcribed).length,
+    const { values, unmappedMeasurements, metricSources } = mapOaMeasurements(transcribed, confirmedPro);
+    const sourceValues = { ...values, ...textValues, measurementDate: detectedDate };
+    for (const [key, originalLabel, originalUnit] of OA_REPORT_INVENTORY) {
+      const value = sourceValues[key as keyof typeof sourceValues];
+      if (value === undefined) continue;
+      metricSources[key] = { device: confirmedPro ? 'OA Smart Scale PRO' : 'OA long report', originalLabel, originalUnit,
+        originalText: key === 'reportedBodyAge' ? ageOriginalText : `${value}${originalUnit}`, method: 'ocr', mappingVersion: 'oa-pro-v1' };
+    }
+    return { values, textValues, warnings, unmappedMeasurements, metricSources, detectedDate, recognizedCount: Object.keys(transcribed).length,
       reviewKeys: REPORT_ROWS.filter(row => row.key !== "oaBodyMuscleMass" && row.key !== "oaBodyFatMass" && transcribed[row.key] === undefined).map(row => row.key as NumericKey) };
   } finally {
     await worker.terminate();
+    await koreanWorker?.terminate();
   }
 }
