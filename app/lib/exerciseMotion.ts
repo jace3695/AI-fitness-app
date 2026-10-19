@@ -1,15 +1,18 @@
 /** Original procedural assets: no imported imagery, models, or motion data. */
-export type MotionId = 'seated-knee-extension' | 'light-dumbbell-curl';
+import { supportedExerciseMotions, supportedMotionId, type SupportedMotionId } from './supportedExerciseMotion.ts';
+export type OriginalMotionId = 'seated-knee-extension' | 'light-dumbbell-curl';
+export type MotionId = OriginalMotionId | SupportedMotionId;
 export type Point = { x: number; y: number };
 export const exerciseMotions = {
+  ...supportedExerciseMotions,
   'seated-knee-extension': { name: '앉아서 무릎 펴기', outward: '한쪽 무릎을 편안한 범위로 펴기', returning: '천천히 발을 내려 시작 자세로 돌아오기', limitation: '한쪽 다리의 측면 흐름만 표현합니다. 끝까지 강제로 펴거나 무릎을 잠그지 마세요. 의자의 안정성·개인별 가동 범위는 표현하지 않습니다.' },
   'light-dumbbell-curl': { name: '가벼운 덤벨 컬', outward: '팔꿈치를 고정하고 아래팔 올리기', returning: '몸을 흔들지 않고 아래팔 내리기', limitation: '한쪽 팔의 측면 흐름만 표현합니다. 그림의 무게와 각도는 권장값이 아닙니다. 손목 회전·양팔 간격·개인별 가동 범위는 표현하지 않습니다.' },
 } as const;
 export function motionId(value: string | undefined): MotionId | null {
-  return value === 'seated-knee-extension' || value === 'light-dumbbell-curl' ? value : null;
+  return value === 'seated-knee-extension' || value === 'light-dumbbell-curl' ? value : supportedMotionId(value);
 }
 export function clampProgress(value: number) { return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0; }
-export function exerciseMotionPose(id: MotionId, progress: number) {
+export function exerciseMotionPose(id: OriginalMotionId, progress: number) {
   const p = clampProgress(progress);
   const lift = p === 0 || p === 1 ? 0 : (1 - Math.cos(2 * Math.PI * p)) / 2;
   const seated = id === 'seated-knee-extension';

@@ -16,18 +16,21 @@ export function latestBodyMeasurementDate(records: InbodyRecordStore, cutoff?: s
 export function getBodyMetricSeries(records: InbodyRecordStore, key: ComparableBodyMetric, limit = 12, cutoff?: string) {
   const expectedUnit = key === 'bodyFatPercent' || key === 'musclePercent' ? '%' : 'kg';
   const observations = Object.entries(records).filter(([date, record]) => validDate(date) && (!cutoff || date <= cutoff) &&
-    typeof record[key] === 'number' && Number.isFinite(record[key]) && record[key]! > 0 && (expectedUnit !== '%' || record[key]! <= 100) &&
-    (!record.metricSources?.[key]?.originalUnit || record.metricSources[key]!.originalUnit === expectedUnit))
+    typeof record[key] === 'number' && Number.isFinite(record[key]) && record[key]! > 0 && (expectedUnit !== '%' || record[key]! <= 100))
     .sort(([a], [b]) => a.localeCompare(b)).map(([dateKey, record]) => {
       const source = record.metricSources?.[key];
       const identity = source?.device && source.originalLabel && source.originalUnit === expectedUnit && source.mappingVersion ? JSON.stringify([source.device, source.originalLabel, source.originalUnit, source.mappingVersion]) : undefined;
-      return { dateKey, value: record[key]!, identity };
+      const compatibleUnit = !source?.originalUnit || source.originalUnit === expectedUnit;
+      return { dateKey, value: record[key]!, identity, compatibleUnit };
     });
-  const latest = observations.at(-1);
+  let latestIndex = observations.length - 1;
+  while (latestIndex >= 0 && !observations[latestIndex].compatibleUnit) latestIndex--;
+  const latest = observations[latestIndex];
   if (!latest) return { points: [] as { dateKey: string; value: number }[], sourceVerified: false, note: '미제공 또는 유효한 기록 없음 · 0으로 대신하지 않아요.' };
-  let start = observations.length - 1;
-  while (start > 0 && observations[start - 1].identity === latest.identity) start--;
-  const points = observations.slice(start).slice(-limit).map(({dateKey,value}) => ({dateKey,value}));
+  let start = latestIndex;
+  // Incompatible observations are boundaries, not gaps to bridge across.
+  while (start > 0 && observations[start - 1].compatibleUnit && observations[start - 1].identity === latest.identity) start--;
+  const points = observations.slice(start, latestIndex + 1).slice(-limit).map(({dateKey,value}) => ({dateKey,value}));
   const note = latest.identity ? '지표·기기 출처 표기·원문 단위가 같은 기록만 연결했어요. 측정 조건까지 같다는 뜻은 아니에요.' : '출처 미확인 기록의 수치 차이입니다. 같은 기기인지 확인해 주세요.';
   return { points, sourceVerified: Boolean(latest.identity), note: note + (start ? ' 출처가 바뀐 이전 기록은 연결하지 않아요.' : '') };
 }

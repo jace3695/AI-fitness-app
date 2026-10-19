@@ -180,6 +180,26 @@ try {
    await currentCriteria.locator('summary').click();
    await page.setViewportSize({width:320,height:800});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
    assert.equal(await page.getByText('±0.3%p',{exact:false}).count(),0);
+   const comparisonChecks=[];
+   for (const [scenario,count] of [['matching',3],['unit-change',1],['device-change',1],['missing',2],['duplicate',1]]) {
+     await page.evaluate(scenario=>{
+       const source={device:'OA Smart Scale PRO',originalLabel:'근육량',originalUnit:'kg',method:'manual',mappingVersion:'synthetic-v1'};
+       const record=value=>({muscleMass:value,metricSources:{muscleMass:{...source}}});
+       let data={'2025-04-01':record(50),'2025-04-04':record(51),'2025-04-08':record(52)};
+       if(scenario==='unit-change') data['2025-04-04'].metricSources.muscleMass.originalUnit='%';
+       if(scenario==='device-change') data['2025-04-04'].metricSources.muscleMass.device='OA long report';
+       if(scenario==='missing') data['2025-04-04']={};
+       if(scenario==='duplicate') {data={'2025-04-08':record(50)};data['2025-04-08']=record(52);}
+       localStorage.setItem('ai-fitness-inbody-records',JSON.stringify(data));
+     },scenario);
+     await page.reload();const storedBefore=await snapshot();
+     await expect(massChart.getByRole('img')).toHaveAttribute('aria-label',`전체 근육량 (원문: 근육량) 최근 ${count}회 변화`);
+     assert.equal(await massChart.locator('circle').count(),count);
+     if(count===1) await expect(massChart.getByText('2025-04-08 ~ 2025-04-08 · 1회',{exact:true})).toBeVisible();
+     assert.equal(await snapshot(),storedBefore);assert.deepEqual(errors,[]);
+     comparisonChecks.push(scenario);
+   }
+   console.log(JSON.stringify({passed:comparisonChecks.length,checks:comparisonChecks,scope:'synthetic comparison boundaries, missing and duplicate dates',externalRequestsSent:0}));
    console.log(JSON.stringify({passed:24,checks:['OA whole-body fields are distinct','legacy manual values retained in separate group','raw age and unit retained','stale skeletal history does not trigger current loss or preservation claims','four distinct raw metric charts','390px no overflow and no storage mutations','kg trend works without current skeletal data','percent rise with kg fall marked divergent','unknown conditions and water effects explicit','comparison criteria visible without writes','legacy fields render only once in separate group','no legacy fields in OA main groups','raw age renders as one visible value with unit','raw age editing saves and reloads without legacy conversion','source body fat label shows trunk value','empty legacy inputs remain out of default OA view','populated legacy values remain visible and editable','non-OA manual edit and reload preserve all fields','common criteria once and collapsed, no repeated chart prose','criteria keyboard Enter and Space plus mobile tap','normal chart only values and full date range','percent change uses percentage points','thresholds conditional on comparable metric, no missing skeletal range','threshold boundaries explicit and 320px layout fits']}));
  } else if(lateProCheck) {
    const checkbox=page.getByRole('checkbox',{name:'사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.'});
@@ -543,7 +563,7 @@ try {
    await page.reload();
    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
    assert.ok(stored.dateOverrides['2026-10-14'].edit.customExercises.some(x=>x.sourceExerciseId===id));
-   if(['seated-knee-extension','light-dumbbell-curl'].includes(id)) {
+   if(['seated-knee-extension','light-dumbbell-curl','supported-calf-raise','supported-side-leg-raise'].includes(id)) {
      const motion=page.getByRole('region',{name:name+' 자체 시범'});
      await expect(motion).toHaveCount(1);
      await expect(motion).toBeVisible();

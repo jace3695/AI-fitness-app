@@ -1,0 +1,28 @@
+{
+  "runtimeSource": [
+    {
+      "path": "app/components/ExerciseMotionDemo.tsx",
+      "bytes": 6875,
+      "gzipBytes": 2825
+    },
+    {
+      "path": "app/components/SupportedExerciseFigure.tsx",
+      "bytes": 1966,
+      "gzipBytes": 857
+    },
+    {
+      "path": "app/lib/exerciseMotion.ts",
+      "bytes": 2734,
+      "gzipBytes": 1235
+    },
+    {
+      "path": "app/lib/supportedExerciseMotion.ts",
+      "bytes": 4507,
+      "gzipBytes": 1865
+    }
+  ],
+  "totalBytes": 16082,
+  "baselineBytes": 8108,
+  "rasterAssetsBytes": 0,
+  "notes": "Source sizes, not production bundle measurement"
+}

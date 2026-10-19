@@ -96,3 +96,29 @@ test('incompatible kg/percent provenance is excluded without rewriting stored va
  const before=JSON.stringify(records);const result=getWholeMuscleTrend(records);
  assert.equal(result.kg.last,undefined);assert.equal(result.rate.last,undefined);assert.equal(result.paired,false);assert.equal(JSON.stringify(records),before);
 });
+
+test('an incompatible unit between matching sources breaks the comparison series',()=>{
+ const records:InbodyRecordStore={
+  '2025-04-01':{muscleMass:50,metricSources:muscleSources},
+  '2025-04-02':{muscleMass:60,metricSources:{muscleMass:{...muscleSources.muscleMass,originalUnit:'%'}}},
+  '2025-04-03':{muscleMass:51,metricSources:muscleSources},
+ };
+ const before=JSON.stringify(records);
+ const trend=getWholeMuscleTrend(records);
+ assert.deepEqual(trend.kg.points,[{dateKey:'2025-04-03',value:51}]);
+ assert.equal(trend.kg.delta,undefined);
+ assert.equal(JSON.stringify(records),before);
+});
+
+test('a different device between matching sources also breaks the comparison series',()=>{
+ const records:InbodyRecordStore={
+  '2025-04-01':{muscleMass:50,metricSources:muscleSources},
+  '2025-04-02':{muscleMass:51,metricSources:{muscleMass:{...muscleSources.muscleMass,device:'OA long report'}}},
+  '2025-04-03':{muscleMass:52,metricSources:muscleSources},
+  '2025-04-04':{},
+  '2025-04-05':{muscleMass:53,metricSources:muscleSources},
+ };
+ const trend=getWholeMuscleTrend(records);
+ assert.deepEqual(trend.kg.points,[{dateKey:'2025-04-03',value:52},{dateKey:'2025-04-05',value:53}]);
+ assert.equal(trend.kg.delta,1);
+});

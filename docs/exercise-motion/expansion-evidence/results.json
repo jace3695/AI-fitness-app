@@ -1,0 +1,26 @@
+{
+  "typecheck": "passed",
+  "browser": "msedge",
+  "checks": [
+    "seated-knee-extension: initial pause, keyboard slider/Enter/Space, playback, pause, seek, finish, replay, hidden stop, no auto-resume, reduced motion, measured half-speed, 390px layout",
+    "light-dumbbell-curl: initial pause, keyboard slider/Enter/Space, playback, pause, seek, finish, replay, hidden stop, no auto-resume, reduced motion, measured half-speed, 390px layout",
+    "supported-calf-raise: initial pause, keyboard slider/Enter/Space, playback, pause, seek, finish, replay, hidden stop, no auto-resume, reduced motion, measured half-speed, 390px layout",
+    "supported-side-leg-raise: initial pause, keyboard slider/Enter/Space, playback, pause, seek, finish, replay, hidden stop, no auto-resume, reduced motion, measured half-speed, 390px layout"
+  ],
+  "additional": [
+    "loop wraps",
+    "seek during playback pauses",
+    "speed control",
+    "320px no overflow",
+    "ID switch resets player",
+    "390px touch-emulated new demos: play/pause/static poses/reduced motion"
+  ],
+  "unsupportedId": "renders nothing",
+  "pageErrors": [],
+  "externalRequests": "blocked by route",
+  "limitations": [
+    "Not full app integration",
+    "No medical or physical-device validation",
+    "Visibility tested with synthetic event"
+  ]
+}
