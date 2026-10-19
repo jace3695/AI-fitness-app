@@ -46,3 +46,30 @@ test('registered guides still resolve by exact ID and retain their safety instru
     assert.notEqual(guide.summary, 'unrelated rest description');
   }
 });
+
+import { WORKOUTS } from '../data/workouts.ts';
+
+test('band row registered and generated routine guides stop on pain without posture or tension workarounds', () => {
+  const guide=getExerciseGuide('band-row');
+  assert.equal(getExerciseGuide('밴드 로우'),guide);
+  assert.ok(guide.stopCriteria.includes('허리 통증이 생기면 즉시 중단하세요.'));
+  assert.ok(guide.stopCriteria.includes('어깨 앞쪽 통증이나 팔 저림이 생기면 즉시 중단하세요.'));
+  assert.ok(guide.stopCriteria.includes('밴드 고정이 불안하면 중단하세요.'));
+  assert.ok(guide.stopCriteria.includes('밴드 고정점이 흔들리거나 풀릴 가능성이 보이면 즉시 놓고 다시 고정하세요.'));
+  for(const groupId of ['current-fullbody-strength-circuit','current-fullbody-recovery-circuit','back-band-dumbbell-row']) {
+    const e=workoutGroupToDayWorkout(getWorkoutGroupById(groupId),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='band-row')!;
+    assert.equal(e.guide,guide);
+    assert.doesNotMatch(JSON.stringify(e),/통증이 있으면 앉아서|통증이나 팔 저림이 생기면 장력을 낮추고/);
+    assert.ok(e.details.some(d=>d.text==='허리 통증이 생기면 즉시 중단하세요.'));
+  }
+});
+
+test('legacy band row retains stop symptoms and no longer suggests reducing tension when in pain', () => {
+  const rows=WORKOUTS.flatMap(d=>d.phases.flatMap(p=>p.exercises)).filter(e=>e.name==='밴드 로우');
+  assert.ok(rows.length>0);
+  for(const e of rows) {
+    assert.match(e.guide!.keyPoint!,/통증이 있으면 즉시 중단합니다/);
+    assert.deepEqual(e.guide!.stopCriteria,['허리 통증','어깨 앞쪽 통증','팔 저림']);
+    assert.doesNotMatch(JSON.stringify(e),/통증이 있으면 밴드 장력을 낮/);
+  }
+});

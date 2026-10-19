@@ -34,7 +34,7 @@ import ExerciseGuidePanel from './app/components/ExerciseGuidePanel';
 import ExerciseCard from './app/components/ExerciseCard';
 import { getWorkoutGroupById, workoutGroupToDayWorkout } from './app/data/workoutGroups';
 import { getExerciseGuide } from './app/data/exerciseGuides';
-import { SAFETY_STOP_MESSAGE } from './app/data/workouts';
+import { SAFETY_STOP_MESSAGE, WORKOUTS } from './app/data/workouts';
 const registeredGuide=getExerciseGuide('wall-pushup');
 window.expectedSafetyCriteria=[...new Set([...registeredGuide.stopCriteria,'합성 루틴 고유 주의사항',SAFETY_STOP_MESSAGE])];
 const safetyFixture={exerciseId:'wall-pushup',name:'등록 운동 안전 안내',sets:0,restSeconds:0,guide:registeredGuide,details:[{type:'warn',text:registeredGuide.stopCriteria[0]},{type:'warn',text:'합성 루틴 고유 주의사항'},{type:'warn',text:'합성 루틴 고유 주의사항'},{type:'warn',text:SAFETY_STOP_MESSAGE}]};
@@ -49,6 +49,7 @@ function App() {
  const custom=applyDayRoutineEdit({phases:[{exercises:[]}]},edit).phases[0].exercises;
  if (${bodyAnalysis}) {const stores=readRecordStores(); return <main><BodyRecordCard dateKey="2025-04-08" weights={weights} inbody={inbody} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}}/><WeightChart weights={weights} inbody={inbody} goal={stores.weightGoal} year={2025} monthIndex={3} cutoffDateKey="2025-04-08" onGoalChange={()=>{}}/><RecordDashboard stores={stores} year={2025} monthIndex={3} view="body"/></main>;}
  if (${realOcr || recordNavigation}) return <RecordCalendarView/>;
+ if (window.location.search === '?band-safety') {const current=workoutGroupToDayWorkout(getWorkoutGroupById('current-fullbody-strength-circuit'),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='band-row');const legacy=WORKOUTS.flatMap(d=>d.phases.flatMap(p=>p.exercises)).find(e=>e.name==='밴드 로우');return <main>{[current,legacy].map((e,i)=><div key={i} data-testid={'band-safety-'+i}><ExerciseCard exercise={e}/></div>)}</main>;}
  if (window.location.search === '?missing-guide') return <main>{['rest','cardio-foam-recovery'].map(id=>{const exercise=workoutGroupToDayWorkout(getWorkoutGroupById(id),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='pullup-posture-only');return <div key={id} data-testid={'missing-'+id}><ExerciseCard exercise={exercise}/></div>;})}<div data-testid="registered-safety"><ExerciseCard exercise={safetyFixture}/></div><div data-testid="standalone-safety"><ExerciseGuidePanel exercise={safetyFixture}/></div><div data-testid="no-guide-safety"><ExerciseCard exercise={{name:'가이드 없는 운동',sets:0,restSeconds:0,details:[{type:'warn',text:'합성 가이드 없는 운동 주의사항'}]}}/></div></main>;
  if (window.location.search === '?legacy') return <><InbodyRecordCard dateKey={date} records={inbody} onChange={setInbody}/><DataBackupPanel/></>;
  return <main>{${trunkCheck} && <DataBackupPanel/>}<button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
@@ -635,6 +636,19 @@ try {
  await expect(page.getByTestId('missing-rest').getByText('사용 근육 정보가 등록되지 않았습니다.',{exact:true})).toBeVisible();
  assert.equal(await page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort()))),storageBeforeMissing);
  checks.push('missing pullup guide: rest context once, explicit missing purpose/movement/muscles, no guessed video, mobile/reload and no writes');
+ await page.goto(origin+'?band-safety');
+ for(const i of [0,1]) {
+   const card=page.getByTestId('band-safety-'+i);
+   await card.getByText('밴드 로우',{exact:true}).click();
+   assert.doesNotMatch(await card.innerText(),/통증이 있으면 앉아서|통증이 있으면 밴드 장력을 낮|통증이나 팔 저림이 생기면 장력을 낮추고/);
+   await expect(card.getByText('7) 즉시 중단 기준',{exact:true})).toHaveCount(1);
+ }
+ const currentBand=page.getByTestId('band-safety-0');
+ for(const text of ['허리 통증이 생기면 즉시 중단하세요.','어깨 앞쪽 통증이나 팔 저림이 생기면 즉시 중단하세요.','밴드 고정이 불안하면 중단하세요.','밴드 고정점이 흔들리거나 풀릴 가능성이 보이면 즉시 놓고 다시 고정하세요.']) await expect(currentBand.getByText('• '+text,{exact:true})).toHaveCount(1);
+ await expect(page.getByTestId('band-safety-1').getByText('통증이 있으면 즉시 중단합니다.',{exact:false})).toBeVisible();
+ await page.screenshot({path:resolve(output,'band-row-safety-390.png'),fullPage:true});
+ assert.equal(await page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort()))),storageBeforeMissing);
+ checks.push('registered and legacy band row stop on pain, preserve anchor warnings and do not write records');
  assert.deepEqual(errors,[]);
  await page.screenshot({path:resolve(output,'mobile.png'),fullPage:true});
  writeFileSync(resolve(output,'result.json'),JSON.stringify({passed:checks.length,checks,scope:'Local actual React components; synthetic OCR and storage. Not authenticated Next app or real OCR accuracy.'},null,2));
