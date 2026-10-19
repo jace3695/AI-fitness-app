@@ -24,6 +24,8 @@ function GuideBlock({ title, items, tone = 'plain' }: { title: string; items?: s
 export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise }) {
   const guide = exercise.guide;
   if (!guide) return null;
+  // Keep routine-specific warnings, guide criteria and the common stop message together.
+  const stopCriteria = [...new Set([...exercise.details.filter(d => d.type === 'warn').map(d => d.text), ...guide.stopCriteria, SAFETY_STOP_MESSAGE])];
   return (
     <div className="mt-3 space-y-2" onClick={(event) => event.stopPropagation()}>
       {(exercise.sourceExerciseId || exercise.exerciseId) === 'wall-pushup' ? <WallPushupDemo key={exercise.exerciseId} /> : null}
@@ -38,7 +40,7 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
       {guide.breathing ? <div className="rounded-xl bg-[#E6F1FB] p-3 text-[12px] text-[#0C447C]"><b>4) 호흡</b><p className="mt-1">{guide.breathing}</p></div> : null}
       {guide.target ? <div className="rounded-xl bg-[#EAF3DE] p-3 text-[12px] text-[#27500A]"><b>5) 자극 부위</b><p className="mt-1">{guide.target}</p></div> : null}
       <GuideBlock title="6) 자주 하는 실수" items={guide.commonMistakes} tone="mistake" />
-      <GuideBlock title="7) 즉시 중단 기준" items={guide.stopCriteria} tone="stop" />
+      <GuideBlock title="7) 즉시 중단 기준" items={stopCriteria} tone="stop" />
       {guide.alternatives?.length ? (
         <section className="rounded-xl border border-[#AFA9EC] bg-[#EEEDFE] p-3 text-[#3C3489]">
           <p className="text-[12px] font-bold">통증·불안정 시 대체 운동</p>
@@ -47,7 +49,6 @@ export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise })
           </ul>
         </section>
       ) : null}
-      <p className="rounded-xl bg-[#FCEBEB] p-3 text-[12px] font-semibold text-[#A32D2D]">{SAFETY_STOP_MESSAGE}</p>
       {getExerciseVideoHref(exercise) ? <a href={getExerciseVideoHref(exercise)} target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-[#111827] px-3 py-2 text-center text-[13px] font-bold text-white"><span className="block">8) 한국어 {getExerciseVideoLabel(exercise)}</span>{guide.videoTitle ? <span className="mt-1 block text-[11px] font-medium text-gray-300">{guide.videoTitle}</span> : null}</a> : <button type="button" disabled className="block w-full rounded-xl bg-gray-100 px-3 py-2 text-center text-[13px] font-bold text-gray-400">8) 영상 준비중</button>}
     </div>
   );

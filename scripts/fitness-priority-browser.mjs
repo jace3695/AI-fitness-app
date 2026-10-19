@@ -33,6 +33,11 @@ import DailyWorkoutEditor from './app/components/DailyWorkoutEditor';
 import ExerciseGuidePanel from './app/components/ExerciseGuidePanel';
 import ExerciseCard from './app/components/ExerciseCard';
 import { getWorkoutGroupById, workoutGroupToDayWorkout } from './app/data/workoutGroups';
+import { getExerciseGuide } from './app/data/exerciseGuides';
+import { SAFETY_STOP_MESSAGE } from './app/data/workouts';
+const registeredGuide=getExerciseGuide('wall-pushup');
+window.expectedSafetyCriteria=[...new Set([...registeredGuide.stopCriteria,'합성 루틴 고유 주의사항',SAFETY_STOP_MESSAGE])];
+const safetyFixture={exerciseId:'wall-pushup',name:'등록 운동 안전 안내',sets:0,restSeconds:0,guide:registeredGuide,details:[{type:'warn',text:registeredGuide.stopCriteria[0]},{type:'warn',text:'합성 루틴 고유 주의사항'},{type:'warn',text:'합성 루틴 고유 주의사항'},{type:'warn',text:SAFETY_STOP_MESSAGE}]};
 import { applyDayRoutineEdit, EMPTY_USER_WORKOUT_SETTINGS } from './app/data/userWorkoutSettings';
 const W='ai-fitness-weight-records', I='ai-fitness-inbody-records';
 function App() {
@@ -44,7 +49,7 @@ function App() {
  const custom=applyDayRoutineEdit({phases:[{exercises:[]}]},edit).phases[0].exercises;
  if (${bodyAnalysis}) {const stores=readRecordStores(); return <main><BodyRecordCard dateKey="2025-04-08" weights={weights} inbody={inbody} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}}/><WeightChart weights={weights} inbody={inbody} goal={stores.weightGoal} year={2025} monthIndex={3} cutoffDateKey="2025-04-08" onGoalChange={()=>{}}/><RecordDashboard stores={stores} year={2025} monthIndex={3} view="body"/></main>;}
  if (${realOcr || recordNavigation}) return <RecordCalendarView/>;
- if (window.location.search === '?missing-guide') return <main>{['rest','cardio-foam-recovery'].map(id=>{const exercise=workoutGroupToDayWorkout(getWorkoutGroupById(id),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='pullup-posture-only');return <div key={id} data-testid={'missing-'+id}><ExerciseCard exercise={exercise}/></div>;})}</main>;
+ if (window.location.search === '?missing-guide') return <main>{['rest','cardio-foam-recovery'].map(id=>{const exercise=workoutGroupToDayWorkout(getWorkoutGroupById(id),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='pullup-posture-only');return <div key={id} data-testid={'missing-'+id}><ExerciseCard exercise={exercise}/></div>;})}<div data-testid="registered-safety"><ExerciseCard exercise={safetyFixture}/></div><div data-testid="standalone-safety"><ExerciseGuidePanel exercise={safetyFixture}/></div><div data-testid="no-guide-safety"><ExerciseCard exercise={{name:'가이드 없는 운동',sets:0,restSeconds:0,details:[{type:'warn',text:'합성 가이드 없는 운동 주의사항'}]}}/></div></main>;
  if (window.location.search === '?legacy') return <><InbodyRecordCard dateKey={date} records={inbody} onChange={setInbody}/><DataBackupPanel/></>;
  return <main>{${trunkCheck} && <DataBackupPanel/>}<button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
  <BodyRecordCard dateKey={date} weights={weights} inbody={inbody} onDateChange={setDate} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}} />
@@ -595,9 +600,31 @@ try {
    await expect(card.getByText('동작 방법이 등록되지 않아 이 안내만으로 따라 할 수 없습니다.',{exact:false}).first()).toBeVisible();
    await expect(card.getByRole('button',{name:'8) 영상 준비중'})).toBeDisabled();
    assert.equal(await card.getByRole('link').count(),0);
+   const safety=card.locator('section').filter({has:page.getByText('7) 즉시 중단 기준',{exact:true})});
+   await expect(safety).toHaveCount(1);
+   for(const text of ['통증이 있으면 즉시 중단하세요.','허리 통증이나 다리 저림이 있으면 회복 모드로 전환하세요.','반동으로 하지 말고 천천히 진행하세요.']) {
+     await expect(card.getByText('• '+text,{exact:true})).toHaveCount(1);
+     await expect(safety.getByText('• '+text,{exact:true})).toBeVisible();
+   }
+
    const context='휴식을 우선하고, 원할 때만 자세 연습을 선택합니다. 쉬고 싶으면 건너뛰세요.';
    assert.equal(await card.getByText(context,{exact:true}).count(),id==='rest'?1:0);
  }
+ await page.getByTestId('registered-safety').getByText('등록 운동 안전 안내',{exact:true}).click();
+ for(const id of ['registered-safety','standalone-safety']) {
+   const scope=page.getByTestId(id);
+   const safety=scope.locator('section').filter({has:page.getByText('7) 즉시 중단 기준',{exact:true})});
+   await expect(safety).toHaveCount(1);
+   const warnings=await safety.locator('li').allTextContents();
+   assert.equal(new Set(warnings).size,warnings.length);
+   assert.deepEqual(warnings.map(t=>t.replace(/^• /,'')).sort(),(await page.evaluate(()=>window.expectedSafetyCriteria)).sort());
+   assert.ok(warnings.some(t=>t.includes('가슴 답답함')));
+   for(const text of warnings) await expect(scope.getByText(text,{exact:true})).toHaveCount(1);
+   await expect(safety.getByText('• 합성 루틴 고유 주의사항',{exact:true})).toBeVisible();
+ }
+ await page.getByTestId('no-guide-safety').getByText('가이드 없는 운동',{exact:true}).click();
+ await expect(page.getByTestId('no-guide-safety').getByText('합성 가이드 없는 운동 주의사항',{exact:true})).toBeVisible();
+ checks.push('safety criteria appear once in one section for registered/fallback cards and standalone guide; unique routine and no-guide warnings remain');
  for(const width of [320,390]) {
    await page.setViewportSize({width,height:844});
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
