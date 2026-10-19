@@ -5,17 +5,18 @@ export type ExerciseGuideEntry = ExerciseGuide & { summary: string; purpose: str
 
 const stopDefault = ['통증이 있으면 즉시 중단하세요.', '허리 통증이나 다리 저림이 있으면 회복 모드로 전환하세요.', '반동으로 하지 말고 천천히 진행하세요.'];
 
+// A routine description is context, not evidence of movement or target muscles.
 export const fallbackExerciseGuide = (name: string, summary?: string): ExerciseGuideEntry => ({
-  summary: summary || '이 운동의 상세 설명이 아직 등록되지 않았습니다. 자세가 불안하면 무리하지 말고 회복 모드로 전환하세요.',
-  purpose: summary || '안전한 범위에서 몸을 움직이고 컨디션을 확인합니다.',
-  setup: ['통증 없는 편안한 자세에서 시작합니다.', '허리와 무릎에 부담이 느껴지면 범위를 줄입니다.'],
-  movement: [summary || `${name} 동작을 천천히 진행합니다.`],
-  breathing: '숨을 참지 말고 편하게 내쉬며 진행합니다.',
-  target: summary || name,
-  commonMistakes: ['빠르게 진행함', '통증을 참고 계속함'],
+  name,
+  summary: summary || '이 운동의 상세 안내가 아직 등록되지 않았습니다.',
+  purpose: '목적 정보가 등록되지 않았습니다.',
+  setup: [],
+  movement: ['동작 방법이 등록되지 않아 이 안내만으로 따라 할 수 없습니다.'],
+  breathing: '',
+  target: '사용 근육 정보가 등록되지 않았습니다.',
+  commonMistakes: [],
   stopCriteria: stopDefault,
-  keyPoint: summary || '빈 화면 방지를 위한 기본 안전 가이드입니다.',
-  videoSearchQuery: `${name} 운동 자세`,
+  keyPoint: '상세 안내 미등록 · 동작을 추측해서 따라 하지 마세요.',
 });
 
 export const exerciseGuides: Record<string, ExerciseGuideEntry> = {

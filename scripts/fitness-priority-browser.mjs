@@ -31,6 +31,8 @@ window.cloudSnapshot = readLocalCloudState; window.mergeSnapshot = mergeCloudSta
 import RecordCalendarView from './app/components/RecordCalendarView';
 import DailyWorkoutEditor from './app/components/DailyWorkoutEditor';
 import ExerciseGuidePanel from './app/components/ExerciseGuidePanel';
+import ExerciseCard from './app/components/ExerciseCard';
+import { getWorkoutGroupById, workoutGroupToDayWorkout } from './app/data/workoutGroups';
 import { applyDayRoutineEdit, EMPTY_USER_WORKOUT_SETTINGS } from './app/data/userWorkoutSettings';
 const W='ai-fitness-weight-records', I='ai-fitness-inbody-records';
 function App() {
@@ -42,6 +44,7 @@ function App() {
  const custom=applyDayRoutineEdit({phases:[{exercises:[]}]},edit).phases[0].exercises;
  if (${bodyAnalysis}) {const stores=readRecordStores(); return <main><BodyRecordCard dateKey="2025-04-08" weights={weights} inbody={inbody} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}}/><WeightChart weights={weights} inbody={inbody} goal={stores.weightGoal} year={2025} monthIndex={3} cutoffDateKey="2025-04-08" onGoalChange={()=>{}}/><RecordDashboard stores={stores} year={2025} monthIndex={3} view="body"/></main>;}
  if (${realOcr || recordNavigation}) return <RecordCalendarView/>;
+ if (window.location.search === '?missing-guide') return <main>{['rest','cardio-foam-recovery'].map(id=>{const exercise=workoutGroupToDayWorkout(getWorkoutGroupById(id),'fixture','fixture').phases.flatMap(p=>p.exercises).find(e=>e.exerciseId==='pullup-posture-only');return <div key={id} data-testid={'missing-'+id}><ExerciseCard exercise={exercise}/></div>;})}</main>;
  if (window.location.search === '?legacy') return <><InbodyRecordCard dateKey={date} records={inbody} onChange={setInbody}/><DataBackupPanel/></>;
  return <main>{${trunkCheck} && <DataBackupPanel/>}<button onClick={()=>setDate('2026-10-13')}>달력 다른 날짜</button><output aria-label="선택 날짜">{date}</output>
  <BodyRecordCard dateKey={date} weights={weights} inbody={inbody} onDateChange={setDate} onChange={next=>{setWeights(next.weights);setInbody(next.inbody)}} />
@@ -534,6 +537,41 @@ try {
    await page.reload();
    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
    assert.ok(stored.dateOverrides['2026-10-14'].edit.customExercises.some(x=>x.sourceExerciseId===id));
+   if(['seated-knee-extension','light-dumbbell-curl'].includes(id)) {
+     const motion=page.getByRole('region',{name:name+' 자체 시범'});
+     await expect(motion).toHaveCount(1);
+     await expect(motion).toBeVisible();
+     const slider=motion.getByRole('slider',{name:name+' 동작 위치'});
+     await expect(slider).toHaveValue('0');
+     await expect(motion.getByRole('button',{name:'재생',exact:true})).toBeDisabled();
+     await slider.focus(); await page.keyboard.press('ArrowRight');
+     await expect(slider).toHaveValue('0.01');
+     await page.emulateMedia({reducedMotion:'no-preference'});
+     await motion.getByRole('button',{name:'시작 자세 보기'}).click();
+     await motion.getByRole('button',{name:'재생',exact:true}).focus();
+     await page.keyboard.press('Enter'); await page.clock.runFor(1000);
+     const regular=Number(await slider.inputValue()); assert.ok(regular>.12&&regular<.2);
+     await motion.getByRole('button',{name:'일시정지',exact:true}).click();
+     const held=Number(await slider.inputValue());
+     await page.clock.runFor(500); assert.equal(Number(await slider.inputValue()),held);
+     await motion.getByRole('button',{name:'시작 자세 보기'}).click();
+     await motion.getByLabel('느리게 (0.5배)').check();
+     await motion.getByRole('button',{name:'재생',exact:true}).click(); await page.clock.runFor(1000);
+     assert.ok(Math.abs(Number(await slider.inputValue())/regular-.5)<.1);
+     await motion.getByRole('button',{name:'올린 자세 보기'}).click();
+     await page.setViewportSize({width:390,height:844});
+     await motion.screenshot({path:resolve(output,id+'-integrated.png')});
+     await motion.getByLabel('느리게 (0.5배)').uncheck();
+     await slider.fill('0.99'); await motion.getByRole('button',{name:'재생',exact:true}).click();
+     await page.clock.runFor(250); await expect(slider).toHaveValue('1');
+     await motion.getByLabel('반복',{exact:true}).check();
+     await motion.getByRole('button',{name:'재생',exact:true}).click(); await page.clock.runFor(6500);
+     assert.ok(Number(await slider.inputValue())<.15);
+     await page.emulateMedia({reducedMotion:'reduce'});
+     await expect(motion.getByRole('button',{name:'재생',exact:true})).toBeDisabled();
+     assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings'))),stored);
+     checks.push(id+': restored source ID, keyboard, pause, half speed, repeat, reduced motion and unchanged routine');
+   }
  }
  checks.push('all five new sourced guides can be reviewed, selected and restored after reload');
  for(const equipment of await page.getByLabel('보유 장비').locator('option').allTextContents()) {
@@ -547,6 +585,29 @@ try {
    await page.screenshot({path:resolve(output,`viewport-${width}.png`),fullPage:true});
  }
  checks.push('styled 320/390/1280px layout has no horizontal overflow');
+ const storageBeforeMissing=await page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));
+ await page.goto(origin+'?missing-guide');
+ for(const id of ['rest','cardio-foam-recovery']) {
+   const card=page.getByTestId('missing-'+id);
+   await card.getByText(id==='rest'?'턱걸이 자세 연습 1~2분':'턱걸이 자세 연습',{exact:true}).click();
+   await expect(card.getByText('목적 정보가 등록되지 않았습니다.',{exact:true})).toBeVisible();
+   await expect(card.getByText('사용 근육 정보가 등록되지 않았습니다.',{exact:true})).toBeVisible();
+   await expect(card.getByText('동작 방법이 등록되지 않아 이 안내만으로 따라 할 수 없습니다.',{exact:false}).first()).toBeVisible();
+   await expect(card.getByRole('button',{name:'8) 영상 준비중'})).toBeDisabled();
+   assert.equal(await card.getByRole('link').count(),0);
+   const context='휴식을 우선하고, 원할 때만 자세 연습을 선택합니다. 쉬고 싶으면 건너뛰세요.';
+   assert.equal(await card.getByText(context,{exact:true}).count(),id==='rest'?1:0);
+ }
+ for(const width of [320,390]) {
+   await page.setViewportSize({width,height:844});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   await page.screenshot({path:resolve(output,'missing-pullup-'+width+'.png'),fullPage:true});
+ }
+ await page.reload();
+ await page.getByTestId('missing-rest').getByText('턱걸이 자세 연습 1~2분',{exact:true}).click();
+ await expect(page.getByTestId('missing-rest').getByText('사용 근육 정보가 등록되지 않았습니다.',{exact:true})).toBeVisible();
+ assert.equal(await page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort()))),storageBeforeMissing);
+ checks.push('missing pullup guide: rest context once, explicit missing purpose/movement/muscles, no guessed video, mobile/reload and no writes');
  assert.deepEqual(errors,[]);
  await page.screenshot({path:resolve(output,'mobile.png'),fullPage:true});
  writeFileSync(resolve(output,'result.json'),JSON.stringify({passed:checks.length,checks,scope:'Local actual React components; synthetic OCR and storage. Not authenticated Next app or real OCR accuracy.'},null,2));
