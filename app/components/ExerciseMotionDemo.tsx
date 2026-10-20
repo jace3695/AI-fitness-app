@@ -75,13 +75,13 @@ function MotionPlayer({ id }: { id: MotionId }) {
       <a className="underline" href="https://www.nhs.uk/live-well/exercise/strength-exercises/" target="_blank" rel="noopener noreferrer">동작 원리 참고: NHS Strength exercises</a>
     </div>}
     <div className="mt-3 flex flex-wrap items-center gap-3">
-      <button type="button" disabled={reduced} aria-pressed={playing} className="rounded bg-indigo-800 px-3 py-2 text-white disabled:opacity-50" onClick={() => { if (position.current >= 1) { position.current = 0; setProgress(0); } setPlaying(v => !v); }}>{playing ? '일시정지' : '재생'}</button>
-      <label><input type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} /> 반복</label>
-      <label><input type="checkbox" checked={slow} onChange={e => setSlow(e.target.checked)} /> 느리게 (0.5배)</label>
+      <button type="button" disabled={reduced} aria-pressed={playing} className="min-h-11 min-w-11 rounded bg-indigo-800 px-3 py-2 text-white disabled:opacity-50" onClick={() => { if (position.current >= 1) { position.current = 0; setProgress(0); } setPlaying(v => !v); }}>{playing ? '일시정지' : '재생'}</button>
+      <label className="inline-flex min-h-11 items-center gap-2 px-2"><input type="checkbox" checked={loop} onChange={e => setLoop(e.target.checked)} /> 반복</label>
+      <label className="inline-flex min-h-11 items-center gap-2 px-2"><input type="checkbox" checked={slow} onChange={e => setSlow(e.target.checked)} /> 느리게 (0.5배)</label>
     </div>
     {reduced && <p className="mt-2 text-xs">동작 줄이기 설정에 따라 정지 자세를 표시합니다. 슬라이더로 자세를 확인하세요.</p>}
-    <label className="mt-3 block">동작 위치 (조절하면 정지)<input aria-label={`${asset.name} 동작 위치`} className="block w-full" type="range" min="0" max="1" step="0.01" value={progress} onChange={e => seek(Number(e.target.value))} /></label>
-    <div className="mt-2 flex flex-wrap gap-3"><button type="button" onClick={() => seek(0)}>시작 자세 보기</button><button type="button" onClick={() => seek(.5)}>올린 자세 보기</button></div>
+    <label className="mt-3 block">동작 위치 (조절하면 정지)<input aria-label={`${asset.name} 동작 위치`} className="block min-h-11 w-full" type="range" min="0" max="1" step="0.01" value={progress} onChange={e => seek(Number(e.target.value))} /></label>
+    <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="min-h-11 rounded border border-indigo-300 px-2 py-1" onClick={() => seek(0)}>시작 자세 보기</button><button type="button" className="min-h-11 rounded border border-indigo-300 px-2 py-1" onClick={() => seek(.5)}>올린 자세 보기</button></div>
     <p className="mt-2 text-xs">통증이나 저림이 생기면 중단하세요. 기존 자세 안내·중단 기준이 우선합니다. 정지 화면과 움직임의 크기를 따라 무리하게 범위를 늘리지 마세요.</p>
   </section>;
 }

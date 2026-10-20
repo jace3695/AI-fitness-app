@@ -1,0 +1,363 @@
+{
+  "browser": "isolated Edge headless temporary profile",
+  "baseline": true,
+  "rows": [
+    {
+      "id": "wall-pushup",
+      "reducedOnMount": false,
+      "toggleStateExposed": false,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 30
+        },
+        {
+          "name": "굽힌 자세 보기",
+          "width": 111.84375,
+          "height": 30
+        }
+      ],
+      "smallTargets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 30
+        },
+        {
+          "name": "굽힌 자세 보기",
+          "width": 111.84375,
+          "height": 30
+        }
+      ],
+      "noOverflow320": true
+    },
+    {
+      "id": "seated-knee-extension",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "앉아서 무릎 펴기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "smallTargets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "앉아서 무릎 펴기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "noOverflow320": true
+    },
+    {
+      "id": "light-dumbbell-curl",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "가벼운 덤벨 컬 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "smallTargets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "가벼운 덤벨 컬 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "noOverflow320": true
+    },
+    {
+      "id": "supported-calf-raise",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "지지형 양발 종아리 들기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "smallTargets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "지지형 양발 종아리 들기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "noOverflow320": true
+    },
+    {
+      "id": "supported-side-leg-raise",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "지지형 옆 다리 들기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "smallTargets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 36
+        },
+        {
+          "name": "반복",
+          "width": 45.921875,
+          "height": 20
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 105.859375,
+          "height": 20
+        },
+        {
+          "name": "지지형 옆 다리 들기 동작 위치",
+          "width": 270,
+          "height": 16
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 93.84375,
+          "height": 20
+        }
+      ],
+      "noOverflow320": true
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Touch emulation, not physical phone",
+    "No screen-reader speech test",
+    "Synthetic local fixture, not logged-in app",
+    "44px target size is a product check, not a WCAG certification"
+  ]
+}

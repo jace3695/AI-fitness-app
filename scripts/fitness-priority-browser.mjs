@@ -13,6 +13,7 @@ import tailwindcss from 'tailwindcss';
 const output = resolve('scripts/browser-qa/.generated/fitness-priority');
 const bodyAnalysis = process.env.FITNESS_BODY_ANALYSIS === '1';
 const lateProCheck = process.env.FITNESS_LATE_PRO === '1';
+const correctionCheck = process.env.FITNESS_SOURCE_CORRECTION === '1';
 const trunkCheck = process.env.FITNESS_TRUNK === '1';
 const realOcr = process.env.FITNESS_REAL_OCR === '1';
 const recordNavigation = process.env.FITNESS_RECORD_NAV === '1';
@@ -90,7 +91,49 @@ try {
  await page.goto(origin);
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
- if(bodyAnalysis) {
+ if(correctionCheck) {
+   const fixture={bodyFatPercent:20,muscleMass:50,musclePercent:60,fatMass:16,memo:'synthetic preserved memo',trunkMuscleMass:25,
+     metricSources:Object.fromEntries(OA_REPORT_INVENTORY.filter(([key])=>['bodyFatPercent','muscleMass','musclePercent','fatMass'].includes(key))
+       .map(([key,originalLabel,originalUnit])=>[key,{device:'OA long report',originalLabel,originalUnit,method:'ocr',mappingVersion:'oa-pro-v1'}]))};
+   await page.evaluate(fixture=>{localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-14':fixture,'2026-10-01':{memo:'other record'}}));localStorage.setItem('ai-fitness-weight-records',JSON.stringify({'2026-10-14':{weight:80,recordedAt:'unchanged'}}));},fixture);
+   await page.reload();
+   const snapshot=()=>page.evaluate(()=>({inbody:localStorage.getItem('ai-fitness-inbody-records'),weight:localStorage.getItem('ai-fitness-weight-records')}));
+   const before=await snapshot();
+   const open=()=>page.getByRole('button',{name:'기기 정보 정정 검토'}).click();
+   const confirm=()=>page.getByRole('checkbox',{name:'이 날짜의 원본이 OA Smart Scale PRO 긴 건강보고서임을 직접 확인했어요.'}).check();
+   const save=()=>page.getByRole('button',{name:'기기 정보만 저장'}).click();
+   await open(); await expect(page.getByRole('button',{name:'기기 정보만 저장'})).toBeDisabled();
+   await confirm();await page.getByRole('button',{name:'정정 취소'}).click();assert.deepEqual(await snapshot(),before);
+   await open();await confirm();await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-epoch','changed');localStorage.setItem('yeoni-storage-transaction-v1',JSON.stringify({'ai-fitness-inbody-records':'{}'}));});await save();
+   await expect(page.getByRole('alert')).toContainText('계정이나 기록이 바뀌었어요');assert.deepEqual(await snapshot(),before);
+   assert.notEqual(await page.evaluate(()=>localStorage.getItem('yeoni-storage-transaction-v1')),null);
+   await page.evaluate(()=>localStorage.removeItem('yeoni-storage-transaction-v1'));
+   await open();await confirm();await page.evaluate(()=>{const r=JSON.parse(localStorage.getItem('ai-fitness-inbody-records'));r['2026-10-14'].memo='concurrent edit';localStorage.setItem('ai-fitness-inbody-records',JSON.stringify(r));});await save();
+   await expect(page.getByRole('alert')).toContainText('계정이나 기록이 바뀌었어요');
+   await page.reload();await open();await confirm();
+   await page.evaluate(()=>{const key='ai-fitness-inbody-records';const before=localStorage.getItem(key);const partial=JSON.parse(before);partial['2026-10-14'].memo='interrupted write';localStorage.setItem('yeoni-storage-transaction-v1',JSON.stringify({[key]:before}));localStorage.setItem(key,JSON.stringify(partial));});
+   await save();
+   assert.equal(JSON.parse((await snapshot()).inbody)['2026-10-14'].memo,'concurrent edit');
+   assert.equal(await page.evaluate(()=>localStorage.getItem('yeoni-storage-transaction-v1')),null);
+   // Restore the fixture to test failure after a journal has been written.
+   await page.evaluate(fixture=>{const key='ai-fitness-inbody-records';const r=JSON.parse(localStorage.getItem(key));r['2026-10-14']={...fixture,memo:'concurrent edit'};localStorage.setItem(key,JSON.stringify(r));},fixture);
+   await page.reload();await open();await confirm();
+   await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;let once=true;Storage.prototype.setItem=function(key,value){if(key==='ai-fitness-inbody-records'&&once){once=false;throw new DOMException('synthetic write failure','QuotaExceededError');}return window.originalSetItem.call(this,key,value);};});
+   const beforeWriteFailure=await snapshot();await save();await expect(page.getByRole('alert')).toContainText('저장하지 못했어요');assert.deepEqual(await snapshot(),beforeWriteFailure);
+   await page.evaluate(()=>Storage.prototype.setItem=window.originalSetItem);
+   await page.reload();await open();await confirm();
+   await page.evaluate(()=>{window.originalSetItem=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='yeoni-storage-transaction-v1')throw new DOMException('synthetic quota','QuotaExceededError');return window.originalSetItem.call(this,key,value);};});
+   const beforeFailure=await snapshot();await save();await expect(page.getByRole('alert')).toContainText('저장하지 못했어요');assert.deepEqual(await snapshot(),beforeFailure);
+   await page.evaluate(()=>Storage.prototype.setItem=window.originalSetItem);await save();await page.reload();
+   const after=await snapshot(), records=JSON.parse(after.inbody);
+   assert.equal(after.weight,before.weight);assert.deepEqual(records['2026-10-01'],{memo:'other record'});
+   const expected={...fixture,memo:'concurrent edit',metricSources:Object.fromEntries(Object.entries(fixture.metricSources).map(([key,source])=>[key,{...source,device:'OA Smart Scale PRO'}]))};
+   assert.deepEqual(records['2026-10-14'],expected);
+   await expect(page.getByRole('button',{name:'기기 정보 정정 검토'})).toHaveCount(0);
+   await page.setViewportSize({width:320,height:800});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({passed:9,checks:['explicit confirmation required','cancel preserves storage','account epoch change blocks save','concurrent record edit blocks save','interrupted transaction recovers before composing corrected record','data write failure rolls back journal','quota failure preserves storage and retries','reload preserves all values and changes only four devices','320px no overflow'],externalRequestsSent:0}));
+ } else if(bodyAnalysis) {
    await page.evaluate(()=>{const source={device:'OA Smart Scale PRO',originalLabel:'근육량',originalUnit:'kg',method:'ocr',mappingVersion:'oa-pro-v1'};localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2025-03-01':{skeletalMuscleMass:31},'2025-03-08':{skeletalMuscleMass:30},'2025-04-01':{muscleMass:51,musclePercent:60,fatMass:21,bodyFatPercent:25,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}},'2025-04-08':{muscleMass:50,musclePercent:61,trunkFatMass:9.7,fatMass:20,bodyFatPercent:24,reportedBodyAge:37,reportedBodyAgeUnit:'연령 단위',bodyAge:52,bodyFatMass:19,metricSources:{muscleMass:source,musclePercent:{...source,originalLabel:'근육률',originalUnit:'%'}}}}));localStorage.setItem('ai-fitness-weight-records',JSON.stringify({'2025-04-01':{weight:78,recordedAt:''},'2025-04-08':{weight:77,recordedAt:''}}));});
    await page.reload();
    const snapshot=()=>page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));const before=await snapshot();
@@ -208,7 +251,8 @@ try {
    await page.locator('input[type=file]').last().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')});
    await page.waitForFunction(()=>typeof window.resolveOcr==='function');
    const values=Object.fromEntries(OA_REPORT_INVENTORY.slice(0,27).filter(([key])=>!['trunkMuscleMass','trunkFatMass'].includes(key)).map(([key],i)=>[key,i+10.5]));
-   await page.evaluate(values=>window.resolveOcr({values,recognizedCount:27,detectedDate:'2026-10-14',textValues:{reportedBodyAgeUnit:'연령 단위',bodyShape:'건강형',measurementTime:'08:12:34'},unmappedMeasurements:[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]}),values);
+   const metricSources=Object.fromEntries(OA_REPORT_INVENTORY.filter(([key])=>!['trunkMuscleMass','trunkFatMass'].includes(key)).map(([key,originalLabel,originalUnit])=>[key,{device:'OA long report',originalLabel,originalUnit,method:'ocr',mappingVersion:'oa-pro-v1'}]));
+   await page.evaluate(({values,metricSources})=>window.resolveOcr({values,metricSources,recognizedCount:27,detectedDate:'2026-10-14',textValues:{reportedBodyAgeUnit:'연령 단위',bodyShape:'건강형',measurementTime:'08:12:34'},unmappedMeasurements:[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]}),{values,metricSources});
    await page.getByLabel('측정 날짜',{exact:true}).waitFor();
    assert.equal(await checkbox.isEnabled(),true);
    for(const key of ['trunkMuscleMass','trunkFatMass']) { const text=await page.locator('[data-oa-field="'+key+'"]').textContent(); assert.match(text,/읽음.*기기 확인 대기.*저장 제외/);assert.doesNotMatch(text,/미인식/); }
@@ -237,6 +281,7 @@ try {
    await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2026-10-13']);
    assert.equal(saved.trunkMuscleMass,28.2);assert.equal(saved.trunkFatMass,undefined);assert.equal(saved.metricSources.trunkMuscleMass.method,'ocr-edited');
+   for(const key of ['bodyFatPercent','muscleMass','musclePercent','fatMass']) assert.equal(saved.metricSources[key].device,'OA Smart Scale PRO');
    await page.reload();assert.equal(await page.getByLabel('몸통 근육량',{exact:false}).and(page.locator('input')).inputValue(),'');
    assert.deepEqual(errors,[]);
    console.log(JSON.stringify({passed:7,checks:['unconfirmed OCR references are read/pending, not missing','late checkbox enabled without image reselection','mapping and counts update with edited date retained','untouched automatic mappings reverse','manual edits and explicit blanks survive toggles','toggles do not write storage','explicit save preserves edited source'],externalRequestsSent:0}));
@@ -483,7 +528,14 @@ try {
  await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-weight-records'))['2026-10-04'].weight),77.3);
  checks.push('edited value and draft survive transactional quota failure, retry saves');
- await page.getByLabel('보유 장비').selectOption('맨몸');
+ const beforeScope=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
+ const dateScope=page.getByRole('button',{name:'이 날짜만',exact:true}), weeklyScope=page.getByRole('button',{name:/^매주 /});
+ await expect(dateScope).toHaveAttribute('aria-pressed','true');
+ await weeklyScope.focus();await page.keyboard.press('Enter');
+ await expect(weeklyScope).toHaveAttribute('aria-pressed','true');await expect(dateScope).toHaveAttribute('aria-pressed','false');
+ await dateScope.click();assert.equal(await page.evaluate(()=>localStorage.getItem('fixture-settings')),beforeScope);
+ checks.push('scope buttons expose selected state and changing scope alone does not save');
+ await page.getByLabel('운동 도구 고르기',{exact:true}).selectOption('맨몸');
  const settingsBeforeGuide=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
  const oldGuide=page.locator('summary').filter({hasText:'운동 방법 보기 · 벽 푸시업'});
  await oldGuide.click();
@@ -498,6 +550,14 @@ try {
  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
  assert.equal(saved.dateOverrides['2026-10-14'].edit.customExercises[0].sourceExerciseId,'wall-pushup');
  checks.push('equipment selection source ID and guide survive reload');
+ const removeWall=page.getByRole('button',{name:'벽 푸시업 빼기',exact:true});
+ const removeBox=await removeWall.boundingBox();assert.ok(removeBox.width>=44&&removeBox.height>=44);
+ await removeWall.focus();await page.keyboard.press('Enter');
+ await expect(page.getByRole('button',{name:'내 운동에 추가 · 벽 푸시업',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'내 운동에 추가 · 벽 푸시업',exact:true}).click();await page.reload();
+ assert.equal(await page.getByRole('button',{name:'벽 푸시업 빼기',exact:true}).count(),1);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')).dateOverrides['2026-10-14'].edit.customExercises[0].sourceExerciseId),'wall-pushup');
+ checks.push('named 44px remove control works by keyboard and re-added exercise retains its guide after reload');
  const demo=page.getByRole('region',{name:'벽 푸시업 측면 도해'});
  await demo.waitFor();
  await page.clock.install();
@@ -551,7 +611,7 @@ try {
  checks.push('reduced-motion reload remains paused with static text available');
  const additions=[['맨몸','지지형 양발 종아리 들기','supported-calf-raise'],['맨몸','지지형 옆 다리 들기','supported-side-leg-raise'],['맨몸','앉아서 무릎 펴기','seated-knee-extension'],['덤벨 · 1kg 아령','가벼운 덤벨 컬','light-dumbbell-curl'],['BELLE 풀업밴드','팔 붙인 밴드 외회전','band-external-rotation-at-side']];
  for(const [equipment,name,id] of additions) {
-   await page.getByLabel('보유 장비').selectOption(equipment);
+   await page.getByLabel('운동 도구 고르기',{exact:true}).selectOption(equipment);
    const beforeGuide=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
    const preview=page.locator('details').filter({has:page.locator('summary').filter({hasText:name})});
    await preview.locator('summary').click();
@@ -600,8 +660,8 @@ try {
    }
  }
  checks.push('all five new sourced guides can be reviewed, selected and restored after reload');
- for(const equipment of await page.getByLabel('보유 장비').locator('option').allTextContents()) {
-   await page.getByLabel('보유 장비').selectOption(equipment);
+ for(const equipment of await page.getByLabel('운동 도구 고르기',{exact:true}).locator('option').allTextContents()) {
+   await page.getByLabel('운동 도구 고르기',{exact:true}).selectOption(equipment);
    assert.equal(await page.getByRole('button',{name:/^(내 운동에 추가|바로 추가).*(슬라이딩\s*보드|힙\s*브[릿리]지)/}).count(),0);
  }
  checks.push('every equipment category excludes sliding board and hip bridge');

@@ -9,14 +9,19 @@ export default function WallPushupDemo() {
   const [loop, setLoop] = useState(true);
   const [slow, setSlow] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [reduced, setReduced] = useState(false);
   const position = useRef(0);
   useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const preference = () => { setReduced(query.matches); if (query.matches) setPlaying(false); };
     const stop = () => { if (document.hidden) setPlaying(false); };
+    preference();
+    query.addEventListener('change', preference);
     document.addEventListener('visibilitychange', stop);
-    return () => document.removeEventListener('visibilitychange', stop);
+    return () => { query.removeEventListener('change', preference); document.removeEventListener('visibilitychange', stop); };
   }, []);
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || reduced) return;
     let frame = 0;
     let last: number | undefined;
     const tick = (now: number) => {
@@ -33,7 +38,7 @@ export default function WallPushupDemo() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, loop, slow]);
+  }, [playing, loop, slow, reduced]);
   const seek = (value: number) => { setPlaying(false); position.current = value; setProgress(value); };
   const pose = wallPushupPose(progress);
   const points = (...names: (keyof typeof pose)[]) => names.map(name => `${pose[name].x},${pose[name].y}`).join(' ');
@@ -55,12 +60,13 @@ export default function WallPushupDemo() {
     </svg>
     <p className="text-xs">{progress < .5 ? '벽 쪽으로 천천히 내려가는 구간' : '벽을 밀어 시작 자세로 돌아오는 구간'}</p>
     <div className="mt-2 flex flex-wrap items-center gap-3">
-      <button type="button" className="rounded-lg bg-indigo-800 px-3 py-2 text-white" onClick={() => { if (position.current >= 1) { position.current = 0; setProgress(0); } setPlaying(value => !value); }}>{playing ? '일시정지' : '재생'}</button>
-      <label><input type="checkbox" checked={loop} onChange={event => setLoop(event.target.checked)} /> 반복</label>
-      <label><input type="checkbox" checked={slow} onChange={event => setSlow(event.target.checked)} /> 느리게 (0.5배)</label>
+      <button type="button" disabled={reduced} aria-pressed={playing} className="min-h-11 min-w-11 rounded-lg bg-indigo-800 px-3 py-2 text-white disabled:opacity-50" onClick={() => { if (position.current >= 1) { position.current = 0; setProgress(0); } setPlaying(value => !value); }}>{playing ? '일시정지' : '재생'}</button>
+      <label className="inline-flex min-h-11 items-center gap-2 px-2"><input type="checkbox" checked={loop} onChange={event => setLoop(event.target.checked)} /> 반복</label>
+      <label className="inline-flex min-h-11 items-center gap-2 px-2"><input type="checkbox" checked={slow} onChange={event => setSlow(event.target.checked)} /> 느리게 (0.5배)</label>
     </div>
-    <label className="mt-3 block text-xs">동작 위치 (조절하면 정지)<input aria-label="동작 위치" className="block w-full" type="range" min="0" max="1" step="0.01" value={progress} onChange={event => seek(Number(event.target.value))} /></label>
-    <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="rounded border border-indigo-300 px-2 py-1" onClick={() => seek(0)}>시작 자세 보기</button><button type="button" className="rounded border border-indigo-300 px-2 py-1" onClick={() => seek(.5)}>굽힌 자세 보기</button></div>
+    {reduced && <p className="mt-2 text-xs">동작 줄이기 설정에 따라 정지 자세를 표시합니다. 슬라이더로 자세를 확인하세요.</p>}
+    <label className="mt-3 block text-xs">동작 위치 (조절하면 정지)<input aria-label="동작 위치" className="block min-h-11 w-full" type="range" min="0" max="1" step="0.01" value={progress} onChange={event => seek(Number(event.target.value))} /></label>
+    <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="min-h-11 rounded border border-indigo-300 px-2 py-1" onClick={() => seek(0)}>시작 자세 보기</button><button type="button" className="min-h-11 rounded border border-indigo-300 px-2 py-1" onClick={() => seek(.5)}>굽힌 자세 보기</button></div>
     <p className="mt-2 text-xs">정지 안내: 어깨 높이의 벽에 손을 대고 몸통을 곧게 유지합니다. 편안한 범위에서 팔꿈치를 굽힌 뒤 벽을 밀어 돌아옵니다. 통증이 생기면 중단하세요. 아래 자세·중단 기준도 함께 확인하세요.</p>
   </section>;
 }

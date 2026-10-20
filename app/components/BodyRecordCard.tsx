@@ -20,6 +20,7 @@ import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransact
 import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 import { OA_REPORT_INVENTORY } from '../lib/oaReportInventory';
 import { oaSourceMeasurements, setOaProMapping, OA_TRUNK_ROWS } from '../lib/oaDraftMapping';
+import OaSourceCorrection from './OaSourceCorrection';
 
 type InbodyField = {
   key: Exclude<keyof InbodyRecord, "weight" | "memo" | "metricSources">;
@@ -429,6 +430,7 @@ export default function BodyRecordCard({
           </p>
         )}
       </div>
+      {!draft && !manualDirty && !importing && currentInbody && <OaSourceCorrection key={dateKey} dateKey={dateKey} record={currentInbody} onSaved={next => onChange({ weights, inbody: next })}/>}
       <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
         const checked = event.target.checked;
         setConfirmedPro(checked);

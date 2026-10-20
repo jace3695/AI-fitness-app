@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { exerciseGuides } from '../data/exerciseGuides';
 import ExerciseGuidePanel from './ExerciseGuidePanel';
 import { HOME_EQUIPMENT, homeExerciseCandidates, isHomeSelectable, type HomeEquipment } from "../data/homeExerciseCatalog";
@@ -61,6 +61,7 @@ export default function DailyWorkoutEditor({
   const [newExerciseName, setNewExerciseName] = useState("");
   const [notice, setNotice] = useState("");
   const [equipment, setEquipment] = useState<HomeEquipment>("맨몸");
+  const equipmentSelectId = useId();
 
   const dateOverride = settings.dateOverrides[dateKey];
   const weeklyGroupId = settings.weeklyGroups[dayId] || defaultGroupId;
@@ -250,7 +251,7 @@ export default function DailyWorkoutEditor({
             {dayIdToKoreanLabel[dayId]} 운동 만들기
           </h2>
           <p className="mt-1 text-[12px] text-gray-500">
-            기본 루틴을 고른 뒤 필요 없는 운동은 빼고, 원하는 운동은 더하세요.
+            지금 운동표에서 필요 없는 운동은 빼고, 아래에서 원하는 운동을 더하세요.
           </p>
         </div>
         <button
@@ -266,6 +267,7 @@ export default function DailyWorkoutEditor({
         <button
           type="button"
           onClick={() => setScope("date")}
+          aria-pressed={scope === "date"}
           className={`rounded-xl px-3 py-2.5 text-[12px] font-bold ${scope === "date" ? "bg-white text-[#534AB7] shadow-sm" : "text-gray-500"}`}
         >
           이 날짜만
@@ -273,6 +275,7 @@ export default function DailyWorkoutEditor({
         <button
           type="button"
           onClick={() => setScope("weekly")}
+          aria-pressed={scope === "weekly"}
           className={`rounded-xl px-3 py-2.5 text-[12px] font-bold ${scope === "weekly" ? "bg-white text-[#534AB7] shadow-sm" : "text-gray-500"}`}
         >
           매주 {dayIdToKoreanLabel[dayId]}
@@ -385,7 +388,8 @@ export default function DailyWorkoutEditor({
                 <button
                   type="button"
                   onClick={() => removeExercise(exercise.exerciseId)}
-                  className="shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold text-red-600"
+                  aria-label={`${exercise.name || exercise.exerciseId} 빼기`}
+                  className="min-h-11 min-w-11 shrink-0 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-bold text-red-600"
                 >
                   빼기
                 </button>
@@ -417,12 +421,12 @@ export default function DailyWorkoutEditor({
 
       {group.type !== "choice" && (
         <div className="mt-4 rounded-2xl border border-gray-100 p-3">
-          <label className="block text-sm font-bold">집에서 할 운동 찾기
-            <select aria-label="보유 장비" value={equipment} onChange={event => setEquipment(event.target.value as HomeEquipment)} className="my-2 block w-full rounded border p-2">
+          <p className="text-sm font-bold">집에서 할 운동 찾기</p>
+          <label htmlFor={equipmentSelectId} className="mt-2 block text-sm">운동 도구 고르기</label>
+            <select id={equipmentSelectId} value={equipment} onChange={event => setEquipment(event.target.value as HomeEquipment)} className="my-2 block min-h-11 w-full rounded border p-2">
               {HOME_EQUIPMENT.map(item => <option key={item}>{item}</option>)}
             </select>
-          </label>
-          <p className="text-xs text-gray-600">맨몸 운동을 기본으로 제공합니다. 장비의 실제 하중·밴드 저항은 확인되지 않았습니다. 통증 중단 기준과 고정 상태를 먼저 확인하세요. 추가 버튼을 누른 운동만 현재 루틴에 들어갑니다.</p>
+          <p className="text-xs text-gray-600">도구 없이 할 운동은 ‘맨몸’을 고르세요. 장비의 실제 하중·밴드 저항은 확인되지 않았습니다. 통증 중단 기준과 고정 상태를 먼저 확인하세요. 추가 버튼을 누른 운동만 현재 루틴에 들어갑니다.</p>
           <p className="mt-2 text-xs text-amber-800">직접 고르는 운동 목록이에요. 나에게 맞춘 추천은 아니에요. 운동 방법에서 준비물과 중단 기준을 먼저 확인하세요.</p>
           <p className="mt-2 text-sm font-semibold text-[#534AB7]">방법 보기는 기록을 바꾸지 않아요. ‘내 운동에 추가’를 누르면 바로 저장돼요.</p>
           <div className="my-3 grid gap-3">{homeExerciseCandidates(equipment).map(candidate => {

@@ -1,0 +1,213 @@
+{
+  "browser": "isolated Edge headless temporary profile",
+  "baseline": false,
+  "rows": [
+    {
+      "id": "wall-pushup",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 44
+        },
+        {
+          "name": "반복",
+          "width": 65,
+          "height": 44
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 124.9375,
+          "height": 44
+        },
+        {
+          "name": "동작 위치",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        },
+        {
+          "name": "굽힌 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        }
+      ],
+      "smallTargets": [],
+      "noOverflow320": true,
+      "keyboardTouchSpeedAndPreference": "passed: Home/End/ArrowRight, Tab order, Space checkbox, Enter/Space playback, focus-visible, padded label edge tap, range tap, play/pause taps, 0.5 speed ratio, reduced preference during play, 200% text reflow"
+    },
+    {
+      "id": "seated-knee-extension",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 44
+        },
+        {
+          "name": "반복",
+          "width": 65,
+          "height": 44
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 124.9375,
+          "height": 44
+        },
+        {
+          "name": "앉아서 무릎 펴기 동작 위치",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        }
+      ],
+      "smallTargets": [],
+      "noOverflow320": true,
+      "keyboardTouchSpeedAndPreference": "passed: Home/End/ArrowRight, Tab order, Space checkbox, Enter/Space playback, focus-visible, padded label edge tap, range tap, play/pause taps, 0.5 speed ratio, reduced preference during play, 200% text reflow"
+    },
+    {
+      "id": "light-dumbbell-curl",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 44
+        },
+        {
+          "name": "반복",
+          "width": 65,
+          "height": 44
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 124.9375,
+          "height": 44
+        },
+        {
+          "name": "가벼운 덤벨 컬 동작 위치",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        }
+      ],
+      "smallTargets": [],
+      "noOverflow320": true,
+      "keyboardTouchSpeedAndPreference": "passed: Home/End/ArrowRight, Tab order, Space checkbox, Enter/Space playback, focus-visible, padded label edge tap, range tap, play/pause taps, 0.5 speed ratio, reduced preference during play, 200% text reflow"
+    },
+    {
+      "id": "supported-calf-raise",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 44
+        },
+        {
+          "name": "반복",
+          "width": 65,
+          "height": 44
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 124.9375,
+          "height": 44
+        },
+        {
+          "name": "지지형 양발 종아리 들기 동작 위치",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        }
+      ],
+      "smallTargets": [],
+      "noOverflow320": true,
+      "keyboardTouchSpeedAndPreference": "passed: Home/End/ArrowRight, Tab order, Space checkbox, Enter/Space playback, focus-visible, padded label edge tap, range tap, play/pause taps, 0.5 speed ratio, reduced preference during play, 200% text reflow"
+    },
+    {
+      "id": "supported-side-leg-raise",
+      "reducedOnMount": true,
+      "toggleStateExposed": true,
+      "targets": [
+        {
+          "name": "재생",
+          "width": 52,
+          "height": 44
+        },
+        {
+          "name": "반복",
+          "width": 65,
+          "height": 44
+        },
+        {
+          "name": "느리게 (0.5배)",
+          "width": 124.9375,
+          "height": 44
+        },
+        {
+          "name": "지지형 옆 다리 들기 동작 위치",
+          "width": 270,
+          "height": 44
+        },
+        {
+          "name": "시작 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        },
+        {
+          "name": "올린 자세 보기",
+          "width": 111.84375,
+          "height": 44
+        }
+      ],
+      "smallTargets": [],
+      "noOverflow320": true,
+      "keyboardTouchSpeedAndPreference": "passed: Home/End/ArrowRight, Tab order, Space checkbox, Enter/Space playback, focus-visible, padded label edge tap, range tap, play/pause taps, 0.5 speed ratio, reduced preference during play, 200% text reflow"
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Touch emulation, not physical phone",
+    "No screen-reader speech test",
+    "Synthetic local fixture, not logged-in app",
+    "44px target size is a product check, not a WCAG certification"
+  ]
+}
