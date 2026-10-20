@@ -1,0 +1,188 @@
+{
+  "revision": "57b3309426bdd845afae1e2014e10e4f39083b31",
+  "total": 30,
+  "completed": 5,
+  "rows": [
+    {
+      "id": "bodyweight-squat",
+      "name": "맨몸 스쿼트",
+      "equipment": "맨몸",
+      "complete": false
+    },
+    {
+      "id": "wall-pushup",
+      "name": "벽 푸시업",
+      "equipment": "맨몸",
+      "complete": true
+    },
+    {
+      "id": "supported-hamstring-curl",
+      "name": "지지형 햄스트링 컬",
+      "equipment": "맨몸",
+      "complete": false
+    },
+    {
+      "id": "indoor-walk",
+      "name": "실내 걷기",
+      "equipment": "맨몸",
+      "complete": false
+    },
+    {
+      "id": "basic-warmup",
+      "name": "기본 몸풀기",
+      "equipment": "맨몸",
+      "complete": false
+    },
+    {
+      "id": "basic-cooldown",
+      "name": "기본 정리운동",
+      "equipment": "맨몸",
+      "complete": false
+    },
+    {
+      "id": "supported-calf-raise",
+      "name": "지지형 양발 종아리 들기",
+      "equipment": "맨몸",
+      "complete": true
+    },
+    {
+      "id": "supported-side-leg-raise",
+      "name": "지지형 옆 다리 들기",
+      "equipment": "맨몸",
+      "complete": true
+    },
+    {
+      "id": "seated-knee-extension",
+      "name": "앉아서 무릎 펴기",
+      "equipment": "맨몸",
+      "complete": true
+    },
+    {
+      "id": "bird-dog",
+      "name": "버드독",
+      "equipment": "요가매트",
+      "complete": false
+    },
+    {
+      "id": "dead-bug",
+      "name": "데드버그",
+      "equipment": "요가매트",
+      "complete": false
+    },
+    {
+      "id": "pelvic-tilt",
+      "name": "골반 기울이기",
+      "equipment": "요가매트",
+      "complete": false
+    },
+    {
+      "id": "cat-cow",
+      "name": "캣카우",
+      "equipment": "요가매트",
+      "complete": false
+    },
+    {
+      "id": "knee-side-plank",
+      "name": "무릎 사이드 플랭크",
+      "equipment": "요가매트",
+      "complete": false
+    },
+    {
+      "id": "dumbbell-goblet-squat",
+      "name": "덤벨 고블릿 스쿼트",
+      "equipment": "덤벨 · 1kg 아령",
+      "complete": false
+    },
+    {
+      "id": "dumbbell-floor-press",
+      "name": "덤벨 플로어프레스",
+      "equipment": "덤벨 · 1kg 아령",
+      "complete": false
+    },
+    {
+      "id": "one-arm-dumbbell-row-supported",
+      "name": "의자/테이블 지지 원암 덤벨 로우",
+      "equipment": "덤벨 · 1kg 아령",
+      "complete": false
+    },
+    {
+      "id": "light-dumbbell-curl",
+      "name": "가벼운 덤벨 컬",
+      "equipment": "덤벨 · 1kg 아령",
+      "complete": true
+    },
+    {
+      "id": "band-row",
+      "name": "밴드 로우",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "longband-lat-pulldown",
+      "name": "롱밴드 랫풀다운",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "longband-face-pull",
+      "name": "롱밴드 페이스풀",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "band-pull-apart",
+      "name": "밴드 풀어파트",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "band-pallof-press",
+      "name": "밴드 팔로프 프레스",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "band-external-rotation-at-side",
+      "name": "팔 붙인 밴드 외회전",
+      "equipment": "BELLE 풀업밴드",
+      "complete": false
+    },
+    {
+      "id": "loopband-sidewalk",
+      "name": "루프밴드 사이드워크",
+      "equipment": "코멧 루프밴드",
+      "complete": false
+    },
+    {
+      "id": "loopband-monster-walk",
+      "name": "루프밴드 몬스터워크",
+      "equipment": "코멧 루프밴드",
+      "complete": false
+    },
+    {
+      "id": "ab-slider-ready-position",
+      "name": "AB 슬라이더 준비 자세",
+      "equipment": "AB 슬라이드",
+      "complete": false
+    },
+    {
+      "id": "pullup-basic-posture",
+      "name": "턱걸이 초기자세",
+      "equipment": "철봉",
+      "complete": false
+    },
+    {
+      "id": "foam-roller-prep",
+      "name": "폼롤러 준비",
+      "equipment": "폼롤러",
+      "complete": false
+    },
+    {
+      "id": "foam-roller-recovery",
+      "name": "폼롤러 회복",
+      "equipment": "폼롤러",
+      "complete": false
+    }
+  ],
+  "note": "Selection and names execute actual catalog/guide code; WORKOUT_GROUPS display metadata stubbed. Completion list is deployed-five baseline, not new local work."
+}

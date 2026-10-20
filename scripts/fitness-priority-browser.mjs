@@ -91,7 +91,32 @@ try {
  await page.goto(origin);
  await page.evaluate(()=>{localStorage.setItem('fitness-cloud-sync-user','fixture-A');localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2026-10-01':{bodyAge:40,memo:'preserve synthetic memo'}}));});
  await page.reload();
- if(correctionCheck) {
+ if(process.env.FITNESS_ALL_MOTIONS_LAYOUT === '1') {
+   const rows=JSON.parse(readFileSync('docs/exercise-motion/batch3-evidence/catalog.json','utf8')).rows
+     .filter(row=>!['dead-bug','foam-roller-recovery','ab-slider-ready-position'].includes(row.id));
+   await page.evaluate(rows=>{
+     localStorage.setItem('fixture-settings',JSON.stringify({
+       weeklyGroups:{},exerciseTargets:{},weeklyEdits:{},weeklyMethods:{},
+       dateOverrides:{'2026-10-14':{groupId:'rest',edit:{customExercises:rows.map(row=>({
+         id:'custom-layout-'+row.id,sourceExerciseId:row.id,name:row.name,
+       }))}}},
+     }));
+   },rows);
+   await page.reload();
+   await expect(page.getByRole('button',{name:'벽 푸시업 빼기',exact:true})).toBeVisible();
+   for(const width of [320,390,1280]) {
+     await page.setViewportSize({width,height:844});
+     const overflow=await page.locator('body *').evaluateAll(nodes=>nodes.map(node=>{
+       const r=node.getBoundingClientRect();return {right:r.right,width:r.width,html:node.outerHTML.slice(0,450)};
+     }).filter(row=>row.right>innerWidth+1 && row.width>0));
+     writeFileSync(resolve(output,`all-motions-overflow-${width}.json`),JSON.stringify(overflow,null,2));
+     await page.screenshot({path:resolve(output,`all-motions-layout-${width}.png`),fullPage:true});
+     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),JSON.stringify({width,overflow}));
+     checks.push(`all 27 selected motions fit ${width}px`);
+   }
+   assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({passed:checks.length,checks}));
+ } else if(correctionCheck) {
    const fixture={bodyFatPercent:20,muscleMass:50,musclePercent:60,fatMass:16,memo:'synthetic preserved memo',trunkMuscleMass:25,
      metricSources:Object.fromEntries(OA_REPORT_INVENTORY.filter(([key])=>['bodyFatPercent','muscleMass','musclePercent','fatMass'].includes(key))
        .map(([key,originalLabel,originalUnit])=>[key,{device:'OA long report',originalLabel,originalUnit,method:'ocr',mappingVersion:'oa-pro-v1'}]))};
@@ -442,9 +467,9 @@ try {
    assert.equal(await page.locator('input[inputmode=decimal]').first().inputValue(),'83');
    assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),clearDecimal?'24.5':'');
    assert.equal(await page.getByLabel('점수',{exact:false}).and(page.locator('input')).inputValue(),'76');
-   assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).and(page.locator('input')).inputValue(),clearDecimal?'9':'');
+   assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).and(page.locator('input')).inputValue(),'9');
    assert.equal(await page.getByLabel('신체연령 (다른 기기·직접 입력)세',{exact:true}).inputValue(),'');
-   assert.ok(await page.getByText('숫자 '+(clearDecimal?4:2)+'개를 읽었어요.',{exact:false}).isVisible());
+   assert.ok(await page.getByText('숫자 '+(clearDecimal?4:3)+'개를 읽었어요.',{exact:false}).isVisible());
    if(!clearDecimal) { await page.getByLabel('BMI',{exact:true}).fill('24.5'); await page.getByLabel('내장 지방 지수',{exact:false}).fill('9'); }
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
    await page.locator('input[inputmode=decimal]').first().fill('82.7');
@@ -460,7 +485,7 @@ try {
    await page.screenshot({path:resolve(output,'real-calendar-ocr.png'),fullPage:true});
    assert.deepEqual(errors,[]);
    const result={passed:1,scope:'Actual RecordCalendarView + browser image/canvas + OA parser/Tesseract worker and model; date/value edit, existing-record confirmation, memo preservation, save, reload and calendar re-query. Synthetic OA-layout image only, not real report accuracy.',assetRequests,externalRequestsSent:0};
-   result.decimalCase=clearDecimal?'clear decimal recognized':'uncertain decimal and disagreeing integer left blank for manual correction';
+   result.decimalCase=clearDecimal?'clear decimal recognized':'uncertain decimal left blank; integer recovered by agreeing smaller crops';
    writeFileSync(resolve(output,clearDecimal?'real-ocr-clear-result.json':'real-ocr-result.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result));
  } else {
  const upload=async(result)=>{ await page.locator('input[type=file]').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from('fixture')}); await page.waitForFunction(()=>typeof window.resolveOcr==='function'); if(result) await page.evaluate(r=>window.resolveOcr(r),result); };
@@ -560,7 +585,11 @@ try {
  checks.push('named 44px remove control works by keyboard and re-added exercise retains its guide after reload');
  const demo=page.getByRole('region',{name:'벽 푸시업 측면 도해'});
  await demo.waitFor();
- await page.clock.install();
+ // Installing alone leaves time advancing during screenshots and assertions.
+ // Freeze before playback so machine load cannot change the measured interval.
+ const motionClockStart = Date.now();
+ await page.clock.install({time:motionClockStart});
+ await page.clock.pauseAt(motionClockStart + 60_000);
  const position=demo.getByRole('slider',{name:'동작 위치'});
  assert.equal(await position.inputValue(),'0');
  await demo.screenshot({path:resolve(output,'wall-pushup-start.png')});
@@ -609,21 +638,35 @@ try {
  await demo.getByRole('button',{name:'재생',exact:true}).waitFor();
  assert.ok(await demo.getByText('정지 안내:',{exact:false}).isVisible());
  checks.push('reduced-motion reload remains paused with static text available');
- const additions=[['맨몸','지지형 양발 종아리 들기','supported-calf-raise'],['맨몸','지지형 옆 다리 들기','supported-side-leg-raise'],['맨몸','앉아서 무릎 펴기','seated-knee-extension'],['덤벨 · 1kg 아령','가벼운 덤벨 컬','light-dumbbell-curl'],['BELLE 풀업밴드','팔 붙인 밴드 외회전','band-external-rotation-at-side']];
+ // Use a base routine without the target exercises for the custom-ID round trip.
+ // Re-adding a removed base exercise correctly restores its original ID instead.
+ await page.evaluate(()=>{
+   const settings=JSON.parse(localStorage.getItem('fixture-settings'));
+   settings.dateOverrides['2026-10-14'].groupId='rest';
+   localStorage.setItem('fixture-settings',JSON.stringify(settings));
+ });
+ await page.reload();
+ const additions=[["맨몸","맨몸 스쿼트","bodyweight-squat"],["맨몸","지지형 햄스트링 컬","supported-hamstring-curl"],["맨몸","실내 걷기","indoor-walk"],["맨몸","기본 몸풀기","basic-warmup"],["맨몸","기본 정리운동","basic-cooldown"],["맨몸","지지형 양발 종아리 들기","supported-calf-raise"],["맨몸","지지형 옆 다리 들기","supported-side-leg-raise"],["맨몸","앉아서 무릎 펴기","seated-knee-extension"],["요가매트","버드독","bird-dog"],["요가매트","골반 기울이기","pelvic-tilt"],["요가매트","캣카우","cat-cow"],["요가매트","무릎 사이드 플랭크","knee-side-plank"],["덤벨 · 1kg 아령","덤벨 고블릿 스쿼트","dumbbell-goblet-squat"],["덤벨 · 1kg 아령","덤벨 플로어프레스","dumbbell-floor-press"],["덤벨 · 1kg 아령","의자/테이블 지지 원암 덤벨 로우","one-arm-dumbbell-row-supported"],["덤벨 · 1kg 아령","가벼운 덤벨 컬","light-dumbbell-curl"],["BELLE 풀업밴드","밴드 로우","band-row"],["BELLE 풀업밴드","롱밴드 랫풀다운","longband-lat-pulldown"],["BELLE 풀업밴드","롱밴드 페이스풀","longband-face-pull"],["BELLE 풀업밴드","밴드 풀어파트","band-pull-apart"],["BELLE 풀업밴드","밴드 팔로프 프레스","band-pallof-press"],["BELLE 풀업밴드","팔 붙인 밴드 외회전","band-external-rotation-at-side"],["코멧 루프밴드","루프밴드 사이드워크","loopband-sidewalk"],["코멧 루프밴드","루프밴드 몬스터워크","loopband-monster-walk"],["철봉","턱걸이 초기자세","pullup-basic-posture"],["폼롤러","폼롤러 준비","foam-roller-prep"]];
  for(const [equipment,name,id] of additions) {
    await page.getByLabel('운동 도구 고르기',{exact:true}).selectOption(equipment);
    const beforeGuide=await page.evaluate(()=>localStorage.getItem('fixture-settings'));
    const preview=page.locator('details').filter({has:page.locator('summary').filter({hasText:name})});
    await preview.locator('summary').click();
-   assert.ok(await preview.getByText('선택용 동작 안내입니다.',{exact:false}).isVisible());
-   assert.ok(await preview.getByRole('link',{name:/참고 안내:/}).isVisible());
+   await expect(preview.getByText('자세 가이드',{exact:true})).toBeVisible();
+   await expect(preview.getByText('7) 즉시 중단 기준',{exact:true})).toBeVisible();
+   if(['supported-hamstring-curl','bodyweight-squat','indoor-walk','bird-dog','band-row'].includes(id)) {
+     await expect(preview.getByRole('link',{name:/동작 원리 참고:/})).toBeVisible();
+   } else if(['supported-calf-raise','supported-side-leg-raise','seated-knee-extension','light-dumbbell-curl','band-external-rotation-at-side'].includes(id)) {
+     await expect(preview.getByText('선택용 동작 안내입니다.',{exact:false})).toBeVisible();
+     await expect(preview.getByRole('link',{name:/참고 안내:/})).toBeVisible();
+   }
    if(id==='band-external-rotation-at-side') await preview.screenshot({path:resolve(output,'expanded-band-guide.png')});
    assert.equal(await page.evaluate(()=>localStorage.getItem('fixture-settings')),beforeGuide);
    await page.getByRole('button',{name:'내 운동에 추가 · '+name,exact:true}).click();
    await page.reload();
    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings')));
    assert.ok(stored.dateOverrides['2026-10-14'].edit.customExercises.some(x=>x.sourceExerciseId===id));
-   if(['seated-knee-extension','light-dumbbell-curl','supported-calf-raise','supported-side-leg-raise'].includes(id)) {
+   if(!['basic-warmup','basic-cooldown','foam-roller-prep'].includes(id)) {
      const motion=page.getByRole('region',{name:name+' 자체 시범'});
      await expect(motion).toHaveCount(1);
      await expect(motion).toBeVisible();
@@ -635,8 +678,8 @@ try {
      await page.emulateMedia({reducedMotion:'no-preference'});
      await motion.getByRole('button',{name:'시작 자세 보기'}).click();
      await motion.getByRole('button',{name:'재생',exact:true}).focus();
-     await page.keyboard.press('Enter'); await page.clock.runFor(1000);
-     const regular=Number(await slider.inputValue()); assert.ok(regular>.12&&regular<.2);
+     await page.keyboard.press('Enter'); await expect(motion.getByRole('button',{name:'일시정지',exact:true})).toBeVisible(); await page.clock.runFor(1000);
+     const regular=Number(await slider.inputValue()); assert.ok(regular>.12&&regular<.2,JSON.stringify({id,regular}));
      await motion.getByRole('button',{name:'일시정지',exact:true}).click();
      const held=Number(await slider.inputValue());
      await page.clock.runFor(500); assert.equal(Number(await slider.inputValue()),held);
@@ -644,7 +687,10 @@ try {
      await motion.getByLabel('느리게 (0.5배)').check();
      await motion.getByRole('button',{name:'재생',exact:true}).click(); await page.clock.runFor(1000);
      assert.ok(Math.abs(Number(await slider.inputValue())/regular-.5)<.1);
-     await motion.getByRole('button',{name:'올린 자세 보기'}).click();
+     const alternating=id==='indoor-walk'||id==='bird-dog'||id==='cat-cow';
+     await motion.getByRole('button').filter({hasText:alternating?(id==='cat-cow'?'가슴 열기 보기':'첫쪽 자세 보기'):/보기$/}).last().click();
+     await expect(slider).toHaveValue(alternating?'0.25':'0.5');
+     if(alternating) {await motion.getByRole('button',{name:id==='cat-cow'?'등 둥글게 보기':'반대쪽 자세 보기'}).click();await expect(slider).toHaveValue('0.75');}
      await page.setViewportSize({width:390,height:844});
      await motion.screenshot({path:resolve(output,id+'-integrated.png')});
      await motion.getByLabel('느리게 (0.5배)').uncheck();
@@ -657,9 +703,18 @@ try {
      await expect(motion.getByRole('button',{name:'재생',exact:true})).toBeDisabled();
      assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings'))),stored);
      checks.push(id+': restored source ID, keyboard, pause, half speed, repeat, reduced motion and unchanged routine');
+   } else {
+     const motion=page.getByRole('region',{name:name+' 단계별 자체 시범'});
+     await expect(motion).toBeVisible();
+     const select=motion.getByRole('combobox');
+     await expect(select.locator('option')).toHaveCount(id==='basic-warmup'?7:id==='basic-cooldown'?8:14);
+     await select.selectOption('1');await expect(motion.getByRole('slider')).toHaveValue('0');
+     await expect(motion.getByRole('button',{name:'재생',exact:true})).toBeDisabled();
+     assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('fixture-settings'))),stored);
+     checks.push(id+': source ID reload, staged guide, reduced motion and unchanged routine');
    }
  }
- checks.push('all five new sourced guides can be reviewed, selected and restored after reload');
+ checks.push('all 26 additional sourced guides can be reviewed, selected and restored after reload');
  for(const equipment of await page.getByLabel('운동 도구 고르기',{exact:true}).locator('option').allTextContents()) {
    await page.getByLabel('운동 도구 고르기',{exact:true}).selectOption(equipment);
    assert.equal(await page.getByRole('button',{name:/^(내 운동에 추가|바로 추가).*(슬라이딩\s*보드|힙\s*브[릿리]지)/}).count(),0);

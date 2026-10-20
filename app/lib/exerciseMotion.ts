@@ -1,15 +1,47 @@
+import { assistedBarGuide, assistedBarMotionId } from './assistedBarMotion.ts';
+import { pelvicTiltGuide, pelvicTiltMotionId } from './pelvicTiltMotion.ts';
+import { kneePlankGuide, kneePlankMotionId } from './kneePlankMotion.ts';
+import { catCowGuide, catCowMotionId } from './catCowMotion.ts';
+import { facePullGuide, facePullMotionId } from './facePullMotion.ts';
+import { latPulldownGuide, latPulldownMotionId } from './latPulldownMotion.ts';
+import { supportedRowGuide, supportedRowMotionId } from './supportedRowMotion.ts';
+import { loopWalkGuides, loopWalkMotionId, type LoopWalkId } from './loopWalkMotion.ts';
+import { gobletGuide, gobletMotionId } from './gobletMotion.ts';
+import { pallofGuide, pallofMotionId } from './pallofMotion.ts';
+import { pullApartGuide, pullApartMotionId } from './pullApartMotion.ts';
+import { bandRotationGuide, bandRotationMotionId } from './bandRotationMotion.ts';
+import { floorPressGuide, floorPressMotionId } from './floorPressMotion.ts';
 /** Original procedural assets: no imported imagery, models, or motion data. */
 import { supportedExerciseMotions, supportedMotionId, type SupportedMotionId } from './supportedExerciseMotion.ts';
+import { lowerBodyExerciseMotions, lowerBodyMotionId, type LowerBodyMotionId } from './lowerBodyExerciseMotion.ts';
+import { alternatingExerciseMotions, alternatingMotionId, type AlternatingMotionId } from './alternatingExerciseMotion.ts';
+import { bandRowGuide, bandRowMotionId } from './bandRowMotion.ts';
 export type OriginalMotionId = 'seated-knee-extension' | 'light-dumbbell-curl';
-export type MotionId = OriginalMotionId | SupportedMotionId;
+export type MotionId = OriginalMotionId | SupportedMotionId | LowerBodyMotionId | AlternatingMotionId | 'band-row' | 'dumbbell-floor-press' | 'band-external-rotation-at-side' | 'band-pull-apart' | 'band-pallof-press' | 'dumbbell-goblet-squat' | LoopWalkId | 'one-arm-dumbbell-row-supported' | 'longband-lat-pulldown' | 'longband-face-pull' | 'cat-cow' | 'knee-side-plank' | 'pelvic-tilt' | 'pullup-basic-posture';
 export type Point = { x: number; y: number };
 export const exerciseMotions = {
   ...supportedExerciseMotions,
+  ...lowerBodyExerciseMotions,
+  ...alternatingExerciseMotions,
+  'band-row': bandRowGuide,
+  'dumbbell-floor-press': floorPressGuide,
+  'band-external-rotation-at-side': bandRotationGuide,
+  'band-pull-apart': pullApartGuide,
+  'band-pallof-press': pallofGuide,
+  'dumbbell-goblet-squat': gobletGuide,
+  ...loopWalkGuides,
+  'one-arm-dumbbell-row-supported': supportedRowGuide,
+  'longband-lat-pulldown': latPulldownGuide,
+  'longband-face-pull': facePullGuide,
+  'cat-cow': catCowGuide,
+  'knee-side-plank': kneePlankGuide,
+  'pelvic-tilt': pelvicTiltGuide,
+  'pullup-basic-posture': assistedBarGuide,
   'seated-knee-extension': { name: '앉아서 무릎 펴기', outward: '한쪽 무릎을 편안한 범위로 펴기', returning: '천천히 발을 내려 시작 자세로 돌아오기', limitation: '한쪽 다리의 측면 흐름만 표현합니다. 끝까지 강제로 펴거나 무릎을 잠그지 마세요. 의자의 안정성·개인별 가동 범위는 표현하지 않습니다.' },
   'light-dumbbell-curl': { name: '가벼운 덤벨 컬', outward: '팔꿈치를 고정하고 아래팔 올리기', returning: '몸을 흔들지 않고 아래팔 내리기', limitation: '한쪽 팔의 측면 흐름만 표현합니다. 그림의 무게와 각도는 권장값이 아닙니다. 손목 회전·양팔 간격·개인별 가동 범위는 표현하지 않습니다.' },
 } as const;
 export function motionId(value: string | undefined): MotionId | null {
-  return value === 'seated-knee-extension' || value === 'light-dumbbell-curl' ? value : supportedMotionId(value);
+  return value === 'seated-knee-extension' || value === 'light-dumbbell-curl' ? value : supportedMotionId(value) || lowerBodyMotionId(value) || alternatingMotionId(value) || bandRowMotionId(value) || floorPressMotionId(value) || bandRotationMotionId(value) || pullApartMotionId(value) || pallofMotionId(value) || gobletMotionId(value) || loopWalkMotionId(value) || supportedRowMotionId(value) || latPulldownMotionId(value) || facePullMotionId(value) || catCowMotionId(value) || kneePlankMotionId(value) || pelvicTiltMotionId(value) || assistedBarMotionId(value);
 }
 export function clampProgress(value: number) { return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0; }
 export function exerciseMotionPose(id: OriginalMotionId, progress: number) {

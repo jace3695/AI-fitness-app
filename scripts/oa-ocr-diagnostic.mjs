@@ -33,6 +33,10 @@ const bundle = await build({
         window.ocrDiagnostics.push({ key: row.key, reads: reasons,
           accepted: value ?? null,
           agreement: numeric.every(n => n !== undefined) ? (numeric.every(n => n === numeric[0]) ? 'equal' : 'different') : 'unparseable' });`);
+      contents = contents.replace('const recovered = recoveredNumber(reads, retries, row);', `
+        const recovered = recoveredNumber(reads, retries, row);
+        const diagnostic = window.ocrDiagnostics.find(item => item.key === row.key);
+        if (diagnostic) diagnostic.retry = { reads: retries, accepted: recovered ?? null };`);
       return { contents, loader: 'ts' };
     });
   } }],
@@ -129,7 +133,7 @@ try {
   writeFileSync(resolve(output, `${mode}.json`), JSON.stringify(report, null, 2));
   if (!privateInput) {
     assert.equal(result.dateRecognized, true);
-    assert.equal(result.recognizedCount, { clean: 4, labels: 2, badges: 3, 'score-limit': 4, 'score-decimal': 4, 'semantic-mapping': 6, 'low-resolution': 2 }[mode]);
+    assert.equal(result.recognizedCount, { clean: 4, labels: 2, badges: 4, 'score-limit': 4, 'score-decimal': 4, 'semantic-mapping': 6, 'low-resolution': 3 }[mode]);
     if (mode === 'score-decimal') assert.equal(result.rows.find(row => row.key === 'bodyScore').accepted, 9.5);
     if (mode === 'score-limit') assert.equal(result.rows.find(row => row.key === 'bodyScore').accepted, 100);
   }
@@ -141,7 +145,17 @@ try {
     assert.deepEqual(result.storageComparison, {expectedCount:Object.keys(expected.values).length-(confirmedPro?0:2),actualCount:Object.keys(expected.values).length-(confirmedPro?0:2),matchedCount:Object.keys(expected.values).length-(confirmedPro?0:2),unexpectedCount:0});
     assert.deepEqual(result.referenceComparison, {actualCount:confirmedPro?0:2,matchedCount:confirmedPro?0:2});
   }
-  if (mode === 'badges') { const row = result.rows.find(row => row.key === 'visceralFatLevel'); assert.equal(row.accepted, null); assert.ok(row.reads.some(read => read.rejection === 'confidence-below-60')); }
+  if (mode === 'badges') {
+    const row = result.rows.find(row => row.key === 'visceralFatLevel');
+    assert.equal(row.accepted, null);
+    assert.ok(row.reads.some(read => read.rejection === 'confidence-below-60'));
+    // The fixture draws 9 outside a colored "normal" pill. Smaller resamples
+    // now recover that actual digit; the badge must never become a number.
+    assert.equal(row.retry.accepted, 9);
+    assert.equal(result.values.visceralFatLevel, 9);
+    assert.equal(row.retry.reads.length, 2);
+    assert.ok(row.retry.reads.every(read => read.confidence >= 60 && read.text.trim() === '9'));
+  }
   if (mode === 'labels') {
     for (const row of result.rows.filter(row => ['bmi', 'visceralFatLevel'].includes(row.key))) for (const read of row.reads) {
       assert.equal(read.rejection, 'not-single-number');
@@ -149,6 +163,11 @@ try {
   }
   if (mode === 'low-resolution') {
     for (const read of result.rows.find(row => row.key === 'bmi').reads) assert.equal(read.rejection, 'missing-decimal');
+    assert.equal(result.values.bmi, undefined);
+    assert.equal(result.values.visceralFatLevel, 9);
+    const retry = result.rows.find(row => row.key === 'visceralFatLevel').retry;
+    assert.equal(retry.accepted, 9);
+    assert.ok(retry.reads.every(read => read.confidence >= 60 && read.text.trim() === '9'));
   }
 
   console.log(JSON.stringify(privateInput ? { mode, recognizedCount: result.recognizedCount, dateRecognized: result.dateRecognized, externalRequestsSent: 0, reportSavedOutsideRepository: true } : report));

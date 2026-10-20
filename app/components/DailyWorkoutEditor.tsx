@@ -369,7 +369,7 @@ export default function DailyWorkoutEditor({
             기존 선택 유산소 설정은 유지됩니다. 집에서 할 수 있는 걷기나 휴식을 선택하세요.
           </p>
         ) : (
-          <div className="mt-2 grid gap-2">
+          <div className="mt-2 grid grid-cols-1 gap-2">
             {orderedExercises.map((exercise, index) => (
               <div
                 key={exercise.exerciseId}

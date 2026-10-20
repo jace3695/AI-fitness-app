@@ -95,11 +95,13 @@ function loadImage(file: File) {
 function makeCrop(
   image: HTMLImageElement,
   centerY: number,
-  kind: "header" | "weight" | "score" | "value" | "plainValue" | "segment" | "shape",
+  kind: "header" | "timestamp" | "weight" | "score" | "value" | "plainValue" | "segment" | "shape",
   variant = false,
+  retryHeight?: number,
 ) {
   const source = {
     header: { x: 0.02, width: 0.96, height: 0.075 },
+    timestamp: { x: 0.02, width: 0.96, height: 0.014 },
     shape: { x: 0.06, width: 0.5, height: 0.018 },
     weight: { x: 0.06, width: 0.34, height: 0.018 },
     // Include three score digits; smaller unit text is separated below by height.
@@ -136,7 +138,7 @@ function makeCrop(
   const sourceHeight = image.naturalHeight * source.height;
   const sourceWidth = image.naturalWidth * source.width;
   const canvas = document.createElement("canvas");
-  const targetHeight = kind === "header" ? 300 : variant ? 240 : 192;
+  const targetHeight = retryHeight ?? (kind === "header" ? 300 : variant ? 240 : 192);
   const contentHeight = targetHeight - 16;
   // 고정 최소 너비를 사용하면 320px 원본의 숫자가 가로로 2~3배
   // 찌그러진다. 원본 종횡비를 그대로 유지한 채 충분히 확대한다.
@@ -288,6 +290,19 @@ export function agreedNumber(reads: { text: string; confidence: number }[], row:
   return parsed.length >= 2 && parsed.every(value => value !== undefined && value === parsed[0]) ? parsed[0] : undefined;
 }
 
+/** Retry unreadable/low-confidence crops, never vote away a conflicting number. */
+export function recoveredNumber(original: { text: string; confidence: number }[], retries: { text: string; confidence: number }[], row: ReportRow) {
+  const candidate = agreedNumber(retries, row);
+  if (candidate === undefined) return undefined;
+  const observations = original.map(read => numberFromText(read.text, row));
+  return observations.some(value => value !== undefined && value !== candidate) ? undefined : candidate;
+}
+
+export function agreedTimestamp(reads: { text: string; confidence: number }[], detectedDate?: string) {
+  const times = reads.map(read => read.confidence >= 60 && dateFromText(read.text) === detectedDate ? timeFromText(read.text) : undefined);
+  return detectedDate && times.length >= 2 && times.every(time => time !== undefined && time === times[0]) ? times[0] : undefined;
+}
+
 export async function parseOaReport(
   file: File,
   onProgress?: (progress: number) => void,
@@ -310,6 +325,17 @@ export async function parseOaReport(
     const measurementTime = timeFromText(headerResult.data.text);
     if (measurementTime) textValues.measurementTime = measurementTime;
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE, tessedit_char_whitelist: "" });
+    if (!measurementTime) {
+      // Isolate the timestamp from account text; require two complete clocks and
+      // the already recognized date. Do not reconstruct missing clock digits.
+      const reads = [];
+      for (const variant of [false, true]) {
+        const result = await worker.recognize(makeCrop(image, 0.0525, 'timestamp', variant));
+        reads.push({ text: result.data.text, confidence: result.data.confidence });
+      }
+      const recovered = agreedTimestamp(reads, detectedDate);
+      if (recovered) textValues.measurementTime = recovered;
+    }
     for (let index = 0; index < REPORT_ROWS.length; index += 1) {
       const row = REPORT_ROWS[index];
       // Age requires its full Korean unit, read separately below.
@@ -322,6 +348,18 @@ export async function parseOaReport(
         }
         const value = agreedNumber(reads, row);
         if (value !== undefined) transcribed[row.key] = value;
+        else {
+          // A larger enlargement can lose confidence or distort punctuation.
+          // Two smaller resamples must agree, and any conflicting original
+          // numeric reading still leaves the field for manual confirmation.
+          const retries = [];
+          for (const height of [128, 160]) {
+            const result = await worker.recognize(makeCrop(image, row.centerY, kind, false, height));
+            retries.push({ text: result.data.text, confidence: result.data.confidence });
+          }
+          const recovered = recoveredNumber(reads, retries, row);
+          if (recovered !== undefined) transcribed[row.key] = recovered;
+        }
       }
       onProgress?.(Math.round(((index + 1) / REPORT_ROWS.length) * 100));
     }

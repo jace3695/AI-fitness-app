@@ -1,6 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { numberFromText, dateFromText, agreedNumber } from "./oaReportParser.ts";
+import { numberFromText, dateFromText, agreedNumber, recoveredNumber, agreedTimestamp } from "./oaReportParser.ts";
+
+test('smaller crop retries recover only independently agreed non-conflicting readings', () => {
+  const row = { key: 'bmi' as const, centerY: 0, min: 5, max: 80, decimals: true };
+  const read = (text: string, confidence = 94) => ({ text, confidence });
+  const retries = [read('24.7'), read('24.7')];
+  assert.equal(recoveredNumber([read('24:7'), read('24.7')], retries, row), 24.7);
+  assert.equal(recoveredNumber([read('24.7', 42), read('24.7', 55)], retries, row), 24.7);
+  assert.equal(recoveredNumber([read('24.76'), read('24.7')], retries, row), undefined);
+  assert.equal(recoveredNumber([read('24.1', 12), read('24.7')], retries, row), undefined);
+  assert.equal(recoveredNumber([], [read('24.7')], row), undefined);
+  assert.equal(recoveredNumber([], [read('24.7'), read('24.7', 59)], row), undefined);
+  assert.equal(recoveredNumber([], [read('24.7'), read('24.1')], row), undefined);
+  assert.equal(recoveredNumber([], [read('247'), read('247')], row), undefined);
+  assert.equal(recoveredNumber([], [read('24:7'), read('24:7')], row), undefined);
+});
+
+test('timestamp retries require two complete clocks agreeing with the detected date', () => {
+  const date = '2025-03-11';
+  const read = (text: string, confidence = 94) => ({ text, confidence });
+  const valid = read(`${date} 07:16:25`);
+  assert.equal(agreedTimestamp([valid, valid], date), '07:16:25');
+  for (const other of [read(`${date} 7:16:25`), read(`${date} 16:25`), read(`${date} 07:16:26`), read('2025-03-12 07:16:25'), read(`${date} 24:16:25`), read(`${date} 07:16:25`, 59)]) {
+    assert.equal(agreedTimestamp([valid, other], date), undefined);
+  }
+  assert.equal(agreedTimestamp([valid], date), undefined);
+  assert.equal(agreedTimestamp([valid, valid]), undefined);
+});
 
 test("오아 OCR의 유사 문자를 숫자로 추정하지 않는다", () => {
   assert.equal(
