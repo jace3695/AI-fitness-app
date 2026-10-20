@@ -73,18 +73,43 @@ test("record loader selects only the owner and rejects errors or incomplete fina
       lte(...args: unknown[]) { calls.push({ table, method: "lte", args }); return builder; },
       order() { return builder; },
       async limit() { return { data: [], error: failed ? { message: "PRIVATE-ERROR" } : null, count: truncated ? 1001 : 0 }; },
-      async maybeSingle() { return { data: { state: {} }, error: failed ? { message: "PRIVATE-ERROR" } : null }; },
+      async maybeSingle() { return { data: table === "budget_user_settings" ? { currency: "USD" } : { state: {} }, error: failed ? { message: "PRIVATE-ERROR" } : null }; },
     }; return builder;
   } } as unknown as SupabaseClient;
-  await loadFreeAdviceContext(client, "owner-fixture", "assistant", now);
-  assert.equal(calls.filter(call => call.method === "eq").length, 5);
+  const loaded = await loadFreeAdviceContext(client, "owner-fixture", "assistant", now);
+  assert.equal(loaded.metrics.find(item => item.id === "budget.expense")?.unit, "USD");
+  assert.equal(calls.filter(call => call.method === "eq").length, 6);
   assert.ok(calls.filter(call => call.method === "eq").every(call => JSON.stringify(call.args) === JSON.stringify(["user_id", "owner-fixture"])));
-  assert.ok(calls.filter(call => call.table.startsWith("budget_") && call.method === "select").every(call => call.args[0] === "amount,date"));
+  assert.deepEqual(calls.filter(call => call.table.startsWith("budget_") && call.method === "select").map(call => [call.table, call.args[0]]),
+    [["budget_user_settings", "currency"], ["budget_transactions", "amount,date,transaction_type"], ["budget_income", "amount,date"], ["budget_savings", "amount,date"]]);
   assert.equal(calls.filter(call => call.method === "gte" && call.args[1] === "2026-08-18").length, 3);
   truncated = true;
   await assert.rejects(() => loadFreeAdviceContext(client, "owner-fixture", "budget", now), /전체 가계부/);
   truncated = false; failed = true;
   await assert.rejects(() => loadFreeAdviceContext(client, "owner-fixture", "assistant", now), /기록을 불러오지/);
+});
+
+test("advice scope identifies omitted records, snapshot reviews and month-boundary window", () => {
+  const result = contextModule.buildFreeAdviceContext("assistant", { languageState: { savedSentences: [{ japanese: "PRIVATE" }] } }, new Date("2026-02-28T15:00:00Z"));
+  assert.equal(result.startDate, "2026-02-02"); assert.equal(result.endDate, "2026-03-01");
+  assert.equal(result.recordCount, 0);
+  assert.match(result.notes.join(" "), /체성분/);
+  assert.match(result.notes.join(" "), /직접 저장한 회화 예문/);
+  assert.match(result.notes.join(" "), /그림·필기·타이핑/);
+  assert.ok(!JSON.stringify(result).includes("PRIVATE"));
+});
+
+test("advice excludes recharge and keeps configured currency without conversion", () => {
+  for (const [currency, unit] of [["KRW", "원"], ["USD", "USD"], ["JPY", "JPY"]]) {
+    const result = contextModule.buildFreeAdviceContext("budget", { budgetCurrency: currency, expenses: [
+      { date: "2026-09-14", amount: 100, transaction_type: "충전카드 충전" },
+      { date: "2026-09-14", amount: 30, transaction_type: "충전카드 사용" },
+    ] }, now);
+    assert.equal(metric(result, "budget.expense"), 30);
+    assert.equal(metric(result, "budget.expenseCount"), 1);
+    assert.equal(result.metrics.find(item => item.id === "budget.expense")?.unit, unit);
+  }
+  assert.throws(() => contextModule.buildFreeAdviceContext("budget", { budgetCurrency: "invalid" }, now));
 });
 
 test("provider needs explicit consent and both dedicated free settings; paid keys cannot enable it", async () => {

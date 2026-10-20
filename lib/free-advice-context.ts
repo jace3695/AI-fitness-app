@@ -12,6 +12,7 @@ export type FreeAdviceContext = {
 export type AdviceRecords = {
   fitnessState?: unknown; languageState?: unknown;
   expenses?: unknown[]; income?: unknown[]; savings?: unknown[];
+  budgetCurrency?: unknown;
 };
 
 export function isFreeAdviceScope(value: unknown): value is FreeAdviceScope {
@@ -75,6 +76,7 @@ export function buildFreeAdviceContext(scope: FreeAdviceScope, records: AdviceRe
     add("diet.days", "식단을 기록한 날", meals.length, "일");
     add("water.days", "물 섭취 기록일", waters.length, "일");
     if (waters.length) add("water.average", "기록한 날의 평균 물 섭취", waters.reduce((sum, value) => sum + value, 0) / waters.length, "mL");
+    result.notes.push("운동 수행·불편 신호, 식단 기록일, 물 섭취만 집계해요. 체성분 수치·음식별 영양·수면·운동 자세는 이 요약에 포함하지 않아요.");
   }
   if (scope === "language" || scope === "assistant") {
     const state = object(records.languageState);
@@ -95,26 +97,32 @@ export function buildFreeAdviceContext(scope: FreeAdviceScope, records: AdviceRe
     add("language.review", "현재 복습 목록 항목", reviewCount + grammarReview, "개");
     result.notes.push("복습 목록은 현재 저장된 항목 수로, 중복 가능성이 있어 서로 다른 문제 수나 전체 실력을 뜻하지 않아요.");
     result.notes.push("학습일은 일일 루틴과 새 과정의 활동 날짜를 합쳐 같은 날은 한 번만 셌어요. 과정 전체의 완료나 숙달을 뜻하지 않아요.");
+    result.notes.push("복습 수는 오답·과정 복습 목록 기준이에요. 직접 저장한 회화 예문과 그림·필기·타이핑 기록은 이 요약에 포함하지 않아요.");
   }
   if (scope === "budget" || scope === "assistant") {
+    const currency = records.budgetCurrency ?? "KRW";
+    if (!["KRW", "USD", "JPY"].includes(String(currency))) throw new Error("가계부 통화 설정을 확인하지 못했어요.");
+    const unit = currency === "USD" ? "USD" : currency === "JPY" ? "JPY" : "원";
     for (const [key, label, rows] of [
       ["expense", "지출", records.expenses ?? []], ["income", "수입", records.income ?? []], ["savings", "저축", records.savings ?? []],
     ] as const) {
       const valid = rows.map(object).filter(row => {
         const age = typeof row.date === "string" ? ageInDays(row.date, range.endDate) : -1;
         if (age < 0 || age >= 28) return false;
+        if (key === "expense" && row.transaction_type === "충전카드 충전") return false;
         if (number(row.amount) === null) throw new Error("저장된 금액을 확인하지 못했어요.");
         return true;
       });
       result.recordCount += valid.length;
       add(`budget.${key}Count`, `최근 28일 ${label} 기록`, valid.length, "건");
-      add(`budget.${key}`, `최근 28일 ${label} 합계`, valid.reduce((sum, row) => sum + Number(row.amount), 0), "원");
+      add(`budget.${key}`, `최근 28일 ${label} 합계`, valid.reduce((sum, row) => sum + Number(row.amount), 0), unit);
       if (key === "expense") {
-        add("budget.expenseRecent7", "최근 7일 지출", valid.filter(row => ageInDays(String(row.date), range.endDate) < 7).reduce((sum, row) => sum + Number(row.amount), 0), "원");
-        add("budget.expensePrevious7", "직전 7일 지출", valid.filter(row => { const age = ageInDays(String(row.date), range.endDate); return age >= 7 && age < 14; }).reduce((sum, row) => sum + Number(row.amount), 0), "원");
+        add("budget.expenseRecent7", "최근 7일 지출", valid.filter(row => ageInDays(String(row.date), range.endDate) < 7).reduce((sum, row) => sum + Number(row.amount), 0), unit);
+        add("budget.expensePrevious7", "직전 7일 지출", valid.filter(row => { const age = ageInDays(String(row.date), range.endDate); return age >= 7 && age < 14; }).reduce((sum, row) => sum + Number(row.amount), 0), unit);
       }
     }
-    result.notes.push("월 전체가 아닌 최근 28일 합계예요. 기록이 없는 수입·지출·저축을 0원으로 실제 확정하지 않아요.");
+    result.notes.push("월 전체가 아닌 최근 28일 합계예요. 기록이 없는 수입·지출·저축이 실제로 없었다고 확정하지 않아요.");
+    result.notes.push("가계부에 설정한 통화로 표시하며 환산하지 않아요. 충전카드 충전은 지출에서 제외하고, 예산·결제 예정액·계좌 잔액은 집계하지 않아요.");
   }
   return result;
 }

@@ -9,6 +9,9 @@ export class LipSyncPlayer {
   message = '';
   private generation = 0;
   private disposed = false;
+  private playRequest = 0;
+  private playPending = false;
+  private wantsPlayback = false;
   private url = '';
   private stalled = false;
   private timeout: ReturnType<typeof setTimeout> | undefined;
@@ -35,15 +38,15 @@ export class LipSyncPlayer {
     on('loadedmetadata', validateMetadata);
     on('durationchange', validateMetadata);
     on('playing', () => {
-      if (!this.usable() || audio.paused) { audio.pause(); return; }
+      if (!this.usable() || !this.wantsPlayback || document.hidden || audio.paused) { audio.pause(); return; }
       this.stalled = false; this.setState('playing');
     });
     on('pause', () => {
       // pause() queues a native event. stop() may already have rewound and set
       // ready before that event arrives (notably WebKit's MP3 path).
-      if (this.usable() && !audio.ended && this.state !== 'ready') this.setState('paused');
+      if (this.usable() && audio.paused && !audio.ended && this.state !== 'ready') this.setState('paused');
     });
-    on('ended', () => { if (this.usable()) this.setState('ended'); });
+    on('ended', () => { if (this.usable() && audio.ended) { this.wantsPlayback = false; this.setState('ended'); } });
     on('waiting', () => { this.stalled = true; this.onChange(); });
     on('seeking', () => { this.stalled = true; this.onChange(); });
     on('seeked', () => { this.stalled = false; this.onChange(); });
@@ -58,6 +61,7 @@ export class LipSyncPlayer {
   private usable() { return !this.disposed && !!this.manifest && this.currentSource() && !['empty', 'loading', 'error'].includes(this.state); }
   private setState(state: SpeechState) { if (!this.disposed) { this.state = state; this.onChange(); } }
   private clear() {
+    ++this.playRequest; this.playPending = false; this.wantsPlayback = false;
     clearTimeout(this.timeout);
     clearTimeout(this.metadataRetry);
     this.manifest = null; this.audio.pause(); this.audio.removeAttribute('src'); this.audio.load();
@@ -88,17 +92,23 @@ export class LipSyncPlayer {
     }
   }
   async play() {
-    if (!this.usable() || document.hidden) return;
+    if (!this.usable() || document.hidden || this.playPending || this.snapshot().state === 'playing') return;
     const token = this.generation;
+    const request = ++this.playRequest;
+    this.playPending = true; this.wantsPlayback = true;
     this.message = '';
-    try { await this.audio.play(); }
+    try {
+      await this.audio.play();
+      if (this.disposed || (token === this.generation && !this.wantsPlayback)) this.audio.pause();
+    }
     catch {
-      if (!this.disposed && token === this.generation) {
+      if (!this.disposed && token === this.generation && request === this.playRequest) {
+        this.wantsPlayback = false;
         this.audio.pause(); this.message = '재생 버튼을 다시 눌러 주세요.'; this.setState('paused');
       }
-    }
+    } finally { if (request === this.playRequest) this.playPending = false; }
   }
-  pause() { this.audio.pause(); if (this.usable() && !this.audio.ended) this.setState('paused'); }
+  pause() { ++this.playRequest; this.playPending = false; this.wantsPlayback = false; this.audio.pause(); if (this.usable() && !this.audio.ended) this.setState('paused'); }
   stop() { this.pause(); if (this.usable()) { this.audio.currentTime = 0; this.setState('ready'); } }
   snapshot = (): PlaybackSnapshot => {
     let state: PlaybackSnapshot['state'] = this.state;

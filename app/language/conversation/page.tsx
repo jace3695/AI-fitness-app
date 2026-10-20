@@ -6,6 +6,7 @@ import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 import { FREE_MODE } from "@/lib/free-mode";
 import { FREE_CONVERSATIONS } from "@/data/freeConversation";
 import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "@/utils/speakJapanese";
+import FreeConversationPractice from "@/components/language/FreeConversationPractice";
 
 type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
 
@@ -52,6 +53,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   showReading: true,
 };
 export default function ConversationPage() {
+  return FREE_MODE ? <FreeConversationPractice /> : <LegacyConversationPage />;
+}
+
+function LegacyConversationPage() {
   const [situation, setSituation] = useState<Situation>("일상");
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [messages, setMessages] = useState<ChatMessage[]>([]);

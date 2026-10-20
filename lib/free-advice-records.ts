@@ -18,9 +18,14 @@ export async function loadFreeAdviceContext(client: SupabaseClient, userId: stri
     records.languageState = data?.state ?? {};
   })());
   if (scope === "budget" || scope === "assistant") {
+    jobs.push((async () => {
+      const { data, error } = await client.from("budget_user_settings").select("currency").eq("user_id", userId).maybeSingle();
+      if (error) throw new Error("가계부 통화 기록을 불러오지 못했어요.");
+      records.budgetCurrency = data?.currency ?? "KRW";
+    })());
     for (const [table, key] of [["budget_transactions", "expenses"], ["budget_income", "income"], ["budget_savings", "savings"]] as const) {
       jobs.push((async () => {
-        const { data, error, count } = await client.from(table).select("amount,date", { count: "exact" })
+        const { data, error, count } = await client.from(table).select(table === "budget_transactions" ? "amount,date,transaction_type" : "amount,date", { count: "exact" })
           .eq("user_id", userId).gte("date", range.startDate).lte("date", range.endDate).order("date", { ascending: false }).limit(1000);
         if (error || !Array.isArray(data)) throw new Error("가계부 기록을 불러오지 못했어요.");
         // Never label a truncated page as the entire period's financial total.

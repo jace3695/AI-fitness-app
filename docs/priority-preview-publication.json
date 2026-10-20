@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "targetRepository": "https://github.com/jace3695/AI-fitness-app.git",
+  "targetBranch": "agent/fitness-record-priority",
+  "baselineCommit": "d58558255f7e9ceb273b254b874b601af826a050",
+  "state": "approved-preview-candidate",
+  "publicationRule": "one branch push only after QA usage clearance; no CLI deployment; no main or Production changes",
+  "files": [
+    {
+      "path": "app/language/conversation/page.tsx",
+      "role": "runtime",
+      "bytes": 19305,
+      "sha256": "b5871d52f39752802d312cc9c103eab55f4bb7b14be467a3c3270e0f35f188ec"
+    },
+    {
+      "path": "app/data/freeConversationPractice.ts",
+      "role": "runtime",
+      "bytes": 5594,
+      "sha256": "3f59245b724ee32517b31acb4013b61dcc888de8d9b85387171d41a0d4c42ca5"
+    },
+    {
+      "path": "components/language/FreeConversationPractice.tsx",
+      "role": "runtime",
+      "bytes": 9488,
+      "sha256": "25b923ed4cc5d806e56b261d4765166aa3da6731a4ccbc1570419525c0b6ecd9"
+    },
+    {
+      "path": "lib/free-advice-context.ts",
+      "role": "runtime",
+      "bytes": 10683,
+      "sha256": "0718e8347111137b22d8f358046f036d3e89b6ff5a704d577b8fb81efe4822be"
+    },
+    {
+      "path": "lib/free-advice-records.ts",
+      "role": "runtime",
+      "bytes": 2799,
+      "sha256": "cea92853048a0a925c9d456cabea063bccf4e9089d175ff36a988607dea287e6"
+    },
+    {
+      "path": "lib/yeoni/lip-sync-player.ts",
+      "role": "runtime",
+      "bytes": 7135,
+      "sha256": "b2fa33750990828cec6382f8a1be7c7981b2b87d48d588b3af63369b25296576"
+    },
+    {
+      "path": "app/data/freeConversationPractice.test.ts",
+      "role": "verification",
+      "bytes": 2272,
+      "sha256": "16e3554c42f6f206685cab46026eda0ab30f008f287eda114b0217b09c2052a6"
+    },
+    {
+      "path": "lib/free-advice.test.ts",
+      "role": "verification",
+      "bytes": 17300,
+      "sha256": "29471eaf90ca3519d8d57b1a61e2d4e2ce80a9a490191d0ebf3dd05a8c423b19"
+    },
+    {
+      "path": "lib/yeoni/lip-sync-player-events.test.ts",
+      "role": "verification",
+      "bytes": 3293,
+      "sha256": "f67896f78fe75b166031a8a71d966234bd7f0f4c611982a29ed2c01c17398629"
+    },
+    {
+      "path": "scripts/japanese-conversation-local-browser.mjs",
+      "role": "verification",
+      "bytes": 12261,
+      "sha256": "52db95418e15be306502763dfd46a8afffeb28f483961b48d5e4ce5b2630af60"
+    },
+    {
+      "path": "scripts/existing-apps-local-browser.mjs",
+      "role": "verification",
+      "bytes": 17270,
+      "sha256": "c0d76126e998645fde51c9949e70061b53049ea522dd9e934205af76f8bb6aa7"
+    },
+    {
+      "path": "docs/japanese-conversation-local-review.md",
+      "role": "documentation",
+      "bytes": 3921,
+      "sha256": "24daa2342a65ef5104e50622469b5f3779cc3849a5918e40d4b1abd5b4d3fd47"
+    },
+    {
+      "path": "docs/existing-apps-local-review.md",
+      "role": "documentation",
+      "bytes": 7094,
+      "sha256": "fdd928f06acb1d1c9b7885497d2b34176b497f2ffb17122c4e39a426e1a97436"
+    }
+  ],
+  "manifestSelfExcluded": true,
+  "expectedPublishedFilesIncludingManifest": 14,
+  "validation": {
+    "unit": 900,
+    "aiBudget": 26,
+    "totalUnit": 926,
+    "syntheticUi": 173,
+    "activeMotionDemonstrations": 27,
+    "types": "passed",
+    "lint": "passed",
+    "build": "passed",
+    "realVoice": "not-run",
+    "physicalDevice": "not-run",
+    "hostedAuthDbRls": "not-run"
+  },
+  "excluded": [
+    "growth-only verification scripts",
+    "mixed integration manifests",
+    "exercise-motion evidence folders",
+    "generated snapshots and logs",
+    "environment files and credentials",
+    "personal records"
+  ],
+  "contentReview": {
+    "credentialPatternMatches": 0,
+    "personalPathMatches": 0,
+    "syntheticFixtureDataOnly": true
+  },
+  "usageGate": {
+    "confirmed": "2026-10-20 22:34–22:36 KST",
+    "source": "existing QA review",
+    "blockingWarnings": false,
+    "window": "Last 30 Days: 9/20 07:00–10/20 07:00 America/Los_Angeles",
+    "interpretation": "Period usage, not instantaneous spare capacity"
+  }
+}
