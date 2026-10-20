@@ -43,6 +43,9 @@ import {
 } from "../data/assistantWeeklyBriefing";
 import { isGrowthRoutineScheduled, summarizeGrowthRoutineWeek } from "../data/growthSchedule";
 import { isRetiredGrowthRoutine } from "../data/growthRoutines";
+import { buildLocalBodyNarrative, isLocalBodyQuestion, shouldUseLocalBodyConversation, LOCAL_BODY_NOTICE, remoteChatHistory } from '../data/localBodyConversation';
+import { readLocalBodyReview } from '../data/readLocalBodyReview';
+import { RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
 
 type Filter = "all" | "task" | "project" | "waiting" | "memory";
 type Item = {
@@ -80,7 +83,7 @@ type BriefingSnapshot = {
   language: LanguageDailyStatus;
   growth: { completed: number; total: number; minutes: number };
 };
-type ChatMessage = { id: string; role: "user" | "assistant"; text: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
+type ChatMessage = { id: string; role: "user" | "assistant"; text: string; localOnly?: boolean; historyOnly?: boolean; ownerId?: string; action?: { label: string; href: string }; proposal?: AssistantCommandProposal };
 type StoredChatMessage = { id: string; role: "user" | "assistant"; content: string; action_label: string | null; action_href: string | null };
 
 const EMPTY_BRIEFING: BriefingSnapshot = {
@@ -148,6 +151,40 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   }, [clearCharacter]);
   useEffect(() => () => stopAllSpeech(), [pending.ownerId]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const localBodySessionInvalid = useRef(false);
+  const localBodyOwner = useRef<string | null>(null);
+  const chatEpoch = useRef(0);
+  const chatSendId = useRef(0);
+  const chatHistoryId = useRef(0);
+  const [localBodyActive, setLocalBodyActive] = useState(false);
+  useEffect(() => {
+    if (localBodyOwner.current && localBodyOwner.current !== pending.ownerId) localBodySessionInvalid.current = true;
+    localBodyOwner.current = pending.ownerId;
+    const clear = () => setChatMessages(items => items.filter(item => !item.localOnly));
+    const invalidate = () => {
+      localBodySessionInvalid.current = true;
+      chatEpoch.current += 1;
+      chatSendId.current += 1;
+      setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
+      clearCharacter(); chatLock.current = false; setChatSending(false); setChatHistoryLoading(false);
+    };
+    const storage = (event: StorageEvent) => {
+      if (event.key === null || event.key === 'fitness-cloud-sync-user' || event.key === 'fitness-cloud-sync-epoch') invalidate();
+      else clear();
+    };
+    chatEpoch.current += 1;
+    chatSendId.current += 1;
+    setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
+    clearCharacter(); chatLock.current = false; setChatSending(false);
+    window.addEventListener(RECORDS_CHANGED_EVENT, clear);
+    window.addEventListener('yeoni-cloud-session-changed', invalidate);
+    window.addEventListener('storage', storage);
+    return () => {
+      window.removeEventListener(RECORDS_CHANGED_EVENT, clear);
+      window.removeEventListener('yeoni-cloud-session-changed', invalidate);
+      window.removeEventListener('storage', storage);
+    };
+  }, [pending.ownerId, clearCharacter]);
   const mutationLocks = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<string[]>([]);
   useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy));
@@ -160,14 +197,16 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
 
   const finishAdvice = async (advice: FreeAdvice, source: FreeAdviceContext['recordSource'], performance?: ReplyPlan) => {
     if (!supabase) return;
+    const epoch = chatEpoch.current;
     const text = [source === 'example' ? '【가상 예시 기록의 AI 조언】' : '【내 기록을 바탕으로 한 AI 조언】',
       advice.summary, ...advice.nextSteps.map((step, index) => `${index + 1}. ${step}`),
       `기록 근거: ${advice.basis}`, advice.limitations, '조언은 기록이나 계획을 자동으로 바꾸지 않아요.'].join('\n');
     const id = crypto.randomUUID();
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user || auth.user.id !== pending.ownerId) throw new Error('로그인 계정이 바뀌었어요. 기록을 다시 확인해 주세요.');
+    if (!auth.user || auth.user.id !== pending.ownerId || auth.user.id !== localBodyOwner.current || epoch !== chatEpoch.current) throw new Error('로그인 계정이 바뀌었어요. 기록을 다시 확인해 주세요.');
     const { error } = await supabase.from('assistant_chat_messages').insert({ id, user_id: auth.user.id, role: 'assistant', content: text });
-    setChatMessages(current => [...current, { id, role: 'assistant', text }]);
+    if (auth.user.id !== localBodyOwner.current || epoch !== chatEpoch.current) return;
+    setChatMessages(current => [...current, { id, role: 'assistant', text, ownerId: auth.user.id }]);
     if (characterAudio && performance) setCharacterReply({ ownerId: auth.user.id, value: { reply: adviceSpokenText(advice), performance } });
     setActiveAdvice(null);
     setAdviceBusy(false);
@@ -180,18 +219,23 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     window.location.reload();
   };
 
-  const loadChatHistory = useCallback(async () => {
+  const loadChatHistory = useCallback(async (ownerId: string) => {
     if (!supabase) return;
+    const requestId = ++chatHistoryId.current;
+    const epoch = chatEpoch.current;
+    const isCurrent = () => requestId === chatHistoryId.current && epoch === chatEpoch.current && localBodyOwner.current === ownerId;
     setChatHistoryLoading(true);
     setChatHistoryNotice("");
+    try {
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { setChatHistoryLoading(false); return; }
+    if (auth.user?.id !== ownerId || !isCurrent()) return;
     const { data, error } = await supabase
       .from("assistant_chat_messages")
       .select("id,role,content,action_label,action_href")
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
       .limit(40);
+    if (!isCurrent()) return;
     if (error) {
       setChatHistoryNotice("지난 대화를 불러오지 못했어요. 새 대화는 계속할 수 있습니다.");
     } else {
@@ -199,42 +243,82 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         id: row.id,
         role: row.role,
         text: row.content,
-        action: row.action_label && row.action_href && row.action_href !== "/growth/drawing" ? { label: row.action_label, href: row.action_href } : undefined,
+        historyOnly: true,
+        ownerId,
       }));
+      if (restored.some(item => isLocalBodyQuestion(item.text))) setLocalBodyActive(true);
       setChatMessages([WELCOME_MESSAGE, ...restored]);
     }
-    setChatHistoryLoading(false);
+    } catch {
+      if (isCurrent()) setChatHistoryNotice("지난 대화를 불러오지 못했어요. 화면을 다시 열어 확인해 주세요.");
+    } finally {
+      if (isCurrent()) setChatHistoryLoading(false);
+    }
   }, []);
 
   const sendChat = async (command?: string) => {
     const value = (command ?? chatInput).trim();
     if (!value || !supabase || chatLock.current || adviceBusy || chatHistoryLoading || !pending.ready) return;
+    if (shouldUseLocalBodyConversation(value, localBodyActive)) {
+      setLocalBodyActive(true);
+      clearCharacter();
+      setActiveAdvice(null);
+      setChatInput('');
+      let text: string;
+      try {
+        if (localBodySessionInvalid.current || !pending.ownerId || localBodyOwner.current !== pending.ownerId || window.localStorage.getItem('fitness-cloud-sync-user') !== pending.ownerId) {
+          throw new Error('계정의 로컬 기록을 확인할 수 없습니다. 화면을 새로 열고 동기화 상태를 확인해 주세요.');
+        }
+        text = isLocalBodyQuestion(value)
+          ? `${LOCAL_BODY_NOTICE}\n\n${buildLocalBodyNarrative(readLocalBodyReview())}`
+          : '체성분 대화의 후속 질문은 서버로 보내지 않습니다. 수치의 의미나 의료적 판단을 추측하지 않겠습니다. 현재 기록을 다시 보려면 “체성분 점검”을 입력하세요. 다른 주제라면 “기존 일반 대화로 돌아가기”를 선택하세요.';
+      } catch {
+        text = '계정 또는 로컬 기록을 확인하지 못했습니다. 화면을 새로 열고 기록을 확인해 주세요. 이 질문은 서버로 보내거나 저장하지 않았습니다.';
+      }
+      const ownerId = pending.ownerId ?? undefined;
+      setChatMessages(items => {
+        const retained = new Set(items.filter(item => item.localOnly && item.ownerId === ownerId).slice(-18).map(item => item.id));
+        return [
+          ...items.filter(item => !item.localOnly || retained.has(item.id)),
+          { id: crypto.randomUUID(), role: 'user', text: value, localOnly: true, ownerId },
+          { id: crypto.randomUUID(), role: 'assistant', text, localOnly: true, ownerId },
+        ];
+      });
+      return;
+    }
     chatLock.current = true;
     clearCharacter();
     const replyOwner = pending.ownerId;
+    const epoch = chatEpoch.current;
+    const sendId = ++chatSendId.current;
+    const isCurrent = () => epoch === chatEpoch.current && localBodyOwner.current === replyOwner && sendId === chatSendId.current;
     setActiveAdvice(null);
     setChatInput("");
     setChatSending(true);
-    const history = chatMessages.filter((chat) => chat.id !== "welcome").slice(-8).map(({ role, text }) => ({ role, text }));
-    setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value }]);
+    const history = remoteChatHistory(chatMessages);
+    setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: value, ownerId: replyOwner ?? undefined }]);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+      if (!isCurrent() || sessionData.session?.user.id !== replyOwner) return;
       if (!token) throw new Error("로그인이 필요합니다.");
       const response = await fetch("/api/assistant/chat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: value, history }) });
       const data = await response.json();
+      if (!isCurrent()) return;
       if (!response.ok) throw new Error(data.error || "응답을 받지 못했습니다.");
-      if (data.adviceRequest && isFreeAdviceScope(data.adviceRequest.scope)) {
+      if (!isLocalBodyQuestion(String(data.reply ?? '')) && data.adviceRequest && isFreeAdviceScope(data.adviceRequest.scope)) {
         setActiveAdvice({ id: crypto.randomUUID(), scope: data.adviceRequest.scope, question: value });
       }
       if (data.proposal) await pending.add(data.proposal, sessionData.session!.user.id);
-      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, action: data.adviceRequest ? undefined : data.action }]);
-      if (characterAudio) setCharacterReply({ ownerId: replyOwner, value: { reply: data.reply, performance: data.performance, historySaved: data.historySaved } });
+      const protectedReply = isLocalBodyQuestion(String(data.reply ?? ''));
+      if (protectedReply) setLocalBodyActive(true);
+      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: data.reply, ownerId: replyOwner ?? undefined, localOnly: protectedReply, action: data.adviceRequest || protectedReply ? undefined : data.action }]);
+      if (characterAudio && !protectedReply) setCharacterReply({ ownerId: replyOwner, value: { reply: data.reply, performance: data.performance, historySaved: data.historySaved } });
       if (data.historySaved === false) setChatHistoryNotice("응답은 받았지만 대화 이력을 저장하지 못했어요. 새로고침하면 이 대화가 보이지 않을 수 있어요.");
       if (data.changed) await load();
     } catch (error) {
-      setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요." }]);
-    } finally { chatLock.current = false; setChatSending(false); }
+      if (isCurrent()) setChatMessages((current) => [...current, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요.", ownerId: replyOwner ?? undefined, localOnly: true }]);
+    } finally { if (isCurrent()) { chatLock.current = false; setChatSending(false); } }
   };
 
   const load = useMemo(() => createQueuedRefresh(async () => {
@@ -316,7 +400,12 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     finally { setLoading(false); }
   }), []);
 
-  useEffect(() => { void load(); void loadChatHistory(); }, [load, loadChatHistory]);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!pending.ready) return;
+    if (pending.ownerId) void loadChatHistory(pending.ownerId);
+    else setChatHistoryLoading(false);
+  }, [pending.ready, pending.ownerId, loadChatHistory]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState === 'visible') void load(); };
     window.addEventListener('focus', refresh);
@@ -377,7 +466,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   };
 
   const clearChatHistory = async () => {
-    if (!supabase || chatSending || adviceBusy || chatMessages.length <= 1 || !window.confirm("연이와 나눈 지난 대화를 모두 지울까요? 할 일·기억·운동 기록은 지워지지 않습니다.")) return;
+    if (!supabase || chatSending || adviceBusy || chatMessages.filter(item => !item.localOnly).length <= 1 || !window.confirm("연이와 나눈 지난 대화를 모두 지울까요? 할 일·기억·운동 기록은 지워지지 않습니다.")) return;
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) return;
     const { error } = await supabase.from("assistant_chat_messages").delete().eq("user_id", auth.user.id);
@@ -456,18 +545,24 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         </form>
         <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-56 space-y-3 sm:max-h-80 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
-          {chatMessages.map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}><p className="whitespace-pre-wrap break-words">{chat.text}</p>{chat.action && <Link href={chat.action.href} onClick={(event) => {
+          {chatMessages.filter(chat => !chat.ownerId || chat.ownerId === pending.ownerId).map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}>{chat.historyOnly && <p className="text-xs font-bold">이전 대화 · 읽기 전용 (재전송·음성 제외)</p>}{chat.localOnly && <p className="text-xs font-bold">이 화면에서만 보는 로컬 대화</p>}<p className="whitespace-pre-wrap break-words">{chat.text}</p>{chat.action && <Link href={chat.action.href} onClick={(event) => {
                 if (!chat.action?.href.startsWith('/assistant?advice=')) return;
                 const scope = new URLSearchParams(chat.action.href.split('?')[1].split('#')[0]).get('advice');
                 if (isFreeAdviceScope(scope)) {
                   event.preventDefault();
                   if (!chatSending && !adviceBusy) setChatInput(ADVICE_QUESTIONS[scope]);
                 }
-              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && <ZephyrReadButton text={chat.text} />}</div></div>)}
+              }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && !chat.localOnly && !chat.historyOnly && <ZephyrReadButton text={chat.text} />}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
+        <p className="mt-2 text-xs text-gray-600">인바디·체성분·BMI 질문은 브라우저 안에서 답하며 서버 대화 이력이나 음성 읽기에 포함하지 않습니다.</p>
+        {localBodyActive && <div className="mt-2 text-xs">
+          <p>체성분 로컬 대화 중입니다. 모호한 후속 질문은 보내지 않습니다. 정해진 일반 조회 명령은 기존 경로를 사용합니다.</p>
+          <button type="button" className="min-h-11 px-3 font-semibold" onClick={() => { setLocalBodyActive(false); setChatInput(''); }}>기존 일반 대화로 돌아가기</button>
+        </div>}
+        {chatMessages.some(item => item.localOnly) && <button type="button" className="min-h-11 px-3 text-xs" onClick={() => setChatMessages(items => items.filter(item => !item.localOnly))}>로컬 대화만 비우기</button>}
         {activeAdvice && <div aria-label="대화 중 조언 확인">
           <FreeAdvicePanel key={activeAdvice.id} scope={activeAdvice.scope} initialQuestion={activeAdvice.question} onComplete={finishAdvice} onBusyChange={changeAdviceBusy} />
           <button type="button" disabled={adviceBusy} onClick={() => { clearCharacter(); setActiveAdvice(null); }} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>
@@ -477,7 +572,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         <p className="mt-2 text-xs leading-5 text-gray-500">저장하거나 AI에 보낼 내용은 먼저 보여드려요.</p>
         <details className="mt-2 border-t border-gray-100 pt-2">
           <summary className="cursor-pointer py-2 text-sm font-semibold text-gray-600">대화 메뉴</summary>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.filter(item => !item.localOnly).length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div>
         </details>
       </section>
 

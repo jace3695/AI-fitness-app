@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "reviewDate": "2026-10-20",
+  "baselineCommit": "3777f3cb89762099f2af79ab16567b9da32bd932",
+  "branch": "agent/fitness-record-priority",
+  "state": "local-uncommitted-not-published",
+  "snapshotDirectory": "integration-review-20261020/body-coach-release-candidate-v1",
+  "files": [
+    {
+      "path": "app/assistant/AssistantClient.tsx",
+      "role": "runtime",
+      "bytes": 56714,
+      "lines": 698,
+      "sha256": "70f0f2633b7fd3e827934609494510e32fa605a888e8257e726568e07cd12ad6"
+    },
+    {
+      "path": "app/components/FitnessAiCoachPanel.tsx",
+      "role": "runtime",
+      "bytes": 28172,
+      "lines": 329,
+      "sha256": "2e8b864553d4b6c93f71abefc7dd669fcaece0eff300719aaf20291358785cf7"
+    },
+    {
+      "path": "app/components/BodyCompositionCoach.tsx",
+      "role": "runtime",
+      "bytes": 8198,
+      "lines": 115,
+      "sha256": "20984edf2c5261eb10203efe127ff5cd00c0ed59709a2954a10140a7ec530d53"
+    },
+    {
+      "path": "app/data/bodyCompositionCoach.ts",
+      "role": "runtime",
+      "bytes": 8861,
+      "lines": 128,
+      "sha256": "752e6339ee6f04299448c3b43c016e308029ea4281fb17ac39fcf8b77e35ebef"
+    },
+    {
+      "path": "app/data/bodyWorkoutReview.ts",
+      "role": "runtime",
+      "bytes": 4045,
+      "lines": 66,
+      "sha256": "b677f111b00e1b0ac0346d6eba11b2e51087d2ca5fa82e258abf33e8e822c3bf"
+    },
+    {
+      "path": "app/data/localBodyConversation.ts",
+      "role": "runtime",
+      "bytes": 2793,
+      "lines": 39,
+      "sha256": "1cb01319d5947d49f46ede4dd0b5b9cd72be338201872a9a81b4dfbc86a20615"
+    },
+    {
+      "path": "app/data/readLocalBodyReview.ts",
+      "role": "runtime",
+      "bytes": 711,
+      "lines": 15,
+      "sha256": "8c878a58f4a7b175bdb81d4700a58e47bf9b49ec8584a1c361cba2ef192ad25c"
+    },
+    {
+      "path": "app/data/bodyCompositionCoach.test.ts",
+      "role": "verification-documentation",
+      "bytes": 8386,
+      "lines": 141,
+      "sha256": "0d69543203a9bd673c5bd528f228885abbd1c750fa00946f7f314a90388ade4a"
+    },
+    {
+      "path": "app/data/bodyWorkoutReview.test.ts",
+      "role": "verification-documentation",
+      "bytes": 6616,
+      "lines": 111,
+      "sha256": "3d4ff6ef8d1eeb3d4e5dd2efbdc5db5efad17300d0aac9c888e897d0adfb3f5c"
+    },
+    {
+      "path": "app/data/localBodyConversation.test.ts",
+      "role": "verification-documentation",
+      "bytes": 4487,
+      "lines": 74,
+      "sha256": "e2f316576b22b62e5a40b583a61ab0e5389cabcd25fa8da5b84ff7ade97bf796"
+    },
+    {
+      "path": "scripts/body-composition-coach-browser.mjs",
+      "role": "verification-documentation",
+      "bytes": 16213,
+      "lines": 264,
+      "sha256": "ba83103afd3f4cd7b9b9687335d2b791c8ccaf9640c3470978d10f439b97c10d"
+    },
+    {
+      "path": "scripts/local-body-chat-browser.mjs",
+      "role": "verification-documentation",
+      "bytes": 16190,
+      "lines": 252,
+      "sha256": "b1ec5d2da9e43e3e02a5ec6c4d0975710bba8ecf7fa64f19ed5cdf474042795c"
+    },
+    {
+      "path": "docs/body-composition-coach-local-review.md",
+      "role": "verification-documentation",
+      "bytes": 12781,
+      "lines": 172,
+      "sha256": "bef51abdc06a853e83d8a5d3126b3ac404490de2f65de2b195143a562ff36927"
+    },
+    {
+      "path": "docs/local-body-chat-review.md",
+      "role": "verification-documentation",
+      "bytes": 8313,
+      "lines": 114,
+      "sha256": "3374871cc247e9a49a05bb4fbe6c83f169e70b881bf50704bc8657c68d33d658"
+    },
+    {
+      "path": "docs/body-coach-release-candidate.md",
+      "role": "verification-documentation",
+      "bytes": 7626,
+      "lines": 109,
+      "sha256": "9fa6055f8965a204e6d7b87a7ab039a1bde80bbf3990e0ba415dea3ce24196f9"
+    }
+  ],
+  "runtimeFiles": 7,
+  "supportFiles": 8,
+  "manifestSelfExcluded": true,
+  "validation": {
+    "unit": 886,
+    "budget": 26,
+    "totalUnit": 912,
+    "chatUi": 18,
+    "analysisUi": 25,
+    "ocrCatalogUi": 51,
+    "totalUiThisReview": 94,
+    "motionActive": 27,
+    "motionBlocked": 3,
+    "types": "passed",
+    "lint": "passed",
+    "build": "passed",
+    "realAccount": "not-run",
+    "deployment": "not-run"
+  }
+}

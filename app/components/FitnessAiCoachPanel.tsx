@@ -26,6 +26,7 @@ import {
   type WorkoutOutcomeMetrics,
 } from "../data/fitnessAiReviewHistory";
 import { authenticatedFetch } from "@/lib/supabase";
+import BodyCompositionCoach from './BodyCompositionCoach';
 
 type AnalysisType = FitnessAiAnalysisType;
 type CoachResult = { analysisType: AnalysisType; analysisLabel: string; overview: string; positives: string[]; cautions: string[]; nextSession: string[]; rationale: string; safety: string; confidence: "높음" | "보통" | "낮음"; planProposal?: WorkoutPlanProposal; programReview?: WorkoutProgramAiReview; source?: FitnessAiReviewSource; historyId?: string | null; historySaved?: boolean };
@@ -49,6 +50,7 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
   const [historyNotice, setHistoryNotice] = useState("");
+  const [bodyReviewRequest, setBodyReviewRequest] = useState(0);
   const historyRequestId = useRef(0);
 
   const loadHistory = useCallback(async (showLoader = false) => {
@@ -83,6 +85,7 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
   }, [loadHistory]);
 
   const analyze = async (type: AnalysisType) => {
+    setBodyReviewRequest(request => request + 1);
     setAnalysisType(type);
     setLoading(true); setError(""); setApplyNotice(""); setResult(null);
     try {
@@ -177,6 +180,7 @@ export default function FitnessAiCoachPanel({ stores, mode = "full", onPlanAppli
       <div><p className="text-[12px] font-bold text-[#534AB7]">AI 연이 운동 코치</p><h2 className="mt-1 text-[20px] font-extrabold text-gray-900">{mode === "plan" ? "내 운동계획을 먼저 점검해요" : "분석하고 다음 운동계획도 제안해요"}</h2><p className="mt-1 text-[11px] leading-5 text-gray-500">현재는 기록을 계산한 무료 점검과 계획을 보여줍니다. 제안을 확인하고 선택한 경우에만 운동 설정이 바뀝니다.</p></div>
       <div className={`mt-4 grid gap-2 ${mode === "full" ? "sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}>{ANALYSIS_OPTIONS.filter((option) => mode === "full" || option.id === "program" || option.id === "plan").map((option) => <button key={option.id} type="button" disabled={loading} onClick={() => void analyze(option.id)} className={`min-h-20 rounded-2xl border p-3 text-left transition disabled:opacity-50 ${analysisType === option.id ? "border-[#534AB7] bg-[#534AB7] text-white" : "border-violet-100 bg-white text-gray-800"}`}><span className="block text-[13px] font-extrabold">{loading && analysisType === option.id ? "기록을 분석하는 중…" : option.action}</span><span className={`mt-1 block text-[10px] leading-4 ${analysisType === option.id ? "text-white/75" : "text-gray-500"}`}>{option.description}</span></button>)}</div>
       {error ? <p className="mt-4 rounded-2xl bg-red-50 p-3 text-[12px] font-semibold text-red-700">{error}</p> : null}
+      <BodyCompositionCoach stores={stores} analysisRequest={bodyReviewRequest} />
       {historyNotice ? <p role="status" className="mt-3 rounded-2xl bg-blue-50 p-3 text-[11px] font-semibold text-blue-800">{historyNotice}</p> : null}
       {result ? <div className="mt-5 space-y-3" aria-live="polite">
         <div className="rounded-2xl bg-white p-4"><div className="flex items-center justify-between gap-3"><p className="text-[12px] font-bold text-gray-500">{result.analysisLabel}</p><div className="flex items-center gap-2">{result.source === "local" ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">비용 0원 · 로컬</span> : null}{result.source === "recovered" ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">응답 보정 · 추가 호출 없음</span> : null}{result.source === "economy" ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-800">85% · 절약 AI</span> : null}<span className="rounded-full bg-[#EEEDFE] px-2.5 py-1 text-[10px] font-bold text-[#534AB7]">확신도 {result.confidence}</span></div></div><p className="mt-2 text-[13px] leading-6 text-gray-800">{result.overview}</p></div>
