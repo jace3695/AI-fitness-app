@@ -26,7 +26,7 @@ const bundle=await build({
       if(path==='link')return{resolveDir:process.cwd(),contents:`import React from 'react';export default function Link(p){return React.createElement('a',p,p.children)}`};
       if(path==='dynamic')return{contents:`export default function dynamic(){return ()=>null}`};
       if(path==='auth')return{contents:`
-        const user=()=>({id:localStorage.getItem('fitness-cloud-sync-user')||'synthetic-A'});
+        const user=()=>{try{return{id:localStorage.getItem('fitness-cloud-sync-user')||'synthetic-A'}}catch{return null}};
         const makeQuery=table=>{const query=new Proxy({}, {get(_,key){
           if(key==='then')return resolve=>{
             if(table==='assistant_chat_messages'&&window.__failHistory)throw Error('synthetic history network failure');
@@ -41,8 +41,8 @@ const bundle=await build({
         export const supabase={auth:{
           getUser:async()=>({data:{user:user()}}),
           getSession:async()=>({data:{session:{user:user(),access_token:'synthetic-token'}}}),
-          onAuthStateChange:fn=>{queueMicrotask(()=>fn('INITIAL_SESSION',{user:user()}));
-            const change=()=>fn('SIGNED_IN',{user:user()});window.addEventListener('fixture-auth',change);
+          onAuthStateChange:fn=>{queueMicrotask(()=>{const current=user();fn('INITIAL_SESSION',current?{user:current}:null)});
+            const change=()=>{const current=user();fn('SIGNED_IN',current?{user:current}:null)};window.addEventListener('fixture-auth',change);
             return{data:{subscription:{unsubscribe(){window.removeEventListener('fixture-auth',change)}}}}},
           },from:table=>makeQuery(table)};
         export async function authenticatedFetch(){throw Error('unexpected authenticated fetch')}

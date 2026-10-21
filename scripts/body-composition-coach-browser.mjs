@@ -28,6 +28,7 @@ const result = await build({
   plugins: [{ name: 'synthetic-auth-transport', setup(b) {
     b.onResolve({ filter: /(^|\/)supabase$/ }, () => ({ path: 'transport', namespace: 'fixture' }));
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: `
+      export const supabase = null;
       export async function authenticatedFetch(path,options) {
         (window.__calls??=[]).push(path);
         if(path==='/api/fitness/coach/history')return {ok:true,json:async()=>({reviews:[]})};

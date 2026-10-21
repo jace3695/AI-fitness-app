@@ -3505,6 +3505,7 @@ return (
                 </label>
                 <textarea
                   id="ai-record-input"
+                  className="scroll-mt-36"
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => {

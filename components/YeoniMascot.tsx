@@ -6,6 +6,7 @@ import { resolveYeoniMotion } from "@/utils/yeoniPreferences";
 import { useYeoniPreferences } from "./useYeoniPreferences";
 import { usePageActivity } from "./usePageActivity";
 import styles from "./yeoni-mascot.module.css";
+import { useCommonCharacterHost } from './yeoni/CommonCharacterContext';
 
 export type YeoniAction = "idle" | "explain" | "celebrate" | "encourage";
 export type YeoniMotion = "once" | "ambient" | "off";
@@ -33,7 +34,7 @@ function AnimationStrip({ action, motion, canPlay }: { action: YeoniAction; moti
 }
 
 /** Decorative motion only; guidance always remains available as text. */
-function YeoniMascot({ action = "idle", motionKey = "", motion = "once" }: {
+function LegacyYeoniMascot({ action = "idle", motionKey = "", motion = "once" }: {
   action?: YeoniAction;
   motionKey?: string | number;
   motion?: YeoniMotion;
@@ -64,4 +65,8 @@ function YeoniMascot({ action = "idle", motionKey = "", motion = "once" }: {
   </span>;
 }
 
+function YeoniMascot(props: Parameters<typeof LegacyYeoniMascot>[0]) {
+  const host = useCommonCharacterHost();
+  return host ? null : <LegacyYeoniMascot {...props} />;
+}
 export default memo(YeoniMascot);

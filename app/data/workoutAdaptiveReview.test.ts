@@ -8,6 +8,25 @@ import { applyExerciseTargets, getExerciseTargetsForDay } from './userWorkoutSet
 import { getWorkoutGroupById, workoutGroupToDayWorkout } from './workoutGroups.ts';
 
 const names = ['덤벨 고블릿 스쿼트', '밴드 로우', '덤벨 플로어프레스', '루프밴드 사이드워크', '버드독'];
+test('unconfirmed workout safety feedback blocks a previously offered increase without counting as completed training', () => {
+  for (const feedback of [
+    { workoutPain: true }, { workoutBackStatus: 'pain' as const }, { workoutBackStatus: 'worse' as const },
+    { workoutNeurologicalSymptoms: ['tingling'] },
+    { workoutExerciseRecords: [{ exerciseName: names[0], status: 'pending', painScore: 1 }] },
+  ] satisfies Partial<WorkoutDayRecord>[]) {
+    const data = input();
+    const prior = buildAdaptiveWorkoutReview(data);
+    assert.equal(prior.action, 'increase');
+    data.workouts['2026-09-06'] = feedback;
+    const before = JSON.stringify(data);
+    const next = buildAdaptiveWorkoutReview(data);
+    assert.equal(next.action, 'hold');
+    assert.equal(next.change, undefined);
+    assert.equal(next.evidenceCount, prior.evidenceCount);
+    assert.throws(() => decideAdaptiveWorkoutReview(data, prior.id, 'applied', '2026-09-07T09:00:00Z', true));
+    assert.equal(JSON.stringify(data), before);
+  }
+});
 function session(patch: Partial<WorkoutDayRecord> = {}): WorkoutDayRecord {
   return {
     workoutDone: true, workoutGroupId: 'current-fullbody-strength-circuit', workoutStatus: 'completed', workoutDifficulty: 'easy',

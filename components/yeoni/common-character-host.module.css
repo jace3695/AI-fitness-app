@@ -1,0 +1,9 @@
+.host{box-sizing:border-box;margin:8px auto;padding:8px 12px;max-width:64rem;width:100%;border-bottom:1px solid #e7deef;background:#faf7ff;color:#49355d}
+.controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.controls button{min-height:44px;padding:6px 12px;border:1px solid #a492b8;border-radius:12px;background:white;color:inherit}
+.portrait{max-width:340px;margin:auto}
+.portrait canvas{max-height:150px;width:auto;max-width:100%;margin:auto}
+.portrait [aria-busy]{width:100%;height:150px;aspect-ratio:auto;margin:4px auto}
+.host[data-quiet=true] .portrait canvas{max-height:64px}
+.host[data-quiet=true] .portrait [aria-busy]{height:64px}
+@media(max-width:480px){.host{padding:6px 8px}.portrait canvas{max-height:100px}.portrait [aria-busy]{height:100px}}

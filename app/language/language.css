@@ -1,5 +1,10 @@
 @scope (.language-app-shell) {
 
+/* Keep focused controls clear of the sticky two-row mobile navigation. */
+input, textarea, select {
+  scroll-margin-top: 144px;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

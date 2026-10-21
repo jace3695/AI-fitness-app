@@ -1,6 +1,7 @@
 import { speakJapaneseWithBrowserTts, type JapaneseTtsOptions } from "./japaneseTts.ts";
 import { authenticatedFetch } from "../lib/supabase.ts";
 import { FREE_MODE } from "../lib/free-mode.ts";
+import { createSpeechParticipant } from "../lib/yeoni/speech-participant.ts";
 
 type PreferredJapaneseTtsOptions = JapaneseTtsOptions & {
   apiPath?: string;
@@ -15,6 +16,27 @@ export function japaneseAudioErrorMessage(error: unknown) {
 }
 
 export async function speakJapaneseWithPreferredTts(text: string, options: PreferredJapaneseTtsOptions = {}) {
+  if (!text || options.signal?.aborted || typeof window === 'undefined') return;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const hide = () => { if (document.hidden) abort(); };
+  const participant = createSpeechParticipant(`japanese:${crypto.randomUUID()}`, abort);
+  options.signal?.addEventListener('abort', abort, { once: true });
+  window.addEventListener('pagehide', abort);
+  document.addEventListener('visibilitychange', hide);
+  const valid = participant.claim();
+  try {
+    if (options.signal?.aborted || !valid()) return;
+    await speakJapaneseOwned(text, { ...options, signal: controller.signal });
+  } finally {
+    options.signal?.removeEventListener('abort', abort);
+    window.removeEventListener('pagehide', abort);
+    document.removeEventListener('visibilitychange', hide);
+    participant.dispose();
+  }
+}
+
+async function speakJapaneseOwned(text: string, options: PreferredJapaneseTtsOptions) {
   if (!text || options.signal?.aborted) return;
   if (FREE_MODE) {
     try { await speakJapaneseWithBrowserTts(text, options); }

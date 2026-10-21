@@ -134,6 +134,10 @@ export function hasComparablePerformanceDrop(records: WorkoutDayRecord[]) {
 
 export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): AdaptiveWorkoutReview {
   const { settings, workouts, conditions, selectedPlanId, today } = input;
+  // Safety feedback can be saved before a completion status is selected.
+  // It must block changes without counting as a completed training session.
+  const safetyRecords = Object.entries(workouts).filter(([date]) => isRecentTrainingDate(date, today, 14))
+    .sort(([a], [b]) => b.localeCompare(a)).map(([date, value]) => ({ date, record: getWorkoutRecord(value) }));
   const entries = Object.entries(workouts).filter(([date]) => isRecentTrainingDate(date, today))
     .sort(([a], [b]) => b.localeCompare(a)).flatMap(([date, value]) => {
       const record = getWorkoutRecord(value);
@@ -145,7 +149,7 @@ export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): Adaptive
   const lastApplied = decisions.find((item) => item.decision === 'applied' && item.action !== 'maintain');
   const lastAppliedDate = lastApplied?.decidedFor ?? lastApplied?.decidedAt.slice(0, 10);
   const evidenceThrough = entries[0]?.date ?? today;
-  const id = fingerprint({ today, selectedPlanId, entries, recentConditions, settings: { ...settings, adaptiveReviewDecisions: undefined }, lastApplied });
+  const id = fingerprint({ today, selectedPlanId, entries, safetyRecords, recentConditions, settings: { ...settings, adaptiveReviewDecisions: undefined }, lastApplied });
   const common = {
     id, evidenceCount: entries.length, strengthCount: strength.length, evidenceThrough,
     latestBack: entries[0]?.record.workoutBackStatus ? BACK_LABELS[entries[0].record.workoutBackStatus] : '미기록',
@@ -153,7 +157,6 @@ export function buildAdaptiveWorkoutReview(input: AdaptiveReviewInput): Adaptive
     lastDecision: decisions[0], alreadyReviewed: decisions.some((item) => item.id === id),
   };
   const review = (action: AdaptiveReviewAction, title: string, reasons: string[], change?: PlanChange, preparation?: string): AdaptiveWorkoutReview => ({ ...common, action, title, reasons, change, preparation });
-  const safetyRecords = entries.filter(({ date }) => isRecentTrainingDate(date, today, 14));
   const hasSafetySignal = safetyRecords.some(({ record }) => record.workoutBackStatus === 'worse' || record.workoutBackStatus === 'pain'
     || record.workoutPain || record.workoutNeurologicalSymptoms?.length || (record.workoutExerciseRecords ?? []).some((exercise) => (exercise.painScore ?? 0) > 0))
     || recentConditions.some(([, condition]) => condition.signals.some((signal) => STOP_SIGNALS.has(signal)));

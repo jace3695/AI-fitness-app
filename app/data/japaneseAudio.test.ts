@@ -4,7 +4,7 @@ import { japaneseAudioErrorMessage, speakJapaneseWithPreferredTts } from "../../
 import { speakJapaneseWithBrowserTts } from "../../utils/japaneseTts.ts";
 
 function device(context: TestContext, onSpeak?: (utterance: SpeechSynthesisUtterance) => void, japanese = true) {
-  const descriptors = ["window", "SpeechSynthesisUtterance"].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
+  const descriptors = ["window", "document", "SpeechSynthesisUtterance"].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const);
   const played: SpeechSynthesisUtterance[] = [];
   let cancelled = 0;
   const voices = [{ lang: japanese ? "ja-JP" : "en-US", name: "Remote voice", localService: false }, { lang: japanese ? "ja-JP" : "en-US", name: "Device voice", localService: true }];
@@ -14,7 +14,8 @@ function device(context: TestContext, onSpeak?: (utterance: SpeechSynthesisUtter
     if (onSpeak) onSpeak(utterance);
     else { utterance.onstart?.({} as SpeechSynthesisEvent); queueMicrotask(() => utterance.onend?.({} as SpeechSynthesisEvent)); }
   } };
-  Object.defineProperty(globalThis, "window", { configurable: true, value: { speechSynthesis: synth } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: Object.assign(new EventTarget(), { speechSynthesis: synth }) });
+  Object.defineProperty(globalThis, "document", { configurable: true, value: Object.assign(new EventTarget(), { hidden: false }) });
   Object.defineProperty(globalThis, "SpeechSynthesisUtterance", { configurable: true, value: Utterance });
   context.after(() => descriptors.forEach(([key, value]) => value ? Object.defineProperty(globalThis, key, value) : Reflect.deleteProperty(globalThis, key)));
   const fetchMock = context.mock.method(globalThis, "fetch", async () => { throw new Error("Paid TTS must not be requested"); });
@@ -58,4 +59,23 @@ test("기기 재생 오류를 성공으로 처리하지 않는다", async contex
 });
 test("음성을 지원하지 않는 환경에서는 오류를 전달한다", async () => {
   await assert.rejects(() => speakJapaneseWithBrowserTts("こんにちは"), /음성 재생을 지원하지/);
+});
+
+test("공통 캐릭터 음성 시작은 일본어 반복과 완료 콜백을 중지한다", async context => {
+  let completed = 0;
+  const fixture = device(context, () => window.dispatchEvent(new CustomEvent('yeoni-zephyr-play', { detail: 'character' })));
+  await speakJapaneseWithPreferredTts('あ', { repeatCount: 3, onEnd: () => completed++ });
+  assert.equal(fixture.played.length, 1); assert.equal(completed, 0);
+  assert.equal(fixture.fetchMock.mock.calls.length, 0);
+});
+
+test("페이지 이탈은 일본어 음성을 중지하고 다음 발화는 정상 시작한다", async context => {
+  let first = true;
+  const fixture = device(context, utterance => {
+    if (first) { first = false; window.dispatchEvent(new Event('pagehide')); }
+    else queueMicrotask(() => utterance.onend?.({} as SpeechSynthesisEvent));
+  });
+  await speakJapaneseWithPreferredTts('あ', { repeatCount: 3 });
+  await speakJapaneseWithPreferredTts('い');
+  assert.equal(fixture.played.length, 2); assert.equal(fixture.fetchMock.mock.calls.length, 0);
 });

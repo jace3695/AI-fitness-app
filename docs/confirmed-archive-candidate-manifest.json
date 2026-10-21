@@ -1,0 +1,868 @@
+{
+  "baselineCommit": "a08d9cf6b8cebf41dbc74916aa675fc25d61636b",
+  "parentCandidateSha256": "ffa90e9deab861273bb317797c906b811d62bb539ebda1bb9278a41e0cb975a0",
+  "candidateSha256": "cdc47776ea186ea196c9802797d20ecab094a67657acd20e7ed40336cc134048",
+  "state": "local-uncommitted-not-published",
+  "runtimeChangedSinceParent": [
+    "app/assistant/AssistantClient.tsx",
+    "app/data/appRecordReset.ts",
+    "app/language/practice/PracticeWorkspace.tsx",
+    "lib/confirmed-conversation-archive.ts",
+    "app/api/confirmed-conversation-archive/route.ts",
+    "components/ConfirmedConversationArchive.tsx"
+  ],
+  "verification": {
+    "unit": 926,
+    "aiBudget": 26,
+    "total": 952,
+    "archiveBrowser": 10,
+    "bodyHistoryBrowser": 9,
+    "bodyChatBrowser": 18,
+    "practiceBrowser": 13,
+    "legacyBrowser": 16,
+    "actualNextChecks": 37,
+    "types": "pass",
+    "changedLint": "pass-zero-warnings",
+    "productionBuild": "pass",
+    "realServices": "not-run"
+  },
+  "files": [
+    {
+      "path": "app/api/confirmed-conversation-archive/route.ts",
+      "bytes": 4975,
+      "sha256": "bd342784428c966fe47b858a7bbbffd507f100285cac359d923b8e8d6b17087a"
+    },
+    {
+      "path": "app/api/fitness/body-analysis-history/route.ts",
+      "bytes": 4785,
+      "sha256": "32cfb53a33fe02c0360de17fa17428dbe59c742dae4dd6cd32c7478b27fbeae8"
+    },
+    {
+      "path": "app/assistant/AssistantClient.tsx",
+      "bytes": 57862,
+      "sha256": "429b382ae96ff36968d2e5f1a0ff2fcd9d74a416156157ef48d85edbc0deadd6"
+    },
+    {
+      "path": "app/budget/page.tsx",
+      "bytes": 208957,
+      "sha256": "238c20fe8d37f5a4ab63382e2cf80b6dcea7f58160cf1561ed31ccb7c2bbdc6d"
+    },
+    {
+      "path": "app/components/BodyAnalysisHistory.tsx",
+      "bytes": 8892,
+      "sha256": "9243661b3aa22adb037700c20da055a78f1d85a2ebfa8d970b8407aaf869c4ca"
+    },
+    {
+      "path": "app/components/BodyCompositionCoach.tsx",
+      "bytes": 8799,
+      "sha256": "f559ae1f60c67cb35583615c5ba255cf9e84d8f68f2f62cdcafab5c64532cd3b"
+    },
+    {
+      "path": "app/components/BodyRecordCard.tsx",
+      "bytes": 32978,
+      "sha256": "31e957b55c06dd2f1f51dd6b5b25c02c86d2ba01a879bf8779b57e180276f747"
+    },
+    {
+      "path": "app/components/useWorkoutVoice.ts",
+      "bytes": 9112,
+      "sha256": "47a3ec36f525e570d4acaac17baf5afe59a5f976be8fcacdc04e3063aee8e763"
+    },
+    {
+      "path": "app/data/appRecordReset.ts",
+      "bytes": 5055,
+      "sha256": "0578f6cb8e7cf311b8d12f718edf5aa52e3a7e18f5121efbe6fcf32dfacfca57"
+    },
+    {
+      "path": "app/data/japaneseAudio.test.ts",
+      "bytes": 5870,
+      "sha256": "702fa6f7b449580c7fa13245f579eeabf2385b146c4e25f111e0ba662657626d"
+    },
+    {
+      "path": "app/data/workoutAdaptiveReview.test.ts",
+      "bytes": 19758,
+      "sha256": "d931936ab04d4aef2342b20881f825276289b842ad5dd74bcb692c86540e9640"
+    },
+    {
+      "path": "app/data/workoutAdaptiveReview.ts",
+      "bytes": 26974,
+      "sha256": "bd8835da49fcd087b01fe0a54287b7d5dade2222c0a25f80d90d6e0dc0fc3834"
+    },
+    {
+      "path": "app/data/yeoniPreferences.test.ts",
+      "bytes": 1839,
+      "sha256": "ceb79174599d3e350ecbac2e47bccb4d827a1b5aca4b1a2ecfcbdb81f03ec916"
+    },
+    {
+      "path": "app/language/conversation/page.tsx",
+      "bytes": 19394,
+      "sha256": "a836363a528835c5d2bc9cad3ae02d2aab3fec583aa3bbc835f0a96922a30052"
+    },
+    {
+      "path": "app/language/language.css",
+      "bytes": 25011,
+      "sha256": "35c59f60af397c91b193d59854e315dbb89a3ed6a327845040324e16dc92cb15"
+    },
+    {
+      "path": "app/language/practice/PracticeWorkspace.tsx",
+      "bytes": 9712,
+      "sha256": "96879205fef470d291129a9b450dc6040b555020c37779d38a1eb5e49af38c9a"
+    },
+    {
+      "path": "app/language/practice/Recorder.tsx",
+      "bytes": 5503,
+      "sha256": "fd88ee5e05cd343c656492992485730bf1ce636c3ae9345a6e6af4dccc652a29"
+    },
+    {
+      "path": "app/language/practice/conversation.test.ts",
+      "bytes": 2744,
+      "sha256": "cfbc1b90a13f0aa5b87542b2d461735ac08d2c5d98cc0bb5e1486282f1aa6857"
+    },
+    {
+      "path": "app/language/practice/conversation.ts",
+      "bytes": 3545,
+      "sha256": "3b1d543cd8cee1bb0049b684b9ad87e9f6cd872cb2ec3e6a2f3e9a32430699c4"
+    },
+    {
+      "path": "app/language/practice/page.tsx",
+      "bytes": 1857,
+      "sha256": "76525d5dce937081ce1666b4a6cb87c6820f239803969d69bfdd8f2c773bf2f0"
+    },
+    {
+      "path": "app/language/practice/service.test.ts",
+      "bytes": 1562,
+      "sha256": "1cb8c4d4b2dbaf383e7ba55cdf74b2ef1f40a6b4d4aa98e8c0a7383c6cd517f1"
+    },
+    {
+      "path": "app/language/practice/service.ts",
+      "bytes": 1337,
+      "sha256": "98f2600e0d5d54381b98b52f0fb2af653883f08317a5c149057f003c8ba9e2da"
+    },
+    {
+      "path": "app/language/speaking/page.tsx",
+      "bytes": 13826,
+      "sha256": "10b9419ee76c1d299c89239589e8946f2bd872b85338d0d4a3c70d34399a28ef"
+    },
+    {
+      "path": "app/layout.tsx",
+      "bytes": 1856,
+      "sha256": "99b76ffb0886143310341585f5d2a6d1c4349ce01355a04e2fa4ed13a1f2dc1f"
+    },
+    {
+      "path": "components/AppCompanion.tsx",
+      "bytes": 1272,
+      "sha256": "ab7445414ef836bb8987ed97c3fe0dbe8f029c8309b2bf1796cecca0d8b72668"
+    },
+    {
+      "path": "components/ConfirmedConversationArchive.tsx",
+      "bytes": 10042,
+      "sha256": "6ac49707cfefc2c2decc36080d7ce16443d6ab964e5ae4470a72cf195334ad9f"
+    },
+    {
+      "path": "components/ScrollTopButton.tsx",
+      "bytes": 1834,
+      "sha256": "a7a2e611b22fb7c4722076c88fe4e7443e0b4d0f43c8091f67ce6d9297b8debd"
+    },
+    {
+      "path": "components/YeoniMascot.tsx",
+      "bytes": 2917,
+      "sha256": "2ae9c5a9482a0f297ea8fc707281c360e3a445480282ee44bdbd5e3fdd65f8c8"
+    },
+    {
+      "path": "components/useYeoniPreferences.ts",
+      "bytes": 1854,
+      "sha256": "ab422d8f4683b18593b16d58df33cf4fddcbbca0b19a7129b8c309d339130bd3"
+    },
+    {
+      "path": "components/yeoni/CommonCharacterContext.ts",
+      "bytes": 481,
+      "sha256": "ee7a4aebf40805cd5bb5ee691c3249ead9658fe6a98a690d218bedcc2d9f1bd7"
+    },
+    {
+      "path": "components/yeoni/CommonCharacterHost.tsx",
+      "bytes": 4301,
+      "sha256": "803fa68e37cce1983574cdd8983eeaf544912be4b81ce7bcd6f8fb6f600291ce"
+    },
+    {
+      "path": "components/yeoni/CommonCharacterShell.tsx",
+      "bytes": 1363,
+      "sha256": "1c11a3bd93d2494079579197266b7cad466a226af31831dbab526a607cbd68bf"
+    },
+    {
+      "path": "components/yeoni/ReplyCharacterPanel.tsx",
+      "bytes": 7830,
+      "sha256": "820bbebae04d039d8830eb2dc5505e65bbce108e8cb5fd2a913fc11a7f93cb58"
+    },
+    {
+      "path": "components/yeoni/SwitchableCharacterStage.tsx",
+      "bytes": 3480,
+      "sha256": "50834840ede06c6028f81ea81efd635f1e7de56d4b05d355c7bf88c176c620bd"
+    },
+    {
+      "path": "components/yeoni/common-character-host.module.css",
+      "bytes": 803,
+      "sha256": "486fe3d4d8cf375d2ad4d14e1cc3c9682b545cfd72c7a9f9d978d74f676bfd15"
+    },
+    {
+      "path": "components/yeoni/reply-character.module.css",
+      "bytes": 2691,
+      "sha256": "09f56b227d35aa3943ce7e9409973aa138906c45e87a00ebdfc34bab38d5d32e"
+    },
+    {
+      "path": "docs/body-analysis-history/approval-scope.md",
+      "bytes": 5290,
+      "sha256": "4acb754a734b92e48256c837990a020f7d58e0419dd5195032546391e77c4745"
+    },
+    {
+      "path": "docs/body-analysis-history/implementation-status.md",
+      "bytes": 5164,
+      "sha256": "d157196e2667404ffd5dc49f843127074803adf1e30059173e0f33690d93a6f2"
+    },
+    {
+      "path": "docs/body-analysis-history/schema-draft.sql",
+      "bytes": 1818,
+      "sha256": "dcb9017a261bd6d9c24c7e23614ec2c4e89442a18321141b2c411dd7b561ce0e"
+    },
+    {
+      "path": "docs/confirmed-conversation-archive/approval-scope.md",
+      "bytes": 6310,
+      "sha256": "ee9533a228a8c6c2e64f2c15c2abc7d3f8f2f4358410181f2934e5f00c52ab4a"
+    },
+    {
+      "path": "docs/confirmed-conversation-archive/implementation-status.md",
+      "bytes": 6553,
+      "sha256": "4b590fe907fb5dd56f26118a76ebcf3ae68cf0cd2acbe6014c71536d0baf1892"
+    },
+    {
+      "path": "docs/confirmed-conversation-archive/schema-draft.sql",
+      "bytes": 5236,
+      "sha256": "2c6ccca77cf4fa68312f9a351df49f9486fa8c8af6c91d96e57e95ca511edb53"
+    },
+    {
+      "path": "docs/final-candidate-verification.md",
+      "bytes": 6716,
+      "sha256": "5c8683072d7a44130a7cc6bd07f14a0d70e8b7fc21c817e70c49cddc7d397c95"
+    },
+    {
+      "path": "docs/japanese-integration-verification.md",
+      "bytes": 6774,
+      "sha256": "99e1ecff07b2f8319bcff0fc7dd7d5110bbc18cf1f03bb671445b4b81229177a"
+    },
+    {
+      "path": "docs/japanese-practice-evidence/legacy-result.json",
+      "bytes": 1350,
+      "sha256": "d30fcb570fd33c64072099b4a92604448a13f5903f273bdee62c051dc5bf40c6"
+    },
+    {
+      "path": "docs/japanese-practice-evidence/practice-320.png",
+      "bytes": 109069,
+      "sha256": "62a043e563872f65a57a32d7ba32133e2e02cd828227c568875e3931859f005b"
+    },
+    {
+      "path": "docs/japanese-practice-evidence/result.json",
+      "bytes": 1006,
+      "sha256": "ab8099fcce1174378ef395947ebe449804396c62f7bb33c3e137f428c56736f4"
+    },
+    {
+      "path": "docs/japanese-practice-evidence/unit-tests.txt",
+      "bytes": 3172,
+      "sha256": "57eb9eb8914ed232483c4c5652bc00ac7211ce41417f03428013746bb71dfcbf"
+    },
+    {
+      "path": "docs/japanese-practice-local-handoff.md",
+      "bytes": 9608,
+      "sha256": "aa5898a908d7da8f7c2de5b967785c76aede5ad49fc86dab78e74acbdf4f321a"
+    },
+    {
+      "path": "docs/local-integration-followup.md",
+      "bytes": 6480,
+      "sha256": "6cfb1176d83238f4b351fb77b8b5b61aec96df1d88d8a736f1d8287019adcb73"
+    },
+    {
+      "path": "docs/next-page-boundaries-verification.md",
+      "bytes": 5353,
+      "sha256": "ccc7449eb6a175dadd35d72da35a82ab160018b18efa3ab29f6e026406c0243f"
+    },
+    {
+      "path": "docs/yeoni-common/README.md",
+      "bytes": 8407,
+      "sha256": "796909ee1860a303a88e64054fc4fd91d17c105dd7b7c1938f68390e1715eef6"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/asset-hashes.json",
+      "bytes": 1124,
+      "sha256": "67c9e6a9ea46c02ed377b7477be2c72ac8a4807acc093f46ffd638feb6eae13c"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/browser.json",
+      "bytes": 1081,
+      "sha256": "12476b8d5d2c1433b8b15f632231ccd25a2cff0a16b90777959e772fbc98dfeb"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/build.txt",
+      "bytes": 351,
+      "sha256": "2c8da6a8380e7d05fa4b40720b34e2ad877082762d4d13a211f3655b5dad70e1"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/common-unit.txt",
+      "bytes": 2516,
+      "sha256": "5e12a02c899d819ad7cc920db907b7f739798502bbdc552f09fa2aba221a64ca"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/desktop-human.png",
+      "bytes": 50550,
+      "sha256": "1b696d1a031361c6ad0dc128fd8bbadb6bc0ade7b532391e0ce1581418baba84"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/final-lint.txt",
+      "bytes": 12,
+      "sha256": "e05222033cd2c7b46b6fad5ec87b44b62f844dbb6f004476498f71d0e3c9875b"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/lint.txt",
+      "bytes": 29,
+      "sha256": "49837e9763d2455568f1a345b63c5c9c92a8dcf76feccbd039da41e306e24377"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/local-http-recheck.txt",
+      "bytes": 2360,
+      "sha256": "52498b031eaa49033e822ec440feecef52afa40d40229d2efe0bfd2c9c2ccb7a"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/mobile-cat.png",
+      "bytes": 30918,
+      "sha256": "e2f07bd4e06209dd581427788e0430ad3cee9144d0416a7ddc29c0b030b4b8c8"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/mobile-human.png",
+      "bytes": 33080,
+      "sha256": "b54a45290e77e77d5c5bc9ec511cfeb147f1e25b4c2f7a99f2503e8b4449fd17"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/typecheck.txt",
+      "bytes": 12,
+      "sha256": "e05222033cd2c7b46b6fad5ec87b44b62f844dbb6f004476498f71d0e3c9875b"
+    },
+    {
+      "path": "docs/yeoni-common/evidence/unit-tests.txt",
+      "bytes": 182520,
+      "sha256": "e3e9c3acd140f7612dfaa6666f6bdf976d365d9c939107402fc8cf2ff3e7d4c2"
+    },
+    {
+      "path": "lib/body-analysis-history.ts",
+      "bytes": 1575,
+      "sha256": "5ff7367f5608407ae2e93d47eaf4f3cb4494bf303c5a81f8a2bf1721ea10f05f"
+    },
+    {
+      "path": "lib/confirmed-conversation-archive.ts",
+      "bytes": 3142,
+      "sha256": "c913208345f29112b8b14fff82bcdbfbb2d9ef02f2e47f943711cc83e252d188"
+    },
+    {
+      "path": "lib/yeoni/assistant-feature.ts",
+      "bytes": 556,
+      "sha256": "2ca35fbdf3448c628d664df7e6ef0b6240755389d4c5be3a38011d28576d17cb"
+    },
+    {
+      "path": "lib/yeoni/common-host-policy.test.ts",
+      "bytes": 2169,
+      "sha256": "f2ae190227594893472ad0af6794b83944d8bcfc1463982a383e213bd6457f0f"
+    },
+    {
+      "path": "lib/yeoni/common-host-policy.ts",
+      "bytes": 715,
+      "sha256": "0f3132851881705eb4c2cd48c81fd41850f200f456597c290f9e3b71863a382b"
+    },
+    {
+      "path": "lib/yeoni/speech-participant.test.ts",
+      "bytes": 973,
+      "sha256": "602bade0b30385b25bf9f52cf2a050e7ef678e460113d0326bab8a10bc66a9c0"
+    },
+    {
+      "path": "lib/yeoni/speech-participant.ts",
+      "bytes": 1176,
+      "sha256": "511e4383ae61ae1e337f5b7cff58a0d7685caab70748da1caba613a9be6211de"
+    },
+    {
+      "path": "scripts/body-analysis-history-local-browser.mjs",
+      "bytes": 9392,
+      "sha256": "3c09c5e7ec4303570fa296e4e1a4f5bad279a91b0003a0e2ff4d4a00a7fae8d9"
+    },
+    {
+      "path": "scripts/body-composition-coach-browser.mjs",
+      "bytes": 16249,
+      "sha256": "d3470cd5ac19b8b0ad3c434f011e7885c9ca0b065465ba2dc758089e0f92aa6f"
+    },
+    {
+      "path": "scripts/confirmed-archive-local-browser.mjs",
+      "bytes": 12248,
+      "sha256": "b371b4d117b238ec0db856be44fb6d69a8476b2a6e942e3f853deaec9dbe56d7"
+    },
+    {
+      "path": "scripts/first-use-advice-local-browser.mjs",
+      "bytes": 10392,
+      "sha256": "c1898a8f41103dfef69a591ec68f1c6f92c5fb5365de3a18d36208231b7d7fdc"
+    },
+    {
+      "path": "scripts/freeze-local-candidate.mjs",
+      "bytes": 2502,
+      "sha256": "f9f11b90040db09350b04765213e279a0d96aee9f282d3fccd2d4ca28264c5a1"
+    },
+    {
+      "path": "scripts/japanese-practice-local-browser.mjs",
+      "bytes": 14920,
+      "sha256": "f627b85927fc353a937e1855cfeaf8dda3d53cbcfd99873f300c7b273b4f1821"
+    },
+    {
+      "path": "scripts/local-body-chat-browser.mjs",
+      "bytes": 16293,
+      "sha256": "7be41bde588e1f0ae6da3f98cb6ca15e58acf0971ea396f49d8aedc1e1a3b339"
+    },
+    {
+      "path": "scripts/local-non-sql-tests.mjs",
+      "bytes": 1277,
+      "sha256": "e8770467543f727aaca1ec70276953ffdeff35c1bc5c57da8f7b09d1a302f8c0"
+    },
+    {
+      "path": "scripts/next-archive-integration.mjs",
+      "bytes": 13168,
+      "sha256": "79639e1c6d670ee7bb993d88284720e9b9a67ad98d2d6e68d0a48c7dda6dd496"
+    },
+    {
+      "path": "scripts/next-japanese-integration.mjs",
+      "bytes": 10406,
+      "sha256": "46a570b73ea4cf0de75e9a153714c64146b47365cf1f01d8df9ee138d70fe7a1"
+    },
+    {
+      "path": "scripts/next-local-network-guard.cjs",
+      "bytes": 996,
+      "sha256": "855d006c5885dd166b4bb0c701d96aa2fb48f69dd21229cb9eb99778e9151648"
+    },
+    {
+      "path": "scripts/next-page-boundaries.mjs",
+      "bytes": 7829,
+      "sha256": "d2889caf337c9977522b42e56e4ccc1b44bc2bfe7ce3d61fad1ae32dbfe38e50"
+    },
+    {
+      "path": "scripts/verify-archive-integration.mjs",
+      "bytes": 2401,
+      "sha256": "f7e7302c51939487efc81ec27e90d9c98c6110dbcea31b53067bf0ae92a69c4f"
+    },
+    {
+      "path": "scripts/verify-japanese-integration.mjs",
+      "bytes": 1987,
+      "sha256": "f2e9c2d60fd04e6ae8a1f7255e75b42a4a872cbfb4e4810e5768eb1b56eb8bd7"
+    },
+    {
+      "path": "scripts/workout-speech-focus-browser.mjs",
+      "bytes": 3961,
+      "sha256": "c6081ad49808e2e13ce057d3f4d657fdee13a35a262ed30d367a7f1c67c10ab5"
+    },
+    {
+      "path": "scripts/yeoni-common/browser.tsx",
+      "bytes": 1923,
+      "sha256": "237a82ca9a6f280e1136aa9867b394bd72cb918fd901b20f72a19a70c829ae41"
+    },
+    {
+      "path": "scripts/yeoni-common/check.mjs",
+      "bytes": 12061,
+      "sha256": "252d4e521687629571794cec15f4cb1f08eff0875e23c98fb56ea1763731b2b8"
+    },
+    {
+      "path": "tests/body-analysis-history.test.ts",
+      "bytes": 6689,
+      "sha256": "47ae11efdca0f2637125983096e91366711b2062aa9bdb7d69eeafd2fd52abc6"
+    },
+    {
+      "path": "tests/confirmed-conversation-archive.test.ts",
+      "bytes": 10156,
+      "sha256": "28a6efd9417612001305561f6b8ef6f75f34da154fa368cc1bcc61b8b0e4cc0b"
+    },
+    {
+      "path": "utils/speakJapanese.ts",
+      "bytes": 4793,
+      "sha256": "f02954402ca6993f239cb0cc0afe24dcf962b7df5d4997266901543f6ccd3eda"
+    },
+    {
+      "path": "utils/yeoniPreferences.ts",
+      "bytes": 1583,
+      "sha256": "a028b3608a12daa13cff2c226362b350353a6350c229f5dca8a1762dfd0474b3"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/ai-budget.log",
+      "modifiedAt": "2026-10-21T02:57:51.840Z",
+      "sha256": "3d855cc045bcf2f6aed2de0fb7801747392116caeb443225a737241e08cca32b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/archive-browser.log",
+      "modifiedAt": "2026-10-21T02:58:07.251Z",
+      "sha256": "8359214b187991ef15dcfe37969271189dd6c130a3a5b147a47a0252ffc7a118"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/body-chat-browser.log",
+      "modifiedAt": "2026-10-21T02:58:15.985Z",
+      "sha256": "ae83f90df02ec48127e8b7ecdef8838272bc45b3eecb6b82c9c671628187f6ed"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/body-history-browser.log",
+      "modifiedAt": "2026-10-21T02:58:11.311Z",
+      "sha256": "f469de56e2ec96cb131df093cfcbab70a6b9f27425d131b65f9af2a13b26151a"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/initial-body-chat-failed.log",
+      "modifiedAt": "2026-10-21T02:53:49.148Z",
+      "sha256": "732ae45a37cd42cec7f054235acda85cb159c0beb46e6411564a2939604ca47e"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/legacy-browser.log",
+      "modifiedAt": "2026-10-21T02:58:27.545Z",
+      "sha256": "221f7f24e0bde2a3d75a0c6544cd5e86f45730cca881273a1f8f73b441d931e1"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/lint.log",
+      "modifiedAt": "2026-10-21T02:57:56.881Z",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/next-browser.log",
+      "modifiedAt": "2026-10-21T02:59:05.548Z",
+      "sha256": "0f3d68d0eab8130ba2ecd9b3d76d70eeb7eea426ecb7675de4745db756de2efe"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/practice-browser.log",
+      "modifiedAt": "2026-10-21T02:58:20.464Z",
+      "sha256": "f666ab699ae259fbff5bee37d516f9409b56e439931a284e688c68b5c849d3ee"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/production-build.log",
+      "modifiedAt": "2026-10-21T02:59:39.942Z",
+      "sha256": "25c8d9e8770cbe9c5ca62b1ae1c6c12cf7ebcffa7d78133f158ff3ce33407aeb"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/types.log",
+      "modifiedAt": "2026-10-21T02:57:51.849Z",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/unit.log",
+      "modifiedAt": "2026-10-21T02:57:51.551Z",
+      "sha256": "e9501b1dd8be150c4931ce3da0efee30871ddb7dee197528ada9593df12f08bb"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/archive-integration/verification.json",
+      "modifiedAt": "2026-10-21T02:59:40.070Z",
+      "sha256": "89feeb68d4ec60334757da41897b863a76f69e1edcb6b836514ad054173d379d"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/confirmed-archive/archive-320.png",
+      "modifiedAt": "2026-10-21T02:58:07.033Z",
+      "sha256": "9073ca73cf3f1c187854ecf7b09f827d272f4c51abe05b02aea8025d624f1a3b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/confirmed-archive/result.json",
+      "modifiedAt": "2026-10-21T02:58:07.250Z",
+      "sha256": "3e9bb5d8c16f3bd9a19080c5b457d22e6d0e5fac01bc5cc3418b211ff3947c90"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/initial.png",
+      "modifiedAt": "2026-10-21T02:58:35.717Z",
+      "sha256": "802c011513ea2a8fdba5dc3b14be444e1f1189b0b2192545d17d6580d985ca29"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/result.json",
+      "modifiedAt": "2026-10-21T02:59:05.547Z",
+      "sha256": "9c307db78ed1ef3ac9fd5f0a5092e37be06d2e83e8b3197fd8ec3777a66943b4"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/server.log",
+      "modifiedAt": "2026-10-21T02:59:04.554Z",
+      "sha256": "9c716b46891bf6a654238e9dc5397303161456d5fcdac7870d0a80b44235d14f"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-assistant-focused.png",
+      "modifiedAt": "2026-10-21T02:58:43.001Z",
+      "sha256": "c11e7dec251c3b9b450eea3a566b56532bd2e00209eedbec97e06fff70012eb7"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-assistant-route.png",
+      "modifiedAt": "2026-10-21T02:58:42.859Z",
+      "sha256": "802c011513ea2a8fdba5dc3b14be444e1f1189b0b2192545d17d6580d985ca29"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-assistant.png",
+      "modifiedAt": "2026-10-21T02:58:43.479Z",
+      "sha256": "789d406d3f4d68eebabd686cce2fb2c75395b7b59caf8656828f290087134dd6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-budget-focused.png",
+      "modifiedAt": "2026-10-21T02:58:41.415Z",
+      "sha256": "51346e662116f6548c44d66519465ca820a988105fd4142d7a8a66ae527c70e4"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-budget-route.png",
+      "modifiedAt": "2026-10-21T02:58:41.187Z",
+      "sha256": "6de4bdffd5fa263f3dfd2cbe977332ac202b9c16141777ae63032ad38e23619d"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-budget.png",
+      "modifiedAt": "2026-10-21T02:58:41.480Z",
+      "sha256": "af232ea27cc34e9d373ac25f518ac742f6e13fbf945f5c506f79b7ec15eab1c6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-fitness-focused.png",
+      "modifiedAt": "2026-10-21T02:58:39.448Z",
+      "sha256": "e77ced0cc4daf88c1c04bda97c07b9d01be87387f8e01dc0955b2ad546380e52"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-fitness-route.png",
+      "modifiedAt": "2026-10-21T02:58:39.024Z",
+      "sha256": "1cf819f64c2bc9c00401da491bdfc45f3df9f41d4add05564168f4f108ad171a"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-fitness.png",
+      "modifiedAt": "2026-10-21T02:58:39.568Z",
+      "sha256": "680ae2bccf71151b3437d62db71ae70e0db78ac33bcaf14fe8da99d60b3c3aa9"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-home-focused.png",
+      "modifiedAt": "2026-10-21T02:58:36.929Z",
+      "sha256": "c11e7dec251c3b9b450eea3a566b56532bd2e00209eedbec97e06fff70012eb7"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-home-route.png",
+      "modifiedAt": "2026-10-21T02:58:36.754Z",
+      "sha256": "802c011513ea2a8fdba5dc3b14be444e1f1189b0b2192545d17d6580d985ca29"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-home.png",
+      "modifiedAt": "2026-10-21T02:58:37.004Z",
+      "sha256": "8c79e01a5df00173f246c40d348e16ea3783bc965e11db4654946847a898d991"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-conversation-focused.png",
+      "modifiedAt": "2026-10-21T02:58:50.008Z",
+      "sha256": "b4f77a49ad38e2670ba2a74049c875a94d8ea5ce1a048af460b5529de4d6045c"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-conversation-route.png",
+      "modifiedAt": "2026-10-21T02:58:49.865Z",
+      "sha256": "210690d3ac7a4793fb08b7449bed85a7b5ad1bf2a376e0fc996ddba8a1896d62"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-conversation.png",
+      "modifiedAt": "2026-10-21T02:58:50.065Z",
+      "sha256": "19bc34635163bfcce772f3727ee494c650bdf74d8f2615c38655bd04ecbb836b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-practice-focused.png",
+      "modifiedAt": "2026-10-21T02:58:46.104Z",
+      "sha256": "4ddd95f7c785751a5a474879ae78b70f4fd9668aaabae745c1305137758aa154"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-practice-route.png",
+      "modifiedAt": "2026-10-21T02:58:45.946Z",
+      "sha256": "6b1a3177a71c2a3c22e7612ef4a0f6b8cc4cb56c4c2f29a8ed0c4e969e2a2520"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-practice.png",
+      "modifiedAt": "2026-10-21T02:58:48.967Z",
+      "sha256": "8006bec152877cf891377f94d9c991256133cf9323dcd5635bcae742fb78854c"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-route.png",
+      "modifiedAt": "2026-10-21T02:58:44.830Z",
+      "sha256": "51021b482b0ff63667ff3b49df425d9314c507e5beda043101336823f7cb1837"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-speaking-route.png",
+      "modifiedAt": "2026-10-21T02:58:51.149Z",
+      "sha256": "4a497830ade2d8425591158ef1c1e1719d09e2b70e6c4790e7a5c609496dcc67"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language-speaking.png",
+      "modifiedAt": "2026-10-21T02:58:51.200Z",
+      "sha256": "4a497830ade2d8425591158ef1c1e1719d09e2b70e6c4790e7a5c609496dcc67"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/고양이형-language.png",
+      "modifiedAt": "2026-10-21T02:58:44.876Z",
+      "sha256": "51021b482b0ff63667ff3b49df425d9314c507e5beda043101336823f7cb1837"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-assistant-focused.png",
+      "modifiedAt": "2026-10-21T02:58:56.781Z",
+      "sha256": "c11e7dec251c3b9b450eea3a566b56532bd2e00209eedbec97e06fff70012eb7"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-assistant-route.png",
+      "modifiedAt": "2026-10-21T02:58:56.638Z",
+      "sha256": "7301081e955de2adf483bba4cd8b224d32bc14bde72c06d8fa18d5cc480de0c2"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-assistant.png",
+      "modifiedAt": "2026-10-21T02:58:57.209Z",
+      "sha256": "481781c21d44c0a93908e11d3910046ae93069adb811a670a453f123b8ce5cae"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-budget-focused.png",
+      "modifiedAt": "2026-10-21T02:58:55.562Z",
+      "sha256": "6bbbd8f0bb81b64bfa0b5cbed999012b6b9d89c438b2d45fd1d30d7a6644e68a"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-budget-route.png",
+      "modifiedAt": "2026-10-21T02:58:55.353Z",
+      "sha256": "6de4bdffd5fa263f3dfd2cbe977332ac202b9c16141777ae63032ad38e23619d"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-budget.png",
+      "modifiedAt": "2026-10-21T02:58:55.623Z",
+      "sha256": "af232ea27cc34e9d373ac25f518ac742f6e13fbf945f5c506f79b7ec15eab1c6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-fitness-focused.png",
+      "modifiedAt": "2026-10-21T02:58:53.832Z",
+      "sha256": "e77ced0cc4daf88c1c04bda97c07b9d01be87387f8e01dc0955b2ad546380e52"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-fitness-route.png",
+      "modifiedAt": "2026-10-21T02:58:53.537Z",
+      "sha256": "12483eb639e809ef06a07a653bc93a7b2c92a4e4c13469a7303924da7f6b87e6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-fitness.png",
+      "modifiedAt": "2026-10-21T02:58:53.903Z",
+      "sha256": "680ae2bccf71151b3437d62db71ae70e0db78ac33bcaf14fe8da99d60b3c3aa9"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-home-focused.png",
+      "modifiedAt": "2026-10-21T02:58:52.410Z",
+      "sha256": "c11e7dec251c3b9b450eea3a566b56532bd2e00209eedbec97e06fff70012eb7"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-home-route.png",
+      "modifiedAt": "2026-10-21T02:58:52.266Z",
+      "sha256": "7301081e955de2adf483bba4cd8b224d32bc14bde72c06d8fa18d5cc480de0c2"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-home.png",
+      "modifiedAt": "2026-10-21T02:58:52.488Z",
+      "sha256": "f5d00f06e34b5ca3b2aa0d992ef1c8917f952cffaf0e517415f28f03da7ef402"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-conversation-focused.png",
+      "modifiedAt": "2026-10-21T02:59:03.238Z",
+      "sha256": "b4f77a49ad38e2670ba2a74049c875a94d8ea5ce1a048af460b5529de4d6045c"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-conversation-route.png",
+      "modifiedAt": "2026-10-21T02:59:03.080Z",
+      "sha256": "5a42949cb1923bd586dc72f3a32a12660dc8e60b5f96ec9769ee2729b0bff43b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-conversation.png",
+      "modifiedAt": "2026-10-21T02:59:03.316Z",
+      "sha256": "19bc34635163bfcce772f3727ee494c650bdf74d8f2615c38655bd04ecbb836b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-practice-focused.png",
+      "modifiedAt": "2026-10-21T02:58:59.200Z",
+      "sha256": "4ddd95f7c785751a5a474879ae78b70f4fd9668aaabae745c1305137758aa154"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-practice-route.png",
+      "modifiedAt": "2026-10-21T02:58:59.078Z",
+      "sha256": "b5b9900a81f05b1c203979364801a743e82dff5b552dc7ccd176d2845b7d514a"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-practice.png",
+      "modifiedAt": "2026-10-21T02:59:02.180Z",
+      "sha256": "98b15846a76600eed778367dd2c257ba64acff03a1b8c2863fcf8c3941822715"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-route.png",
+      "modifiedAt": "2026-10-21T02:58:58.141Z",
+      "sha256": "ddabc9a73fbc2952295dc154d4d9967e3751a74b6bcb47b227cbd8fb87589a8e"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-speaking-route.png",
+      "modifiedAt": "2026-10-21T02:59:04.214Z",
+      "sha256": "8ffcd6c97be7b0200c56045a166237c8b60c649a0bc1f2d2288417b63d9e6e85"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language-speaking.png",
+      "modifiedAt": "2026-10-21T02:59:04.263Z",
+      "sha256": "8ffcd6c97be7b0200c56045a166237c8b60c649a0bc1f2d2288417b63d9e6e85"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/next-archive-integration/인간형-language.png",
+      "modifiedAt": "2026-10-21T02:58:58.189Z",
+      "sha256": "ddabc9a73fbc2952295dc154d4d9967e3751a74b6bcb47b227cbd8fb87589a8e"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/body-history/history-390.png",
+      "modifiedAt": "2026-10-21T02:58:10.902Z",
+      "sha256": "75f8876aad67289fa95baa97c96c1bba2ec8e6e66b6ff7c132eed687b9855171"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/body-history/result.json",
+      "modifiedAt": "2026-10-21T02:58:11.311Z",
+      "sha256": "f59a4f185b031021b8d8b55a2ae362d6cdc1a5d06462082cd14d729487e090c6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/local-body-chat/chat-390.png",
+      "modifiedAt": "2026-10-21T02:58:14.653Z",
+      "sha256": "e0fb1abbe78ee5bff7cce95545d23d1a6a7c6115e60e66a65f7656fc872ecbf6"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/local-body-chat/result.json",
+      "modifiedAt": "2026-10-21T02:58:15.985Z",
+      "sha256": "1edac42310c04ce109170ee4234bf1032da6f62beb4aff0cd2395c2481b1465b"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-practice/practice-320.png",
+      "modifiedAt": "2026-10-21T02:58:18.653Z",
+      "sha256": "df098014e7616e77260d7e4f4798c03934360142860b27feb85a7f10de8aa72a"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-practice/result.json",
+      "modifiedAt": "2026-10-21T02:58:20.463Z",
+      "sha256": "02136aa1e11eaca1cb7f202f90b13849233d7b27942537ae0f36832e13424eac"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/build.log",
+      "modifiedAt": "2026-10-20T12:58:29.857Z",
+      "sha256": "adca23ca5d84893c81e2aed95530ce376df5b381cf151b9d6545e092a13db49f"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/conversation-320.png",
+      "modifiedAt": "2026-10-21T02:58:23.213Z",
+      "sha256": "f0f1c98ff16153c0869986fcf13a53e1e653070d73d9027e4bda86882e4f1fad"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/conversation-390.png",
+      "modifiedAt": "2026-10-21T02:58:23.273Z",
+      "sha256": "d1c51a209730ec679f6f200df5b397fca20ba9f9d8688742897bcea7e3b1dfe3"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/lint.log",
+      "modifiedAt": "2026-10-20T12:52:59.362Z",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/result.json",
+      "modifiedAt": "2026-10-21T02:58:27.536Z",
+      "sha256": "ec9560ec7f665a29a598dd8a5a6f0dcac3a493f6d9747e2b40df66a680007db4"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/unit-retry.log",
+      "modifiedAt": "2026-10-20T12:56:33.129Z",
+      "sha256": "44a67120cc36eb7921190e472b12b40ce035d4c837aed0ca7057c9ae9ac1693d"
+    },
+    {
+      "path": "scripts/browser-qa/.generated/japanese-conversation/unit.log",
+      "modifiedAt": "2026-10-20T12:53:56.435Z",
+      "sha256": "05f4c87d127bc5eefa00ac1d9ada8cc11344668af348681533b691bab61159ef"
+    }
+  ]
+}

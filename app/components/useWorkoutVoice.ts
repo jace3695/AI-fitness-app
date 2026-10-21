@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 import { prepareZephyrSpeech, ZephyrAudioCache } from '@/lib/zephyr-playback';
+import { createSpeechParticipant } from '@/lib/yeoni/speech-participant';
 
 const cache = new ZephyrAudioCache();
 const playEvent = 'yeoni-zephyr-play';
@@ -30,6 +31,7 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
   const enabledRef = useRef(enabled);
   const owner = useRef<string | null>(null);
   const version = useRef(0);
+  const participant = useRef<ReturnType<typeof createSpeechParticipant> | null>(null);
   const unlocked = useRef(false);
   const source = useRef('');
   const needsReload = useRef(false);
@@ -54,16 +56,14 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
     alive.current = true;
     const element = audio.current;
     const generation = version;
+    const voice = createSpeechParticipant(id, stop);
+    participant.current = voice;
     const { data: { subscription } } = createClient().auth.onAuthStateChange((_event, session) => {
       const next = session?.user.id ?? null;
       if (owner.current !== next) { stop(); cache.clear(); }
       owner.current = next;
       setReadyOwner(next);
     });
-    const stopOther = (event: Event) => {
-      if ((event as CustomEvent<string>).detail !== id) stop();
-    };
-    window.addEventListener(playEvent, stopOther);
     const suspend = () => {
       if (document.visibilityState !== 'hidden') return;
       element?.pause(); unlocked.current = false; needsReload.current = true;
@@ -71,8 +71,9 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
     document.addEventListener('visibilitychange', suspend);
     return () => {
       alive.current = false; generation.current++;
+      voice.dispose(); participant.current = null;
       element?.pause(); element?.removeAttribute('src'); element?.load();
-      subscription.unsubscribe(); window.removeEventListener(playEvent, stopOther);
+      subscription.unsubscribe();
       document.removeEventListener('visibilitychange', suspend);
     };
   }, [id, stop]);
@@ -96,16 +97,17 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
   }, []);
 
   const load = useCallback(async (message: string) => {
+    const ticket = version.current;
     const { data: { session } } = await createClient().auth.getSession();
     const userId = session?.user.id;
-    if (!alive.current || !enabledRef.current || !userId || owner.current !== userId) throw new Error('로그인 계정을 다시 확인해 주세요.');
+    if (!alive.current || !enabledRef.current || ticket !== version.current || !userId || owner.current !== userId) throw new Error('로그인 계정을 다시 확인해 주세요.');
     const result = await cache.get(userId, prepareZephyrSpeech(message).text, {
       storage: window.sessionStorage, retainWorkoutAudio: true,
       request: async init => {
         const send = async () => {
           init.signal?.throwIfAborted();
           const { data: { session: current } } = await createClient().auth.getSession();
-          if (!alive.current || !enabledRef.current || current?.user.id !== userId || owner.current !== userId) throw new Error('운동 음성 준비를 중단했어요.');
+          if (!alive.current || !enabledRef.current || ticket !== version.current || current?.user.id !== userId || owner.current !== userId) throw new Error('운동 음성 준비를 중단했어요.');
           const headers = new Headers(init.headers);
           headers.set('Authorization', `Bearer ${current.access_token}`);
           if (init.method === 'POST') lastSubmission = Date.now();
@@ -137,6 +139,7 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
 
   const speak = useCallback((message: string) => {
     if (!enabledRef.current) return;
+    participant.current?.claim();
     unlock();
     const ticket = ++version.current;
     audio.current?.pause();
@@ -170,6 +173,7 @@ export function useWorkoutVoice(enabled: boolean, initialMessage = '') {
   const replay = useCallback(() => {
     const element = audio.current;
     if (!enabledRef.current || !element || !replayAvailable || !source.current) return;
+    participant.current?.claim();
     const ticket = version.current;
     // Reset a suspended/failed media resource inside this real button gesture.
     // Reuse downloaded bytes; this must never call synthesis again.

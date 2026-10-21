@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import BodyAnalysisHistory from './BodyAnalysisHistory';
+import type { BodyAnalysisSnapshot } from '@/lib/body-analysis-history';
 import { BODY_COACH_RECENT_DAYS } from '../data/bodyCompositionCoach';
 import { type BodyWorkoutReview } from '../data/bodyWorkoutReview';
 import { type RecordStores } from '../data/recordStorage';
@@ -19,6 +21,7 @@ const statusLabels = {
 };
 
 export default function BodyCompositionCoach({ stores, analysisRequest = 0 }: { stores?: RecordStores; analysisRequest?: number }) {
+  const [candidate, setCandidate] = useState<{ ownerId: string; snapshot: BodyAnalysisSnapshot } | null>(null);
   const [combined, setCombined] = useState<BodyWorkoutReview | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -28,7 +31,7 @@ export default function BodyCompositionCoach({ stores, analysisRequest = 0 }: { 
   const review = combined?.body;
   // A fresh explicit check is required after any record/account refresh.
   useEffect(() => {
-    const clear = () => { setCombined(null); setHistory([]); setHistoryOpen(false); setError(''); };
+    const clear = () => { setCandidate(null); setCombined(null); setHistory([]); setHistoryOpen(false); setError(''); };
     const invalidate = () => { clear(); setSessionChanged(true); };
     const storage = (event: StorageEvent) => {
       if (event.key === null || event.key === 'fitness-cloud-sync-user' || event.key === 'fitness-cloud-sync-epoch') invalidate();
@@ -50,9 +53,12 @@ export default function BodyCompositionCoach({ stores, analysisRequest = 0 }: { 
       const next = readLocalBodyReview(stores);
       setCombined(next);
       const narrative = buildLocalBodyNarrative(next);
+      const ownerId = window.localStorage.getItem('fitness-cloud-sync-user');
+      setCandidate(ownerId ? { ownerId, snapshot: { version: 1, source: 'local-rules', date: next.body.today, text: narrative } } : null);
       setHistory(items => items[0] === narrative ? items : [narrative, ...items].slice(0, 5));
       setError('');
     } catch {
+      setCandidate(null);
       setCombined(null);
       setHistory([]);
       setHistoryOpen(false);
@@ -66,7 +72,7 @@ export default function BodyCompositionCoach({ stores, analysisRequest = 0 }: { 
   }, [analysisRequest, check]);
   return <section aria-label="체성분과 운동 함께 점검" className="mt-4 rounded-2xl border border-violet-100 bg-white p-3 text-sm">
     <h3 className="font-bold">체성분과 운동 함께 점검</h3>
-    <p className="mt-1 text-xs leading-5">브라우저 안에서 계산하는 무료 점검입니다. 이 점검은 서버로 전송하거나 이력에 저장하지 않으며 운동 설정을 바꾸지 않습니다.</p>
+    <p className="mt-1 text-xs leading-5">브라우저 안에서 계산하는 무료 점검입니다. 점검만으로는 서버 전송·영구 저장·운동 설정 변경을 하지 않습니다. 계정 이력 저장은 별도 확인 후 직접 선택합니다.</p>
     <button type="button" disabled={sessionChanged} onClick={check} className="mt-2 min-h-11 rounded-xl bg-violet-100 px-3 font-semibold text-violet-900 disabled:opacity-50">체성분·운동 무료 점검</button>
     {sessionChanged && <p role="status" className="mt-2 text-xs">계정 상태가 바뀌었습니다. 화면을 새로 열고 현재 계정의 기록을 확인한 뒤 점검해 주세요.</p>}
     {error && <p role="alert" className="mt-2 text-red-700">{error}</p>}
@@ -80,6 +86,7 @@ export default function BodyCompositionCoach({ stores, analysisRequest = 0 }: { 
       </article>)}
       </>}
     </details>}
+    <BodyAnalysisHistory candidate={candidate} />
     {review && combined && <div className="mt-3 space-y-3" aria-live="polite">
       <p>기준일 {review.today} · 마지막 체성분 기록 {review.latestDate ?? '없음'}</p>
       <section aria-label="기록 기반 운동 구성 제안" className="space-y-2 rounded-xl bg-violet-50 p-3">

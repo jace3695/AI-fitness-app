@@ -8,6 +8,7 @@ import { ReplySession, type ReplyClip, type ReplyTransport } from '../../lib/yeo
 import { claimSpeechFocus, SPEECH_FOCUS_EVENT, SPEECH_STOP_EVENT } from '../../lib/yeoni/speech-focus';
 import SwitchableCharacterStage from './SwitchableCharacterStage';
 import styles from './reply-character.module.css';
+import { CHARACTER_RESET_EVENT, useCommonCharacterHost } from './CommonCharacterContext';
 
 const statusNames = { idle: '답변을 기다리고 있어요', waiting: '답변 준비 중', loading: '저장된 음성 확인 중', ready: '음성 준비 완료', 'text-only': '글로 답변했어요', error: '다시 확인해 주세요' };
 const emotionNames = { neutral: '차분하게', smile: '미소로', happy: '기쁘게', proud: '뿌듯하게', encouraging: '응원하며', concerned: '걱정하며', surprised: '놀라며', thinking: '생각하며', serious: '진지하게', disappointed: '아쉬워하며', sleepy: '나른하게', comforting: '다정하게' };
@@ -18,6 +19,7 @@ export default function ReplyCharacterPanel({ transport, clips, samples, assets,
   busy?: boolean; presentation?: 'review' | 'assistant';
 }) {
   const voiceId = useId();
+  const commonHost = useCommonCharacterHost();
   const embedded = presentation === 'assistant';
   const audio = useRef<HTMLAudioElement>(null), player = useRef<LipSyncPlayer | null>(null), session = useRef<ReplySession | null>(null);
   const [, refresh] = useReducer(value => value + 1, 0);
@@ -28,9 +30,12 @@ export default function ReplyCharacterPanel({ transport, clips, samples, assets,
     const next = new ReplySession(media, clips, refresh); player.current = media; session.current = next; refresh();
     const otherVoice = (event: Event) => { if ((event as CustomEvent<string>).detail !== voiceId) next.pause(); };
     const stop = () => next.pause();
+    const reset = () => { next.reset(); setInput(''); };
     window.addEventListener(SPEECH_FOCUS_EVENT, otherVoice);
     window.addEventListener(SPEECH_STOP_EVENT, stop);
+    window.addEventListener(CHARACTER_RESET_EVENT, reset);
     return () => { window.removeEventListener(SPEECH_FOCUS_EVENT, otherVoice); window.removeEventListener(SPEECH_STOP_EVENT, stop);
+      window.removeEventListener(CHARACTER_RESET_EVENT, reset);
       session.current = null; next.dispose(); media.dispose(); player.current = null; };
   }, [clips, voiceId]);
   useEffect(() => {
@@ -41,15 +46,25 @@ export default function ReplyCharacterPanel({ transport, clips, samples, assets,
   const speech = () => session.current?.snapshot() ?? { manifest: null, playback: EMPTY_PLAYBACK };
   function send(message: string) { if (message.trim() && transport) void session.current?.submit(message.trim(), transport); }
   const playing = player.current?.snapshot().state === 'playing';
-  return <section aria-label="연이 대화 캐릭터" className={`${styles.panel} ${embedded ? styles.embedded : ''}`} data-reply-status={state?.status ?? 'idle'} data-speech-state={player.current?.state ?? 'empty'}>
+  useEffect(() => {
+    if (!commonHost || !present || !preferences.visible) return;
+    return commonHost.publish({ speech: () => session.current?.snapshot() ?? { manifest: null, playback: EMPTY_PLAYBACK },
+      emotion: state?.emotion, gesture: state?.gesture });
+  }, [commonHost, present, preferences.visible, state?.emotion, state?.gesture]);
+  useEffect(() => { if (!preferences.visible) session.current?.reset(); }, [preferences.visible]);
+  return <section aria-label="연이 대화 캐릭터" className={`${styles.panel} ${embedded ? styles.embedded : ''}`} data-common-host={!!commonHost} data-reply-status={state?.status ?? 'idle'} data-speech-state={player.current?.state ?? 'empty'}>
     <div className={styles.toolbar}>
       <button onClick={() => { try { updateYeoniPreferences({ visible: true, motion: preferences.motion === 'home' ? 'off' : 'home' }); } catch { /* In-memory preference still applies. */ } }}>
         {preferences.motion === 'home' ? '움직임 끄기' : '움직임 켜기'}</button>
-      <button onClick={() => { session.current?.reset(); setPresent(!present); }}>{embedded ? present ? '캐릭터 숨기기' : '캐릭터 보이기' : present ? '화면 나가기' : '돌아오기'}</button>
+      <button onClick={() => {
+        session.current?.reset();
+        if (commonHost) { try { updateYeoniPreferences({ visible: !preferences.visible }); } catch { /* Memory fallback. */ } }
+        else setPresent(!present);
+      }}>{commonHost ? preferences.visible ? '캐릭터 숨기기' : '캐릭터 보이기' : embedded ? present ? '캐릭터 숨기기' : '캐릭터 보이기' : present ? '화면 나가기' : '돌아오기'}</button>
     </div>
     {present && <div className={styles.columns}>
-      <div className={styles.portrait} data-reply-portrait><SwitchableCharacterStage speech={speech} emotion={state?.emotion}
-        gesture={state?.gesture} assets={assets} /></div>
+      {!commonHost && <div className={styles.portrait} data-reply-portrait><SwitchableCharacterStage speech={speech} emotion={state?.emotion}
+        gesture={state?.gesture} assets={assets} /></div>}
       <div className={styles.conversation}>
         <p className={styles.eyebrow}>연이의 답변</p>
         <div role="status" aria-live="polite" className={styles.status}>{busy ? statusNames.waiting : statusNames[state?.status ?? 'idle']}</div>

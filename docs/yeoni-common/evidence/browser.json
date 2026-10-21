@@ -1,0 +1,22 @@
+{
+  "passed": [
+    "single renderer in StrictMode; legacy guidance preserved",
+    "human preference survives all route props and reload",
+    "input and fitness focus stop render loop and shrink",
+    "saved clip plays with one audio through appearance switch; competing voice pauses it",
+    "account boundary clears private reply and retains only device appearance",
+    "navigation resets stale reply state",
+    "reduced motion stops loop",
+    "390px in-flow layout has no overlap or horizontal overflow",
+    "hide disposes renderer while preserving guidance",
+    "device preference storage event updates another isolated tab",
+    "storage failure keeps in-memory appearance usable",
+    "asset failure preserves last good appearance and visible retry notice",
+    "rapid navigation leaves one renderer",
+    "desktop reply uses full width after portrait moves to common host"
+  ],
+  "errors": [],
+  "external": [],
+  "failure": null,
+  "scope": "isolated synthetic browser; actual shared components, mocked route/auth; no real account/DB/provider"
+}

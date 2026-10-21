@@ -362,7 +362,7 @@ export default function BodyRecordCard({
   };
 
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm [&_input]:scroll-mt-36 [&_textarea]:scroll-mt-36">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[15px] font-bold text-gray-800">

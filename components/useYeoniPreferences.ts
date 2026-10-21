@@ -7,7 +7,7 @@ let snapshot = DEFAULT_YEONI_PREFERENCES;
 const listeners = new Set<() => void>();
 
 function notify(next: YeoniPreferences) {
-  if (snapshot.visible === next.visible && snapshot.motion === next.motion) return;
+  if (snapshot.visible === next.visible && snapshot.motion === next.motion && snapshot.appearance === next.appearance) return;
   snapshot = next;
   listeners.forEach(listener => listener());
 }
@@ -42,7 +42,7 @@ export function useYeoniPreferences() {
 }
 
 export function updateYeoniPreferences(change: Partial<YeoniPreferences>) {
-  const next = { ...snapshot, ...change };
+  const next = parseYeoniPreferences(JSON.stringify({ ...snapshot, ...change }));
   // Pause/hide still works in this tab when saving is denied or storage is full.
   notify(next);
   localStorage.setItem(YEONI_PREFERENCES_KEY, JSON.stringify(next));

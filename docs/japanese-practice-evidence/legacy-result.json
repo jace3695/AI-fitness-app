@@ -1,0 +1,24 @@
+{
+  "passed": [
+    "320px and 390px initial practice layout has no horizontal overflow",
+    "카페: both fixed branches, no automatic bookmarks",
+    "여행: both fixed branches, no automatic bookmarks",
+    "일상: both fixed branches, no automatic bookmarks",
+    "업무: both fixed branches, no automatic bookmarks",
+    "친구: both fixed branches, no automatic bookmarks",
+    "unmatched input is not an error score or persisted wrong answer",
+    "explicit repeated bookmark preserves legacy entry and adds exactly one",
+    "reentry deduplicates, real review renders selected sentence, back returns",
+    "situation change cancels playing speech; reset cancels late voice availability",
+    "back navigation cancels device speech",
+    "review navigation during pending speech and return do not restart audio",
+    "rapid replay cancels old utterance; old completion cannot clear current playback; explicit stop stays stopped",
+    "account switch blocks late bookmark and clears in-memory practice",
+    "account switch cancels pending voice and late voice availability cannot restart playback",
+    "owner B review contains no A bookmarks"
+  ],
+  "errors": [],
+  "blocked": [],
+  "failure": null,
+  "scope": "actual pages/device speech utility, synthetic auth/storage/speech; no actual account/voice/provider"
+}

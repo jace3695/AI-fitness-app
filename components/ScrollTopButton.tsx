@@ -12,7 +12,10 @@ export default function ScrollTopButton() {
     let frame: number | null = null;
     const updateVisibility = () => {
       frame = null;
-      setVisible(window.scrollY > SHOW_AFTER_SCROLL_Y);
+      const active = document.activeElement;
+      const editing = active instanceof HTMLElement &&
+        (active.matches('input,textarea,select') || active.isContentEditable);
+      setVisible(window.scrollY > SHOW_AFTER_SCROLL_Y && !editing);
     };
     const onScroll = () => {
       if (frame === null) frame = window.requestAnimationFrame(updateVisibility);
@@ -21,10 +24,14 @@ export default function ScrollTopButton() {
     updateVisibility();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
+    document.addEventListener("focusin", onScroll);
+    document.addEventListener("focusout", onScroll);
 
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      document.removeEventListener("focusin", onScroll);
+      document.removeEventListener("focusout", onScroll);
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
   }, []);

@@ -1,0 +1,28 @@
+(node:34768) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-21/task-2/yeoni-common/lib/syncQaTrace.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??a missing QA phase fails promptly instead of leaving the suite pending (31.5666ms)
+??QA requires explicit opt-in, a loopback host and development mode (0.3083ms)
+??real SDK GET/PATCH bodies, CAS rejection and confirmation GET are captured (104.501ms)
+??holding actual SDK GET response allows a second client to win CAS before release (50.4646ms)
+??request hold sends nothing until release; post-response withholding records server commit separately (30.5169ms)
+??GET error simulation is distinguished from real HTTP and does not send a request (7031.9339ms)
+??auth, unrelated tables and different origins bypass capture and fault controls (0.6584ms)
+??Request bodies are cloned, sensitive fields omitted, abort cancels a held request (1.0683ms)
+??capture overflow is explicit and missing or differing confirmation is never a pass (0.6441ms)
+(node:15880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-21/task-2/yeoni-common/tests/request-probe.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??passive HTTP observer sees real receipt and completion without leaking query, cookies or bodies (42.4534ms)
+??native output is classified into fixed labels and raw secrets are discarded (0.8744ms)
+??network library evidence verifies mapped bytes without exporting process paths or environment (9.485ms)
+??tests 12
+??suites 0
+??pass 12
+??fail 0
+??cancelled 0
+??skipped 0
+??todo 0
+??duration_ms 7547.1759

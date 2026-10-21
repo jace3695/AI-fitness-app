@@ -1,0 +1,10 @@
+??Next.js 16.3.2 (webpack)
+??Running next.config.mjs took 58ms
+
+  Creating an optimized production build ...
+Failed to compile.
+
+Error: EPERM: operation not permitted, mkdir 'C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\.next\types\app\.well-known\oauth-protected-resource'
+
+
+> Build failed because of webpack errors

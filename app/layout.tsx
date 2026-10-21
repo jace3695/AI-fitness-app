@@ -5,6 +5,8 @@ import AiBudgetNotifier from './components/AiBudgetNotifier';
 import RecordResetListener from './components/RecordResetListener';
 import CloudSyncPanel from './components/CloudSyncPanel';
 import SyncQaPanel from './components/SyncQaPanel';
+import CommonCharacterShell from '@/components/yeoni/CommonCharacterShell';
+import { commonCharacterEnabled } from '@/lib/yeoni/common-host-policy';
 
 export const metadata: Metadata = {
   title: 'AI 연이 | 개인 AI 비서',
@@ -46,7 +48,7 @@ export default function RootLayout({
         <AiBudgetNotifier />
         <RecordResetListener />
         {process.env.NODE_ENV === 'development' && <SyncQaPanel />}
-        {children}
+        {commonCharacterEnabled(process.env) ? <CommonCharacterShell enabled>{children}</CommonCharacterShell> : children}
         <div className="mx-auto w-full max-w-5xl px-4 pb-28"><CloudSyncPanel hideSignedOut /></div>
       </body>
     </html>

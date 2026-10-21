@@ -1,0 +1,18 @@
+{
+  "passed": [
+    "production page disables AI; manual history/review/self-report survive reload",
+    "review filtering, target selection and 320px layout",
+    "synthetic mic denial and late permission after cancellation release tracks",
+    "record/stop/delete uses memory only; account switch releases tracks and isolates journal",
+    "synthetic AI failure/malformed provenance/cancellation retain input and reject late reply",
+    "synthetic successful pair persists exactly once and restores",
+    "20-second timeout releases input even when synthetic provider never settles",
+    "synthetic recording stops at 30 seconds; pagehide discards blob",
+    "storage failure retains input without pretending to save",
+    "explicit deletion persists; corrupt storage preserved until reviewed reset, cancel preserves it"
+  ],
+  "errors": [],
+  "blocked": [],
+  "failure": null,
+  "scope": "Actual components, synthetic auth/AI/microphone only; zero provider calls and real permissions"
+}

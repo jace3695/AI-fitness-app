@@ -247,6 +247,7 @@ export default function SpeakingPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1rem" }}>
         말하기 훈련
       </h1>
+      <p>아래 결과는 직접 확인한 정답 수예요. AI 발음 점수가 아니에요. <a href="/language/practice">녹음으로 발음 자기 점검하기</a></p>
 
       {/* 카테고리 필터 */}
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>

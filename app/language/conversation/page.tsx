@@ -53,7 +53,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   showReading: true,
 };
 export default function ConversationPage() {
-  return FREE_MODE ? <FreeConversationPractice /> : <LegacyConversationPage />;
+  return <><p><a href="/language/practice">자유 문장 기록·발음 자기 점검</a></p>{FREE_MODE ? <FreeConversationPractice /> : <LegacyConversationPage />}</>;
 }
 
 function LegacyConversationPage() {

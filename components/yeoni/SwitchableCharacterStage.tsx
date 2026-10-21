@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useYeoniPreferences } from '@/components/useYeoniPreferences';
+import { updateYeoniPreferences, useYeoniPreferences } from '@/components/useYeoniPreferences';
 import { mountAppearanceStage, type AppearanceStage } from '@/lib/yeoni/appearance-stage';
 import type { AppearanceState, CharacterAppearance } from '@/lib/yeoni/appearance-renderer';
 import { useCharacterStage, type CharacterControlProps, type CharacterStageMount } from './useCharacterStage';
@@ -9,14 +9,16 @@ import styles from './appearance-stage.module.css';
 import catStyles from './cat-animation.module.css';
 
 const names = { cat: '고양이형', human: '인간형' };
-export default function SwitchableCharacterStage(props: CharacterControlProps & { assets?: Record<string, string> }) {
+export default function SwitchableCharacterStage({ quiet = false, ...props }: CharacterControlProps & { assets?: Record<string, string>; quiet?: boolean }) {
   const preferences = useYeoniPreferences();
-  return preferences.visible ? <Stage {...props} enabled={preferences.motion === 'home'} /> : null;
+  return preferences.visible ? <Stage {...props} enabled={!quiet && preferences.motion === 'home'} /> : null;
 }
 
 function Stage({ enabled, assets, ...controls }: CharacterControlProps & { enabled: boolean; assets?: Record<string, string> }) {
   const handle = useRef<AppearanceStage | null>(null);
-  const [requested, setRequested] = useState<CharacterAppearance>('cat');
+  const preferences = useYeoniPreferences();
+  const requested: CharacterAppearance = preferences.appearance ?? 'cat';
+  const setRequested = (appearance: CharacterAppearance) => { try { updateYeoniPreferences({ appearance }); } catch { /* Memory preference remains usable. */ } };
   const latest = useRef(requested); latest.current = requested;
   const [appearance, setAppearance] = useState<AppearanceState>({ appearance: null, requested: 'cat', status: 'loading' });
   const mount = useCallback<CharacterStageMount>((surface, options) => {

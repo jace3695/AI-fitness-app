@@ -1,0 +1,27 @@
+(node:39792) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-21/task-2/yeoni-common/app/data/yeoniPreferences.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+???곗씠 ?ㅼ젙???녾굅???먯긽?쇰룄 諛섎났 ?吏곸엫??湲곕낯?쇰줈 耳쒖? ?딅뒗??(2.3668ms)
+??湲곗〈 ?쇰낯?댁쓽 ?④?쨌?뺤? ?좏깮??怨듯넻 ?ㅼ젙??珥덇린媛믪쑝濡?蹂댁〈?쒕떎 (0.4204ms)
+???④?쨌?꾩껜 ?뺤?쨌吏묒쨷 ?붾㈃? ??諛섎났蹂대떎 ?곗꽑?섍퀬 ?숈뒿 諛섏쓳? 諛섎났?섏? ?딅뒗??(0.2984ms)
+(node:13688) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-21/task-2/yeoni-common/lib/yeoni/common-host-policy.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??common host is a local/explicit Preview candidate, never production rollout (1.4308ms)
+??appearance whitelist strips arbitrary fields and keeps legacy device settings (1.2027ms)
+??focus route and review boundaries do not accidentally match other app names (0.5255ms)
+(node:13736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/%EB%B0%95%EC%9E%AC%EB%AF%BC/Documents/Codex/2026-10-21/task-2/yeoni-common/lib/yeoni/speech-participant.test.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\C:\Users\諛뺤옱誘?Documents\Codex\2026-10-21\task-2\yeoni-common\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+??a new voice invalidates earlier async playback, all-stop and disposal revoke leases (2.2105ms)
+??tests 7
+??suites 0
+??pass 7
+??fail 0
+??cancelled 0
+??skipped 0
+??todo 0
+??duration_ms 790.2045

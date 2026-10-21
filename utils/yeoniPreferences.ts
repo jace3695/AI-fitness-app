@@ -1,11 +1,12 @@
 export const YEONI_PREFERENCES_KEY = "yeoniAppearanceSettingsV1";
 
 export type YeoniPreferences = {
+  appearance?: "cat" | "human";
   visible: boolean;
   motion: "reactions" | "home" | "off";
 };
 
-export const DEFAULT_YEONI_PREFERENCES: YeoniPreferences = { visible: true, motion: "reactions" };
+export const DEFAULT_YEONI_PREFERENCES: YeoniPreferences = { visible: true, motion: "reactions", appearance: "cat" };
 
 function parseObject(raw: string | null): Record<string, unknown> | null {
   try {
@@ -18,11 +19,13 @@ function parseObject(raw: string | null): Record<string, unknown> | null {
 export function parseYeoniPreferences(raw: string | null, legacyRaw: string | null = null): YeoniPreferences {
   const value = parseObject(raw);
   if (value) return {
+    appearance: value.appearance === "human" ? "human" : "cat",
     visible: value.visible !== false,
     motion: value.motion === "home" || value.motion === "off" ? value.motion : "reactions",
   };
   const legacy = parseObject(legacyRaw);
   return {
+    appearance: "cat",
     visible: legacy?.showCompanion !== false,
     motion: legacy?.homeCompanionMotion === false ? "off" : "reactions",
   };

@@ -1,6 +1,9 @@
 "use client";
 
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
+import BodyAnalysisHistory from '@/app/components/BodyAnalysisHistory';
+import ConfirmedConversationArchive from '@/components/ConfirmedConversationArchive';
+import type { BodyAnalysisSnapshot } from '@/lib/body-analysis-history';
 import AppCompanion from "@/components/AppCompanion";
 import dynamic from 'next/dynamic';
 import { adviceSpokenText, type ReplyPlan } from '@/lib/yeoni/reply-plan';
@@ -157,15 +160,16 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const chatSendId = useRef(0);
   const chatHistoryId = useRef(0);
   const [localBodyActive, setLocalBodyActive] = useState(false);
+  const [localBodyCandidate, setLocalBodyCandidate] = useState<{ ownerId: string; snapshot: BodyAnalysisSnapshot; question?: string } | null>(null);
   useEffect(() => {
     if (localBodyOwner.current && localBodyOwner.current !== pending.ownerId) localBodySessionInvalid.current = true;
     localBodyOwner.current = pending.ownerId;
-    const clear = () => setChatMessages(items => items.filter(item => !item.localOnly));
+    const clear = () => { setLocalBodyCandidate(null); setChatMessages(items => items.filter(item => !item.localOnly)); };
     const invalidate = () => {
       localBodySessionInvalid.current = true;
       chatEpoch.current += 1;
       chatSendId.current += 1;
-      setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
+      setLocalBodyCandidate(null); setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
       clearCharacter(); chatLock.current = false; setChatSending(false); setChatHistoryLoading(false);
     };
     const storage = (event: StorageEvent) => {
@@ -174,7 +178,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     };
     chatEpoch.current += 1;
     chatSendId.current += 1;
-    setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
+    setLocalBodyCandidate(null); setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
     clearCharacter(); chatLock.current = false; setChatSending(false);
     window.addEventListener(RECORDS_CHANGED_EVENT, clear);
     window.addEventListener('yeoni-cloud-session-changed', invalidate);
@@ -190,10 +194,16 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy));
   const chatBoxRef = useRef<HTMLDivElement>(null);
 
+  const initialAdviceApplied = useRef(false);
   useEffect(() => {
+    // Initial auth clears drafts. Prefill afterwards, once per mounted page;
+    // an account change must never restore the previous entry question.
+    if (!pending.ready || !pending.ownerId || initialAdviceApplied.current) return;
+    initialAdviceApplied.current = true;
+    if (localBodySessionInvalid.current) return;
     const scope = new URLSearchParams(window.location.search).get('advice');
     if (isFreeAdviceScope(scope)) setChatInput(ADVICE_QUESTIONS[scope]);
-  }, []);
+  }, [pending.ready, pending.ownerId]);
 
   const finishAdvice = async (advice: FreeAdvice, source: FreeAdviceContext['recordSource'], performance?: ReplyPlan) => {
     if (!supabase) return;
@@ -269,10 +279,13 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         if (localBodySessionInvalid.current || !pending.ownerId || localBodyOwner.current !== pending.ownerId || window.localStorage.getItem('fitness-cloud-sync-user') !== pending.ownerId) {
           throw new Error('계정의 로컬 기록을 확인할 수 없습니다. 화면을 새로 열고 동기화 상태를 확인해 주세요.');
         }
-        text = isLocalBodyQuestion(value)
-          ? `${LOCAL_BODY_NOTICE}\n\n${buildLocalBodyNarrative(readLocalBodyReview())}`
-          : '체성분 대화의 후속 질문은 서버로 보내지 않습니다. 수치의 의미나 의료적 판단을 추측하지 않겠습니다. 현재 기록을 다시 보려면 “체성분 점검”을 입력하세요. 다른 주제라면 “기존 일반 대화로 돌아가기”를 선택하세요.';
+        if (isLocalBodyQuestion(value)) {
+          const review = readLocalBodyReview(), narrative = buildLocalBodyNarrative(review);
+          setLocalBodyCandidate({ ownerId: pending.ownerId, snapshot: { version: 1, source: 'local-rules', date: review.body.today, text: narrative }, question: value });
+          text = `${LOCAL_BODY_NOTICE}\n\n${narrative}`;
+        } else text = '체성분 대화의 후속 질문은 서버로 보내지 않습니다. 수치의 의미나 의료적 판단을 추측하지 않겠습니다. 현재 기록을 다시 보려면 “체성분 점검”을 입력하세요. 다른 주제라면 “기존 일반 대화로 돌아가기”를 선택하세요.';
       } catch {
+        setLocalBodyCandidate(null);
         text = '계정 또는 로컬 기록을 확인하지 못했습니다. 화면을 새로 열고 기록을 확인해 주세요. 이 질문은 서버로 보내거나 저장하지 않았습니다.';
       }
       const ownerId = pending.ownerId ?? undefined;
@@ -557,12 +570,14 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
-        <p className="mt-2 text-xs text-gray-600">인바디·체성분·BMI 질문은 브라우저 안에서 답하며 서버 대화 이력이나 음성 읽기에 포함하지 않습니다.</p>
+        <p className="mt-2 text-xs text-gray-600">인바디·체성분·BMI 질문은 브라우저 안에서 답하며 일반 서버 대화 이력이나 음성 읽기에 포함하지 않습니다. 아래 별도 동의 보관을 선택할 때만 확인한 질문·답변을 계정에 보냅니다.</p>
         {localBodyActive && <div className="mt-2 text-xs">
           <p>체성분 로컬 대화 중입니다. 모호한 후속 질문은 보내지 않습니다. 정해진 일반 조회 명령은 기존 경로를 사용합니다.</p>
-          <button type="button" className="min-h-11 px-3 font-semibold" onClick={() => { setLocalBodyActive(false); setChatInput(''); }}>기존 일반 대화로 돌아가기</button>
+          <button type="button" className="min-h-11 px-3 font-semibold" onClick={() => { setLocalBodyCandidate(null); setLocalBodyActive(false); setChatInput(''); }}>기존 일반 대화로 돌아가기</button>
         </div>}
-        {chatMessages.some(item => item.localOnly) && <button type="button" className="min-h-11 px-3 text-xs" onClick={() => setChatMessages(items => items.filter(item => !item.localOnly))}>로컬 대화만 비우기</button>}
+        {chatMessages.some(item => item.localOnly) && <button type="button" className="min-h-11 px-3 text-xs" onClick={() => { setLocalBodyCandidate(null); setChatMessages(items => items.filter(item => !item.localOnly)); }}>로컬 대화만 비우기</button>}
+        {localBodyActive && <BodyAnalysisHistory candidate={localBodyCandidate} />}
+        {localBodyActive && pending.ownerId && <ConfirmedConversationArchive key={pending.ownerId} ownerId={pending.ownerId} kind="body-dialogue" candidate={localBodyCandidate?.ownerId === pending.ownerId && localBodyCandidate.question ? { version: 1, kind: 'body-dialogue', date: localBodyCandidate.snapshot.date, question: localBodyCandidate.question, answer: `${LOCAL_BODY_NOTICE}\n\n${localBodyCandidate.snapshot.text}` } : null} />}
         {activeAdvice && <div aria-label="대화 중 조언 확인">
           <FreeAdvicePanel key={activeAdvice.id} scope={activeAdvice.scope} initialQuestion={activeAdvice.question} onComplete={finishAdvice} onBusyChange={changeAdviceBusy} />
           <button type="button" disabled={adviceBusy} onClick={() => { clearCharacter(); setActiveAdvice(null); }} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>
