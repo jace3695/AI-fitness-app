@@ -577,7 +577,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         </div>}
         {chatMessages.some(item => item.localOnly) && <button type="button" className="min-h-11 px-3 text-xs" onClick={() => { setLocalBodyCandidate(null); setChatMessages(items => items.filter(item => !item.localOnly)); }}>로컬 대화만 비우기</button>}
         {localBodyActive && <BodyAnalysisHistory candidate={localBodyCandidate} />}
-        {localBodyActive && pending.ownerId && <ConfirmedConversationArchive key={pending.ownerId} ownerId={pending.ownerId} kind="body-dialogue" candidate={localBodyCandidate?.ownerId === pending.ownerId && localBodyCandidate.question ? { version: 1, kind: 'body-dialogue', date: localBodyCandidate.snapshot.date, question: localBodyCandidate.question, answer: `${LOCAL_BODY_NOTICE}\n\n${localBodyCandidate.snapshot.text}` } : null} />}
+        {pending.ready && pending.ownerId && <ConfirmedConversationArchive key={pending.ownerId} ownerId={pending.ownerId} kind="body-dialogue" candidate={localBodyCandidate?.ownerId === pending.ownerId && localBodyCandidate.question ? { version: 1, kind: 'body-dialogue', date: localBodyCandidate.snapshot.date, question: localBodyCandidate.question, answer: `${LOCAL_BODY_NOTICE}\n\n${localBodyCandidate.snapshot.text}` } : null} />}
         {activeAdvice && <div aria-label="대화 중 조언 확인">
           <FreeAdvicePanel key={activeAdvice.id} scope={activeAdvice.scope} initialQuestion={activeAdvice.question} onComplete={finishAdvice} onBusyChange={changeAdviceBusy} />
           <button type="button" disabled={adviceBusy} onClick={() => { clearCharacter(); setActiveAdvice(null); }} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>

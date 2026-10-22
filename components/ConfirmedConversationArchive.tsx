@@ -81,7 +81,8 @@ export default function ConfirmedConversationArchive({ ownerId, kind, candidate,
     finally { clearTimeout(timer); if (ticket === epoch.current) { locked.current = false; setBusy(false); } }
   }
   return <section aria-label={kind === 'body-dialogue' ? '체성분 대화 계정 보관' : '일본어 연습 계정 보관'} className="mt-4 rounded-xl border p-3 text-sm">
-    <h3 className="font-bold">선택한 내용의 계정 보관본</h3>
+    <h3 className="font-bold">{kind === 'body-dialogue' ? '체성분 상담 보관함' : '선택한 내용의 계정 보관본'}</h3>
+    {!candidate && !invalid && <p>새 질문이나 연습 없이 기존 계정 보관본을 불러올 수 있습니다. 새로고침해도 저장한 보관본은 유지됩니다.</p>}
     <p>자동 저장하지 않습니다. 아래에서 확인·동의한 내용만 앱 서버로 보냅니다. 외부 AI·음성 서비스로 전송하지 않습니다. 이미지·녹음은 포함하지 않지만 문장에 직접 적은 개인 정보는 포함됩니다.</p>
     <p>보관본은 원본 탭·일반 대화·앱 기록 초기화와 별도로 유지됩니다. 직접 내용 삭제 또는 계정 삭제까지 보관하며 내용 삭제는 앱에서 복구할 수 없습니다. 삭제 후 재저장 방지를 위한 요청 ID·종류·저장/삭제 시각은 계정 삭제까지 남습니다.</p>
     {!invalid && candidate && <details open={previewOpen} onToggle={e => setPreviewOpen(e.currentTarget.open)}><summary className="min-h-11 py-3">계정에 보낼 내용 확인</summary>{previewOpen && <pre className="whitespace-pre-wrap break-words">{archiveText(candidate)}</pre>}</details>}

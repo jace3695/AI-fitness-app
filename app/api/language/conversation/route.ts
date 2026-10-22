@@ -4,26 +4,7 @@ import { AiBudgetExceededError } from "@/lib/ai-budget";
 import { generateAiText, isAiFeatureAvailable } from "@/lib/ai-router";
 import { buildFreeConversation } from "@/data/freeConversation";
 
-type Situation = "카페" | "여행" | "일상" | "업무" | "친구";
-
-type HistoryMessage =
-  | { role: "user"; text: string }
-  | {
-      role: "assistant";
-      reply: string;
-      replyReading: string;
-      replyKoreanPronunciation: string;
-      correction: string;
-      correctionReading: string;
-      correctionKoreanPronunciation: string;
-      explanation: string;
-    };
-
-type RequestBody = {
-  situation: Situation;
-  message: string;
-  history?: HistoryMessage[];
-};
+import { parseLanguageConversationRequest, type Situation, type HistoryMessage } from '@/lib/language-conversation-request';
 
 type AIResponse = {
   reply: string;
@@ -173,28 +154,24 @@ async function callOpenAI(
   };
 }
 
-const VALID_SITUATIONS: Situation[] = ["카페", "여행", "일상", "업무", "친구"];
-
 export async function POST(req: Request) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
-    const body = (await req.json()) as RequestBody;
-    const { situation, message, history = [] } = body;
-
-    if (!message || typeof message !== "string" || !message.trim()) {
-      return NextResponse.json({ error: "메시지가 비어 있습니다." }, { status: 400 });
+    let input: unknown;
+    try { input = await req.json(); } catch {
+      return NextResponse.json({ error: '요청 형식을 확인해 주세요.' }, { status: 400 });
     }
-
-    const safeSituation: Situation = VALID_SITUATIONS.includes(situation) ? situation : "일상";
-    const result = await callOpenAI(safeSituation, message.trim(), history, supabase, user.id);
+    const body = parseLanguageConversationRequest(input);
+    if (!body) return NextResponse.json({ error: '문장은 1~1000자로 입력하고 대화 이력을 확인해 주세요.' }, { status: 400 });
+    const result = await callOpenAI(body.situation, body.message, body.history, supabase, user.id);
     return NextResponse.json(result);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "알 수 없는 오류";
-    if (e instanceof AiBudgetExceededError) return NextResponse.json({ error: msg, budgetLimited: true }, { status: 402 });
+
+    if (e instanceof AiBudgetExceededError) return NextResponse.json({ error: "AI 사용 한도에 도달했습니다.", budgetLimited: true }, { status: 402 });
     return NextResponse.json(
-      { error: `AI 응답 처리 중 오류가 발생했습니다: ${msg}` },
+      { error: "대화 응답을 받지 못했습니다. 입력을 유지하고 잠시 후 다시 시도해 주세요." },
       { status: 500 }
     );
   }
