@@ -185,11 +185,11 @@ test('simple start keeps consent visible and secondary tools collapsed without l
 });
 test('starter fills Japanese input without sending, saving, or granting consent', () => {
   let calls = 0; const f = fixture(null, async () => { calls++; return reply; }); f.state.failRead = false; retry(f);
-  button(f.render(), '이 인사말로 시작하기 (입력만)').props.onClick();
+  button(f.render(), '이 문장으로 시작 (입력만)').props.onClick();
   const tree = f.render(); assert.equal(nodes(tree).find(n => n.type === 'textarea').props.value, 'こんにちは。');
   assert.equal(button(tree, 'AI와 대화하기').props.disabled, true);
   assert.equal(calls, 0); assert.equal(f.state.writes, 0);
-  assert.equal(nodes(tree).some(n => n.type === 'button' && label(n) === '이 인사말로 시작하기 (입력만)'), false);
+  assert.equal(nodes(tree).some(n => n.type === 'button' && label(n) === '이 문장으로 시작 (입력만)'), false);
 });
 test('latest response is visible while explanation and history stay optional', () => {
   const raw = JSON.stringify({version: 1, owner: 'A', turns: [{id:'last', text:'合成入力', situation:'일상', review:false, practiced:0, reply}]});

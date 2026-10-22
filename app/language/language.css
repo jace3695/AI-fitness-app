@@ -466,3 +466,23 @@ button {
 }
 
 }
+
+/* Practice only: compact starting flow; keep consent readable and status in flow. */
+.language-app-shell .practice-start { padding: 12px; }
+.language-app-shell .practice-start p { margin: 6px 0; }
+.language-app-shell .practice-example {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 8px 12px; margin: 4px 0;
+  border: 2px solid #534ab7; border-radius: 10px;
+  background: #f4f2ff; color: #373080; font-size: 16px; font-weight: 600;
+}
+.language-app-shell .practice-example:focus-visible { outline: 3px solid #534ab7; outline-offset: 3px; }
+.language-app-shell .practice-example:disabled { opacity: .55; cursor: not-allowed; }
+.language-app-shell:has(.practice-page) .yeoni-sync-notice {
+  position: static; inset: auto; z-index: auto; transform: none;
+  width: fit-content; max-width: calc(100% - 32px); margin: 12px auto 24px;
+  flex-wrap: wrap; border-radius: 12px; font-size: 14px;
+}
+@media (max-width: 767px) {
+  .language-app-shell:has(.practice-page) .app-main { padding-top: 8px; }
+}

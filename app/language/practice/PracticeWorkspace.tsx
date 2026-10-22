@@ -97,21 +97,18 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
   const selected = journal.turns.find(t => t.id === archiveSelection);
   const latest = journal.turns.at(-1);
   const summaryStyle = { cursor: 'pointer', padding: '12px 0', minHeight: 44 };
-  return <section style={{ maxWidth: 800, margin: '0 auto', overflowWrap: 'anywhere' }}>
+  return <section className="practice-page" style={{ maxWidth: 800, margin: '0 auto', overflowWrap: 'anywhere' }}>
     <a href="/language/conversation">← 상황별 회화</a>
     <h1>일본어로 이야기해요</h1>
-    <p>한 문장을 쓰고 AI의 답변을 받아 보세요.</p>
-    <div className="card">
-      <h2>1. 하고 싶은 말을 써 주세요</h2>
-      <label style={{ display: 'block', marginBottom: 12 }}>이야기 주제 <select style={{ maxWidth: '100%', minHeight: 44 }} value={situation} disabled={busy || !!unsavedTurn} onChange={e => setSituation(e.target.value as Situation)}>{SITUATIONS.map(s => <option key={s}>{s}</option>)}</select></label>
+    <div className="card practice-start">
+      <label style={{ display: 'block', marginBottom: 6 }}>이야기 주제 <select style={{ maxWidth: '100%', minHeight: 44 }} value={situation} disabled={busy || !!unsavedTurn} onChange={e => setSituation(e.target.value as Situation)}>{SITUATIONS.map(s => <option key={s}>{s}</option>)}</select></label>
       <label style={{ display: 'block' }} htmlFor="practice-message">일본어 문장</label>
-      <textarea id="practice-message" aria-describedby="practice-input-help" placeholder="こんにちは。 (안녕하세요.)" value={text} maxLength={MAX_TEXT} disabled={!ready || busy || !!unsavedTurn} onChange={e => setText(e.target.value)} rows={3} style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem' }} />
-      <p id="practice-input-help"><span lang="ja">こんにちは。</span> = 안녕하세요 · 읽기: 곤니치와<br />{text.length}/{MAX_TEXT}자</p>
-      {!text.trim() && <button type="button" disabled={!ready || busy || !!unsavedTurn} style={{ minHeight: 44 }} onClick={() => setText('こんにちは。')}>이 인사말로 시작하기 (입력만)</button>}
+      <textarea id="practice-message" aria-describedby="practice-input-help" placeholder="こんにちは。 (안녕하세요.)" value={text} maxLength={MAX_TEXT} disabled={!ready || busy || !!unsavedTurn} onChange={e => setText(e.target.value)} rows={2} style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem' }} />
+      <p id="practice-input-help"><span lang="ja">こんにちは。</span> = 안녕하세요 · 읽기: 곤니치와 <span>({text.length}/{MAX_TEXT}자)</span></p>
+      {!text.trim() && <button type="button" className="practice-example" disabled={!ready || busy || !!unsavedTurn} onClick={() => setText('こんにちは。')}>이 문장으로 시작 (입력만)</button>}
       {transport ? <>
-        <h2>2. 보내기 전에 확인해 주세요</h2>
-        <p id="practice-data-use">지금 쓴 문장과 이 주제의 최근 대화 최대 4쌍을 Google Gemini에 보내요. 무료 서비스의 입력과 답변은 Google 제품 개선에 쓰일 수 있어요. 다른 앱 기록과 녹음은 보내지 않아요. 이름·연락처 같은 개인정보는 쓰지 마세요.</p>
-        <label style={{ display: 'block', padding: '12px 0', minHeight: 44 }}><input type="checkbox" aria-describedby="practice-data-use" checked={dataUseAcknowledged} disabled={busy} onChange={e => setDataUseAcknowledged(e.target.checked)} />위 내용을 확인했고, 문장을 보내는 데 동의해요.</label>
+        <p id="practice-data-use">Google Gemini에 이 문장과 같은 주제의 최근 대화 최대 4쌍을 보내요. 입력·답변은 Google 제품 개선에 쓰일 수 있어요. 다른 앱 기록·녹음은 보내지 않아요. 개인정보는 쓰지 마세요.</p>
+        <label style={{ display: 'block', padding: '6px 0', minHeight: 44 }}><input type="checkbox" aria-describedby="practice-data-use" checked={dataUseAcknowledged} disabled={busy} onChange={e => setDataUseAcknowledged(e.target.checked)} />위 내용을 확인하고 전송에 동의해요.</label>
       </> : <p>지금은 AI에 연결할 수 없어요. 아래에서 문장만 보관할 수 있어요.</p>}
       <button className="btn" style={{ width: '100%', minHeight: 48 }} disabled={!ready || busy || !!unsavedTurn || !text.trim() || !transport || !dataUseAcknowledged} onClick={() => void save(true)}>AI와 대화하기</button>
       {busy && <p role="status">답변을 기다리고 있어요. <button className="btn" onClick={cancel}>요청 취소</button></p>}
