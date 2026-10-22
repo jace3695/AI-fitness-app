@@ -54,6 +54,21 @@ body.has-hub-bottom-nav {
   bottom: calc(126px + env(safe-area-inset-bottom));
 }
 
+/* Installation is optional: on small screens it must occupy document space,
+   rather than covering controls above the persistent bottom navigation. */
+@media (max-width: 767px) {
+  .yeoni-pwa-notice.yeoni-pwa-install {
+    position: static;
+    right: auto;
+    bottom: auto;
+    z-index: auto;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  }
+}
+
 .hub-bottom-nav {
   position: fixed;
   z-index: 90;

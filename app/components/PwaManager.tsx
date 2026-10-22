@@ -138,7 +138,7 @@ export default function PwaManager() {
 
   if (installPrompt) {
     return (
-      <div className="yeoni-pwa-notice fixed right-3 z-[110]">
+      <div className="yeoni-pwa-notice yeoni-pwa-install fixed right-3 z-[110]">
         <button type="button" onClick={() => void install()} title="AI 연이를 홈 화면에 설치" className="min-h-11 rounded-full bg-[#534AB7] px-4 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/70">
           앱 설치
         </button>
@@ -148,7 +148,7 @@ export default function PwaManager() {
 
   if (showIosInstallHint) {
     return (
-      <div className="yeoni-pwa-notice fixed right-3 z-[110] flex flex-col items-end gap-2">
+      <div className="yeoni-pwa-notice yeoni-pwa-install fixed right-3 z-[110] flex flex-col items-end gap-2">
         {showIosInstallGuide && (
           <div id="ios-install-guide" role="status" className="w-72 rounded-2xl bg-white p-4 text-sm text-gray-700 shadow-xl ring-1 ring-[#D9D6FE]">
             <p className="font-bold text-[#3C3489]">iPhone에서 홈 화면에 추가하기</p>

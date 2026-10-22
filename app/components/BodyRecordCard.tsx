@@ -10,7 +10,6 @@ import {
   WeightRecordStore,
   getPreviousWeightRecord,
   isTodayKey,
-  writeJson,
   readJson,
 } from "../data/recordStorage";
 import { parseOaReport, type OaDraftMeasurement } from "../lib/oaReportParser";
@@ -152,12 +151,22 @@ export default function BodyRecordCard({
     const onStorage = (event: StorageEvent) => {
       if (event.key === null || event.key === 'fitness-cloud-sync-user' || event.key === 'fitness-cloud-sync-epoch') invalidate();
     };
+    // A browser history entry may be cached without React unmounting it.
+    // Revoke pending OCR while retaining already reviewed, unsaved input.
+    const onPageHide = () => {
+      importVersion.current += 1;
+      setImporting(false);
+      setImportProgress(0);
+      setImportMessage("");
+    };
     window.addEventListener("yeoni-cloud-session-changed", invalidate);
     window.addEventListener("storage", onStorage);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       importVersion.current += 1;
       window.removeEventListener("yeoni-cloud-session-changed", invalidate);
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, []);
 
@@ -282,8 +291,16 @@ export default function BodyRecordCard({
     if (Object.keys(record).length) nextInbody[dateKey] = record;
     else delete nextInbody[dateKey];
 
-    writeJson(WEIGHT_RECORDS_KEY, nextWeights);
-    writeJson(INBODY_RECORDS_KEY, nextInbody);
+    try {
+      writeStorageBatch(window.localStorage, {
+        [WEIGHT_RECORDS_KEY]: JSON.stringify(nextWeights),
+        [INBODY_RECORDS_KEY]: JSON.stringify(nextInbody),
+      });
+    } catch {
+      setRecordMessage("저장하지 못했습니다. 입력 내용은 유지합니다. 기기 저장 공간을 확인한 뒤 다시 시도해 주세요. 이전 기록 복구가 필요한 경우 다음 저장 전에 복구를 다시 시도합니다.");
+      return;
+    }
+    notifyRecordsChanged();
     manualEdit.current.dirty = false;
     setManualDirty(false);
     onChange({ weights: nextWeights, inbody: nextInbody });
@@ -302,8 +319,16 @@ export default function BodyRecordCard({
     const nextInbody = { ...inbody };
     delete nextWeights[dateKey];
     delete nextInbody[dateKey];
-    writeJson(WEIGHT_RECORDS_KEY, nextWeights);
-    writeJson(INBODY_RECORDS_KEY, nextInbody);
+    try {
+      writeStorageBatch(window.localStorage, {
+        [WEIGHT_RECORDS_KEY]: JSON.stringify(nextWeights),
+        [INBODY_RECORDS_KEY]: JSON.stringify(nextInbody),
+      });
+    } catch {
+      setRecordMessage("삭제하지 못했습니다. 입력 내용은 유지합니다. 기기 저장 공간을 확인한 뒤 다시 시도해 주세요. 이전 기록 복구가 필요한 경우 다음 저장 전에 복구를 다시 시도합니다.");
+      return;
+    }
+    notifyRecordsChanged();
     manualEdit.current.dirty = false;
     setManualDirty(false);
     onChange({ weights: nextWeights, inbody: nextInbody });
