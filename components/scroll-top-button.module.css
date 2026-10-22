@@ -27,9 +27,17 @@
 .button:focus-visible { outline: 3px solid var(--yeoni-primary); outline-offset: 3px; }
 :global(body):has([aria-modal="true"], dialog[open]) .button { display: none; }
 
-/* Leave room for the bottom navigation and the mobile install button. */
+/* AuthGate places this control after app content. Reserve its own space on
+   mobile rather than floating over inputs that have not received focus yet. */
 @media (max-width: 767px) {
-  .button { bottom: calc(148px + env(safe-area-inset-bottom)); }
+  .button {
+    position: static;
+    right: auto;
+    bottom: auto;
+    z-index: auto;
+    display: flex;
+    margin: 12px max(16px, env(safe-area-inset-right)) 12px auto;
+  }
 }
 
 @keyframes appear {
