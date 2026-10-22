@@ -98,6 +98,7 @@ export default function RecordCalendarView() {
   const [timePending, setTimePending] = useState(false);
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteNotice, setNoteNotice] = useState("");
   const [editingWorkout, setEditingWorkout] = useState(false);
   const [confirmingWorkoutDelete, setConfirmingWorkoutDelete] = useState(false);
   const [workoutStatusDraft, setWorkoutStatusDraft] = useState<WorkoutOverallStatus>("completed");
@@ -129,6 +130,25 @@ export default function RecordCalendarView() {
   const draftDate = useRef(selected);
   const noteEdited = useRef(false);
   const noteDate = useRef(selected);
+  const recordsLive = useRef(true);
+  const workoutWriteLocked = useRef(false);
+  const [sessionInvalid, setSessionInvalid] = useState(false);
+  useEffect(() => {
+    recordsLive.current = true;
+    const invalidate = () => { recordsLive.current = false; setSessionInvalid(true); };
+    const storage = (event: StorageEvent) => {
+      if (event.key === null || event.key === "fitness-cloud-sync-user" || event.key === "fitness-cloud-sync-epoch") invalidate();
+    };
+    window.addEventListener("yeoni-cloud-session-changed", invalidate);
+    window.addEventListener("pagehide", invalidate);
+    window.addEventListener("storage", storage);
+    return () => {
+      recordsLive.current = false;
+      window.removeEventListener("yeoni-cloud-session-changed", invalidate);
+      window.removeEventListener("pagehide", invalidate);
+      window.removeEventListener("storage", storage);
+    };
+  }, []);
   useUnsavedChanges(editingWorkout || editingSecondary !== null || noteDraft !== (stores?.notes[selected] || ""));
   useEffect(() => {
     const refresh = () => setStores(readRecordStores());
@@ -142,7 +162,7 @@ export default function RecordCalendarView() {
   }, []);
   useEffect(
     () => {
-      if (noteDate.current !== selected) noteEdited.current = false;
+      if (noteDate.current !== selected) { noteEdited.current = false; setNoteNotice(""); }
       noteDate.current = selected;
       if (!noteEdited.current) setNoteDraft(stores?.notes[selected] || "");
     },
@@ -184,6 +204,7 @@ export default function RecordCalendarView() {
     setFoamPainDraft(Boolean(selectedWorkoutRecord?.foamRollerPain));
     setFoamMemoDraft(selectedWorkoutRecord?.foamRollerMemo || "");
   }, [selected, selectedWorkoutRecord, editingWorkout, editingSecondary]);
+  if (sessionInvalid) return <p role="status">계정 또는 화면 상태가 바뀌었어요. 기록 화면을 다시 열어 주세요.</p>;
   if (!stores)
     return (
       <div className="rounded-2xl bg-white p-4 text-[13px] text-gray-500">
@@ -193,12 +214,33 @@ export default function RecordCalendarView() {
   const moveMonth = (delta: number) =>
     setVisible(new Date(visible.getFullYear(), visible.getMonth() + delta, 1));
   const saveNote = () => {
-    const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
-    if (noteDraft.trim()) next[selected] = noteDraft.trim();
-    else delete next[selected];
-    writeJson(DAILY_NOTES_KEY, next);
-    noteEdited.current = false;
-    setStores({ ...stores, notes: next });
+    if (!recordsLive.current) return;
+    try {
+      const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
+      if (noteDraft.trim()) next[selected] = noteDraft.trim();
+      else delete next[selected];
+      writeJson(DAILY_NOTES_KEY, next);
+      noteEdited.current = false;
+      setNoteDraft(noteDraft.trim());
+      setStores({ ...stores, notes: next });
+      setNoteNotice("선택한 날짜의 메모를 저장했습니다.");
+    } catch {
+      setNoteNotice("메모를 저장하지 못했어요. 입력은 유지했어요. 브라우저 저장 공간을 확인한 뒤 다시 저장해 주세요.");
+    }
+  };
+  const deleteNote = () => {
+    if (!recordsLive.current) return;
+    try {
+      const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
+      delete next[selected];
+      writeJson(DAILY_NOTES_KEY, next);
+      setNoteDraft("");
+      noteEdited.current = false;
+      setStores({ ...stores, notes: next });
+      setNoteNotice("선택한 날짜의 메모를 삭제했습니다.");
+    } catch {
+      setNoteNotice("메모를 삭제하지 못했어요. 입력과 기존 메모는 유지했어요. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.");
+    }
   };
   const selectedDiet = stores.diet[selected];
   const selectedRecovery = stores.recovery[selected];
@@ -249,14 +291,25 @@ export default function RecordCalendarView() {
     stores.lunchProteins[selected],
   );
   const writeWorkoutStore = (update: (record: WorkoutDayRecord) => WorkoutDayRecord) => {
-    const workouts = readJson<RecordStores["workouts"]>(WORKOUT_COMPLETED_DAYS_KEY, {});
-    const value = workouts[selected];
-    const record = typeof value === "object" && value ? value : {};
-    const next = update(record);
-    if (Object.keys(next).length) workouts[selected] = next;
-    else delete workouts[selected];
-    writeJson(WORKOUT_COMPLETED_DAYS_KEY, workouts);
-    setStores({ ...stores, workouts });
+    if (!recordsLive.current || workoutWriteLocked.current) return false;
+    workoutWriteLocked.current = true;
+    try {
+      const workouts = readJson<RecordStores["workouts"]>(WORKOUT_COMPLETED_DAYS_KEY, {});
+      const before = JSON.stringify(workouts);
+      const value = workouts[selected];
+      const record = typeof value === "object" && value ? value : {};
+      const next = update(record);
+      if (Object.keys(next).length) workouts[selected] = next;
+      else delete workouts[selected];
+      if (JSON.stringify(workouts) !== before) writeJson(WORKOUT_COMPLETED_DAYS_KEY, workouts);
+      setStores({ ...stores, workouts });
+      return true;
+    } catch {
+      setWorkoutNotice("운동 기록을 반영하지 못했어요. 입력과 기존 기록은 유지했어요. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.");
+      return false;
+    } finally {
+      queueMicrotask(() => { workoutWriteLocked.current = false; });
+    }
   };
   const hasBackConcern = Boolean(workoutPainDraft || workoutBackStatusDraft && workoutBackStatusDraft !== "none" || workoutNeurologicalDraft.length);
   const backFeedback = {
@@ -272,7 +325,7 @@ export default function RecordCalendarView() {
     const workoutExerciseNames = exerciseRecords.length
       ? exerciseRecords.map((record) => record.exerciseName)
       : selectedWorkoutRecord.workoutExerciseNames;
-    writeWorkoutStore((current) => ({
+    if (!writeWorkoutStore((current) => ({
         ...current,
         workoutDone: workoutStatusDraft === "completed",
         workoutStatus: workoutStatusDraft,
@@ -282,7 +335,7 @@ export default function RecordCalendarView() {
         workoutMemo: workoutMemoDraft.trim() || undefined,
         workoutExerciseNames,
         workoutExerciseRecords: exerciseRecords.length ? exerciseRecords : undefined,
-    }));
+    }))) return;
     setEditingWorkout(false);
     setWorkoutNotice("운동 기록을 수정했습니다.");
   };
@@ -313,13 +366,13 @@ export default function RecordCalendarView() {
   const saveNewWorkoutRecord = () => {
     if (selected > todayKey || !exerciseRecordsDraft?.length) return;
     const exerciseNames = exerciseRecordsDraft.map((record) => record.exerciseName);
-    writeWorkoutStore((current) => ({ ...current, workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, ...backFeedback, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft }));
+    if (!writeWorkoutStore((current) => ({ ...current, workoutDone: workoutStatusDraft === "completed", workoutRoutineName: "나중에 직접 기록", workoutExerciseNames: exerciseNames, ...backFeedback, workoutMemo: workoutMemoDraft.trim() || undefined, workoutStatus: workoutStatusDraft, workoutDifficulty: workoutDifficultyDraft, workoutFatigue: workoutFatigueDraft, workoutExerciseRecords: exerciseRecordsDraft }))) return;
     setEditingWorkout(false);
     setWorkoutNotice("선택한 날짜에 운동 기록을 추가했습니다.");
   };
   const deleteWorkoutRecord = () => {
     if (!selectedWorkoutRecord) return;
-    writeWorkoutStore(removeGeneralWorkoutRecord);
+    if (!writeWorkoutStore(removeGeneralWorkoutRecord)) return;
     setConfirmingWorkoutDelete(false);
     setWorkoutNotice("일반 운동 기록을 삭제했습니다.");
   };
@@ -330,7 +383,7 @@ export default function RecordCalendarView() {
       : kind === "pullup"
         ? { pullupDone: true, pullupStage: Math.min(5, Math.max(1, pullupStageDraft)), pullupPain: pullupPainDraft, pullupMemo: pullupMemoDraft.trim() || undefined }
         : { foamRollerDone: true, foamRollerTiming: foamTimingDraft, foamRollerAreas: foamAreasDraft, foamRollerPain: foamPainDraft, foamRollerMemo: foamMemoDraft.trim() || undefined };
-    writeWorkoutStore((current) => ({ ...current, ...patch }));
+    if (!writeWorkoutStore((current) => ({ ...current, ...patch }))) return;
     setEditingSecondary(null);
     setWorkoutNotice(`${kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러"} 기록을 수정했습니다.`);
   };
@@ -338,11 +391,11 @@ export default function RecordCalendarView() {
     if (!selectedWorkoutRecord) return;
     const label = kind === "cardio" ? "유산소" : kind === "pullup" ? "철봉" : "폼롤러";
     if (!window.confirm(`선택한 날짜의 ${label} 기록만 삭제할까요? 다른 기록은 유지됩니다.`)) return;
-    writeWorkoutStore(kind === "cardio"
+    if (!writeWorkoutStore(kind === "cardio"
       ? removeCardioRecord
       : kind === "pullup"
         ? removePullupRecord
-        : removeFoamRollerRecord);
+        : removeFoamRollerRecord)) return;
     setEditingSecondary(null);
     setWorkoutNotice(`${label} 기록을 삭제했습니다.`);
   };
@@ -977,19 +1030,13 @@ export default function RecordCalendarView() {
             저장
           </button>
           <button
-            onClick={() => {
-              setNoteDraft("");
-              noteEdited.current = false;
-              const next = readJson<DailyNotesStore>(DAILY_NOTES_KEY, {});
-              delete next[selected];
-              writeJson(DAILY_NOTES_KEY, next);
-              setStores({ ...stores, notes: next });
-            }}
+            onClick={deleteNote}
             className="rounded-xl bg-red-50 px-4 py-2 text-[13px] font-bold text-red-600"
           >
             삭제
           </button>
         </div>
+        {noteNotice && <p role="status" className="mt-2 text-[12px] text-gray-600">{noteNotice}</p>}
       </section>
       <MonthlySummaryCard
         year={visible.getFullYear()}

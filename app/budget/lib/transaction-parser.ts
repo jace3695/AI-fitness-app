@@ -82,17 +82,21 @@ export function buildTransactionParseSystem(date = new Date()) {
 }
 
 function parseLooseAmount(text: string) {
-  const match = text.match(/(\d+(?:\.\d+)?)\s*(만원|만 원|천원|천 원|원)/)
-    ?? text.match(/(?<![A-Za-z0-9])(\d+(?:\.\d+)?)(?![A-Za-z0-9])/)
+  const match = text.match(/([+-]?\s*\d+(?:\.\d+)?)\s*(만원|만 원|천원|천 원|원)/)
+    ?? text.match(/(?<![A-Za-z0-9])([+-]?\s*\d+(?:\.\d+)?)(?![A-Za-z0-9])/)
   if (!match) return 0
 
-  const value = Number(String(match[1]).replace(/,/g, ''))
+  const numeric = match[1].replace(/\s/g, '')
   const unit = match[2] || ''
-
-  if (!value) return 0
-  if (unit === '만원' || unit === '만 원') return Math.round(value * 10000)
-  if (unit === '천원' || unit === '천 원') return Math.round(value * 1000)
-  return Math.round(value)
+  const scale = unit === '만원' || unit === '만 원' ? 4 : unit === '천원' || unit === '천 원' ? 3 : 0
+  const [whole, fraction = ''] = numeric.replace(/^\+/, '').split('.')
+  // Move the decimal point as text: do not round a fractional won or introduce
+  // floating point error for legitimate inputs such as 1.001천원.
+  const amount = Number(whole + fraction.slice(0, scale).padEnd(scale, '0'))
+  if (numeric.startsWith('-') || /[1-9]/.test(fraction.slice(scale)) || !Number.isSafeInteger(amount) || amount <= 0) {
+    throw new Error('금액은 0보다 큰 원 단위 정수로 입력해 주세요. 음수·소수 원·너무 큰 금액은 자동으로 바꾸지 않아요.')
+  }
+  return amount
 }
 
 function detectLocalType(text: string) {

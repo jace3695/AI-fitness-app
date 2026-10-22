@@ -5,6 +5,12 @@ import { buildMonthlyCheck } from './monthly-check.ts';
 import { loadBudgetRows } from './load-records.ts';
 
 const row = (id: string, date: string, amount: number, place: string, category = '식비') => ({ id, date, amount, place, category, payment: '체크카드', transaction_type: '일반 지출' });
+test('year rollover and leap-day comparisons stay in the requested calendar month', () => {
+  const january = buildMonthlyCheck([row('a','2025-12-31',100,'A'), row('b','2026-01-01',200,'A')], '2026-01', '2026-01-01', null);
+  assert.equal(january.previous, '2025-12'); assert.equal(january.spent, 200); assert.equal(january.previousCount, 0);
+  const march = buildMonthlyCheck([row('a','2024-02-29',100,'A'), row('b','2024-03-31',200,'A'), row('c','2024-04-01',999,'A')], '2024-03', '2024-03-31', null);
+  assert.equal(march.comparisonDay, 29); assert.equal(march.previousCount, 1); assert.equal(march.spent, 200);
+});
 test('merchant memory uses exact names, preserves income/savings and never mutates original previews', () => {
   const original = [{ type: 'expense', place: '  합성   카페  ', category: '기타' }, { type: 'income', place: '합성 카페', category: '월급' }, { place: '합성 카페 2호점', category: '기타' }];
   const result = applyCategoryMemory(original, [{ merchant_key: '합성 카페', category: '카페', revision: 'x' }]);
