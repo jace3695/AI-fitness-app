@@ -1,14 +1,14 @@
 import type { Transport } from './conversation';
 
-// Deliberately not wired into the production page. Existing free-mode policy
-// remains authoritative. Authentication headers are supplied by the host app.
+// Uses only the free-project practice endpoint; never the legacy paid router.
 export function conversationTransport(fetcher: typeof fetch, headers: () => Promise<HeadersInit>): Transport {
   return async (request, signal) => {
     const authHeaders = await headers();
     if (signal.aborted) throw new DOMException('취소됨', 'AbortError');
-    const response = await fetcher('/api/language/conversation', {
+    const response = await fetcher('/api/language/practice', {
       method: 'POST', signal, headers: authHeaders,
-      body: JSON.stringify({ ...request, history: request.history.map(m => m.role === 'user' ? m : { role: 'assistant', reply: m.text }) }),
+      body: JSON.stringify({ situation: request.situation, message: request.message,
+        history: request.history.map(m => ({ role: m.role, text: m.text })), freeDataUseAcknowledged: true }),
     });
     if (!response.ok) {
       const messages: Record<number, string> = {

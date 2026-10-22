@@ -44,6 +44,16 @@ function label(tree: any): string { if (typeof tree === 'string' || typeof tree 
 function button(tree: any, name: string) { const found = nodes(tree).find(n => n.type === 'button' && label(n) === name); assert.ok(found, name); return found; }
 function retry(f: ReturnType<typeof fixture>) { button(f.render(), '기존 탭 기록 다시 불러오기').props.onClick(); f.render(); return f.render(); }
 
+test('free AI requires explicit data-use consent before any transport call', async () => {
+  let calls = 0; const f = fixture(original, async () => { calls++; return { source: 'ai', reply: '合成', replyReading: 'ごうせい', correction: '合成', explanation: '합성' }; });
+  f.state.failRead = false; retry(f);
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'こんにちは' } });
+  assert.equal(button(f.render(), 'AI와 대화하기').props.disabled, true);
+  await button(f.render(), 'AI와 대화하기').props.onClick();
+  assert.equal(calls, 0); assert.equal(f.state.writes, 0);
+  assert.match(label(f.render()), /먼저 동의/);
+});
+
 test('temporary read failure recovers saved review and practice count without any write', () => {
   const f = fixture();
   assert.equal(button(f.render(), '연습 기록 보관').props.disabled, true);
@@ -92,6 +102,7 @@ const reply = { source: 'ai', reply: '合成応答', replyReading: 'ごうせい
 async function failedSave(f: ReturnType<typeof fixture>) {
   f.state.failRead = false; retry(f); f.state.failWrite = true;
   nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: '合成入力' } });
+  nodes(f.render()).find(n => n.type === 'input' && n.props.type === 'checkbox' && n.props.checked === false).props.onChange({ target: { checked: true } });
   button(f.render(), 'AI와 대화하기').props.onClick();
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
 }

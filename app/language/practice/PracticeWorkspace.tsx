@@ -5,11 +5,12 @@ import Recorder from './Recorder';
 import ConfirmedConversationArchive from '@/components/ConfirmedConversationArchive';
 import { getConversation, MAX_TEXT, MAX_TURNS, parseJournal, requestFor, SITUATIONS, type Journal, type Situation, type Transport, type Turn } from './conversation';
 
-// No production transport is supplied until provider/cost/privacy approval.
+// Each user explicitly consents before sending text to the free-only transport.
 export default function PracticeWorkspace({ owner, transport }: { owner: string; transport?: Transport }) {
   const [journal, setJournal] = useState<Journal>({ version: 1, owner, turns: [] });
   const [ready, setReady] = useState(false);
   const [text, setText] = useState('');
+  const [dataUseAcknowledged, setDataUseAcknowledged] = useState(false);
   const [situation, setSituation] = useState<Situation>('일상');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,6 +47,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
   }
   async function save(send: boolean) {
     if (!ready || !active.current || pending.current || unsaved.current) return;
+    if (send && !dataUseAcknowledged) { setNotice('Google 전송 및 무료 서비스 자료 활용 안내에 먼저 동의해 주세요.'); return; }
     if (current.current.turns.length >= MAX_TURNS) { setNotice('이 탭에는 30개까지 보관해요. 필요 없는 기록을 먼저 삭제해 주세요.'); return; }
     let request;
     try { request = requestFor(current.current.turns, situation, text); }
@@ -101,8 +103,9 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
       <label>연습 상황 <select value={situation} disabled={busy || !!unsavedTurn} onChange={e => setSituation(e.target.value as Situation)}>{SITUATIONS.map(s => <option key={s}>{s}</option>)}</select></label>
       <label style={{ display: 'block' }}>자유 일본어 문장<textarea value={text} maxLength={MAX_TEXT} disabled={!ready || busy || !!unsavedTurn} onChange={e => setText(e.target.value)} rows={4} style={{ width: '100%', boxSizing: 'border-box' }} /></label>
       <p>{text.length}/{MAX_TEXT}자</p>
+      {transport && <label style={{ display: 'block' }}><input type="checkbox" checked={dataUseAcknowledged} disabled={busy} onChange={e => setDataUseAcknowledged(e.target.checked)} />현재 문장과 같은 상황의 최근 대화 최대 4쌍을 Google Gemini에 보내는 데 동의해요. 무료 서비스에서는 입력·응답이 제품 개선에 활용될 수 있어요. 다른 앱 기록과 녹음은 보내지 않아요. 민감한 개인정보는 입력하지 마세요.</label>}
       <button className="btn" disabled={!ready || busy || !!unsavedTurn || !text.trim()} onClick={() => void save(false)}>연습 기록 보관</button>{' '}
-      <button className="btn" disabled={!ready || busy || !!unsavedTurn || !text.trim() || !transport} onClick={() => void save(true)}>AI와 대화하기</button>{' '}
+      <button className="btn" disabled={!ready || busy || !!unsavedTurn || !text.trim() || !transport || !dataUseAcknowledged} onClick={() => void save(true)}>AI와 대화하기</button>{' '}
       {busy && <button className="btn" onClick={cancel}>요청 취소</button>}
     </div>
     <p role="status">{notice}</p>

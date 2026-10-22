@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import PracticeWorkspace from './PracticeWorkspace';
+import { conversationTransport } from './service';
 
 export default function PracticePage() {
   const [owner, setOwner] = useState<string | null>(null);
+  const transport = useMemo(() => conversationTransport((...args) => fetch(...args), async () => {
+    const { data } = await supabase?.auth.getSession() ?? { data: { session: null } };
+    if (!owner || data.session?.user.id !== owner) throw new Error('계정이 변경됐어요. 화면을 다시 열어 주세요.');
+    return { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session.access_token}` };
+  }), [owner]);
   const [notice, setNotice] = useState('학습 계정을 확인하고 있어요.');
   useEffect(() => {
     let live = true;
@@ -31,5 +37,5 @@ export default function PracticePage() {
     window.addEventListener('yeoni-cloud-session-changed', invalidate);
     return () => { live = false; subscription?.unsubscribe(); window.removeEventListener('storage', storage); window.removeEventListener('yeoni-cloud-session-changed', invalidate); };
   }, []);
-  return owner ? <PracticeWorkspace key={owner} owner={owner} /> : <p role="status">{notice}</p>;
+  return owner ? <PracticeWorkspace key={owner} owner={owner} transport={transport} /> : <p role="status">{notice}</p>;
 }

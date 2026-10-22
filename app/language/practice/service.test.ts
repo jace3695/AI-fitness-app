@@ -22,3 +22,12 @@ test('legacy static response cannot masquerade as free AI conversation', async (
   const transport = conversationTransport(async () => new Response(JSON.stringify({ reply: 'fixed example' })), async () => ({}));
   await assert.rejects(getConversation(transport, requestFor([], '일상', 'こんにちは'), new AbortController().signal), /형식/);
 });
+
+test('practice transport uses only the free endpoint and an explicit bounded payload', async () => {
+  const transport = conversationTransport(async (url, init) => {
+    assert.equal(url, '/api/language/practice');
+    assert.deepEqual(JSON.parse(init!.body as string), { situation: '일상', message: 'こんにちは', history: [], freeDataUseAcknowledged: true });
+    return new Response('{}');
+  }, async () => ({ 'Content-Type': 'application/json' }));
+  await transport(requestFor([], '일상', 'こんにちは'), new AbortController().signal);
+});
