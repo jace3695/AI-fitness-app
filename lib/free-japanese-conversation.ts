@@ -33,8 +33,12 @@ export async function generateFreeJapanese(input: FreeJapaneseRequest, env: Free
 일본어 답변은 1~2문장, replyReading은 읽기, correction은 자연스러운 일본어 교정(정상이면 원문), explanation은 한국어 이유다.
 발음·억양을 평가했다고 말하지 않는다. JSON만 반환: {"reply":"","replyReading":"","correction":"","explanation":""}`;
   let response: Response;
+  const timeout = AbortSignal.timeout(18_000);
+  const responseFailure = (error: unknown) => timeout.aborted || (error instanceof Error && error.name === 'TimeoutError')
+    ? new FreeJapaneseError(504, 'AI 응답 시간이 길어 결과를 확인하지 못했어요. 자동으로 다시 보내지 않아요.')
+    : new FreeJapaneseError(503, '응답을 받지 못했어요. 자동 재시도하지 않으며 입력은 유지돼요.');
   try {
-    const timeout = AbortSignal.timeout(18_000);
+    signal?.throwIfAborted();
     response = await request(`https://generativelanguage.googleapis.com/v1beta/models/${FREE_GEMINI_MODEL}:generateContent`, {
       method: 'POST', cache: 'no-store', redirect: 'error', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_FREE_API_KEY!.trim() },
@@ -43,9 +47,16 @@ export async function generateFreeJapanese(input: FreeJapaneseRequest, env: Free
         generationConfig: { ...buildGeminiGenerationConfig({ model: FREE_GEMINI_MODEL, responseFormat: 'json', maxOutputTokens: 1536, temperature: 0.4 }), thinkingConfig: { thinkingLevel: 'minimal', includeThoughts: false } },
         store: false }),
     });
-  } catch { throw new FreeJapaneseError(503, '응답을 받지 못했어요. 자동 재시도하지 않으며 입력은 유지돼요.'); }
+  } catch (error) { throw responseFailure(error); }
   if (!response.ok) throw new FreeJapaneseError(response.status === 429 ? 429 : 503, response.status === 429 ? '무료 AI 한도에 도달했어요. 나중에 직접 다시 시도해 주세요.' : '무료 AI 응답을 받지 못했어요. 입력은 유지돼요.');
-  const output = extractGeminiResponse(await response.json().catch(() => null), 'json');
+  let body: unknown;
+  try { body = await response.json(); }
+  catch (error) {
+    if (timeout.aborted || signal?.aborted || (error instanceof Error && error.name === 'TimeoutError')) throw responseFailure(error);
+    body = null;
+  }
+  if (timeout.aborted || signal?.aborted) throw responseFailure(signal?.reason);
+  const output = extractGeminiResponse(body, 'json');
   const p = output.diagnostics.finishReason === 'STOP' ? parseAiJsonObject(output.text) : null;
   const fields = ['reply', 'replyReading', 'correction', 'explanation'] as const;
   if (!p || fields.some(k => typeof p[k] !== 'string' || !p[k].trim() || p[k].length > 4000)) throw new FreeJapaneseError(422, '완성된 AI 답변을 확인하지 못했어요. 입력은 유지돼요.');

@@ -4,6 +4,7 @@ import { useUnsavedChanges } from "@/components/useUnsavedChanges";
 import BodyAnalysisHistory from '@/app/components/BodyAnalysisHistory';
 import ConfirmedConversationArchive from '@/components/ConfirmedConversationArchive';
 import type { BodyAnalysisSnapshot } from '@/lib/body-analysis-history';
+import AssistantPromptExamples from "@/components/AssistantPromptExamples";
 import AppCompanion from "@/components/AppCompanion";
 import dynamic from 'next/dynamic';
 import { adviceSpokenText, type ReplyPlan } from '@/lib/yeoni/reply-plan';
@@ -553,7 +554,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           incoming={characterReply?.ownerId === pending.ownerId ? characterReply : null} busy={chatSending || adviceBusy} />
           : <AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion>}</div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 보낼 명령</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 알려줘 / 요즘 운동 잘하고 있어?" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 하고 싶은 말</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 알려줘 / 요즘 운동 잘하고 있어?" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
           <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
         </form>
         <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-56 space-y-3 sm:max-h-80 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
@@ -583,7 +584,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <button type="button" disabled={adviceBusy} onClick={() => { clearCharacter(); setActiveAdvice(null); }} className="min-h-11 rounded-xl px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-40">조언 취소</button>
         </div>}
         {chatHistoryNotice && <p role="status" className="mt-2 text-xs font-semibold text-amber-700">{chatHistoryNotice}</p>}
-        <div aria-label="추천 질문" className="mt-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">{["내 기록을 보고 오늘 할 일을 조언해줘", "오늘 자기계발 현황 알려줘", "타자 연습 완료했어", "오늘 일본어 학습 진도 알려줘", "오늘 운동 계획 보여줘"].map((sample) => <button key={sample} type="button" disabled={chatSending || adviceBusy || chatHistoryLoading} onClick={() => void sendChat(sample)} className="min-h-11 shrink-0 whitespace-nowrap rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}</div>
+        <AssistantPromptExamples disabled={chatSending || adviceBusy || chatHistoryLoading} hasDraft={!!chatInput.trim()} onSelect={(sample) => { setChatInput(sample); document.getElementById('assistant-chat-input')?.focus(); }} />
         <p className="mt-2 text-xs leading-5 text-gray-500">저장하거나 AI에 보낼 내용은 먼저 보여드려요.</p>
         <details className="mt-2 border-t border-gray-100 pt-2">
           <summary className="cursor-pointer py-2 text-sm font-semibold text-gray-600">대화 메뉴</summary>

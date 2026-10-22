@@ -56,7 +56,8 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
     if (send && !transport) { setNotice('자유 AI 대화 서비스가 연결되지 않았어요. 문장은 연습 기록으로 보관할 수 있어요.'); return; }
     const controller = new AbortController();
     pending.current = controller; setBusy(true); setNotice('');
-    const timeout = setTimeout(() => { controller.abort(); }, 20000);
+    // Bounded end-to-end budget: includes session/auth/network overhead around the 18s provider limit.
+    const timeout = setTimeout(() => { controller.abort(); }, 30000);
     try {
       const reply = send ? await getConversation(transport!, request, controller.signal) : undefined;
       if (!active.current || controller.signal.aborted || pending.current !== controller) return;
@@ -64,7 +65,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
       if (persist([...current.current.turns, turn])) { setText(''); setNotice(reply ? 'AI 응답과 입력을 이 탭에 보관했어요. 정확성은 직접 확인해 주세요.' : '직접 쓴 문장을 이 탭에 보관했어요. AI가 교정하거나 채점한 결과는 아니에요.'); }
       else { unsaved.current = { owner, turn }; setUnsavedTurn(turn); }
     } catch (e) {
-      if (pending.current === controller) setNotice(controller.signal.aborted ? '응답 대기 시간이 지났어요. 입력을 유지했으니 필요하면 다시 보내 주세요.' : e instanceof Error ? e.message : '응답을 받지 못했어요.');
+      if (pending.current === controller) setNotice(controller.signal.aborted ? '기다리는 시간이 길어 답변을 확인하지 못했어요. 입력은 그대로예요. 서버에서 처리됐을 수 있어 자동으로 다시 보내지 않아요.' : e instanceof Error ? e.message : '응답을 받지 못했어요.');
     } finally {
       clearTimeout(timeout);
       if (pending.current === controller) { pending.current = null; setBusy(false); }
@@ -111,7 +112,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
         <label style={{ display: 'block', padding: '6px 0', minHeight: 44 }}><input type="checkbox" aria-describedby="practice-data-use" checked={dataUseAcknowledged} disabled={busy} onChange={e => setDataUseAcknowledged(e.target.checked)} />위 내용을 확인하고 전송에 동의해요.</label>
       </> : <p>지금은 AI에 연결할 수 없어요. 아래에서 문장만 보관할 수 있어요.</p>}
       <button className="btn" style={{ width: '100%', minHeight: 48 }} disabled={!ready || busy || !!unsavedTurn || !text.trim() || !transport || !dataUseAcknowledged} onClick={() => void save(true)}>AI와 대화하기</button>
-      {busy && <p role="status">답변을 기다리고 있어요. <button className="btn" onClick={cancel}>요청 취소</button></p>}
+      {busy && <p role="status">답변을 기다리고 있어요. 최대 30초 기다려요. <button className="btn" onClick={cancel}>요청 취소</button></p>}
       <details><summary style={summaryStyle}>AI에 보내지 않고 문장만 보관하기</summary><p>이 브라우저 탭에만 남아요. 탭을 닫으면 사라질 수 있어요.</p><button className="btn" disabled={!ready || busy || !!unsavedTurn || !text.trim()} onClick={() => void save(false)}>연습 기록 보관</button></details>
     </div>
     {latest?.reply && !unsavedTurn && <section className="card" aria-label="방금 나눈 대화">

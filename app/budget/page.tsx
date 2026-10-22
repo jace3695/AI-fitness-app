@@ -183,6 +183,8 @@ function BudgetDashboard() {
   const [parsedItems, setParsedItems] = useState<any[]>([])
   const [showConfirm, setShowConfirm] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const voiceInputEpoch = useRef(0)
+  useEffect(() => () => { voiceInputEpoch.current += 1 }, [user?.id, tab, input, showConfirm, aiLoading])
   const [isSavingRecords, setIsSavingRecords] = useState(false)
   const savingRecordsRef = useRef(false)
   const pendingSaveRef = useRef<PendingBudgetSave | null>(null)
@@ -1760,20 +1762,13 @@ function BudgetDashboard() {
   }
 
   const handleVoiceInput = async () => {
-    const onText = async (text: string) => {
-      setInput(text)
-      setAiLoading(true)
-      setFeedback('')
-
-      try {
-        const parsed = await parseInput(text)
-        setParsedItems(parsed)
-        setShowConfirm(true)
-      } catch {
-        setFeedback('음성 입력은 들어왔지만 해석이 완전하지 않았어요. 문장을 조금 정리해서 다시 해석해보세요.')
-      }
-
-      setAiLoading(false)
+    if (input.trim() || aiLoading || listening || savingRecordsRef.current || pendingSaveRef.current) return
+    const epoch = ++voiceInputEpoch.current
+    const onText = (text: string) => {
+      if (epoch !== voiceInputEpoch.current || savingRecordsRef.current || pendingSaveRef.current) return
+      voiceInputEpoch.current += 1
+      setInput(current => current.trim() ? current : text)
+      setFeedback('음성을 입력칸에 채웠어요. 내용을 고친 뒤 내용 확인하기를 눌러 주세요.')
     }
 
     if (Capacitor.isNativePlatform()) {
@@ -3489,11 +3484,11 @@ return (
       {tab === 'input' && (
         <main className="record-screen app-safe-top" style={{ padding: '24px 20px 88px' }}>
           <header className="record-header">
-            <h2>{showConfirm ? '기록 내용을 확인하세요' : '말하듯 입력하세요'}</h2>
+            <h2>{showConfirm ? '2. 내용을 확인하고 저장해요' : '1. 쓴 돈이나 받은 돈을 적어요'}</h2>
             <p>
               {showConfirm
                 ? '날짜·금액·분류를 확인하고 필요한 내용을 수정한 뒤 저장하세요.'
-                : '여러 건도 한 번에 해석하고, 저장하기 전에 모든 내용을 직접 고칠 수 있어요.'}
+                : '내용 확인하기를 누르면 날짜와 금액을 고칠 수 있어요. 아직 저장되지 않아요.'}
             </p>
           </header>
 
@@ -3514,41 +3509,47 @@ return (
                       handleAddTransaction()
                     }
                   }}
-                  placeholder="예: 오늘 점심 9000원 카드, 스타벅스 5900원 카드, 적금 5만원"
+                  placeholder="예: 오늘 점심 9000원 카드"
                   rows={4}
                   maxLength={1000}
                   style={{ width: '100%', background: 'rgba(8,8,12,0.52)', border: '1px solid rgba(255,255,255,0.28)', borderRadius: 14, color: '#FFFFFF', fontSize: 16, lineHeight: 1.6, padding: '14px 16px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', caretColor: '#E8A87C', textShadow: '0 1px 2px rgba(0,0,0,0.45)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}
                 />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 8 }}>
-                  <span style={{ color: '#7C8596', fontSize: 11 }}>Ctrl/⌘ + Enter로 해석</span>
+                  <span style={{ color: '#7C8596', fontSize: 11 }}>Ctrl/⌘ + Enter로 내용 확인</span>
                   <span style={{ color: input.length > 900 ? '#FF9B9B' : '#7C8596', fontSize: 11 }}>{input.length}/1000</span>
                 </div>
 
-                <p style={{ color: '#AEB7C6', fontSize: 11, fontWeight: 700, margin: '16px 0 8px' }}>빠른 예시</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-                  {QUICK_INPUT_EXAMPLES.map((example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      onClick={() => {
-                        setInput(example)
-                        setFeedback('')
-                      }}
-                      style={{ background: 'rgba(26,26,46,0.75)', border: '1px solid #2A2A3E', borderRadius: 999, color: '#D0D0E0', fontSize: 12, padding: '8px 11px', cursor: 'pointer' }}
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
+                <details style={{ marginBottom: 14, color: '#D0D0E0' }}>
+                  <summary style={{ cursor: 'pointer', padding: '12px 0', fontSize: 14 }}>어떻게 적나요? 예시 보기</summary>
+                    <p style={{ fontSize: 13 }}>예시는 입력칸만 채워요. 적던 내용이 있으면 먼저 비워 주세요.</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                    {QUICK_INPUT_EXAMPLES.map((example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        disabled={aiLoading || listening || !!input.trim()}
+                        onClick={() => {
+                          if (aiLoading || listening || input.trim()) return
+                          setInput(example)
+                          setFeedback('')
+                        }}
+                        style={{ background: 'rgba(26,26,46,0.75)', border: '1px solid #2A2A3E', borderRadius: 999, color: '#D0D0E0', fontSize: 14, minHeight: 44, padding: '8px 11px', cursor: aiLoading || listening || input.trim() ? 'not-allowed' : 'pointer', opacity: aiLoading || listening || input.trim() ? 0.6 : 1 }}
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+
+                </details>
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="button"
-                    aria-label={listening ? '음성 입력 중지' : '음성으로 기록 입력'}
+                    aria-label={listening ? '음성 입력 중' : input.trim() ? '음성 입력은 입력칸을 비운 뒤 사용할 수 있어요' : '음성으로 기록 입력'}
                     aria-pressed={listening}
                     onClick={handleVoiceInput}
-                    disabled={aiLoading}
+                    disabled={aiLoading || listening || !!input.trim()}
                     style={{ minWidth: 54, minHeight: 46, background: listening ? '#FF6B6B22' : '#1A1A2E', border: '1px solid ' + (listening ? '#FF6B6B' : '#2A2A3E'), borderRadius: 12, padding: '10px 14px', cursor: aiLoading ? 'wait' : 'pointer', color: listening ? '#FF6B6B' : '#D0D0E0', fontSize: 18, fontWeight: 700, opacity: aiLoading ? 0.6 : 1 }}
                   >
                     {listening ? '■' : '🎤'}
@@ -3559,7 +3560,7 @@ return (
                     disabled={aiLoading || !input.trim()}
                     style={{ flex: 1, minHeight: 46, background: aiLoading || !input.trim() ? '#715943' : 'linear-gradient(135deg,#E8A87C,#D4916A)', border: 'none', borderRadius: 12, padding: '10px 20px', cursor: aiLoading ? 'wait' : !input.trim() ? 'not-allowed' : 'pointer', color: '#0F0F14', fontWeight: 700, fontSize: 14, opacity: aiLoading || !input.trim() ? 0.65 : 1 }}
                   >
-                    {aiLoading ? '내용을 해석하는 중…' : 'AI로 내용 채우기'}
+                    {aiLoading ? '내용을 확인하는 중…' : '내용 확인하기'}
                   </button>
                 </div>
               </section>
@@ -3572,8 +3573,8 @@ return (
             <section style={{ background: 'rgba(19,19,28,0.78)', border: '1px solid rgba(232,168,124,0.52)', borderRadius: 18, padding: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <p style={{ color: '#E8A87C', fontSize: 12, fontWeight: 700, margin: '0 0 5px' }}>해석 결과 {parsedItems.length}건</p>
-                  <p style={{ color: '#B8B8C8', fontSize: 12, lineHeight: 1.5, margin: 0 }}>잘못 채워진 항목만 바로 수정하세요.</p>
+                  <p style={{ color: '#E8A87C', fontSize: 12, fontWeight: 700, margin: '0 0 5px' }}>저장할 기록 {parsedItems.length}건</p>
+                  <p style={{ color: '#B8B8C8', fontSize: 12, lineHeight: 1.5, margin: 0 }}>날짜·금액·분류가 맞는지 보고, 아래 저장 버튼을 눌러 주세요.</p>
                 </div>
                 <strong style={{ color: '#FFFFFF', fontSize: 14, whiteSpace: 'nowrap' }}>
                   합계 {formatKRW(parsedItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))}

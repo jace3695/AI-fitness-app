@@ -38,3 +38,17 @@ test('quota, provider error and uncertain network failure never retry or use a f
 test('truncated and malformed outputs never become a synthetic successful answer', async () => {
   for (const [finish, text] of [['MAX_TOKENS', JSON.stringify(answer)], ['STOP', '{}'], ['STOP', '{broken']]) await assert.rejects(generateFreeJapanese(input, env, async () => response(finish, text)));
 });
+
+test('provider header and body timeouts return 504 without redispatch', async () => {
+ for (const bodyTimeout of [false,true]) {
+  let calls=0;
+  await assert.rejects(generateFreeJapanese(input,env,async()=>{calls++; if(!bodyTimeout)throw new DOMException('synthetic timeout','TimeoutError'); return Object.assign(new Response('{}'), {json:async()=>{throw new DOMException('synthetic timeout','TimeoutError');}});}),e=>e instanceof Error && 'status' in e && e.status===504);
+  assert.equal(calls,1);
+ }
+});
+
+test('cancelled request never starts provider; late body cannot become success',async()=>{
+ const before=new AbortController();before.abort();let calls=0;
+ await assert.rejects(generateFreeJapanese(input,env,async()=>{calls++;return response();},before.signal));assert.equal(calls,0);
+ const late=new AbortController();await assert.rejects(generateFreeJapanese(input,env,async()=>{calls++;const r=response();const body=await r.json();return Object.assign(new Response('{}'),{json:async()=>{late.abort();return body;}});},late.signal));assert.equal(calls,1);
+});

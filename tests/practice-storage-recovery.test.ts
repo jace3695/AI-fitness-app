@@ -10,7 +10,7 @@ import * as conversation from '../app/language/practice/conversation.ts';
 const original = JSON.stringify({ version: 1, owner: 'A', turns: [
   { id: 'saved', text: '合成の練習文', situation: '일상', review: true, practiced: 3 },
 ] });
-function fixture(raw: string | null = original, transport?: conversation.Transport) {
+function fixture(raw: string | null = original, transport?: conversation.Transport, clock?: { setTimeout: typeof setTimeout; clearTimeout: typeof clearTimeout }) {
   const slots: any[] = []; let position = 0;
   const effects: (() => void)[] = [];
   const state = { raw, failRead: true, failWrite: false, failAfterWrite: false, reads: [] as string[], writes: 0, removals: 0 };
@@ -27,7 +27,7 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext('(function(exports,require){' + code + '})', {
-    AbortController, crypto, setTimeout, clearTimeout,
+    AbortController, crypto, setTimeout: clock?.setTimeout ?? setTimeout, clearTimeout: clock?.clearTimeout ?? clearTimeout,
     window: { addEventListener(name: string, fn: () => void) { listeners.set(name, fn); }, removeEventListener(name: string) { listeners.delete(name); } },
     sessionStorage: {
       getItem(key: string) { state.reads.push(key); if (state.failRead) throw Error('synthetic unavailable'); return state.raw; },
@@ -208,4 +208,30 @@ test('pronunciation action reveals recorder and closing removes it without write
   section.props.onToggle({currentTarget:{open:false}}); tree=f.render();
   assert.equal(nodes(tree).find(n => n.type === 'details' && n.props.onToggle).props.open, false);
   assert.equal(calls,0); assert.equal(f.state.writes,0);
+});
+
+function virtualClock() {
+ let now=0, id=0; const jobs=new Map<number,{at:number,run:()=>void}>();
+ return { setTimeout: ((fn:()=>void,ms:number)=>{const key=++id;jobs.set(key,{at:now+ms,run:fn});return key;}) as unknown as typeof setTimeout,
+ clearTimeout: ((key:number)=>{jobs.delete(key);}) as unknown as typeof clearTimeout,
+ async advance(ms:number){const end=now+ms;while(true){const next=[...jobs].filter(([,j])=>j.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;now=next[1].at;jobs.delete(next[0]);next[1].run();for(let i=0;i<4;i++)await new Promise(r=>setImmediate(r));}now=end;}
+ };
+}
+function beginSynthetic(f: ReturnType<typeof fixture>) {
+ f.state.failRead=false;retry(f);nodes(f.render()).find(n=>n.type==='textarea').props.onChange({target:{value:'合成'}});
+ nodes(f.render()).find(n=>n.type==='input'&&n.props.type==='checkbox'&&n.props['aria-describedby']==='practice-data-use').props.onChange({target:{checked:true}});
+ button(f.render(),'AI와 대화하기').props.onClick();
+}
+test('bounded client budget allows 4s preparation + 17s provider + 1s return without redispatch',async()=>{
+ const clock=virtualClock();let calls=0;let signal:AbortSignal|undefined;
+ const f=fixture(null,async(_request,s)=>{calls++;signal=s;await new Promise(r=>clock.setTimeout(r,4000));await new Promise(r=>clock.setTimeout(r,17000));await new Promise(r=>clock.setTimeout(r,1000));return reply;},clock);
+ beginSynthetic(f);await clock.advance(22000);
+ assert.equal(signal?.aborted,false);assert.equal(calls,1);assert.equal(f.state.writes,1);assert.equal(JSON.parse(f.state.raw!).turns.length,1);
+});
+test('total timeout cancels a slow request, preserves input and rejects late result',async()=>{
+ const clock=virtualClock();let calls=0;let signal:AbortSignal|undefined;
+ const f=fixture(null,async(_request,s)=>{calls++;signal=s;await new Promise(r=>clock.setTimeout(r,35000));return reply;},clock);
+ beginSynthetic(f);await clock.advance(30000);assert.equal(signal?.aborted,true);assert.equal(f.state.writes,0);
+ assert.match(label(f.render()),/자동으로 다시 보내지/);assert.equal(nodes(f.render()).find(n=>n.type==='textarea').props.value,'合成');
+ await clock.advance(5000);assert.equal(calls,1);assert.equal(f.state.writes,0);
 });

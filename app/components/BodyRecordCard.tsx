@@ -394,18 +394,17 @@ export default function BodyRecordCard({
             체중 기록
           </p>
           <p className="mt-1 text-[12px] text-gray-500">
-            체중과 몸의 근육·지방 수치를 기록해요. 직접 입력하거나 사진을 골라 주세요.
+            숫자를 직접 적거나, 오아 보고서 사진에서 가져올 수 있어요. 확인한 뒤 저장해 주세요.
           </p>
         </div>
         <span className="rounded-full bg-[#EEEDFE] px-2 py-1 text-[11px] font-bold text-[#534AB7]">
           체중·인바디
         </span>
       </div>
-      <ol aria-label="사진 입력 순서" className="mt-3 grid grid-cols-3 gap-1 text-center text-[12px] font-bold text-[#534AB7]">
-        <li className="rounded-lg bg-purple-50 p-2">1. 사진 선택</li>
-        <li className="rounded-lg bg-purple-50 p-2">2. 내용 확인</li>
-        <li className="rounded-lg bg-purple-50 p-2">3. 저장</li>
-      </ol>
+      <button type="button" disabled={importing} onClick={() => document.getElementById(draft ? "body-measurement-date" : "body-weight-input")?.focus()}
+        className="mt-3 min-h-11 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-800 disabled:opacity-60">
+        {draft ? "사진의 날짜·숫자 확인하기" : "숫자 직접 적기 · 사진 없이 입력"}
+      </button>
       {isTodayKey(dateKey) && (
         <p className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-[12px] text-blue-700">
           체중은 아침 공복, 인바디는 주 1회 또는 2주 1회 같은 조건 측정을
@@ -454,15 +453,20 @@ export default function BodyRecordCard({
             {importMessage}
           </p>
         )}
+        <ol aria-label="사진 입력 순서" className="mt-3 grid grid-cols-3 gap-1 text-center text-[12px] font-bold text-[#534AB7]">
+          <li className="rounded-lg bg-purple-50 p-2">1. 사진 선택</li>
+          <li className="rounded-lg bg-purple-50 p-2">2. 내용 확인</li>
+          <li className="rounded-lg bg-purple-50 p-2">3. 저장</li>
+        </ol>
+        {!draft && !manualDirty && !importing && currentInbody && <OaSourceCorrection key={dateKey} dateKey={dateKey} record={currentInbody} onSaved={next => onChange({ weights, inbody: next })}/>}
+        <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
+          const checked = event.target.checked;
+          setConfirmedPro(checked);
+          setDraft(current => current && current.owner === bodyImportOwner(window.localStorage) ? setOaProMapping(current, checked) : null);
+        }} />사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.</label>
+        <p className="text-xs text-gray-600">부위 배열과 몸통 아이콘에 따른 해석입니다. 확인한 경우에만 원문의 ‘신체 근육량’·‘체지방량’을 몸통 항목으로 저장할 수 있어요. 다른 기기·양식은 선택하지 마세요.</p>
+        <details className="mt-2 text-xs"><summary>사진 항목 출처·원문 보기</summary><ul aria-label="사진 항목 출처" className="mt-2 text-xs text-gray-600">{Object.entries(draft?.metricSources || currentInbody?.metricSources || {}).map(([key, source]) => <li key={key}>{OA_REPORT_INVENTORY.find(item => item[0] === key)?.[1] || key} · {source?.device} · 원문: {source?.originalLabel} {source?.originalText} · {source?.method === 'ocr-edited' ? '사진 입력 후 수정' : '사진 입력'}</li>)}</ul></details>
       </div>
-      {!draft && !manualDirty && !importing && currentInbody && <OaSourceCorrection key={dateKey} dateKey={dateKey} record={currentInbody} onSaved={next => onChange({ weights, inbody: next })}/>}
-      <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
-        const checked = event.target.checked;
-        setConfirmedPro(checked);
-        setDraft(current => current && current.owner === bodyImportOwner(window.localStorage) ? setOaProMapping(current, checked) : null);
-      }} />사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.</label>
-      <p className="text-xs text-gray-600">부위 배열과 몸통 아이콘에 따른 해석입니다. 확인한 경우에만 원문의 ‘신체 근육량’·‘체지방량’을 몸통 항목으로 저장할 수 있어요. 다른 기기·양식은 선택하지 마세요.</p>
-      <details className="mt-2 text-xs"><summary>사진 항목 출처·원문 보기</summary><ul aria-label="사진 항목 출처" className="mt-2 text-xs text-gray-600">{Object.entries(draft?.metricSources || currentInbody?.metricSources || {}).map(([key, source]) => <li key={key}>{OA_REPORT_INVENTORY.find(item => item[0] === key)?.[1] || key} · {source?.device} · 원문: {source?.originalLabel} {source?.originalText} · {source?.method === 'ocr-edited' ? '사진 입력 후 수정' : '사진 입력'}</li>)}</ul></details>
       {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
         {draft.unmappedMeasurements.length > 0 && <ul aria-label="저장 제외 원문 출처" className="text-sm">{draft.unmappedMeasurements.map(item => <li key={item.label}>{item.source} 긴 보고서 · 원문: {item.label} {item.value} {item.unit} · 읽음 · {confirmedPro ? '직접 입력값 유지 · 자동 반영 제외' : '기기 확인 대기'} · 저장 제외</li>)}</ul>}
         <p className="text-sm">저장 후보 {Object.keys(draft.patch).filter(key => key !== 'memo' && key !== 'reportedBodyAgeUnit' && draft.patch[key].trim()).length + (draft.date ? 1 : 0)}개 (날짜 포함) · 저장 제외 참고값 {draft.unmappedMeasurements.length}개. 확인 후 저장해 주세요.</p>
@@ -481,15 +485,18 @@ export default function BodyRecordCard({
         </aside>}
         <p className="text-sm">지원 범위: 숫자 27개·체형·날짜·시간. 상태 배지, 그래프 기준값, 설명 문장은 저장하지 않아요. 표준 체중은 목표체중과 별도이며, 신체연령은 원문 단위를 유지해요. 시간대는 추정하지 않아요.</p><p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
         <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
-        <label className="mt-2 block">측정 날짜<input aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>
+        <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>
         {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
         {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
         <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 rounded bg-white px-3 py-2">사진 입력 취소</button>
       </section>}
+      <p className="mt-4 text-sm font-bold text-gray-800">{draft ? "사진에서 읽은 숫자를 확인해요" : "숫자 직접 입력"}</p>
+      <p className="mt-1 text-sm text-gray-600">아는 수치만 적고 아래 저장 버튼을 눌러 주세요.</p>
       <label className="mt-3 block text-[12px] font-semibold text-gray-600">
         체중
         <div className="mt-1 flex items-center rounded-xl border border-gray-200 px-3">
           <input
+            id="body-weight-input"
             inputMode="decimal"
             disabled={importing}
             value={visibleForm.weight || ""}
