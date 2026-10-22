@@ -167,3 +167,45 @@ test('full latest journal is preserved while unsaved response remains available'
   button(f.render(), '탭 저장만 다시 시도').props.onClick();
   assert.equal(f.state.raw, full); assert.equal(f.state.writes, 1); assert.match(label(f.render()), /合成応答/);
 });
+
+function visibleNodes(tree: any): any[] {
+  if (!tree || typeof tree !== 'object') return [];
+  const children = [tree.props?.children].flat(Infinity);
+  return [tree, ...(tree.type === 'details' && !tree.props.open ? children.filter(n => n?.type === 'summary') : children).flatMap(visibleNodes)];
+}
+test('simple start keeps consent visible and secondary tools collapsed without losing data', () => {
+  const f = fixture(null, async () => reply); f.state.failRead = false; retry(f);
+  const tree = f.render(); const shown = visibleNodes(tree);
+  assert.ok(shown.some(n => n.type === 'textarea' && n.props.id === 'practice-message'));
+  assert.ok(shown.some(n => n.type === 'input' && n.props['aria-describedby'] === 'practice-data-use'));
+  assert.ok(shown.some(n => n.type === 'p' && n.props.id === 'practice-data-use'));
+  assert.equal(shown.filter(n => n.type === 'button' && n.props.className === 'btn').length, 1);
+  assert.equal(shown.find(n => n.type === 'select').props.value, '일상');
+  assert.equal(f.state.writes, 0); assert.equal(f.state.removals, 0);
+});
+test('starter fills Japanese input without sending, saving, or granting consent', () => {
+  let calls = 0; const f = fixture(null, async () => { calls++; return reply; }); f.state.failRead = false; retry(f);
+  button(f.render(), '이 인사말로 시작하기 (입력만)').props.onClick();
+  const tree = f.render(); assert.equal(nodes(tree).find(n => n.type === 'textarea').props.value, 'こんにちは。');
+  assert.equal(button(tree, 'AI와 대화하기').props.disabled, true);
+  assert.equal(calls, 0); assert.equal(f.state.writes, 0);
+  assert.equal(nodes(tree).some(n => n.type === 'button' && label(n) === '이 인사말로 시작하기 (입력만)'), false);
+});
+test('latest response is visible while explanation and history stay optional', () => {
+  const raw = JSON.stringify({version: 1, owner: 'A', turns: [{id:'last', text:'合成入力', situation:'일상', review:false, practiced:0, reply}]});
+  const f = fixture(raw, async () => reply); f.state.failRead = false; retry(f);
+  const shown = visibleNodes(f.render());
+  assert.ok(shown.some(n => n.type === 'section' && n.props['aria-label'] === '방금 나눈 대화'));
+  assert.ok(shown.some(n => n.type === 'p' && label(n) === '合成応答'));
+  assert.equal(shown.some(n => n.type === 'p' && label(n) === 'synthetic only'), false);
+  assert.equal(f.state.raw, raw); assert.equal(f.state.writes, 0);
+});
+test('pronunciation action reveals recorder and closing removes it without writes or AI', () => {
+  let calls = 0; const f = fixture(original, async () => {calls++; return reply;}); f.state.failRead = false; retry(f);
+  button(f.render(), '이 문장 발음 연습').props.onClick();
+  let tree = f.render(); const section = nodes(tree).find(n => n.type === 'details' && n.props.onToggle);
+  assert.equal(section.props.open, true);
+  section.props.onToggle({currentTarget:{open:false}}); tree=f.render();
+  assert.equal(nodes(tree).find(n => n.type === 'details' && n.props.onToggle).props.open, false);
+  assert.equal(calls,0); assert.equal(f.state.writes,0);
+});
