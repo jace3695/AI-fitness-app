@@ -1,24 +1,25 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { authenticatedFetch } from '@/lib/supabase';
 import { archiveText, historyId, parseArchiveEntry, parseArchiveSnapshot, type ArchiveEntry, type ArchiveKind, type ArchiveSnapshot } from '@/lib/confirmed-conversation-archive';
 
-export default function ConfirmedConversationArchive({ ownerId, kind, candidate, onRestore }: {
-  ownerId: string; kind: ArchiveKind; candidate: ArchiveSnapshot | null; onRestore?: (snapshot: ArchiveSnapshot) => void;
+export default function ConfirmedConversationArchive({ ownerId, kind, candidate, onRestore, onBusyChange, active = true }: {
+  ownerId: string; kind: ArchiveKind; candidate: ArchiveSnapshot | null; onRestore?: (snapshot: ArchiveSnapshot) => void; onBusyChange?: (busy:boolean)=>void; active?: boolean;
 }) {
   const [entries, setEntries] = useState<ArchiveEntry[]>([]);
   const [cursor, setCursor] = useState<{ before: string; beforeId: string } | null>(null);
-  const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false), [ack, setAck] = useState(false);
+  const [loaded, setLoaded] = useState(false), [busy, setBusyState] = useState(false), [ack, setAck] = useState(false);
   const [notice, setNotice] = useState(''), [deleting, setDeleting] = useState<string | null>(null), [invalid, setInvalid] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const epoch = useRef(0), locked = useRef(false), alive = useRef(true), controller = useRef<AbortController | null>(null);
   const requestKey = useRef<{ signature: string; id: string } | null>(null);
   const signature = JSON.stringify(candidate);
+  const setBusy = useCallback((value:boolean)=>{setBusyState(value);onBusyChange?.(value)},[onBusyChange]);
   useEffect(() => {
     epoch.current++; controller.current?.abort(); locked.current = false;
     requestKey.current = null; setAck(false); setPreviewOpen(false); setBusy(false); setNotice('');
-  }, [signature]);
+  }, [signature,setBusy]);
   useEffect(() => {
     alive.current = true;
     const stopRequests = () => { alive.current = false; epoch.current++; controller.current?.abort(); };
@@ -30,9 +31,10 @@ export default function ConfirmedConversationArchive({ ownerId, kind, candidate,
     const storage = (e: StorageEvent) => { if (e.key === null || ['fitness-cloud-sync-user','fitness-cloud-sync-epoch','language-cloud-sync-user'].includes(e.key)) invalidate(); };
     window.addEventListener('yeoni-cloud-session-changed', invalidate); window.addEventListener('storage', storage); window.addEventListener('pagehide', invalidate);
     return () => { stopRequests(); sub?.unsubscribe(); window.removeEventListener('yeoni-cloud-session-changed', invalidate); window.removeEventListener('storage', storage); window.removeEventListener('pagehide', invalidate); };
-  }, [ownerId]);
+  }, [ownerId,setBusy]);
+  useEffect(()=>{if(!active){setAck(false);setPreviewOpen(false);setDeleting(null);}},[active]);
   async function run(action: 'load' | 'more' | 'save' | 'delete', id?: string) {
-    if (!alive.current || invalid || locked.current || !supabase || action === 'save' && (!candidate || candidate.kind !== kind || !ack)) return;
+    if (!active || !alive.current || invalid || locked.current || !supabase || action === 'save' && (!candidate || candidate.kind !== kind || !ack)) return;
     const ticket = ++epoch.current, abort = new AbortController(); controller.current = abort;
     locked.current = true; setBusy(true); setNotice('');
     const timer = window.setTimeout(() => {

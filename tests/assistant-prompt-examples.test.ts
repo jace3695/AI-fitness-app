@@ -4,15 +4,16 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as jsx from 'react/jsx-runtime';
+import * as questions from '../lib/assistant-question-pages.ts';
 const source=readFileSync(new URL('../components/AssistantPromptExamples.tsx',import.meta.url),'utf8');
 const exports: any={};
 const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
-vm.runInNewContext('(function(exports,require){'+code+'})')(exports,(name:string)=>{assert.equal(name,'react/jsx-runtime');return jsx;});
+vm.runInNewContext('(function(exports,require){'+code+'})')(exports,(name:string)=>{if(name==='react/jsx-runtime')return jsx;if(name==='react')return {useState:(v:unknown)=>[v,()=>{}],useRef:(v:unknown)=>({current:v}),useEffect:()=>{}};if(name==='../lib/assistant-question-pages')return questions;throw Error(name);});
 function nodes(t:any):any[]{if(!t||typeof t!=='object')return [];return [t,...[t.props?.children].flat(Infinity).flatMap(nodes)];}
-test('examples start collapsed, keep five choices, and choose text only',()=>{
+test('recommendations show four choices and choose text only',()=>{
  const picked:string[]=[];const tree=exports.default({disabled:false,hasDraft:false,onSelect:(s:string)=>picked.push(s)});
- assert.equal(tree.type,'details');assert.equal(tree.props.open,undefined);const buttons=nodes(tree).filter(n=>n.type==='button');assert.equal(buttons.length,5);
- buttons[0].props.onClick();assert.deepEqual(picked,['내 기록을 보고 오늘 할 일을 조언해줘']);assert.ok(buttons.every(b=>b.props.type==='button'));
+ assert.equal(tree.type,'section');const buttons=nodes(tree).filter(n=>n.type==='button'&&n.props.children!=='다른 질문');assert.equal(buttons.length,4);
+ buttons[0].props.onClick();assert.deepEqual(picked,['오늘 운동 계획 보여줘']);assert.ok(buttons.every(b=>b.props.type==='button'));
 });
 test('busy or existing draft blocks even direct handler calls',()=>{
  for(const props of [{disabled:true,hasDraft:false},{disabled:false,hasDraft:true}]){let calls=0;const tree=exports.default({...props,onSelect:()=>calls++});for(const b of nodes(tree).filter(n=>n.type==='button')){assert.equal(b.props.disabled,true);b.props.onClick();}assert.equal(calls,0);}

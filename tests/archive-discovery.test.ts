@@ -14,6 +14,7 @@ function fixture() {
   const state={calls:0, reply:{entries:[],nextCursor:null} as any, ok:true, delay:null as Promise<any>|null};
   const react={
     useState(initial:any){const i=position++;if(!(i in slots))slots[i]=initial;return [slots[i],(value:any)=>{slots[i]=typeof value==='function'?value(slots[i]):value;}];},
+    useCallback(fn:any,deps:any[]){const i=position++;if(!slots[i]||deps.some((x,j)=>x!==slots[i].deps[j]))slots[i]={deps,value:fn};return slots[i].value;},
     useRef(initial:any){const i=position++;if(!(i in slots))slots[i]={current:initial};return slots[i];},
     useEffect(fn:()=>any,deps:any[]){const i=position++;if(!slots[i]||deps.some((x,j)=>x!==slots[i].deps[j])){slots[i]?.cleanup?.();effects.push(()=>{slots[i]={deps,cleanup:fn()};});}},
   };
@@ -34,7 +35,7 @@ async function settle(){for(let i=0;i<5;i++)await new Promise(r=>setImmediate(r)
 
 test('assistant archive gate uses ready owner, not a new conversation, and keys account state',()=>{
   const source=readFileSync(new URL('../app/assistant/AssistantClient.tsx',import.meta.url),'utf8');
-  const line=source.split('\n').find(l=>l.includes('<ConfirmedConversationArchive'))!;
+  const line=source.split('\n').find(l=>l.includes('<ConversationArchiveEntry'))!;
   assert.match(line,/pending.ready && pending.ownerId/);assert.doesNotMatch(line,/localBodyActive &&/);
   assert.match(line,/key=\{pending.ownerId\}/);assert.match(line,/localBodyCandidate\?\.ownerId === pending.ownerId/);
 });
