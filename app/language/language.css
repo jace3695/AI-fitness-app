@@ -478,7 +478,7 @@ button {
 }
 .language-app-shell .practice-example:focus-visible { outline: 3px solid #534ab7; outline-offset: 3px; }
 .language-app-shell .practice-example:disabled { opacity: .55; cursor: not-allowed; }
-.language-app-shell:has(.practice-page) .yeoni-sync-notice {
+.language-app-shell .yeoni-sync-notice {
   position: static; inset: auto; z-index: auto; transform: none;
   width: fit-content; max-width: calc(100% - 32px); margin: 12px auto 24px;
   flex-wrap: wrap; border-radius: 12px; font-size: 14px;
