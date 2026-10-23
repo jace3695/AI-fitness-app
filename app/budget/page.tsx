@@ -163,6 +163,8 @@ function BudgetDashboard() {
   const reviewOwner = useRef<string | null>(null)
   const reviewWasManual = useRef(false)
   const budgetEpoch = useRef(0)
+  const recordReadVersions = useRef<Record<BudgetRecordKind, number>>({ expense: 0, income: 0, saving: 0 })
+  useEffect(() => () => { budgetEpoch.current += 1 }, [])
   const [manualReset, setManualReset] = useState(0)
   const manualEntry = useManualBudgetDraft(user?.id ?? null)
   const [nickname, setNickname] = useState('')
@@ -706,14 +708,19 @@ function BudgetDashboard() {
   }, [isLockReady, user, simplePinEnabled, hasSimplePin, isUnlocked, lastActiveAt, LOCK_TIMEOUT])
 
   const fetchRecordKind = async (kind: BudgetRecordKind) => {
+    const ticket = ++recordReadVersions.current[kind], startedEpoch = budgetEpoch.current
+    const current = () => recordReadVersions.current[kind] === ticket && budgetEpoch.current === startedEpoch
     setRecordLoads(current => ({ ...current, [kind]: 'loading' }))
     try {
       const { data: { user: owner }, error: authError } = await supabase.auth.getUser()
+      if (!current()) return false
       if (authError || !owner) throw new Error('로그인 상태를 확인해 주세요.')
+      if (liveBudgetOwner.current !== owner.id) return false
       const table = BUDGET_RECORD_TABLE[kind] as 'budget_transactions' | 'budget_income' | 'budget_savings'
       const rows = await loadBudgetRows(supabase, table, owner.id)
+      if (!current()) return false
       const { data: { user: currentOwner } } = await supabase.auth.getUser()
-      if (currentOwner?.id !== owner.id) return false
+      if (!current() || currentOwner?.id !== owner.id || liveBudgetOwner.current !== owner.id) return false
       if (kind === 'expense') {
         setTransactions(rows)
         const start = new Date()
@@ -724,6 +731,7 @@ function BudgetDashboard() {
       setRecordLoads(current => ({ ...current, [kind]: 'ready' }))
       return true
     } catch {
+      if (!current()) return false
       setRecordLoads(current => ({ ...current, [kind]: '전체 내역을 불러오지 못했어요. 연결을 확인한 뒤 다시 불러와 주세요.' }))
       return false
     }
@@ -3163,7 +3171,7 @@ return (
               : actionError || dataLoadError || pageNotice}
           </span>
           {dataLoadError && !isOffline && (
-            <button type="button" onClick={() => window.location.reload()} style={{ minHeight: 36, marginLeft: 10, border: '1px solid rgba(15,15,20,.22)', borderRadius: 9, padding: '5px 10px', color: '#0F0F14', background: 'rgba(255,255,255,.55)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+            <button type="button" onClick={() => void Promise.all([fetchIncome(), fetchTransactions(), fetchSavings()])} style={{ minHeight: 36, marginLeft: 10, border: '1px solid rgba(15,15,20,.22)', borderRadius: 9, padding: '5px 10px', color: '#0F0F14', background: 'rgba(255,255,255,.55)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
               다시 불러오기
             </button>
           )}
@@ -3472,8 +3480,8 @@ return (
           <section className="home-recent-card">
             <div className="home-section-heading">
               <div>
-                <p className="home-section-label">최근 기록</p>
-                <h2>가장 최근에 기록한 내역</h2>
+                <p className="home-section-label">전체 기간 최근 기록</p>
+                <h2>조회한 월과 관계없이, 거래 날짜가 최근인 순서예요.</h2>
               </div>
               <button type="button" className="home-text-action is-inline" onClick={() => setTab('list')}>
                 전체 보기 <ArrowRight size={15} aria-hidden="true" />
