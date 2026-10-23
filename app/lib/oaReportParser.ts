@@ -260,11 +260,15 @@ export function numberFromText(text: string, row: ReportRow) {
 }
 
 export function dateFromText(text: string) {
+  // Header-only OCR cannot reliably separate measurement and document dates.
+  // Leave review blank rather than promote a printing/issue date to a measurement.
+  if (/(?:인쇄|출력|발행)\s*(?:일|날짜)|\b(?:print(?:ed|ing)?|issued?)\b/i.test(text)) return undefined;
   const dates = new Set<string>();
   for (const match of text.matchAll(/(?<!\d)(20\d{2})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})(?!\d)/g)) {
     const date = `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
     const parsed = new Date(date + "T00:00:00Z");
-    if (Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date) dates.add(date);
+    if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) return undefined;
+    dates.add(date);
   }
   return dates.size === 1 ? [...dates][0] : undefined;
 }

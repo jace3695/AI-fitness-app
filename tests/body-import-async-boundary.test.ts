@@ -5,7 +5,9 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { bodyForm, bodyImportOwner, validMeasurementDate } from '../app/lib/bodyImport.ts';
 
-type Result = { values: Record<string, number>; detectedDate: string };
+import { dateFromText } from '../app/lib/oaReportParser.ts';
+
+type Result = { values: Record<string, number>; detectedDate?: string };
 function fixture() {
   const source = readFileSync(new URL('../app/components/BodyRecordCard.tsx', import.meta.url), 'utf8');
   const start = source.indexOf('  const importOaReport =');
@@ -90,4 +92,33 @@ test('pagehide preserves reviewed input and a restored page can explicitly start
   assert.equal(f.context.form.memo, 'manual memo'); assert.equal(f.state.importing, false);
   const task = f.start(); f.pending[0].resolve(result(73)); await task;
   assert.equal((f.state.draft as unknown as { patch: { weight: string } }).patch.weight, '73');
+});
+
+
+test('synthetic header dates reach review without current-date fallback or storage writes', async () => {
+  for (const [text, expected] of [
+    ['측정일 2026-10-21', '2026-10-21'],
+    ['2026/04/05', '2026-04-05'],
+    ['2026-10-23', ''], ['10/22', ''], ['22/10/2026', ''],
+    ['2026-22-10', ''], ['2026-10-21\n2026-10-22', ''],
+    ['측정일 2026-10-21\n인쇄일 2026-10-22', ''],
+    ['인쇄일 2026-10-22', ''], ['', ''],
+  ]) {
+    const f = fixture(); const task = f.start();
+    f.pending[0].resolve({ values: {}, detectedDate: dateFromText(text) }); await task;
+    assert.equal((f.state.draft as { date: string }).date, expected, text);
+    assert.equal(f.storage.size, 2);
+    if (!expected) assert.match(f.state.message, /직접 입력/);
+  }
+});
+
+
+test('measurement plus print date asks for date review without losing recognized measurements', async () => {
+  const f = fixture(); const task = f.start();
+  f.pending[0].resolve({ values: { weight: 71, bmi: 23 }, detectedDate: dateFromText('측정일 2026-10-21\n인쇄일 2026-10-22') });
+  await task;
+  const draft = f.state.draft as { date: string; patch: Record<string, string> };
+  assert.equal(draft.date, ''); assert.equal(draft.patch.weight, '71'); assert.equal(draft.patch.bmi, '23');
+  assert.equal(f.state.importing, false); assert.match(f.state.message, /직접 입력/);
+  assert.equal(f.storage.size, 2);
 });

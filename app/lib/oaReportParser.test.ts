@@ -154,3 +154,16 @@ test('new source fields survive both editor merge styles and JSON serialization 
  assert.throws(()=>mergeBodyFields(record,{measurementTime:'25:00:00'}));
  assert.equal(mergeBodyFields(record,{bodyShape:''}).bodyShape,undefined);
 });
+
+
+test('synthetic OA headers never substitute printing dates or discard invalid competing dates', () => {
+  for (const text of [
+    '인쇄일 2026-10-22', '출력일: 2026-10-22', 'Printed: 2026-10-22',
+    '측정일 2026-10-21\n인쇄일 2026-10-22',
+    '측정일 2026-02-30\n2026-10-22',
+    '측정일 2026-10-22\n출력일 2026-10-22',
+    '10/22/2026', '22/10/2026', '10/22', '2026-22-10', '',
+  ]) assert.equal(dateFromText(text), undefined, text);
+  assert.equal(dateFromText('측정일 2026-10-21'), '2026-10-21');
+  assert.equal(dateFromText('2026/04/05'), '2026-04-05'); // Supported year/month/day only; never swap.
+});

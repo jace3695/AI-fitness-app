@@ -72,3 +72,14 @@ test('invalid or future edited dates preserve draft without saving or navigating
     assert.match(f.state.message, /날짜/);
   }
 });
+
+
+test('blank OCR date requires manual correction and explicit confirmation before synthetic save', () => {
+  const f = fixture(); f.draft.date = ''; const before = [...f.storage]; f.save();
+  assert.deepEqual([...f.storage], before); assert.equal(f.state.cleared, false);
+  f.draft.date = '2026-09-30'; f.state.confirm = () => false; f.save();
+  assert.deepEqual([...f.storage], before);
+  f.state.confirm = () => true; f.save();
+  assert.equal(f.state.writes, 1); assert.equal(f.state.date, '2026-09-30');
+  assert.equal(JSON.parse(f.storage.get('inbody')!)['2026-09-30'].memo, 'keep');
+});
