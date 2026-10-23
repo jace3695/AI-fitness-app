@@ -127,6 +127,7 @@ export default function Recorder({ text }: { text: string }) {
     <h2>발음 자기 점검</h2>
     <p lang="ja" style={{ overflowWrap: 'anywhere' }}>{text}</p>
     <p>최대 30초 녹음 후 직접 들어 보세요. 녹음은 전송·저장하지 않으며 문장 변경이나 화면 이탈 시 삭제해요. 발음 평가 서비스는 아직 정하지 않았어요. 지금은 점수를 매기지 않아요.</p>
+    <p className="text-sm">녹음 후 내 목소리 높낮이를 볼 수 있어요. 일본어 억양의 정답을 채점하는 기능은 아니에요.</p>
     <button className="btn" disabled={state !== 'idle'} onClick={() => void start()}>내 발음 녹음</button>{' '}
     {state === 'recording' && <button className="btn" onClick={() => release(false)}>녹음 마치기</button>}
     {state === 'requesting' && <button className="btn" onClick={clear}>권한 요청 취소</button>}

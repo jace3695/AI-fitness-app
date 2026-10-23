@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -37,4 +38,18 @@ test('clearing recording releases its URL once and drops derived results and blo
  urlRef.current='blob:synthetic'; f.hooks[1]=[{seconds:.1,hz:220}];
  f.controls.clear(); f.controls.clear();
  assert.deepEqual(f.revoked,['blob:synthetic']);assert.equal(f.hooks[0],null);assert.equal(f.hooks[1],null);f.cleanup();
+});
+
+
+test('before recording the rendered page explains pitch observation without offering an unusable analysis action',()=>{
+ const require=createRequire(import.meta.url);
+ const React=require('react'), {renderToStaticMarkup}=require('react-dom/server');
+ const context={exports:{},require:(name:string)=>name==='./pitch'?{}:name.startsWith('@/')?{}:require(name)};
+ const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(compiled,context);
+ const html=renderToStaticMarkup(React.createElement((context.exports as {default:unknown}).default,{text:'synthetic'}));
+ assert.ok(html.includes('녹음 후 내 목소리 높낮이를 볼 수 있어요.'));
+ assert.ok(html.includes('일본어 억양의 정답을 채점하는 기능은 아니에요.'));
+ assert.ok(html.indexOf('녹음 후 내 목소리') < html.indexOf('내 발음 녹음'));
+ assert.ok(!html.includes('>목소리 높낮이 보기</button>'));
 });
