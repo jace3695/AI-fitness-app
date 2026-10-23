@@ -1,4 +1,7 @@
 'use client'
+import ManualEntry from './components/manual-entry'
+import { useManualBudgetDraft } from './lib/use-manual-draft'
+import { validBudgetDate } from './lib/manual-entry'
 import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges'
 import { getLocalDateKey } from '@/utils/dateKey'
@@ -156,6 +159,12 @@ function getPaymentBadgeStyle(payment?: string) {
 
 function BudgetDashboard() {
   const [user, setUser] = useState<any>(null)
+  const liveBudgetOwner = useRef<string | null>(null); liveBudgetOwner.current = user?.id ?? null
+  const reviewOwner = useRef<string | null>(null)
+  const reviewWasManual = useRef(false)
+  const budgetEpoch = useRef(0)
+  const [manualReset, setManualReset] = useState(0)
+  const manualEntry = useManualBudgetDraft(user?.id ?? null)
   const [nickname, setNickname] = useState('')
   const [autoAnalyzeEnabled, setAutoAnalyzeEnabled] = useState(true)
   const [autoQuestion, setAutoQuestion] = useState('이번 달 소비 분석해줘')
@@ -189,8 +198,13 @@ function BudgetDashboard() {
   const savingRecordsRef = useRef(false)
   const pendingSaveRef = useRef<PendingBudgetSave | null>(null)
   const [hasPendingSave, setHasPendingSave] = useState(false)
-  useUnsavedChanges(Boolean(input.trim() || parsedItems.length || isSavingRecords))
+  useUnsavedChanges(Boolean(input.trim() || parsedItems.length || isSavingRecords || manualEntry.dirty))
   useEffect(() => {
+    budgetEpoch.current += 1
+    reviewOwner.current = null
+    reviewWasManual.current = false
+    savingRecordsRef.current = false; setIsSavingRecords(false)
+    setAiLoading(false)
     pendingSaveRef.current = null
     setHasPendingSave(false)
     setParsedItems([])
@@ -202,6 +216,7 @@ function BudgetDashboard() {
       const pending = readPendingBudgetSave(window.localStorage, user.id)
       if (!pending) return
       pendingSaveRef.current = pending
+      reviewOwner.current = user.id
       setHasPendingSave(true)
       setParsedItems(pending.items)
       setShowConfirm(true)
@@ -1437,27 +1452,41 @@ function BudgetDashboard() {
     }
   }
 
+  const handleManualReview = (item: ReturnType<typeof import('./lib/manual-entry').manualBudgetItem>, ownerId: string) => {
+    if (!user?.id || ownerId !== user.id || liveBudgetOwner.current !== ownerId || aiLoading || savingRecordsRef.current || pendingSaveRef.current) return
+    reviewOwner.current = ownerId
+    reviewWasManual.current = true
+    setParsedItems([item]); setFeedback(''); setShowConfirm(true)
+  }
+
   const handleAddTransaction = async () => {
     if (!input.trim() || savingRecordsRef.current || pendingSaveRef.current) return
+    const startedOwner = user?.id, startedEpoch = budgetEpoch.current
     setAiLoading(true)
     setFeedback('')
 
     try {
       const parsed = await parseInput(input)
+      if (!startedOwner || liveBudgetOwner.current !== startedOwner || budgetEpoch.current !== startedEpoch) return
       const { data: rules, error: rulesError, count } = await supabase.from('budget_category_rules')
         .select('merchant_key,category,revision', { count: 'exact' }).eq('user_id', user.id).order('merchant_key').limit(1000)
+      if (!startedOwner || liveBudgetOwner.current !== startedOwner || budgetEpoch.current !== startedEpoch) return
       if (rulesError || count !== rules?.length) {
         setFeedback('기억한 분류를 읽지 못했어요. 연결을 확인한 뒤 다시 해석해 주세요.')
         setAiLoading(false)
         return
       }
+      if (!startedOwner || liveBudgetOwner.current !== startedOwner || budgetEpoch.current !== startedEpoch) return
+      reviewOwner.current = startedOwner
+      reviewWasManual.current = false
       setParsedItems(applyCategoryMemory(parsed, rules || []))
       setShowConfirm(true)
     } catch {
+      if (liveBudgetOwner.current !== startedOwner || budgetEpoch.current !== startedEpoch) return
       setFeedback('입력 내용을 완전히 해석하지 못했어요. 내용을 조금만 다듬어서 다시 해석해보세요.')
     }
 
-    setAiLoading(false)
+    if (liveBudgetOwner.current === startedOwner && budgetEpoch.current === startedEpoch) setAiLoading(false)
   }
 
   const updateParsedItem = (index: number, patch: Record<string, unknown>) => {
@@ -1469,10 +1498,12 @@ function BudgetDashboard() {
 
   const handleConfirmSave = async () => {
     if (!parsedItems.length || savingRecordsRef.current || !user?.id) return
+    if (reviewOwner.current !== user.id || liveBudgetOwner.current !== user.id) { setFeedback('계정이 바뀌었어요. 내용을 다시 입력해 주세요.'); return }
     const hasInvalidItem = parsedItems.some((item) => !item.place?.trim()
       || !Number.isSafeInteger(Number(item.amount)) || Number(item.amount) <= 0
-      || !/^\d{4}-\d{2}-\d{2}$/.test(item.date || ''))
+      || !validBudgetDate(item.date || ''))
     if (hasInvalidItem) { setFeedback('날짜, 이름, 금액을 확인해 주세요. 금액은 0원보다 큰 정수로 입력해요.'); return }
+    const savingOwner = user.id, savingEpoch = budgetEpoch.current
     savingRecordsRef.current = true
     setIsSavingRecords(true)
     setFeedback('')
@@ -1486,6 +1517,7 @@ function BudgetDashboard() {
       pendingSaveRef.current = pending
       setHasPendingSave(true)
       const { data, error } = await supabase.rpc('save_budget_batch', { p_batch_id: pending.id, p_items: pending.items })
+      if (liveBudgetOwner.current !== savingOwner || budgetEpoch.current !== savingEpoch) return
       if (error) {
         // A SQL rejection rolls back the whole transaction, so editing is safe.
         if (error.code === 'P0001' || error.code?.startsWith('22') || error.code?.startsWith('23') || error.code === 'PGRST202') {
@@ -1501,15 +1533,16 @@ function BudgetDashboard() {
       setShowConfirm(false)
       setParsedItems([])
       setInput('')
+      if (reviewWasManual.current) { manualEntry.clear(); setManualReset(value => value + 1) }
       setFeedback(String(data?.count ?? pending.items.length) + '건의 저장을 확인했어요.')
       await Promise.all([fetchIncome(), fetchTransactions(), fetchSavings()])
     } catch {
+      if (liveBudgetOwner.current !== savingOwner || budgetEpoch.current !== savingEpoch) return
       setFeedback(pendingSaveRef.current
         ? '저장 응답을 확인하지 못했어요. 같은 내용으로 다시 확인해 주세요. 중복 저장되지 않습니다.'
         : '내역을 저장하지 못했어요. 입력 내용과 연결·저장 공간을 확인한 뒤 다시 시도해 주세요.')
     } finally {
-      savingRecordsRef.current = false
-      setIsSavingRecords(false)
+      if (liveBudgetOwner.current === savingOwner && budgetEpoch.current === savingEpoch) { savingRecordsRef.current = false; setIsSavingRecords(false) }
     }
   }
 
@@ -3488,12 +3521,14 @@ return (
             <p>
               {showConfirm
                 ? '날짜·금액·분류를 확인하고 필요한 내용을 수정한 뒤 저장하세요.'
-                : '내용 확인하기를 누르면 날짜와 금액을 고칠 수 있어요. 아직 저장되지 않아요.'}
+                : '날짜와 금액을 직접 적고 확인해요. 아직 저장되지 않아요.'}
             </p>
           </header>
 
+          <ManualEntry draft={manualEntry.draft} onDraftChange={manualEntry.change} key={String(user?.id ?? '') + ':' + manualReset} owner={user?.id ?? ''} hidden={showConfirm} disabled={isSavingRecords || hasPendingSave || aiLoading} categories={BUDGET_CATEGORIES} onReview={handleManualReview} />
           {!showConfirm ? (
             <>
+              <details><summary style={{minHeight:44,cursor:'pointer'}}>문장으로 입력하기 · 기존 방식</summary><p>이 방식은 앱 서버에 문장을 보내 해석을 요청해요. 직접 적기는 위에서 할 수 있어요.</p>
               <section style={{ background: 'rgba(19,19,28,0.72)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 18, padding: 14, marginBottom: 12, backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' }}>
                 <label htmlFor="ai-record-input" style={{ display: 'block', color: '#F8FAFC', fontSize: 13, fontWeight: 700, marginBottom: 9 }}>
                   기록할 내용
@@ -3567,7 +3602,7 @@ return (
 
               <p style={{ color: '#7C8596', fontSize: 11, lineHeight: 1.6, margin: '0 2px' }}>
                 AI가 제안한 결과는 자동 저장되지 않아요. 다음 화면에서 날짜·금액·분류를 확인한 뒤 저장됩니다.
-              </p>
+              </p></details>
             </>
           ) : parsedItems.length > 0 ? (
             <section style={{ background: 'rgba(19,19,28,0.78)', border: '1px solid rgba(232,168,124,0.52)', borderRadius: 18, padding: 14 }}>

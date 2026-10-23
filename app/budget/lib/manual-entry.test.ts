@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {manualBudgetItem,validBudgetDate,type ManualBudgetDraft} from './manual-entry.ts';
+const draft:ManualBudgetDraft={type:'expense',date:'2026-10-01',amount:'1',place:'QA_20261023_가짜지출',category:'기타',memo:'가짜 자료',payment:'현금'};
+test('explicit fields are preserved without inference or network',()=>{assert.deepEqual(manualBudgetItem(draft,['기타']),{...draft,amount:1,transaction_type:'일반 지출'});assert.equal(manualBudgetItem({...draft,type:'income',category:'기타수입'},['기타']).payment,'');});
+test('invalid dates, noninteger/zero/negative money, blank names and invalid category cannot reach review',()=>{for(const patch of [{date:''},{date:'2026-02-30'},{amount:''},{amount:'0'},{amount:'-1'},{amount:'1.5'},{place:' '},{category:'unknown'}])assert.throws(()=>manualBudgetItem({...draft,...patch},['기타']));assert.equal(validBudgetDate('2024-02-29'),true);assert.equal(validBudgetDate('2026-02-29'),false);});
