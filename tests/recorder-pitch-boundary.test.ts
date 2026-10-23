@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const source=fs.readFileSync(new URL('../app/language/practice/Recorder.tsx',import.meta.url),'utf8');
+function fixture(){
+ const hooks:unknown[]=[];let cursor=0;const effects:(()=>void|(()=>void))[]=[];const listeners=new Map<string,()=>void>();
+ const jobs:{signal:AbortSignal;resolve:(p:unknown)=>void}[]=[];let cleanup:(()=>void)|void; const revoked:string[]=[];
+ const React={createElement:()=>null,useId:()=> 'synthetic',useState:(initial:unknown)=>{const i=cursor++;if(!(i in hooks))hooks[i]=initial;return [hooks[i],(v:unknown)=>{hooks[i]=v}]},useRef:(v:unknown)=>{const i=cursor++;if(!(i in hooks))hooks[i]={current:v};return hooks[i]},useEffect:(fn:()=>void|(()=>void))=>effects.push(fn)};
+ const context={exports:{},require:(name:string)=> name==='react'?React:name==='./pitch'?{readPitch:(_b:unknown,signal:AbortSignal)=>new Promise(resolve=>jobs.push({signal,resolve}))}:{createSpeechParticipant:()=>({dispose(){},claim(){}})},AbortController,AudioContext:class{},setTimeout,clearTimeout,URL:{revokeObjectURL(url:string){revoked.push(url)}},window:{addEventListener:(n:string,f:()=>void)=>listeners.set(n,f),removeEventListener:(n:string)=>listeners.delete(n)},document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},__capture:(x:unknown)=>x};
+ // Expose real component closures before JSX; no browser, recording or storage.
+ const instrumented=source.replace('  return <section', '  return __capture({showPitch,cancelPitch,clear,start});\n  return <section');
+ const compiled=ts.transpileModule(instrumented,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText;
+ vm.runInNewContext(compiled,context);
+ const component=(context.exports as {default:(p:{text:string})=>{showPitch:()=>Promise<void>;clear:()=>void;cancelPitch:()=>void}}).default;
+ const render=()=>{cursor=0;return component({text:'synthetic'});};
+ render();cleanup=effects[0]();hooks[0]=new Blob(['synthetic']);const controls=render();
+ return {hooks,jobs,controls,listeners,revoked,cleanup:()=>cleanup?.()};
+}
+test('duplicate analysis is blocked and late completion after clear or account change is ignored',async()=>{
+ for(const boundary of ['clear','account','pagehide','unmount']){
+ const f=fixture();const task=f.controls.showPitch();await f.controls.showPitch();assert.equal(f.jobs.length,1);
+ if(boundary==='clear')f.controls.clear();else if(boundary==='account')f.listeners.get('yeoni-cloud-session-changed')!();else if(boundary==='pagehide')f.listeners.get('pagehide')!();else f.cleanup();
+ assert.equal(f.jobs[0].signal.aborted,true);const before=[...f.hooks];f.jobs[0].resolve([{seconds:.1,hz:220}]);await task;assert.deepEqual(f.hooks,before);if(boundary!=='unmount')assert.equal(f.hooks[0],null);
+ }
+});
+test('cancel and replacement result cannot be overwritten by an earlier analysis',async()=>{
+ const f=fixture();const first=f.controls.showPitch();f.controls.cancelPitch();const second=f.controls.showPitch();
+ f.jobs[1].resolve([{seconds:.1,hz:300}]);await second;f.jobs[0].resolve([{seconds:.1,hz:100}]);await first;
+ assert.equal((f.hooks[1] as {hz:number}[])[0].hz,300);f.cleanup();
+});
+
+
+test('clearing recording releases its URL once and drops derived results and blob',()=>{
+ const f=fixture(); const urlRef=f.hooks.find(h=>h && typeof h==='object' && 'current' in h && h.current==='') as {current:string};
+ urlRef.current='blob:synthetic'; f.hooks[1]=[{seconds:.1,hz:220}];
+ f.controls.clear(); f.controls.clear();
+ assert.deepEqual(f.revoked,['blob:synthetic']);assert.equal(f.hooks[0],null);assert.equal(f.hooks[1],null);f.cleanup();
+});
