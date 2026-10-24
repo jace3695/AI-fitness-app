@@ -18,6 +18,7 @@ import ZephyrReadButton from '@/components/ZephyrReadButton';
 import { AssistantCommandReview } from '@/components/AssistantCommandReview';
 import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 import { useTaskCommandDrafts } from '@/hooks/useTaskCommandDrafts';
+import { createManualEntryAttempt, sendManualEntry, checkManualEntry, waitForManualEntryAuth, ManualEntryTimeoutError, type ManualEntryAttempt, type ManualEntryResult, type ManualEntryTransport } from '@/lib/assistant-entry-recovery';
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
@@ -148,6 +149,8 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [chatHistoryNotice, setChatHistoryNotice] = useState("");
   const pending = useTaskCommandDrafts();
   const entryLock = useRef<object | null>(null);
+  const entryAttempt = useRef<ManualEntryAttempt | null>(null);
+  const [entryRecovery, setEntryRecovery] = useState<{ attempt: ManualEntryAttempt; result: ManualEntryResult } | null>(null);
   const entryDraftSignature = useRef("");
   const dashboardRead = useRef({ version: 0, mounted: true });
   useEffect(() => {
@@ -173,6 +176,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [localBodyCandidate, setLocalBodyCandidate] = useState<{ ownerId: string; snapshot: BodyAnalysisSnapshot; question?: string } | null>(null);
   useEffect(() => {
     const resetManualEntry = () => {
+      entryAttempt.current = null; setEntryRecovery(null);
       entryLock.current = null; setSaving(false); setTitle(""); setMessage("");
       setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none");
     };
@@ -216,7 +220,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   }, [pending.ownerId, clearCharacter]);
   const mutationLocks = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<string[]>([]);
-  useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy));
+  useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy || entryRecovery));
   const chatBoxRef = useRef<HTMLDivElement>(null);
 
   const initialAdviceApplied = useRef(false);
@@ -365,7 +369,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     const isCurrent = () => dashboardRead.current.mounted && version === dashboardRead.current.version && epoch === chatEpoch.current && owner === localBodyOwner.current;
     if (!supabase || !owner || !isCurrent()) return;
     setLoading(true);
-    setMessage("");
+    // A background list refresh must not erase an explicit save result.
     try {
     const { data: auth } = await supabase.auth.getUser();
     if (!isCurrent()) return;
@@ -471,37 +475,92 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     if (box) box.scrollTop = box.scrollHeight;
   }, [chatHistoryLoading, chatMessages, chatSending]);
 
+  const entryTransport: ManualEntryTransport = {
+    insert: async (attempt) => {
+      const { error, status } = await supabase!.from(attempt.table).insert(attempt.payload);
+      return { error, status };
+    },
+    find: async (attempt) => {
+      const { data, error } = await supabase!.from(attempt.table).select(Object.keys(attempt.payload).join(','))
+        .eq('user_id', attempt.owner).eq('id', attempt.id).maybeSingle();
+      return { data, error };
+    },
+  };
+  const finishManualEntry = async (attempt: ManualEntryAttempt, result: ManualEntryResult, isCurrent: () => boolean) => {
+    if (!isCurrent() || result.state === 'stale') return;
+    if (result.state === 'saved') {
+      entryAttempt.current = null; setEntryRecovery(null);
+      if (entryDraftSignature.current === attempt.signature) {
+        setTitle(""); setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none");
+      }
+      // Saving is already acknowledged. A slow dashboard read must not keep
+      // this independent form locked or turn success into an uncertain save.
+      void load();
+      if (isCurrent()) setMessage("항목 저장을 확인했어요.");
+    } else if (result.state === 'rejected') {
+      entryAttempt.current = null; setEntryRecovery(null);
+      setMessage("서버가 저장을 거절했어요. 입력을 확인한 뒤 다시 추가해 주세요.");
+    } else {
+      setEntryRecovery({ attempt, result });
+      setMessage("저장을 확인하지 못했어요. 아래에서 저장 결과부터 확인해 주세요.");
+    }
+  };
   const addEntry = async (event: FormEvent) => {
     event.preventDefault();
     const value = title.trim();
     const owner = pending.ownerId;
-    if (!value || !supabase || !pending.ready || !owner || entryLock.current) return;
+    if (!value || !supabase || !pending.ready || !owner || entryLock.current || entryAttempt.current) return;
     const ticket = {}, epoch = chatEpoch.current, submittedDraft = entryDraftSignature.current;
     entryLock.current = ticket;
     const isCurrent = () => entryLock.current === ticket && chatEpoch.current === epoch && localBodyOwner.current === owner;
     setSaving(true);
     setMessage("");
     try {
-      const { data: auth } = await supabase.auth.getUser();
+      const { data: auth } = await waitForManualEntryAuth(supabase.auth.getUser());
       if (!isCurrent()) return;
       if (auth.user?.id !== owner) throw Error('owner changed');
-      const result = kind === "project"
-      ? await supabase.from("assistant_projects").insert({ user_id: auth.user.id, name: value, status: "active", priority: 3 })
+      const table = kind === 'project' ? 'assistant_projects' : kind === 'memory' ? 'assistant_memories' : 'assistant_items';
+      const values = kind === "project"
+      ? { name: value, status: "active", priority: 3 }
       : kind === "memory"
-        ? await supabase.from("assistant_memories").insert({ user_id: auth.user.id, topic: "일반", content: value, source: "manual", tags: [] })
-      : await supabase.from("assistant_items").insert({ user_id: auth.user.id, title: value, kind, status: kind === "waiting" ? "waiting" : "open", priority: entryPriority, due_at: entryDueDate ? `${entryDueDate}T23:59:00+09:00` : null, project_id: entryProjectId || null, recurrence_rule: entryRecurrence });
-      if (!isCurrent()) return;
-      if (result.error) throw result.error;
-      // A successful older submission must not clear the next entry being typed.
-      if (entryDraftSignature.current === submittedDraft) {
-        setTitle(""); setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none");
-      }
-      await load();
-    } catch {
-      if (isCurrent()) setMessage("저장을 확인하지 못했어요. 입력은 유지했어요. 목록을 확인한 뒤 다시 시도해 주세요.");
+        ? { topic: "일반", content: value, source: "manual", tags: [] }
+      : { title: value, kind, status: kind === "waiting" ? "waiting" : "open", priority: entryPriority, due_at: entryDueDate ? `${entryDueDate}T23:59:00+09:00` : null, project_id: entryProjectId || null, recurrence_rule: entryRecurrence };
+      const attempt = createManualEntryAttempt(owner, table, values, submittedDraft, value);
+      entryAttempt.current = attempt;
+      await finishManualEntry(attempt, await sendManualEntry(attempt, entryTransport, isCurrent), isCurrent);
+    } catch (error) {
+      if (isCurrent()) setMessage(error instanceof ManualEntryTimeoutError && error.stage === 'auth'
+        ? "로그인 확인이 오래 걸려 멈췄어요. 저장은 시작하지 않았고 입력은 그대로예요. 로그인 상태를 확인한 뒤 다시 시도해 주세요."
+        : "저장을 확인하지 못했어요. 입력은 유지했어요. 목록을 확인한 뒤 다시 시도해 주세요.");
     } finally {
       if (entryLock.current === ticket) {
         const current = isCurrent();
+        entryLock.current = null;
+        if (current) setSaving(false);
+      }
+    }
+  };
+
+  const recoverManualEntry = async (mode: 'check' | 'retry') => {
+    const attempt = entryAttempt.current, owner = pending.ownerId;
+    if (!supabase || !pending.ready || !owner || !attempt || attempt.owner !== owner || entryLock.current) return;
+    if (mode === 'retry' && (entryRecovery?.attempt !== attempt || entryRecovery.result.state !== 'missing')) return;
+    const ticket = {}, epoch = chatEpoch.current;
+    entryLock.current = ticket;
+    const isCurrent = () => entryLock.current === ticket && chatEpoch.current === epoch && localBodyOwner.current === owner;
+    setSaving(true); setMessage("");
+    try {
+      const { data: auth } = await waitForManualEntryAuth(supabase.auth.getUser());
+      if (!isCurrent()) return;
+      if (auth.user?.id !== owner) throw Error('owner changed');
+      const result = mode === 'check' ? await checkManualEntry(attempt, entryTransport, isCurrent) : await sendManualEntry(attempt, entryTransport, isCurrent);
+      await finishManualEntry(attempt, result, isCurrent);
+    } catch (error) { if (isCurrent()) setMessage(error instanceof ManualEntryTimeoutError && error.stage === 'auth'
+      ? "로그인 확인이 오래 걸려 멈췄어요. 이전 저장 여부는 아직 몰라요. 확인 번호는 유지했으니 로그인 상태를 확인한 뒤 결과 확인을 다시 눌러 주세요."
+      : "저장 결과를 확인하지 못했어요. 새 항목으로 다시 추가하지 말고 로그인과 연결 상태를 확인해 주세요."); }
+    finally {
+      if (entryLock.current === ticket) {
+        const current = chatEpoch.current === epoch && localBodyOwner.current === owner;
         entryLock.current = null;
         if (current) setSaving(false);
       }
@@ -673,9 +732,19 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
           <select aria-label="반복" value={entryRecurrence} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryRecurrence(event.target.value as RecurrenceRule)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select>
           <select aria-label="연결 프로젝트" value={entryProjectId} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryProjectId(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="">프로젝트 없음</option>{projects.filter((project) => project.status !== "completed" && project.status !== "archived").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
-          <button disabled={saving || !title.trim() || !pending.ready || !pending.ownerId} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
+          <button disabled={saving || !title.trim() || !pending.ready || !pending.ownerId || Boolean(entryRecovery)} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : entryRecovery ? "아래에서 저장 확인" : "추가"}</button>
         </form>
         </details>
+        {entryRecovery?.attempt.owner === pending.ownerId && <section aria-label="추가한 항목 저장 확인" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+          <p className="break-words font-bold">저장 확인: {entryRecovery.attempt.label}</p>
+          <p className="mt-2">{entryRecovery.result.state === 'missing' ? '아직 항목이 보이지 않아요. 서버가 처리 중일 수도 있어요.' : entryRecovery.result.state === 'conflict' ? '같은 확인 번호의 내용이 달라요. 목록에서 확인해 주세요. 덮어쓰지는 않아요.' : entryRecovery.result.reason === 'lookup' ? '저장 여부를 조회하지 못했어요. 저장되지 않았다고 단정할 수 없어요.' : entryRecovery.result.reason === 'accepted' ? '요청은 접수됐지만 저장 완료는 확인되지 않았어요.' : entryRecovery.result.reason === 'pending' ? '응답을 기다리는 시간이 지났어요. 서버에서 아직 처리 중일 수도 있어요.' : '응답을 받지 못했어요. 이미 저장됐을 수도 있어요.'}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" disabled={saving} onClick={() => void recoverManualEntry('check')} className="min-h-11 rounded-xl bg-white px-4 font-bold disabled:opacity-50">{saving ? '확인 중…' : '저장 결과 확인'}</button>
+            {entryRecovery.result.state === 'missing' && <button type="button" disabled={saving} onClick={() => void recoverManualEntry('retry')} className="min-h-11 rounded-xl border border-amber-400 bg-white px-4 font-bold disabled:opacity-50">같은 항목 다시 저장</button>}
+          </div>
+          <p className="mt-2 text-xs leading-5">확인 버튼은 새로 저장하지 않아요. 다시 저장은 같은 확인 번호를 사용해요. 목록에서 직접 삭제했다면 다시 저장하지 마세요. 새로고침·화면 이동 뒤에는 이 확인 번호를 기억하지 못하니 먼저 결과를 확인해 주세요.</p>
+          <p className="mt-2 text-xs leading-5">이 새 확인 기능은 실제 서버에서 중복 방지와 내 계정만의 조회를 아직 검증하지 않았어요. 같은 번호를 사용해도 중복 저장을 완전히 막는다고 보장하지 않아요.</p>
+        </section>}
         {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
 
         <div className="mt-5 grid gap-2">
