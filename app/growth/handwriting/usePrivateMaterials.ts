@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { handwritingMaterialPath, validateHandwritingPackage } from '@/app/data/handwritingMaterials';
-import { materialReadNotice } from './material-read-status';
+import { materialReadNotice, materialReadDiagnostic } from './material-read-status';
 
 async function digest(bytes: Uint8Array<ArrayBuffer>) {
   return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
@@ -15,6 +15,7 @@ export function usePrivateMaterials(owner: string | undefined, pdfPage: number) 
   const [importStatus, setImportStatus] = useState('');
   const [opening, setOpening] = useState(false);
   const [version, setVersion] = useState(0);
+  const [diagnostic, setDiagnostic] = useState<ReturnType<typeof materialReadDiagnostic> | null>(null);
   const generation = useRef({ value: 0 }), liveOwner = useRef(owner), mounted = useRef(true);
   const importLock = useRef<object | null>(null), pdfLock = useRef<object | null>(null);
   const pdfUrls = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -31,21 +32,23 @@ export function usePrivateMaterials(owner: string | undefined, pdfPage: number) 
     };
   }, [owner]);
   useEffect(() => {
-    setImageUrl(''); setError(''); setLoading(false);
+    setImageUrl(''); setError(''); setDiagnostic(null); setLoading(false);
     if (!owner) return;
     if (!supabase) { setError('교재 연결을 준비하지 못했어요. 잠시 후 다시 열어 주세요.'); return; }
     const client = supabase; let cancelled = false; let url = '';
     setImageUrl(''); setError(''); setLoading(true);
     void (async () => {
+      let stage: 'registration' | 'page' = 'registration';
       try {
         const ready = await client.storage.from('growth-resources').download(handwritingMaterialPath(owner, 'ready.txt'));
         if (cancelled) return;
-        if (ready.error) throw Error(materialReadNotice(ready.error, 'registration'));
+        if (ready.error) throw ready.error;
+        stage = 'page';
         const response = await client.storage.from('growth-resources').download(handwritingMaterialPath(owner, `page-${String(pdfPage).padStart(2, '0')}.webp`));
         if (cancelled) return;
-        if (response.error) throw Error(materialReadNotice(response.error, 'page'));
+        if (response.error) throw response.error;
         url = URL.createObjectURL(response.data); setImageUrl(url);
-      } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : '교재를 불러오지 못했어요.'); }
+      } catch (e) { if (!cancelled) { setError(materialReadNotice(e, stage)); setDiagnostic(materialReadDiagnostic(e, stage)); } }
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
@@ -108,7 +111,7 @@ export function usePrivateMaterials(owner: string | undefined, pdfPage: number) 
     if (!mounted.current || !owner || liveOwner.current !== owner || !supabase || pdfLock.current) return;
     const ticket = {}, startedGeneration = generation.current.value;
     const current = () => mounted.current && liveOwner.current === owner && generation.current.value === startedGeneration && pdfLock.current === ticket;
-    pdfLock.current = ticket; setOpening(true); setError('');
+    pdfLock.current = ticket; setOpening(true); setError(''); setDiagnostic(null);
     try {
       const result = await supabase.storage.from('growth-resources').download(handwritingMaterialPath(owner, 'workbook.pdf'));
       if (!current()) return;
@@ -122,5 +125,5 @@ export function usePrivateMaterials(owner: string | undefined, pdfPage: number) 
     } catch { if (current()) setError('원본 PDF를 불러오지 못했어요. 교재 등록과 연결 상태를 확인해 주세요.'); }
     finally { if (current()) { pdfLock.current = null; setOpening(false); } }
   }
-  return { imageUrl, error, loading, importing, importStatus, opening, importPackage, downloadPdf, retry: () => setVersion(n => n + 1) };
+  return { imageUrl, error, diagnostic, loading, importing, importStatus, opening, importPackage, downloadPdf, retry: () => setVersion(n => n + 1) };
 }

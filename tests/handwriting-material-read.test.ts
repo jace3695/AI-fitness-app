@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-import {materialReadNotice} from '../app/growth/handwriting/material-read-status.ts';
+import {materialReadNotice,materialReadDiagnostic} from '../app/growth/handwriting/material-read-status.ts';
 const source=fs.readFileSync(new URL('../app/growth/handwriting/usePrivateMaterials.ts',import.meta.url),'utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
 function fixture(){
@@ -12,7 +12,7 @@ function fixture(){
  const react={useState(initial:unknown){const slot=index++;if(!(slot in states))states[slot]=initial;return[states[slot],(v:unknown)=>states[slot]=typeof v==='function'?(v as (x:unknown)=>unknown)(states[slot]):v];},useRef(initial:unknown){const slot=refIndex++;return refs[slot]??(refs[slot]={current:initial});},useEffect(fn:()=>void|(()=>void),deps:unknown[]){const slot=effectIndex++,prev=effects[slot];if(prev&&deps.length===prev.deps.length&&deps.every((v,i)=>Object.is(v,prev.deps[i])))return;prev?.cleanup?.();effects[slot]={deps,cleanup:fn()||undefined};}};
  const client={storage:{from:()=>({download:(path:string)=>new Promise(resolve=>calls.push({path,resolve})),upload:(path:string)=>new Promise(resolve=>uploads.push({path,resolve}))})}};
  const exports:Record<string,unknown>={};
- const context={exports,require:(name:string)=>name==='react'?react:name.includes('supabase')?{supabase:client}:name.includes('material-read-status')?{materialReadNotice}:{handwritingMaterialPath:(owner:string,path:string)=>owner+'/'+path,validateHandwritingPackage:()=>pack},URL:{createObjectURL:()=>{created++;return 'blob:synthetic';},revokeObjectURL:(url:string)=>revoked.push(url)},document:{createElement:()=>({href:'',download:'',click:()=>clicked++,remove:()=>removed++}),body:{append:()=>{}}},setTimeout:(fn:()=>void)=>{timers.set(++serial,fn);return serial;},clearTimeout:(id:number)=>timers.delete(id),crypto:{subtle:{digest:async()=>new Uint8Array(32).buffer}},atob:(v:string)=>Buffer.from(v,'base64').toString('binary'),Error,Uint8Array,Blob};
+ const context={exports,require:(name:string)=>name==='react'?react:name.includes('supabase')?{supabase:client}:name.includes('material-read-status')?{materialReadNotice,materialReadDiagnostic}:{handwritingMaterialPath:(owner:string,path:string)=>owner+'/'+path,validateHandwritingPackage:()=>pack},URL:{createObjectURL:()=>{created++;return 'blob:synthetic';},revokeObjectURL:(url:string)=>revoked.push(url)},document:{createElement:()=>({href:'',download:'',click:()=>clicked++,remove:()=>removed++}),body:{append:()=>{}}},setTimeout:(fn:()=>void)=>{timers.set(++serial,fn);return serial;},clearTimeout:(id:number)=>timers.delete(id),crypto:{subtle:{digest:async()=>new Uint8Array(32).buffer}},atob:(v:string)=>Buffer.from(v,'base64').toString('binary'),Error,Uint8Array,Blob};
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,context);
  type Actions={downloadPdf:()=>Promise<void>;importPackage:(file:File)=>Promise<void>};
  const render=(owner?:string)=>{index=0;refIndex=0;effectIndex=0;return(exports.usePrivateMaterials as (o:string|undefined,p:number)=>Actions)(owner,1);};
@@ -35,3 +35,24 @@ test('import cancelled while reading file performs no later mock uploads or stat
 test('import stops between uploads after account change or exit; no marker and stale errors',async()=>{for(const exit of[false,true])for(const fail of[false,true]){const f=fixture();const actions=f.render('A');const task=actions.importPackage(f.file);await tick();assert.equal(f.uploads.length,1);if(exit)f.unmount();else{f.render('B');f.render('A');}f.states[4]='new import status';f.uploads[0].resolve({error:fail?Error('old'):null});await task;assert.equal(f.uploads.length,1);assert.equal(f.states[4],'new import status');assert.equal(f.calls.filter(x=>x.path.endsWith('one.webp')).length,0);}});
 test('normal synthetic import validates then uploads once and confirms marker; duplicate action is blocked',async()=>{const f=fixture();const actions=f.render('A');const task=actions.importPackage(f.file);await actions.importPackage(f.file);await tick();assert.equal(f.uploads.length,1);f.uploads[0].resolve({error:null});await tick();assert.equal(f.uploads.length,2);f.uploads[1].resolve({error:null});await tick();assert.match(f.uploads[2].path,/ready.txt$/);f.uploads[2].resolve({error:null});await task;assert.equal(f.states[3],false);assert.match(String(f.states[4]),/비공개로 등록/);assert.equal(f.states[6],1);});
 test('detached actions after page exit or different owner do not start reads or registration',async()=>{for(const exit of[false,true]){const f=fixture();const actions=f.render('A');if(exit)f.unmount();else f.render('B');const before=f.calls.length;await actions.downloadPdf();await actions.importPackage(f.file);assert.equal(f.calls.length,before);assert.equal(f.uploads.length,0);}});
+
+test('safe diagnostics retain only bounded status and phase, never sensitive SDK data',()=>{
+ for(const raw of [undefined, 'secret/path', 200, 999, {}, '403 private']) {
+  const result=materialReadDiagnostic({statusCode:raw,message:'token secret',path:'private/UID'},'registration');
+  assert.equal(result.http,null);assert.ok(!JSON.stringify(result).includes('secret'));assert.ok(!JSON.stringify(result).includes('UID'));
+ }
+ assert.equal(materialReadDiagnostic({statusCode:'403'},'page').http,null);
+ assert.equal(materialReadDiagnostic({statusCode:'403'},'page').serviceStatus,403);
+ const mixed = materialReadDiagnostic({status:400,statusCode:'404'},'registration');
+ assert.equal(mixed.http,400);assert.equal(mixed.serviceStatus,404);assert.match(mixed.category,/미확정/);
+ assert.equal(materialReadDiagnostic({status:403,statusCode:'404'},'page').category,'접근 확인 실패');
+ assert.match(materialReadDiagnostic({status:404},'registration').category,/미확정/);
+});
+test('real hook preserves failed phase and safe status; account change clears diagnosis',async()=>{
+ const f=fixture();f.render('A');f.calls[0].resolve({error:null});await tick();
+ f.calls[1].resolve({error:{statusCode:'403',message:'private secret'}});await tick();
+ assert.equal((f.states[7] as {http:number|null}).http,null);
+ assert.equal((f.states[7] as {serviceStatus:number}).serviceStatus,403);
+ assert.equal((f.states[7] as {stage:string}).stage,'연습지 조회');
+ assert.ok(!JSON.stringify(f.states).includes('secret'));f.render('B');assert.equal(f.states[7],null);
+});
