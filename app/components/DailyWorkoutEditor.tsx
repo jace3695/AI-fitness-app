@@ -1,17 +1,19 @@
 "use client";
 
 import { useId, useState } from "react";
-import { exerciseGuides } from '../data/exerciseGuides';
+import { exerciseGuides, getExerciseGuide } from '../data/exerciseGuides';
 import ExerciseGuidePanel from './ExerciseGuidePanel';
 import { HOME_EQUIPMENT, homeExerciseCandidates, isHomeSelectable, type HomeEquipment } from "../data/homeExerciseCatalog";
 import {
   EXCLUDED_EXERCISE_IDS,
   getWorkoutGroupById,
   WORKOUT_GROUPS,
+  workoutGroupToDayWorkout,
   type WorkoutGroupExercise,
 } from "../data/workoutGroups";
 import type { WorkoutDayId } from "../data/workoutCompletion";
 import { dayIdToKoreanLabel } from "../data/workoutPlans";
+import { customExerciseSource } from "../data/userWorkoutSettings";
 import type {
   CustomExercise,
   DayRoutineEdit,
@@ -92,6 +94,7 @@ export default function DailyWorkoutEditor({
       duration: exercise.durationMinutes ? `${exercise.durationMinutes}분` : undefined,
     })),
   ];
+  const routineGuideExercises = group.type === "choice" ? [] : workoutGroupToDayWorkout(group, dayId, dayId).phases.flatMap(phase => phase.exercises);
   const orderRank = new Map((currentEdit.order || []).map((id, index) => [id, index]));
   const orderedExercises = currentEdit.order?.length
     ? [...visibleExercises].sort(
@@ -370,11 +373,21 @@ export default function DailyWorkoutEditor({
           </p>
         ) : (
           <div className="mt-2 grid grid-cols-1 gap-2">
-            {orderedExercises.map((exercise, index) => (
+            {orderedExercises.map((exercise, index) => {
+              const custom = currentEdit.customExercises?.find(item => item.id === exercise.exerciseId);
+              const sourceExerciseId = custom ? customExerciseSource(custom) : exercise.exerciseId;
+              const guideExercise = custom ? {
+                exerciseId: custom.id, sourceExerciseId,
+                name: custom.name, details: [],
+                guide: getExerciseGuide(sourceExerciseId || custom.id, custom.name),
+              } : routineGuideExercises.find(item => item.exerciseId === exercise.exerciseId);
+              return (
               <div
                 key={exercise.exerciseId}
-                className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5"
+                className="rounded-xl bg-gray-50 px-3 py-2.5"
+                data-selected-exercise={exercise.exerciseId}
               >
+                <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-bold text-gray-800">
                     {index + 1}. {exercise.name || exercise.exerciseId}
@@ -393,8 +406,14 @@ export default function DailyWorkoutEditor({
                 >
                   빼기
                 </button>
+                </div>
+                {guideExercise && <details className="mt-2">
+                  <summary className="min-h-11 cursor-pointer rounded-xl bg-white px-3 py-3 text-sm font-semibold text-[#534AB7]">운동 방법 보기 · {exercise.name || exercise.exerciseId}</summary>
+                  <ExerciseGuidePanel exercise={guideExercise} />
+                </details>}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
