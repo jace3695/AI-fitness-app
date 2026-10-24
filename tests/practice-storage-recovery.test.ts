@@ -14,21 +14,45 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
   const slots: any[] = []; let position = 0;
   const effects: (() => void)[] = [];
   const state = { raw, failRead: true, failWrite: false, failAfterWrite: false, reads: [] as string[], writes: 0, removals: 0 };
-  const listeners = new Map<string, () => void>();
+  const listeners = new Map<string, Set<() => void>>();
+  const browserWindow = {
+    addEventListener(name: string, fn: () => void) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name)!.add(fn); },
+    removeEventListener(name: string, fn: () => void) { listeners.get(name)?.delete(fn); },
+  };
   const react = {
-    useState(initial: any) { const i = position++; if (!(i in slots)) slots[i] = initial; return [slots[i], (v: any) => { slots[i] = typeof v === 'function' ? v(slots[i]) : v; }]; },
+    useState(initial: any) { const i = position++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], (v: any) => { slots[i] = typeof v === 'function' ? v(slots[i]) : v; }]; },
     useRef(initial: any) { const i = position++; if (!(i in slots)) slots[i] = { current: initial }; return slots[i]; },
     useEffect(fn: () => any, deps: any[]) { const i = position++; if (!slots[i] || deps.some((x, j) => x !== slots[i].deps[j])) { slots[i]?.cleanup?.(); effects.push(() => { slots[i] = { deps, cleanup: fn() }; }); } },
   };
   const deps: Record<string, unknown> = { react, 'react/jsx-runtime': jsx, './conversation': conversation,
     './Recorder': { default: () => null }, '@/components/ConfirmedConversationArchive': { default: () => null } };
+  const dirtyEditors = new Set<symbol>();
+  const hookExports: any = {};
+  const hookCode = ts.transpileModule(readFileSync(new URL('../components/useUnsavedChanges.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const hookDeps: Record<string, unknown> = { react, '@/app/lib/unsavedChanges': { setEditorDirty(id: symbol, dirty: boolean) {
+    if (dirty) dirtyEditors.add(id); else dirtyEditors.delete(id);
+  } } };
+  vm.runInNewContext('(function(exports,require){' + hookCode + '})', { window: browserWindow })(hookExports, (name: string) => {
+    assert.ok(name in hookDeps, name); return hookDeps[name];
+  });
+  deps['@/components/useUnsavedChanges'] = hookExports;
+  const inputExports: any = {};
+  const inputCode = ts.transpileModule(readFileSync(new URL('../app/language/practice/inputDraft.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  vm.runInNewContext('(function(exports,require){' + inputCode + '})', { window: browserWindow })(inputExports, (name: string) => {
+    assert.equal(name, './conversation.ts'); return conversation;
+  });
+  deps['./inputDraft'] = inputExports;
   const exports: any = {};
   const code = ts.transpileModule(readFileSync(new URL('../app/language/practice/PracticeWorkspace.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   vm.runInNewContext('(function(exports,require){' + code + '})', {
     AbortController, crypto, setTimeout: clock?.setTimeout ?? setTimeout, clearTimeout: clock?.clearTimeout ?? clearTimeout,
-    window: { addEventListener(name: string, fn: () => void) { listeners.set(name, fn); }, removeEventListener(name: string) { listeners.delete(name); } },
+    window: browserWindow,
     sessionStorage: {
       getItem(key: string) { state.reads.push(key); if (state.failRead) throw Error('synthetic unavailable'); return state.raw; },
       setItem(_key: string, value: string) { state.writes++; if (state.failWrite) throw Error('synthetic quota'); state.raw = value; if (state.failAfterWrite) throw Error('synthetic lost confirmation'); },
@@ -37,12 +61,24 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
   })(exports, (name: string) => { assert.ok(name in deps, name); return deps[name]; });
   function render() { position = 0; const tree = exports.default({ owner: 'A', transport }); while (effects.length) effects.shift()!(); return tree; }
   render();
-  return { state, render, leave: () => listeners.get('pagehide')?.(), unmount: () => slots.forEach(slot => slot?.cleanup?.()) };
+  return { state, render, dirty: () => dirtyEditors.size > 0, leave: () => [...(listeners.get('pagehide') ?? [])].forEach(fn => fn()), unmount: () => slots.forEach(slot => slot?.cleanup?.()) };
 }
 function nodes(tree: any): any[] { if (!tree || typeof tree !== 'object') return []; return [tree, ...[tree.props?.children].flat(Infinity).flatMap(nodes)]; }
 function label(tree: any): string { if (typeof tree === 'string' || typeof tree === 'number') return String(tree); if (!tree || typeof tree !== 'object') return ''; return [tree.props?.children].flat(Infinity).map(label).join(''); }
 function button(tree: any, name: string) { const found = nodes(tree).find(n => n.type === 'button' && label(n) === name); assert.ok(found, name); return found; }
 function retry(f: ReturnType<typeof fixture>) { button(f.render(), '기존 탭 기록 다시 불러오기').props.onClick(); f.render(); return f.render(); }
+
+test('actual unsaved-change hook registers the draft and releases it on clear or unmount without saving', () => {
+  const f = fixture(null); f.state.failRead = false; retry(f);
+  assert.equal(f.dirty(), false);
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic unsent draft' } });
+  f.render(); assert.equal(f.dirty(), true);
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: '' } });
+  f.render(); assert.equal(f.dirty(), false);
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic unsent draft' } });
+  f.render(); f.unmount(); assert.equal(f.dirty(), false);
+  assert.equal(f.state.writes + f.state.removals, 0);
+});
 
 test('free AI requires explicit data-use consent before any transport call', async () => {
   let calls = 0; const f = fixture(original, async () => { calls++; return { source: 'ai', reply: '合成', replyReading: 'ごうせい', correction: '合成', explanation: '합성' }; });

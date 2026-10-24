@@ -1,17 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges';
+import { openPracticeInputDraft, updatePracticeInputDraft } from './inputDraft';
 import Recorder from './Recorder';
 import ConfirmedConversationArchive from '@/components/ConfirmedConversationArchive';
 import { getConversation, MAX_TEXT, MAX_TURNS, parseJournal, requestFor, SITUATIONS, type Journal, type Situation, type Transport, type Turn } from './conversation';
 
 // Each user explicitly consents before sending text to the free-only transport.
 export default function PracticeWorkspace({ owner, transport }: { owner: string; transport?: Transport }) {
+  const [inputDraft] = useState(() => openPracticeInputDraft(owner));
   const [journal, setJournal] = useState<Journal>({ version: 1, owner, turns: [] });
   const [ready, setReady] = useState(false);
-  const [text, setText] = useState('');
+  const [text, setTextState] = useState(inputDraft.draft?.text ?? '');
   const [dataUseAcknowledged, setDataUseAcknowledged] = useState(false);
-  const [situation, setSituation] = useState<Situation>('일상');
+  const [situation, setSituationState] = useState<Situation>(inputDraft.draft?.situation ?? '일상');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [reviewOnly, setReviewOnly] = useState(false);
@@ -21,12 +24,29 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
   const [recorderOpen, setRecorderOpen] = useState(false);
   const [archiveSelection, setArchiveSelection] = useState<string | null>(null);
   const pending = useRef<AbortController | null>(null);
-  const unsaved = useRef<{ owner: string; turn: Turn } | null>(null);
+  const unsaved = useRef<{ owner: string; turn: Turn; inputRevision: number } | null>(null);
   const [unsavedTurn, setUnsavedTurn] = useState<Turn | null>(null);
+  useUnsavedChanges(Boolean(text.trim() || busy || unsavedTurn));
   const active = useRef(true);
   const storageKey = `japanese-practice-tab-v1:${owner}`;
   const current = useRef(journal);
 
+  function setText(value: string, options?: { claim?: boolean; expectedRevision?: number }) {
+    setTextState(value);
+    updatePracticeInputDraft(inputDraft, { text: value, situation }, options);
+  }
+  function setSituation(value: Situation) {
+    setSituationState(value);
+    updatePracticeInputDraft(inputDraft, { text, situation: value });
+  }
+
+  useEffect(() => {
+    active.current = true;
+    const stop = () => { active.current = false; pending.current?.abort(); pending.current = null; unsaved.current = null; };
+    const leave = () => { stop(); setUnsavedTurn(null); setText(''); setJournal({ version: 1, owner, turns: [] }); setReady(false); setBusy(false); setNotice('화면을 떠나 임시 응답을 비웠어요. 연습 화면을 다시 열어 주세요.'); };
+    window.addEventListener('pagehide', leave);
+    return () => { stop(); window.removeEventListener('pagehide', leave); };
+  }, [owner]);
   useEffect(() => {
     setReady(false);
     if (!active.current) return;
@@ -55,6 +75,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
     catch (e) { setNotice((e as Error).message); return; }
     if (send && !transport) { setNotice('자유 AI 대화 서비스가 연결되지 않았어요. 문장은 연습 기록으로 보관할 수 있어요.'); return; }
     const controller = new AbortController();
+    const submittedInputRevision = inputDraft.revision;
     pending.current = controller; setBusy(true); setNotice('');
     // Bounded end-to-end budget: includes session/auth/network overhead around the 18s provider limit.
     const timeout = setTimeout(() => { controller.abort(); }, 30000);
@@ -62,8 +83,8 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
       const reply = send ? await getConversation(transport!, request, controller.signal) : undefined;
       if (!active.current || controller.signal.aborted || pending.current !== controller) return;
       const turn: Turn = { id: crypto.randomUUID(), text: request.message, situation, review: false, practiced: 0, ...(reply ? { reply } : {}) };
-      if (persist([...current.current.turns, turn])) { setText(''); setNotice(reply ? 'AI 응답과 입력을 이 탭에 보관했어요. 정확성은 직접 확인해 주세요.' : '직접 쓴 문장을 이 탭에 보관했어요. AI가 교정하거나 채점한 결과는 아니에요.'); }
-      else { unsaved.current = { owner, turn }; setUnsavedTurn(turn); }
+      if (persist([...current.current.turns, turn])) { setText('', { expectedRevision: submittedInputRevision }); setNotice(reply ? 'AI 응답과 입력을 이 탭에 보관했어요. 정확성은 직접 확인해 주세요.' : '직접 쓴 문장을 이 탭에 보관했어요. AI가 교정하거나 채점한 결과는 아니에요.'); }
+      else { unsaved.current = { owner, turn, inputRevision: submittedInputRevision }; setUnsavedTurn(turn); }
     } catch (e) {
       if (pending.current === controller) setNotice(controller.signal.aborted ? '기다리는 시간이 길어 답변을 확인하지 못했어요. 입력은 그대로예요. 서버에서 처리됐을 수 있어 자동으로 다시 보내지 않아요.' : e instanceof Error ? e.message : '응답을 받지 못했어요.');
     } finally {
@@ -82,18 +103,11 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
       if (!existing && latest.turns.length >= MAX_TURNS) throw Error('탭 보관 한도에 도달했어요. 받은 응답과 기존 기록은 유지됩니다.');
       if (!existing && !persist([...latest.turns, draft.turn])) return;
       if (existing) { current.current = latest; setJournal(latest); }
-      unsaved.current = null; setUnsavedTurn(null); setText('');
+      unsaved.current = null; setUnsavedTurn(null); setText('', { expectedRevision: draft.inputRevision });
       setNotice('AI를 다시 호출하지 않고 이 탭에 보관했어요.');
     } catch { setNotice('탭 저장을 다시 완료하지 못했어요. 받은 내용은 이 화면에 유지되며 기존 기록은 덮어쓰지 않았어요.'); }
   }
   function cancel() { pending.current?.abort(); pending.current = null; setBusy(false); setNotice('요청을 취소했어요. 입력은 유지했어요.'); }
-  useEffect(() => {
-    active.current = true;
-    const stop = () => { active.current = false; pending.current?.abort(); pending.current = null; unsaved.current = null; };
-    const leave = () => { stop(); setUnsavedTurn(null); setText(''); setJournal({ version: 1, owner, turns: [] }); setReady(false); setBusy(false); setNotice('화면을 떠나 임시 응답을 비웠어요. 연습 화면을 다시 열어 주세요.'); };
-    window.addEventListener('pagehide', leave);
-    return () => { stop(); window.removeEventListener('pagehide', leave); };
-  }, [owner]);
   const visible = journal.turns.filter(t => !reviewOnly || t.review);
   const selected = journal.turns.find(t => t.id === archiveSelection);
   const latest = journal.turns.at(-1);
@@ -104,9 +118,10 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
     <div className="card practice-start">
       <label style={{ display: 'block', marginBottom: 6 }}>이야기 주제 <select style={{ maxWidth: '100%', minHeight: 44 }} value={situation} disabled={busy || !!unsavedTurn} onChange={e => setSituation(e.target.value as Situation)}>{SITUATIONS.map(s => <option key={s}>{s}</option>)}</select></label>
       <label style={{ display: 'block' }} htmlFor="practice-message">일본어 문장</label>
-      <textarea id="practice-message" aria-describedby="practice-input-help" placeholder="こんにちは。 (안녕하세요.)" value={text} maxLength={MAX_TEXT} disabled={!ready || busy || !!unsavedTurn} onChange={e => setText(e.target.value)} rows={2} style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem' }} />
+      <textarea id="practice-message" aria-describedby="practice-input-help" placeholder="こんにちは。 (안녕하세요.)" value={text} maxLength={MAX_TEXT} disabled={!ready || busy || !!unsavedTurn} onChange={e => setText(e.target.value, { claim: true })} rows={2} style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem' }} />
+      <p className="text-xs text-gray-600">입력 중인 문장만 이 탭에서 이어 써요. 새로고침·로그아웃하면 지워져요. 자동 전송하거나 기록에 저장하지 않아요.</p>
       <p id="practice-input-help"><span lang="ja">こんにちは。</span> = 안녕하세요 · 읽기: 곤니치와 <span>({text.length}/{MAX_TEXT}자)</span></p>
-      {!text.trim() && <button type="button" className="practice-example" disabled={!ready || busy || !!unsavedTurn} onClick={() => setText('こんにちは。')}>이 문장으로 시작 (입력만)</button>}
+      {!text.trim() && <button type="button" className="practice-example" disabled={!ready || busy || !!unsavedTurn} onClick={() => setText('こんにちは。', { claim: true })}>이 문장으로 시작 (입력만)</button>}
       {transport ? <>
         <p id="practice-data-use">Google Gemini에 이 문장과 같은 주제의 최근 대화 최대 4쌍을 보내요. 입력·답변은 Google 제품 개선에 쓰일 수 있어요. 다른 앱 기록·녹음은 보내지 않아요. 개인정보는 쓰지 마세요.</p>
         <label style={{ display: 'block', padding: '6px 0', minHeight: 44 }}><input type="checkbox" aria-describedby="practice-data-use" checked={dataUseAcknowledged} disabled={busy} onChange={e => setDataUseAcknowledged(e.target.checked)} />위 내용을 확인하고 전송에 동의해요.</label>
