@@ -367,11 +367,12 @@ export default function DailyWorkoutEditor({
         <p className="text-[13px] font-bold text-gray-800">
           내가 할 운동 {orderedExercises.length}개
         </p>
-        {group.type === "choice" ? (
+        {group.type === "choice" && (
           <p className="mt-2 rounded-xl bg-blue-50 px-3 py-3 text-[12px] text-blue-700">
-            기존 선택 유산소 설정은 유지됩니다. 집에서 할 수 있는 걷기나 휴식을 선택하세요.
+            기존 유산소 선택은 그대로예요. 아래에서 더한 운동은 휴식을 제외한 선택에 함께 표시돼요. 휴식을 고르면 추가 운동도 진행하지 않아요.
           </p>
-        ) : (
+        )}
+        {(
           <div className="mt-2 grid grid-cols-1 gap-2">
             {orderedExercises.map((exercise, index) => {
               const custom = currentEdit.customExercises?.find(item => item.id === exercise.exerciseId);
@@ -438,7 +439,7 @@ export default function DailyWorkoutEditor({
         )}
       </div>
 
-      {group.type !== "choice" && (
+      {(
         <div className="mt-4 rounded-2xl border border-gray-100 p-3">
           <p className="text-sm font-bold">집에서 할 운동 찾기</p>
           <label htmlFor={equipmentSelectId} className="mt-2 block text-sm">운동 도구 고르기</label>
