@@ -57,8 +57,13 @@ export default function WeightChart({
   onGoalChange,
 }: Props) {
   // Pristine inputs follow saved-goal hydration. Once edited, keep the complete
-  // pair until an explicit successful save, including during background refresh.
+  // pair until saved or explicitly returned to the currently saved values.
   const [goalDraft, setGoalDraft] = useState<{ minimum: string; maximum: string } | null>(null);
+  const updateGoalDraft = (next: { minimum: string; maximum: string }) => {
+    const matchesSaved = next.minimum.trim() !== "" && next.maximum.trim() !== ""
+      && Number(next.minimum) === goal.minKg && Number(next.maximum) === goal.maxKg;
+    setGoalDraft(matchesSaved ? null : next);
+  };
   const minimumDraft = goalDraft?.minimum ?? String(goal.minKg);
   const maximumDraft = goalDraft?.maximum ?? String(goal.maxKg);
   useUnsavedChanges(goalDraft !== null);
@@ -390,7 +395,7 @@ export default function WeightChart({
                 required
                 value={minimumDraft}
                 onChange={(event) => {
-                  setGoalDraft({ minimum: event.target.value, maximum: maximumDraft });
+                  updateGoalDraft({ minimum: event.target.value, maximum: maximumDraft });
                   setGoalMessage("");
                 }}
                 className="min-w-0 flex-1 py-2 text-[14px] outline-none"
@@ -409,7 +414,7 @@ export default function WeightChart({
                 required
                 value={maximumDraft}
                 onChange={(event) => {
-                  setGoalDraft({ minimum: minimumDraft, maximum: event.target.value });
+                  updateGoalDraft({ minimum: minimumDraft, maximum: event.target.value });
                   setGoalMessage("");
                 }}
                 className="min-w-0 flex-1 py-2 text-[14px] outline-none"
