@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useUnsavedChanges } from "../../components/useUnsavedChanges";
 import type {
   InbodyRecordStore,
   WeightGoal,
@@ -55,8 +56,12 @@ export default function WeightChart({
   cutoffDateKey,
   onGoalChange,
 }: Props) {
-  const [minimumDraft, setMinimumDraft] = useState(String(goal.minKg));
-  const [maximumDraft, setMaximumDraft] = useState(String(goal.maxKg));
+  // Pristine inputs follow saved-goal hydration. Once edited, keep the complete
+  // pair until an explicit successful save, including during background refresh.
+  const [goalDraft, setGoalDraft] = useState<{ minimum: string; maximum: string } | null>(null);
+  const minimumDraft = goalDraft?.minimum ?? String(goal.minKg);
+  const maximumDraft = goalDraft?.maximum ?? String(goal.maxKg);
+  useUnsavedChanges(goalDraft !== null);
   const [goalMessage, setGoalMessage] = useState("");
 
   const summary = getWeightManagementSummary(
@@ -136,7 +141,13 @@ export default function WeightChart({
       setGoalMessage("최소 목표는 최대 목표보다 작게, 30~250kg 안에서 입력해주세요.");
       return;
     }
-    onGoalChange({ minKg, maxKg });
+    try {
+      onGoalChange({ minKg, maxKg });
+    } catch {
+      setGoalMessage("목표를 저장하지 못했어요. 입력한 값은 그대로예요. 저장 공간을 확인한 뒤 다시 저장해 주세요.");
+      return;
+    }
+    setGoalDraft(null);
     setGoalMessage(`목표를 ${minKg.toFixed(1)}~${maxKg.toFixed(1)}kg로 저장했습니다.`);
   };
 
@@ -363,6 +374,7 @@ export default function WeightChart({
         <summary className="cursor-pointer px-3 py-3 text-[12px] font-bold text-gray-600">
           목표 체중 바꾸기
         </summary>
+        {goalDraft !== null && <p role="status" className="px-3 pt-3 text-[12px] text-amber-800">아직 저장하지 않았어요. 목표를 확인하고 ‘목표 저장’을 눌러 주세요.</p>}
         <form
           onSubmit={saveGoal}
           className="grid gap-3 border-t border-gray-100 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
@@ -378,7 +390,7 @@ export default function WeightChart({
                 required
                 value={minimumDraft}
                 onChange={(event) => {
-                  setMinimumDraft(event.target.value);
+                  setGoalDraft({ minimum: event.target.value, maximum: maximumDraft });
                   setGoalMessage("");
                 }}
                 className="min-w-0 flex-1 py-2 text-[14px] outline-none"
@@ -397,7 +409,7 @@ export default function WeightChart({
                 required
                 value={maximumDraft}
                 onChange={(event) => {
-                  setMaximumDraft(event.target.value);
+                  setGoalDraft({ minimum: minimumDraft, maximum: event.target.value });
                   setGoalMessage("");
                 }}
                 className="min-w-0 flex-1 py-2 text-[14px] outline-none"
