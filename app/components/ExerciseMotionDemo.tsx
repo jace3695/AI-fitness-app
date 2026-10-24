@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useMotionDisclosurePause } from '../../hooks/useMotionDisclosurePause';
 import { advanceMotion, clampProgress, exerciseMotionPose, exerciseMotions, motionId, type MotionId } from '../lib/exerciseMotion';
 import { supportedMotionId, supportedExerciseMotions } from '../lib/supportedExerciseMotion';
 import SupportedExerciseFigure from './SupportedExerciseFigure';
@@ -58,6 +59,8 @@ function MotionPlayer({ id }: { id: MotionId }) {
   const [slow, setSlow] = useState(false);
   const [reduced, setReduced] = useState(false);
   const position = useRef(0);
+  const panel = useRef<HTMLElement>(null);
+  useMotionDisclosurePause(panel, setPlaying);
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
     const preference = () => { setReduced(query.matches); if (query.matches) setPlaying(false); };
@@ -65,7 +68,9 @@ function MotionPlayer({ id }: { id: MotionId }) {
     preference();
     query.addEventListener('change', preference);
     document.addEventListener('visibilitychange', visibility);
-    return () => { query.removeEventListener('change', preference); document.removeEventListener('visibilitychange', visibility); };
+    return () => {
+      query.removeEventListener('change', preference); document.removeEventListener('visibilitychange', visibility);
+    };
   }, []);
   useEffect(() => {
     if (!playing || reduced) return;
@@ -108,7 +113,7 @@ function MotionPlayer({ id }: { id: MotionId }) {
   const phase = catId ? catCowPhase(progress) : walkId ? loopWalkPhase(walkId, progress) : alternatingId ? alternatingPhase(alternatingId, progress) : progress < .5 ? asset.outward : asset.returning;
   const source = lowerId ? lowerBodyExerciseMotions[lowerId] : alternatingId ? alternatingExerciseMotions[alternatingId] : bandId ? bandRowGuide : floorId ? floorPressGuide : rotationId ? bandRotationGuide : pullId ? pullApartGuide : pallofId ? pallofGuide : gobletId ? gobletGuide : walkId ? loopWalkGuides[walkId] : supportedRowId ? supportedRowGuide : latId ? latPulldownGuide : faceId ? facePullGuide : catId ? catCowGuide : kneeId ? kneePlankGuide : pelvicId ? pelvicTiltGuide : assistedBarId ? assistedBarGuide : null;
   const seated = id === 'seated-knee-extension';
-  return <section aria-label={`${asset.name} 자체 시범`} className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-slate-800">
+  return <section ref={panel} aria-label={`${asset.name} 자체 시범`} className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-slate-800">
     <p className="font-bold">{asset.name} · 자체 제작 {supportedGuide?.view || '측면'} 도해</p>
     <p className="mt-1 text-xs">동작 이해를 위한 단순 도해이며 의료 처방이 아닙니다. 전문가의 자세 검증을 받지 않았고, 허리 질환에 안전하다고 보장하지 않습니다.</p>
     {assistedBarId ? <AssistedBarFigure progress={progress} label={`${asset.name}: ${phase}`} /> : pelvicId ? <PelvicTiltFigure progress={progress} label={`${asset.name}: ${phase}`} /> : kneeId ? <KneePlankFigure progress={progress} label={`${asset.name}: ${phase}`} /> : catId ? <CatCowFigure progress={progress} label={`${asset.name}: ${phase}`} /> : faceId ? <FacePullFigure progress={progress} label={`${asset.name}: ${phase}`} /> : latId ? <LatPulldownFigure progress={progress} label={`${asset.name}: ${phase}`} /> : supportedRowId ? <SupportedRowFigure progress={progress} label={`${asset.name}: ${phase}`} /> : walkId ? <LoopWalkFigure id={walkId} progress={progress} label={`${asset.name}: ${phase}`} /> : gobletId ? <GobletFigure progress={progress} label={`${asset.name}: ${phase}`} /> : pallofId ? <PallofFigure progress={progress} label={`${asset.name}: ${phase}`} /> : pullId ? <PullApartFigure progress={progress} label={`${asset.name}: ${phase}`} /> : rotationId ? <BandRotationFigure progress={progress} label={`${asset.name}: ${phase}`} /> : floorId ? <FloorPressFigure progress={progress} label={`${asset.name}: ${phase}`} /> : bandId ? <BandRowFigure progress={progress} label={`${asset.name}: ${phase}`} /> : alternatingId ? <AlternatingExerciseFigure id={alternatingId} progress={progress} label={`${asset.name}: ${phase}`} /> : lowerId ? <LowerBodyExerciseFigure id={lowerId} progress={progress} label={`${asset.name}: ${phase}`} /> : supportedId ? <SupportedExerciseFigure id={supportedId} progress={progress} label={`${asset.name}: ${phase}`} /> : <svg viewBox="0 0 300 300" role="img" aria-label={`${asset.name}: ${phase}`} className="mx-auto w-full max-w-72">

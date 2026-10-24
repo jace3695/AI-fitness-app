@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useMotionDisclosurePause } from '../../hooks/useMotionDisclosurePause';
 import { wallPushupPose } from '../lib/wallPushupMotion';
 
 /** Drawn in code for this app. No external imagery, motion files or requests. */
@@ -11,6 +12,8 @@ export default function WallPushupDemo() {
   const [progress, setProgress] = useState(0);
   const [reduced, setReduced] = useState(false);
   const position = useRef(0);
+  const panel = useRef<HTMLElement>(null);
+  useMotionDisclosurePause(panel, setPlaying);
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
     const preference = () => { setReduced(query.matches); if (query.matches) setPlaying(false); };
@@ -42,7 +45,7 @@ export default function WallPushupDemo() {
   const seek = (value: number) => { setPlaying(false); position.current = value; setProgress(value); };
   const pose = wallPushupPose(progress);
   const points = (...names: (keyof typeof pose)[]) => names.map(name => `${pose[name].x},${pose[name].y}`).join(' ');
-  return <section aria-label="벽 푸시업 측면 도해" className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-slate-800">
+  return <section ref={panel} aria-label="벽 푸시업 측면 도해" className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-sm text-slate-800">
     <p className="font-bold">벽 푸시업 · 자체 제작 측면 도해</p>
     <p className="mt-1 text-xs">손과 발을 고정하고 팔꿈치를 굽혔다 펴는 흐름을 보여 줍니다. 손 간격·팔꿈치 벌림·견갑 움직임과 개인별 가동 범위는 표현하지 않습니다. 전문가의 자세 검증을 받은 시범은 아닙니다.</p>
     <svg viewBox="0 0 300 300" role="img" aria-label="벽에 손을 대고 몸통을 곧게 유지하는 사람 형태의 측면 도해" className="mx-auto w-full max-w-72">

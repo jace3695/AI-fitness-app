@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {useMotionDisclosurePause} from '../../hooks/useMotionDisclosurePause';
 import {advanceMotion,clampProgress} from '../lib/exerciseMotion';
 
 
@@ -22,6 +23,8 @@ export default function StagedMotionDemo({title,intro,stages,renderFigure}:Props
 function StagePlayer({index,stage,renderFigure}:{index:number;stage:MotionStage;renderFigure:Props["renderFigure"]}){
  const [playing,setPlaying]=useState(false),[progress,setProgress]=useState(0),[loop,setLoop]=useState(false),[slow,setSlow]=useState(false),[reduced,setReduced]=useState(false);
  const position=useRef(0);
+ const panel=useRef<HTMLDivElement>(null);
+ useMotionDisclosurePause(panel,setPlaying);
  useEffect(()=>{
   const media=window.matchMedia('(prefers-reduced-motion: reduce)');
   const preference=()=>{setReduced(media.matches);if(media.matches)setPlaying(false);};
@@ -46,7 +49,7 @@ function StagePlayer({index,stage,renderFigure}:{index:number;stage:MotionStage;
   <p className="font-semibold">{index+1}. {stage.name}</p>
   <p className="mt-2">{stage.guide}</p>
   <p className="mt-2 text-xs">통증·저림·어지럼·균형 불안정이 있으면 중단하세요. 그림의 확대·속도·크기·반복은 운동 처방이 아닙니다.</p>
-  <div className="mt-3 flex flex-wrap items-center gap-3">
+  <div ref={panel} className="mt-3 flex flex-wrap items-center gap-3">
    <button type="button" className="min-h-11 rounded bg-indigo-700 px-3 text-white disabled:opacity-50" aria-pressed={playing} disabled={reduced||stage.isStatic} onClick={()=>{if(position.current>=1){position.current=0;setProgress(0);}setPlaying(v=>!v);}}>{playing?'일시정지':'재생'}</button>
    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" disabled={stage.isStatic} checked={loop} onChange={e=>setLoop(e.target.checked)}/>반복</label>
    <label className="flex min-h-11 items-center gap-2"><input type="checkbox" disabled={stage.isStatic} checked={slow} onChange={e=>setSlow(e.target.checked)}/>느리게 (0.5배)</label>
