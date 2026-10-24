@@ -9,7 +9,7 @@ import type { AssistantCommandProposal } from '@/lib/assistant-command-drafts';
 
 export function AssistantCommandReview(props: {
   proposal: AssistantCommandProposal; ownerId?: string; initiallyAttempted?: boolean;
-  onChanged?: () => void | Promise<void>; onAttempt?: () => Promise<void>; onSettled?: () => Promise<void>;
+  onChanged?: () => void | Promise<void>; onAttempt?: (signal?: AbortSignal) => Promise<void>; onSettled?: (signal?: AbortSignal) => Promise<void>;
 }) {
   if (props.proposal.domain === 'growth') return <AssistantGrowthReview {...props} proposal={props.proposal} />;
   if (props.proposal.domain === 'diet') return <AssistantDietReview {...props} proposal={props.proposal} />;

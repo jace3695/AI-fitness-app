@@ -31,8 +31,10 @@ export function useTaskCommandDrafts() {
     return () => data?.subscription.unsubscribe();
   }, []);
 
-  const change = useCallback(async (update: (items: CommandDraft[]) => CommandDraft[], keepDisplayed = false, expectedOwner = owner.current) => {
+  const change = useCallback(async (update: (items: CommandDraft[]) => CommandDraft[], keepDisplayed = false, expectedOwner = owner.current, signal?: AbortSignal) => {
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
     const session = await supabase?.auth.getSession();
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
     if (!expectedOwner || session?.data.session?.user.id !== expectedOwner || owner.current !== expectedOwner) {
       throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
     }
@@ -46,7 +48,7 @@ export function useTaskCommandDrafts() {
     if (items.length >= 20) throw new Error('확인 대기 명령이 20개입니다. 기존 명령을 확인하거나 닫은 뒤 다시 입력해 주세요.');
     return [...items, { proposal, attempted: false }];
   }, false, requestedOwner), [change]);
-  const markAttempted = useCallback((id: string) => change(items => items.map(item => item.proposal.requestId === id ? { ...item, attempted: true } : item)), [change]);
-  const remove = useCallback((id: string) => change(items => items.filter(item => item.proposal.requestId !== id), true), [change]);
+  const markAttempted = useCallback((id: string, signal?: AbortSignal) => change(items => items.map(item => item.proposal.requestId === id ? { ...item, attempted: true } : item), false, owner.current, signal), [change]);
+  const remove = useCallback((id: string, signal?: AbortSignal) => change(items => items.filter(item => item.proposal.requestId !== id), true, owner.current, signal), [change]);
   return { drafts, ownerId, ready, error, add, markAttempted, remove };
 }

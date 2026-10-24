@@ -8,20 +8,72 @@ import { workoutRecordStatus, type WorkoutCommandProposal, type WorkoutCommandRe
 import { describeWorkoutCardio, nextWorkoutCardioSnapshot } from '@/lib/assistant-workout-cardio-command';
 import { taskCommandDateLabel } from '@/lib/assistant-task-command';
 
-async function workoutRequest(body?: unknown, offset = 0, ownerId?: string) {
-  const session = (await supabase?.auth.getSession())?.data.session;
-  if (!session) throw new Error('로그인이 필요합니다.');
-  if (ownerId && session.user.id !== ownerId) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
-  const response = await fetch(`/api/assistant/workout-commands${body ? '' : `?offset=${offset}`}`, {
-    method: body ? 'POST' : 'GET', cache: 'no-store',
-    headers: { Authorization: `Bearer ${session.access_token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-  const result = await response.json();
-  if ((await supabase?.auth.getSession())?.data.session?.user.id !== session.user.id) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
-  if (!response.ok) throw new Error(result.error || '운동 실행 이력을 확인하지 못했습니다.');
-  return result;
+function checkWorkoutWait(signal: AbortSignal) {
+  if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
 }
+
+async function withinWorkoutWait<T>(operation: (signal: AbortSignal) => Promise<T>, lifetime: AbortSignal, message: string): Promise<T> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (lifetime.aborted) abort();
+  lifetime.addEventListener("abort", abort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let abortWait: () => void;
+  let timedOut = false;
+  const cancelled = new Promise<never>((_, reject) => {
+    abortWait = () => reject(new DOMException("Cancelled", "AbortError"));
+    controller.signal.addEventListener("abort", abortWait, { once: true });
+  });
+  try {
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => { timedOut = true; reject(new Error("timeout")); controller.abort(); }, 15000);
+    });
+    checkWorkoutWait(controller.signal);
+    return await Promise.race([operation(controller.signal), deadline, cancelled]);
+  } catch (failure) {
+    if (timedOut) throw new Error(message);
+    throw failure;
+  } finally {
+    clearTimeout(timer);
+    lifetime.removeEventListener("abort", abort);
+    controller.signal.removeEventListener("abort", abortWait!);
+  }
+}
+
+async function workoutRequest(body: unknown, offset: number, ownerId: string | undefined, signal: AbortSignal) {
+  checkWorkoutWait(signal);
+    const session = (await supabase?.auth.getSession())?.data.session;
+    checkWorkoutWait(signal);
+    if (!session) throw new Error('로그인이 필요합니다.');
+    if (ownerId && session.user.id !== ownerId) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
+    const response = await fetch(`/api/assistant/workout-commands${body ? '' : `?offset=${offset}`}`, {
+      signal,
+      method: body ? 'POST' : 'GET', cache: 'no-store',
+      headers: { Authorization: `Bearer ${session.access_token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    checkWorkoutWait(signal);
+    const result = await response.json();
+    checkWorkoutWait(signal);
+    const currentSession = (await supabase?.auth.getSession())?.data.session;
+    checkWorkoutWait(signal);
+    if (currentSession?.user.id !== session.user.id) throw new Error('로그인 계정이 변경됐습니다. 화면을 다시 열어 주세요.');
+    if (!response.ok) throw new Error(result.error || '운동 실행 이력을 확인하지 못했습니다.');
+    return result;
+
+
+}
+
+function useWorkoutRequestLifetime() {
+  const active = useRef<AbortController | null>(null);
+  useEffect(() => () => active.current?.abort(), []);
+  return useCallback(() => {
+    active.current?.abort();
+    active.current = new AbortController();
+    return active.current;
+  }, []);
+}
+
 const describe = (records: WorkoutCommandReceipt['before_values']) => workoutRecordStatus(records) === 'completed' ? '운동 완료' : '일반 운동 완료 기록 없음';
 
 export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: WorkoutCommandReceipt; onChanged?: () => void | Promise<void> }) {
@@ -30,17 +82,24 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const beginRequest = useWorkoutRequestLifetime();
   const cardio = saved.command_kind === 'cardio';
   const feedback = saved.command_kind === 'feedback';
   const describeRecord = feedback ? describeWorkoutFeedback : cardio ? describeWorkoutCardio : describe;
   const undo = async () => {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError('');
+    const request = beginRequest();
+    let acknowledged = false;
     try {
-      const result = await workoutRequest({ decision: 'undo', requestId: saved.id }, 0, saved.user_id);
-      setSaved(result.receipt); setConfirm(false); await onChanged?.();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '되돌리기 결과를 확인하지 못했습니다.'); }
-    finally { lock.current = false; setBusy(false); }
+      await withinWorkoutWait(async signal => {
+        const result = await workoutRequest({ decision: 'undo', requestId: saved.id }, 0, saved.user_id, signal);
+        checkWorkoutWait(signal);
+        acknowledged = true; setSaved(result.receipt); setConfirm(false);
+        await onChanged?.(); checkWorkoutWait(signal);
+      }, request.signal, '되돌리기 결과를 아직 확인하지 못했어요. 서버 처리는 계속될 수 있으니 실행 이력을 확인해 주세요.');
+    } catch (failure) { if (!request.signal.aborted) setError(acknowledged ? '되돌리기는 확인됐어요. 목록 새로고침을 마치지 못했어요.' : failure instanceof Error ? failure.message : '되돌리기 결과를 확인하지 못했습니다.'); }
+    finally { if (!request.signal.aborted) { lock.current = false; setBusy(false); } }
   };
   return <article aria-label="운동 실행 이력" className="rounded-2xl border border-violet-100 bg-white p-4 text-sm text-gray-800">
     <p className="font-bold">{saved.record_date} · {feedback ? '운동 상세' : cardio ? '유산소' : '운동'}</p>
@@ -56,7 +115,7 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
 
 export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initiallyAttempted = false, onAttempt, onSettled }: {
   proposal: WorkoutCommandProposal; onChanged?: () => void | Promise<void>; ownerId?: string;
-  initiallyAttempted?: boolean; onAttempt?: () => Promise<void>; onSettled?: () => Promise<void>;
+  initiallyAttempted?: boolean; onAttempt?: (signal?: AbortSignal) => Promise<void>; onSettled?: (signal?: AbortSignal) => Promise<void>;
 }) {
   const [receipt, setReceipt] = useState<WorkoutCommandReceipt | null>(null);
   const [cancelled, setCancelled] = useState(false);
@@ -65,6 +124,7 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
   const [expired, setExpired] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const beginRequest = useWorkoutRequestLifetime();
   const title = proposal.change ? proposal.change.kind==='feedback'?'운동 상세 확인':'유산소 기록 확인' : '운동 완료 확인';
   useEffect(() => {
     if (receipt || cancelled) return;
@@ -75,19 +135,32 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
   const apply = async () => {
     if (lock.current || receipt || cancelled) return;
     lock.current = true; setBusy(true); setError('');
+    const request = beginRequest();
+    let acknowledged = false;
     try {
-      await onAttempt?.(); setAttempted(true);
-      const result = await workoutRequest({ decision: 'apply', proposal }, 0, ownerId ?? proposal.ownerId);
-      setReceipt(result.receipt); await onSettled?.(); await onChanged?.();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '운동 저장 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인해 주세요.'); }
-    finally { lock.current = false; setBusy(false); }
+      await withinWorkoutWait(async signal => {
+        await onAttempt?.(signal); checkWorkoutWait(signal);
+        setAttempted(true);
+        const result = await workoutRequest({ decision: 'apply', proposal }, 0, ownerId ?? proposal.ownerId, signal);
+        checkWorkoutWait(signal);
+        acknowledged = true; setReceipt(result.receipt);
+        await onSettled?.(signal); checkWorkoutWait(signal);
+        await onChanged?.(); checkWorkoutWait(signal);
+      }, request.signal, '저장 결과를 아직 확인하지 못했어요. 서버 처리는 계속될 수 있어요. 같은 요청으로 다시 확인하거나 실행 이력을 확인해 주세요.');
+    } catch (failure) { if (!request.signal.aborted) setError(acknowledged ? '저장 결과는 확인됐어요. 화면 정리를 마치지 못했으니 실행 이력을 확인해 주세요.' : failure instanceof Error ? failure.message : '운동 저장 결과를 확인하지 못했습니다. 같은 요청으로 다시 확인해 주세요.'); }
+    finally { if (!request.signal.aborted) { lock.current = false; setBusy(false); } }
   };
   const cancel = async () => {
     if (lock.current) return;
     lock.current = true; setBusy(true);
-    try { await onSettled?.(); setCancelled(true); }
-    catch (failure) { setError(failure instanceof Error ? failure.message : '확인 화면을 닫지 못했습니다.'); }
-    finally { lock.current = false; setBusy(false); }
+    const request = beginRequest();
+    try {
+      await withinWorkoutWait(async signal => {
+        await onSettled?.(signal); checkWorkoutWait(signal); setCancelled(true);
+      }, request.signal, '확인 화면을 아직 닫지 못했어요. 잠시 뒤 다시 눌러 주세요.');
+    }
+    catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : '확인 화면을 닫지 못했습니다.'); }
+    finally { if (!request.signal.aborted) { lock.current = false; setBusy(false); } }
   };
   if (cancelled) return <p role="status" className="mt-3 text-gray-600">{attempted ? '확인 화면을 닫았습니다. 저장 여부는 실행 이력에서 확인해 주세요.' : '취소했습니다. 운동 기록은 변경하지 않았습니다.'}</p>;
   if (receipt) return <div className="mt-3">{error && <p role="alert" className="text-red-700">{error}</p>}<AssistantWorkoutReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history?area=workout" className="mt-2 inline-block font-bold text-violet-700">운동 실행 이력 보기 →</Link><Link href="/fitness" className="ml-4 inline-block font-bold text-violet-700">운동 기록 보기 →</Link></div>;
@@ -113,17 +186,21 @@ export function AssistantWorkoutHistory() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const beginRequest = useWorkoutRequestLifetime();
   const load = useCallback(async (offset = 0) => {
     if (lock.current) return;
     lock.current = true; setLoading(true); setError('');
+    const request = beginRequest();
     try {
-      const result = await workoutRequest(undefined, offset);
+      const result = await withinWorkoutWait(signal => workoutRequest(undefined, offset, undefined, signal), request.signal,
+        '이력을 아직 불러오지 못했어요. 잠시 뒤 새로고침을 눌러 주세요.');
+      if (request.signal.aborted) return;
       setHistory(current => offset ? [...current, ...result.history].filter((row, index, rows) => rows.findIndex(other => other.id === row.id) === index) : result.history);
       setHasMore(result.history.length === 20);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '운동 실행 이력을 불러오지 못했습니다.'); }
-    finally { lock.current = false; setLoading(false); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
+    } catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : '운동 실행 이력을 불러오지 못했습니다.'); }
+    finally { if (!request.signal.aborted) { lock.current = false; setLoading(false); } }
+  }, [beginRequest]);
+  useEffect(() => { void load(); return () => { lock.current = false; }; }, [load]);
   return <section aria-label="운동 실행 이력 목록"><p className="mt-2 text-sm leading-6 text-gray-600">연이 대화·빠른 명령에서 확인하고 저장한 운동 완료·유산소 기록 이력입니다.</p>
     <button type="button" disabled={loading} onClick={() => void load()} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-700 disabled:opacity-50">이력 새로고침</button>
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}

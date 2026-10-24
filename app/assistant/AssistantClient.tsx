@@ -686,7 +686,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
                 }
               }} className="mt-2 inline-block rounded-full bg-[#F1EFFF] px-3 py-1.5 text-xs font-bold text-[#5146A6]">{chat.action.label} →</Link>}{chat.role === 'assistant' && chat.id !== 'welcome' && !chat.localOnly && !chat.historyOnly && <ZephyrReadButton text={chat.text} />}</div></div>)}
           {pending.error && <p role="alert" className="text-red-700">{pending.error}</p>}
-          {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={() => pending.markAttempted(draft.proposal.requestId)} onSettled={() => pending.remove(draft.proposal.requestId)} onChanged={load} />)}
+          {pending.drafts.map(draft => <AssistantCommandReview key={`${pending.ownerId}:${draft.proposal.requestId}`} proposal={draft.proposal} ownerId={pending.ownerId ?? undefined} initiallyAttempted={draft.attempted} onAttempt={(signal) => pending.markAttempted(draft.proposal.requestId, signal)} onSettled={(signal) => pending.remove(draft.proposal.requestId, signal)} onChanged={load} />)}
           {chatSending && <p className="text-xs font-semibold text-[#766DB8]">답변을 준비하고 있어요…</p>}
         </div>
         <p className="mt-2 text-xs text-gray-600">인바디·체성분·BMI 질문은 브라우저 안에서 답하며 일반 서버 대화 이력이나 음성 읽기에 포함하지 않습니다. 아래 별도 동의 보관을 선택할 때만 확인한 질문·답변을 계정에 보냅니다.</p>
