@@ -89,8 +89,9 @@ function QuickCommandContent() {
         <section className="mt-5 rounded-[28px] bg-white p-5 shadow-sm sm:p-6">
           <label htmlFor="quick-command" className="text-sm font-bold">실행할 명령</label>
           <textarea id="quick-command" value={command} onChange={(event) => setCommand(event.target.value)} maxLength={500} rows={3} placeholder="예: 오늘 할 일에 거래처 전화 추가해줘" className="mt-2 w-full resize-none rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <p className="mt-2 text-xs leading-5 text-gray-600">{sending ? '처리 중에는 예시를 바꾸지 않아요.' : command.trim() ? '작성 중인 명령은 유지해요. 다른 예시는 입력을 지운 뒤 고르세요.' : '예시를 고르면 입력만 채워져요. 실행은 아래 버튼을 눌러요.'}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {samples.map((sample) => <button key={sample} type="button" onClick={() => setCommand(sample)} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">{sample}</button>)}
+            {samples.map((sample) => <button key={sample} type="button" disabled={sending || Boolean(command.trim())} onClick={() => { if (!sending) setCommand(current => current.trim() ? current : sample); }} className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6] disabled:opacity-50">{sample}</button>)}
           </div>
           <div role="note" className="mt-4 rounded-2xl bg-[#F7F6FF] px-4 py-3 text-sm leading-6 text-[#5146A6]"><b>Zephyr 음성</b><p>답변의 ‘답변 읽기’를 누르면 음성을 준비해요. 자동으로 읽거나 생성하지 않아요.</p></div>
           <button type="button" onClick={() => void run()} disabled={sending || !command.trim() || !draftsReady} className="mt-4 w-full rounded-2xl bg-[#5146A6] px-5 py-3.5 text-sm font-bold text-white disabled:bg-gray-300">{sending ? "처리 중…" : shouldAutoRun && !result ? "자동 실행 준비 중…" : "명령 실행"}</button>

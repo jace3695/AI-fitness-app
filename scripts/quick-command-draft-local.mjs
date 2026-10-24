@@ -1,0 +1,22 @@
+import {build} from './browser-qa/node_modules/esbuild/lib/main.js';
+import {chromium,expect} from '@playwright/test';
+import {createServer} from 'node:http';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const out='scripts/browser-qa/.generated/quick-command-draft';mkdirSync(out,{recursive:true});
+const api=`export const supabase={auth:{
+ getUser:async()=>({data:{user:{id:'synthetic'}}}),
+ getSession:async()=>({data:{session:{user:{id:'synthetic'},access_token:'synthetic'}}}),
+ onAuthStateChange(fn){queueMicrotask(()=>fn('INITIAL_SESSION',{user:{id:'synthetic'}}));return {data:{subscription:{unsubscribe(){}}}};}
+}};`;
+const bundle=await build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import Page from'./app/assistant/quick/page';createRoot(document.getElementById('root')).render(<Page/>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,jsx:'automatic',tsconfig:'tsconfig.json',plugins:[{name:'no-service',setup(b){b.onResolve({filter:/supabase$/},()=>({path:'api',namespace:'qa'}));b.onResolve({filter:/next\/navigation$/},()=>({path:'navigation',namespace:'qa'}));b.onResolve({filter:/next\/link$/},()=>({path:'link',namespace:'qa'}));b.onResolve({filter:/\/(ZephyrReadButton|AssistantCommandReview)$/},()=>({path:'ui',namespace:'qa'}));b.onLoad({filter:/.*/,namespace:'qa'},({path})=>({resolveDir:process.cwd(),loader:'tsx',contents:path==='api'?api:path==='navigation'?`export const useSearchParams=()=>new URLSearchParams('')`:path==='link'?`import React from'react';export default p=><a {...p}/>`:`export default()=>null;export const AssistantCommandReview=()=>null`}));}}]});
+const server=createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript':'text/html;charset=utf-8');res.end(req.url==='/app.js'?bundle.outputFiles[0].text:'<html lang="ko"><meta charset="utf-8"><div id="root"></div><script src="/app.js"></script></html>')});
+let browser,context,finish,failure;const passed=[],errors=[],external=[];let requests=0;
+try{
+ await new Promise((r,j)=>{server.once('error',j);server.listen(0,'127.0.0.1',r)});const base='http://127.0.0.1:'+server.address().port;
+ browser=await chromium.launch({channel:'msedge',headless:true});context=await browser.newContext();await context.route('**/*',async r=>{if(r.request().url()===base+'/api/assistant/chat'){requests++;await new Promise(resolve=>finish=resolve);return r.fulfill({contentType:'application/json',body:JSON.stringify({reply:'synthetic response'})})}if(r.request().url().startsWith(base))return r.continue();external.push('blocked external');return r.abort()});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base);const input=page.getByLabel('실행할 명령',{exact:true}),sample=page.getByRole('button',{name:'오늘 브리핑 보여줘',exact:true});
+ await input.fill('작성 중인 합성 명령');await expect(sample).toBeDisabled();await input.press('Tab');await expect(sample).not.toBeFocused();await expect(input).toHaveValue('작성 중인 합성 명령');assert.equal(requests,0);passed.push('written quick command cannot be overwritten by a sample or keyboard action');
+ await input.fill('');await expect(sample).toBeEnabled();await sample.focus();await page.keyboard.press('Enter');await expect(input).toHaveValue('오늘 브리핑 보여줘');assert.equal(requests,0);passed.push('blank form sample fills only; no auto request');
+ await page.getByRole('button',{name:'명령 실행',exact:true}).click();await expect.poll(()=>requests).toBe(1);await input.fill('');await expect(sample).toBeDisabled();finish();await expect(page.getByRole('status')).toContainText('synthetic response');await expect(sample).toBeEnabled();assert.equal(requests,1);passed.push('even empty input cannot select samples during a pending explicit synthetic request');
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+}catch(e){failure=String(e)}finally{finish?.();await context?.close();await browser?.close();await new Promise(r=>server.close(r));const result={passed,errors,external,syntheticLocalRequests:requests,failure,scope:'actual QuickCommand page and draft hook; mock auth/URL and one held local JSON response; no service/AI/record writes'};writeFileSync(out+(process.env.QA_PHASE==='before'?'/before.json':'/result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2))}if(failure)process.exitCode=1;
