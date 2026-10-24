@@ -100,6 +100,7 @@ const inbodyFields = fieldGroups.flatMap((group) => group.fields);
 interface Props {
   dateKey: string;
   onDateChange?: (date: string) => void;
+  onManualDraftChange?: (dirty: boolean) => void;
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
   onChange: (next: {
@@ -114,12 +115,14 @@ export default function BodyRecordCard({
   inbody,
   onChange,
   onDateChange,
+  onManualDraftChange,
 }: Props) {
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
   const [form, setForm] = useState<Record<string, string>>({});
   const manualEdit = useRef({ date: dateKey, dirty: false });
   const [manualDirty, setManualDirty] = useState(false);
+  useEffect(() => { onManualDraftChange?.(manualDirty); }, [manualDirty, onManualDraftChange]);
   const [confirmedPro, setConfirmedPro] = useState(false);
   const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[]; sourceMeasurements: OaDraftMeasurement[]; autoMappedKeys: string[]; metricSources: BodyMetricSources } | null>(null);
   useUnsavedChanges(Boolean(draft) || manualDirty);

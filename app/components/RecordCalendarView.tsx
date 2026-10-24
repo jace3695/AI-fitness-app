@@ -96,6 +96,7 @@ export default function RecordCalendarView() {
   const [selected, setSelected] = useState(todayKey);
   const [recordTab, setRecordTab] = useState<"summary" | "body" | "workout">("summary");
   const [timePending, setTimePending] = useState(false);
+  const [manualBodyPending, setManualBodyPending] = useState(false);
   const [stores, setStores] = useState<RecordStores | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteNotice, setNoteNotice] = useState("");
@@ -491,7 +492,10 @@ export default function RecordCalendarView() {
               <button
                 key={key}
                 disabled={timePending}
-                onClick={() => { setSelected(key); setWorkoutNotice(""); }}
+                onClick={() => {
+                  if (key !== selected && manualBodyPending && !window.confirm("작성 중인 체중·인바디 입력을 비우고 다른 날짜로 갈까요? 아직 저장하지 않았어요.")) return;
+                  setSelected(key); setWorkoutNotice("");
+                }}
                 className={`min-h-[60px] rounded-lg border p-1 text-left transition sm:min-h-[68px] sm:rounded-xl sm:p-1.5 ${isSelected ? "border-[#534AB7] bg-[#EEEDFE]" : isToday ? "border-[#AFA9EC] bg-white" : "border-gray-100 bg-gray-50"}`}
               >
                 <span
@@ -532,6 +536,7 @@ export default function RecordCalendarView() {
         <div className="space-y-4">
           <h2 className="text-[18px] font-bold text-gray-900">{formatKoreanDate(selected)} · 체중관리</h2>
       <BodyRecordCard
+        onManualDraftChange={setManualBodyPending}
         dateKey={selected}
         onDateChange={(date) => {
           // Saving an imported measurement must not discard another open editor.
