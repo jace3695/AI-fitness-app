@@ -147,6 +147,15 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [chatHistoryLoading, setChatHistoryLoading] = useState(true);
   const [chatHistoryNotice, setChatHistoryNotice] = useState("");
   const pending = useTaskCommandDrafts();
+  const entryLock = useRef<object | null>(null);
+  const entryDraftSignature = useRef("");
+  const dashboardRead = useRef({ version: 0, mounted: true });
+  useEffect(() => {
+    const lifecycle = dashboardRead.current;
+    lifecycle.mounted = true;
+    return () => { lifecycle.mounted = false; lifecycle.version++; };
+  }, []);
+  entryDraftSignature.current = JSON.stringify([title, kind, entryPriority, entryDueDate, entryProjectId, entryRecurrence]);
   const [characterReply, setCharacterReply] = useState<{ ownerId: string | null; value: unknown } | null>(null);
   const clearCharacter = useCallback(() => { stopAllSpeech(); setCharacterReply(null); }, []);
   const changeAdviceBusy = useCallback((busy: boolean) => {
@@ -163,10 +172,24 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [localBodyActive, setLocalBodyActive] = useState(false);
   const [localBodyCandidate, setLocalBodyCandidate] = useState<{ ownerId: string; snapshot: BodyAnalysisSnapshot; question?: string } | null>(null);
   useEffect(() => {
+    const resetManualEntry = () => {
+      entryLock.current = null; setSaving(false); setTitle(""); setMessage("");
+      setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none");
+    };
+    const resetDashboard = () => {
+      dashboardRead.current.version++;
+      setItems([]); setProjects([]); setMemories([]);
+      setBriefing(EMPTY_BRIEFING); setWeeklyBriefing(null);
+      setLastLoadedAt(""); setLoadFailures([]); setLoading(Boolean(pending.ownerId));
+    };
+    resetManualEntry();
+    resetDashboard();
     if (localBodyOwner.current && localBodyOwner.current !== pending.ownerId) localBodySessionInvalid.current = true;
     localBodyOwner.current = pending.ownerId;
     const clear = () => { setLocalBodyCandidate(null); setChatMessages(items => items.filter(item => !item.localOnly)); };
     const invalidate = () => {
+      resetManualEntry();
+      resetDashboard();
       localBodySessionInvalid.current = true;
       chatEpoch.current += 1;
       chatSendId.current += 1;
@@ -185,6 +208,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     window.addEventListener('yeoni-cloud-session-changed', invalidate);
     window.addEventListener('storage', storage);
     return () => {
+      entryLock.current = null;
       window.removeEventListener(RECORDS_CHANGED_EVENT, clear);
       window.removeEventListener('yeoni-cloud-session-changed', invalidate);
       window.removeEventListener('storage', storage);
@@ -335,13 +359,17 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     } finally { if (isCurrent()) { chatLock.current = false; setChatSending(false); } }
   };
 
-  const load = useMemo(() => createQueuedRefresh(async () => {
-    if (!supabase) return;
+  const load = useMemo(() => {
+    const refresh = createQueuedRefresh(async () => {
+    const version = dashboardRead.current.version, epoch = chatEpoch.current, owner = localBodyOwner.current;
+    const isCurrent = () => dashboardRead.current.mounted && version === dashboardRead.current.version && epoch === chatEpoch.current && owner === localBodyOwner.current;
+    if (!supabase || !owner || !isCurrent()) return;
     setLoading(true);
     setMessage("");
     try {
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { setLoadFailures(["로그인 확인"]); return; }
+    if (!isCurrent()) return;
+    if (auth.user?.id !== owner) { setLoadFailures(["로그인 확인"]); return; }
 
     const now = new Date();
     const todayKey = getLocalDateKey(now);
@@ -359,6 +387,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
       supabase.from("growth_routines").select("*").eq("user_id", auth.user.id).eq("enabled", true),
       supabase.from("growth_sessions").select("routine_id,session_date,actual_minutes,status").eq("user_id", auth.user.id).gte("session_date", weeklyStartKey).lte("session_date", todayKey),
     ]);
+    if (!isCurrent()) return;
     const failures = [
       itemResult.error && '할 일', projectResult.error && '프로젝트', memoryResult.error && '기억',
       (budgetResult.error || monthlyBudgetResult.error) && '가계부', fitnessResult.error && '운동·식단',
@@ -410,11 +439,21 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
       },
     }));
     if (!failures.length) setLastLoadedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
-    } catch { setLoadFailures(['연결 확인']); }
-    finally { setLoading(false); }
-  }), []);
+    } catch { if (isCurrent()) setLoadFailures(['연결 확인']); }
+    finally { if (isCurrent()) setLoading(false); }
+    });
+    return () => {
+      // Invalidate the old response as soon as a refresh is requested, even
+      // while the coalescer is waiting for the previous request to finish.
+      dashboardRead.current.version++;
+      return refresh();
+    };
+  }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (pending.ready && pending.ownerId) void load();
+    else if (pending.ready) setLoading(false);
+  }, [load, pending.ready, pending.ownerId]);
   useEffect(() => {
     if (!pending.ready) return;
     if (pending.ownerId) void loadChatHistory(pending.ownerId);
@@ -435,19 +474,38 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const addEntry = async (event: FormEvent) => {
     event.preventDefault();
     const value = title.trim();
-    if (!value || !supabase) return;
+    const owner = pending.ownerId;
+    if (!value || !supabase || !pending.ready || !owner || entryLock.current) return;
+    const ticket = {}, epoch = chatEpoch.current, submittedDraft = entryDraftSignature.current;
+    entryLock.current = ticket;
+    const isCurrent = () => entryLock.current === ticket && chatEpoch.current === epoch && localBodyOwner.current === owner;
     setSaving(true);
     setMessage("");
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { setSaving(false); return; }
-    const result = kind === "project"
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!isCurrent()) return;
+      if (auth.user?.id !== owner) throw Error('owner changed');
+      const result = kind === "project"
       ? await supabase.from("assistant_projects").insert({ user_id: auth.user.id, name: value, status: "active", priority: 3 })
       : kind === "memory"
         ? await supabase.from("assistant_memories").insert({ user_id: auth.user.id, topic: "일반", content: value, source: "manual", tags: [] })
       : await supabase.from("assistant_items").insert({ user_id: auth.user.id, title: value, kind, status: kind === "waiting" ? "waiting" : "open", priority: entryPriority, due_at: entryDueDate ? `${entryDueDate}T23:59:00+09:00` : null, project_id: entryProjectId || null, recurrence_rule: entryRecurrence });
-    if (result.error) setMessage("저장하지 못했습니다. 입력 내용을 확인해 주세요.");
-    else { setTitle(""); setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none"); await load(); }
-    setSaving(false);
+      if (!isCurrent()) return;
+      if (result.error) throw result.error;
+      // A successful older submission must not clear the next entry being typed.
+      if (entryDraftSignature.current === submittedDraft) {
+        setTitle(""); setEntryDueDate(""); setEntryProjectId(""); setEntryPriority(3); setEntryRecurrence("none");
+      }
+      await load();
+    } catch {
+      if (isCurrent()) setMessage("저장을 확인하지 못했어요. 입력은 유지했어요. 목록을 확인한 뒤 다시 시도해 주세요.");
+    } finally {
+      if (entryLock.current === ticket) {
+        const current = isCurrent();
+        entryLock.current = null;
+        if (current) setSaving(false);
+      }
+    }
   };
 
   const toggleItem = async (item: Item) => {
@@ -615,7 +673,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
           <select aria-label="반복" value={entryRecurrence} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryRecurrence(event.target.value as RecurrenceRule)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="none">반복 없음</option><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select>
           <select aria-label="연결 프로젝트" value={entryProjectId} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryProjectId(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value="">프로젝트 없음</option>{projects.filter((project) => project.status !== "completed" && project.status !== "archived").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
-          <button disabled={saving || !title.trim()} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
+          <button disabled={saving || !title.trim() || !pending.ready || !pending.ownerId} className="rounded-xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">{saving ? "저장 중…" : "추가"}</button>
         </form>
         </details>
         {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
