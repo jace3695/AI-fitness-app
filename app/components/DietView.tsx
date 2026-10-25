@@ -1,5 +1,6 @@
 'use client';
 
+import { DIET_PHOTO_WAIT_MS, waitForDietPhoto } from '@/app/lib/dietPhotoWait';
 import { fastingStartForDay } from '@/lib/diet-time';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { authenticatedJsonHeaders } from '@/app/lib/authenticatedHeaders';
@@ -302,6 +303,7 @@ export default function DietView() {
   const [photoConfirmed, setPhotoConfirmed] = useState(false);
   const [photoDataUseAcknowledged, setPhotoDataUseAcknowledged] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const photoRequest = useRef<AbortController | null>(null);
   const [photoMessage, setPhotoMessage] = useState('');
   const [dataVersion, setDataVersion] = useState(0);
   const [savedInput, setSavedInput] = useState<string | null>(null);
@@ -309,7 +311,18 @@ export default function DietView() {
   const dirty = hydrated && savedInput !== null && savedInput !== inputSnapshot;
   const dirtyRef = useRef(dirty);
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
-  useUnsavedChanges(dirty);
+  useUnsavedChanges(dirty || photoLoading);
+  useEffect(() => {
+    const stop = () => { photoRequest.current?.abort(); photoRequest.current = null; };
+    const invalidate = () => {
+      stop(); setPhotoLoading(false); setPhotoAnalysis(null); setPhotoConfirmed(false);
+      setPhotoDataUseAcknowledged(false); setPhotoFile(null); setPhotoPreviewUrl(''); setPhotoMessage('');
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    };
+    window.addEventListener('yeoni-cloud-session-changed', invalidate);
+    window.addEventListener('pagehide', invalidate);
+    return () => { stop(); window.removeEventListener('yeoni-cloud-session-changed', invalidate); window.removeEventListener('pagehide', invalidate); };
+  }, []);
   useEffect(() => () => {
     if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
   }, [photoPreviewUrl]);
@@ -457,6 +470,7 @@ export default function DietView() {
   };
 
   const selectDietPhoto = (file: File | null) => {
+    photoRequest.current?.abort(); photoRequest.current = null; setPhotoLoading(false);
     setPhotoAnalysis(null);
     setPhotoConfirmed(false);
     setPhotoDataUseAcknowledged(false);
@@ -480,27 +494,40 @@ export default function DietView() {
   };
 
   const analyzeDietPhoto = async () => {
-    if (!photoFile || photoLoading || !photoDataUseAcknowledged) return;
+    if (!photoFile || photoRequest.current || !photoDataUseAcknowledged) return;
+    const controller = new AbortController(); photoRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(new Error('기다리는 시간이 길어 분석을 중단했어요. 사진은 그대로예요. 서버에서 처리됐을 수 있어 자동으로 다시 보내지 않아요.')), DIET_PHOTO_WAIT_MS);
+    const current = () => photoRequest.current === controller;
     setPhotoLoading(true);
     setPhotoAnalysis(null);
     setPhotoConfirmed(false);
     setPhotoMessage('');
     try {
-      const imageDataUrl = await compressDietPhoto(photoFile);
-      const response = await fetch('/api/diet/photo-analysis', {
+      const imageDataUrl = await waitForDietPhoto(controller.signal, () => compressDietPhoto(photoFile));
+      const headers = await waitForDietPhoto(controller.signal, authenticatedJsonHeaders);
+      const response = await waitForDietPhoto(controller.signal, () => fetch('/api/diet/photo-analysis', {
+        signal: controller.signal,
         method: 'POST',
-        headers: await authenticatedJsonHeaders(),
+        headers,
         body: JSON.stringify({ mealSlot: photoMealSlot, imageDataUrl, freeDataUseAcknowledged: photoDataUseAcknowledged }),
-      });
-      const result = await response.json() as DietPhotoAnalysis & { error?: string };
+      }));
+      const result = await waitForDietPhoto(controller.signal, () => response.json()) as DietPhotoAnalysis & { error?: string };
+      if (!current() || controller.signal.aborted) return;
       if (!response.ok) throw new Error(result.error || '사진을 분석하지 못했어요.');
       setPhotoAnalysis(normalizeDietPhotoAnalysis(result));
       setPhotoMessage('추정 결과를 확인하고 필요하면 숫자를 고쳐 주세요.');
     } catch (error) {
+      if (!current()) return;
       setPhotoMessage(error instanceof Error ? error.message : '사진을 분석하지 못했어요.');
     } finally {
-      setPhotoLoading(false);
+      window.clearTimeout(timer);
+      if (current()) { photoRequest.current = null; setPhotoLoading(false); }
     }
+  };
+
+  const cancelDietPhoto = () => {
+    photoRequest.current?.abort(); photoRequest.current = null; setPhotoLoading(false);
+    setPhotoMessage('분석 대기를 중단했어요. 사진은 그대로예요. 이미 보낸 요청은 서버에서 처리됐을 수 있어요. 자동으로 다시 보내지 않아요.');
   };
 
   const applyDietPhotoAnalysis = () => {
@@ -948,6 +975,7 @@ export default function DietView() {
                   >
                     {photoLoading ? '분석 중…' : 'AI로 분석'}
                   </button>
+                  {photoLoading && <button type="button" onClick={cancelDietPhoto} className="min-h-11 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold">분석 대기 중단</button>}
                 </div>
                 <p className="mt-2 text-[10px] leading-4 text-gray-500">
                   ‘AI로 분석’을 누르면 압축된 사진 1장이 Google Gemini로 전송됩니다. 무료 한도에 도달하면 직접 입력으로 이어갈 수 있습니다.

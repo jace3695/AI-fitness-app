@@ -1,6 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useUnsavedChanges } from '@/components/useUnsavedChanges';
+import { MAX_TEXT } from '@/app/language/practice/conversation';
+import { clearConversationInputDraft, openConversationInputDraft, updateConversationInputDraft, type ConversationDraftLease } from './conversationInputDraft';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/app/lib/supabase';
 import { FREE_CONVERSATIONS } from '@/data/freeConversation';
@@ -11,7 +14,9 @@ export default function FreeConversationPractice() {
   const [situation, setSituation] = useState<Situation>('일상');
   const [started, setStarted] = useState(false);
   const [choice, setChoice] = useState<number | null>(null);
-  const [input, setInput] = useState('');
+  const [input, setInputState] = useState('');
+  const inputDraft = useRef<ConversationDraftLease | null>(null);
+  useUnsavedChanges(Boolean(input.trim()));
   const [notice, setNotice] = useState('');
   const [playing, setPlaying] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(true);
@@ -23,6 +28,14 @@ export default function FreeConversationPractice() {
   const saving = useRef(false);
   const mounted = useRef(false);
   const settings = useRef({ rate: 1, repeatCount: 1, repeatDelayMs: 500 });
+
+  function setInput(value: string) {
+    setInputState(value);
+    const lease = inputDraft.current;
+    if (lease && !invalid.current && localStorage.getItem('language-cloud-sync-user') === lease.owner) {
+      updateConversationInputDraft(lease, { text: value, situation }, { claim: Boolean(value.trim()) });
+    }
+  }
 
   function stopAudio() {
     audioEpoch.current++;
@@ -37,8 +50,8 @@ export default function FreeConversationPractice() {
     const id = localStorage.getItem('language-cloud-sync-user');
     owner.current = id;
     const invalidate = () => {
-      invalid.current = true; setBlocked(true); stopAudio();
-      setStarted(false); setChoice(null); setInput(''); setSaved([]);
+      invalid.current = true; clearConversationInputDraft(); inputDraft.current = null; setBlocked(true); stopAudio();
+      setStarted(false); setChoice(null); setInputState(''); setSaved([]);
       setNotice('계정이 변경됐어요. 이 계정의 학습 기록을 준비하도록 페이지를 다시 열어 주세요.');
     };
     const client = supabase;
@@ -47,8 +60,12 @@ export default function FreeConversationPractice() {
     }).data.subscription;
     void client?.auth.getUser().then(({ data, error }) => {
       if (!mounted.current || invalid.current) return;
-      if (error || !id || data.user?.id !== id) invalidate();
-      else setBlocked(false);
+      if (error || !id || data.user?.id !== id || localStorage.getItem('language-cloud-sync-user') !== id) invalidate();
+      else {
+        const lease = openConversationInputDraft(id); inputDraft.current = lease;
+        if (lease.draft) { setSituation(lease.draft.situation); setInputState(lease.draft.text); }
+        setBlocked(false);
+      }
     }).catch(() => { if (mounted.current) invalidate(); });
     try {
       const all = JSON.parse(localStorage.getItem('japaneseAppSettings') || '{}');
@@ -63,10 +80,12 @@ export default function FreeConversationPractice() {
     const visibility = () => { if (document.visibilityState === 'hidden') stopAudio(); };
     const storage = (event: StorageEvent) => { if (event.key === 'language-cloud-sync-user' && event.newValue !== id) invalidate(); };
     window.addEventListener('pagehide', leave); window.addEventListener('popstate', leave);
+    window.addEventListener('yeoni-cloud-session-changed', invalidate);
     window.addEventListener('storage', storage); document.addEventListener('visibilitychange', visibility);
     return () => {
       mounted.current = false; audio.current?.abort(); subscription?.unsubscribe();
       window.removeEventListener('pagehide', leave); window.removeEventListener('popstate', leave);
+      window.removeEventListener('yeoni-cloud-session-changed', invalidate);
       window.removeEventListener('storage', storage); document.removeEventListener('visibilitychange', visibility);
     };
   }, []);
@@ -116,7 +135,7 @@ export default function FreeConversationPractice() {
       {(Object.keys(FREE_CONVERSATIONS) as Situation[]).map(s => <option key={s}>{s}</option>)}
     </select>
     <div className="my-3 flex flex-wrap gap-2">
-      <button className="btn" onClick={reset}>처음부터 다시 연습</button>
+      <button className="btn" disabled={blocked} onClick={reset}>처음부터 다시 연습</button>
       <button className="btn" onClick={stopAudio} disabled={!playing}>음성 멈추기</button>
       <Link className="btn" href="/language/review" onClick={stopAudio}>저장한 문장 복습하기</Link>
     </div>
@@ -125,8 +144,9 @@ export default function FreeConversationPractice() {
     {phraseCard(starterPhrase(situation), '내가 먼저 하는 말')}
     {!started && <div className="card">
       <button className="btn" disabled={blocked} onClick={() => { stopAudio(); setStarted(true); setNotice(''); }}>이 예문으로 시작</button>
-      <form onSubmit={e => { e.preventDefault(); if (blocked) return; stopAudio(); if (matchesStarter(situation, input)) { setStarted(true); setNotice(''); } else setNotice('이 입력은 준비된 예문과 다릅니다. 틀렸다는 뜻은 아니에요. 위 예문이나 읽는 법으로 연습하거나 시작 버튼을 눌러 주세요.'); }}>
-        <label>예문 직접 입력<input type="text" className="w-full" value={input} disabled={blocked} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault(); }} /></label>
+      <form onSubmit={e => { e.preventDefault(); if (blocked) return; stopAudio(); if (matchesStarter(situation, input)) { setInput(''); setStarted(true); setNotice(''); } else setNotice('이 입력은 준비된 예문과 다릅니다. 틀렸다는 뜻은 아니에요. 위 예문이나 읽는 법으로 연습하거나 시작 버튼을 눌러 주세요.'); }}>
+        <label>예문 직접 입력<input type="text" maxLength={MAX_TEXT} className="w-full" value={input} disabled={blocked} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && e.nativeEvent.isComposing) e.preventDefault(); }} /></label>
+        <p className="muted">작성 중인 문장은 이 탭에서 이어 써요. 새로고침·로그아웃하면 지워져요. 자동 전송하거나 기록에 저장하지 않아요.</p>
         <button className="btn" disabled={blocked || !input.trim()}>준비된 예문 확인</button>
       </form>
     </div>}

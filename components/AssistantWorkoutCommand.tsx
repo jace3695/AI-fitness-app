@@ -64,9 +64,22 @@ async function workoutRequest(body: unknown, offset: number, ownerId: string | u
 
 }
 
-function useWorkoutRequestLifetime() {
+function useWorkoutRequestLifetime(onAccountChanged: () => void, ownerHint?: string) {
   const active = useRef<AbortController | null>(null);
-  useEffect(() => () => active.current?.abort(), []);
+  const invalidate = useRef(onAccountChanged); invalidate.current = onAccountChanged;
+  useEffect(() => {
+    let owner = ownerHint;
+    let subscribed = true;
+    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      if (!subscribed) return;
+      const next = session?.user.id;
+      if (owner !== undefined && owner !== next) {
+        active.current?.abort(); invalidate.current();
+      }
+      owner = next;
+    }).data.subscription;
+    return () => { subscribed = false; active.current?.abort(); subscription?.unsubscribe(); };
+  }, [ownerHint]);
   return useCallback(() => {
     active.current?.abort();
     active.current = new AbortController();
@@ -82,7 +95,8 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const beginRequest = useWorkoutRequestLifetime();
+  const [accountChanged, setAccountChanged] = useState(false);
+  const beginRequest = useWorkoutRequestLifetime(() => { lock.current = false; setBusy(false); setAccountChanged(true); }, receipt.user_id);
   const cardio = saved.command_kind === 'cardio';
   const feedback = saved.command_kind === 'feedback';
   const describeRecord = feedback ? describeWorkoutFeedback : cardio ? describeWorkoutCardio : describe;
@@ -101,6 +115,7 @@ export function AssistantWorkoutReceipt({ receipt, onChanged }: { receipt: Worko
     } catch (failure) { if (!request.signal.aborted) setError(acknowledged ? '되돌리기는 확인됐어요. 목록 새로고침을 마치지 못했어요.' : failure instanceof Error ? failure.message : '되돌리기 결과를 확인하지 못했습니다.'); }
     finally { if (!request.signal.aborted) { lock.current = false; setBusy(false); } }
   };
+  if (accountChanged) return <p role="alert">계정이 바뀌었어요. 이전 요청을 더 진행하지 않아요. 화면을 다시 열어 주세요.</p>;
   return <article aria-label="운동 실행 이력" className="rounded-2xl border border-violet-100 bg-white p-4 text-sm text-gray-800">
     <p className="font-bold">{saved.record_date} · {feedback ? '운동 상세' : cardio ? '유산소' : '운동'}</p>
     <p role="status" className="mt-1 text-xs text-violet-700">{saved.undone_at ? '되돌리기 완료' : feedback ? '운동 상세 저장' : cardio ? '유산소 기록 저장' : '운동 완료 저장'} · {taskCommandDateLabel(saved.created_at)}</p>
@@ -124,14 +139,15 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
   const [expired, setExpired] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const beginRequest = useWorkoutRequestLifetime();
+  const [accountChanged, setAccountChanged] = useState(false);
+  const beginRequest = useWorkoutRequestLifetime(() => { lock.current = false; setBusy(false); setAccountChanged(true); }, ownerId ?? proposal.ownerId);
   const title = proposal.change ? proposal.change.kind==='feedback'?'운동 상세 확인':'유산소 기록 확인' : '운동 완료 확인';
   useEffect(() => {
-    if (receipt || cancelled) return;
+    if (receipt || cancelled || accountChanged) return;
     const check = () => setExpired(Date.now() >= Date.parse(proposal.expiresAt));
     check(); const timer = window.setInterval(check, 1000);
     return () => window.clearInterval(timer);
-  }, [proposal.expiresAt, receipt, cancelled]);
+  }, [proposal.expiresAt, receipt, cancelled, accountChanged]);
   const apply = async () => {
     if (lock.current || receipt || cancelled) return;
     lock.current = true; setBusy(true); setError('');
@@ -162,6 +178,7 @@ export function AssistantWorkoutReview({ proposal, onChanged, ownerId, initially
     catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : '확인 화면을 닫지 못했습니다.'); }
     finally { if (!request.signal.aborted) { lock.current = false; setBusy(false); } }
   };
+  if (accountChanged) return <p role="alert">계정이 바뀌었어요. 이전 요청을 더 진행하지 않아요. 화면을 다시 열어 주세요.</p>;
   if (cancelled) return <p role="status" className="mt-3 text-gray-600">{attempted ? '확인 화면을 닫았습니다. 저장 여부는 실행 이력에서 확인해 주세요.' : '취소했습니다. 운동 기록은 변경하지 않았습니다.'}</p>;
   if (receipt) return <div className="mt-3">{error && <p role="alert" className="text-red-700">{error}</p>}<AssistantWorkoutReceipt receipt={receipt} onChanged={onChanged} /><Link href="/assistant/history?area=workout" className="mt-2 inline-block font-bold text-violet-700">운동 실행 이력 보기 →</Link><Link href="/fitness" className="ml-4 inline-block font-bold text-violet-700">운동 기록 보기 →</Link></div>;
   return <section aria-label={title} className="mt-3 rounded-2xl border border-violet-200 bg-violet-50 p-3 text-gray-800">
@@ -186,7 +203,8 @@ export function AssistantWorkoutHistory() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
-  const beginRequest = useWorkoutRequestLifetime();
+  const [accountChanged, setAccountChanged] = useState(false);
+  const beginRequest = useWorkoutRequestLifetime(() => { lock.current = false; setLoading(false); setHistory([]); setAccountChanged(true); });
   const load = useCallback(async (offset = 0) => {
     if (lock.current) return;
     lock.current = true; setLoading(true); setError('');
@@ -201,6 +219,7 @@ export function AssistantWorkoutHistory() {
     finally { if (!request.signal.aborted) { lock.current = false; setLoading(false); } }
   }, [beginRequest]);
   useEffect(() => { void load(); return () => { lock.current = false; }; }, [load]);
+  if (accountChanged) return <p role="alert">계정이 바뀌었어요. 이력을 다시 보려면 화면을 다시 열어 주세요.</p>;
   return <section aria-label="운동 실행 이력 목록"><p className="mt-2 text-sm leading-6 text-gray-600">연이 대화·빠른 명령에서 확인하고 저장한 운동 완료·유산소 기록 이력입니다.</p>
     <button type="button" disabled={loading} onClick={() => void load()} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-700 disabled:opacity-50">이력 새로고침</button>
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}

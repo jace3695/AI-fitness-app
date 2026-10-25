@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { assistantCommandRequest, AssistantTaskReceipt } from '@/components/AssistantTaskCommand';
+import { assistantCommandRequest, AssistantTaskReceipt, useTaskRequestLifetime, withinTaskWait } from '@/components/AssistantTaskCommand';
 import { useSearchParams } from 'next/navigation';
 import { AssistantBudgetHistory } from '@/components/AssistantBudgetCommand';
 import { AssistantGrowthHistory } from '@/components/AssistantGrowthCommand';
@@ -17,23 +17,30 @@ function TaskHistory() {
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const lock = useRef(false);
+  const [historyOwner, setHistoryOwner] = useState<string | undefined>();
+  const [accountChanged, setAccountChanged] = useState(false);
+  const beginRequest = useTaskRequestLifetime(() => { lock.current = false; setLoading(false); setHistory([]); setAccountChanged(true); });
   const load = useCallback(async (offset = 0) => {
     if (lock.current) return;
     lock.current = true; setLoading(true); setError('');
+    const request = beginRequest();
     try {
-      const result = await assistantCommandRequest(undefined, offset);
+      const result = await withinTaskWait(signal => assistantCommandRequest(undefined, offset, undefined, signal), request.signal, '이력을 아직 불러오지 못했어요. 잠시 후 새로고침을 눌러 주세요.');
+      if (request.signal.aborted) return;
+      setHistoryOwner(result.clientOwnerId);
       setHistory(current => offset ? [...current, ...result.history].filter((row, index, rows) => rows.findIndex(other => other.id === row.id) === index) : result.history);
       setHasMore(result.history.length === 20);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '이력을 불러오지 못했습니다.'); }
-    finally { lock.current = false; setLoading(false); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
+    } catch (failure) { if (!request.signal.aborted) setError(failure instanceof Error ? failure.message : '이력을 불러오지 못했습니다.'); }
+    finally { if (!request.signal.aborted) { lock.current = false; setLoading(false); } }
+  }, [beginRequest]);
+  useEffect(() => { void load(); return () => { lock.current = false; }; }, [load]);
+  if (accountChanged) return <p role="alert">계정이 바뀌었어요. 이력을 다시 보려면 화면을 다시 열어 주세요.</p>;
   return <section aria-label="할 일 실행 이력 목록">
     <p className="mt-2 text-sm leading-6 text-gray-600">연이 대화·빠른 명령에서 확인하고 저장한 할 일 추가·수정 이력입니다. 변경 전후를 확인하고 되돌릴 수 있어요.</p>
     <button type="button" disabled={loading} onClick={() => void load()} className="mt-4 rounded-xl bg-white px-4 py-2 text-sm font-bold text-violet-700 disabled:opacity-50">이력 새로고침</button>
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
     {!loading && !error && !history.length && <p className="mt-5 rounded-2xl bg-white p-5">아직 확인하고 실행한 명령이 없습니다.</p>}
-    <div className="mt-4 space-y-4">{history.map(receipt => <AssistantTaskReceipt key={`${receipt.id}:${receipt.undone_at}`} receipt={receipt} onChanged={() => load()} />)}</div>
+    <div className="mt-4 space-y-4">{history.map(receipt => <AssistantTaskReceipt key={`${receipt.id}:${receipt.undone_at}`} receipt={receipt} ownerId={historyOwner} onChanged={() => load()} />)}</div>
     {loading && <p role="status" className="mt-4">실행 이력을 불러오는 중…</p>}
     {hasMore && <button type="button" disabled={loading} onClick={() => void load(history.length)} className="mt-4 rounded-xl bg-white px-4 py-3 font-bold text-violet-700 disabled:opacity-50">이전 이력 더 보기</button>}
   </section>;
