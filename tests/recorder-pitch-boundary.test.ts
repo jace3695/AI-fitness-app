@@ -44,7 +44,10 @@ test('clearing recording releases its URL once and drops derived results and blo
 test('before recording the rendered page explains pitch observation without offering an unusable analysis action',()=>{
  const require=createRequire(import.meta.url);
  const React=require('react'), {renderToStaticMarkup}=require('react-dom/server');
- const context={exports:{},require:(name:string)=>name==='./pitch'?{}:name.startsWith('@/')?{}:require(name)};
+ const availability={exports:{}};
+ const availabilitySource=fs.readFileSync(new URL('../app/language/practice/AssessmentAvailability.tsx',import.meta.url),'utf8');
+ vm.runInNewContext(ts.transpileModule(availabilitySource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{...availability,require});
+ const context={exports:{},require:(name:string)=>name==='./AssessmentAvailability'?availability.exports:name==='./pitch'?{}:name.startsWith('@/')?{}:require(name)};
  const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  vm.runInNewContext(compiled,context);
  const html=renderToStaticMarkup(React.createElement((context.exports as {default:unknown}).default,{text:'synthetic'}));
