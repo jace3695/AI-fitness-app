@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useUnsavedChanges } from '@/components/useUnsavedChanges';
 import { openPracticeInputDraft, updatePracticeInputDraft } from './inputDraft';
 import Recorder from './Recorder';
@@ -113,7 +114,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
   const latest = journal.turns.at(-1);
   const summaryStyle = { cursor: 'pointer', padding: '12px 0', minHeight: 44 };
   return <section className="practice-page" style={{ maxWidth: 800, margin: '0 auto', overflowWrap: 'anywhere' }}>
-    <a href="/language/conversation">← 상황별 회화</a>
+    <Link href="/language/conversation">← 상황별 회화</Link>
     <h1>일본어로 이야기해요</h1>
     <div className="card practice-start">
       <label style={{ display: 'block', marginBottom: 6 }}>이야기 주제 <select style={{ maxWidth: '100%', minHeight: 44 }} value={situation} disabled={busy || !!unsavedTurn} onChange={e => setSituation(e.target.value as Situation)}>{SITUATIONS.map(s => <option key={s}>{s}</option>)}</select></label>

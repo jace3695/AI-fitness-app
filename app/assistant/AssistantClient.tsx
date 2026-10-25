@@ -665,16 +665,16 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     <div className="yeoni-page-content">
       <section id="yeoni-chat" aria-label="연이에게 말하기" className="scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p className="mt-1 text-sm text-gray-500">기록 확인·입력·무료 AI 조언을 한곳에서.</p></div>
+          <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p id="assistant-start-help" className="mt-1 text-sm text-gray-500">하고 싶은 일을 적거나 추천 질문을 고른 뒤, 보내기를 눌러 주세요.</p></div>
         </div>
+        <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 하고 싶은 말</label><input id="assistant-chat-input" aria-describedby="assistant-start-help" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 계획 알려줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">보내기</button>
+        </form>
+        <AssistantPromptExamples disabled={chatSending || adviceBusy || chatHistoryLoading} hasDraft={!!chatInput.trim()} onSelect={(sample) => { setChatInput(sample); document.getElementById('assistant-chat-input')?.focus(); }} />
         <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio}
           incoming={characterReply?.ownerId === pending.ownerId ? characterReply : null} busy={chatSending || adviceBusy} />
           : <AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion>}</div>
-        <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 하고 싶은 말</label><input id="assistant-chat-input" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 알려줘 / 요즘 운동 잘하고 있어?" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
-          <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">전송</button>
-        </form>
-        <AssistantPromptExamples disabled={chatSending || adviceBusy || chatHistoryLoading} hasDraft={!!chatInput.trim()} onSelect={(sample) => { setChatInput(sample); document.getElementById('assistant-chat-input')?.focus(); }} />
         <div ref={chatBoxRef} aria-live="polite" className="mt-4 max-h-56 space-y-3 sm:max-h-80 overflow-y-auto rounded-2xl bg-[#F7F6FF] p-3 sm:p-4">
           {chatHistoryLoading && <p className="text-xs font-semibold text-[#766DB8]">지난 대화를 불러오고 있어요…</p>}
           {chatMessages.filter(chat => !chat.ownerId || chat.ownerId === pending.ownerId).map((chat) => <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-6 ${chat.role === "user" ? "bg-[#5146A6] text-white" : "bg-white text-gray-700 shadow-sm"}`}>{chat.historyOnly && <p className="text-xs font-bold">이전 대화 · 읽기 전용 (재전송·음성 제외)</p>}{chat.localOnly && <p className="text-xs font-bold">이 화면에서만 보는 로컬 대화</p>}<p className="whitespace-pre-wrap break-words">{chat.text}</p>{chat.action && <Link href={chat.action.href} onClick={(event) => {

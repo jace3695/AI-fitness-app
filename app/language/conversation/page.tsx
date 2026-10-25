@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { RubySegment } from "@/data/sentences";
 import { authenticatedJsonHeaders } from "@/app/lib/authenticatedHeaders";
 import { FREE_MODE } from "@/lib/free-mode";
@@ -53,7 +54,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   showReading: true,
 };
 export default function ConversationPage() {
-  return <><p><a href="/language/practice">자유 문장 기록·발음 자기 점검</a></p>{FREE_MODE ? <FreeConversationPractice /> : <LegacyConversationPage />}</>;
+  return <><p><Link href="/language/practice">자유 문장 기록·발음 자기 점검</Link></p>{FREE_MODE ? <FreeConversationPractice /> : <LegacyConversationPage />}</>;
 }
 
 function LegacyConversationPage() {

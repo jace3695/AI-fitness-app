@@ -25,6 +25,7 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
     useEffect(fn: () => any, deps: any[]) { const i = position++; if (!slots[i] || deps.some((x, j) => x !== slots[i].deps[j])) { slots[i]?.cleanup?.(); effects.push(() => { slots[i] = { deps, cleanup: fn() }; }); } },
   };
   const deps: Record<string, unknown> = { react, 'react/jsx-runtime': jsx, './conversation': conversation,
+    'next/link': { default: 'a' },
     './Recorder': { default: () => null }, '@/components/ConfirmedConversationArchive': { default: () => null } };
   const dirtyEditors = new Set<symbol>();
   const hookExports: any = {};
