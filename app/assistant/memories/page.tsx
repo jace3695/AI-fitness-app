@@ -3,14 +3,40 @@ import Link from 'next/link';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {supabase} from '../../lib/supabase';
 import {useUnsavedChanges} from '@/components/useUnsavedChanges';
+import {waitForManualEntryAuth} from '@/lib/assistant-entry-recovery';
 type Memory={id:string;user_id:string;topic:string;content:string};
 type Change={owner:string;id:string;before:Memory|null;after:{topic:string;content:string}|null};
 export default function MemoriesPage(){
  const [rows,setRows]=useState<Memory[]>([]),[owner,setOwner]=useState(''),[loading,setLoading]=useState(true),[ready,setReady]=useState(false),[notice,setNotice]=useState('');
  const [editing,setEditing]=useState<Memory|null>(null),[topic,setTopic]=useState('일반'),[content,setContent]=useState(''),[change,setChange]=useState<Change|null>(null),[attempted,setAttempted]=useState(false),[busy,setBusy]=useState(false);const lock=useRef(false);
  useUnsavedChanges(Boolean(content||change));
- const load=useCallback(async()=>{setLoading(true);setReady(false);try{if(!supabase)throw Error();const auth=await supabase.auth.getUser();if(auth.error||!auth.data.user)throw Error();const result=await supabase.from('assistant_memories').select('id,user_id,topic,content').eq('user_id',auth.data.user.id).order('created_at',{ascending:false}).abortSignal(AbortSignal.timeout(15000));if(result.error)throw Error();setOwner(auth.data.user.id);setRows(result.data??[]);setNotice('');setReady(true);}catch{setNotice('기억을 불러오지 못했습니다. 빈 목록으로 판단하지 않습니다. 다시 불러와 주세요.');}finally{setLoading(false);}},[]);
- useEffect(()=>{void load();},[load]);
+ const readEpoch=useRef(0),readController=useRef<AbortController|null>(null);
+ const load=useCallback(async()=>{
+  const ticket=++readEpoch.current;readController.current?.abort();
+  const controller=new AbortController();readController.current=controller;
+  const deadline=Date.now()+15000;
+  const current=()=>ticket===readEpoch.current&&!controller.signal.aborted;
+  const remaining=()=>{const ms=deadline-Date.now();if(ms<=0)throw Error('read-timeout');return ms;};
+  setLoading(true);setReady(false);
+  try{
+   if(!supabase)throw Error();
+   const auth=await waitForManualEntryAuth(supabase.auth.getUser(),remaining());
+   if(!current())return;
+   if(auth.error||!auth.data.user)throw Error();
+   const readWait=remaining();
+   const result=await waitForManualEntryAuth(Promise.resolve(supabase.from('assistant_memories').select('id,user_id,topic,content').eq('user_id',auth.data.user.id).order('created_at',{ascending:false}).abortSignal(controller.signal)),readWait);
+   if(!current())return;
+   if(result.error)throw Error();
+   setOwner(auth.data.user.id);setRows(result.data??[]);setNotice('');setReady(true);
+  }catch{
+   if(current())setNotice('기억을 불러오지 못했습니다. 빈 목록으로 판단하지 않습니다. 다시 불러와 주세요.');
+  }finally{
+   if(ticket===readEpoch.current){setLoading(false);readController.current=null;}
+   controller.abort();
+  }
+ },[]);
+ const cancelRead=useCallback(()=>{++readEpoch.current;readController.current?.abort();readController.current=null;},[]);
+ useEffect(()=>{void load();return cancelRead;},[load,cancelRead]);
  const reset=()=>{setEditing(null);setTopic('일반');setContent('');setChange(null);setAttempted(false);};
  const review=(before:Memory|null,remove=false)=>{if(!ready)return;const after=remove?null:{topic:topic.trim(),content:content.trim()};if(after&&(!after.topic||after.topic.length>80||!after.content||after.content.length>2000)){setNotice('주제는 1~80자, 기억은 1~2,000자로 입력해 주세요.');return;}setChange({owner,id:before?.id??crypto.randomUUID(),before,after});setAttempted(false);setNotice('');};
  const confirm=async()=>{if(!supabase||!change||lock.current)return;lock.current=true;setBusy(true);setNotice('');try{
