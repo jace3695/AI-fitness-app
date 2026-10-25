@@ -22,6 +22,6 @@ test('home and assistant integration fills/focuses input instead of sending exam
  const client=readFileSync(new URL('../app/assistant/AssistantClient.tsx',import.meta.url),'utf8');const line=client.split(/\r?\n/).find(l=>l.includes('<AssistantPromptExamples'))!;
  assert.ok(client.indexOf('<AssistantPromptExamples') > client.indexOf('</form>'));
  assert.ok(client.indexOf('<AssistantPromptExamples') < client.indexOf('<div ref={chatBoxRef}'));
- assert.ok(line);assert.ok(line.includes('setChatInput(sample)'));assert.ok(line.includes("?.focus()"));assert.ok(!line.includes('sendChat('));assert.ok(line.includes('hasDraft={!!chatInput.trim()}'));
+ assert.ok(line);assert.ok(line.includes('setChatInput(sample, true)'));assert.ok(line.includes("?.focus()"));assert.ok(!line.includes('sendChat('));assert.ok(line.includes('hasDraft={!!chatInput.trim()}'));
  const home=readFileSync(new URL('../app/page.tsx',import.meta.url),'utf8');assert.ok(home.includes('<AssistantPage />'));
 });

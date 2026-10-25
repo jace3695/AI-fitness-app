@@ -1,6 +1,7 @@
 "use client";
 
 import { useUnsavedChanges } from "@/components/useUnsavedChanges";
+import { clearAssistantChatInputDraft, openAssistantChatInputDraft, updateAssistantChatInputDraft, type AssistantChatDraftLease } from '@/lib/assistant-chat-input-draft';
 import BodyAnalysisHistory from '@/app/components/BodyAnalysisHistory';
 import ConversationArchiveEntry from '@/components/ConversationArchiveEntry';
 import type { BodyAnalysisSnapshot } from '@/lib/body-analysis-history';
@@ -140,7 +141,12 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [lastLoadedAt, setLastLoadedAt] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [chatInput, setChatInput] = useState("");
+  const [chatInput, setChatInputState] = useState("");
+  const chatDraftLease = useRef<AssistantChatDraftLease | null>(null);
+  const setChatInput = useCallback((value: string, userEdit = false) => {
+    setChatInputState(value);
+    if (chatDraftLease.current) updateAssistantChatInputDraft(chatDraftLease.current, value, userEdit);
+  }, []);
   const [chatSending, setChatSending] = useState(false);
   const [activeAdvice, setActiveAdvice] = useState<{ id: string; scope: FreeAdviceScope; question: string } | null>(null);
   const [adviceBusy, setAdviceBusy] = useState(false);
@@ -175,6 +181,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [localBodyActive, setLocalBodyActive] = useState(false);
   const [localBodyCandidate, setLocalBodyCandidate] = useState<{ ownerId: string; snapshot: BodyAnalysisSnapshot; question?: string } | null>(null);
   useEffect(() => {
+    chatDraftLease.current = null;
     const resetManualEntry = () => {
       entryAttempt.current = null; setEntryRecovery(null);
       entryLock.current = null; setSaving(false); setTitle(""); setMessage("");
@@ -192,6 +199,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     localBodyOwner.current = pending.ownerId;
     const clear = () => { setLocalBodyCandidate(null); setChatMessages(items => items.filter(item => !item.localOnly)); };
     const invalidate = () => {
+      clearAssistantChatInputDraft(); chatDraftLease.current = null;
       resetManualEntry();
       resetDashboard();
       localBodySessionInvalid.current = true;
@@ -208,16 +216,25 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     chatSendId.current += 1;
     setLocalBodyCandidate(null); setChatMessages([WELCOME_MESSAGE]); setChatInput(''); setActiveAdvice(null);
     clearCharacter(); chatLock.current = false; setChatSending(false);
+    if (pending.ownerId) {
+      chatDraftLease.current = openAssistantChatInputDraft(pending.ownerId);
+      setChatInputState(chatDraftLease.current.text);
+    }
+    const authSubscription = supabase?.auth.onAuthStateChange((event, session) => {
+      if (pending.ownerId && (event === 'SIGNED_OUT' || session?.user.id !== pending.ownerId)) invalidate();
+    });
     window.addEventListener(RECORDS_CHANGED_EVENT, clear);
     window.addEventListener('yeoni-cloud-session-changed', invalidate);
     window.addEventListener('storage', storage);
     return () => {
+      chatDraftLease.current = null;
+      authSubscription?.data.subscription.unsubscribe();
       entryLock.current = null;
       window.removeEventListener(RECORDS_CHANGED_EVENT, clear);
       window.removeEventListener('yeoni-cloud-session-changed', invalidate);
       window.removeEventListener('storage', storage);
     };
-  }, [pending.ownerId, clearCharacter]);
+  }, [pending.ownerId, clearCharacter, setChatInput]);
   const mutationLocks = useRef(new Set<string>());
   const [busyIds, setBusyIds] = useState<string[]>([]);
   useUnsavedChanges(Boolean(title.trim() || chatInput.trim() || saving || chatSending || adviceBusy || entryRecovery));
@@ -231,8 +248,8 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     initialAdviceApplied.current = true;
     if (localBodySessionInvalid.current) return;
     const scope = new URLSearchParams(window.location.search).get('advice');
-    if (isFreeAdviceScope(scope)) setChatInput(ADVICE_QUESTIONS[scope]);
-  }, [pending.ready, pending.ownerId]);
+    if (isFreeAdviceScope(scope) && !chatDraftLease.current?.text.trim()) setChatInput(ADVICE_QUESTIONS[scope]);
+  }, [pending.ready, pending.ownerId, setChatInput]);
 
   const finishAdvice = async (advice: FreeAdvice, source: FreeAdviceContext['recordSource'], performance?: ReplyPlan) => {
     if (!supabase) return;
@@ -668,10 +685,10 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p id="assistant-start-help" className="mt-1 text-sm text-gray-500">하고 싶은 일을 적거나 추천 질문을 고른 뒤, 보내기를 눌러 주세요.</p></div>
         </div>
         <form onSubmit={(event) => { event.preventDefault(); void sendChat(); }} className="mt-3 flex gap-2">
-          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 하고 싶은 말</label><input id="assistant-chat-input" aria-describedby="assistant-start-help" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value)} maxLength={500} placeholder="예: 오늘 운동 계획 알려줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
+          <label htmlFor="assistant-chat-input" className="sr-only">연이에게 하고 싶은 말</label><input id="assistant-chat-input" aria-describedby="assistant-start-help" value={chatInput} disabled={chatHistoryLoading || adviceBusy} onChange={(event) => setChatInput(event.target.value, true)} maxLength={500} placeholder="예: 오늘 운동 계획 알려줘" className="min-w-0 flex-1 rounded-2xl border-0 bg-yeoni-bg px-4 py-3 text-base outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD] disabled:opacity-50" />
           <button disabled={chatSending || adviceBusy || chatHistoryLoading || !chatInput.trim()} className="rounded-2xl bg-[#5146A6] px-5 py-3 text-sm font-bold text-white disabled:bg-gray-300">보내기</button>
         </form>
-        <AssistantPromptExamples disabled={chatSending || adviceBusy || chatHistoryLoading} hasDraft={!!chatInput.trim()} onSelect={(sample) => { setChatInput(sample); document.getElementById('assistant-chat-input')?.focus(); }} />
+        <AssistantPromptExamples disabled={chatSending || adviceBusy || chatHistoryLoading} hasDraft={!!chatInput.trim()} onSelect={(sample) => { setChatInput(sample, true); document.getElementById('assistant-chat-input')?.focus(); }} />
         <div className="mt-3">{characterAudio ? <AssistantCharacter key={pending.ownerId ?? 'signed-out'} audio={characterAudio}
           incoming={characterReply?.ownerId === pending.ownerId ? characterReply : null} busy={chatSending || adviceBusy} />
           : <AppCompanion compact embedded quiet={chatSending}>오늘은 무엇을 도와드릴까요?</AppCompanion>}</div>
