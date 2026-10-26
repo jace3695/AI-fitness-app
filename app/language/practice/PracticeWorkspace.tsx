@@ -188,7 +188,7 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
     }} />
     </details>
     <details className="card" open={recorderOpen} onToggle={e => setRecorderOpen(e.currentTarget.open)}><summary style={summaryStyle}>내 목소리로 연습하기 (선택)</summary>
-    {recorderOpen && <Recorder text={target} />}
+    {recorderOpen && <Recorder key={owner} text={target} owner={owner} />}
     </details>
   </section>;
 }

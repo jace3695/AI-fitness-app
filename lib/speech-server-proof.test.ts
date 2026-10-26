@@ -1,0 +1,75 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {PGlite} from '@electric-sql/pglite';
+import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
+import {createSpeechServerProof,verifySpeechServerProof} from './speech-server-proof.ts';
+import {createSpeechApiUsageLedger} from './speech-api-usage.ts';
+const A='00000000-0000-4000-8000-000000000001',B='00000000-0000-4000-8000-000000000002',R='00000000-0000-4000-8000-000000000003';
+const key=new Uint8Array(32).fill(7),audio='a'.repeat(64);
+const payload=(ms=5000,text='こんにちは。')=>createHash('sha256').update(['trial-v1',String(ms),text,audio].join('\n')).digest('hex');
+const input={action:'consume' as const,keyId:'synthetic',owner:A,requestId:R,payloadHash:payload()};
+test('proof binds every field, rejects malformed/expired input; proof alone is not replay prevention',()=>{
+ const p=createSpeechServerProof(input,key,()=>100000);
+ assert.equal(verifySpeechServerProof(p,input,key,()=>101000),true);
+ assert.equal(verifySpeechServerProof(p,input,key,()=>101000),true);
+ for(const patch of [{owner:B},{requestId:A},{payloadHash:audio},{action:'finish'},{keyId:'other'},{version:'v0'},{mac:audio},{extra:1},{owner:Symbol('bad')}])assert.equal(verifySpeechServerProof({...p,...patch},input,key,()=>101000),false);
+ for(const time of [99000,130000])assert.equal(verifySpeechServerProof(p,input,key,()=>time),false);
+ assert.equal(verifySpeechServerProof(p,input,new Uint8Array(32).fill(8),()=>101000),false);
+});
+test('API adapter never retries uncertain commits; abort/account/config failures do not dispatch later work',async()=>{
+ let calls=0,resolve!:(v:{data:unknown;error:unknown})=>void;
+ const client={schema:()=>({rpc:()=>{calls++;const p=new Promise<{data:unknown;error:unknown}>(r=>{resolve=r;});const q=Object.assign(p,{abortSignal:()=>q});return q;}})};
+ const config={keyId:'synthetic',key,boundaryReviewed:true},usage={owner:A,requestId:R,fingerprint:audio,durationMs:5000,resourceName:'yeoni-speech-jace',region:'koreacentral'};
+ const ledger=createSpeechApiUsageLedger(A,client,config),controller=new AbortController();
+ const result=ledger.consume(usage,controller.signal);controller.abort();resolve({data:'accepted',error:null});await assert.rejects(result,/abort/i);assert.equal(calls,1);
+ assert.equal(await ledger.settle!({owner:A,requestId:R},new AbortController().signal),false);assert.equal(calls,1);
+ assert.equal(await ledger.consume({...usage,owner:B},new AbortController().signal),'limit');assert.equal(calls,1);
+ const disabled=createSpeechApiUsageLedger(A,client,{...config,boundaryReviewed:false});await assert.rejects(disabled.isReady!(new AbortController().signal),/boundary unavailable/);assert.equal(calls,1);
+ const lost=ledger.consume(usage,new AbortController().signal);resolve({data:null,error:{message:'synthetic transport loss'}});await assert.rejects(lost,/confirmation unavailable/);assert.equal(calls,2);
+ await assert.rejects(ledger.consume(usage,controller.signal),/abort/i);assert.equal(calls,2);
+});
+test('actual pgcrypto API contract denies direct forgery, binds account and args, consumes once and survives account deletion',async()=>{
+ const db=new PGlite({extensions:{pgcrypto}});
+ try{
+ await db.exec(`create schema extensions;create extension pgcrypto with schema extensions;create role anon nologin;create role authenticated nologin;create role service_role nologin;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.owner',true),'')::uuid$$;insert into auth.users values('${A}'),('${B}');create schema vault;create table vault.decrypted_secrets(id uuid primary key,decrypted_secret text);`);
+ await db.exec(readFileSync(new URL('../docs/azure-pronunciation-usage/api-proof-contract-draft.sql',import.meta.url),'utf8'));
+ const p=createSpeechServerProof(input,key);
+ const call=async(proof=p,ms=5000,text='こんにちは。')=>(await db.query<{r:string}>('select yeoni_speech_proof_candidate.consume($1,$2,$3,$4,$5,$6,$7,$8) r',[proof.requestId,ms,text,audio,proof.issuedAt,proof.expiresAt,proof.keyId,proof.mac])).rows[0].r;
+ await db.query("select set_config('test.owner',$1,false)",[A]);await db.exec('set role authenticated');
+ assert.equal(await call(),'denied');
+ for(const table of ['keys','policy','total'])await assert.rejects(db.query('select * from yeoni_speech_proof_candidate.'+table),/permission denied/);
+ await db.exec('reset role');await db.query('insert into vault.decrypted_secrets values($1,$2)',[R,Buffer.from(key).toString('base64')]);await db.query('insert into yeoni_speech_proof_candidate.keys values($1,$2,true)',['synthetic',R]);
+ await db.query("update yeoni_speech_proof_candidate.policy set enabled=true,allowed_owner=$1,active_key_id='synthetic',policy_id='trial-metadata-policy-v1',api_boundary_reviewed_at=now()",[A]);
+ await db.exec('set role authenticated');
+ assert.equal(await call({...p,mac:audio}),'denied');assert.equal(await call(p,5001),'denied');assert.equal(await call(p,4999),'denied');assert.equal(await call(p,5000,'違う'),'denied');
+ assert.equal(await call({...p,expiresAt:p.issuedAt-1}),'denied');
+ await db.exec('reset role;update yeoni_speech_proof_candidate.keys set enabled=false;set role authenticated');assert.equal(await call(),'denied');
+ await db.exec('reset role;update yeoni_speech_proof_candidate.keys set enabled=true;update yeoni_speech_proof_candidate.policy set api_boundary_reviewed_at=null;set role authenticated');assert.equal(await call(),'denied');
+ await db.exec('reset role;update yeoni_speech_proof_candidate.policy set api_boundary_reviewed_at=now();set role authenticated');
+ await assert.rejects(db.query('select decrypted_secret from vault.decrypted_secrets'),/permission denied/);
+ await db.exec('reset role');await db.query('update vault.decrypted_secrets set decrypted_secret=$1',['invalid-base64!']);await db.exec('set role authenticated');assert.equal(await call(),'denied');
+ await db.exec('reset role');await db.query('update vault.decrypted_secrets set decrypted_secret=$1',[Buffer.alloc(32,8).toString('base64')]);await db.exec('set role authenticated');assert.equal(await call(),'denied');
+ await db.exec('reset role');await db.query('update vault.decrypted_secrets set decrypted_secret=$1',[Buffer.from(key).toString('base64')]);await db.exec('set role authenticated');
+ await db.query("select set_config('test.owner',$1,false)",[B]);assert.equal(await call(),'denied');
+ await db.query("select set_config('test.owner',$1,false)",[A]);
+ const api={schema:(name:string)=>({rpc:(action:string,args:Record<string,string|number>)=>{
+  assert.equal(name,'yeoni_speech_proof_candidate');assert.ok(['ready','consume','finish'].includes(action));
+  const names=Object.keys(args),q=db.query<{r:unknown}>(`select ${name}.${action}(${names.map((n,i)=>n+'=> $'+(i+1)).join(',')}) r`,Object.values(args)).then(r=>({data:r.rows[0].r,error:null}));
+  const query=Object.assign(q,{abortSignal:(signal:AbortSignal)=>{signal.throwIfAborted();return query;}});return query;
+ }} )};
+ const ledger=createSpeechApiUsageLedger(A,api,{keyId:'synthetic',key,boundaryReviewed:true}),signal=new AbortController().signal;
+ assert.equal(await ledger.isReady!(signal),true);
+ const usage={owner:A,requestId:R,fingerprint:audio,durationMs:5000,resourceName:'yeoni-speech-jace',region:'koreacentral'};
+ assert.deepEqual(await Promise.all([ledger.consume(usage,signal),ledger.consume(usage,signal)]),['accepted','duplicate']);
+ assert.equal(await ledger.settle!({owner:A,requestId:R},signal),true);
+ assert.equal(await ledger.isReady!(signal),false);
+ const next=createSpeechServerProof({...input,requestId:B},key);assert.equal(await call(next),'limit');
+ await db.exec('reset role');await db.query('delete from auth.users where id=$1',[A]);
+ await db.query("update yeoni_speech_proof_candidate.policy set allowed_owner=$1",[B]);await db.query("select set_config('test.owner',$1,false)",[B]);await db.exec('set role authenticated');
+ const b=createSpeechServerProof({...input,owner:B,requestId:B},key);assert.equal(await call(b),'limit');
+ await db.exec('reset role;set role anon');await assert.rejects(call(),/permission denied/);
+ await db.exec('reset role;set role service_role');await assert.rejects(call(),/permission denied/);
+ }finally{await db.close();}
+});

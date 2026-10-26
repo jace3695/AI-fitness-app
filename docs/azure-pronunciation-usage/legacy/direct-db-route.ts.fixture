@@ -1,0 +1,27 @@
+import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAzureAssessmentHandler } from '@/lib/azure-pronunciation-server';
+import {createAzureUsageLedger} from '@/lib/azure-pronunciation-usage';
+import {createSpeechUsageDatabaseClient} from '@/lib/speech-usage-database';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Proposed, disabled trial only. Dedicated DB login and SQL/policy provisioning need separate approvals.
+export async function POST(request: Request) {
+  let scoped:ReturnType<typeof createSpeechUsageDatabaseClient>;
+  try{scoped=createSpeechUsageDatabaseClient(process.env);}catch{return Response.json({code:'unavailable',error:'발음 채점은 아직 준비 중이에요. 음성은 보내지 않았어요.'},{status:503,headers:{'Cache-Control':'private, no-store'}});}
+  return createAzureAssessmentHandler({
+    env: process.env,
+    usageForOwner:owner=>createAzureUsageLedger(owner,scoped,process.env.AZURE_SPEECH_RESOURCE_NAME,process.env.AZURE_SPEECH_REGION),
+    authenticate: async signal => {
+      signal.throwIfAborted();
+      const client = await createServerSupabaseClient();
+      signal.throwIfAborted();
+      const { data: { user }, error } = await client.auth.getUser();
+      signal.throwIfAborted();
+      return error ? null : user?.id ?? null;
+    },
+    request: fetch,
+  })(request);
+}
+export const GET=POST;

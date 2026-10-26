@@ -6,7 +6,7 @@ import { createSpeechParticipant } from '@/lib/yeoni/speech-participant';
 import AssessmentAvailability from './AssessmentAvailability';
 
 // Audio stays in memory. No upload, speech recognition, or inferred score.
-export default function Recorder({ text }: { text: string }) {
+export default function Recorder({ text,owner='' }: { text: string;owner?:string }) {
   const [recording, setRecording] = useState<Blob | null>(null);
   const [pitch, setPitch] = useState<PitchPoint[] | null>(null);
   const [pitchBusy, setPitchBusy] = useState(false);
@@ -89,7 +89,7 @@ export default function Recorder({ text }: { text: string }) {
     };
     // Each target owns a separate ephemeral recording.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, participantId]);
+  }, [text, participantId,owner]);
 
   async function start() {
     if (inFlight.current) return;
@@ -126,7 +126,7 @@ export default function Recorder({ text }: { text: string }) {
   }
   return <section aria-label="발음 자기 점검" className="card">
     <h2>발음 자기 점검</h2>
-    <AssessmentAvailability />
+    <AssessmentAvailability recording={recording} text={text} owner={owner} />
     <p lang="ja" style={{ overflowWrap: 'anywhere' }}>{text}</p>
     <p>최대 30초 녹음 후 직접 들어 보세요. 녹음은 전송·저장하지 않으며 문장 변경이나 화면 이탈 시 삭제해요. 발음 평가 서비스는 아직 정하지 않았어요. 지금은 점수를 매기지 않아요.</p>
     <p className="text-sm">녹음 후 내 목소리 높낮이를 볼 수 있어요. 일본어 억양의 정답을 채점하는 기능은 아니에요.</p>

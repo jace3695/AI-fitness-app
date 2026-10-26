@@ -14,6 +14,16 @@ export default function OaSourceCorrection({ dateKey, record, onSaved }: {
   const [message, setMessage] = useState('');
   const keys = oaCorrectionKeys(record);
   if (!keys.length) return null;
+  function openReview() {
+    try {
+      const owner = bodyImportOwner(window.localStorage);
+      const snapshot = JSON.stringify(record);
+      setReview({ owner, snapshot }); setConfirmed(false); setMessage('');
+    } catch {
+      setReview(null); setConfirmed(false);
+      setMessage('기록을 읽지 못했어요. 기존 기록은 바꾸지 않았어요. 저장 공간 접근을 확인한 뒤 다시 눌러 주세요.');
+    }
+  }
   function save() {
     if (!review || !confirmed) return;
     try {
@@ -35,10 +45,7 @@ export default function OaSourceCorrection({ dateKey, record, onSaved }: {
   }
   return <section aria-label="저장된 OA 기기 정보 정정" className="mt-3 rounded border p-3 text-sm">
     <p>원본이 PRO 보고서인 기록의 기기 정보를 정정할 수 있어요. 날짜·수치·메모는 유지해요.</p>
-    {!review ? <button type="button" className="min-h-11 underline" onClick={() => {
-      setReview({ owner: bodyImportOwner(window.localStorage), snapshot: JSON.stringify(record) });
-      setConfirmed(false); setMessage('');
-    }}>기기 정보 정정 검토</button> : <>
+    {!review ? <button type="button" className="min-h-11 underline" onClick={openReview}>기기 정보 정정 검토</button> : <>
       <p>{dateKey} · OA long report → OA Smart Scale PRO</p>
       <ul>{OA_CORRECTION_FIELDS.filter(([key]) => keys.includes(key)).map(([key, label, unit]) =>
         <li key={key}>{label} · {unit} · {record.metricSources?.[key]?.mappingVersion}</li>)}</ul>
