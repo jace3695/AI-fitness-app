@@ -35,6 +35,8 @@ export default function GrowthTypingPage() {
   useUnsavedChanges(Boolean(typed) && !saved);
 
   const reset = (nextPassage = passageIndex) => {
+    if (saving || (pending.current && !saved)) return;
+    if (typed && !saved && !window.confirm("입력한 내용이 지워져요. 새로 시작할까요?")) return;
     setPassageIndex(nextPassage);
     setTyped("");
     setStartedAt(null);
