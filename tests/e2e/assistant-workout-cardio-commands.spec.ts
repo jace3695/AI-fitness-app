@@ -20,9 +20,17 @@ const seed = () => ({
   'ai-fitness-selected-weekly-workout-plan': 'five-day-fullbody-circuit',
   'ai-fitness-workout-direction-version': 'five-day-circuit-v1',
 });
+async function showWorkoutRecords(page: Page) {
+  // Record entry/reload opens the summary; workout details have their own tab.
+  const tab = page.getByRole('tablist', { name: '기록 메뉴', exact: true }).getByRole('tab', { name: '운동기록', exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel', { name: '운동기록', exact: true })).toBeVisible();
+}
 async function openRecords(page: Page) {
   await page.goto('/fitness');
   await page.getByRole('navigation', { name: '운동 주요 메뉴' }).getByRole('button', { name: '기록보기', exact: true }).click();
+  await showWorkoutRecords(page);
 }
 async function undo(receipt: ReturnType<typeof receiptFor>) {
   await receipt.getByRole('button', { name: '이 변경 되돌리기' }).click();
@@ -52,8 +60,9 @@ test('cardio review cancels, restores a lost reply, appears in the calendar and 
   expect(await qa.read()).toEqual({ ...before, [key]: { ...(before[key] as State), [today()]: { ...day(before), cardioDone: true, cardioType: '실내 걷기', cardioMinutes: 20 } } });
   await page.getByRole('link', { name: '운동 기록 보기 →', exact: true }).click();
   await page.getByRole('navigation', { name: '운동 주요 메뉴' }).getByRole('button', { name: '기록보기', exact: true }).click();
+  await showWorkoutRecords(page);
   await expect(page.getByText('실내 걷기 20분', { exact: true })).toBeVisible(); await expect(page.getByText('메모: CI 기존 유산소 메모', { exact: true })).toBeVisible();
-  await page.reload(); await expect(page.getByText('실내 걷기 20분', { exact: true })).toBeVisible(); await synced(page);
+  await page.reload(); await showWorkoutRecords(page); await expect(page.getByText('실내 걷기 20분', { exact: true })).toBeVisible(); await synced(page);
   await page.goto('/assistant/history?area=workout'); await expect(receiptFor(page)).toContainText('실내 걷기 · 총 20분'); await page.reload(); await expect(receiptFor(page)).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await undo(receiptFor(page)); expect(await qa.read()).toEqual(before);
@@ -90,6 +99,9 @@ test('two sessions reject stale cardio confirmation and a later calendar edit pr
     // This flow can cross Korean midnight after the command commits. Select
     // the receipt's date explicitly instead of the calendar's new "today".
     const [year, month, date] = recordedDate.split('-').map(Number);
+    const calendar = second.getByTestId('record-shared-calendar').locator(':scope > details');
+    await calendar.locator(':scope > summary').click();
+    await expect(calendar).toHaveAttribute('open', '');
     await expect(second.getByRole('heading', { name: /^\d{4}년 \d{1,2}월$/ })).toBeVisible();
     const monthHeading = second.getByRole('heading', { name: `${year}년 ${month}월`, exact: true });
     if (!await monthHeading.isVisible()) await second.getByRole('button', { name: '이전', exact: true }).click();

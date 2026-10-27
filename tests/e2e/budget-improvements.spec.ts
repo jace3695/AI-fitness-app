@@ -1,4 +1,5 @@
-import type { Page } from '@playwright/test';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import type { Page, Request } from '@playwright/test';
 import { canonical, expect, login, test, today, Traffic } from './fixture';
 
 const menu = (page: Page) => page.getByRole('navigation', { name: '가계부 주요 메뉴' });
@@ -119,7 +120,7 @@ test('date payment place and blank memo edits each restore exact records and ori
   await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
-test('lost field response reuses one request across reload and a second browser prevents stale bulk overwrite and undo', async ({page,browser,qa})=>{
+test('lost field response reuses one request across reload and a second browser prevents stale bulk overwrite and undo', async ({page,browser,qa},testInfo)=>{
   const date=today();
   expect((await qa.account.client.from('budget_profiles').insert({user_id:qa.account.id,nickname:'항목 충돌 합성'})).error).toBeNull();
   expect((await qa.account.client.from('budget_transactions').insert([expense(qa.account.id,date,'충돌 A'),expense(qa.account.id,date,'충돌 B')])).error).toBeNull();
@@ -165,8 +166,67 @@ test('lost field response reuses one request across reload and a second browser 
   const context=await browser.newContext({baseURL:'http://127.0.0.1:3000',timezoneId:'Asia/Seoul',locale:'ko-KR',serviceWorkers:'block'});
   try{
     const traffic=new Traffic('field-B');await traffic.install(context);
+    // Observe only fixed route classes and scalar metadata. Never persist URLs,
+    // headers, bodies, owner IDs, DOM text or the Playwright exception.
+    const requests: {event:'request'|'response'|'failed';route:'transactions'|'category-history'|'category-rules'|'auth';method:string;status:number;ownerFilterMatchesFixture?:boolean}[]=[];
+    const noteRequest=(request:Request,event:'request'|'response'|'failed',status=0)=>{
+      const url=new URL(request.url());
+      if(url.origin!=='http://127.0.0.1:54321')return;
+      const route=url.pathname==='/rest/v1/budget_transactions'?'transactions'
+        :url.pathname==='/rest/v1/budget_category_changes'?'category-history'
+        :url.pathname==='/rest/v1/budget_category_rules'?'category-rules'
+        :url.pathname.startsWith('/auth/')?'auth':null;
+      if(!route)return;
+      const method=['GET','POST','PATCH','DELETE','PUT','HEAD','OPTIONS'].find(value=>value===request.method())||'other';
+      if(requests.length===20)requests.shift();
+      requests.push({event,route,method,status:Number.isFinite(status)?Math.max(0,Math.min(599,Math.round(status))):0,
+        ...(route==='transactions'&&method==='GET'?{ownerFilterMatchesFixture:url.searchParams.get('user_id')===`eq.${qa.account.id}`}:{})});
+    };
+    context.on('request',request=>noteRequest(request,'request'));
+    context.on('response',response=>noteRequest(response.request(),'response',response.status()));
+    context.on('requestfailed',request=>noteRequest(request,'failed'));
     const secondPage=await context.newPage();await login(secondPage,qa.account,'/budget');const second=await openEditor(secondPage);
-    await second.getByRole('checkbox',{name:`충돌 B ${date} 내역 선택`}).check();
+    const checkbox=second.getByRole('checkbox',{name:`충돌 B ${date} 내역 선택`});
+    const diagnosticCheckbox=second.getByRole('checkbox',{name:`충돌 B ${date} 내역 선택`,includeHidden:true});
+    const project=['chromium','webkit-small'].includes(testInfo.project.name)?testInfo.project.name:'other';
+    const evidencePath=`.e2e/evidence/budget-field-checkbox-${project}-${testInfo.repeatEachIndex}-${Date.now()}.json`;
+    const recordCheckbox=async(phase:'before-check'|'check-failed'|'check-passed')=>{
+      try{
+        const pageClosed=secondPage.isClosed();
+        const snapshot=await diagnosticCheckbox.evaluateAll(nodes=>{
+          const bound=(value:number)=>Number.isFinite(value)?Math.max(-100_000,Math.min(100_000,Math.round(value))):0;
+          const count=(value:number)=>Math.min(100_000,value);
+          const visible=(node:Element)=>{const style=getComputedStyle(node),rect=node.getBoundingClientRect();return style.visibility!=='hidden'&&style.display!=='none'&&rect.width>0&&rect.height>0;};
+          const node=nodes.length===1?nodes[0] as HTMLInputElement:null;
+          const rect=node?.getBoundingClientRect();
+          const x=rect?rect.x+rect.width/2:0,y=rect?rect.y+rect.height/2:0;
+          const inside=Boolean(rect&&x>=0&&x<innerWidth&&y>=0&&y<innerHeight);
+          const hit=inside?document.elementFromPoint(x,y):null;
+          const hitTarget=!node?'absent':!inside?'outside-viewport':hit===node?'self'
+            :hit?.closest('label')===node.closest('label')&&Boolean(node.closest('label'))?'label'
+            :hit?.closest('.living-finance-nav')?'budget-navigation'
+            :hit?.closest('.budget-app-header')?'budget-header':'other';
+          return {checkboxMatches:count(nodes.length),visibleMatches:count(nodes.filter(visible).length),
+            disabledMatches:count(nodes.filter(node=>(node as HTMLInputElement).disabled).length),
+            checkedMatches:count(nodes.filter(node=>(node as HTMLInputElement).checked).length),hitTarget,
+            viewport:{width:bound(innerWidth),height:bound(innerHeight)},
+            ...(rect?{box:{x:bound(rect.x),y:bound(rect.y),width:bound(rect.width),height:bound(rect.height)}}:{})};
+        }).catch(()=>null);
+        mkdirSync('.e2e/evidence',{recursive:true});
+        writeFileSync(evidencePath,JSON.stringify({schema:1,phase,collection:snapshot?'ok':'unavailable',pageClosed,...snapshot,requests},null,2));
+      }catch{
+        // A diagnostics failure must not replace the original checkbox error.
+        console.log('BUDGET_FIELD_CHECKBOX_DIAGNOSTIC_UNAVAILABLE');
+      }
+    };
+    await recordCheckbox('before-check');
+    try{
+      await checkbox.check();
+    }catch(error){
+      await recordCheckbox('check-failed');
+      throw error;
+    }
+    await recordCheckbox('check-passed');
     await second.getByLabel('수정할 항목').selectOption('payment');await second.getByLabel('변경할 결제수단').selectOption('현금');
     await second.getByRole('button',{name:'선택 1건 결제수단 변경'}).click();
     await secondPage.getByRole('dialog',{name:'선택한 결제수단 변경'}).getByRole('button',{name:'결제수단 변경',exact:true}).click();
@@ -218,8 +278,9 @@ test('bulk category memory, full history, preview, save and undo survive reload 
   await panel.getByRole('button', { name: '교통 2건 변경 전후 보기' }).click();
   await expect(panel.getByText('스타벅스 · 기타 → 교통', { exact: true })).toHaveCount(2);
   await menu(page).getByRole('button', { name: '기록', exact: true }).click();
+  await page.getByText('문장으로 입력하기 · 기존 방식', { exact: true }).click();
   await page.getByLabel('기록할 내용').fill('오늘 스타벅스 7000원 체크카드');
-  await page.getByRole('button', { name: 'AI로 내용 채우기', exact: true }).click();
+  await page.getByRole('button', { name: '내용 확인하기', exact: true }).click();
   await expect(page.getByLabel('카테고리', { exact: false })).toHaveValue('교통');
   await expect(page.getByText('· 기억한 분류', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '1건 확인 후 저장', exact: true }).click();

@@ -18,12 +18,25 @@ test('free mode keeps paid routes blocked and provides a clearly labelled conver
   await page.goto('/language/conversation');
   await expect(page.getByRole('heading', { name: '상황별 회화 연습', exact: true })).toBeVisible();
   await page.getByLabel('상황', { exact: true }).selectOption('카페');
-  await page.getByRole('button', { name: '예문으로 연습하기', exact: true }).click();
-  await page.getByRole('button', { name: '전송', exact: true }).click();
-  await expect(page.getByText('ホットとアイス、どちらになさいますか？', { exact: true })).toBeVisible();
-  await expect(page.getByText(/연습 문장과 일치해요/)).toBeVisible();
+  const practice = page.getByRole('region', { name: '상황별 고정 회화', exact: true });
+  await expect(practice).toContainText('자유 생성 대화·문장 자동 교정·발음 채점은 하지 않아요.');
+  await practice.getByRole('button', { name: '이 예문으로 시작', exact: true }).click();
+  await expect(practice.getByRole('article', { name: '상대방의 말', exact: true })).toContainText('ホットとアイス、どちらになさいますか？');
+  const choices = practice.getByRole('group', { name: '어떻게 답할까요? 뜻을 보고 골라요.', exact: true });
+  await expect(choices.getByRole('button')).toHaveCount(2);
+  await choices.getByRole('button', { name: 'ホットでお願いします。 · 따뜻한 것으로 부탁드려요.', exact: true }).click();
+  await expect(practice.getByRole('article', { name: '내가 고른 답', exact: true })).toContainText('ホットでお願いします。');
+  await expect(practice.getByRole('article', { name: '상대방의 마무리', exact: true })).toContainText('かしこまりました。少々お待ちください。');
+  await expect(practice).toContainText('자동 점수나 학습 완료 기록은 만들지 않아요.');
+  await practice.getByRole('button', { name: '처음부터 다시 연습', exact: true }).click();
+  await practice.getByLabel('예문 직접 입력', { exact: true }).fill('コーヒーを一つください。');
+  await practice.getByRole('button', { name: '준비된 예문 확인', exact: true }).click();
+  await expect(practice.getByRole('article', { name: '상대방의 말', exact: true })).toContainText('ホットとアイス、どちらになさいますか？');
   await noOverflow(page);
+  expect(await page.evaluate(() => ({ saved: localStorage.getItem('savedSentences'), wrong: localStorage.getItem('wrongSentences') }))).toEqual({ saved: null, wrong: null });
   expect(await qa.read()).toEqual(original);
+  expect(await qa.readLanguage()).toEqual(originalLanguage);
+  expect(qa.traffic.entries.filter(entry => entry.table === 'language_user_state' && entry.method !== 'GET'), 'Local conversation practice never writes learning records automatically').toEqual([]);
 });
 
 test('meal reuse previews before applying, preserves other inputs, and saves weekly context to the actual DB', async ({ page, qa }) => {

@@ -114,6 +114,8 @@ jobs:
         run: npm run build
       - name: Keep hosted-only speech diagnostics denied on the isolated app
         run: node scripts/qa-playwright.mjs tests/e2e/diagnostic-denial.spec.ts --project=chromium --project=webkit-diagnostic-denial
+      - name: Verify record and free-mode regression flows first
+        run: node scripts/qa-playwright.mjs tests/e2e/assistant-workout-cardio-commands.spec.ts tests/e2e/assistant-workout-commands.spec.ts tests/e2e/budget-improvements.spec.ts tests/e2e/free-first.spec.ts --project=chromium --project=webkit-small --grep 'cardio review cancels|two sessions reject stale cardio|invalid or expired cardio|workout confirmation cancels|two real workout sessions|lost field response reuses one request|bulk category memory|free mode keeps paid routes'
       - name: Verify handwriting course in Chromium and WebKit
         run: node scripts/qa-playwright.mjs tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
       - name: Verify assistant home, advice and briefing in both browsers
