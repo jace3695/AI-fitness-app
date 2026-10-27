@@ -3,11 +3,13 @@ import { EmptyListFixture, MotionFixture, StaticPoseFixture } from './BasicFixtu
 import AssessmentFixture from './AssessmentFixture';
 import ReplyFixture from './ReplyFixture';
 import PracticeFixture from './PracticeFixture';
+import BodyImportFixture from './BodyImportFixture';
 import '../../../app/globals.css';
 import '../../../app/language/language.css';
 
 const scenario = new URLSearchParams(location.search).get('case');
 const fixture = scenario === 'assessment' ? <AssessmentFixture />
+  : scenario === 'body-import' ? <BodyImportFixture />
   : scenario === 'practice' ? <PracticeFixture />
   : scenario === 'reply' ? <ReplyFixture />
     : scenario === 'motion' ? <MotionFixture />

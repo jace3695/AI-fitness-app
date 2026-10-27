@@ -28,8 +28,8 @@ class SyntheticRecording extends Blob {
   }
 }
 
-type Metrics = { inputReads: number; checks: number; posts: number; pendingAborts: number; localHeld: boolean; responseHeld: boolean };
-const initialMetrics: Metrics = { inputReads: 0, checks: 0, posts: 0, pendingAborts: 0, localHeld: false, responseHeld: false };
+type Metrics = { inputReads: number; checks: number; posts: number; pendingAborts: number; localHeld: boolean; responseHeld: boolean; responseCount: number };
+const initialMetrics: Metrics = { inputReads: 0, checks: 0, posts: 0, pendingAborts: 0, localHeld: false, responseHeld: false, responseCount: 0 };
 
 export default function AssessmentFixture() {
   const [metrics, setMetrics] = useState(initialMetrics);
@@ -38,7 +38,7 @@ export default function AssessmentFixture() {
   const [text, setText] = useState('こんにちは。');
   const [owner, setOwner] = useState('fixture-owner-a');
   const releaseBytes = useRef<(() => void) | null>(null);
-  const releaseResponse = useRef<(() => void) | null>(null);
+  const releaseResponses = useRef<Array<(accuracy?: number, fluency?: number) => void>>([]);
 
   const request = useCallback<AssessmentHttp>(async (path, init, activeOwner, signal) => {
     signal.throwIfAborted();
@@ -47,22 +47,26 @@ export default function AssessmentFixture() {
       setMetrics(value => ({ ...value, checks: value.checks + 1 }));
       return Response.json({ available: true, providerId: 'azure-speech', policyVersion: AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral' });
     }
-    if (init.method !== 'POST' || typeof init.body !== 'string' || releaseResponse.current) throw new Error('Unexpected assessment fixture request');
+    if (init.method !== 'POST' || typeof init.body !== 'string') throw new Error('Unexpected assessment fixture request');
     const body = JSON.parse(init.body) as { requestId?: unknown };
     if (typeof body.requestId !== 'string') throw new Error('Synthetic response needs the actual request identity');
-    setMetrics(value => ({ ...value, posts: value.posts + 1, responseHeld: true }));
     // Intentionally ignore cancellation until the visible release control is used:
     // real client/UI code must reject a late result after cancellation or owner change.
     return new Promise<Response>(resolve => {
       const onAbort = () => setMetrics(value => ({ ...value, pendingAborts: value.pendingAborts + 1 }));
       signal.addEventListener('abort', onAbort, { once: true });
-      releaseResponse.current = () => {
+      const release = (accuracy = 81, fluency = 72) => {
+        if (!releaseResponses.current.includes(release)) return;
         signal.removeEventListener('abort', onAbort);
-        releaseResponse.current = null;
-        setMetrics(value => ({ ...value, responseHeld: false }));
+        releaseResponses.current = releaseResponses.current.filter(pending => pending !== release);
+        const remaining = releaseResponses.current.length;
+        setMetrics(value => ({ ...value, responseHeld: remaining > 0, responseCount: remaining }));
         resolve(Response.json({ requestId: body.requestId, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment',
-          metrics: [{ name: 'accuracy', value: 81, min: 0, max: 100 }, { name: 'fluency', value: 72, min: 0, max: 100 }] }));
+          metrics: [{ name: 'accuracy', value: accuracy, min: 0, max: 100 }, { name: 'fluency', value: fluency, min: 0, max: 100 }] }));
       };
+      releaseResponses.current.push(release);
+      const held = releaseResponses.current.length;
+      setMetrics(value => ({ ...value, posts: value.posts + 1, responseHeld: true, responseCount: held }));
     });
   }, []);
 
@@ -82,21 +86,23 @@ export default function AssessmentFixture() {
       await waiting;
     }));
   };
-  useEffect(() => () => { releaseBytes.current?.(); releaseResponse.current?.(); }, []);
+  useEffect(() => () => { releaseBytes.current?.(); releaseResponses.current.slice().forEach(release => release()); }, []);
 
   return <section aria-label="Synthetic assessment component fixture">
-    <p>This fixture uses a generated sine and mock responses, not speech, a microphone, Azure, or hosted data.</p>
+    <p>This fixture uses a generated sine and mock responses, not speech, a microphone, Azure, or hosted data.
+      Mock readiness may be granted again here; this does not imply that a real one-trial ledger permits another request.</p>
     <div aria-label="Assessment fixture controls" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8, marginBlock: 12 }}>
       <button type="button" onClick={() => setText('Synthetic wrong reference')} style={{ minHeight: 44 }}>Use wrong reference</button>
       <button type="button" onClick={() => resetRecording(6)} style={{ minHeight: 44 }}>Use six-second recording</button>
       <button type="button" onClick={() => resetRecording(1)} style={{ minHeight: 44 }}>Reset one-second recording</button>
       <button type="button" onClick={holdRecording} style={{ minHeight: 44 }}>Hold local recording bytes</button>
       <button type="button" disabled={!metrics.localHeld} onClick={() => { releaseBytes.current?.(); releaseBytes.current = null; }} style={{ minHeight: 44 }}>Release local recording bytes</button>
-      <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponse.current?.()} style={{ minHeight: 44 }}>Release mock assessment response</button>
+      <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current[0]?.()} style={{ minHeight: 44 }}>Release mock assessment response</button>
+      <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(93, 88)} style={{ minHeight: 44 }}>Release latest mock response with distinct scores</button>
       <button type="button" onClick={() => setOwner(value => value === 'fixture-owner-a' ? 'fixture-owner-b' : 'fixture-owner-a')} style={{ minHeight: 44 }}>Change synthetic owner</button>
     </div>
     <output data-testid="assessment-fixture-metrics" data-input-reads={metrics.inputReads} data-checks={metrics.checks} data-posts={metrics.posts}
-      data-pending-aborts={metrics.pendingAborts} data-local-held={String(metrics.localHeld)} data-response-held={String(metrics.responseHeld)}>
+      data-pending-aborts={metrics.pendingAborts} data-local-held={String(metrics.localHeld)} data-response-held={String(metrics.responseHeld)} data-response-count={metrics.responseCount}>
       Local input reads: {metrics.inputReads}; mock readiness checks: {metrics.checks}; mock posts: {metrics.posts}; pending aborts: {metrics.pendingAborts}.
     </output>
     <div data-testid="assessment-panel"><AssessmentAvailability recording={recording} text={text} owner={owner} request={request} /></div>

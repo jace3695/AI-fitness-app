@@ -103,6 +103,8 @@ interface Props {
   onManualDraftChange?: (dirty: boolean) => void;
   weights: WeightRecordStore;
   inbody: InbodyRecordStore;
+  /** Reader boundary for isolated synthetic verification; normal callers use local OCR. */
+  readReport?: typeof parseOaReport;
   onChange: (next: {
     weights: WeightRecordStore;
     inbody: InbodyRecordStore;
@@ -116,6 +118,7 @@ export default function BodyRecordCard({
   onChange,
   onDateChange,
   onManualDraftChange,
+  readReport = parseOaReport,
 }: Props) {
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
@@ -356,7 +359,7 @@ export default function BodyRecordCard({
     setImportProgress(0);
     setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
     try {
-      const result = await parseOaReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); }, confirmedPro);
+      const result = await readReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); }, confirmedPro);
       if (!isCurrent()) return;
       const validEntries = Object.entries(result.values).filter(([, value]) => typeof value === "number" && Number.isFinite(value));
       const unmappedMeasurements = result.unmappedMeasurements || [];

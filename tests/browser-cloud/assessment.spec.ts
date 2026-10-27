@@ -106,3 +106,54 @@ test('assessment mock readiness requires new consent and late responses cannot r
   await expect(consent).toHaveCount(0);
   await expect(metrics).toHaveAttribute('data-posts', '3');
 });
+
+
+test('new explicitly requested mock assessment result survives an older cancelled response released last', async ({ page }) => {
+  await page.goto('/?case=assessment');
+  const panel = page.getByTestId('assessment-panel');
+  const metrics = page.getByTestId('assessment-fixture-metrics');
+  await panel.locator('summary').click();
+  const prepare = panel.getByRole('button', { name: prepareLabel, exact: true });
+  const check = panel.getByRole('button', { name: checkLabel, exact: true });
+  const consent = panel.getByRole('checkbox');
+  const start = async () => {
+    await prepare.click(); await expect(consent).toBeVisible(); await consent.check();
+    await check.click(); await expect(consent).not.toBeChecked();
+    const send = panel.getByRole('button', { name: '발음 점수 받기', exact: true });
+    await expect(send).toBeDisabled(); await consent.check(); await send.click();
+  };
+  await start();
+  await expect(metrics).toHaveAttribute('data-response-count', '1');
+  await expect(metrics).toHaveAttribute('data-posts', '1');
+  await panel.getByRole('button', { name: '요청 취소', exact: true }).click();
+  await expect(metrics).toHaveAttribute('data-pending-aborts', '1');
+  await expect(panel.getByRole('status')).toContainText('1회 시험 한도 복구를 보장하지 않아요.');
+
+  // Fresh synthetic readiness is deliberately injected; the hosted trial ledger
+  // is not part of this lane, and no permission to repeat a real trial is implied.
+  await page.getByRole('button', { name: 'Reset one-second recording', exact: true }).click();
+  await start();
+  await expect(metrics).toHaveAttribute('data-response-count', '2');
+  await expect(metrics).toHaveAttribute('data-checks', '2');
+  await expect(metrics).toHaveAttribute('data-posts', '2');
+  await page.getByRole('button', { name: 'Release latest mock response with distinct scores', exact: true }).click();
+  await expect(metrics).toHaveAttribute('data-response-count', '1');
+  await expect(panel.getByText('발음 정확도: 93 / 100', { exact: true })).toBeVisible();
+  await expect(panel.getByText('말하기 흐름: 88 / 100', { exact: true })).toBeVisible();
+  await expect(panel.locator('summary')).toHaveText('발음 평가 결과');
+  await page.getByRole('button', { name: 'Release mock assessment response', exact: true }).click();
+  await expect(metrics).toHaveAttribute('data-response-count', '0');
+  await expect(metrics).toHaveAttribute('data-response-held', 'false');
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(panel.getByText('발음 정확도: 93 / 100', { exact: true })).toBeVisible();
+  await expect(panel.getByText('말하기 흐름: 88 / 100', { exact: true })).toBeVisible();
+  await expect(panel.getByText('발음 정확도: 81 / 100', { exact: true })).toHaveCount(0);
+  await expect(panel.getByText('말하기 흐름: 72 / 100', { exact: true })).toHaveCount(0);
+  await expect(check).toBeDisabled(); await expect(consent).toBeDisabled(); await expect(consent).not.toBeChecked();
+  await expect(metrics).toHaveAttribute('data-posts', '2');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload(); await page.getByTestId('assessment-panel').locator('summary').click();
+  await expect(panel.getByText('발음 정확도: 93 / 100', { exact: true })).toHaveCount(0);
+  await expect(metrics).toHaveAttribute('data-posts', '0');
+  await expect(metrics).toHaveAttribute('data-response-count', '0');
+});

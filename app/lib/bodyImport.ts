@@ -55,7 +55,14 @@ export function mergeBodyImport(weights: WeightRecordStore, inbody: InbodyRecord
     if (key === 'weight') {
       const rounded = Math.round(value * 10) / 10;
       if (input && (!Number.isFinite(rounded) || rounded <= 0)) throw new Error('체중은 소수 첫째 자리 반올림 후에도 0보다 커야 합니다.');
-      if (input) nextWeights[date] = { weight: rounded, recordedAt: new Date().toISOString() };
+      if (input) {
+        nextWeights[date] = { weight: rounded, recordedAt: new Date().toISOString() };
+        // The OCR draft may omit weight while the user corrects its retained
+        // value. Keep the original evidence, but do not label the edit as OCR.
+        if (!sources.weight && record.metricSources?.weight && rounded !== weights[date]?.weight) {
+          record.metricSources.weight = { ...record.metricSources.weight, method: 'ocr-edited' };
+        }
+      }
       else {
         delete nextWeights[date];
         if (record.metricSources) delete record.metricSources.weight;

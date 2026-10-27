@@ -31,7 +31,7 @@ function fixture() {
     importVersion: { current: 0 }, activeDate: { current: '2026-10-22' }, dateKey: '2026-10-22',
     confirmedPro: false, weights: {}, inbody: {}, form: { memo: 'manual memo' }, manualEdit: { current: { dirty: true } },
     bodyForm, bodyImportOwner, validMeasurementDate, getLocalDateKey: () => '2026-10-22',
-    parseOaReport: (_file: unknown, progress: (n: number) => void) => new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })),
+    readReport: (_file: unknown, progress: (n: number) => void) => new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })),
     oaSourceMeasurements: () => [], OA_TRUNK_ROWS: [], inbodyFields: [],
     setDraft: (value: unknown) => update(() => { state.draft = value; }),
     setImportMessage: (value: string) => update(() => { state.message = value; }),

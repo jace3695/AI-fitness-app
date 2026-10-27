@@ -248,9 +248,13 @@ function makeCrop(
   return canvas;
 }
 
-function numericTokenFromText(text: string) {
-  const normalized = text.trim().replace(/,/g, ".")
+function normalizedNumericText(text: string) {
+  return text.trim().replace(/,/g, ".")
     .replace(/\s*([.,])\s*/g, "$1");
+}
+
+function numericTokenFromText(text: string) {
+  const normalized = normalizedNumericText(text);
   // One complete measurement only: never take the first digit of a label/range.
   return normalized.match(/^(\d+(?:\.\d+)?)\s*(%|kg|kcal|points?)?\s*$/i);
 }
@@ -262,6 +266,18 @@ function matchesReportUnit(unit: string | undefined, row: ReportRow) {
   const expected = row.key === 'oaBodyMuscleMass' || row.key === 'oaBodyFatMass'
     ? 'kg' : OA_REPORT_INVENTORY.find(([key]) => key === row.key)?.[2];
   return unit.toLowerCase().replace(/^points?$/, '포인트') === expected;
+}
+
+function hasUnitConflict(text: string, row: ReportRow) {
+  const token = numericTokenFromText(text);
+  if (token) return !matchesReportUnit(token[2], row);
+  // Other report formats can expose units outside our accepted vocabulary.
+  // A retry crop may lose that text, but must not relabel lb/g/etc. as kg.
+  // Inspect the whole failed reading, including wrappers, prefixes and lines:
+  // unknown labels or letter-like digits also need manual review rather than
+  // guessing their meaning. Punctuation-only failures (24:7) still can recover.
+  // These percent/per-mille marks are Unicode punctuation, not Symbol letters.
+  return /[%％﹪٪‰‱؉؊\p{L}\p{S}]/u.test(text);
 }
 
 export function numberFromText(text: string, row: ReportRow) {
@@ -311,7 +327,7 @@ export function agreedNumber(reads: { text: string; confidence: number }[], row:
 export function recoveredNumber(original: { text: string; confidence: number }[], retries: { text: string; confidence: number }[], row: ReportRow) {
   const candidate = agreedNumber(retries, row);
   if (candidate === undefined) return undefined;
-  if (original.some(read => !matchesReportUnit(numericTokenFromText(read.text)?.[2], row))) return undefined;
+  if (original.some(read => hasUnitConflict(read.text, row))) return undefined;
   const observations = original.map(read => numberFromText(read.text, row));
   return observations.some(value => value !== undefined && value !== candidate) ? undefined : candidate;
 }

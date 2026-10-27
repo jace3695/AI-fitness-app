@@ -11,7 +11,7 @@ import * as plans from '../lib/yeoni/reply-plan.ts';
 import { parseLipSyncManifest, type LipSyncManifest } from '../lib/yeoni/lip-sync.ts';
 import { EMPTY_PLAYBACK, type PlaybackSnapshot } from '../lib/yeoni/character-controller.ts';
 
-type Props = { clips: readonly ReplyClip[]; resolveClip?: ReplyClipResolver; incoming?: { value: unknown } | null };
+type Props = { clips: readonly ReplyClip[]; resolveClip?: ReplyClipResolver; incoming?: { value: unknown } | null; presentation?: 'review' | 'assistant' };
 type ElementProps = { children?: ReactNode; onClick?: () => void; disabled?: boolean; 'data-reply-status'?: string };
 type Slot = { initialized?: boolean; value?: unknown; deps?: readonly unknown[]; cleanup?: () => void };
 const koTimeline = JSON.parse(readFileSync(new URL('../docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json', import.meta.url), 'utf8'));
@@ -220,6 +220,64 @@ test('reset and hide block cloned old request IDs after source replacement; same
       props = { ...props, incoming: incoming('genuinely-new') }; f.render(props);
       await until(() => f.players.at(-1)?.loads === 1);
       assert.equal(resolutions, 1); assert.equal(f.players.at(-1)?.plays, 0);
+    } finally { f.unmount(); }
+  }
+});
+
+
+test('both presentations can cancel pending source or audio preparation without reviving the dismissed response', async () => {
+  for (const presentation of ['review', 'assistant'] as const) {
+    for (const phase of ['resolver', 'loader'] as const) {
+      const f = fixture(), held = delayed(); let signal!: AbortSignal, release!: () => void, loads = 0;
+      const heldClip: ReplyClip = { manifest: clip.manifest, async load(input) {
+        signal = input; loads++;
+        await new Promise<void>(resolve => { release = resolve; });
+        // Deliberately ignore abort, as a decoder or cache read may already be running.
+        return { bytes: recording.slice(0), mime: 'audio/mpeg' };
+      } };
+      const resolver: ReplyClipResolver = phase === 'resolver' ? held.resolver : async () => heldClip;
+      let props: Props = { clips: empty, resolveClip: resolver, incoming: incoming('cancelled'), presentation };
+      try {
+        f.render(props);
+        await until(() => phase === 'resolver' ? held.calls() === 1 : loads === 1);
+        assert.equal(status(f.render(props)), 'loading');
+        if (presentation === 'assistant') assert.equal(nodes(f.render(props)).some(node => node.type === 'button' && ['답변 듣기', '일시정지', '처음으로'].includes(text(node))), false);
+        const pendingTree = f.render(props);
+        click(pendingTree, '취소'); click(pendingTree, '취소');
+        assert.equal(status(f.render(props)), 'idle');
+        assert.equal((phase === 'resolver' ? held.signal() : signal).aborted, true);
+        // Repeated stale handlers and cloned props must not restart the cancelled work.
+        props = { ...props, incoming: incoming('cancelled'), resolveClip: async () => clip };
+        f.render(props);
+        if (phase === 'resolver') held.finish(clip); else release();
+        await new Promise(resolve => setTimeout(resolve, 5));
+        assert.equal(status(f.render(props)), 'idle');
+        assert.equal(f.players.reduce((sum, player) => sum + player.loads, 0), 0);
+        assert.equal(f.players.reduce((sum, player) => sum + player.plays, 0), 0);
+        props = { ...props, incoming: incoming('new-after-cancel') }; f.render(props);
+        await until(() => f.players.at(-1)?.loads === 1);
+        assert.equal(status(f.render(props)), 'ready');
+        assert.equal(f.players.at(-1)?.plays, 0);
+        assert.equal(nodes(f.render(props)).some(node => node.type === 'button' && text(node) === '취소'), false);
+      } finally { f.unmount(); }
+    }
+  }
+});
+
+
+test('both presentations can cancel transport waiting before it reaches the clip resolver', async () => {
+  for (const presentation of ['review', 'assistant'] as const) {
+    const f = fixture(), held = delayed();
+    const props: Props = { clips: empty, resolveClip: held.resolver, incoming: incoming('waiting'), presentation };
+    try {
+      f.render(props);
+      const waiting = f.render(props);
+      assert.equal(status(waiting), 'waiting');
+      click(waiting, '취소'); click(waiting, '취소');
+      await new Promise(resolve => setTimeout(resolve, 5));
+      assert.equal(status(f.render(props)), 'idle');
+      assert.equal(held.calls(), 0); assert.equal(f.players[0].loads, 0);
+      assert.equal(f.players[0].plays, 0);
     } finally { f.unmount(); }
   }
 });

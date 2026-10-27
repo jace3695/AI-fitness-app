@@ -40,3 +40,39 @@ test('rounded import weight must remain positive and finite without mutating exi
   }
   assert.equal(mergeBodyImport(weights, {}, '2026-10-01', { weight: '80.16' }, '2026-10-14').weights['2026-10-01'].weight, 80.2);
 });
+
+const sourceDate = '2026-10-01';
+const originalWeightSource = { device: 'OA long report' as const, originalLabel: '체중', originalUnit: 'kg', originalText: '80.2kg', method: 'ocr' as const, mappingVersion: 'oa-pro-v1' as const };
+const originalWeights = { [sourceDate]: { weight: 80.2, recordedAt: 'original' } };
+const originalInbody = { [sourceDate]: { bmi: 24.1, memo: 'synthetic preserved', metricSources: { weight: originalWeightSource } } };
+
+test('an explicit correction to an unrecognized imported weight marks its retained source edited', () => {
+  const before = structuredClone({ weights: originalWeights, inbody: originalInbody });
+  const next = mergeBodyImport(originalWeights, originalInbody, sourceDate, { weight: '82.4', bmi: '24.8' }, '2026-10-27');
+  assert.equal(next.weights[sourceDate].weight, 82.4);
+  assert.deepEqual(next.inbody[sourceDate].metricSources?.weight, { ...originalWeightSource, method: 'ocr-edited' });
+  assert.equal(next.inbody[sourceDate].bmi, 24.8);
+  assert.equal(next.inbody[sourceDate].memo, 'synthetic preserved');
+  assert.deepEqual({ weights: originalWeights, inbody: originalInbody }, before);
+});
+
+test('omitted, unchanged and rounded-equivalent weight patches retain their source unchanged', () => {
+  const patches: Record<string, string>[] = [{ bmi: '24.8' }, { weight: '80.2' }, { weight: '80.24' }];
+  for (const patch of patches) {
+    const next = mergeBodyImport(originalWeights, originalInbody, sourceDate, patch, '2026-10-27');
+    assert.equal(next.weights[sourceDate].weight, 80.2);
+    assert.deepEqual(next.inbody[sourceDate].metricSources?.weight, originalWeightSource);
+  }
+});
+
+test('a fresh OCR source is retained, absent provenance is not invented and clearing removes it', () => {
+  const fresh = { ...originalWeightSource, originalText: '82.4kg' };
+  const replaced = mergeBodyImport(originalWeights, originalInbody, sourceDate, { weight: '82.4' }, '2026-10-27', { weight: fresh });
+  assert.deepEqual(replaced.inbody[sourceDate].metricSources?.weight, fresh);
+  const manual = mergeBodyImport(originalWeights, { [sourceDate]: { memo: 'synthetic' } }, sourceDate, { weight: '82.4' }, '2026-10-27');
+  assert.equal(manual.inbody[sourceDate].metricSources, undefined);
+  const cleared = mergeBodyImport(originalWeights, originalInbody, sourceDate, { weight: '' }, '2026-10-27');
+  assert.equal(cleared.weights[sourceDate], undefined);
+  assert.equal(cleared.inbody[sourceDate].metricSources, undefined);
+  assert.equal(cleared.inbody[sourceDate].memo, 'synthetic preserved');
+});

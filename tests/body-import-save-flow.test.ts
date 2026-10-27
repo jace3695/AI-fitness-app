@@ -83,3 +83,18 @@ test('blank OCR date requires manual correction and explicit confirmation before
   assert.equal(f.state.writes, 1); assert.equal(f.state.date, '2026-09-30');
   assert.equal(JSON.parse(f.storage.get('inbody')!)['2026-09-30'].memo, 'keep');
 });
+
+test('actual import save handler distinguishes a manually corrected missing weight from its prior OCR source', () => {
+  const f = fixture();
+  const source = { device: 'OA long report', originalLabel: '체중', originalUnit: 'kg', originalText: '80.0kg', method: 'ocr', mappingVersion: 'oa-pro-v1' };
+  f.storage.set('inbody', JSON.stringify({ '2026-09-30': { bmi: 24, memo: 'keep', metricSources: { weight: source } } }));
+  const before = [...f.storage];
+  f.state.confirm = () => false; f.save();
+  assert.deepEqual([...f.storage], before);
+  f.state.confirm = () => true; f.save();
+  assert.equal(f.state.writes, 1);
+  assert.equal(JSON.parse(f.storage.get('weights')!)['2026-09-30'].weight, 79.2);
+  const record = JSON.parse(f.storage.get('inbody')!)['2026-09-30'];
+  assert.deepEqual(record.metricSources.weight, { ...source, method: 'ocr-edited' });
+  assert.equal(record.memo, 'keep');
+});

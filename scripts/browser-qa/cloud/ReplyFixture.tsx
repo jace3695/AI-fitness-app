@@ -14,6 +14,7 @@ type Metrics = { resolutions: number; loads: number; aborts: number; releases: n
 
 /** Standalone real panel/media fixture. No provider, hosted account, or new alignment. */
 export default function ReplyFixture() {
+  const presentation = new URLSearchParams(location.search).get('presentation') === 'assistant' ? 'assistant' : 'review';
   const sequence = useRef(0);
   const held = useRef<Array<() => void>>([]);
   const [pending, setPending] = useState(0);
@@ -85,6 +86,6 @@ export default function ReplyFixture() {
       data-aborts={metrics.aborts} data-releases={metrics.releases} data-pending={pending}>
       소스 확인 {metrics.resolutions}회 · 파일 읽기 {metrics.loads}회 · 취소 {metrics.aborts}회 · 늦은 결과 {metrics.releases}회
     </output>
-    {mounted ? <ReplyCharacterPanel clips={noInlineClips} resolveClip={resolveClip} incoming={incoming} /> : <p>검사 패널을 제거했어요.</p>}
+    {mounted ? <ReplyCharacterPanel presentation={presentation} clips={noInlineClips} resolveClip={resolveClip} incoming={incoming} /> : <p>검사 패널을 제거했어요.</p>}
   </section>;
 }

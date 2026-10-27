@@ -77,3 +77,16 @@ test('CI preserves the full suite budget and separate bounded component evidence
   assert.ok(workflow.indexOf(assistant) > workflow.indexOf(handwriting));
   assert.ok(workflow.indexOf(assistant) < workflow.indexOf('Verify beginner drawing flow'));
 });
+
+test('body import browser fixture uses an explicit reader boundary without replacing production modules', () => {
+  const component = readFileSync('app/components/BodyRecordCard.tsx', 'utf8');
+  assert.match(component, /readReport\?: typeof parseOaReport/);
+  assert.match(component, /readReport = parseOaReport/);
+  assert.match(component, /await readReport\(file,/);
+  const fixture = readFileSync('scripts/browser-qa/cloud/BodyImportFixture.tsx', 'utf8');
+  assert.match(fixture, /import BodyRecordCard from '\.\.\/\.\.\/\.\.\/app\/components\/BodyRecordCard'/);
+  assert.match(fixture, /readReport=\{readSyntheticReport\}/);
+  const observations = readFileSync('scripts/browser-qa/cloud/body-import-ocr.ts', 'utf8');
+  assert.match(observations, /import \{ recoveredNumber, type OaReportResult \} from '\.\.\/\.\.\/\.\.\/app\/lib\/oaReportParser\.ts'/);
+  assert.doesNotMatch(observations, /fetch\(|localStorage|sessionStorage|process\.env/);
+});

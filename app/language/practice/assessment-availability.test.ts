@@ -25,7 +25,7 @@ const compiled = ts.transpileModule(source.replace('  return <details', '  __cap
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
 const readiness = () => Response.json({ available: true, providerId: 'azure-speech', policyVersion: audio.AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral' });
-const score = (id: string) => Response.json({ requestId: id, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment', metrics: [{ name: 'accuracy', value: 81, min: 0, max: 100 }, { name: 'fluency', value: 72, min: 0, max: 100 }] });
+const score = (id: string, accuracy = 81, fluency = 72) => Response.json({ requestId: id, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment', metrics: [{ name: 'accuracy', value: accuracy, min: 0, max: 100 }, { name: 'fluency', value: fluency, min: 0, max: 100 }] });
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 async function until(done: () => boolean) { for (let i = 0; i < 100 && !done(); i++) await new Promise(resolve => setTimeout(resolve, 1)); assert.ok(done(), 'mock operation reached expected boundary'); }
 function nodes(node: ReactNode): ReactElement<NodeProps>[] {
@@ -189,4 +189,33 @@ test('recording/text/owner/session/storage/unmount boundaries clear consent and 
     if (boundary !== 'unmount') { f.render(); assert.equal(f.controls.current, null); assert.equal(f.controls.result, null); assert.equal(f.checkbox, undefined); assert.doesNotMatch(f.text, /발음 정확도:|말하기 흐름:/); f.unmount(); }
     assert.equal(f.updatesAfterUnmount, 0); assert.equal(f.calls.filter(call => call.method === 'POST').length, 1);
   }
+});
+
+
+test('cancelled result cannot replace a newer explicitly prepared and requested assessment', async () => {
+  const replies: Array<{ id: string; finish: (value: Response) => void }> = [];
+  const f = fixture({ response: id => new Promise(resolve => { replies.push({ id, finish: resolve }); }) });
+  try {
+    await f.ready(); const previous = f.controls.send(); f.render();
+    await until(() => replies.length === 1);
+    f.controls.interrupt(); f.render(); await previous;
+    assert.equal(f.calls.filter(call => call.method === 'POST').length, 1);
+    assert.equal(f.calls.at(-1)?.signal.aborted, true);
+    assert.match(f.text, /1회 시험 한도 복구를 보장하지 않아요/);
+
+    // This synthetic transport independently grants readiness again. It does not
+    // assert that the real server's one-trial ledger would permit another request.
+    await f.ready(); const next = f.controls.send(); f.render();
+    await until(() => replies.length === 2);
+    assert.notEqual(replies[0].id, replies[1].id);
+    replies[1].finish(score(replies[1].id, 93, 88)); await next; f.render();
+    const accepted = f.controls.result;
+    assert.ok(accepted); assert.equal(accepted.requestId, replies[1].id);
+    assert.match(f.text, /발음 정확도: 93 \/ 100/); assert.match(f.text, /말하기 흐름: 88 \/ 100/);
+    replies[0].finish(score(replies[0].id)); await tick(); f.render();
+    assert.equal(f.controls.result, accepted);
+    assert.doesNotMatch(f.text, /발음 정확도: 81 \/ 100|말하기 흐름: 72 \/ 100/);
+    assert.equal(f.summary(), '발음 평가 결과'); assert.equal(f.checkbox?.props.checked, false);
+    assert.equal(f.calls.filter(call => call.method === 'POST').length, 2);
+  } finally { f.unmount(); }
 });

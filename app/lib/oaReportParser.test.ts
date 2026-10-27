@@ -115,6 +115,54 @@ test('retries cannot discard an explicit conflicting unit from an original readi
   assert.equal(recoveredNumber([read('82.4 kg', 42), read('82.4 kg', 55)], [read('82.4'), read('82.4 kg')], row), 82.4);
 });
 
+test('mixed-format OCR units cannot be erased by smaller unitless retries', () => {
+  const row = { key: 'weight' as const, centerY: 0, min: 20, max: 300, decimals: true };
+  const read = (text: string, confidence = 94) => ({ text, confidence });
+  for (const suffix of ['lb', 'lbs', 'g', 'mg', 'oz', 'stone', 'kg/m²', '㎏', '킬로그램', '(lb)', 'kg (normal)', 'kg / lb', '％', '﹪', '٪', '‰', '‱', '؉', '؊']) {
+    for (const confidence of [95, 12]) {
+      const original = [read(`82.4 ${suffix}`, confidence), read('82.4')];
+      const before = structuredClone(original);
+      assert.equal(numberFromText(original[0].text, row), undefined, suffix);
+      assert.equal(recoveredNumber(original, [read('82.4'), read('82.4 kg')], row), undefined, `${suffix}, confidence ${confidence}`);
+      assert.deepEqual(original, before);
+    }
+  }
+  // Recovery of unreadable punctuation, low confidence, or a supported unit is unchanged.
+  for (const original of [[read('82:4'), read('82.4')], [read('82.4 KG', 12), read('82.4')]]) {
+    assert.equal(recoveredNumber(original, [read('82.4'), read('82.4 kg')], row), 82.4);
+  }
+});
+
+test('wrappers, prefixes and extra OCR lines cannot conceal unknown units from retries', () => {
+  const row = { key: 'weight' as const, centerY: 0, min: 20, max: 300, decimals: true };
+  for (const text of ['(82.4 lb)', '[82.4lb]', '• 82.4 lb', '+82.4lb', '-82.4lb', '82.4lb\nkg', '82.4\nlb', 'weight 82.4 lb', '82.4 (lb) normal', '82.4 %\nkg', '82.O kg', '８２.４ lb']) {
+    for (const confidence of [95, 12]) {
+      const original = [{ text, confidence }, { text: '82.4', confidence: 95 }];
+      assert.equal(recoveredNumber(original, [{ text: '82.4', confidence: 95 }, { text: '82.4 kg', confidence: 95 }], row), undefined, `${text}, confidence ${confidence}`);
+    }
+  }
+});
+
+test('unknown-unit candidates preserve existing measurements and provenance until explicit correction', () => {
+  const date = '2025-04-07';
+  const weights = { [date]: { weight: 80.2, recordedAt: 'original' } };
+  const source = { device: 'OA long report' as const, originalLabel: '체중', originalUnit: 'kg', originalText: '80.2kg', method: 'ocr' as const, mappingVersion: 'oa-pro-v1' as const };
+  const inbody = { [date]: { bmi: 24.1, memo: 'synthetic existing record', metricSources: { weight: source } } };
+  const before = structuredClone({ weights, inbody });
+  const read = (text: string) => ({ text, confidence: 94 });
+  const recovered = recoveredNumber([read('82.4 lb'), read('82.4')], [read('82.4'), read('82.4 kg')], { key: 'weight', centerY: 0, min: 20, max: 300, decimals: true });
+  const patch = { bmi: '24.8', ...(recovered === undefined ? {} : { weight: String(recovered) }) };
+  const saved = mergeBodyImport(weights, inbody, date, patch, '2026-10-27');
+  assert.deepEqual(saved.weights, weights);
+  assert.equal(saved.inbody[date].bmi, 24.8);
+  assert.equal(saved.inbody[date].memo, inbody[date].memo);
+  assert.deepEqual(saved.inbody[date].metricSources, inbody[date].metricSources);
+  assert.deepEqual({ weights, inbody }, before);
+  const corrected = mergeBodyImport(saved.weights, saved.inbody, date, { weight: '82.4' }, '2026-10-27');
+  assert.equal(corrected.weights[date].weight, 82.4);
+  assert.equal(corrected.inbody[date].metricSources?.weight?.originalText, '80.2kg');
+});
+
 test('unit-mismatched OCR candidates leave existing records and source text intact for manual review', () => {
   const date = '2025-04-07';
   const source = { device: 'OA long report' as const, originalLabel: '체지방률', originalUnit: '%', originalText: '23.6%', method: 'ocr' as const, mappingVersion: 'oa-pro-v1' as const };

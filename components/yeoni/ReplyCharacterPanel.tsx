@@ -76,6 +76,7 @@ export default function ReplyCharacterPanel({ transport, clips, resolveClip, sam
   const speech = () => session.current?.snapshot() ?? { manifest: null, playback: EMPTY_PLAYBACK };
   function send(message: string) { if (message.trim() && transport) void session.current?.submit(message.trim(), transport); }
   const playing = player.current?.snapshot().state === 'playing';
+  const preparing = state?.status === 'waiting' || state?.status === 'loading';
   useEffect(() => {
     if (!commonHost || !present || !preferences.visible) return;
     return commonHost.publish({ speech: () => session.current?.snapshot() ?? { manifest: null, playback: EMPTY_PLAYBACK },
@@ -101,11 +102,13 @@ export default function ReplyCharacterPanel({ transport, clips, resolveClip, sam
         {state?.plan && <p className={styles.tone} data-reply-tone>{emotionNames[state.plan.emotion]} 답해요</p>}
         {state?.status === 'text-only' && <p className={styles.hint}>{embedded ? '답변은 아래 대화에서 확인해 주세요. ‘답변 읽기’로 들을 때는 입 모양이 움직이지 않아요.' : '이 답변에 맞는 저장 음성이 없어요. 음성 준비 후 같은 문장으로 연결할 수 있어요.'}</p>}
         {state?.notice && <p role={state.status === 'error' ? 'alert' : 'status'} className={styles.hint}>{state.notice}</p>}
-        {(!embedded || state?.status === 'ready') && <div className={styles.buttons}>
-          <button disabled={busy || state?.status !== 'ready' || playing} onClick={() => { claimSpeechFocus(voiceId); void current?.play(); }}>답변 듣기</button>
-          <button disabled={!playing} onClick={() => current?.pause()}>일시정지</button>
-          <button disabled={state?.status !== 'ready'} onClick={() => current?.stop()}>처음으로</button>
-          {state?.status === 'waiting' && <button onClick={resetReply}>취소</button>}
+        {(!embedded || state?.status === 'ready' || preparing) && <div className={styles.buttons}>
+          {(!embedded || state?.status === 'ready') && <>
+            <button disabled={busy || state?.status !== 'ready' || playing} onClick={() => { claimSpeechFocus(voiceId); void current?.play(); }}>답변 듣기</button>
+            <button disabled={!playing} onClick={() => current?.pause()}>일시정지</button>
+            <button disabled={state?.status !== 'ready'} onClick={() => current?.stop()}>처음으로</button>
+          </>}
+          {preparing && <button onClick={resetReply}>취소</button>}
         </div>}
         {samples ? <div className={styles.samples} aria-label="저장된 답변 표본">{samples.map(item =>
           <button key={item.message} onClick={() => send(item.message)}>{item.label}</button>)}</div>
