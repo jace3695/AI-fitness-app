@@ -214,6 +214,8 @@ function BudgetDashboard() {
     setShowConfirm(false)
     setFeedback('')
     if (!user?.id) return
+    // Start initial reads only after this committed owner generation has its epoch.
+    void Promise.allSettled([fetchTransactions(), fetchSavings(), fetchIncome()])
     try {
       const pending = readPendingBudgetSave(window.localStorage, user.id)
       if (!pending) return
@@ -225,6 +227,8 @@ function BudgetDashboard() {
       setTab('input')
       setFeedback('이전 저장 결과를 확인해야 해요. 아래 버튼으로 같은 요청을 다시 확인하면 중복 없이 처리합니다.')
     } catch { setFeedback('이전 저장 내용을 읽지 못했어요. 저장 공간 설정을 확인해 주세요.') }
+    // Initial reads belong to the owner generation, not to recreated read callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
   const [question, setQuestion] = useState('')
   const suggestedQuestions = [
@@ -547,9 +551,6 @@ function BudgetDashboard() {
         if (savedQuestion?.trim()) setAutoQuestion(savedQuestion)
 
         Promise.allSettled([
-          fetchTransactions(),
-          fetchSavings(),
-          fetchIncome(),
           fetchRecurringExpensePreferences()
         ])
       } catch (error) {
