@@ -37,10 +37,53 @@ test('handwriting progress failure is explicit and retry recovers without writes
  await login(page,qa.account);await synced(page);const pattern='**/rest/v1/growth_sessions*';await page.route(pattern,async route=>{if(route.request().url().includes('metrics=cs.'))await route.fulfill({status:503,contentType:'application/json',body:'{"message":"unavailable"}'});else await route.fallback();});await page.goto('/growth/handwriting');await expect(page.getByText('수업 진도를 불러오지 못했어요. 다시 불러온 뒤 이어서 연습해 주세요.')).toBeVisible();await expect(page.getByRole('button',{name:'이 수업 완료하고 저장'})).toBeDisabled();await page.unroute(pattern);await page.getByRole('button',{name:'진도 다시 불러오기'}).click();await expect(page.getByRole('region',{name:'손글씨 학습 진도'})).toContainText('0 / 53 수업 완료');expect((await qa.account.client.from('growth_sessions').select('*')).data).toEqual([]);
 });
 
- test('handwriting private package registers only in the signed-in owner folder',async({page,qa})=>{
- await login(page,qa.account);await synced(page);await page.goto('/growth/handwriting');await expect(page.getByRole('region',{name:'비공개 손글씨 교재'})).toContainText('등록된 비공개 교재를 확인하지 못했어요.');
- const files=['workbook.pdf',...Array.from({length:53},(_,i)=>`page-${String(i+2).padStart(2,'0')}.webp`)].map(name=>{const bytes=name==='workbook.pdf'?Buffer.from('%PDF-1.4 QA'):syntheticSheet;return {name,mimeType:name==='workbook.pdf'?'application/pdf':'image/webp',base64:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex')};});
- await page.getByText('처음 한 번 교재 등록',{exact:true}).click();await page.getByLabel('교재 묶음 파일').setInputFiles({name:'qa-materials.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({format:'yeoni-private-handwriting-v1',files}))});
- await expect(page.getByRole('region',{name:'비공개 손글씨 교재'})).toContainText('교재를 내 계정에 비공개로 등록했어요.',{timeout:60000});await expect(page.getByRole('img',{name:/필림 유인물/})).toBeVisible();
- const root=`${qa.account.id}/learning/film-v1`;expect((await qa.account.client.storage.from('growth-resources').list(root,{limit:100})).data).toHaveLength(55);const other=await qa.createAccount();expect((await other.client.storage.from('growth-resources').download(`${root}/page-02.webp`)).error).not.toBeNull();await page.reload();await expect(page.getByRole('img',{name:/필림 유인물/})).toBeVisible();
+test('handwriting private package registers only in the signed-in owner folder', async ({ page, qa }) => {
+ const root = `${qa.account.id}/learning/film-v1`;
+ const storage = qa.account.client.storage.from('growth-resources');
+ const initialFiles = await storage.list(root, { limit: 100 });
+ expect(initialFiles.error).toBeNull();
+ expect(initialFiles.data).toEqual([]);
+
+ await login(page, qa.account);
+ await synced(page);
+ const [markerResponse] = await Promise.all([
+  page.waitForResponse(response => {
+   const url = new URL(response.url());
+   return response.request().method() === 'GET'
+    && url.origin === 'http://127.0.0.1:54321'
+    && url.pathname === `/storage/v1/object/growth-resources/${root}/ready.txt`;
+  }, { timeout: 15_000 }),
+  page.goto('/growth/handwriting'),
+ ]);
+ // Storage may report a missing object as HTTP 400 with service status 404.
+ // Inspect only bounded status values; never log the response body or path.
+ const httpStatus = markerResponse.status();
+ const serviceStatus = Number((await markerResponse.json()).statusCode);
+ expect([400, 404]).toContain(httpStatus);
+ expect(serviceStatus).toBe(404);
+ const materials = page.getByRole('region', { name: '비공개 손글씨 교재' });
+ const expectedNotice = httpStatus === 404
+  ? '이 계정에서 교재를 찾지 못했어요. 처음이라면 아래에서 교재 묶음을 등록해 주세요. 이미 등록했다면 다시 등록하기 전에 로그인 상태와 접근 권한을 확인해 주세요.'
+  : '교재를 불러오지 못했어요. 연결을 확인하고 다시 불러와 주세요. 이 오류만으로 교재가 미등록된 것은 아니에요.';
+ await expect(materials.getByRole('alert')).toContainText(expectedNotice);
+ await expect(materials).toContainText('실패 단계: 등록 상태 확인');
+ await expect(materials).toContainText('찾기 실패 (미등록 여부 미확정)');
+ await expect(materials).toContainText(`HTTP 상태: ${httpStatus}`);
+ await expect(materials).toContainText('저장소 상태 코드: 404');
+
+ const files = ['workbook.pdf', ...Array.from({ length: 53 }, (_, i) => `page-${String(i + 2).padStart(2, '0')}.webp`)].map(name => {
+  const bytes = name === 'workbook.pdf' ? Buffer.from('%PDF-1.4 QA') : syntheticSheet;
+  return { name, mimeType: name === 'workbook.pdf' ? 'application/pdf' : 'image/webp', base64: bytes.toString('base64'), sha256: createHash('sha256').update(bytes).digest('hex') };
  });
+ await page.getByText('처음 한 번 교재 등록', { exact: true }).click();
+ await page.getByLabel('교재 묶음 파일').setInputFiles({ name: 'qa-materials.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ format: 'yeoni-private-handwriting-v1', files })) });
+ await expect(materials).toContainText('교재를 내 계정에 비공개로 등록했어요.', { timeout: 60000 });
+ await expect(page.getByRole('img', { name: /필림 유인물/ })).toBeVisible();
+ const registeredFiles = await storage.list(root, { limit: 100 });
+ expect(registeredFiles.error).toBeNull();
+ expect(registeredFiles.data).toHaveLength(55);
+ const other = await qa.createAccount();
+ expect((await other.client.storage.from('growth-resources').download(`${root}/page-02.webp`)).error).not.toBeNull();
+ await page.reload();
+ await expect(page.getByRole('img', { name: /필림 유인물/ })).toBeVisible();
+});

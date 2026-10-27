@@ -1,4 +1,26 @@
 import { test, expect } from './fixture';
+import type { Locator } from '@playwright/test';
+
+async function textGeometry(locator: Locator) {
+  return locator.evaluate(element => {
+    const box = element.getBoundingClientRect(), style = getComputedStyle(element);
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const rects = [...range.getClientRects()], lineTops: number[] = [];
+    // Inline markup (for example <strong>) can yield several fragments on the same visual line.
+    // Group their top positions with a 1px tolerance for subpixel/font-metric differences.
+    for (const rect of rects) {
+      if (rect.width > 0 && rect.height > 0 && !lineTops.some(top => Math.abs(top - rect.top) <= 1)) lineTops.push(rect.top);
+    }
+    return {
+      top: box.top, bottom: box.bottom, left: box.left, right: box.right, height: box.height,
+      fontSize: parseFloat(style.fontSize), lines: lineTops.length,
+      fits: element.scrollWidth <= element.clientWidth + 1 && rects.every(line =>
+        line.left >= box.left - 1 && line.right <= box.right + 1 && line.top >= box.top - 1 && line.bottom <= box.bottom + 1),
+      withinViewport: box.left >= 0 && box.right <= innerWidth + 1,
+    };
+  });
+}
 
 test('empty and relevant-error states remain distinct with explicit callbacks at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
@@ -86,4 +108,71 @@ test('roller informational stages stop on changes and close without completing t
   await summary.click(); await expect(stages).toHaveValue('0'); await expect(slider).toHaveValue('0');
   await page.addStyleTag({ content: 'html { font-size: 32px; }' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('roller captions and stage controls stay readable at 320px with 200% root text', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/?case=motion');
+  const box = page.getByTestId('roller-disclosure');
+  await box.locator('summary').click();
+  const stages = box.getByRole('combobox'), heading = box.getByRole('heading', { level: 3 });
+  const previous = box.getByRole('button', { name: '이전 단계', exact: true });
+  const next = box.getByRole('button', { name: '다음 단계', exact: true });
+  await expect(stages.locator('option')).toHaveCount(9);
+  const names = await stages.locator('option').allTextContents();
+  const legends = [
+    '초록: 대상 부위 · 주황: 롤러 · 접촉 모식도',
+    '작은 구간만 이동 · 관절·목·허리 직접 압박 제외',
+    '바닥 준비·좌우 자세 전환은 별도로 수행',
+  ];
+  expect(names).toHaveLength(9);
+  // This is root-text enlargement/reflow, not a claim about physical-device browser zoom.
+  for (const rootSize of [16, 32]) {
+    await page.addStyleTag({ content: `html { font-size: ${rootSize}px; }` });
+    for (let index = 0; index < names.length; index++) {
+      await stages.selectOption(String(index));
+      await expect(heading).toHaveText(names[index]);
+      const selected = await textGeometry(heading), selectBox = await stages.boundingBox();
+      const before = await textGeometry(previous), after = await textGeometry(next);
+      expect(selected.fontSize).toBe(rootSize * 0.875);
+      expect(selected.fits && selected.withinViewport).toBe(true);
+      expect(selectBox).not.toBeNull();
+      expect(selected.top).toBeGreaterThanOrEqual(selectBox!.y + selectBox!.height);
+      expect(selected.top - (selectBox!.y + selectBox!.height)).toBeLessThanOrEqual(rootSize);
+      expect(selected.bottom).toBeLessThanOrEqual(before.top);
+      for (const control of [before, after]) {
+        expect(control.fontSize).toBe(rootSize * 0.875);
+        expect(control.lines, 'complete Korean navigation label stays on one line').toBe(1);
+        expect(control.height).toBeGreaterThanOrEqual(44);
+        expect(control.fits && control.withinViewport).toBe(true);
+      }
+      if (rootSize === 32) expect(after.top).toBeGreaterThanOrEqual(before.bottom);
+      const caption = box.locator('figcaption');
+      await expect(caption).toBeVisible();
+      const figure = box.locator('figure'), image = figure.locator('svg').last();
+      const imageBox = await image.boundingBox(), captionBox = await caption.boundingBox();
+      expect(imageBox && captionBox).toBeTruthy();
+      expect(captionBox!.y).toBeGreaterThanOrEqual(imageBox!.y + imageBox!.height);
+      const paragraphs = caption.locator('p');
+      await expect(paragraphs).toHaveCount(3);
+      if (![4, 5].includes(index)) {
+        await expect(paragraphs).toHaveText(legends);
+        await expect(figure.locator('svg text')).toHaveText(legends);
+      }
+      for (const paragraph of await paragraphs.all()) {
+        const text = await textGeometry(paragraph);
+        expect(text.fontSize).toBe(rootSize * 0.875);
+        expect(text.fits && text.withinViewport).toBe(true);
+        if (rootSize === 32) expect(text.lines).toBeGreaterThan(1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+  }
+  await stages.selectOption('0');
+  await expect(previous).toBeDisabled();
+  await next.click();
+  await expect(stages).toHaveValue('1');
+  await expect(heading).toHaveText(names[1]);
+  await previous.click();
+  await expect(heading).toHaveText(names[0]);
 });

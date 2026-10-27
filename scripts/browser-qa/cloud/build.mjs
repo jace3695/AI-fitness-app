@@ -11,7 +11,20 @@ export async function buildComponentSite() {
   await build({ entryPoints: ['scripts/browser-qa/cloud/entry.tsx'], bundle: true,
     outdir: outputDirectory, entryNames: 'fixture', platform: 'browser', format: 'iife',
     external: ['/yeoni-cat-sprite-v1.webp'],
-    jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' },
+    jsx: 'automatic', define: {
+      // Standalone fixture only: never inherit hosted credentials or Next runtime flags.
+      // Real archive/auth components remain present but explicitly unconfigured.
+      'process.env.NODE_ENV': '"production"',
+      'process.env.NEXT_PUBLIC_SUPABASE_URL': 'undefined',
+      'process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY': 'undefined',
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': 'undefined',
+      'process.env.__NEXT_ROUTER_BASEPATH': '""',
+      'process.env.__NEXT_I18N_SUPPORT': 'false',
+      'process.env.__NEXT_LINK_NO_TOUCH_START': 'false',
+      'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH': 'false',
+      'process.env.__NEXT_MANUAL_TRAILING_SLASH': 'false',
+      'process.env.__NEXT_TRAILING_SLASH': 'false',
+    },
     tsconfig: 'tsconfig.json', logLevel: 'warning' });
   const styles = await postcss([tailwindcss({ content: [
     './scripts/browser-qa/cloud/**/*.tsx', './components/**/*.tsx', './app/components/**/*.tsx',

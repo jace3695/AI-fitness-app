@@ -196,6 +196,46 @@ test('review composes nine real moving figures with explicit target inset, not r
   assert.doesNotMatch(initial, /<animate\b|<animateTransform\b/);
 });
 
+test('all seven reused roller figures repeat the unchanged SVG legends in wrapping HTML captions', () => {
+  const Demo = loadSource('app/components/RollerRecoveryReviewDemo.tsx').default as () => React.ReactElement<StagedProps>;
+  const { renderFigure } = Demo().props;
+  const legends = [
+    '초록: 대상 부위 · 주황: 롤러 · 접촉 모식도',
+    '작은 구간만 이동 · 관절·목·허리 직접 압박 제외',
+    '바닥 준비·좌우 자세 전환은 별도로 수행',
+  ];
+  for (const stage of rollerStages) for (const progress of [0, 0.5, 1]) {
+    const markup = renderToStaticMarkup(renderFigure(stage.id, progress, stage.name));
+    const svg = markup.match(/<svg\b[\s\S]*?<\/svg>/)?.[0];
+    const caption = markup.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/)?.[1];
+    assert.ok(svg && caption, stage.id + ' retains its SVG and adds a separate HTML caption');
+    assert.match(svg, /viewBox="0 45 320 235"/);
+    assert.deepEqual([...svg.matchAll(/<text\b[^>]*>(.*?)<\/text>/g)].map(match => match[1]), legends);
+    assert.deepEqual([...caption.matchAll(/<p>(.*?)<\/p>/g)].map(match => match[1]), legends);
+    assert.ok(markup.indexOf('<figcaption') > markup.indexOf('</svg>'));
+    assert.doesNotMatch(caption, /<svg\b|<text\b/);
+  }
+});
+
+test('the real staged component puts the complete selected heading beside the select before its figure', () => {
+  const Staged = loadSource('app/components/StagedMotionDemo.tsx').default as React.ComponentType<{
+    title: string; intro: string; stages: typeof rollerInformationalRecoveryStages; renderFigure: StagedProps['renderFigure'];
+  }>;
+  const Demo = loadSource('app/components/RollerRecoveryReviewDemo.tsx').default as () => React.ReactElement<StagedProps>;
+  for (const stage of rollerInformationalRecoveryStages) {
+    const markup = renderToStaticMarkup(React.createElement(Staged, {
+      title: 'Synthetic component check', intro: '', stages: [stage], renderFigure: Demo().props.renderFigure,
+    }));
+    const heading = markup.match(/<h3\b[^>]*>(.*?)<\/h3>/);
+    assert.ok(heading);
+    assert.equal(heading[1], `1. ${stage.name}`);
+    assert.ok(markup.indexOf('</select>') < markup.indexOf(heading[0]));
+    assert.ok(markup.indexOf(heading[0]) < markup.indexOf('<button'));
+    assert.ok(markup.indexOf(heading[0]) < markup.indexOf('<figure'));
+    assert.equal((markup.match(/<h3\b/g) || []).length, 1, 'selected heading is not repeated below the figure');
+  }
+});
+
 test('app exercise dispatcher still does not activate recovery', () => {
   const Demo = loadSource('app/components/ExerciseMotionDemo.tsx').default as React.ComponentType<{ exerciseId: string }>;
   assert.equal(renderToStaticMarkup(React.createElement(Demo, { exerciseId: 'foam-roller-recovery' })), '');

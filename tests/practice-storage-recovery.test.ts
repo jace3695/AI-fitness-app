@@ -20,7 +20,14 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
     removeEventListener(name: string, fn: () => void) { listeners.get(name)?.delete(fn); },
   };
   const react = {
-    useState(initial: any) { const i = position++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], (v: any) => { slots[i] = typeof v === 'function' ? v(slots[i]) : v; }]; },
+    useState(initial: any) {
+      const i = position++;
+      if (!(i in slots)) {
+        const slot = { value: typeof initial === 'function' ? initial() : initial, set: (v: any) => { slot.value = typeof v === 'function' ? v(slot.value) : v; } };
+        slots[i] = slot;
+      }
+      return [slots[i].value, slots[i].set];
+    },
     useRef(initial: any) { const i = position++; if (!(i in slots)) slots[i] = { current: initial }; return slots[i]; },
     useEffect(fn: () => any, deps: any[]) { const i = position++; if (!slots[i] || deps.some((x, j) => x !== slots[i].deps[j])) { slots[i]?.cleanup?.(); effects.push(() => { slots[i] = { deps, cleanup: fn() }; }); } },
   };
@@ -60,9 +67,17 @@ function fixture(raw: string | null = original, transport?: conversation.Transpo
       removeItem() { state.removals++; state.raw = null; },
     },
   })(exports, (name: string) => { assert.ok(name in deps, name); return deps[name]; });
-  function render() { position = 0; const tree = exports.default({ owner: 'A', transport }); while (effects.length) effects.shift()!(); return tree; }
+  let owner = 'A';
+  function render() { position = 0; const tree = exports.default({ owner, transport }); while (effects.length) effects.shift()!(); return tree; }
+  function unmount() { slots.forEach(slot => slot?.cleanup?.()); }
   render();
-  return { state, render, dirty: () => dirtyEditors.size > 0, leave: () => [...(listeners.get('pagehide') ?? [])].forEach(fn => fn()), unmount: () => slots.forEach(slot => slot?.cleanup?.()) };
+  return { state, render, dirty: () => dirtyEditors.size > 0,
+    draft: () => inputExports.openPracticeInputDraft(owner).draft,
+    clearDraft: inputExports.clearPracticeInputDraft,
+    pagehideListeners: () => [...(listeners.get('pagehide') ?? [])],
+    leave: () => [...(listeners.get('pagehide') ?? [])].forEach(fn => fn()), unmount,
+    remount(nextOwner: string) { unmount(); slots.length = 0; owner = nextOwner; return render(); },
+  };
 }
 function nodes(tree: any): any[] { if (!tree || typeof tree !== 'object') return []; return [tree, ...[tree.props?.children].flat(Infinity).flatMap(nodes)]; }
 function label(tree: any): string { if (typeof tree === 'string' || typeof tree === 'number') return String(tree); if (!tree || typeof tree !== 'object') return ''; return [tree.props?.children].flat(Infinity).map(label).join(''); }
@@ -78,6 +93,53 @@ test('actual unsaved-change hook registers the draft and releases it on clear or
   f.render(); assert.equal(f.dirty(), false);
   nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic unsent draft' } });
   f.render(); f.unmount(); assert.equal(f.dirty(), false);
+  assert.equal(f.state.writes + f.state.removals, 0);
+});
+
+test('input and topic rerenders keep the owner lifecycle stable; pagehide clears UI and tab-memory input', () => {
+  const f = fixture(null); f.state.failRead = false; retry(f);
+  const registered = f.pagehideListeners();
+  assert.equal(registered.length, 2);
+  assert.equal(registered[0], f.clearDraft, 'the draft reset is registered before the workspace pagehide handler');
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic unsent draft' } });
+  nodes(f.render()).find(n => n.type === 'select').props.onChange({ target: { value: '여행' } });
+  const tree = f.render();
+  assert.equal(nodes(tree).find(n => n.type === 'textarea').props.value, 'synthetic unsent draft');
+  assert.equal(nodes(tree).find(n => n.type === 'select').props.value, '여행');
+  assert.equal(f.draft()?.text, 'synthetic unsent draft');
+  assert.equal(f.draft()?.situation, '여행');
+  assert.deepEqual(f.pagehideListeners(), registered, 'ordinary renders must not replace lifecycle listeners');
+  f.leave();
+  const exited = f.render();
+  assert.equal(nodes(exited).find(n => n.type === 'textarea').props.value, '');
+  assert.equal(nodes(exited).find(n => n.type === 'textarea').props.disabled, true);
+  assert.equal(f.dirty(), false);
+  assert.equal(f.draft(), null);
+  assert.equal(f.state.writes + f.state.removals, 0);
+});
+
+test('same-owner remount retains only input while an owner-keyed remount clears it and rejects stale edits', () => {
+  const f = fixture(null, async () => reply); f.state.failRead = false; retry(f);
+  nodes(f.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic owner A' } });
+  nodes(f.render()).find(n => n.type === 'select').props.onChange({ target: { value: '여행' } });
+  nodes(f.render()).find(n => n.props?.['aria-describedby'] === 'practice-data-use').props.onChange({ target: { checked: true } });
+  f.remount('A');
+  const reopened = f.render();
+  assert.equal(nodes(reopened).find(n => n.type === 'textarea').props.value, 'synthetic owner A');
+  assert.equal(nodes(reopened).find(n => n.type === 'select').props.value, '여행');
+  assert.equal(nodes(reopened).find(n => n.props?.['aria-describedby'] === 'practice-data-use').props.checked, false);
+  const staleEdit = nodes(reopened).find(n => n.type === 'textarea').props.onChange;
+  f.remount('B');
+  const switched = f.render();
+  assert.equal(nodes(switched).find(n => n.type === 'textarea').props.value, '');
+  assert.equal(nodes(switched).find(n => n.type === 'select').props.value, '일상');
+  nodes(switched).find(n => n.type === 'textarea').props.onChange({ target: { value: 'synthetic owner B' } });
+  staleEdit({ target: { value: 'stale owner A' } });
+  assert.equal(f.draft()?.text, 'synthetic owner B');
+  assert.equal(nodes(f.render()).find(n => n.type === 'textarea').props.value, 'synthetic owner B');
+  f.remount('A');
+  assert.equal(nodes(f.render()).find(n => n.type === 'textarea').props.value, '');
+  assert.equal(f.draft(), null);
   assert.equal(f.state.writes + f.state.removals, 0);
 });
 
@@ -259,6 +321,33 @@ function beginSynthetic(f: ReturnType<typeof fixture>) {
  nodes(f.render()).find(n=>n.type==='input'&&n.props.type==='checkbox'&&n.props['aria-describedby']==='practice-data-use').props.onChange({target:{checked:true}});
  button(f.render(),'AI와 대화하기').props.onClick();
 }
+test('request rerenders do not abort or reset input; pagehide aborts and rejects a late response', async () => {
+  let resolve!: (value: unknown) => void;
+  let signal: AbortSignal | undefined;
+  let calls = 0;
+  const f = fixture(null, (_request, requestSignal) => {
+    calls++; signal = requestSignal;
+    return new Promise(r => { resolve = r; });
+  });
+  const registered = f.pagehideListeners();
+  beginSynthetic(f);
+  for (let i = 0; i < 3; i++) {
+    const tree = f.render();
+    assert.equal(signal?.aborted, false);
+    assert.equal(nodes(tree).find(n => n.type === 'textarea').props.value, '合成');
+    assert.match(label(tree), /답변을 기다리고 있어요/);
+    assert.deepEqual(f.pagehideListeners(), registered);
+  }
+  f.leave();
+  assert.equal(signal?.aborted, true);
+  assert.equal(nodes(f.render()).find(n => n.type === 'textarea').props.value, '');
+  assert.equal(f.draft(), null);
+  resolve(reply);
+  for (let i = 0; i < 4; i++) await new Promise(r => setImmediate(r));
+  assert.equal(calls, 1);
+  assert.equal(f.state.writes + f.state.removals, 0);
+  assert.doesNotMatch(label(f.render()), /合成応答|답변을 기다리고 있어요/);
+});
 test('bounded client budget allows 4s preparation + 17s provider + 1s return without redispatch',async()=>{
  const clock=virtualClock();let calls=0;let signal:AbortSignal|undefined;
  const f=fixture(null,async(_request,s)=>{calls++;signal=s;await new Promise(r=>clock.setTimeout(r,4000));await new Promise(r=>clock.setTimeout(r,17000));await new Promise(r=>clock.setTimeout(r,1000));return reply;},clock);

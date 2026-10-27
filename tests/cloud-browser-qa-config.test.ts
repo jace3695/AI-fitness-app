@@ -27,6 +27,36 @@ test('focused browser lane keeps loopback fixture, zero retries, no raw traces a
   assert.doesNotMatch(server, /process\.env\.[A-Z_]*(?:KEY|TOKEN|SECRET)/);
 });
 
+test('standalone practice bundle explicitly isolates environment without replacing product components or external-origin denial', () => {
+  const lint = readFileSync('eslint.config.mjs', 'utf8');
+  assert.ok(lint.includes('".e2e/component-browser/site/**"'));
+  assert.doesNotMatch(lint, /["'](?:tests|scripts\/browser-qa\/cloud|app)\/\*\*["']/);
+  const build = readFileSync('scripts/browser-qa/cloud/build.mjs', 'utf8');
+  const expected = {
+    NODE_ENV: '"production"',
+    NEXT_PUBLIC_SUPABASE_URL: 'undefined',
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'undefined',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'undefined',
+    __NEXT_ROUTER_BASEPATH: '""',
+    __NEXT_I18N_SUPPORT: 'false',
+    __NEXT_LINK_NO_TOUCH_START: 'false',
+    __NEXT_MANUAL_CLIENT_BASE_PATH: 'false',
+    __NEXT_MANUAL_TRAILING_SLASH: 'false',
+    __NEXT_TRAILING_SLASH: 'false',
+  };
+  for (const [key, value] of Object.entries(expected)) assert.ok(build.includes(`'process.env.${key}': '${value}'`), key);
+  assert.equal(build.match(/'process\.env\./g)?.length, Object.keys(expected).length);
+  assert.doesNotMatch(build, /\.\.\.process\.env|JSON\.stringify\(process\.env|plugins:|alias:|inject:/);
+  assert.match(build, /entryPoints: \['scripts\/browser-qa\/cloud\/entry\.tsx'\]/);
+  assert.match(build, /outputDirectory = resolve\('\.e2e\/component-browser\/site'\)/);
+  const practice = readFileSync('scripts/browser-qa/cloud/PracticeFixture.tsx', 'utf8');
+  assert.match(practice, /import PracticeWorkspace from '\.\.\/\.\.\/\.\.\/app\/language\/practice\/PracticeWorkspace'/);
+  assert.match(practice, /<PracticeWorkspace key=\{`\$\{owner\}:\$\{mount\}`\} owner=\{owner\} transport=\{transport\}/);
+  const isolation = readFileSync('tests/browser-cloud/fixture.ts', 'utf8');
+  assert.match(isolation, /url\.origin === 'http:\/\/127\.0\.0\.1:3107'/);
+  assert.match(isolation, /route\.abort\('blockedbyclient'\)/);
+});
+
 test('CI preserves the full suite budget and separate bounded component evidence without deployment authority', () => {
   const workflow = readFileSync('.github/workflows/browser-verification.yml', 'utf8');
   const focused = workflow.split('  focused-components:')[1].split('\n  browser:')[0];
@@ -38,4 +68,8 @@ test('CI preserves the full suite budget and separate bounded component evidence
   assert.match(workflow.split('\n  browser:')[1], /timeout-minutes: 105/);
   assert.match(workflow, /permissions:\n  contents: read/);
   assert.match(workflow, /diagnostic-denial\.spec\.ts --project=chromium --project=webkit-diagnostic-denial/);
+  const handwriting = '      - name: Verify handwriting course in Chromium and WebKit';
+  assert.equal(workflow.split(handwriting).length, 2, 'run the complete handwriting batch once');
+  assert.ok(workflow.indexOf(handwriting) > workflow.indexOf('Keep hosted-only speech diagnostics denied'));
+  assert.ok(workflow.indexOf(handwriting) < workflow.indexOf('Verify beginner drawing flow'));
 });

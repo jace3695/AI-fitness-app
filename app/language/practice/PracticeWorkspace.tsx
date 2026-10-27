@@ -44,7 +44,8 @@ export default function PracticeWorkspace({ owner, transport }: { owner: string;
   useEffect(() => {
     active.current = true;
     const stop = () => { active.current = false; pending.current?.abort(); pending.current = null; unsaved.current = null; };
-    const leave = () => { stop(); setUnsavedTurn(null); setText(''); setJournal({ version: 1, owner, turns: [] }); setReady(false); setBusy(false); setNotice('화면을 떠나 임시 응답을 비웠어요. 연습 화면을 다시 열어 주세요.'); };
+    // inputDraft owns its pagehide reset; UI clearing must not couple teardown to input/topic renders.
+    const leave = () => { stop(); setUnsavedTurn(null); setTextState(''); setJournal({ version: 1, owner, turns: [] }); setReady(false); setBusy(false); setNotice('화면을 떠나 임시 응답을 비웠어요. 연습 화면을 다시 열어 주세요.'); };
     window.addEventListener('pagehide', leave);
     return () => { stop(); window.removeEventListener('pagehide', leave); };
   }, [owner]);

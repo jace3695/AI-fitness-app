@@ -114,6 +114,8 @@ jobs:
         run: npm run build
       - name: Keep hosted-only speech diagnostics denied on the isolated app
         run: node scripts/qa-playwright.mjs tests/e2e/diagnostic-denial.spec.ts --project=chromium --project=webkit-diagnostic-denial
+      - name: Verify handwriting course in Chromium and WebKit
+        run: node scripts/qa-playwright.mjs tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
       - name: Verify beginner drawing flow in both browsers
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races
@@ -131,8 +133,6 @@ jobs:
           node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts tests/e2e/drawing-templates.spec.ts --project=chromium --project=webkit-small --grep-invert 'drawing (D(4[3-9]|5[0-9]|6[0-9]|7[0-9]|80)|C0[1-4])'
       - name: Verify typing basics in Chromium and WebKit
         run: node scripts/qa-playwright.mjs tests/e2e/typing-basics.spec.ts --project=chromium --project=webkit-small
-      - name: Verify handwriting course in Chromium and WebKit
-        run: node scripts/qa-playwright.mjs tests/e2e/handwriting-course.spec.ts tests/e2e/roadmap-completion.spec.ts --project=chromium --project=webkit-small --grep 'handwriting'
       - name: Verify spoken numeric ranges in Chromium and WebKit
         run: node scripts/qa-playwright.mjs tests/e2e/workout-voice.spec.ts --project=chromium --project=webkit-small --grep 'pull-up posture range stays visible|late silent unlock rejection'
       - name: Verify assistant home, advice and briefing in both browsers

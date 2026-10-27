@@ -22,5 +22,6 @@ export default defineConfig([
     "public/sw.js",
     "public/workbox-*.js",
     "scripts/browser-qa/.generated/**",
+    ".e2e/component-browser/site/**",
   ]),
 ]);
