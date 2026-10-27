@@ -52,3 +52,67 @@ test('조회에 실패한 영역은 빈 값으로 추천하지 않는다', () =>
   const action = buildAssistantNextAction(input({ budget: { remaining: -1000 }, available: { budget: false } }));
   assert.equal(action.area, 'calendar');
 });
+
+const availableAreas = { tasks: true, budget: true, fitness: true, diet: true, language: true, growth: true };
+const unavailableAreas = { tasks: false, budget: false, fitness: false, diet: false, language: false, growth: false };
+const openItem = {
+  title: '합성 미완료 항목', kind: 'task' as const, status: 'open' as const, priority: 5,
+  due_at: '2026-09-12T23:59:00+09:00', created_at: '2026-09-01T00:00:00Z',
+};
+const fallbackCases: { name: string; value: AssistantNextActionInput }[] = [
+  {
+    name: '성공한 빈 조회의 첫 사용 상태',
+    value: input({
+      budget: { remaining: null }, fitness: EMPTY_FITNESS_DAILY_STATUS,
+      diet: EMPTY_DIET_DAILY_STATUS, language: EMPTY_LANGUAGE_DAILY_STATUS,
+      growth: { completed: 0, total: 0 }, available: availableAreas,
+    }),
+  },
+  {
+    name: '추적 항목을 모두 완료한 상태',
+    value: input({ items: [{ ...openItem, status: 'completed' }], available: availableAreas }),
+  },
+  {
+    name: '열린 할 일이 있지만 해당 영역 조회에 실패한 상태',
+    value: input({ items: [openItem], available: { ...availableAreas, tasks: false } }),
+  },
+  {
+    name: '이전 미완료 값이 남아 있지만 모든 영역 조회에 실패한 상태',
+    value: input({
+      items: [openItem], budget: { remaining: -1000 },
+      fitness: { ...EMPTY_FITNESS_DAILY_STATUS, synced: true },
+      diet: { ...EMPTY_DIET_DAILY_STATUS, synced: true },
+      language: { ...EMPTY_LANGUAGE_DAILY_STATUS, synced: true },
+      growth: { completed: 0, total: 2 }, available: unavailableAreas,
+    }),
+  },
+];
+
+for (const { name, value } of fallbackCases) {
+  test(`${name}도 기록 완료나 빈 기록으로 단정하지 않고 같은 달력으로 안내한다`, () => {
+    const before = structuredClone(value);
+    const action = buildAssistantNextAction(value);
+    assert.deepEqual(action, {
+      area: 'calendar', eyebrow: '일정 확인', title: '달력에서 일정을 확인해요',
+      detail: '이 화면에서 우선 안내할 항목이 없어요. 일정은 달력에서 확인할 수 있어요.',
+      label: '통합 달력 보기', href: '/calendar',
+    });
+    assert.doesNotMatch([action.eyebrow, action.title, action.detail].join(' '), /완료|남은 일정만|기록.*없습니다/);
+    assert.deepEqual(value, before);
+  });
+}
+
+test('일부 조회 실패에도 확인 가능한 마감 할 일의 기존 우선순위와 링크를 유지한다', () => {
+  const value = input({
+    items: [openItem], budget: { remaining: -1000 },
+    fitness: { ...EMPTY_FITNESS_DAILY_STATUS, synced: true },
+    available: { ...availableAreas, language: false },
+  });
+  const before = structuredClone(value);
+  assert.deepEqual(buildAssistantNextAction(value), {
+    area: 'task', eyebrow: '오늘 마감 할 일', title: openItem.title,
+    detail: '우선순위 긴급 · 완료하면 다음 행동을 다시 골라드려요.',
+    label: '할 일 확인', href: '#assistant-list',
+  });
+  assert.deepEqual(value, before);
+});

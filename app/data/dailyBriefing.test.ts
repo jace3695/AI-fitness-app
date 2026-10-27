@@ -2,3 +2,25 @@ import test from 'node:test';import assert from 'node:assert/strict';import {dai
 const input={items:[],budget:{remaining:null},fitness:EMPTY_FITNESS_DAILY_STATUS,diet:EMPTY_DIET_DAILY_STATUS,language:EMPTY_LANGUAGE_DAILY_STATUS,growth:{completed:0,total:0},todayKey:'2026-09-18',hour:8};
 test('daily briefing separates area failures from missing and retains morning/evening intent',()=>{const result=dailyBriefing({...input,available:{tasks:false,fitness:false}},'evening');assert.equal(result.title,'저녁 기록 돌아보기');assert.match(result.cards[0].text,/조회 실패/);assert.match(result.cards[2].text,/조회 실패/);assert.match(result.cards[3].text,/연결 필요/);});
 test('daily briefing counts due tasks by Korean day, excludes completed/cancelled and never mutates',()=>{const items=[{title:'오늘',kind:'task' as const,status:'open' as const,priority:3,due_at:'2026-09-18T14:59:00Z',created_at:'2026-09-01'}, {title:'취소',kind:'task' as const,status:'cancelled' as const,priority:3,due_at:'2026-09-17T00:00:00Z',created_at:'2026-09-01'}];const before=JSON.stringify(items);const result=dailyBriefing({...input,items},'morning');assert.match(result.cards[0].text,/마감 확인 1건 · 미완료 1건/);assert.equal(result.next.title,'오늘');assert.equal(JSON.stringify(items),before);});
+
+test('morning and evening retain neutral calendar fallback without hiding failed or missing records', () => {
+  const available = { tasks: false, budget: false, fitness: false, diet: false, language: false, growth: false };
+  for (const mode of ['morning', 'evening'] as const) {
+    for (const value of [input, { ...input, available }]) {
+      const before = structuredClone(value);
+      const result = dailyBriefing(value, mode);
+      assert.deepEqual(result.next, {
+        area: 'calendar', eyebrow: '일정 확인', title: '달력에서 일정을 확인해요',
+        detail: '이 화면에서 우선 안내할 항목이 없어요. 일정은 달력에서 확인할 수 있어요.',
+        label: '통합 달력 보기', href: '/calendar',
+      });
+      if ('available' in value) {
+        assert.ok(result.cards.every(card => !card.available && card.text === '조회 실패 · 미기록으로 판단하지 않음'));
+      } else {
+        assert.ok(result.cards.every(card => card.available));
+        assert.equal(result.cards.find(card => card.area === 'fitness')?.text, '운동 기록 연결 필요');
+      }
+      assert.deepEqual(value, before);
+    }
+  }
+});

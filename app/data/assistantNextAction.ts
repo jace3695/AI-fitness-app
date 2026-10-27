@@ -125,8 +125,8 @@ export function buildAssistantNextAction(input: AssistantNextActionInput): Assis
   };
 
   return {
-    area: 'calendar', eyebrow: '오늘 기록 정리 완료', title: '남은 일정만 가볍게 확인해요',
-    detail: '현재 연결된 기록에는 바로 처리할 항목이 없습니다.',
+    area: 'calendar', eyebrow: '일정 확인', title: '달력에서 일정을 확인해요',
+    detail: '이 화면에서 우선 안내할 항목이 없어요. 일정은 달력에서 확인할 수 있어요.',
     label: '통합 달력 보기', href: '/calendar',
   };
 }
