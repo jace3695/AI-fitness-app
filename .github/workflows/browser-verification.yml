@@ -124,8 +124,8 @@ jobs:
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races
         run: node scripts/qa-playwright.mjs tests/e2e/pin-status.spec.ts --project=chromium --project=webkit-small
-      - name: Diagnose D06, D23 and D33 navigation without retries
-        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(06|23|33):' --repeat-each=3
+      - name: Diagnose D06, D23, D33 and D79 navigation without retries
+        run: node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing D(06|23|33|79):' --repeat-each=3
       - name: Verify drawing save and restore in Chromium and WebKit
         run: |
           node scripts/qa-playwright.mjs tests/e2e/drawing.spec.ts --project=chromium --project=webkit-small --grep 'drawing C0[1-4]'

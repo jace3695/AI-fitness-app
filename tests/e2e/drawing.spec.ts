@@ -570,27 +570,69 @@ for(const capstone of ['D65','D70'])test(`drawing ${capstone}: own collection co
 });
 
 for(const authored of parsePack(pack).lessons.slice(70,80))test(`drawing ${authored.id}: original creator variants, paper notes and exact restored state`,async({page,qa},testInfo)=>{
- test.setTimeout(180_000);await login(page,qa.account);await synced(page);const before=await qa.read();await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing'); await showDrawingTools(page);await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();await page.locator('#drawing-map summary').nth(8).click();await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+ test.setTimeout(180_000);await login(page,qa.account);await synced(page);const before=await qa.read();
+ await test.step('creator course: navigate to drawing', async () => {
+  await page.setViewportSize({width:390,height:844});await page.goto('/growth/drawing');
+ });
+ await test.step('creator course: show full tools', async () => {
+   await showDrawingTools(page);
+ });
+ await test.step('creator course: wait for record readiness', async () => {
+  await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+ });
+ await test.step('creator course: expand stage', async () => {
+  await page.locator('#drawing-map summary').nth(8).click();
+ });
+ await test.step('creator course: choose lesson', async () => {
+  await page.getByRole('button',{name:`${authored.id} · ${authored.title}`,exact:true}).click();
+ });
  const area=page.getByRole('region',{name:'나만의 캐릭터 제작'});
  const draw=async()=>{const c=area.getByLabel('내 그림 연습장',{exact:true});await c.scrollIntoViewIfNeeded();const b=(await c.boundingBox())!;await page.mouse.move(b.x+b.width*.25,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.6,b.y+b.height*.6,{steps:5});await page.mouse.up();await expect(area.getByRole('button',{name:'되돌리기',exact:true})).toBeEnabled();};
  for(const [i,ex] of authored.examples.entries()){
-  if(i)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();await expect(area).toContainText(ex.original!.motif==='sprout'?'새싹':'작은 새');await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
-  await area.getByLabel('캐릭터 역할',{exact:true}).fill('앱에서 반겨주는 친구');await area.getByLabel('캐릭터 성격',{exact:true}).fill('다정함');
+  await test.step('creator example: inspect and enter character fields', async () => {
+     if(i)await page.getByRole('button',{name:'같은 목표의 다른 그림',exact:true}).click();await expect(area).toContainText(ex.original!.motif==='sprout'?'새싹':'작은 새');await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeDisabled();
+     await area.getByLabel('캐릭터 역할',{exact:true}).fill('앱에서 반겨주는 친구');await area.getByLabel('캐릭터 성격',{exact:true}).fill('다정함');
+  });
   if(authored.id==='D72'){await draw();await area.getByRole('button',{name:'길쭉한 후보',exact:true}).click();await draw();await area.getByLabel('이어 만들 몸',{exact:true}).selectOption('tall');await area.getByRole('button',{name:'선택 이유 예시 넣기',exact:true}).click();}
-  else if(authored.id==='D79'){await draw();await area.getByRole('button',{name:'두 번째 자세 연습장',exact:true}).click();await area.getByLabel('두 번째 자세',{exact:true}).selectOption('walk');await draw();}
+  else if(authored.id==='D79'){
+   await test.step('creator D79: draw first panel', async () => {
+    await draw();
+   });
+   await test.step('creator D79: choose second panel', async () => {
+    await area.getByRole('button',{name:'두 번째 자세 연습장',exact:true}).click();
+   });
+   await test.step('creator D79: select second pose', async () => {
+    await area.getByLabel('두 번째 자세',{exact:true}).selectOption('walk');
+   });
+   await test.step('creator D79: draw second panel', async () => {
+    await draw();
+   });
+  }
   else if(authored.id!=='D80')await draw();
   if(authored.id==='D73')await area.getByRole('button',{name:'갈라진 특징',exact:true}).click();
   if(authored.id==='D76'){await area.getByRole('button',{name:'색 조합 2',exact:true}).click();await area.getByRole('button',{name:'주색 연필',exact:true}).click();await draw();await area.getByRole('button',{name:'보조색 연필',exact:true}).click();await draw();}
   if(['D77','D78'].includes(authored.id))await area.getByRole('button',{name:'놀람',exact:true}).click();
   if(authored.id==='D80'){await area.getByLabel('캐릭터 이름',{exact:true}).fill('새봄');await area.getByLabel('다음에 바꿀 것',{exact:true}).fill('팔 방향');await area.getByLabel('카드 특징 shape',{exact:true}).check();await area.getByLabel('카드 특징 mark',{exact:true}).check();await expect(area.getByLabel('카드 특징 eyes',{exact:true})).toBeDisabled();}
-  await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();if(authored.id!=='D80')await expect(area.getByText('선택한 모양의 방법 예제',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
-  for(let step=1;step<5;step++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();
-  await area.getByLabel('창작 비교 메모',{exact:true}).fill(`${ex.id}: 종이 그림의 대표 특징을 비교했어요`);await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(area).toContainText('종이');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await area.getByLabel('내 캐릭터 비교 완료',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
-  if(!i)await area.screenshot({path:`.e2e/evidence/drawing-stage9-${authored.id}-${testInfo.project.name}.png`});
-  if(authored.id!=='D80'){const wait=page.waitForEvent('download');await area.getByRole('button',{name:'선택한 창작 예제 내려받기',exact:true}).click();expect(readFileSync((await(await wait).path())!,'utf8')).toContain('<svg');}
-  await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();await expect.poll(async()=>{const x=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return x?.some(a=>a.document.example.id===ex.id&&a.status==='completed');}).toBe(true);
+  await test.step('creator example: reference and lesson actions', async () => {
+     await page.getByRole('button',{name:'원본 숨기기',exact:true}).click();if(authored.id!=='D80')await expect(area.getByText('선택한 모양의 방법 예제',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'원본 다시 보기',exact:true}).click();await page.getByRole('button',{name:'더 쉽게 · 일부만',exact:true}).click();
+     for(let step=1;step<5;step++)await page.getByRole('button',{name:'다음 행동',exact:true}).click();
+  });
+  await test.step('creator example: comparison and paper modes', async () => {
+     await area.getByLabel('창작 비교 메모',{exact:true}).fill(`${ex.id}: 종이 그림의 대표 특징을 비교했어요`);await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('paper');await expect(area).toContainText('종이');await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('external');await area.getByLabel('내 캐릭터 비교 완료',{exact:true}).check();await expect(page.getByRole('button',{name:'스스로 해봤어요',exact:true})).toBeEnabled();await page.getByRole('combobox',{name:/^그리는 곳/}).selectOption('app');
+  });
+  await test.step('creator example: capture synthetic view', async () => {
+     if(!i)await area.screenshot({path:`.e2e/evidence/drawing-stage9-${authored.id}-${testInfo.project.name}.png`});
+  });
+  await test.step('creator example: export example', async () => {
+     if(authored.id!=='D80'){const wait=page.waitForEvent('download');await area.getByRole('button',{name:'선택한 창작 예제 내려받기',exact:true}).click();expect(readFileSync((await(await wait).path())!,'utf8')).toContain('<svg');}
+  });
+  await test.step('creator example: save attempt', async () => {
+     await page.getByRole('button',{name:'도움을 받았어요',exact:true}).click();await page.getByRole('button',{name:'시도 마치고 저장',exact:true}).click();await expect.poll(async()=>{const x=(await qa.account.client.from('growth_drawing_attempts').select('*')).data;return x?.some(a=>a.document.example.id===ex.id&&a.status==='completed');}).toBe(true);
+  });
   const rows=(await qa.account.client.from('growth_drawing_attempts').select('*')).data!,saved=rows.find(a=>a.document.example.id===ex.id)!;expect(rows).toHaveLength(i+1);expect(saved.document.example).toEqual(ex);expect(saved.document.original.note).toContain(ex.id);if(authored.id==='D72')expect(saved.document.original.panels.tall).toHaveLength(1);if(authored.id==='D79')expect(saved.document.original.panels.second).toHaveLength(1);
-  await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(area.getByLabel('창작 비교 메모',{exact:true})).toHaveValue(saved.document.original.note);await expect(area.getByLabel('내 캐릭터 비교 완료',{exact:true})).toBeChecked();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await test.step('creator example: reopen and verify saved state', async () => {
+     await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:`내 그림 ${i+1}장`,exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').first().getByRole('button',{name:'열고 이어 그리기',exact:true}).click();await expect(area.getByLabel('창작 비교 메모',{exact:true})).toHaveValue(saved.document.original.note);await expect(area.getByLabel('내 캐릭터 비교 완료',{exact:true})).toBeChecked();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  });
  }
  expect(await qa.read()).toEqual(before);
 });
