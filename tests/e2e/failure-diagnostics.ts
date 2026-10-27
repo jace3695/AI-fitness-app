@@ -6,9 +6,14 @@ export type SafeFailureDiagnostics = {
   testDefinition?: SafeLocation;
   errors: { location?: SafeLocation }[];
   omittedErrors: number;
+  // Native failed test.step coordinates are phases, not inferred assertion sites.
+  failedSteps?: SafeLocation[];
+  stepScanTruncated?: true;
 };
 
 const maxErrors = 3;
+const maxFailedSteps = 3;
+const maxScannedSteps = 2000;
 const maxCoordinate = 1_000_000;
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
@@ -34,6 +39,37 @@ function location(value: unknown, root: string, allowedSources: ReadonlySet<stri
   return { file, line: input.line, column: input.column };
 }
 
+// TestResult.steps and TestStep.{category,error,location,steps} are public
+// Playwright reporter fields. Walk only those fields, never step titles/params
+// or error contents. Literal test.step wrappers retain a spec-owned phase when
+// an inner helper's native error location is absent or outside the allowlist.
+function failedStepEvidence(value: unknown, testFile: string | undefined, root: string,
+  allowedSources: ReadonlySet<string>): Pick<SafeFailureDiagnostics, 'failedSteps' | 'stepScanTruncated'> {
+  if (!Array.isArray(value) || !testFile) return {};
+  const frames = [{ items: value, next: 0 }];
+  const seen = new Set<object>();
+  const failedSteps: SafeLocation[] = [];
+  let scanned = 0;
+  let truncated = false;
+  while (frames.length) {
+    const frame = frames[frames.length - 1];
+    if (frame.next >= frame.items.length) { frames.pop(); continue; }
+    if (scanned++ === maxScannedSteps) { truncated = true; break; }
+    const step = record(frame.items[frame.next++]);
+    if (!step || seen.has(step)) continue;
+    seen.add(step);
+    if (step.category === 'test.step' && record(step.error)) {
+      const at = location(step.location, root, allowedSources);
+      if (at?.file === testFile) {
+        if (failedSteps.length < maxFailedSteps) failedSteps.push(at);
+        else truncated = true;
+      }
+    }
+    if (Array.isArray(step.steps)) frames.push({ items: step.steps, next: 0 });
+  }
+  return { ...(failedSteps.length ? { failedSteps } : {}), ...(truncated ? { stepScanTruncated: true } : {}) };
+}
+
 /** Native TestError.location is the failure site; TestCase.location is only the definition. */
 export function failureDiagnostics(testLocation: unknown, result: unknown, root: string,
   allowedSources: ReadonlySet<string>): SafeFailureDiagnostics | undefined {
@@ -52,6 +88,7 @@ export function failureDiagnostics(testLocation: unknown, result: unknown, root:
       return at && at.file === testFile ? { location: at } : {};
     }),
     omittedErrors: Math.min(Math.max(0, errors.length - maxErrors), maxCoordinate),
+    ...failedStepEvidence(input.steps, testFile, root, allowedSources),
   };
 }
 
@@ -64,6 +101,11 @@ export function storedFailureDiagnostics(value: unknown, root: string,
   const testDefinition = location(input.testDefinition, root, allowedSources);
   const errors = Array.isArray(input.errors) ? input.errors : [];
   const omittedErrors = boundedInteger(input.omittedErrors, 0) ? input.omittedErrors : 0;
+  const steps = Array.isArray(input.failedSteps) ? input.failedSteps : [];
+  const failedSteps = steps.slice(0, maxFailedSteps).flatMap(value => {
+    const at = location(value, root, allowedSources);
+    return at && at.file === testDefinition?.file ? [at] : [];
+  });
   return {
     category,
     ...(testDefinition ? { testDefinition } : {}),
@@ -72,5 +114,7 @@ export function storedFailureDiagnostics(value: unknown, root: string,
       return at && (!testDefinition || at.file === testDefinition.file) ? { location: at } : {};
     }),
     omittedErrors: Math.min(omittedErrors + Math.max(0, errors.length - maxErrors), maxCoordinate),
+    ...(failedSteps.length ? { failedSteps } : {}),
+    ...(input.stepScanTruncated === true || steps.length > maxFailedSteps ? { stepScanTruncated: true } : {}),
   };
 }
