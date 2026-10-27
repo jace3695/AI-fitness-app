@@ -17,6 +17,14 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/language/practice/access-check/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+      {
         source: "/assistant/connect",
         headers: [
           { key: "Referrer-Policy", value: "no-referrer" },

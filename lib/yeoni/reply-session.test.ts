@@ -5,6 +5,7 @@ import { buildReplyPlan, parseReplyEnvelope, matchesReplyClip, adviceSpokenText,
 import { ReplySession, type ReplyClip } from './reply-session.ts';
 import { parseLipSyncManifest, type LipSyncManifest } from './lip-sync.ts';
 import type { PlaybackSnapshot } from './character-controller.ts';
+import { prepareReplyClip } from './reply-clip-source.ts';
 
 const manifest = parseLipSyncManifest(JSON.parse(readFileSync(new URL('../../docs/yeoni-phase5/fixtures/zephyr-ko-39.timeline.json', import.meta.url), 'utf8')));
 const raw = readFileSync(new URL('../../docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3', import.meta.url));
@@ -74,4 +75,69 @@ test('bad audio hash and failed transport remain silent; valid explicit retry re
   const session = new ReplySession(player, [sample], () => {});
   await session.submit('x', async () => { throw new Error('연결 오류'); }); assert.equal(session.state.notice, '연결 오류');
   await session.submit('x', async () => envelope()); assert.equal(session.state.status, 'ready'); assert.equal(player.state, 'ready');
+});
+
+test('opt-in artifact resolver enters the same session/player only after the final exact reply, without autoplay', async () => {
+  const player = fakePlayer(), states: string[] = [];
+  const session = new ReplySession(player, [], () => states.push(session.state.status), async (plan, signal) => {
+    assert.equal(plan.spokenText, manifest.spokenText); assert.equal(plan.responseId, 'resolved');
+    assert.equal(plan.language, manifest.language); assert.equal(plan.voice, manifest.voice);
+    assert.ok(Object.isFrozen(plan)); assert.equal(signal.aborted, false);
+    return prepareReplyClip(bytes, manifest, 'audio/mpeg', signal);
+  });
+  await session.submit('question', async () => envelope(manifest.spokenText, 'resolved'));
+  assert.deepEqual(states, ['waiting', 'loading', 'ready']);
+  assert.equal(player.loads, 1); assert.equal(player.state, 'ready');
+  assert.deepEqual(session.snapshot().manifest, manifest);
+  await session.play(); session.mediaChanged(); assert.equal(player.state, 'playing');
+  assert.equal(gestureKind(session), 'nod');
+});
+
+test('saved exact clips bypass the resolver; unsupported replies and missing artifacts remain text only', async () => {
+  const player = fakePlayer(); let calls = 0;
+  const session = new ReplySession(player, [sample], () => {}, async () => { calls++; return null; });
+  await session.submit('saved', async () => envelope()); assert.equal(calls, 0); assert.equal(player.loads, 1);
+  await session.submit('unsupported', async () => envelope('Hello', 'unsupported'));
+  assert.equal(calls, 0); assert.equal(session.state.status, 'text-only'); assert.equal(player.manifest, null);
+  await session.submit('new', async () => envelope('새 답변이에요.', 'new'));
+  assert.equal(calls, 1); assert.equal(session.state.status, 'text-only'); assert.equal(player.loads, 1);
+});
+
+test('late resolver completion cannot load after newer response, reset or disposal even when it ignores abort', async () => {
+  for (const action of ['replace', 'reset', 'dispose'] as const) {
+    const player = fakePlayer(); let finish!: (clip: ReplyClip) => void; let signal!: AbortSignal;
+    const session = new ReplySession(player, [], () => {}, async (_plan, input) => {
+      signal = input; return new Promise(resolve => { finish = resolve; });
+    });
+    const pending = session.submit('old', async () => envelope());
+    await new Promise(resolve => setImmediate(resolve));
+    if (action === 'replace') await session.submit('new', async () => envelope('Hello', 'new'));
+    else session[action]();
+    finish(sample); await pending;
+    assert.equal(signal.aborted, true); assert.equal(player.loads, 0); assert.equal(player.manifest, null);
+    assert.equal(session.state.status, action === 'replace' ? 'text-only' : action === 'reset' ? 'idle' : 'loading');
+  }
+});
+
+test('resolver mismatch or malformed timeline is rejected before audio load; failure preserves the reply and explicit retry works', async () => {
+  const player = fakePlayer(); let loads = 0, source = 0;
+  const candidates = [
+    { ...manifest, spokenText: '다른 답변이에요.' },
+    { ...manifest, voice: 'another-voice' },
+    { ...manifest, alignment: 'synthetic-clock-test' as const },
+    { ...manifest, cues: [{ startMs: 10, endMs: 5, phone: 'a' }] },
+  ];
+  const session = new ReplySession(player, [], () => {}, async () => {
+    if (source === candidates.length) throw new Error('정렬 자료를 불러오지 못했어요.');
+    if (source > candidates.length) return sample;
+    return { manifest: candidates[source], async load() { loads++; return { bytes, mime: 'audio/mpeg' }; } };
+  });
+  for (; source <= candidates.length; source++) {
+    await session.submit('x', async () => envelope());
+    assert.equal(session.state.status, 'error'); assert.equal(session.state.reply, manifest.spokenText);
+    assert.equal(session.state.emotion, 'neutral'); assert.equal(player.manifest, null);
+  }
+  assert.equal(loads, 0); assert.equal(player.loads, 0);
+  await session.submit('retry', async () => envelope()); assert.equal(session.state.status, 'ready');
+  assert.equal(player.loads, 1); assert.equal(player.state, 'ready');
 });

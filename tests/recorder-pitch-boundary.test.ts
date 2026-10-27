@@ -49,10 +49,11 @@ test('before recording the rendered page explains pitch observation without offe
  const audio={exports:{}};
  const audioSource=fs.readFileSync(new URL('../app/language/practice/assessment-audio.ts',import.meta.url),'utf8');
  vm.runInNewContext(ts.transpileModule(audioSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...audio,require,setTimeout});
- const contract={exports:{}},browser={exports:{}};
+ const contract={exports:{}},browser={exports:{}},trial={exports:{}};
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...contract,require});
- vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-browser.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...browser,require:(name:string)=>name==='./assessment-audio.ts'?audio.exports:name==='./assessment.ts'?contract.exports:require(name)});
- vm.runInNewContext(ts.transpileModule(availabilitySource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{...availability,require:(name:string)=>name==='./assessment-audio'?audio.exports:name==='./assessment-browser'?browser.exports:require(name)});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-trial.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...trial,require});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-browser.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...browser,require:(name:string)=>name==='./assessment-audio.ts'?audio.exports:name==='./assessment.ts'?contract.exports:name==='./assessment-trial.ts'?trial.exports:require(name)});
+ vm.runInNewContext(ts.transpileModule(availabilitySource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{...availability,require:(name:string)=>name==='./assessment-audio'?audio.exports:name==='./assessment-browser'?browser.exports:name==='./assessment-trial'?trial.exports:name==='./assessment'?contract.exports:require(name)});
  const context={exports:{},require:(name:string)=>name==='./AssessmentAvailability'?availability.exports:name==='./pitch'?{}:name.startsWith('@/')?{}:require(name)};
  const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  vm.runInNewContext(compiled,context);

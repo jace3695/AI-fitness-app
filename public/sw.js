@@ -2,6 +2,19 @@ const CACHE_VERSION = "jace-ai-hub-v6";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const APP_SHELL = ["/", "/offline", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+const isBoundaryDiagnostic = (url) => url.origin === self.location.origin &&
+  (url.pathname === "/language/practice/access-check" || url.pathname.startsWith("/language/practice/access-check/"));
+
+// Remove only obsolete diagnostic documents, never record storage or ordinary
+// offline pages. Includes query/RSC variants that an older worker may have kept.
+const purgeBoundaryDocuments = async () => {
+  for (const name of await caches.keys()) {
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) {
+      if (isBoundaryDiagnostic(new URL(request.url))) await cache.delete(request);
+    }
+  }
+};
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(APP_CACHE).then((cache) => cache.addAll(APP_SHELL)));
@@ -9,7 +22,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
+    purgeBoundaryDocuments().then(() => caches.keys())
       .then((keys) => Promise.all(keys.filter((key) => key !== APP_CACHE && key !== STATIC_CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
@@ -59,6 +72,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+
+  if (isBoundaryDiagnostic(url)) {
+    // Never cache or replay a server-gated diagnostic, even when offline. Do not
+    // fall back to the home page (which mounts personal-record synchronization).
+    event.respondWith(fetch(request, { cache: "no-store", redirect: "error" }).catch(() =>
+      new Response("Diagnostic unavailable offline", { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } })));
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(

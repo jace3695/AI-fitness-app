@@ -41,7 +41,8 @@ export function parseLipSyncManifest(input: unknown): LipSyncManifest {
     ? { version: 1, language: 'ko-KR' }
     : input.version === 2 && input.language === 'ja-JP' && input.phoneSet === 'openjtalk-v1'
       ? { version: 2, language: 'ja-JP', phoneSet: 'openjtalk-v1' } : null;
-  if (!contract || !['reviewed-phonemes', 'automatic-phonemes', 'synthetic-clock-test'].includes(String(input.alignment))
+  if (!contract || typeof input.alignment !== 'string'
+    || !['reviewed-phonemes', 'automatic-phonemes', 'synthetic-clock-test'].includes(input.alignment)
     || typeof input.voice !== 'string' || !input.voice || input.voice.length > 100
     || typeof input.spokenText !== 'string' || !input.spokenText.trim() || Array.from(input.spokenText).length > 1200
     || typeof input.audioSha256 !== 'string' || !shaPattern.test(input.audioSha256)

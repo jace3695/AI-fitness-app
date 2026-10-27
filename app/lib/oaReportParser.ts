@@ -248,13 +248,26 @@ function makeCrop(
   return canvas;
 }
 
-export function numberFromText(text: string, row: ReportRow) {
-  if (row.key === "bodyAge" || !/\d/.test(text)) return undefined;
+function numericTokenFromText(text: string) {
   const normalized = text.trim().replace(/,/g, ".")
     .replace(/\s*([.,])\s*/g, "$1");
   // One complete measurement only: never take the first digit of a label/range.
-  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(?:%|kg|kcal|points?)?\s*$/i);
-  if (!match || (row.decimals && !match[1].includes("."))) return undefined;
+  return normalized.match(/^(\d+(?:\.\d+)?)\s*(%|kg|kcal|points?)?\s*$/i);
+}
+
+function matchesReportUnit(unit: string | undefined, row: ReportRow) {
+  // Some supported crops exclude the suffix, but a visible conflicting unit
+  // must not be discarded merely because the number fits this row's range.
+  if (!unit) return true;
+  const expected = row.key === 'oaBodyMuscleMass' || row.key === 'oaBodyFatMass'
+    ? 'kg' : OA_REPORT_INVENTORY.find(([key]) => key === row.key)?.[2];
+  return unit.toLowerCase().replace(/^points?$/, '포인트') === expected;
+}
+
+export function numberFromText(text: string, row: ReportRow) {
+  if (row.key === "bodyAge") return undefined;
+  const match = numericTokenFromText(text);
+  if (!match || !matchesReportUnit(match[2], row) || (row.decimals && !match[1].includes("."))) return undefined;
   const value = Number(match[1]);
   return Number.isFinite(value) && value >= row.min && value <= row.max ? value : undefined;
 }
@@ -294,10 +307,11 @@ export function agreedNumber(reads: { text: string; confidence: number }[], row:
   return parsed.length >= 2 && parsed.every(value => value !== undefined && value === parsed[0]) ? parsed[0] : undefined;
 }
 
-/** Retry unreadable/low-confidence crops, never vote away a conflicting number. */
+/** Retry unreadable/low-confidence crops, never vote away a conflicting number or unit. */
 export function recoveredNumber(original: { text: string; confidence: number }[], retries: { text: string; confidence: number }[], row: ReportRow) {
   const candidate = agreedNumber(retries, row);
   if (candidate === undefined) return undefined;
+  if (original.some(read => !matchesReportUnit(numericTokenFromText(read.text)?.[2], row))) return undefined;
   const observations = original.map(read => numberFromText(read.text, row));
   return observations.some(value => value !== undefined && value !== candidate) ? undefined : candidate;
 }

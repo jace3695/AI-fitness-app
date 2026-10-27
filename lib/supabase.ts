@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase-config.ts'
 import { getDevSyncQaTrace } from './syncQaTrace.ts'
+import { createBoundaryFetch } from './speech-boundary-transport.ts'
 
 let browserClient: SupabaseClient | null = null
 
@@ -8,7 +9,7 @@ export function createClient() {
   if (!browserClient) {
     const trace = process.env.NODE_ENV === 'development' ? getDevSyncQaTrace(SUPABASE_URL) : null
     browserClient = createSupabaseClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      ...(trace ? { global: { fetch: trace.fetch } } : {}),
+      global: { fetch: createBoundaryFetch(trace?.fetch ?? ((...args) => fetch(...args)), SUPABASE_URL) },
       auth: {
         persistSession: true,
         autoRefreshToken: true,

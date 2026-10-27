@@ -241,6 +241,8 @@ function createDevice(server, seed = {}) {
     saveFromCalendarSnapshot: workouts => {
       // The component's one-time record read is supplied explicitly; no React mount is simulated.
       Object.assign(context, {
+        // Match a mounted calendar with no write in flight; the real writer manages the lock.
+        recordsLive: { current: true }, workoutWriteLocked: { current: false },
         stores: { workouts: copy(workouts) }, selected: '2030-02-02', todayKey: '2030-02-09',
         exerciseRecordsDraft: [{ exerciseName: 'fixture-exercise', status: 'completed', sets: [{ setNumber: 1, completed: true, reps: 8 }] }],
         selectedWorkoutRecord: undefined, workoutStatusDraft: 'partial',

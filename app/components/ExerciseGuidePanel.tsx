@@ -1,6 +1,9 @@
 import { Exercise, SAFETY_STOP_MESSAGE } from '../data/workouts';
 import WallPushupDemo from './WallPushupDemo';
 import ExerciseMotionDemo from './ExerciseMotionDemo';
+import PreparationPoseDemo from './PreparationPoseDemo';
+import DeadBugInformationalReview from './DeadBugInformationalReview';
+import RollerRecoveryInformationalReview from './RollerRecoveryInformationalReview';
 
 export function getExerciseVideoHref(exercise: Exercise) {
   const guide = exercise.guide;
@@ -24,12 +27,17 @@ function GuideBlock({ title, items, tone = 'plain' }: { title: string; items?: s
 export default function ExerciseGuidePanel({ exercise }: { exercise: Exercise }) {
   const guide = exercise.guide;
   if (!guide) return null;
+  const guideId = exercise.sourceExerciseId || exercise.exerciseId;
   // Keep routine-specific warnings, guide criteria and the common stop message together.
   const stopCriteria = [...new Set([...exercise.details.filter(d => d.type === 'warn').map(d => d.text), ...guide.stopCriteria, SAFETY_STOP_MESSAGE])];
   return (
     <div className="mt-3 space-y-2" onClick={(event) => event.stopPropagation()}>
-      {(exercise.sourceExerciseId || exercise.exerciseId) === 'wall-pushup' ? <WallPushupDemo key={exercise.exerciseId} /> : null}
-      <ExerciseMotionDemo exerciseId={exercise.sourceExerciseId || exercise.exerciseId} />
+      {guideId === 'wall-pushup' ? <WallPushupDemo key={exercise.exerciseId} /> : null}
+      <ExerciseMotionDemo exerciseId={guideId} />
+      {/* An explanatory still, not a rollout, personal progression or an activated motion demo. */}
+      {guideId === 'ab-slider-ready-position' ? <PreparationPoseDemo exerciseId={guideId} /> : null}
+      {guideId === 'dead-bug' ? <DeadBugInformationalReview key={exercise.exerciseId} /> : null}
+      {guideId === 'foam-roller-recovery' ? <RollerRecoveryInformationalReview key={exercise.exerciseId} /> : null}
       {guide.catalogOnly ? <p className="rounded-lg bg-amber-50 p-2 text-xs">선택용 동작 안내입니다. 현재 통증·상태에 따른 맞춤 추천이 아니며 기존 중단 기준이 우선합니다.</p> : null}
       {guide.equipment ? <p className="text-xs">장비: {guide.equipment} · 난이도: {guide.difficulty} · 부위: {guide.target}</p> : null}
       {guide.sources?.map(source => <a key={source.url} className="block text-xs text-indigo-700 underline" href={source.url} target="_blank" rel="noopener noreferrer">참고 안내: {source.title}</a>)}

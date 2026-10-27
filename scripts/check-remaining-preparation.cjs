@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const out=process.env.MOTION_CHECK_OUTPUT?path.resolve(process.env.MOTION_CHECK_OUTPUT):path.resolve(__dirname,'../docs/exercise-motion/batch19-static-evidence');
-const {html,chromium}=require('./motion-accessibility-harness.cjs')(path.resolve(process.argv[2]),path.join(out,'generated'));
+const {html,chromium}=require('./motion-accessibility-harness.cjs')(path.resolve(process.argv[2]),path.join(out,'generated'),{entry:'app/components/PreparationPoseDemo.tsx'});
 (async()=>{
  const browser=await chromium.launch({channel:'msedge',headless:true});
  const context=await browser.newContext({viewport:{width:320,height:740},reducedMotion:'reduce'});
@@ -29,7 +29,7 @@ const {html,chromium}=require('./motion-accessibility-harness.cjs')(path.resolve
   await page.evaluate(()=>window.show('unsupported'));
   await page.waitForFunction(()=>document.querySelector('#root').children.length===0);
   assert.deepEqual(errors,[]);
-  fs.writeFileSync(path.join(out,'after.json'),JSON.stringify({strictTypes:true,rows,unsupportedReturnsNull:true,pageErrors:errors},null,2));
-  console.log('PASS 1 remaining static preparation pose: strict types, semantics, 320px and 200% text');
+  fs.writeFileSync(path.join(out,'after.json'),JSON.stringify({scope:'independent static asset; not app routing or a completed moving demonstration',entry:'PreparationPoseDemo',strictTypes:true,rows,unsupportedReturnsNull:true,pageErrors:errors},null,2));
+  console.log('PASS 1 independent static preparation asset (not app routing): strict types, semantics, 320px and 200% text');
  }finally{await context.close();await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -68,6 +68,73 @@ test('empty labels, categories, ranges and uncertain decimals remain unfilled', 
   assert.equal(agreedNumber([{text:'26.4',confidence:95},{text:'26.4',confidence:95}], bmi), 26.4);
 });
 
+test('explicit OCR units must belong to the source row, even when both reads agree', () => {
+  const cases = [
+    { key: 'weight', text: '82.4 %', min: 20, max: 300, decimals: true },
+    { key: 'bodyFatPercent', text: '24.7 kg', min: 1, max: 80, decimals: true },
+    { key: 'basalMetabolicRate', text: '1800 kg', min: 500, max: 5000 },
+    { key: 'boneMass', text: '3.2 %', min: 0.5, max: 15, decimals: true },
+    { key: 'bodyScore', text: '76 kcal', min: 1, max: 100 },
+    { key: 'bmi', text: '24.7 kg', min: 5, max: 80, decimals: true },
+    { key: 'visceralFatLevel', text: '12 points', min: 1, max: 50 },
+    { key: 'oaBodyMuscleMass', text: '27.4 %', min: 1, max: 100, decimals: true },
+    { key: 'oaBodyFatMass', text: '11.8 kcal', min: 0.1, max: 80, decimals: true },
+  ] as const;
+  for (const { text, ...limits } of cases) {
+    const row = { ...limits, centerY: 0 };
+    const reads = [{ text, confidence: 95 }, { text, confidence: 94 }];
+    assert.equal(numberFromText(text, row), undefined, `${row.key}: ${text}`);
+    assert.equal(agreedNumber(reads, row), undefined, row.key);
+    assert.equal(recoveredNumber([], reads, row), undefined, row.key);
+  }
+});
+
+test('existing OA unit spellings, decimal spacing and unitless crops remain supported', () => {
+  for (const [key, , unit] of OA_REPORT_INVENTORY) {
+    if (['reportedBodyAge', 'bodyShape', 'measurementDate', 'measurementTime'].includes(key)) continue;
+    const sourceKey = key === 'trunkMuscleMass' ? 'oaBodyMuscleMass' : key === 'trunkFatMass' ? 'oaBodyFatMass' : key;
+    const row = { key: sourceKey as Parameters<typeof numberFromText>[1]['key'], centerY: 0, min: 0, max: 5000 };
+    const suffix = unit === '포인트' ? 'points' : unit;
+    assert.equal(numberFromText(`24.7 ${suffix}`, row), 24.7, key);
+    assert.equal(numberFromText(` 24 , 7 ${suffix.toUpperCase()}\n`, row), 24.7, key);
+    assert.equal(numberFromText('24.7', row), 24.7, key);
+  }
+  const score = { key: 'bodyScore' as const, centerY: 0, min: 1, max: 100 };
+  assert.equal(numberFromText('76 point', score), 76);
+  // Korean age units use their existing dedicated parser, not numeric guessing.
+  assert.deepEqual(ageFromText('37 연 령 단 위'), { value: 37, unit: '연령 단위', text: '37 연 령 단 위' });
+  for (const text of ['76 포인트', '76 points (normal)', '76% points']) assert.equal(numberFromText(text, score), undefined, text);
+});
+
+test('retries cannot discard an explicit conflicting unit from an original reading', () => {
+  const row = { key: 'weight' as const, centerY: 0, min: 20, max: 300, decimals: true };
+  const read = (text: string, confidence = 94) => ({ text, confidence });
+  for (const confidence of [95, 12]) {
+    assert.equal(recoveredNumber([read('82.4 %', confidence), read('82.4')], [read('82.4'), read('82.4 kg')], row), undefined);
+  }
+  assert.equal(recoveredNumber([read('82.4 kg', 42), read('82.4 kg', 55)], [read('82.4'), read('82.4 kg')], row), 82.4);
+});
+
+test('unit-mismatched OCR candidates leave existing records and source text intact for manual review', () => {
+  const date = '2025-04-07';
+  const source = { device: 'OA long report' as const, originalLabel: '체지방률', originalUnit: '%', originalText: '23.6%', method: 'ocr' as const, mappingVersion: 'oa-pro-v1' as const };
+  const weights = { [date]: { weight: 80.2, recordedAt: 'original' } };
+  const inbody = { [date]: { bodyFatPercent: 23.6, memo: 'synthetic manual review', metricSources: { bodyFatPercent: source } } };
+  const invalidRead = { text: '24.7 kg', confidence: 95 };
+  const value = agreedNumber([invalidRead, invalidRead], { key: 'bodyFatPercent', centerY: 0, min: 1, max: 80, decimals: true });
+  const mapped = mapOaMeasurements({ bmi: 24.8, ...(value === undefined ? {} : { bodyFatPercent: value }) });
+  const patch = Object.fromEntries(Object.entries(mapped.values).map(([key, number]) => [key, String(number)]));
+  const saved = mergeBodyImport(weights, inbody, date, patch, '2026-10-26');
+  assert.deepEqual(saved.weights, weights);
+  assert.deepEqual(saved.inbody[date], { ...inbody[date], bmi: 24.8 });
+  const corrected = mergeBodyImport(saved.weights, saved.inbody, date, { bodyFatPercent: '24.7' }, '2026-10-26');
+  assert.equal(corrected.inbody[date].bodyFatPercent, 24.7);
+  assert.equal(corrected.inbody[date].metricSources?.bodyFatPercent?.method, 'ocr-edited');
+  assert.equal(corrected.inbody[date].metricSources?.bodyFatPercent?.originalText, '23.6%');
+  assert.equal(inbody[date].bodyFatPercent, 23.6);
+  assert.equal(inbody[date].metricSources.bodyFatPercent.method, 'ocr');
+});
+
 test('multiline timestamp dates validate calendar and reject ambiguous headers', () => {
   assert.equal(dateFromText('fixture@example.test\n2025-04-07 08:12:34'), '2025-04-07');
   assert.equal(dateFromText('2025 / 4 / 7'), '2025-04-07');

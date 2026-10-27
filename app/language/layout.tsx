@@ -4,6 +4,7 @@ import TopNav from "@/components/TopNav";
 import LanguageCloudSync from "@/components/LanguageCloudSync";
 import AppIdentity from "../components/AppIdentity";
 import "./language.css";
+import DiagnosticIsolation from "../components/DiagnosticIsolation";
 
 export const metadata: Metadata = {
   title: "언어 학습 | AI 연이",
@@ -12,11 +13,11 @@ export const metadata: Metadata = {
 
 export default function LanguageLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <AuthGate>
+    <DiagnosticIsolation diagnostic={children}><AuthGate>
       <div className="language-app-shell">
         <header className="app-module-header"><div className="app-module-header-inner"><AppIdentity kind="language" title="일본어 학습" subtitle="매일 이어가는 언어 훈련" /><TopNav /></div></header>
         <LanguageCloudSync><main className="app-main">{children}</main></LanguageCloudSync>
       </div>
-    </AuthGate>
+    </AuthGate></DiagnosticIsolation>
   );
 }

@@ -13,6 +13,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  focused-components:
+    # Real browser/source components only. No hosted Auth, DB, microphone or provider.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: 'true'
+      YEONI_COMPONENT_QA: '1'
+      QA_SOUP_VARIANT: fixed
+      NEXT_TELEMETRY_DISABLED: '1'
+      QA_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.19.0'
+          cache: npm
+      - run: npm ci && npm --prefix scripts/browser-qa ci
+      - name: Install real browser engines and Korean review fonts
+        run: |
+          npx playwright install --with-deps chromium webkit
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Checkout the same fixed WebKit network library as the full suite
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          repository: GNOME/libsoup
+          ref: 25eac153004f777581ca2d95e31a02ca96844332
+          path: .e2e/libsoup-source
+          persist-credentials: false
+      - name: Build the existing pinned WebKit library
+        run: |
+          sudo apt-get install -y meson ninja-build build-essential pkg-config libglib2.0-dev libnghttp2-dev libsqlite3-dev libpsl-dev libbrotli-dev glib-networking
+          meson setup .e2e/libsoup-build .e2e/libsoup-source --prefix="$RUNNER_TEMP/webkit-soup" --libdir=lib --wrap-mode=nofallback -Dgssapi=disabled -Dvapi=disabled -Dntlm=disabled -Dsysprof=disabled -Dautobahn=disabled -Dpkcs11_tests=disabled -Dintrospection=disabled -Ddocs=disabled -Dtests=false
+          meson compile -C .e2e/libsoup-build
+          meson install -C .e2e/libsoup-build
+          echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
+      - name: Verify isolated source components in both browser engines
+        run: npx playwright test --config tests/browser-cloud/playwright.config.ts
+      - name: Preserve only synthetic component evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: component-browser-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            .e2e/component-browser/evidence/results.json
+            .e2e/component-browser/evidence/*.png
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
   browser:
     runs-on: ubuntu-24.04
     # The complete suite includes all authored drawing lessons in both engines.
@@ -60,6 +112,8 @@ jobs:
         run: node scripts/e2e-stack.mjs start
       - name: Build the isolated production app
         run: npm run build
+      - name: Keep hosted-only speech diagnostics denied on the isolated app
+        run: node scripts/qa-playwright.mjs tests/e2e/diagnostic-denial.spec.ts --project=chromium --project=webkit-diagnostic-denial
       - name: Verify beginner drawing flow in both browsers
         run: node scripts/qa-playwright.mjs tests/e2e/drawing-simple.spec.ts --project=chromium --project=webkit-small
       - name: Verify PIN status delays, failures and logout races

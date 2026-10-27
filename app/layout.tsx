@@ -7,6 +7,7 @@ import CloudSyncPanel from './components/CloudSyncPanel';
 import SyncQaPanel from './components/SyncQaPanel';
 import CommonCharacterShell from '@/components/yeoni/CommonCharacterShell';
 import { commonCharacterEnabled } from '@/lib/yeoni/common-host-policy';
+import DiagnosticIsolation from './components/DiagnosticIsolation';
 
 export const metadata: Metadata = {
   title: 'AI 연이 | 개인 AI 비서',
@@ -44,12 +45,14 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
+        <DiagnosticIsolation diagnostic={children}>
         <PwaManager />
         <AiBudgetNotifier />
         <RecordResetListener />
         {process.env.NODE_ENV === 'development' && <SyncQaPanel />}
         {commonCharacterEnabled(process.env) ? <CommonCharacterShell enabled>{children}</CommonCharacterShell> : children}
         <div className="mx-auto w-full max-w-5xl px-4 pb-28"><CloudSyncPanel hideSignedOut /></div>
+        </DiagnosticIsolation>
       </body>
     </html>
   );

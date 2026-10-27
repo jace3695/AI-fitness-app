@@ -37,7 +37,9 @@ test('reject overlap, reversed/negative/nonfinite/overlong timing; never repair 
   const m = base(); m.cues[1].startMs = 200; assert.throws(() => parseLipSyncManifest(m));
 });
 test('reject malformed contracts, wrong voice/language and excessive inputs', () => {
-  for (const patch of [{ language: 'ja-JP' }, { voice: 'other-voice' }, { alignment: 'equal-characters' }, { version: 2 },
+  for (const patch of [{ language: 'ja-JP' }, { voice: 'other-voice' }, { alignment: 'equal-characters' },
+    { alignment: ['synthetic-clock-test'] }, { alignment: ['reviewed-phonemes'] },
+    { alignment: Object('automatic-phonemes') }, { alignment: { toString: () => 'reviewed-phonemes' } }, { version: 2 },
     { cues: [] }, { audioSha256: 'wrong' }, { durationMs: 120001 }, { spokenText: ' ' }, { spokenText: '아'.repeat(1201) }]) {
     assert.throws(() => parseLipSyncManifest({ ...base(), ...patch }));
   }

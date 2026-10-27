@@ -6,6 +6,7 @@ import BodyAnalysisHistory from '@/app/components/BodyAnalysisHistory';
 import ConversationArchiveEntry from '@/components/ConversationArchiveEntry';
 import type { BodyAnalysisSnapshot } from '@/lib/body-analysis-history';
 import AssistantPromptExamples from "@/components/AssistantPromptExamples";
+import AssistantListEmptyState, { type AssistantListFilter } from "@/components/AssistantListEmptyState";
 import AppCompanion from "@/components/AppCompanion";
 import dynamic from 'next/dynamic';
 import { adviceSpokenText, type ReplyPlan } from '@/lib/yeoni/reply-plan';
@@ -53,7 +54,7 @@ import { buildLocalBodyNarrative, isLocalBodyQuestion, shouldUseLocalBodyConvers
 import { readLocalBodyReview } from '../data/readLocalBodyReview';
 import { RECORDS_CHANGED_EVENT } from '../data/storageTransaction';
 
-type Filter = "all" | "task" | "project" | "waiting" | "memory";
+type Filter = AssistantListFilter;
 type Item = {
   id: string;
   user_id: string;
@@ -131,6 +132,12 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
   const [weeklyBriefing, setWeeklyBriefing] = useState<AssistantWeeklyBriefing | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [title, setTitle] = useState("");
+  const entryDetailsRef = useRef<HTMLDetailsElement>(null);
+  const entryInputRef = useRef<HTMLInputElement>(null);
+  const showEntryForm = () => {
+    if (entryDetailsRef.current) entryDetailsRef.current.open = true;
+    entryInputRef.current?.focus();
+  };
   const [kind, setKind] = useState<Exclude<Filter, "all">>("task");
   const [entryPriority, setEntryPriority] = useState(3);
   const [entryDueDate, setEntryDueDate] = useState("");
@@ -740,10 +747,10 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           {[{ label: "미완료 할 일", value: openTasks }, { label: "진행 프로젝트", value: openProjects }, { label: "회신 대기", value: waiting }].map((stat) => <article key={stat.label} className="rounded-2xl bg-[#F7F6FF] p-3"><span className="break-keep text-xs font-semibold text-gray-500">{stat.label}</span><b className="mt-2 block text-2xl text-[#5146A6]">{loading || (!lastLoadedAt && loadFailures.length > 0) ? "—" : stat.value}</b></article>)}
         </div>
 
-        <details className="mt-4 rounded-2xl border border-gray-100 p-3">
+        <details id="assistant-entry-form" ref={entryDetailsRef} className="mt-4 rounded-2xl border border-gray-100 p-3">
           <summary className="cursor-pointer py-2 text-sm font-bold text-[#5146A6]">직접 추가하기</summary>
         <form onSubmit={addEntry} className="mt-5 grid gap-2 rounded-2xl bg-yeoni-bg p-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto_auto_auto_auto]">
-          <input aria-label="추가할 내용" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
+          <input ref={entryInputRef} aria-label="추가할 내용" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={kind === "project" ? 120 : 240} placeholder={kind === "memory" ? "예: 다음 일본 출장에서는 간사이 공항 이용" : "예: 금요일까지 일본 본사 결과 확인하기"} className="min-w-0 rounded-xl border-0 bg-white px-4 py-3 text-sm outline-none ring-1 ring-gray-100 focus:ring-[#7F77DD]" />
           <select value={kind} onChange={(event) => setKind(event.target.value as Exclude<Filter, "all">)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm font-semibold outline-none ring-1 ring-gray-100"><option value="task">할 일</option><option value="project">프로젝트</option><option value="waiting">회신 대기</option><option value="memory">기억</option></select>
           <select aria-label="우선순위" value={entryPriority} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryPriority(Number(event.target.value))} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50"><option value={5}>긴급</option><option value={4}>중요</option><option value={3}>보통</option><option value={2}>낮음</option></select>
           <input aria-label="마감일" type="date" value={entryDueDate} disabled={kind === "project" || kind === "memory"} onChange={(event) => setEntryDueDate(event.target.value)} className="rounded-xl border-0 bg-white px-3 py-3 text-sm outline-none ring-1 ring-gray-100 disabled:opacity-50" />
@@ -765,7 +772,7 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
         {message && <p role="status" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{message}</p>}
 
         <div className="mt-5 grid gap-2">
-          {loading ? <p className="py-10 text-center text-sm text-gray-400">동기화 중…</p> : rows.length === 0 ? <p className="py-10 text-center text-sm leading-6 text-gray-400">{loadFailures.length ? "목록 조회를 확인하지 못했습니다." : "등록된 항목이 없습니다."}<br />떠오르는 일을 자연스럽게 적어보세요.</p> : rows.map((row) => <article key={`${row.kind}-${row.id}`} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-gray-100 p-4 ${row.done ? "opacity-50" : ""}`}>
+          {loading ? <p className="py-10 text-center text-sm text-gray-400">동기화 중…</p> : rows.length === 0 ? <AssistantListEmptyState filter={filter} loadFailures={loadFailures} entryFormId="assistant-entry-form" onAdd={showEntryForm} onRetry={() => void load()} /> : rows.map((row) => <article key={`${row.kind}-${row.id}`} className={`grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-gray-100 p-4 ${row.done ? "opacity-50" : ""}`}>
             {row.kind === "memory" ? <span aria-hidden="true" className="h-3 w-3 justify-self-center rounded-full bg-amber-400" /> : <button type="button" aria-label="완료 전환" disabled={busyIds.includes(row.id)} onClick={() => void (row.kind === "project" ? toggleProject(row.source as Project) : toggleItem(row.source as Item))} className={`h-11 w-11 rounded-full border-2 disabled:opacity-50 ${row.done ? "border-[#5146A6] bg-[#5146A6]" : "border-gray-300"}`}>{row.done && <span className="text-xs text-white">✓</span>}</button>}
             <div className="min-w-0"><p className={`truncate font-bold ${row.done ? "line-through" : ""}`}>{row.title}</p><div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-400"><span>{new Date(row.created).toLocaleString("ko-KR")}</span>{row.kind === "task" || row.kind === "waiting" ? <><span className={(row.source as Item).priority >= 4 ? "font-bold text-red-500" : ""}>우선순위 {priorityLabel((row.source as Item).priority)}</span>{(row.source as Item).due_at && <span className={!row.done && new Date((row.source as Item).due_at as string) < new Date() ? "font-bold text-red-500" : ""}>마감 {new Date((row.source as Item).due_at as string).toLocaleDateString("ko-KR")}</span>}{(row.source as Item).recurrence_rule !== "none" && <span className="font-bold text-[#766DB8]">{recurrenceLabel((row.source as Item).recurrence_rule)} 반복</span>}{(row.source as Item).project_id && <span>프로젝트 {projectNames.get((row.source as Item).project_id as string)}</span>}</> : null}</div></div>
             <div className="flex items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${row.kind === "waiting" ? "bg-orange-50 text-orange-700" : row.kind === "project" ? "bg-blue-50 text-blue-700" : row.kind === "memory" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>{filterLabels[row.kind]}</span><button type="button" aria-label="삭제" onClick={() => void remove(row.kind === "project" ? "assistant_projects" : row.kind === "memory" ? "assistant_memories" : "assistant_items", row.id)} className="px-1 text-xl text-gray-300 hover:text-red-500">×</button></div>

@@ -1,5 +1,6 @@
 import {buildAssessmentEnvelope,AZURE_AUDIO_POLICY_VERSION} from './assessment-audio.ts';
 import {validateAssessmentResult,type AssessmentResult,type AssessmentPolicy} from './assessment.ts';
+import {validateAssessmentTrial} from './assessment-trial.ts';
 export type AssessmentHttp = (path:string,init:RequestInit,owner:string,signal:AbortSignal)=>Promise<Response>;
 const policy:AssessmentPolicy={providerId:'azure-speech',version:AZURE_AUDIO_POLICY_VERSION,language:'ja-JP',mimeTypes:['audio/wav'],metrics:['accuracy','fluency']};
 
@@ -44,6 +45,8 @@ export class AssessmentBrowserClient{
  async assess(wav:Blob,text:string,requestId:string,consent:boolean,signal:AbortSignal):Promise<AssessmentResult>{
   if(!this.available||!consent||this.used.has(requestId)||this.used.size>=100)throw Error('Assessment not ready');
   return this.run(signal,async job=>{
+   // Reject out-of-scope recordings locally, before serialization or any audio POST.
+   await validateAssessmentTrial(wav,text,job);job.throwIfAborted();
    const body=await buildAssessmentEnvelope(wav,text,requestId,consent,job);job.throwIfAborted();
    this.used.add(requestId);
    const response=await this.request('/api/language/assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},this.owner,job);job.throwIfAborted();

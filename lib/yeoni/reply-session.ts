@@ -1,10 +1,12 @@
 import { EMPTY_PLAYBACK, type SpeechSnapshot, type CharacterEmotion, type CharacterGesture } from './character-controller.ts';
 import { matchesReplyClip, parseReplyEnvelope, type ReplyPlan } from './reply-plan.ts';
-import { verifyLipSyncPair, type LipSyncManifest } from './lip-sync.ts';
+import { parseLipSyncManifest, verifyLipSyncPair } from './lip-sync.ts';
 import type { LipSyncPlayer } from './lip-sync-player';
+import type { ReplyClip, ReplyClipResolver } from './reply-clip-source.ts';
+
+export type { ReplyClip, ReplyClipResolver } from './reply-clip-source.ts';
 
 export type ReplyTransport = (message: string, signal: AbortSignal) => Promise<unknown>;
-export type ReplyClip = Readonly<{ manifest: LipSyncManifest; load(signal: AbortSignal): Promise<{ bytes: ArrayBuffer; mime: string }> }>;
 type Player = Pick<LipSyncPlayer, 'load' | 'reset' | 'play' | 'pause' | 'stop' | 'snapshot' | 'manifest' | 'message'>;
 export type ReplyState = Readonly<{ status: 'idle' | 'waiting' | 'loading' | 'ready' | 'text-only' | 'error';
   reply: string; plan: ReplyPlan | null; notice: string; emotion: CharacterEmotion;
@@ -23,7 +25,10 @@ export class ReplySession {
   private player: Player;
   private clips: readonly ReplyClip[];
   private changed: () => void;
-  constructor(player: Player, clips: readonly ReplyClip[], changed: () => void) { this.player = player; this.clips = clips; this.changed = changed; }
+  private resolveClip?: ReplyClipResolver;
+  constructor(player: Player, clips: readonly ReplyClip[], changed: () => void, resolveClip?: ReplyClipResolver) {
+    this.player = player; this.clips = clips; this.changed = changed; this.resolveClip = resolveClip;
+  }
   private update(change: Partial<ReplyState>) { this.state = Object.freeze({ ...this.state, ...change }); this.changed(); }
   private invalidate() { ++this.request; this.abort?.abort(); this.abort = null; this.performed = false; this.player.reset(); }
   reset() { this.invalidate(); this.state = Object.freeze({ ...initial }); this.changed(); }
@@ -35,13 +40,22 @@ export class ReplySession {
       const input = await transport(message, abort.signal);
       if (this.disposed || id !== this.request) return;
       const { reply, plan, notice } = parseReplyEnvelope(input);
-      const clip = this.clips.find(item => matchesReplyClip(plan, item.manifest));
-      this.update({ reply, plan, notice, status: clip ? 'loading' : 'text-only', emotion: plan.emotion });
-      if (!clip) return;
+      let clip = this.clips.find(item => matchesReplyClip(plan, item.manifest));
+      const resolveClip = !clip && plan.language !== 'unsupported' ? this.resolveClip : undefined;
+      this.update({ reply, plan, notice, status: clip || resolveClip ? 'loading' : 'text-only', emotion: plan.emotion });
+      if (this.disposed || id !== this.request) return;
+      if (resolveClip) {
+        clip = await resolveClip(plan, abort.signal) ?? undefined;
+        if (this.disposed || id !== this.request) return;
+      }
+      if (!clip) { if (resolveClip) this.update({ status: 'text-only' }); return; }
+      // Reject a different reply/voice or a clock-only fixture before loading audio.
+      const candidate = parseLipSyncManifest(clip.manifest);
+      if (!matchesReplyClip(plan, candidate)) throw new Error('답변에 맞는 음성이 아니에요.');
       const data = await clip.load(abort.signal);
       if (this.disposed || id !== this.request) return;
       // Bind the approved reply to the verified file before handing it to the media adapter.
-      const manifest = await verifyLipSyncPair(data.bytes, clip.manifest);
+      const manifest = await verifyLipSyncPair(data.bytes, candidate);
       if (this.disposed || id !== this.request) return;
       if (!matchesReplyClip(plan, manifest)) throw new Error('답변에 맞는 음성이 아니에요.');
       await this.player.load(data.bytes, manifest, data.mime);
