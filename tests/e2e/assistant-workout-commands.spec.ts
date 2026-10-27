@@ -26,7 +26,7 @@ test('workout confirmation cancels, recovers a lost response, appears in the cal
   await expect(review).toContainText(today()); await expect(review).toContainText('운동 종류·세트·횟수·통증'); expect((await qa.read())[key]).toEqual(before[key]);
   await review.getByRole('button', { name: '취소', exact: true }).click(); await expect(page.getByText('취소했습니다. 운동 기록은 변경하지 않았습니다.')).toBeVisible();
   await page.reload(); await expect(review).toHaveCount(0); expect((await qa.read())[key]).toEqual(before[key]);
-  await page.goto('/assistant'); const input = page.getByLabel('연이에게 보낼 명령'); await expect(input).toBeEnabled();
+  await page.goto('/assistant'); const input = page.getByLabel('연이에게 하고 싶은 말', { exact: true }); await expect(input).toBeEnabled();
   await input.fill('오늘 운동 완료했어'); await input.press('Enter'); await expect(review).toBeVisible();
   await page.goto('/assistant/quick'); await expect(review).toBeVisible();
   const draft = await page.evaluate(() => sessionStorage.getItem('yeoni:task-command-drafts:v1'));

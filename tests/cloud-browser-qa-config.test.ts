@@ -72,4 +72,8 @@ test('CI preserves the full suite budget and separate bounded component evidence
   assert.equal(workflow.split(handwriting).length, 2, 'run the complete handwriting batch once');
   assert.ok(workflow.indexOf(handwriting) > workflow.indexOf('Keep hosted-only speech diagnostics denied'));
   assert.ok(workflow.indexOf(handwriting) < workflow.indexOf('Verify beginner drawing flow'));
+  const assistant = '      - name: Verify assistant home, advice and briefing in both browsers';
+  assert.equal(workflow.split(assistant).length, 2, 'run the complete assistant batch once');
+  assert.ok(workflow.indexOf(assistant) > workflow.indexOf(handwriting));
+  assert.ok(workflow.indexOf(assistant) < workflow.indexOf('Verify beginner drawing flow'));
 });

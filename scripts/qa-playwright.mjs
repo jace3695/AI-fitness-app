@@ -1,11 +1,15 @@
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { nativeLabel } from './qa-native-labels.mjs';
 import { observeNetworkLibraries } from './qa-browser-environment.mjs';
+import { storedFailureDiagnostics } from '../tests/e2e/failure-diagnostics.ts';
 
 if (process.env.YEONI_E2E !== '1' || process.env.NEXT_PUBLIC_SUPABASE_URL !== 'http://127.0.0.1:54321') throw new Error('Non-isolated verification refused');
 mkdirSync('.e2e/evidence', { recursive: true });
+const allowedSources = new Set(readdirSync('tests/e2e', { withFileTypes: true })
+  .filter(entry => entry.isFile() && /^[a-z0-9]+(?:-[a-z0-9]+)*\.spec\.ts$/.test(entry.name))
+  .slice(0, 1000).map(entry => `tests/e2e/${entry.name}`));
 const native = [];
 const nativeCounts = {};
 const invocation = `${Date.now()}-${process.pid}`;
@@ -50,6 +54,16 @@ child.on('close', code => {
     console.log('QA_BROWSER_RESULT ' + JSON.stringify({ commit: report.commit, status: report.status,
       passed: report.results.filter(row => row.status === 'passed').length,
       failed: report.results.filter(row => row.status !== 'passed').length }));
+    let loggedFailures = 0;
+    for (const [resultIndex, row] of report.results.entries()) {
+      if (loggedFailures === 20) break;
+      if (!['failed', 'timedOut', 'interrupted'].includes(row?.status)) continue;
+      const failure = storedFailureDiagnostics(row.failure, process.cwd(), allowedSources);
+      if (failure) {
+        console.log('QA_TEST_FAILURE ' + JSON.stringify({ resultIndex, ...failure }));
+        loggedFailures++;
+      }
+    }
   } catch { console.error('Verification result missing'); process.exitCode = 1; }
   process.exitCode = code === 0 && !process.exitCode ? 0 : 1;
 });

@@ -5,7 +5,12 @@ import { prepareZephyrSpeech } from '../../lib/zephyr-playback';
 const policy = { voice: 'ko-KR-Chirp3-HD-Zephyr', useDeviceVoice: false };
 
 test('saved assistant answer plays real audio only on click; replay and reload never regenerate it (synthetic provider)', async ({ page, qa }) => {
-  let statusCalls = 0; let synthesisCalls = 0; let spokenText = '';
+  let statusCalls = 0; let synthesisCalls = 0; let spokenText = ''; let chatCalls = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/assistant/chat' && request.method() === 'POST') chatCalls++; });
+  await page.addInitScript(() => {
+    (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls = 0;
+    if (window.speechSynthesis) window.speechSynthesis.speak = () => { (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls++; };
+  });
   await page.route('**/api/tts', async route => {
     expect(route.request().headers().authorization).toMatch(/^Bearer /);
     if (route.request().method() === 'GET') {
@@ -18,9 +23,19 @@ test('saved assistant answer plays real audio only on click; replay and reload n
   });
   await page.setViewportSize({ width: 320, height: 844 });
   await login(page, qa.account); await page.goto('/assistant');
-  await page.getByRole('button', { name: '오늘 운동 계획 보여줘', exact: true }).click();
+  const chat = page.getByRole('region', { name: '연이에게 말하기', exact: true });
+  const examples = chat.getByRole('region', { name: '추천 질문', exact: true });
+  const workout = examples.getByRole('button', { name: '오늘 운동 계획 보여줘', exact: true });
+  await expect(examples.getByRole('button', { name: '다른 질문', exact: true })).toBeEnabled();
+  if (await workout.count() === 0) await examples.getByRole('button', { name: '다른 질문', exact: true }).click();
+  await workout.click();
+  await expect(chat.getByRole('textbox', { name: '연이에게 하고 싶은 말', exact: true })).toHaveValue('오늘 운동 계획 보여줘');
+  expect(chatCalls).toBe(0); expect(synthesisCalls).toBe(0); expect(statusCalls).toBe(0);
   const read = page.getByRole('button', { name: '답변 읽기', exact: true });
+  await expect(read).toHaveCount(0);
+  await chat.getByRole('button', { name: '보내기', exact: true }).click();
   await expect(read).toBeVisible(); expect(synthesisCalls).toBe(0); expect(statusCalls).toBe(0);
+  expect(chatCalls).toBe(1);
   const saved = await qa.account.client.from('assistant_chat_messages').select('content').eq('user_id', qa.account.id).eq('role', 'assistant');
   expect(saved.error).toBeNull(); expect(saved.data).toHaveLength(1);
   await read.click();
@@ -36,10 +51,17 @@ test('saved assistant answer plays real audio only on click; replay and reload n
   await page.getByRole('button', { name: '다시 재생', exact: true }).click();
   await expect.poll(() => audio.evaluate(element => (element as HTMLAudioElement).ended)).toBe(true);
   expect(synthesisCalls).toBe(1); expect(statusCalls).toBe(1);
+  expect(await page.evaluate(() => (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls)).toBe(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.reload(); await read.click();
-  await expect(page.getByText('이 답변은 이미 음성 생성을 요청했어요. 중복 생성을 막기 위해 다시 요청하지 않아요.', { exact: true })).toBeVisible();
+  await page.reload();
+  // Past conversations remain readable, but cannot reactivate voice or actions.
+  await expect(chat.getByText('이전 대화 · 읽기 전용 (재전송·음성 제외)', { exact: true }).first()).toBeVisible();
+  await expect(chat.getByText(saved.data![0].content, { exact: true })).toBeVisible();
+  await expect(read).toHaveCount(0); await expect(audio).toHaveCount(0);
+  await expect(chat.getByRole('link', { name: /회복 계획 보기|운동 세부 화면 열기|운동 앱 열기/ })).toHaveCount(0);
   expect(synthesisCalls).toBe(1); expect(statusCalls).toBe(1);
+  expect(chatCalls).toBe(1);
+  expect(await page.evaluate(() => (window as unknown as { deviceSpeechCalls: number }).deviceSpeechCalls)).toBe(0);
   expect((await qa.account.client.from('assistant_chat_messages').select('content').eq('user_id', qa.account.id).eq('role', 'assistant')).data).toEqual(saved.data);
 });
 

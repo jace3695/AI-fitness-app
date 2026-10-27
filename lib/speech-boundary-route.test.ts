@@ -5,7 +5,7 @@ import { createHash, webcrypto } from 'node:crypto';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { createClient } from '@supabase/supabase-js';
-import { createBoundaryCheck } from './speech-boundary-check.ts';
+import { createBoundaryCheck, type BoundaryState } from './speech-boundary-check.ts';
 import { createBoundaryFetch, invokeBoundaryProbe } from './speech-boundary-transport.ts';
 import { isSpeechBoundaryPath, SPEECH_BOUNDARY_PATH } from './speech-boundary-path.ts';
 import { verifyBoundaryPage } from './speech-boundary-page-gate.ts';
@@ -27,6 +27,22 @@ const owner = '00000000-0000-4000-8000-000000000001';
 const hash = createHash('sha256').update(owner).digest('hex');
 const project = 'https://piqqukiiacncfbztktga.supabase.co';
 const allowedEnv = { VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_REF: 'agent/fitness-record-priority', NEXT_PUBLIC_SUPABASE_URL: project, YEONI_SPEECH_API_SCHEMA: 'yeoni_speech_proof_candidate', AZURE_SPEECH_ASSESSMENT_ENABLED: 'false', AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID: owner };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+async function waitFor<T>(promise: Promise<T>, description: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([promise, new Promise<never>((_, reject) => {
+      // Failure guard only: the production flow still owns its 15-second budget.
+      timer = setTimeout(() => reject(new Error(`Timed out waiting for ${description}`)), 20000);
+    })]);
+  } finally { clearTimeout(timer); }
+}
 
 test('server-only Preview gate rejects every omitted/mismatched condition, including runtime versus baked URL', () => {
   const gate = (builtUrl = project) => load('./speech-boundary-gate.ts', { 'server-only': {}, 'node:crypto': { createHash }, './supabase-config.ts': { SUPABASE_URL: builtUrl } }).speechBoundaryOwnerHash as (env: Record<string, unknown>) => string | null;
@@ -52,11 +68,15 @@ test('dynamic page hides without gate and serializes only owner hash, never conf
   allowed = false; assert.throws(render, /404/);
 });
 
-function routeHarness(path: string | null, gateAllowed = true) {
-  const mounted: string[] = [], effects: (() => unknown)[] = [], elements: Element[] = [], states: unknown[] = [], calls: { path: string; method?: string }[] = [];
+function routeHarness(path: string | null, gateAllowed = true, delays: { beforeDigest?: () => Promise<void>; beforeProbe?: () => Promise<void> } = {}) {
+  const mounted: string[] = [], effects: (() => unknown)[] = [], elements: Element[] = [], states: BoundaryState[] = [], calls: { path: string; method?: string }[] = [];
+  const terminal = deferred<BoundaryState>();
   const modules: Record<string, unknown> = {
     'react/jsx-runtime': { jsx, jsxs: jsx },
-    react: { useEffect: (fn: () => unknown) => effects.push(fn), useRef: (value: unknown) => ({ current: value }), useState: (value: unknown) => [value, (next: unknown) => states.push(next)] },
+    react: { useEffect: (fn: () => unknown) => effects.push(fn), useRef: (value: unknown) => ({ current: value }), useState: (value: BoundaryState) => [value, (next: BoundaryState) => {
+      states.push(next);
+      if (next.outcome !== 'idle' && next.outcome !== 'running') terminal.resolve(next);
+    }] },
     'next/navigation': { usePathname: () => path },
     '@/lib/speech-boundary-path': { isSpeechBoundaryPath },
   };
@@ -76,6 +96,7 @@ function routeHarness(path: string | null, gateAllowed = true) {
     global: { fetch: createBoundaryFetch(async (input, init) => {
       const pathname = new URL(String(input)).pathname;
       calls.push({ path: pathname, method: init?.method });
+      if (delays.beforeProbe) await delays.beforeProbe();
       return pathname.endsWith('/ready') ? Response.json(false) : new Response(null, { status: 403 });
     }, 'http://127.0.0.1:54321') },
   });
@@ -83,9 +104,13 @@ function routeHarness(path: string | null, gateAllowed = true) {
   let authCallback: ((event: string, session: { user: { id: string } } | null) => void) | undefined;
   const client = { schema: sdk.schema.bind(sdk), auth: { getUser: async () => { authCalls++; return { data: { user: { id: owner } }, error: null }; }, onAuthStateChange: (callback: typeof authCallback) => { authCallback = callback; return { data: { subscription: { unsubscribe: () => { unsubscribed = true; } } } }; } } };
   const listeners = new Map<string, () => void>();
+  const crypto = delays.beforeDigest ? { subtle: { digest: async (...args: Parameters<typeof webcrypto.subtle.digest>) => {
+    await delays.beforeDigest!();
+    return webcrypto.subtle.digest(...args);
+  } } } : webcrypto;
   const panel = load('../app/language/practice/access-check/AccessCheckClient.tsx', {
     ...modules, 'next/link': { default: 'a' }, '@/app/lib/supabase': { supabase: client }, '@/lib/speech-boundary-check': { createBoundaryCheck }, '@/lib/speech-boundary-transport': { invokeBoundaryProbe }, '@/lib/speech-boundary-page-gate': { verifyBoundaryPage: async () => { gateCalls++; return gateAllowed; } },
-  }, { AbortController, crypto: webcrypto, TextEncoder, window: { addEventListener: (name: string, fn: () => void) => listeners.set(name, fn), removeEventListener: (name: string) => listeners.delete(name) } }).AccessCheckPanel as (props: Record<string, unknown>) => Element;
+  }, { AbortController, crypto, TextEncoder, window: { addEventListener: (name: string, fn: () => void) => listeners.set(name, fn), removeEventListener: (name: string) => listeners.delete(name) } }).AccessCheckPanel as (props: Record<string, unknown>) => Element;
   function mount(node: unknown): void {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) { node.forEach(mount); return; }
@@ -95,24 +120,49 @@ function routeHarness(path: string | null, gateAllowed = true) {
   }
   mount(jsx(root, { children: jsx(language, { children: jsx(panel, { ownerHash: hash, client }) }) }));
   const cleanup = effects.map(effect => effect()).filter((value): value is () => void => typeof value === 'function');
-  return { mounted, elements, states, calls, listeners, authCalls: () => authCalls, gateCalls: () => gateCalls, authChanged: (id: string) => authCallback?.('SIGNED_IN', { user: { id } }), cleanup: () => cleanup.forEach(fn => fn()), unsubscribed: () => unsubscribed };
+  return { mounted, elements, states, calls, listeners, terminal: terminal.promise, authCalls: () => authCalls, gateCalls: () => gateCalls, authChanged: (id: string) => authCallback?.('SIGNED_IN', { user: { id } }), cleanup: () => cleanup.forEach(fn => fn()), unsubscribed: () => unsubscribed };
 }
 
-test('full root + language + real panel synthetic mount excludes all record services before/after explicit SDK probes', async () => {
+test('full root + language + real panel synthetic mount excludes all record services before/after explicit SDK probes', async t => {
   const h = routeHarness(SPEECH_BOUNDARY_PATH);
+  t.after(() => { h.cleanup(); assert.equal(h.listeners.size, 0); assert.equal(h.unsubscribed(), true); });
   assert.deepEqual(h.mounted, []); assert.equal(h.calls.length, 0); assert.equal(h.authCalls(), 0); assert.equal(h.gateCalls(), 0);
   const button = h.elements.find(element => element.type === 'button')!;
   (button.props.onClick as () => void)();
-  for (let i = 0; i < 100 && !JSON.stringify(h.states).includes('denials-confirmed'); i++) await new Promise(resolve => setImmediate(resolve));
+  const terminal = await waitFor(h.terminal, 'terminal boundary state');
   assert.equal(h.authCalls(), 1); assert.equal(h.gateCalls(), 1);
-  assert.equal((h.states.at(-1) as { outcome: string }).outcome, 'denials-confirmed');
+  assert.equal(terminal.outcome, 'denials-confirmed');
   assert.deepEqual(h.calls.map(call => call.path), ['/rest/v1/keys', '/rest/v1/policy', '/rest/v1/total', '/rest/v1/rpc/authorized', '/rest/v1/rpc/payload', '/rest/v1/rpc/ready']);
-  assert.ok(h.calls.every(call => ['HEAD', 'POST'].includes(call.method!)));
+  assert.deepEqual(h.calls.map(call => call.method), ['HEAD', 'HEAD', 'HEAD', 'POST', 'POST', 'POST']);
   assert.deepEqual(h.mounted, []);
   h.authChanged('00000000-0000-4000-8000-000000000002'); h.authChanged(owner);
   assert.equal((h.states.at(-1) as { outcome: string }).outcome, 'account-changed');
   assert.ok(!JSON.stringify(h.states).includes(owner));
-  h.cleanup(); assert.equal(h.listeners.size, 0); assert.equal(h.unsubscribed(), true);
+});
+
+test('terminal wait remains pending across held real crypto and SDK probe work, then observes all six probes', async t => {
+  const digestEntered = deferred<void>(), releaseDigest = deferred<void>();
+  const probeEntered = deferred<void>(), releaseProbe = deferred<void>();
+  const h = routeHarness(SPEECH_BOUNDARY_PATH, true, {
+    beforeDigest: () => { digestEntered.resolve(); return releaseDigest.promise; },
+    beforeProbe: () => { probeEntered.resolve(); return releaseProbe.promise; },
+  });
+  t.after(() => { h.cleanup(); releaseDigest.resolve(); releaseProbe.resolve(); });
+  let completed = false;
+  void h.terminal.then(() => { completed = true; });
+  (h.elements.find(element => element.type === 'button')!.props.onClick as () => void)();
+  await waitFor(digestEntered.promise, 'owner digest to start');
+  assert.equal(completed, false); assert.equal(h.states.at(-1)?.outcome, 'running'); assert.equal(h.calls.length, 0);
+  releaseDigest.resolve();
+  await waitFor(probeEntered.promise, 'first SDK probe to start');
+  assert.equal(completed, false); assert.equal(h.states.at(-1)?.outcome, 'running'); assert.equal(h.calls.length, 1);
+  releaseProbe.resolve();
+  const terminal = await waitFor(h.terminal, 'delayed terminal boundary state');
+  assert.equal(terminal.outcome, 'denials-confirmed'); assert.equal(completed, true);
+  assert.equal(h.authCalls(), 1); assert.equal(h.gateCalls(), 1); assert.deepEqual(h.mounted, []);
+  assert.deepEqual(h.calls.map(call => call.path), ['/rest/v1/keys', '/rest/v1/policy', '/rest/v1/total', '/rest/v1/rpc/authorized', '/rest/v1/rpc/payload', '/rest/v1/rpc/ready']);
+  assert.deepEqual(h.calls.map(call => call.method), ['HEAD', 'HEAD', 'HEAD', 'POST', 'POST', 'POST']);
+  assert.deepEqual(terminal.checks.map(check => check.outcome), Array(6).fill('expected-denial'));
 });
 
 test('ordinary language route still mounts every original service; diagnostic variants remain isolated', () => {
@@ -140,12 +190,13 @@ test('fresh HEAD server gate rejects stale owner, disabled settings and absent h
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
 });
 
-test('cached/offline page cannot issue any owner or database probe when fresh gate refuses', async () => {
+test('cached/offline page cannot issue any owner or database probe when fresh gate refuses', async t => {
   const h = routeHarness(SPEECH_BOUNDARY_PATH, false);
+  t.after(h.cleanup);
   (h.elements.find(element => element.type === 'button')!.props.onClick as () => void)();
-  for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
+  const terminal = await waitFor(h.terminal, 'refused gate terminal state');
   assert.equal(h.gateCalls(), 1); assert.equal(h.authCalls(), 0); assert.equal(h.calls.length, 0);
-  assert.equal((h.states.at(-1) as { outcome: string }).outcome, 'account-unavailable'); h.cleanup();
+  assert.equal(terminal.outcome, 'account-unavailable');
 });
 
 test('fresh page-gate fetch is HEAD/no-store/no-redirect, body unread, cancellation-aware and fail-closed', async () => {

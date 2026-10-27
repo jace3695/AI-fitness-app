@@ -4,8 +4,8 @@ import { ADVICE_QUESTIONS } from '../../lib/assistant-advice-intent';
 import { buildCurrentWorkoutSettings } from '../../app/data/currentWorkoutDirection';
 
 async function askAdvice(page: Page, scope: keyof typeof ADVICE_QUESTIONS) {
-  await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill(ADVICE_QUESTIONS[scope]);
-  await page.getByRole('button', { name: '전송', exact: true }).click();
+  await page.getByRole('textbox', { name: '연이에게 하고 싶은 말', exact: true }).fill(ADVICE_QUESTIONS[scope]);
+  await page.getByRole('button', { name: '보내기', exact: true }).click();
   await expect(page.getByRole('region', { name: /무료 AI 조언$/ })).toBeVisible();
 }
 async function enterAdvice(page: Page, scope: keyof typeof ADVICE_QUESTIONS) {
@@ -14,6 +14,8 @@ async function enterAdvice(page: Page, scope: keyof typeof ADVICE_QUESTIONS) {
 }
 
 test('free advice previews real owner records across four areas without modifying records', async ({ page, qa }) => {
+  let chatCalls = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/assistant/chat' && request.method() === 'POST') chatCalls++; });
   const day = today();
   // Start after the existing one-time workout-settings migration. We compare
   // the entire state, so unrelated first-visit migration must not hide writes.
@@ -52,20 +54,40 @@ test('free advice previews real owner records across four areas without modifyin
   await login(page, qa.account);
   for (const [path, region, scope] of [['/assistant', '일상', 'assistant'], ['/fitness', '운동', 'fitness'], ['/language', '일본어 학습', 'language']] as const) {
     await page.goto(path);
-    if (scope === 'assistant') await expect(page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true })).toBeInViewport();
+    if (scope === 'assistant') await expect(page.getByRole('textbox', { name: '연이에게 하고 싶은 말', exact: true })).toBeInViewport();
+    const chatResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/api/assistant/chat' && response.request().method() === 'POST');
     await enterAdvice(page, scope);
+    // Keep the actual synthetic-owner reply in memory only. A user-history
+    // marker alone would not prove that the assistant answer survived reload.
+    const reply = (await (await chatResponse).json()).reply;
+    expect(typeof reply).toBe('string'); expect(reply).not.toBe('');
+    const chat = page.getByRole('region', { name: '연이에게 말하기', exact: true });
+    const savedReply = chat.getByText(reply, { exact: true });
+    await expect(savedReply.last()).toBeVisible();
+    const replyCount = await savedReply.count();
     const panel = page.getByRole('region', { name: `${region} 무료 AI 조언`, exact: true });
     await panel.getByRole('button', { name: '조언받을 기록 확인', exact: true }).click();
     await expect(panel.getByText('보낼 기록 요약', { exact: true })).toBeVisible();
     await expect(panel.getByRole('button', { name: '무료 AI 조언받기', exact: true })).toBeDisabled();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.reload();
-    await expect(page.getByRole('region', { name: '연이에게 말하기', exact: true })).toBeVisible();
+    await expect(chat).toBeVisible();
+    await expect(savedReply).toHaveCount(replyCount);
+    await expect(savedReply.last()).toBeVisible();
     await expect(panel).toHaveCount(0);
-    await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
-    await page.getByRole('link', { name: '연이와 조언 이어가기 →', exact: true }).last().click();
-    await expect(page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true })).toHaveValue(ADVICE_QUESTIONS[scope]);
-    await page.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true }).fill('');
+    // Restored history is read-only: it must not regain execution or voice
+    // controls. A fresh supported entry URL may prefill, but never auto-send.
+    await expect(chat.getByText('이전 대화 · 읽기 전용 (재전송·음성 제외)', { exact: true }).first()).toBeVisible();
+    await expect(chat.getByRole('link', { name: '연이와 조언 이어가기 →', exact: true })).toHaveCount(0);
+    await expect(chat.getByRole('button', { name: '답변 읽기', exact: true })).toHaveCount(0);
+    const sentBeforeEntry = chatCalls;
+    await page.goto(`/assistant?advice=${scope}#yeoni-chat`);
+    const input = page.getByRole('textbox', { name: '연이에게 하고 싶은 말', exact: true });
+    await expect(input).toHaveValue(ADVICE_QUESTIONS[scope]);
+    await expect(input).toBeEnabled();
+    await expect(panel).toHaveCount(0);
+    expect(chatCalls).toBe(sentBeforeEntry);
+    await input.fill('');
   }
   await page.goto('/budget');
   await page.getByRole('navigation', { name: '가계부 주요 메뉴' }).getByRole('button', { name: '분석', exact: true }).click();
@@ -164,18 +186,31 @@ test('empty records stay explicit and quick commands preserve Zephyr without dev
 });
 
 test('unified chat keeps ordinary queries and writes on their original review paths', async ({ page, qa }) => {
+  let chatCalls = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname === '/api/assistant/chat' && request.method() === 'POST') chatCalls++; });
   await login(page, qa.account);
   await page.goto('/assistant');
   const chat = page.getByRole('region', { name: '연이에게 말하기', exact: true });
-  const input = chat.getByRole('textbox', { name: '연이에게 보낼 명령', exact: true });
-  await input.fill('요즘 운동 잘하고 있어?'); await chat.getByRole('button', { name: '전송', exact: true }).click();
+  const input = chat.getByRole('textbox', { name: '연이에게 하고 싶은 말', exact: true });
+  const send = chat.getByRole('button', { name: '보내기', exact: true });
+  await input.fill('요즘 운동 잘하고 있어?'); await send.click();
   await expect(chat.getByRole('region', { name: '운동 무료 AI 조언', exact: true })).toBeVisible();
   await chat.getByRole('button', { name: '조언 취소', exact: true }).click();
-  await chat.getByRole('button', { name: '오늘 운동 계획 보여줘', exact: true }).click();
+  const examples = chat.getByRole('region', { name: '추천 질문', exact: true });
+  const workout = examples.getByRole('button', { name: '오늘 운동 계획 보여줘', exact: true });
+  await expect(examples.getByRole('button', { name: '다른 질문', exact: true })).toBeEnabled();
+  // There are two rotating recommendation pages, not a fixed quick-send row.
+  if (await workout.count() === 0) await examples.getByRole('button', { name: '다른 질문', exact: true }).click();
+  await workout.click();
+  await expect(input).toHaveValue('오늘 운동 계획 보여줘');
+  expect(chatCalls).toBe(1);
+  await expect(chat.getByRole('link', { name: /회복 계획 보기|운동 세부 화면 열기|운동 앱 열기/ })).toHaveCount(0);
+  await send.click();
   await expect(chat.getByRole('link', { name: /회복 계획 보기|운동 세부 화면 열기|운동 앱 열기/ }).last()).toBeVisible();
+  expect(chatCalls).toBe(2);
   await expect(chat.getByRole('region', { name: /무료 AI 조언$/ })).toHaveCount(0);
   await input.fill('할 일에 운동 조언받기 추가해줘');
-  await chat.getByRole('button', { name: '전송', exact: true }).click();
+  await send.click();
   await expect(chat).toContainText('운동 조언받기');
   await expect(chat.getByRole('region', { name: /무료 AI 조언$/ })).toHaveCount(0);
   expect((await qa.account.client.from('assistant_items').select('id').eq('user_id', qa.account.id)).data).toHaveLength(0);

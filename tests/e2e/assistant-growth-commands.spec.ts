@@ -25,7 +25,7 @@ test('growth confirmation cancels, recovers lost responses, displays unknown tim
   expect(await sessions(qa.account.client)).toEqual(before);expect((await qa.account.client.from('assistant_growth_command_history').select('id')).data).toEqual([]);
   await review.getByRole('button',{name:'취소',exact:true}).click();await expect(page.getByText('취소했습니다. 자기계발 기록은 변경하지 않았습니다.')).toBeVisible();
   await page.reload();await expect(review).toHaveCount(0);expect(await sessions(qa.account.client)).toEqual(before);
-  await page.goto('/assistant');const input=page.getByLabel('연이에게 보낼 명령');await expect(input).toBeEnabled();await input.fill('오늘 타자 연습 완료했어');await input.press('Enter');await expect(review).toBeVisible();
+  await page.goto('/assistant');const input=page.getByLabel('연이에게 하고 싶은 말', { exact: true });await expect(input).toBeEnabled();await input.fill('오늘 타자 연습 완료했어');await input.press('Enter');await expect(review).toBeVisible();
   await page.goto('/assistant/quick');await expect(review).toBeVisible();const draft=await page.evaluate(()=>sessionStorage.getItem('yeoni:task-command-drafts:v1'));
   await page.reload();await expect(review).toBeVisible();expect(await page.evaluate(()=>sessionStorage.getItem('yeoni:task-command-drafts:v1'))).toBe(draft);
   // Keep fault injection in the fixture's context routing chain. A separate
