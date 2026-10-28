@@ -13,7 +13,7 @@ import {
   readJson,
 } from "../data/recordStorage";
 import { parseOaReport, type OaDraftMeasurement } from "../lib/oaReportParser";
-import { INBODY_270S_INVENTORY, parseInbody270sReport } from "../lib/inbodyReportParser";
+import { INBODY_270S_INVENTORY, parseInbody270sReport, type InbodyOcrAssets } from "../lib/inbodyReportParser";
 import { bodyForm, bodyImportOwner, mergeBodyFields, mergeBodyImport, validMeasurementDate } from "../lib/bodyImport";
 import { getLocalDateKey } from "../data/dietPlans";
 import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransaction";
@@ -107,6 +107,8 @@ interface Props {
   /** Reader boundary for isolated synthetic verification; normal callers use local OCR. */
   readReport?: typeof parseOaReport;
   readInbodyReport?: typeof parseInbody270sReport;
+  /** Optional code-configured same-origin worker assets; never an OCR result or user URL. */
+  inbodyOcrAssets?: InbodyOcrAssets;
   onChange: (next: {
     weights: WeightRecordStore;
     inbody: InbodyRecordStore;
@@ -122,6 +124,7 @@ export default function BodyRecordCard({
   onManualDraftChange,
   readReport = parseOaReport,
   readInbodyReport = parseInbody270sReport,
+  inbodyOcrAssets,
 }: Props) {
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
@@ -368,7 +371,7 @@ export default function BodyRecordCard({
     try {
       const progress = (value: number) => { if (isCurrent()) setImportProgress(value); };
       const result = reportFormat === 'inbody-270s-en'
-        ? await readInbodyReport(file, progress)
+        ? await readInbodyReport(file, progress, inbodyOcrAssets)
         : await readReport(file, progress, confirmedPro);
       if (!isCurrent()) return;
       const validEntries = Object.entries(result.values).filter(([, value]) => typeof value === "number" && Number.isFinite(value));

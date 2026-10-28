@@ -23,5 +23,6 @@ export default defineConfig([
     "public/workbox-*.js",
     "scripts/browser-qa/.generated/**",
     ".e2e/component-browser/site/**",
+    ".e2e/component-browser/ocr-assets/**",
   ]),
 ]);

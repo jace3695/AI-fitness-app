@@ -2,6 +2,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { buildComponentSite, outputDirectory } from './build.mjs';
+import { localOcrAssetRoutes } from './prepare-ocr-assets.mjs';
+import { OCR_ASSET_PREFIX } from './ocr-assets.mjs';
 
 if (process.env.YEONI_COMPONENT_QA !== '1' || process.env.VERCEL) throw new Error('Isolated component server only; deployment refused.');
 await buildComponentSite();
@@ -13,9 +15,11 @@ const assets = new Map([
   ['/saved-ko.mp3', [resolve('docs/yeoni-phase5/fixtures/zephyr-ko-39.mp3'), 'audio/mpeg']],
   ['/yeoni/cat/preserved-motion-v3.png', [resolve('public/yeoni/cat/preserved-motion-v3.png'), 'image/png']],
   ['/yeoni-cat-sprite-v1.webp', [resolve('public/yeoni-cat-sprite-v1.webp'), 'image/webp']],
+  ...await localOcrAssetRoutes(),
 ]);
 const server = createServer(async (request, response) => {
-  const asset = assets.get(new URL(request.url || '/', 'http://127.0.0.1:3107').pathname);
+  const url = new URL(request.url || '/', 'http://127.0.0.1:3107');
+  const asset = url.pathname.startsWith(`${OCR_ASSET_PREFIX}/`) && url.search ? undefined : assets.get(url.pathname);
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('X-Content-Type-Options', 'nosniff');
   if (!asset || !['GET', 'HEAD'].includes(request.method || '')) { response.writeHead(404); response.end(); return; }

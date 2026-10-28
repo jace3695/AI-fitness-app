@@ -52,6 +52,8 @@ jobs:
           meson compile -C .e2e/libsoup-build
           meson install -C .e2e/libsoup-build
           echo "QA_SOUP_LIBRARY=$RUNNER_TEMP/webkit-soup/lib/libsoup-3.0.so.0" >> "$GITHUB_ENV"
+      - name: Prepare pinned local OCR assets without image data
+        run: node scripts/browser-qa/cloud/prepare-ocr-assets.mjs
       - name: Verify isolated source components in both browser engines
         run: npx playwright test --config tests/browser-cloud/playwright.config.ts
       - name: Preserve only synthetic component evidence

@@ -29,7 +29,7 @@ function fixture(format = 'oa-long') {
     },
     useEffect: (fn: () => () => void) => { cleanup = fn(); },
     importVersion: { current: 0 }, activeDate: { current: '2026-10-22' }, dateKey: '2026-10-22',
-    reportFormat: format, confirmedPro: false, weights: {}, inbody: {}, form: { memo: 'manual memo' }, manualEdit: { current: { dirty: true } },
+    reportFormat: format, confirmedPro: false, inbodyOcrAssets: undefined, weights: {}, inbody: {}, form: { memo: 'manual memo' }, manualEdit: { current: { dirty: true } },
     bodyForm, bodyImportOwner, validMeasurementDate, getLocalDateKey: () => '2026-10-22',
     readReport: (_file: unknown, progress: (n: number) => void) => { state.readers.push('oa-long'); return new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })); },
     readInbodyReport: (_file: unknown, progress: (n: number) => void) => { state.readers.push('inbody-270s-en'); return new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })); },

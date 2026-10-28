@@ -7,7 +7,7 @@ export default class ComponentReporter implements Reporter {
   private results: { title: string; project: string; status: string; durationMs: number; phases: Phase[] }[] = [];
   onStepEnd(test: TestCase, _result: TestResult, step: TestStep) {
     // Fixed QA enums only: never serialize raw errors, titles from the DOM, or coordinates/data.
-    if (!/^(?:component-evidence\/final-capture|b3-reflow\/(?:idle|draft)\/(?:320|390)\/(?:16|32)\/(?:checks|full-page-capture|date-closeup)|h3-overview\/(?:320|390)\/(?:primary|text-line|collapsed-capture|expanded|anchor-back|closed|reload))$/.test(step.title)) return;
+    if (!/^(?:component-evidence\/final-capture|b3-reflow\/(?:idle|draft)\/(?:320|390)\/(?:16|32)\/(?:checks|full-page-capture|date-closeup)|h3-overview\/(?:320|390)\/(?:primary|text-line|collapsed-capture|expanded|anchor-back|closed|reload)|b3-real\/(?:decode-ratio|worker-ocr|review|save-reload))$/.test(step.title)) return;
     const phases = this.phases.get(test.id) ?? [];
     phases.push({ phase: step.title, status: step.error ? 'failed' : 'passed' });
     this.phases.set(test.id, phases.slice(-32));

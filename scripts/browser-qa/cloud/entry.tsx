@@ -4,6 +4,7 @@ import AssessmentFixture from './AssessmentFixture';
 import ReplyFixture from './ReplyFixture';
 import PracticeFixture from './PracticeFixture';
 import BodyImportFixture from './BodyImportFixture';
+import BodyImportRealOcrFixture from './BodyImportRealOcrFixture';
 import HomeBriefingFixture from './HomeBriefingFixture';
 import HomeOverviewFixture from './HomeOverviewFixture';
 import '../../../app/globals.css';
@@ -14,6 +15,7 @@ const fixture = scenario === 'assessment' ? <AssessmentFixture />
   : scenario === 'home-briefing' ? <HomeBriefingFixture />
   : scenario === 'home-overview' ? <HomeOverviewFixture />
   : scenario === 'body-import' ? <BodyImportFixture />
+  : scenario === 'body-import-real-ocr' ? <BodyImportRealOcrFixture />
   : scenario === 'practice' ? <PracticeFixture />
   : scenario === 'reply' ? <ReplyFixture />
     : scenario === 'motion' ? <MotionFixture />

@@ -143,6 +143,18 @@ export function agreedInbody270sReport(observations: readonly (readonly InbodyOc
       : 'InBody270S 영문 양식을 확인하지 못했어요. 자동 반영하지 않으며 사진의 항목명·단위를 직접 확인해야 합니다. 다른 양식은 자동 지원하지 않아요.'] };
 }
 
+/** Explicit same-origin static-asset hosting; ordinary callers keep Tesseract's defaults. */
+export type InbodyOcrAssets = { basePath: string };
+export function inbodyLocalAssetOptions(assets: InbodyOcrAssets) {
+  const path = assets.basePath;
+  if (typeof path !== 'string' || !/^\/[A-Za-z0-9._/-]+$/.test(path) || path.startsWith('//')
+    || path.endsWith('/') || path.split('/').some(part => part === '.' || part === '..')) {
+    throw new Error('OCR 정적 자산 경로를 확인해 주세요.');
+  }
+  return { workerPath: `${path}/worker.min.js`, corePath: path, langPath: path,
+    workerBlobURL: false, cacheMethod: 'none' as const };
+}
+
 function loadImage(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image(), url = URL.createObjectURL(file);
@@ -152,12 +164,13 @@ function loadImage(file: File) {
   });
 }
 
-export async function parseInbody270sReport(file: File, onProgress?: (progress: number) => void): Promise<OaReportResult> {
+export async function parseInbody270sReport(file: File, onProgress?: (progress: number) => void, assets?: InbodyOcrAssets): Promise<OaReportResult> {
+  const localAssets = assets ? inbodyLocalAssetOptions(assets) : undefined;
   const image = await loadImage(file);
   const ratio = image.naturalHeight / image.naturalWidth;
   if (!Number.isFinite(ratio) || ratio < 1 || ratio > 2) throw new Error('InBody270S 영문 전체 결과지 사진을 선택해 주세요. OA 긴 보고서는 다른 형식을 선택해야 합니다.');
   const { createWorker, PSM } = await import('tesseract.js');
-  const worker = await createWorker('eng');
+  const worker = localAssets ? await createWorker('eng', undefined, localAssets) : await createWorker('eng');
   try {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO, tessedit_char_whitelist: '' });
     const images: HTMLCanvasElement[] = [];
