@@ -1,6 +1,7 @@
 import { test as base, expect } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { captureFullPageEvidence } from './evidence-capture';
 
 export { expect };
 export const test = base.extend<{ isolation: void }>({
@@ -20,7 +21,7 @@ export const test = base.extend<{ isolation: void }>({
     await use();
     if (!page.isClosed()) {
       const id = createHash('sha256').update(testInfo.titlePath.join('/')).digest('hex').slice(0, 16);
-      await page.screenshot({ path: `.e2e/component-browser/evidence/${testInfo.project.name}-${id}.png`, fullPage: true });
+      await base.step('component-evidence/final-capture', () => captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-${id}.png`));
     }
     expect(errors, 'Actual component JavaScript exceptions').toEqual([]);
     expect(external, 'No request leaves the exact synthetic localhost origin').toEqual([]);

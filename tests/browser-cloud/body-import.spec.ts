@@ -1,5 +1,6 @@
 import { test, expect } from './fixture';
 import type { Locator, Page } from '@playwright/test';
+import { captureFullPageEvidence } from './evidence-capture';
 
 const day = '2025-04-07';
 const originalSource = { device: 'OA long report', originalLabel: '체중', originalUnit: 'kg',
@@ -143,42 +144,45 @@ test('record labels, actions and full-date alternative remain readable at narrow
       for (const rootSize of [16, 32]) {
         // Root-text reflow, not a claim about physical-device browser zoom.
         await page.evaluate(size => { document.documentElement.style.fontSize = `${size}px`; }, rootSize);
-        const badgeBox = await completeLabelGeometry(badge);
-        expect(badgeBox.fontSize).toBe(rootSize * 0.6875);
-        expect(badgeBox.lines).toBe(1);
-        expect(badgeBox.fits && badgeBox.withinViewport).toBe(true);
-        for (const step of await steps.all()) {
-          const box = await completeLabelGeometry(step);
-          expect(box.fontSize).toBe(rootSize * 0.75);
-          expect(box.lines).toBe(1);
-          expect(box.fits && box.withinViewport).toBe(true);
-        }
-        const photo = page.getByRole('button', { name: '사진 선택', exact: true });
-        const save = page.getByRole('button', { name: state === 'draft' ? '확인한 측정일에 저장' : '체중·인바디 저장', exact: true });
-        for (const button of [photo, save]) expect(await completeButtonWords(button)).toBe(true);
-        expect((await completeLabelGeometry(photo)).fontSize).toBe(rootSize * 0.875);
-        if (state === 'idle') {
-          const remove = page.getByRole('button', { name: '이 날짜 기록 삭제', exact: true });
-          expect(await completeButtonWords(remove)).toBe(true);
-          expect((await completeLabelGeometry(remove)).fontSize).toBe(rootSize * 0.8125);
-          const saveBox = await save.boundingBox(), removeBox = await remove.boundingBox();
-          expect(saveBox && removeBox && removeBox.y >= saveBox.y + saveBox.height).toBeTruthy();
-        }
-        if (state === 'draft') {
-          const date = page.getByLabel('측정 날짜', { exact: true });
-          await expectDatePreview(page, day, rootSize);
-          expect(await date.evaluate(element => {
-            const box = element.getBoundingClientRect(), parent = element.parentElement!.getBoundingClientRect();
-            return box.left >= parent.left - 1 && box.right <= parent.right + 1 && box.right <= innerWidth + 1;
-          })).toBe(true);
-        }
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-        expect(await snapshot(page)).toEqual(before);
-        await page.screenshot({
-          path: `.e2e/component-browser/evidence/body-import-${state}-${width}-root${rootSize}-${testInfo.project.name}.png`, fullPage: true,
+        await test.step(`b3-reflow/${state}/${width}/${rootSize}/checks`, async () => {
+          const badgeBox = await completeLabelGeometry(badge);
+          expect(badgeBox.fontSize).toBe(rootSize * 0.6875);
+          expect(badgeBox.lines).toBe(1);
+          expect(badgeBox.fits && badgeBox.withinViewport).toBe(true);
+          for (const step of await steps.all()) {
+            const box = await completeLabelGeometry(step);
+            expect(box.fontSize).toBe(rootSize * 0.75);
+            expect(box.lines).toBe(1);
+            expect(box.fits && box.withinViewport).toBe(true);
+          }
+          const photo = page.getByRole('button', { name: '사진 선택', exact: true });
+          const save = page.getByRole('button', { name: state === 'draft' ? '확인한 측정일에 저장' : '체중·인바디 저장', exact: true });
+          for (const button of [photo, save]) expect(await completeButtonWords(button)).toBe(true);
+          expect((await completeLabelGeometry(photo)).fontSize).toBe(rootSize * 0.875);
+          if (state === 'idle') {
+            const remove = page.getByRole('button', { name: '이 날짜 기록 삭제', exact: true });
+            expect(await completeButtonWords(remove)).toBe(true);
+            expect((await completeLabelGeometry(remove)).fontSize).toBe(rootSize * 0.8125);
+            const saveBox = await save.boundingBox(), removeBox = await remove.boundingBox();
+            expect(saveBox && removeBox && removeBox.y >= saveBox.y + saveBox.height).toBeTruthy();
+          }
+          if (state === 'draft') {
+            const date = page.getByLabel('측정 날짜', { exact: true });
+            await expectDatePreview(page, day, rootSize);
+            expect(await date.evaluate(element => {
+              const box = element.getBoundingClientRect(), parent = element.parentElement!.getBoundingClientRect();
+              return box.left >= parent.left - 1 && box.right <= parent.right + 1 && box.right <= innerWidth + 1;
+            })).toBe(true);
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          expect(await snapshot(page)).toEqual(before);
         });
-        if (state === 'draft') await page.locator('#body-measurement-date-preview').screenshot({
-          path: `.e2e/component-browser/evidence/body-date-preview-${width}-root${rootSize}-${testInfo.project.name}.png`,
+        await test.step(`b3-reflow/${state}/${width}/${rootSize}/full-page-capture`, () => captureFullPageEvidence(page,
+          `.e2e/component-browser/evidence/body-import-${state}-${width}-root${rootSize}-${testInfo.project.name}.png`));
+        if (state === 'draft') await test.step(`b3-reflow/${state}/${width}/${rootSize}/date-closeup`, async () => {
+          await page.locator('#body-measurement-date-preview').screenshot({
+            path: `.e2e/component-browser/evidence/body-date-preview-${width}-root${rootSize}-${testInfo.project.name}.png`,
+          });
         });
       }
     }
