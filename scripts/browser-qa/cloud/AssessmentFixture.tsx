@@ -28,6 +28,7 @@ class SyntheticRecording extends Blob {
   }
 }
 
+type MockOutcome = 'success' | 'http-error' | 'malformed';
 type Metrics = { inputReads: number; checks: number; posts: number; pendingAborts: number; localHeld: boolean; responseHeld: boolean; responseCount: number };
 const initialMetrics: Metrics = { inputReads: 0, checks: 0, posts: 0, pendingAborts: 0, localHeld: false, responseHeld: false, responseCount: 0 };
 
@@ -38,7 +39,7 @@ export default function AssessmentFixture() {
   const [text, setText] = useState('こんにちは。');
   const [owner, setOwner] = useState('fixture-owner-a');
   const releaseBytes = useRef<(() => void) | null>(null);
-  const releaseResponses = useRef<Array<(accuracy?: number, fluency?: number) => void>>([]);
+  const releaseResponses = useRef<Array<(accuracy?: number, fluency?: number, outcome?: MockOutcome) => void>>([]);
 
   const request = useCallback<AssessmentHttp>(async (path, init, activeOwner, signal) => {
     signal.throwIfAborted();
@@ -55,12 +56,14 @@ export default function AssessmentFixture() {
     return new Promise<Response>(resolve => {
       const onAbort = () => setMetrics(value => ({ ...value, pendingAborts: value.pendingAborts + 1 }));
       signal.addEventListener('abort', onAbort, { once: true });
-      const release = (accuracy = 81, fluency = 72) => {
+      const release = (accuracy = 81, fluency = 72, outcome: MockOutcome = 'success') => {
         if (!releaseResponses.current.includes(release)) return;
         signal.removeEventListener('abort', onAbort);
         releaseResponses.current = releaseResponses.current.filter(pending => pending !== release);
         const remaining = releaseResponses.current.length;
         setMetrics(value => ({ ...value, responseHeld: remaining > 0, responseCount: remaining }));
+        if (outcome === 'http-error') { resolve(Response.json({ error: 'synthetic-unavailable' }, { status: 503 })); return; }
+        if (outcome === 'malformed') { resolve(new Response('{not-json', { headers: { 'Content-Type': 'application/json' } })); return; }
         resolve(Response.json({ requestId: body.requestId, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment',
           metrics: [{ name: 'accuracy', value: accuracy, min: 0, max: 100 }, { name: 'fluency', value: fluency, min: 0, max: 100 }] }));
       };
@@ -99,6 +102,8 @@ export default function AssessmentFixture() {
       <button type="button" disabled={!metrics.localHeld} onClick={() => { releaseBytes.current?.(); releaseBytes.current = null; }} style={{ minHeight: 44 }}>Release local recording bytes</button>
       <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current[0]?.()} style={{ minHeight: 44 }}>Release mock assessment response</button>
       <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(93, 88)} style={{ minHeight: 44 }}>Release latest mock response with distinct scores</button>
+      <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(81, 72, 'http-error')} style={{ minHeight: 44 }}>Release mock HTTP failure</button>
+      <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(81, 72, 'malformed')} style={{ minHeight: 44 }}>Release malformed mock response</button>
       <button type="button" onClick={() => setOwner(value => value === 'fixture-owner-a' ? 'fixture-owner-b' : 'fixture-owner-a')} style={{ minHeight: 44 }}>Change synthetic owner</button>
     </div>
     <output data-testid="assessment-fixture-metrics" data-input-reads={metrics.inputReads} data-checks={metrics.checks} data-posts={metrics.posts}

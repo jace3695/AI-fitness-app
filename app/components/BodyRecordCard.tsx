@@ -394,8 +394,8 @@ export default function BodyRecordCard({
 
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm [&_input]:scroll-mt-36 [&_textarea]:scroll-mt-36">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-40">
           <p className="text-[15px] font-bold text-gray-800">
             체중 기록
           </p>
@@ -403,7 +403,7 @@ export default function BodyRecordCard({
             숫자를 직접 적거나, 오아 보고서 사진에서 가져올 수 있어요. 확인한 뒤 저장해 주세요.
           </p>
         </div>
-        <span className="rounded-full bg-[#EEEDFE] px-2 py-1 text-[11px] font-bold text-[#534AB7]">
+        <span className="max-w-full shrink-0 whitespace-nowrap rounded-full bg-[#EEEDFE] px-2 py-1 text-[0.6875rem] font-bold text-[#534AB7]">
           체중·인바디
         </span>
       </div>
@@ -459,10 +459,10 @@ export default function BodyRecordCard({
             {importMessage}
           </p>
         )}
-        <ol aria-label="사진 입력 순서" className="mt-3 grid grid-cols-3 gap-1 text-center text-[12px] font-bold text-[#534AB7]">
-          <li className="rounded-lg bg-purple-50 p-2">1. 사진 선택</li>
-          <li className="rounded-lg bg-purple-50 p-2">2. 내용 확인</li>
-          <li className="rounded-lg bg-purple-50 p-2">3. 저장</li>
+        <ol aria-label="사진 입력 순서" className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(min(100%,4.5rem),1fr))] gap-1 text-center text-xs font-bold text-[#534AB7]">
+          <li className="min-w-0 whitespace-nowrap rounded-lg bg-purple-50 px-1 py-2">1. 사진 선택</li>
+          <li className="min-w-0 whitespace-nowrap rounded-lg bg-purple-50 px-1 py-2">2. 내용 확인</li>
+          <li className="min-w-0 whitespace-nowrap rounded-lg bg-purple-50 px-1 py-2">3. 저장</li>
         </ol>
         {!draft && !manualDirty && !importing && currentInbody && <OaSourceCorrection key={dateKey} dateKey={dateKey} record={currentInbody} onSaved={next => onChange({ weights, inbody: next })}/>}
         <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
@@ -491,7 +491,7 @@ export default function BodyRecordCard({
         </aside>}
         <p className="text-sm">지원 범위: 숫자 27개·체형·날짜·시간. 상태 배지, 그래프 기준값, 설명 문장은 저장하지 않아요. 표준 체중은 목표체중과 별도이며, 신체연령은 원문 단위를 유지해요. 시간대는 추정하지 않아요.</p><p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
         <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
-        <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block rounded border p-2" /></label>
+        <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block min-w-0 w-full max-w-full rounded border p-2" /></label>
         {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
         {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
         <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 rounded bg-white px-3 py-2">사진 입력 취소</button>

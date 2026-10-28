@@ -157,3 +157,54 @@ test('new explicitly requested mock assessment result survives an older cancelle
   await expect(metrics).toHaveAttribute('data-posts', '0');
   await expect(metrics).toHaveAttribute('data-response-count', '0');
 });
+
+
+for (const failure of [
+  { name: 'HTTP failure', slug: 'http-failure', release: 'Release mock HTTP failure' },
+  { name: 'malformed response', slug: 'malformed-response', release: 'Release malformed mock response' },
+]) {
+  test(`assessment ${failure.name} keeps uncertainty and blocks duplicate-id controls`, async ({ page }, testInfo) => {
+    await page.goto('/?case=assessment');
+    const panel = page.getByTestId('assessment-panel');
+    const metrics = page.getByTestId('assessment-fixture-metrics');
+    const summary = panel.locator('summary');
+    await summary.click();
+    const prepare = panel.getByRole('button', { name: prepareLabel, exact: true });
+    const check = panel.getByRole('button', { name: checkLabel, exact: true });
+    const review = panel.getByRole('button', { name: '전송할 내용 확인 · 전송 안 함', exact: true });
+    const consent = panel.getByRole('checkbox');
+    await prepare.click(); await consent.check(); await check.click();
+    await expect(consent).not.toBeChecked(); await consent.check();
+    await panel.getByRole('button', { name: '발음 점수 받기', exact: true }).click();
+    await expect(metrics).toHaveAttribute('data-posts', '1');
+    await expect(metrics).toHaveAttribute('data-response-count', '1');
+    await page.getByRole('button', { name: failure.release, exact: true }).click();
+    await expect(metrics).toHaveAttribute('data-response-count', '0');
+    await expect(summary).toHaveText('발음 평가 결과 확인 필요');
+    const alert = panel.getByRole('alert');
+    await expect(alert).toContainText('평가 결과를 확인하지 못했어요. 자동으로 다시 보내지 않아요.');
+    await expect(alert).toContainText('이미 전달된 녹음의 처리 종료를 뜻하지는 않아요.');
+    await expect(panel.getByText('같은 요청을 다시 보내지 않아요.', { exact: false })).toBeVisible();
+    await expect(consent).toBeDisabled(); await expect(consent).not.toBeChecked();
+    await expect(check).toBeDisabled(); await expect(review).toBeDisabled();
+    await expect(panel.getByRole('button', { name: '발음 점수 받기 · 준비 중', exact: true })).toBeDisabled();
+    await expect(panel.getByText('발음 정확도: 81 / 100', { exact: true })).toHaveCount(0);
+    await expect(metrics).toHaveAttribute('data-checks', '1');
+    await expect(metrics).toHaveAttribute('data-posts', '1');
+    // Keyboard disclosure keeps the error title and does not retry the request.
+    await summary.focus(); await page.keyboard.press('Enter');
+    await expect(alert).not.toBeVisible(); await expect(summary).toHaveText('발음 평가 결과 확인 필요');
+    await page.keyboard.press('Enter'); await expect(alert).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // Capture the open error and locked controls before preparation/reload clears them.
+    await page.screenshot({ path: `.e2e/component-browser/evidence/assessment-${failure.slug}-locked-${testInfo.project.name}.png`, fullPage: true });
+
+    // Starting local preparation is not another provider attempt or quota reset.
+    await prepare.click(); await expect(consent).toBeEnabled(); await expect(consent).not.toBeChecked();
+    await expect(alert).toHaveCount(0); await expect(check).toBeEnabled();
+    await expect(panel.getByRole('button', { name: '발음 점수 받기 · 준비 중', exact: true })).toBeDisabled();
+    await expect(metrics).toHaveAttribute('data-checks', '1'); await expect(metrics).toHaveAttribute('data-posts', '1');
+    await page.reload(); await summary.click();
+    await expect(alert).toHaveCount(0); await expect(metrics).toHaveAttribute('data-posts', '0');
+  });
+}

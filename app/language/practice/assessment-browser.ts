@@ -53,7 +53,11 @@ export class AssessmentBrowserClient{
    if(!response.ok){this.available=false;void response.body?.cancel().catch(()=>{});throw Error('Assessment result unconfirmed')}
    const raw=await json(response,job);job.throwIfAborted();
    const result=validateAssessmentResult(raw,{requestId,language:'ja-JP',referenceText:text,audio:wav,durationMs:1},policy);
-   if(result.metrics.length!==2)throw Error('Assessment scores missing');return result;
+   if(result.metrics.length!==2)throw Error('Assessment scores missing');
+   // The fixed Azure v1 endpoint returns both scores on a 0–100 scale.
+   // Generic adapters may use other scales, but this client must not relabel one.
+   if(result.metrics.some(metric=>metric.min!==0||metric.max!==100))throw Error('Assessment score range invalid');
+   return result;
   });
  }
 }

@@ -105,6 +105,7 @@ function fixture(options: { text?: string; seconds?: number; holdDecode?: boolea
     calls, get controls() { return controls; }, get decodes() { return decodes; }, get closes() { return closes; }, get text() { return content(tree); },
     get source() { return props.recording; }, get updatesAfterUnmount() { return updatesAfterUnmount; },
     get checkbox() { return nodes(tree).find(node => node.type === 'input'); },
+    get alert() { return nodes(tree).find(node => node.props.role === 'alert'); },
     button(name: string) { const button = nodes(tree).find(node => node.type === 'button' && content(node) === name); assert.ok(button); return button; },
     summary() { return content(nodes(tree).find(node => node.type === 'summary')); },
     render, consent(value = true) { controls.setConsent(value); render(); },
@@ -218,4 +219,60 @@ test('cancelled result cannot replace a newer explicitly prepared and requested 
     assert.equal(f.summary(), '발음 평가 결과'); assert.equal(f.checkbox?.props.checked, false);
     assert.equal(f.calls.filter(call => call.method === 'POST').length, 2);
   } finally { f.unmount(); }
+});
+
+test('failed or malformed attempted request keeps uncertainty visible and cannot offer a duplicate-id retry', async () => {
+  for (const response of [
+    () => Response.json({ error: 'unavailable' }, { status: 503 }),
+    () => new Response('{not-json', { headers: { 'Content-Type': 'application/json' } }),
+    () => new Response(null, { status: 200 }),
+    () => Promise.reject(new Error('synthetic-network-failure')),
+    (id: string) => Response.json({ requestId: id, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment', metrics: [] }),
+  ]) {
+    const f = fixture({ response });
+    try {
+      await f.ready(); const retained = f.controls; await retained.send(); f.render();
+      assert.equal(f.controls.result, null);
+      const failure = f.text;
+      assert.match(failure, /평가 결과를 확인하지 못했어요/);
+      assert.match(failure, /이미 전달된 녹음의 처리 종료를 뜻하지는 않아요/);
+      assert.match(failure, /새로 준비해도 이전 요청의 처리 종료나 1회 시험 한도 복구를 뜻하지 않아요/);
+      assert.equal(f.summary(), '발음 평가 결과 확인 필요');
+      assert.match(content(f.alert), /평가 결과를 확인하지 못했어요/);
+      assert.equal(f.checkbox?.props.disabled, true);
+      assert.equal(f.button('전송할 내용 확인 · 전송 안 함').props.disabled, true);
+      assert.equal(f.button('연결 준비 확인 · 음성 전송 안 함').props.disabled, true);
+      assert.equal(f.button('발음 점수 받기 · 준비 중').props.disabled, true);
+      // Even a retained or programmatic handler must not replace uncertainty with
+      // "not sent" or create an unusable retry of the already-attempted identity.
+      f.consent(); await f.controls.review(); await f.controls.checkService(); await f.controls.send();
+      await retained.review(); await retained.checkService(); await retained.send(); f.render();
+      assert.equal(f.text, failure);
+      assert.deepEqual(f.calls.map(call => call.method), ['GET', 'POST']);
+      assert.doesNotMatch(f.text, /발음 정확도:|말하기 흐름:/);
+      // Preparation is still local. It does not grant readiness, send audio, or
+      // claim that the real one-trial ledger or an uncertain request was reset.
+      await f.prepare();
+      assert.ok(f.controls.current); assert.equal(f.checkbox?.props.disabled, false);
+      assert.equal(f.checkbox?.props.checked, false);
+      assert.equal(f.button('발음 점수 받기 · 준비 중').props.disabled, true);
+      assert.deepEqual(f.calls.map(call => call.method), ['GET', 'POST']);
+      const preparedText = f.text, preparedNow = f.controls.current;
+      await retained.review(); await retained.checkService(); await retained.send(); f.render();
+      assert.equal(f.controls.current, preparedNow); assert.equal(f.text, preparedText);
+      assert.deepEqual(f.calls.map(call => call.method), ['GET', 'POST']);
+      // Only the synthetic transport grants a new readiness here; this says
+      // nothing about whether the hosted one-trial ledger would allow it.
+      f.consent(); await f.check(); f.consent(); const latest = f.controls;
+      await latest.send(); f.render(); const latestFailure = f.text;
+      await retained.review(); await retained.checkService(); await retained.send(); f.render();
+      assert.equal(f.controls.current, preparedNow); assert.equal(f.text, latestFailure);
+      assert.deepEqual(f.calls.map(call => call.method), ['GET', 'POST', 'GET', 'POST']);
+      f.controls.interrupt(); f.render(); const interruptedText = f.text;
+      await retained.review(); await retained.checkService(); await retained.send();
+      await latest.review(); await latest.checkService(); await latest.send(); f.render();
+      assert.equal(f.controls.current, null); assert.equal(f.text, interruptedText);
+      assert.deepEqual(f.calls.map(call => call.method), ['GET', 'POST', 'GET', 'POST']);
+    } finally { f.unmount(); }
+  }
 });

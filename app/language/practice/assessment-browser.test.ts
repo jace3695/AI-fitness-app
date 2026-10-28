@@ -62,3 +62,40 @@ test('cancel or timeout during trial header read prevents a late audio POST and 
   assert.equal(await c.check(signal()),true);
  }
 });
+
+test('Azure v1 browser boundary rejects noncanonical score ranges rather than displaying negative or relabeled scales', async () => {
+ for (const name of ['accuracy','fluency']) for (const metric of [
+  { name, value: -10, min: -100, max: 100 },
+  { name, value: .81, min: 0, max: 1 },
+  { name, value: 81, min: 1, max: 100 },
+  { name, value: 810, min: 0, max: 1000 },
+ ]) {
+  let posts=0;
+  const c=new AssessmentBrowserClient('A',async(_path,init)=>{
+   if(init.method==='GET')return readiness();
+   posts++;
+   const id=JSON.parse(String(init.body)).requestId;
+   return Response.json({requestId:id,providerId:'azure-speech',language:'ja-JP',source:'provider-assessment',metrics:[metric,{name:name==='accuracy'?'fluency':'accuracy',value:72,min:0,max:100}]});
+  });
+  try{
+   await c.check(signal());
+   await assert.rejects(c.assess(await wav(),'こんにちは。','bad-scale',true,signal()));
+   await assert.rejects(c.assess(await wav(),'こんにちは。','bad-scale',true,signal()));
+   assert.equal(posts,1);
+  }finally{c.dispose()}
+ }
+});
+
+
+test('Azure v1 browser boundary preserves canonical zero and hundred score endpoints without recalibration',async()=>{
+ for(const values of [[0,100],[100,0]]){
+  const c=new AssessmentBrowserClient('A',async(_path,init)=>{
+   if(init.method==='GET')return readiness();
+   return Response.json({requestId:JSON.parse(String(init.body)).requestId,providerId:'azure-speech',language:'ja-JP',source:'provider-assessment',metrics:[{name:'accuracy',value:values[0],min:0,max:100},{name:'fluency',value:values[1],min:0,max:100}]});
+  });
+  try{
+   await c.check(signal());const result=await c.assess(await wav(),'こんにちは。','canonical',true,signal());
+   assert.deepEqual(result.metrics.map(metric=>metric.value),values);
+  }finally{c.dispose()}
+ }
+});
