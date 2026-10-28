@@ -89,12 +89,61 @@ test('actual home summary preserves keyboard destinations, retry gating, reload 
     await page.setViewportSize({ width, height: 844 });
     await scenario.selectOption('long-title');
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; window.scrollTo(0, 0); });
+    const fullText = '긴 합성 할 일 제목으로 줄바꿈과 전체 내용 보존을 확인합니다. '.repeat(8);
     const title = overview.getByRole('heading', { level: 3 });
-    await expect(title).toHaveText('긴 합성 할 일 제목으로 줄바꿈과 전체 내용 보존을 확인합니다. '.repeat(8).trim());
-    expect(await title.evaluate(element => element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    const disclosure = overview.locator('details');
+    const toggle = disclosure.locator('summary');
+    const completeTitle = disclosure.locator('[aria-label="전체 제목"]');
+    const primary = overview.getByRole('link', { name: '할 일 확인 →', exact: true });
+    await expect(title).toHaveText(`${Array.from(fullText).slice(0, 40).join('').trimEnd()}…`);
+    await expect(completeTitle).toBeHidden();
+    await expect(primary).toBeVisible();
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    expect((await primary.boundingBox())!.y).toBeLessThan((await title.boundingBox())!.y);
+    expect(await primary.evaluate(element => getComputedStyle(element).fontSize)).toBe('28px');
+    // The complete short CTA must occupy one readable line, not a column of individual glyphs.
+    expect(await primary.locator('span').evaluate(element => {
+      const range = document.createRange(); range.selectNodeContents(element);
+      const rects = [...range.getClientRects()];
+      return rects.length === 1 && element.scrollWidth <= element.clientWidth + 1;
+    })).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await expect(overview.getByRole('link', { name: '할 일 확인 →', exact: true })).toBeVisible();
     await captureFullPageEvidence(page, `.e2e/component-browser/evidence/home-overview-long-title-200percent-${width}-${testInfo.project.name}.png`);
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    await expect(disclosure).toHaveAttribute('open', '');
+    // Equivalent full-title preservation assertion: the original is now in the expanded region, not the preview heading.
+    await expect(completeTitle).toHaveText(fullText.trim());
+    await expect(completeTitle).toBeVisible();
+    expect(await completeTitle.evaluate(element => getComputedStyle(element).fontSize)).toBe('40px');
+    expect(await completeTitle.evaluate(element => element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await captureFullPageEvidence(page, `.e2e/component-browser/evidence/home-overview-long-title-open-200percent-${width}-${testInfo.project.name}.png`);
+    await primary.focus();
+    await page.keyboard.press('Enter');
+    expect(new URL(page.url()).hash).toBe('#assistant-list');
+    await expect(page.getByRole('region', { name: 'Synthetic task destination', exact: true })).toBeInViewport();
+    await page.goBack();
+    expect(new URL(page.url()).hash).toBe('');
+    await expect(scenario).toHaveValue('long-title');
+    await expect(disclosure).toHaveAttribute('open', '');
+    await expect(completeTitle).toHaveText(fullText.trim());
+    await toggle.focus();
+    await page.keyboard.press('Space');
+    await expect(disclosure).not.toHaveAttribute('open', '');
+    await expect(completeTitle).toBeHidden();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(primary).toBeInViewport({ ratio: 1 });
+    expect(await storage(page)).toEqual(before);
+    // Reload clears fixture state; reapply the same 200% text setting explicitly, not an OS zoom claim.
+    await page.reload();
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; window.scrollTo(0, 0); });
+    await expect(scenario).toHaveValue('empty');
+    await expect(overview.locator('details')).toHaveCount(0);
+    await expect(overview.getByRole('link', { name: '통합 달력 보기 →', exact: true })).toBeInViewport({ ratio: 1 });
+    expect(await storage(page)).toEqual(before);
     await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
   }
   await page.reload();

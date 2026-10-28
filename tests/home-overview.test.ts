@@ -90,10 +90,40 @@ test('the primary title, CTA and exact destination preserve the existing due, im
   }
 });
 
-test('long action text is retained in full rather than visually truncated', () => {
+test('long action text is retained in full in an initially closed disclosure with a short preview', () => {
   const action = buildAssistantNextAction(briefingScenario('due-priority'));
   action.title = '긴 합성 제목 '.repeat(30);
   const markup = render('due-priority', { action });
   assert.ok(markup.includes(action.title));
   assert.match(markup, /\[overflow-wrap:anywhere\]/);
+  assert.match(markup, /<summary[^>]*>전체 제목 보기<\/summary>/);
+  assert.match(markup, /<div role="region" aria-label="전체 제목" class="[^"]*text-xl font-extrabold/);
+  assert.doesNotMatch(markup, /<details[^>]*\bopen=/);
+  assert.ok(markup.includes(`${Array.from(action.title).slice(0, 40).join('').trimEnd()}…`));
+  assert.equal(markup.split(action.title).length - 1, 1, 'the complete original is retained exactly once');
+});
+
+
+test('the full-width action precedes title content and uses unchanged scalable type with bounded non-scaling padding', () => {
+  const markup = render('due-priority');
+  assert.ok(markup.indexOf('href="#assistant-list"') < markup.indexOf('<h3'), 'CTA must not follow an arbitrarily long title');
+  assert.match(markup, /w-full min-w-0/);
+  assert.match(markup, /px-\[8px\]/);
+  assert.match(markup, /text-sm font-extrabold/);
+  assert.match(markup, /break-keep/);
+  assert.match(markup, /p-\[16px\]/);
+  assert.match(markup, /p-\[12px\]/);
+  assert.doesNotMatch(markup, /<details/);
+});
+
+test('disclosure boundary preserves short titles and Unicode code points without changing the source action', () => {
+  const action = buildAssistantNextAction(briefingScenario('due-priority'));
+  action.title = '가'.repeat(80);
+  assert.doesNotMatch(render('due-priority', { action }), /<details/);
+  action.title = '🙂'.repeat(81);
+  const original = structuredClone(action);
+  const markup = render('due-priority', { action });
+  assert.ok(markup.includes('🙂'.repeat(40) + '…'));
+  assert.ok(markup.includes(action.title));
+  assert.deepEqual(action, original);
 });

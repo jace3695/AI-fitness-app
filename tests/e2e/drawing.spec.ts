@@ -359,32 +359,51 @@ for (const authored of pack.lessons.slice(28,34)) {
 }
 
 test('drawing D33 D34: previous memory source remains untouched and reference snapshot survives deletion',async({page,qa})=>{
-  await login(page,qa.account);await synced(page);const before=await qa.read();await page.goto('/growth/drawing'); await showDrawingTools(page);
-  await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
-  await page.locator('#drawing-map summary').nth(3).click();
-  await page.getByRole('button',{name:`D31 · ${pack.lessons[30].title}`,exact:true}).click();
-  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
-  const original=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+  const before=await test.step('memory source: sign in and snapshot original app state',async()=>{
+    await login(page,qa.account);await synced(page);const before=await qa.read();
+    return before;
+  });
+  await test.step('memory source: open drawing and ready full tools',async()=>{
+    await page.goto('/growth/drawing'); await showDrawingTools(page);
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+  });
+  const original=await test.step('memory source: create and confirm D31 original',async()=>{
+    await page.locator('#drawing-map summary').nth(3).click();
+    await page.getByRole('button',{name:`D31 · ${pack.lessons[30].title}`,exact:true}).click();
+    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+    const original=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+    return original;
+  });
   for(const n of [33,34]) {
-    await page.getByRole('button',{name:`D${n} · ${pack.lessons[n-1].title}`,exact:true}).click();
-    const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
-    await practice.getByLabel('이전 기억 그림',{exact:true}).selectOption(original.id);await practice.getByRole('button',{name:'이 캐릭터로 기억 연습',exact:true}).click();
-    if(n===33)await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
-    else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
-    await expect(practice.getByRole('button',{name:'위로 긴 귀',exact:true})).toBeVisible();
-    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
-    await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.length;}).toBe(n===33?2:3);
-    const source=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data;
-    expect(source).toEqual(original);
+    await test.step('memory source: select previous drawing and inspect reference',async()=>{
+      await page.getByRole('button',{name:`D${n} · ${pack.lessons[n-1].title}`,exact:true}).click();
+      const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
+      await practice.getByLabel('이전 기억 그림',{exact:true}).selectOption(original.id);await practice.getByRole('button',{name:'이 캐릭터로 기억 연습',exact:true}).click();
+      if(n===33)await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+      else await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
+      await expect(practice.getByRole('button',{name:'위로 긴 귀',exact:true})).toBeVisible();
+    });
+    await test.step('memory source: save derivative and verify original unchanged',async()=>{
+      await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+      await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('*');return q.data?.length;}).toBe(n===33?2:3);
+      const source=(await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data;
+      expect(source).toEqual(original);
+    });
   }
-  await qa.account.client.from('growth_drawing_attempts').delete().eq('id',original.id);
-  await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();
-  await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D33'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
-  const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
-  await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
-  await practice.getByRole('button',{name:'잠깐 원본 확인',exact:true}).click();
-  await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
-  expect(await qa.read()).toEqual(before);
+  await test.step('memory source: delete original source record',async()=>{
+    await qa.account.client.from('growth_drawing_attempts').delete().eq('id',original.id);
+  });
+  await test.step('memory source: reload derivative and inspect retained snapshot',async()=>{
+    await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();
+    await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D33'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+    const practice=page.getByRole('region',{name:'기억해서 다시 그리기'});
+    await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toHaveCount(0);
+    await practice.getByRole('button',{name:'잠깐 원본 확인',exact:true}).click();
+    await expect(practice.getByLabel('기억 연습 원본',{exact:true})).toContainText(original.document.example.name);
+  });
+  await test.step('memory source: verify original app state preserved',async()=>{
+    expect(await qa.read()).toEqual(before);
+  });
 });
 
 for (const authored of parsePack(pack).lessons.slice(34,42)) {
