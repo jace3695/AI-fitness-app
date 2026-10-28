@@ -3,6 +3,38 @@ import { test, expect } from './fixture';
 const prepareLabel = '녹음 형식 확인 · 전송 안 함';
 const checkLabel = '연결 준비 확인 · 음성 전송 안 함';
 
+test('assessment retention uncertainty remains visible before and after mock readiness without sending audio', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?case=assessment');
+  const panel = page.getByTestId('assessment-panel');
+  const metrics = page.getByTestId('assessment-fixture-metrics');
+  await panel.locator('summary').click();
+  await panel.getByRole('button', { name: prepareLabel, exact: true }).click();
+  const retention = panel.getByText('한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.', { exact: true });
+  await expect(retention).toBeVisible();
+  await expect(panel).not.toContainText('계정 삭제 전까지 남는 설계예요');
+  await expect(panel.getByText('녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.', { exact: false })).toBeVisible();
+  const beforeCheck = panel.getByRole('checkbox', { name: '이 녹음과 문장의 전송 안내를 확인했어요 · 지금은 전송하지 않아요', exact: true });
+  await expect(beforeCheck).not.toBeChecked();
+  await beforeCheck.check();
+  await panel.getByRole('button', { name: '전송할 내용 확인 · 전송 안 함', exact: true }).click();
+  await expect(metrics).toHaveAttribute('data-checks', '0');
+  await expect(metrics).toHaveAttribute('data-posts', '0');
+  await panel.getByRole('button', { name: checkLabel, exact: true }).click();
+  const afterCheck = panel.getByRole('checkbox', { name: '위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.', exact: true });
+  await expect(afterCheck).not.toBeChecked();
+  await expect(retention).toBeVisible();
+  await expect(panel.getByRole('button', { name: '발음 점수 받기', exact: true })).toBeDisabled();
+  await expect(metrics).toHaveAttribute('data-checks', '1');
+  await expect(metrics).toHaveAttribute('data-posts', '0');
+  await afterCheck.check();
+  await expect(retention).toBeVisible();
+  await expect(panel.getByRole('button', { name: '발음 점수 받기', exact: true })).toBeEnabled();
+  await expect(metrics).toHaveAttribute('data-posts', '0');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `.e2e/component-browser/evidence/assessment-retention-consent-${testInfo.project.name}.png`, fullPage: true });
+});
+
 test('assessment rejects wrong text and six-second generated input locally at 390px', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?case=assessment');

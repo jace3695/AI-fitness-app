@@ -11,6 +11,36 @@ const snapshot = (page: Page) => page.evaluate(() => ({
   inbody: JSON.parse(localStorage.getItem('ai-fitness-inbody-records') || '{}'),
 }));
 
+async function expectMixedSourceLabels(page: Page) {
+  const group = page.locator('[data-body-group="추가 체성분 항목"]');
+  await expect(group).toBeVisible();
+  await expect(group).not.toContainText('다른 기기·직접 입력');
+  await expect(group).toContainText('사진 입력과 기존·직접 입력값이 함께 표시될 수 있어요.');
+  await expect(group).toContainText('사진에 없는 값은 자동으로 바꾸지 않아요.');
+  await expect(group).toContainText('사진 출처가 있는 항목은 위 원문 보기에서 확인해요.');
+  const fat = group.locator('[data-body-field="bodyFatMass"]');
+  expect(await fat.evaluate(element => [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('').trim())).toBe('체지방량');
+  await expect(fat.locator('input')).toHaveValue('17.4');
+  await expect(group.locator('[data-body-field="skeletalMuscleMass"] input')).toHaveValue('31.4');
+  await expect(group.locator('[data-body-field="bodyAge"] input')).toHaveValue('41');
+  // Keep the source boundary readable on both narrow widths, without font reduction or clipping.
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const geometry = await group.locator('summary p').last().evaluate(element => {
+      const box = element.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(element);
+      const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+      const tops: number[] = [];
+      for (const rect of rects) if (!tops.some(top => Math.abs(top - rect.top) <= 1)) tops.push(rect.top);
+      return { font: parseFloat(getComputedStyle(element).fontSize), lines: tops.length,
+        fits: rects.length > 0 && element.scrollWidth <= element.clientWidth + 1 && rects.every(rect =>
+          rect.left >= box.left - 1 && rect.right <= box.right + 1 && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1) };
+    });
+    expect(geometry.font).toBe(11); expect(geometry.lines).toBeGreaterThan(0); expect(geometry.lines).toBeLessThanOrEqual(6);
+    expect(geometry.fits).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+}
+
 test('actual PNG and local best_int worker recognize four clear rows, reject graphs and preserve review save reload boundaries', async ({ page, context }, testInfo) => {
   // New real two-scale OCR only; existing mock-reader tests and timeouts are unchanged.
   test.setTimeout(90_000);
@@ -89,6 +119,7 @@ test('actual PNG and local best_int worker recognize four clear rows, reject gra
     await expect(page.getByRole('checkbox', { name: reviewName, exact: true })).not.toBeChecked();
     await expect(page.getByRole('button', { name: '확인한 측정일에 저장', exact: true })).toBeDisabled();
     await page.getByRole('checkbox', { name: reviewName, exact: true }).check();
+    await expectMixedSourceLabels(page);
     await captureFullPageEvidence(page, `.e2e/component-browser/evidence/inbody-real-ocr-four-row-review-${testInfo.project.name}.png`);
     expect(await snapshot(page)).toEqual(before);
   });
@@ -113,6 +144,7 @@ test('actual PNG and local best_int worker recognize four clear rows, reject gra
     await page.locator('summary').filter({ hasText: '사진 항목 출처·원문 보기' }).click();
     await expect(page.getByLabel('사진 항목 출처', { exact: true })).toContainText('InBody 270S English report');
     await expect(page.getByLabel('사진 항목 출처', { exact: true })).toContainText('Sum of the above Weight (kg) 79.6');
+    await expectMixedSourceLabels(page);
     await captureFullPageEvidence(page, `.e2e/component-browser/evidence/inbody-real-ocr-reloaded-${testInfo.project.name}.png`);
   });
   expect(network.writes).toBe(0); expect(network.api).toBe(0);

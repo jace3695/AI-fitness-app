@@ -164,10 +164,10 @@ try {
    const snapshot=()=>page.evaluate(()=>JSON.stringify(Object.fromEntries(Object.entries(localStorage).sort())));const before=await snapshot();
    assert.equal(await page.getByLabel('전체 근육량 (원문: 근육량)',{exact:false}).and(page.locator('input')).inputValue(),'50');
    assert.equal(await page.getByLabel('전체 지방량 (원문: 지방량)',{exact:false}).and(page.locator('input')).inputValue(),'20');
-   const legacy=page.locator('details').filter({has:page.locator('summary').filter({hasText:'다른 기기·직접 입력 (기존 기록)'})});
+   const legacy=page.locator('details').filter({has:page.locator('summary').filter({hasText:'추가 체성분 항목'})});
    assert.notEqual(await legacy.getAttribute('open'),null);
-   assert.equal(await page.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).and(page.locator('input')).inputValue(),'52');
-   assert.equal(await page.getByLabel('체지방량 (다른 기기·직접 입력)',{exact:false}).and(page.locator('input')).inputValue(),'19');
+   assert.equal(await page.getByLabel('신체연령 (기존 항목)',{exact:false}).and(page.locator('input')).inputValue(),'52');
+   assert.equal(await legacy.getByLabel('체지방량kg',{exact:true}).and(page.locator('input')).inputValue(),'19');
    assert.equal(await page.getByLabel('신체연령 원문 숫자',{exact:true}).inputValue(),'37');
    assert.equal(await page.getByLabel('신체연령 원문 단위',{exact:true}).inputValue(),'연령 단위');
    assert.ok(await page.getByText('측정된 항목부터 확인해요',{exact:true}).isVisible());
@@ -204,11 +204,11 @@ try {
    assert.equal(await snapshot(),before);
    await page.screenshot({path:resolve(output,'body-analysis-mobile.png'),fullPage:true});assert.deepEqual(errors,[]);
    const groups=page.locator('[data-body-group]');
-   const legacyGroup=page.locator('[data-body-group="다른 기기·직접 입력 (기존 기록)"]');
+   const legacyGroup=page.locator('[data-body-group="추가 체성분 항목"]');
    for(const key of ['bodyFatMass','bodyAge','skeletalMuscleMass']) {
      assert.equal(await groups.locator('[data-body-field="'+key+'"]').count(),1);
      assert.equal(await legacyGroup.locator('[data-body-field="'+key+'"]').count(),1);
-     assert.equal(await page.locator('[data-body-group]:not([data-body-group="다른 기기·직접 입력 (기존 기록)"]) [data-body-field="'+key+'"]').count(),0);
+     assert.equal(await page.locator('[data-body-group]:not([data-body-group="추가 체성분 항목"]) [data-body-field="'+key+'"]').count(),0);
    }
    assert.equal(await page.getByLabel('신체연령 원문',{exact:true}).count(),1);
    assert.equal(await page.getByLabel('신체연령 원문',{exact:true}).textContent(),'37 연령 단위');
@@ -232,8 +232,8 @@ try {
    await page.locator('[data-body-group="부위별 지방량"]').screenshot({path:resolve(output,'oa-fat-original.png')});
    await page.evaluate(()=>localStorage.setItem('ai-fitness-inbody-records',JSON.stringify({'2025-04-08':{bodyAge:52,bodyFatMass:19,skeletalMuscleMass:31}})));
    await page.reload();
-   assert.ok(await legacyGroup.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).isVisible());
-   await legacyGroup.getByLabel('신체연령 (다른 기기·직접 입력)',{exact:false}).fill('53');
+   assert.ok(await legacyGroup.getByLabel('신체연령 (기존 항목)',{exact:false}).isVisible());
+   await legacyGroup.getByLabel('신체연령 (기존 항목)',{exact:false}).fill('53');
    await page.getByRole('button',{name:'체중·인바디 저장',exact:true}).click();await page.reload();
    const manual=await page.evaluate(()=>JSON.parse(localStorage.getItem('ai-fitness-inbody-records'))['2025-04-08']);
    assert.equal(manual.bodyAge,53);assert.equal(manual.bodyFatMass,19);assert.equal(manual.skeletalMuscleMass,31);assert.equal(manual.reportedBodyAge,undefined);
@@ -322,7 +322,7 @@ try {
      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
      await page.screenshot({path:resolve(output,'complete-draft-mobile.png'),fullPage:true});
    await page.getByLabel('몸통 근육량',{exact:false}).fill('27.5');
-   assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'다른 기기·직접 입력 (기존 기록)'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
+   assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'추가 체성분 항목'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
    assert.ok(await page.getByText('저장 후보 30개',{exact:false}).isVisible());
    await page.getByRole('button',{name:'확인한 측정일에 저장'}).click();
    await page.reload();
@@ -468,7 +468,7 @@ try {
    assert.equal(await page.getByLabel('BMI',{exact:true}).inputValue(),clearDecimal?'24.5':'');
    assert.equal(await page.getByLabel('점수',{exact:false}).and(page.locator('input')).inputValue(),'76');
    assert.equal(await page.getByLabel('내장 지방 지수',{exact:false}).and(page.locator('input')).inputValue(),'9');
-   assert.equal(await page.getByLabel('신체연령 (다른 기기·직접 입력)세',{exact:true}).inputValue(),'');
+   assert.equal(await page.getByLabel('신체연령 (기존 항목)세',{exact:true}).inputValue(),'');
    assert.ok(await page.getByText('숫자 '+(clearDecimal?4:3)+'개를 읽었어요.',{exact:false}).isVisible());
    if(!clearDecimal) { await page.getByLabel('BMI',{exact:true}).fill('24.5'); await page.getByLabel('내장 지방 지수',{exact:false}).fill('9'); }
    await page.getByLabel('측정 날짜',{exact:true}).fill('2026-10-02');
@@ -492,7 +492,7 @@ try {
  const result={detectedDate:'2026-10-01',values:{weight:79.2,bmi:23},recognizedCount:4,unmappedMeasurements:[{source:'OA',label:'신체 근육량',value:27.4,unit:'kg'},{source:'OA',label:'체지방량',value:11.8,unit:'kg'}]};
  await upload(result);
  assert.ok(await page.getByLabel('OA 원문 참고값').isVisible());
- assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'다른 기기·직접 입력 (기존 기록)'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
+ assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'추가 체성분 항목'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
  await page.getByLabel('측정 날짜',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('측정 날짜',{exact:true}).inputValue(),'2026-10-01');
  await page.getByRole('button',{name:'달력 다른 날짜'}).click();
@@ -530,7 +530,7 @@ try {
  checks.push('late OCR discarded after session change');
  await upload(result);
  assert.ok(await page.getByLabel('OA 원문 참고값').isVisible());
- assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'다른 기기·직접 입력 (기존 기록)'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
+ assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'추가 체성분 항목'})}).getByLabel('골격근량kg',{exact:true}).inputValue(),'');
  const other=await page.context().newPage(); await other.goto(origin);
  await other.evaluate(()=>localStorage.setItem('fitness-cloud-sync-user','fixture-C'));
  await page.getByLabel('측정 날짜',{exact:true}).waitFor({state:'detached'});

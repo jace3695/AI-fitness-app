@@ -267,32 +267,52 @@ for (const authored of pack.lessons.slice(16,28)) {
 }
 
 test('drawing D27: revise a copy of a saved drawing, restore the original reference and preserve the original',async({page,qa})=>{
-  await login(page,qa.account);await synced(page);await page.goto('/growth/drawing'); await showDrawingTools(page);
-  await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
-  await page.locator('#drawing-map summary').nth(2).click();
-  const l=pack.lessons[19];await page.getByRole('button',{name:`D20 · ${l.title}`,exact:true}).click();
-  let canvas=page.getByRole('region',{name:'원본 보며 모작하기'}).getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();let b=(await canvas.boundingBox())!;
-  await page.mouse.move(b.x+b.width*.4,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.6,{steps:5});await page.mouse.up();
-  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
-  const original=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
-  await page.getByRole('button',{name:`D27 · ${pack.lessons[26].title}`,exact:true}).click();
-  await page.getByRole('combobox',{name:'수정할 이전 그림',exact:true}).selectOption(original.id);await page.getByRole('button',{name:'복사본 가져오기',exact:true}).click();
-  const practice=page.getByRole('region',{name:'원본 보며 모작하기'});
-  await expect(practice.getByLabel('옆에 두는 원본')).toContainText(original.document.example.name);
-  await expect(practice.getByTestId('copy-guide')).toHaveCount(0);
-  await practice.getByRole('button',{name:'눈 높이',exact:true}).click();await practice.getByLabel('이곳을 고른 이유').fill('오른쪽 눈이 더 낮아 보여요.');
-  canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();b=(await canvas.boundingBox())!;
-  await page.mouse.click(b.x+b.width*.6,b.y+b.height*.4);
-  await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
-  await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('id');return q.data?.length;}).toBe(2);
-  await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
-  expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data).toEqual(original);
-  await page.reload(); await showDrawingTools(page);await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();
-  await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D27'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
-  await expect(practice.getByLabel('옆에 두는 원본')).toContainText(original.document.example.name);
-  await expect(practice.getByLabel('이곳을 고른 이유')).toHaveValue('오른쪽 눈이 더 낮아 보여요.');
-  const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').neq('id',original.id).single()).data!;
-  expect(saved.document.strokes).toHaveLength(2);expect(saved.document.correctionSource.attemptId).toBe(original.id);
+  await test.step('D27 open original lesson',async()=>{
+    await login(page,qa.account);await synced(page);await page.goto('/growth/drawing'); await showDrawingTools(page);
+    await expect(page.getByRole('button',{name:'이어서 연습하기',exact:true})).toBeEnabled();
+    await page.locator('#drawing-map summary').nth(2).click();
+    const l=pack.lessons[19];await page.getByRole('button',{name:`D20 · ${l.title}`,exact:true}).click();
+  });
+  let canvas=await test.step('D27 prepare original canvas',async()=>{
+    const canvas=page.getByRole('region',{name:'원본 보며 모작하기'}).getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();
+    return canvas;
+  });
+  let b=await test.step('D27 save original drawing',async()=>{
+    const b=(await canvas.boundingBox())!;await page.mouse.move(b.x+b.width*.4,b.y+b.height*.2);await page.mouse.down();await page.mouse.move(b.x+b.width*.3,b.y+b.height*.6,{steps:5});await page.mouse.up();
+    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+    return b;
+  });
+  const original=await test.step('D27 snapshot original and import copy',async()=>{
+    const original=(await qa.account.client.from('growth_drawing_attempts').select('*').single()).data!;
+    await page.getByRole('button',{name:`D27 · ${pack.lessons[26].title}`,exact:true}).click();
+    await page.getByRole('combobox',{name:'수정할 이전 그림',exact:true}).selectOption(original.id);await page.getByRole('button',{name:'복사본 가져오기',exact:true}).click();
+    return original;
+  });
+  const practice=await test.step('D27 revise and save copy',async()=>{
+    const practice=page.getByRole('region',{name:'원본 보며 모작하기'});
+    await expect(practice.getByLabel('옆에 두는 원본')).toContainText(original.document.example.name);
+    await expect(practice.getByTestId('copy-guide')).toHaveCount(0);
+    await practice.getByRole('button',{name:'눈 높이',exact:true}).click();await practice.getByLabel('이곳을 고른 이유').fill('오른쪽 눈이 더 낮아 보여요.');
+    canvas=practice.getByLabel('내 그림 연습장',{exact:true});await canvas.scrollIntoViewIfNeeded();b=(await canvas.boundingBox())!;
+    await page.mouse.click(b.x+b.width*.6,b.y+b.height*.4);
+    await page.getByRole('button',{name:'진행 중 저장',exact:true}).click();
+    await expect.poll(async()=>{const q=await qa.account.client.from('growth_drawing_attempts').select('id');return q.data?.length;}).toBe(2);
+    await expect(page.getByText('클라우드 저장 확인 완료',{exact:true})).toBeVisible();
+    return practice;
+  });
+  await test.step('D27 verify original unchanged',async()=>{
+    expect((await qa.account.client.from('growth_drawing_attempts').select('*').eq('id',original.id).single()).data).toEqual(original);
+  });
+  await test.step('D27 reload saved drawing',async()=>{
+    await page.reload();
+  });
+  await test.step('D27 reopen and verify saved copy',async()=>{
+    await showDrawingTools(page);await page.getByRole('button',{name:'내 그림 2장',exact:true}).click();await page.getByRole('region',{name:'내 그림 앨범'}).locator('article').filter({hasText:'D27'}).getByRole('button',{name:'열고 이어 그리기',exact:true}).click();
+    await expect(practice.getByLabel('옆에 두는 원본')).toContainText(original.document.example.name);
+    await expect(practice.getByLabel('이곳을 고른 이유')).toHaveValue('오른쪽 눈이 더 낮아 보여요.');
+    const saved=(await qa.account.client.from('growth_drawing_attempts').select('*').neq('id',original.id).single()).data!;
+    expect(saved.document.strokes).toHaveLength(2);expect(saved.document.correctionSource.attemptId).toBe(original.id);
+  });
 });
 
 for (const authored of pack.lessons.slice(28,34)) {

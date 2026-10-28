@@ -92,7 +92,8 @@ export default function AssessmentAvailability({ recording = null, text = '', ow
           <p>이 기기에서 WAV 형식으로 준비했어요.</p>
           <p>연결 후 전송 대상은 Microsoft Azure Speech(한국 중부)예요. 선택한 녹음 1개와 이 연습 문장만 보내고, 다른 앱 기록은 보내지 않아요.</p>
           <p>Microsoft의 발음 평가 안내는 입력 비보관을 명시해요. 앱에서도 녹음과 점수를 보관하지 않는 범위로 준비 중이며, 실제 연결 전 보관 안내를 다시 확인해야 해요. 취소해도 이미 보낸 녹음의 서버 처리가 끝났다는 뜻은 아니에요.</p>
-          <p>한도와 중복 요청 확인을 위한 계정 식별자·요청 번호·내용 지문·녹음 길이·시각은 계정 삭제 전까지 남는 설계예요. 종료를 확인하지 못한 요청의 잠금 정보는 별도 확인 전까지 남을 수 있어요. 녹음·문장·점수 자체는 이 기록에 저장하지 않아요.</p>
+          <p>한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.</p>
+          <p>한도와 중복 요청 확인에는 계정 식별자·요청 번호·내용 지문·녹음 길이·시각을 사용해요. 종료를 확인하지 못한 요청의 잠금 정보는 별도 확인 전까지 남을 수 있어요. 녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.</p>
           <label className="flex min-h-11 items-start gap-2"><input type="checkbox" checked={consent} disabled={busy||attempted||!!result} onChange={event => setConsent(event.target.checked)} />{serviceReady?'위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.':'이 녹음과 문장의 전송 안내를 확인했어요 · 지금은 전송하지 않아요'}</label>
           <button type="button" className="btn" disabled={!consent || busy || attempted || !!result} onClick={() => void review()}>전송할 내용 확인 · 전송 안 함</button>
           <button type="button" className="btn" disabled={busy||!owner||attempted||!!result} onClick={()=>void checkService()}>연결 준비 확인 · 음성 전송 안 함</button>

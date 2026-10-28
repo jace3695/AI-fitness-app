@@ -91,10 +91,10 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
   },
 ];
 
-fieldGroups.push({title: '다른 기기·직접 입력 (기존 기록)', description: '다른 기기에서 확인했거나 직접 입력한 기록입니다. 항목이 없는 사진으로 기존 값을 바꾸지 않아요.', fields: [
+fieldGroups.push({title: '추가 체성분 항목', description: '사진 입력과 기존·직접 입력값이 함께 표시될 수 있어요. 사진에 없는 값은 자동으로 바꾸지 않아요. 사진 출처가 있는 항목은 위 원문 보기에서 확인해요.', fields: [
  {key:'skeletalMuscleMass',label:'골격근량',unit:'kg'},
- {key:'bodyFatMass',label:'체지방량 (다른 기기·직접 입력)',unit:'kg'},
- {key:'bodyAge',label:'신체연령 (다른 기기·직접 입력)',unit:'세'},
+ {key:'bodyFatMass',label:'체지방량',unit:'kg'},
+ {key:'bodyAge',label:'신체연령 (기존 항목)',unit:'세'},
 ]});
 const inbodyFields = fieldGroups.flatMap((group) => group.fields);
 
@@ -559,7 +559,7 @@ export default function BodyRecordCard({
           </b>
         </p>
       )}
-      {isOaRecord && <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm">OA 원문의 전체 근육량·전체 지방량은 아래에, 몸통 값은 부위별 항목에 있어요. 골격근량은 이 보고서에 미제공이므로 평가할 수 없어요. 다른 기기·직접 입력의 과거 값은 보존합니다. 신체연령은 대사·종합 지표에서 원문 단위와 함께 확인하세요.</p>}<div className="mt-3 space-y-2">
+      {isOaRecord && <p className="mt-3 rounded-xl bg-blue-50 p-3 text-sm">OA 원문의 전체 근육량·전체 지방량은 아래에, 몸통 값은 부위별 항목에 있어요. 골격근량은 이 보고서에 미제공이므로 평가할 수 없어요. 사진에서 읽지 않은 기존 값은 자동으로 바꾸지 않아요. 신체연령은 대사·종합 지표에서 원문 단위와 함께 확인하세요.</p>}<div className="mt-3 space-y-2">
         {fieldGroups.map((group, groupIndex) => (
           <details
             key={group.title}

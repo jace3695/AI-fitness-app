@@ -1,6 +1,11 @@
 // Failure evidence is an allowlist, not a redacted exception. Never inspect or
 // copy messages, stacks, snippets, causes, step titles/params or attachments.
 type SafeLocation = { file: string; line: number; column: number };
+type SafeFailedOperation = {
+  location: SafeLocation;
+  category: 'expect' | 'pw:api';
+  durationMs: number;
+};
 export type SafeFailureDiagnostics = {
   category: 'test-error' | 'timeout' | 'interrupted';
   testDefinition?: SafeLocation;
@@ -8,13 +13,17 @@ export type SafeFailureDiagnostics = {
   omittedErrors: number;
   // Native failed test.step coordinates are phases, not inferred assertion sites.
   failedSteps?: SafeLocation[];
+  // Native assertion/API call sites, not error contents or inferred causes.
+  failedOperations?: SafeFailedOperation[];
   stepScanTruncated?: true;
 };
 
 const maxErrors = 3;
 const maxFailedSteps = 3;
+const maxFailedOperations = 3;
 const maxScannedSteps = 2000;
 const maxCoordinate = 1_000_000;
+const maxDurationMs = 1_000_000;
 const record = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 const boundedInteger = (value: unknown, minimum: number): value is number =>
@@ -39,16 +48,25 @@ function location(value: unknown, root: string, allowedSources: ReadonlySet<stri
   return { file, line: input.line, column: input.column };
 }
 
-// TestResult.steps and TestStep.{category,error,location,steps} are public
+function operation(category: unknown, durationMs: unknown, at: SafeLocation | undefined,
+  testFile: string | undefined): SafeFailedOperation | undefined {
+  if ((category !== 'expect' && category !== 'pw:api') || !at || at.file !== testFile
+    || typeof durationMs !== 'number' || !Number.isInteger(durationMs)
+    || durationMs < 0 || durationMs > maxDurationMs) return;
+  return { location: at, category, durationMs };
+}
+
+// TestResult.steps and TestStep.{category,error,location,duration,steps} are public
 // Playwright reporter fields. Walk only those fields, never step titles/params
 // or error contents. Literal test.step wrappers retain a spec-owned phase when
 // an inner helper's native error location is absent or outside the allowlist.
 function failedStepEvidence(value: unknown, testFile: string | undefined, root: string,
-  allowedSources: ReadonlySet<string>): Pick<SafeFailureDiagnostics, 'failedSteps' | 'stepScanTruncated'> {
+  allowedSources: ReadonlySet<string>): Pick<SafeFailureDiagnostics, 'failedSteps' | 'failedOperations' | 'stepScanTruncated'> {
   if (!Array.isArray(value) || !testFile) return {};
   const frames = [{ items: value, next: 0 }];
   const seen = new Set<object>();
   const failedSteps: SafeLocation[] = [];
+  const failedOperations: SafeFailedOperation[] = [];
   let scanned = 0;
   let truncated = false;
   while (frames.length) {
@@ -58,16 +76,24 @@ function failedStepEvidence(value: unknown, testFile: string | undefined, root: 
     const step = record(frame.items[frame.next++]);
     if (!step || seen.has(step)) continue;
     seen.add(step);
-    if (step.category === 'test.step' && record(step.error)) {
+    const category = step.category;
+    if ((category === 'test.step' || category === 'expect' || category === 'pw:api') && record(step.error)) {
       const at = location(step.location, root, allowedSources);
-      if (at?.file === testFile) {
+      if (category === 'test.step' && at?.file === testFile) {
         if (failedSteps.length < maxFailedSteps) failedSteps.push(at);
         else truncated = true;
+      } else if (category === 'expect' || category === 'pw:api') {
+        const safe = operation(category, step.duration, at, testFile);
+        if (safe) {
+          if (failedOperations.length < maxFailedOperations) failedOperations.push(safe);
+          else truncated = true;
+        }
       }
     }
     if (Array.isArray(step.steps)) frames.push({ items: step.steps, next: 0 });
   }
-  return { ...(failedSteps.length ? { failedSteps } : {}), ...(truncated ? { stepScanTruncated: true } : {}) };
+  return { ...(failedSteps.length ? { failedSteps } : {}),
+    ...(failedOperations.length ? { failedOperations } : {}), ...(truncated ? { stepScanTruncated: true } : {}) };
 }
 
 /** Native TestError.location is the failure site; TestCase.location is only the definition. */
@@ -106,6 +132,13 @@ export function storedFailureDiagnostics(value: unknown, root: string,
     const at = location(value, root, allowedSources);
     return at && at.file === testDefinition?.file ? [at] : [];
   });
+  const operations = Array.isArray(input.failedOperations) ? input.failedOperations : [];
+  const failedOperations = operations.slice(0, maxFailedOperations).flatMap(value => {
+    const item = record(value);
+    if (!item) return [];
+    const safe = operation(item.category, item.durationMs, location(item.location, root, allowedSources), testDefinition?.file);
+    return safe ? [safe] : [];
+  });
   return {
     category,
     ...(testDefinition ? { testDefinition } : {}),
@@ -115,6 +148,8 @@ export function storedFailureDiagnostics(value: unknown, root: string,
     }),
     omittedErrors: Math.min(omittedErrors + Math.max(0, errors.length - maxErrors), maxCoordinate),
     ...(failedSteps.length ? { failedSteps } : {}),
-    ...(input.stepScanTruncated === true || steps.length > maxFailedSteps ? { stepScanTruncated: true } : {}),
+    ...(failedOperations.length ? { failedOperations } : {}),
+    ...(input.stepScanTruncated === true || steps.length > maxFailedSteps || operations.length > maxFailedOperations
+      ? { stepScanTruncated: true } : {}),
   };
 }

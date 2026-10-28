@@ -122,9 +122,9 @@ test('stored JSON is reconstructed from safe fields rather than copied into logs
 
 // Compile against the installed public reporter contract, not an undocumented
 // property inferred from a runtime object. These are the only step fields read.
-type NativeStepFields = Pick<TestResult['steps'][number], 'category' | 'error' | 'location' | 'steps'>;
+type NativeStepFields = Pick<TestResult['steps'][number], 'category' | 'error' | 'location' | 'duration' | 'steps'>;
 const nativeStep = (overrides: Partial<NativeStepFields> = {}) => ({
-  category: 'test.step', error: {}, location: assertion, steps: [], ...overrides,
+  category: 'test.step', error: {}, location: assertion, duration: 12, steps: [], ...overrides,
 });
 const withSteps = (steps: unknown[]) => failureDiagnostics(definition,
   { status: 'failed', errors: [{}], steps }, root, allowedSources);
@@ -234,6 +234,11 @@ test('reporter writes safe metadata to both existing reports and summary without
     stepResult.errors = [{}];
     stepResult.steps = [nativeStep({ location: { ...assertion, file: join(directory, file) } }) as TestResult['steps'][number]];
     reporter.onTestEnd(caseFor(), stepResult);
+    const operationResult = resultFor('failed');
+    operationResult.errors = [{}];
+    operationResult.steps = [Object.assign(nativeStep({ category: 'expect', location: { ...assertion, file: join(directory, file) } }),
+      { title: 'private-title', params: { locator: 'https://private.example' }, error: { message: 'private-message' } }) as unknown as TestResult['steps'][number]];
+    reporter.onTestEnd(caseFor(), operationResult);
     reporter.onError();
     reporter.onEnd({ status: 'failed' } as FullResult);
     const reportPaths = readdirSync('.e2e/evidence');
@@ -245,6 +250,7 @@ test('reporter writes safe metadata to both existing reports and summary without
     assert.deepEqual(report.results[1], { title: 'chromium / synthetic safe case', status: 'passed', durationMs: 12 });
     assert.deepEqual(report.results[2].failure, { category: 'test-error', errors: [{}], omittedErrors: 0 });
     assert.deepEqual(report.results[3].failure, { ...diagnostic([{}]), failedSteps: [safeStepLocation] });
+    assert.deepEqual(report.results[4].failure, { ...diagnostic([{}]), failedOperations: [{ location: safeStepLocation, category: 'expect', durationMs: 12 }] });
     for (const path of reportPaths) assert.equal(readFileSync(join('.e2e/evidence', path), 'utf8'), output);
     const summary = readFileSync(process.env.GITHUB_STEP_SUMMARY, 'utf8');
     assert.ok(summary.includes(JSON.stringify(diagnostic())));
@@ -323,6 +329,8 @@ test('offline wrapper drops spoofed raw diagnostics and safely handles passed, l
       ...diagnostic(), token: 'private-token', errors: [{ ...error, message: 'private-error',
         location: { ...assertion, file, extra: 'private-extra' } }],
       failedSteps: [{ ...safeStepLocation, params: { password: 'private' } }],
+      failedOperations: [{ location: safeStepLocation, category: 'pw:api', durationMs: 15, title: 'private-title',
+        message: 'private-message', params: { url: 'https://private.example' } }],
     } };
     writeFileSync(join(directory, '.e2e/evidence/results.json'), JSON.stringify({ commit: 'a'.repeat(40), status: 'failed', results: [
       { ...result, status: 'passed' },
@@ -345,7 +353,114 @@ test('offline wrapper drops spoofed raw diagnostics and safely handles passed, l
       .map(line => JSON.parse(line.slice('QA_TEST_FAILURE '.length)));
     assert.equal(failures.length, 20);
     assert.deepEqual(failures[0], { resultIndex: 3, category: 'timeout', errors: [{}], omittedErrors: 0 });
-    assert.deepEqual(failures[1], { resultIndex: 4, ...diagnostic(), failedSteps: [safeStepLocation] });
+    assert.deepEqual(failures[1], { resultIndex: 4, ...diagnostic(), failedSteps: [safeStepLocation],
+      failedOperations: [{ location: safeStepLocation, category: 'pw:api', durationMs: 15 }] });
     assert.ok(failures.every(row => row.resultIndex >= 3));
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('failed native expect/API operations retain only same-spec call site, fixed category and bounded duration', () => {
+  const result = withSteps([nativeStep({ steps: [
+    nativeStep({ category: 'expect', duration: 0 }),
+    nativeStep({ category: 'pw:api', duration: 1_000_000, location: { ...assertion, line: 43 } }),
+  ] as TestResult['steps'] })]);
+  assert.deepEqual(result, { ...diagnostic([{}]), failedSteps: [safeStepLocation], failedOperations: [
+    { location: safeStepLocation, category: 'expect', durationMs: 0 },
+    { location: { ...safeStepLocation, line: 43 }, category: 'pw:api', durationMs: 1_000_000 },
+  ] });
+  assert.deepEqual(storedFailureDiagnostics(result, root, allowedSources), result);
+});
+
+test('operation evidence rejects helper/other/unsafe locations, passed operations, unknown categories and invalid duration', () => {
+  const invalid = [
+    ...['test.attach', 'hook', 'fixture', 'private-category', 'https://private.example'].map(category => nativeStep({ category })),
+    nativeStep({ category: 'expect', error: undefined }),
+    ...[otherFile, 'tests/e2e/drawing-tools.ts', '../tests/e2e/free-advice.spec.ts', 'https://private.example'].map(file =>
+      nativeStep({ category: 'pw:api', location: { ...assertion, file } })),
+    nativeStep({ category: 'expect', location: { ...assertion, line: 0 } }),
+    ...[-1, Infinity, NaN, 0.5, 1_000_001, '12', null, undefined].map(duration =>
+      ({ ...nativeStep({ category: 'expect' }), duration })),
+  ];
+  assert.deepEqual(withSteps(invalid), diagnostic([{}]));
+  assert.equal(failureDiagnostics(definition, { status: 'passed', steps: [nativeStep({ category: 'expect' })] }, root, allowedSources), undefined);
+  assert.equal(failureDiagnostics(undefined, { status: 'failed', steps: [nativeStep({ category: 'expect' })] }, root, allowedSources)?.failedOperations, undefined);
+});
+
+test('native operation private titles, locators, URLs and error contents are neither read nor serialized', () => {
+  const privateGetter = { get() { throw new Error('private field must not be read'); } };
+  for (const category of ['expect', 'pw:api']) {
+    const error = Object.defineProperties({}, Object.fromEntries(
+      ['message', 'stack', 'snippet', 'cause', 'value'].map(key => [key, privateGetter])));
+    const step = Object.defineProperties(nativeStep({ category, error }), Object.fromEntries(
+      ['title', 'titlePath', 'subtitle', 'params', 'attachments', 'annotations', 'parent'].map(key => [key, privateGetter])));
+    const result = withSteps([step]);
+    assert.deepEqual(result?.failedOperations, [{ location: safeStepLocation, category, durationMs: 12 }]);
+    assert.doesNotMatch(JSON.stringify(result), /private|password|token|https:|eyJ|sb_secret|Qa-/);
+  }
+});
+
+test('operation export cap does not consume wrapper cap and shares the bounded cycle-safe scan', () => {
+  const operation = nativeStep({ category: 'expect' });
+  const cycle = nativeStep({ steps: [operation as TestResult['steps'][number]] });
+  cycle.steps.push(cycle as TestResult['steps'][number]);
+  assert.deepEqual(withSteps([cycle])?.failedOperations, [{ location: safeStepLocation, category: 'expect', durationMs: 12 }]);
+  const result = withSteps(Array.from({ length: 40 }, () => nativeStep({ steps: [nativeStep({ category: 'pw:api' }) as TestResult['steps'][number]] })));
+  assert.equal(result?.failedSteps?.length, 3); assert.equal(result?.failedOperations?.length, 3);
+  assert.equal(result?.stepScanTruncated, true);
+  const beyondLimit = Object.defineProperty({}, 'category', { get() { throw new Error('must not scan beyond 2000'); } });
+  const bounded = withSteps([...Array.from({ length: 2000 }, () => nativeStep({ category: 'expect', error: undefined })), beyondLimit]);
+  assert.deepEqual(bounded, { ...diagnostic([{}]), stepScanTruncated: true });
+});
+
+test('stored operation evidence is rebuilt, same-spec only, capped and legacy-compatible', () => {
+  const safe = { location: safeStepLocation, category: 'expect', durationMs: 12 };
+  assert.deepEqual(storedFailureDiagnostics(diagnostic([{}]), root, allowedSources), diagnostic([{}]));
+  const stored = { ...diagnostic([{}]), failedOperations: [{ ...safe, title: 'private-title', message: 'private-message',
+    params: { locator: 'https://private.example' }, location: { ...assertion, token: 'private-token' } }] };
+  assert.deepEqual(storedFailureDiagnostics(stored, root, allowedSources), { ...diagnostic([{}]), failedOperations: [safe] });
+  for (const bad of [null, {}, 'private', { ...safe, category: 'test.step' }, { ...safe, category: 'private' },
+    ...[-1, NaN, Infinity, 1.5, 1_000_001, '12', undefined].map(durationMs => ({ ...safe, durationMs })),
+    ...[otherFile, 'tests/e2e/drawing-tools.ts', '/outside/' + file, '../' + file].map(file => ({ ...safe, location: { ...assertion, file } }))]) {
+    assert.deepEqual(storedFailureDiagnostics({ ...diagnostic([{}]), failedOperations: [bad] }, root, allowedSources), diagnostic([{}]));
+  }
+  const capped = storedFailureDiagnostics({ ...stored, failedOperations: Array.from({ length: 40 }, () => safe) }, root, allowedSources);
+  assert.equal(capped?.failedOperations?.length, 3); assert.equal(capped?.stepScanTruncated, true);
+  assert.equal(storedFailureDiagnostics({ ...stored, testDefinition: undefined }, root, allowedSources)?.failedOperations, undefined);
+  assert.doesNotMatch(JSON.stringify(storedFailureDiagnostics(stored, root, allowedSources)), /private|https:|token|locator/);
+});
+
+test('installed native runner retains a spec-owned expect site and duration without any browser or raw assertion data', () => {
+  const repository = process.cwd();
+  const directory = mkdtempSync(join(tmpdir(), 'qa-native-operation-'));
+  try {
+    mkdirSync(join(directory, 'tests/e2e'), { recursive: true });
+    const source = 'tests/e2e/synthetic-operation.spec.ts';
+    writeFileSync(join(directory, source), [
+      `import { test, expect } from ${JSON.stringify(join(repository, 'node_modules/@playwright/test/index.js'))};`,
+      "test('synthetic assertion failure', async () => {",
+      "  await test.step('literal private phase', async () => {",
+      "    expect('diagnostic-private-value').toBe('diagnostic-private-expected');",
+      '  });', '});',
+    ].join('\n'));
+    // No browser/page/context fixture, webServer, URL, database or network call.
+    writeFileSync(join(directory, 'offline.config.mjs'), `export default ${JSON.stringify({
+      testDir: './tests/e2e', workers: 1, retries: 0, reporter: [[join(repository, 'tests/e2e/reporter.ts')]],
+    })};\n`);
+    const child = spawnSync(process.execPath, [join(repository, 'node_modules/@playwright/test/cli.js'),
+      'test', '--config', 'offline.config.mjs'], { cwd: directory, encoding: 'utf8', timeout: 20_000,
+      env: { ...process.env, QA_HEAD_SHA: 'a'.repeat(40), GITHUB_STEP_SUMMARY: join(directory, 'summary.md') } });
+    assert.equal(child.error, undefined); assert.equal(child.status, 1, 'The synthetic assertion remains a failed test');
+    const report = JSON.parse(readFileSync(join(directory, '.e2e/evidence/results.json'), 'utf8'));
+    assert.equal(report.status, 'failed'); assert.equal(report.results.length, 1);
+    const failure = report.results[0].failure;
+    assert.equal(failure.testDefinition.line, 2); assert.equal(failure.failedSteps[0].line, 3);
+    assert.equal(failure.failedOperations.length, 1);
+    const operation = failure.failedOperations[0];
+    assert.deepEqual(operation.location, { file: source, line: 4, column: 40 });
+    assert.equal(operation.category, 'expect');
+    assert.ok(Number.isInteger(operation.durationMs) && operation.durationMs >= 0 && operation.durationMs <= 1_000_000);
+    assert.deepEqual(storedFailureDiagnostics(failure, directory, new Set([source])), failure);
+    assert.doesNotMatch(JSON.stringify(report) + child.stdout + child.stderr + readFileSync(join(directory, 'summary.md'), 'utf8'),
+      /diagnostic-private|literal private|toBe|https:|locator/);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });

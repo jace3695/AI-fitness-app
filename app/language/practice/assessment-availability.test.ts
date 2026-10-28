@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import * as jsx from 'react/jsx-runtime';
 import * as audio from './assessment-audio.ts';
 import * as contract from './assessment.ts';
@@ -102,7 +103,7 @@ function fixture(options: { text?: string; seconds?: number; holdDecode?: boolea
   }
   render();
   return {
-    calls, get controls() { return controls; }, get decodes() { return decodes; }, get closes() { return closes; }, get text() { return content(tree); },
+    calls, get controls() { return controls; }, get decodes() { return decodes; }, get closes() { return closes; }, get text() { return content(tree); }, get html() { return renderToStaticMarkup(tree); },
     get source() { return props.recording; }, get updatesAfterUnmount() { return updatesAfterUnmount; },
     get checkbox() { return nodes(tree).find(node => node.type === 'input'); },
     get alert() { return nodes(tree).find(node => node.props.role === 'alert'); },
@@ -130,6 +131,37 @@ test('actual preparation rejects unsupported sentence and over-five-second recor
     f.unmount();
   }
   const valid = fixture({ seconds: 5 }); await valid.prepare(); assert.ok(valid.controls.current); assert.equal(valid.checkbox?.props.checked, false); assert.equal(valid.calls.length, 0); valid.unmount();
+});
+
+test('rendered retention and consent copy does not promise account deletion removes usage records or readiness confirms retention', async () => {
+  const f = fixture();
+  const retention = '한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.';
+  const noPayload = '녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.';
+  const beforeCheck = '이 녹음과 문장의 전송 안내를 확인했어요 · 지금은 전송하지 않아요';
+  const afterCheck = '위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.';
+  const assertCopy = () => {
+    assert.ok(f.html.includes(`<p>${retention}</p>`));
+    assert.ok(f.html.includes(noPayload));
+    assert.match(f.html, /종료를 확인하지 못한 요청의 잠금 정보는 별도 확인 전까지 남을 수 있어요/);
+    assert.doesNotMatch(f.html, /계정 삭제 전까지 남는 설계|보관 기간과 삭제 절차를 확인했어요/);
+  };
+  try {
+    await f.prepare(); assertCopy();
+    assert.ok(f.html.includes(beforeCheck)); assert.ok(!f.html.includes(afterCheck));
+    assert.equal(f.checkbox?.props.checked, false);
+    assert.equal(f.button('발음 점수 받기 · 준비 중').props.disabled, true);
+    f.consent(); await f.controls.review(); f.render(); assertCopy();
+    assert.equal(f.calls.length, 0);
+    await f.check(); assertCopy();
+    assert.ok(f.html.includes(afterCheck)); assert.ok(!f.html.includes(beforeCheck));
+    assert.equal(f.checkbox?.props.checked, false);
+    assert.equal(f.button('발음 점수 받기').props.disabled, true);
+    // Connectivity readiness does not certify retention. Reviewing/checking the
+    // wording must not itself dispatch audio or change the existing consent gate.
+    f.consent(); assertCopy();
+    assert.equal(f.button('발음 점수 받기').props.disabled, false);
+    assert.deepEqual(f.calls.map(call => call.method), ['GET']);
+  } finally { f.unmount(); }
 });
 
 test('readiness requires fresh consent; review does not claim service disconnected; validated result cannot be erased by check/review', async () => {
