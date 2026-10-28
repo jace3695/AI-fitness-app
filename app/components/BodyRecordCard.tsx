@@ -409,7 +409,7 @@ export default function BodyRecordCard({
       </div>
       <button type="button" disabled={importing} onClick={() => document.getElementById(draft ? "body-measurement-date" : "body-weight-input")?.focus()}
         className="mt-3 min-h-11 w-full break-keep rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-800 disabled:opacity-60">
-        {draft ? "사진의 날짜·숫자 확인하기" : "숫자 직접 적기 · 사진 없이 입력"}
+        {draft ? <>사진의 <span className="whitespace-nowrap">날짜·숫자</span> 확인하기</> : "숫자 직접 적기 · 사진 없이 입력"}
       </button>
       {isTodayKey(dateKey) && (
         <p className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-[12px] text-blue-700">

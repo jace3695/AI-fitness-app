@@ -160,3 +160,28 @@ test('photo review cancel keeps words whole with room for two enlarged words whi
   assert.match(classes, /\bmin-h-11\b/);
   assert.doesNotMatch(classes, /truncate|overflow-hidden|whitespace-nowrap|text-/);
 });
+
+test('photo review shortcut keeps the compound date-and-numbers token in one no-wrap span without changing either accessible label', () => {
+  const shortcut = elements.find(element => element.openingElement.tagName.getText(tree) === 'button' && element.getText(tree).includes('document.getElementById(draft ?'));
+  assert.ok(shortcut);
+  const token = elements.find(element => element.openingElement.tagName.getText(tree) === 'span' && label(element) === '날짜·숫자');
+  assert.ok(token, 'keep-all alone still permits a break at the middle dot');
+  assert.equal(token.children.length, 1);
+  assert.ok(ts.isJsxText(token.children[0]));
+  assert.equal(token.children[0].text, '날짜·숫자');
+  let ancestor: ts.Node | undefined = token.parent;
+  while (ancestor && ancestor !== shortcut) ancestor = ancestor.parent;
+  assert.equal(ancestor, shortcut, 'the protected token must be inside the actual shortcut');
+  assert.match(attribute(token, 'className'), /\bwhitespace-nowrap\b/);
+  assert.doesNotMatch(token.getText(tree), /aria-|role=|tabIndex|text-|overflow|truncate/);
+  const conditional = shortcut.children.find(child => ts.isJsxExpression(child) && child.expression && ts.isConditionalExpression(child.expression));
+  assert.ok(conditional && ts.isJsxExpression(conditional) && conditional.expression);
+  const script = ts.transpileModule(`const render = (draft: boolean) => (${conditional.expression.getText(tree)});`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, jsxFactory: 'h', jsxFragmentFactory: 'fragment' },
+  }).outputText;
+  const render = vm.runInNewContext(script + '\nrender', {
+    fragment: 'fragment', h: (tag: string, props: Record<string, string>, ...children: PreviewChild[]) => ({ tag, props, children }),
+  }) as (draft: boolean) => PreviewChild;
+  assert.equal(previewText(render(true)), '사진의 날짜·숫자 확인하기');
+  assert.equal(previewText(render(false)), '숫자 직접 적기 · 사진 없이 입력');
+});

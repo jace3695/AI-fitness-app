@@ -158,6 +158,13 @@ test('record labels, actions and full-date alternative remain readable at narrow
           const shortcut = page.getByRole('button', { name: state === 'draft' ? '사진의 날짜·숫자 확인하기' : '숫자 직접 적기 · 사진 없이 입력', exact: true });
           expect(await completeButtonWords(shortcut)).toBe(true);
           expect((await completeLabelGeometry(shortcut)).fontSize).toBe(rootSize * 0.875);
+          if (state === 'draft') {
+            const compound = shortcut.locator('span');
+            await expect(compound).toHaveText('날짜·숫자');
+            const compoundBox = await completeLabelGeometry(compound);
+            expect(compoundBox.lines).toBe(1);
+            expect(compoundBox.fits && compoundBox.withinViewport).toBe(true);
+          }
           const photo = page.getByRole('button', { name: '사진 선택', exact: true });
           const save = page.getByRole('button', { name: state === 'draft' ? '확인한 측정일에 저장' : '체중·인바디 저장', exact: true });
           for (const button of [photo, save]) expect(await completeButtonWords(button)).toBe(true);
