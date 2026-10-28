@@ -240,3 +240,75 @@ test('full-date alternative follows native edits and clearing without extra cont
   await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
   expect(await snapshot(page)).toEqual(before);
 });
+
+async function uploadInbody(page: Page) {
+  await page.getByLabel('결과지 형식', { exact: true }).selectOption('inbody-270s-en');
+  await page.locator('input[type=file]').setInputFiles({ name: 'synthetic-inbody-label-observations.png',
+    mimeType: 'image/png', buffer: Buffer.from('Synthetic labeled OCR observations, not an image accuracy test') });
+  await expect(page.getByLabel('가져오기 확인', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('측정 날짜', { exact: true })).toHaveValue('');
+}
+const sourceReviewName = 'InBody 원본의 항목명·단위·숫자와 측정 날짜를 대조했어요.';
+
+test('new InBody format requires date and source review, saves distinct metrics, preserves old records and reloads provenance', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await seed(page);
+  await page.evaluate(day => {
+    const records = JSON.parse(localStorage.getItem('ai-fitness-inbody-records')!);
+    Object.assign(records[day], { muscleMass: 58.1, trunkMuscleMass: 24.3, bodyAge: 41 });
+    localStorage.setItem('ai-fitness-inbody-records', JSON.stringify(records));
+  }, day);
+  await page.reload(); const before = await snapshot(page);
+  await uploadInbody(page);
+  await expect(page.getByLabel('결과지 형식', { exact: true })).toBeDisabled();
+  await expect(page.getByRole('checkbox', { name: /사진이 오아/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '확인한 측정일에 저장', exact: true })).toBeDisabled();
+  await page.locator('summary').filter({ hasText: 'InBody 지원 항목 대조표' }).click();
+  await expect(page.locator('[data-oa-field="skeletalMuscleMass"]')).toContainText('Skeletal Muscle Mass: 32.8 kg');
+  expect(await snapshot(page)).toEqual(before);
+  await page.getByLabel('측정 날짜', { exact: true }).fill(day);
+  await expect(page.getByRole('button', { name: '확인한 측정일에 저장', exact: true })).toBeDisabled();
+  await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
+  await page.locator('#body-weight-input').fill('79.7');
+  await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
+  await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-320-review-revoked.png`);
+  await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: '확인한 측정일에 저장', exact: true }).click();
+  expect(await snapshot(page)).toEqual(before);
+  await expect(page.getByLabel('가져오기 확인', { exact: true })).toBeVisible();
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: '확인한 측정일에 저장', exact: true }).click();
+  await expect(page.getByLabel('가져오기 확인', { exact: true })).toHaveCount(0);
+  await page.reload(); const saved = await snapshot(page);
+  expect(saved.weights[day].weight).toBe(79.7);
+  expect(saved.inbody[day]).toMatchObject({ muscleMass: 58.1, trunkMuscleMass: 24.3, skeletalMuscleMass: 32.8,
+    bodyFatMass: 17.4, bodyFatPercent: 21.9, bmi: 25.7, fatFreeMass: 62.2, basalMetabolicRate: 1623, bodyAge: 41, memo: 'synthetic keep' });
+  expect(saved.inbody[day].metricSources.weight).toMatchObject({ device: 'InBody 270S English report',
+    originalLabel: 'Weight', originalUnit: 'kg', originalText: 'Weight (kg) 79.6 (60.0 ~ 90.0)', method: 'ocr-edited' });
+  await page.locator('summary').filter({ hasText: '사진 항목 출처·원문 보기' }).click();
+  await expect(page.getByLabel('사진 항목 출처', { exact: true })).toContainText('InBody 270S English report');
+  await expect(page.getByLabel('사진 항목 출처', { exact: true })).toContainText('Skeletal Muscle Mass');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('InBody cancel and invalid dates cannot write or reuse source confirmation after date correction', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seed(page); const before = await snapshot(page);
+  await uploadInbody(page);
+  await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
+  await page.getByLabel('측정 날짜', { exact: true }).fill('2099-01-01');
+  await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
+  await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
+  await expect(page.getByRole('button', { name: '확인한 측정일에 저장', exact: true })).toBeDisabled();
+  await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-390-invalid-date.png`);
+  await page.getByLabel('측정 날짜', { exact: true }).fill(day);
+  await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
+  await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
+  expect(await snapshot(page)).toEqual(before);
+  await expect(page.getByLabel('결과지 형식', { exact: true })).toBeEnabled();
+  await uploadInbody(page);
+  await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
+  await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
+  await page.reload(); expect(await snapshot(page)).toEqual(before);
+});

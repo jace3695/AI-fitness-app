@@ -44,10 +44,15 @@ test('body entry shortcut focuses manual weight or imported date without changin
 test('body keeps photo limits and confirmation visible, existing save/date guards and editable values',()=>{
  assert.match(body,/id="body-weight-input"[\s\S]*?value=\{visibleForm.weight/);
  assert.match(body,/id="body-measurement-date"[\s\S]*?value=\{draft.date\}/);
- assert.match(body,/오아 앱의 긴 건강보고서 사진만 읽을 수 있어요/);
+ assert.match(body,/오아 앱의 긴 건강보고서 전체 사진을 읽어요/);
+ assert.match(body,/InBody270S 영문 전체 결과지의 명확한 라벨·단위만 읽어요/);
+ assert.match(body,/다른 모델·언어와 흐린 항목은 직접 확인/);
+ assert.match(body,/aria-label="결과지 형식"/);
+ assert.match(body,/draft.format === 'inbody-270s-en' && !draft.sourceReviewed/);
  assert.match(body,/사진은 기기 안에서 읽어요/);
  assert.match(body,/onClick=\{draft \? saveImport : save\}/);
- assert.match(body,/Boolean\(draft && !validMeasurementDate/);
+ assert.match(body,/Boolean\(draft && \(!validMeasurementDate/);
+ assert.match(body,/isInbodyDraft && !draft.sourceReviewed/);
  const photo=body.slice(body.indexOf('사진으로 입력'),body.indexOf('{draft && <section aria-label="가져오기 확인"'));
  assert.ok(photo.includes('checked={confirmedPro}'));assert.ok(photo.includes('다른 기기·양식은 선택하지 마세요'));
  assert.ok(photo.indexOf('checked={confirmedPro}')<photo.indexOf('<details'));

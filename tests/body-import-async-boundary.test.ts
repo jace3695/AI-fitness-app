@@ -8,7 +8,7 @@ import { bodyForm, bodyImportOwner, validMeasurementDate } from '../app/lib/body
 import { dateFromText } from '../app/lib/oaReportParser.ts';
 
 type Result = { values: Record<string, number>; detectedDate?: string };
-function fixture() {
+function fixture(format = 'oa-long') {
   const source = readFileSync(new URL('../app/components/BodyRecordCard.tsx', import.meta.url), 'utf8');
   const start = source.indexOf('  const importOaReport =');
   const end = source.indexOf('\n  return (', start);
@@ -18,7 +18,7 @@ function fixture() {
   const storage = new Map([['fitness-cloud-sync-user', 'A'], ['fitness-cloud-sync-epoch', '1']]);
   const listeners = new Map<string, (event: { key?: string }) => void>();
   const pending: { resolve: (result: Result) => void; reject: (error: Error) => void; progress: (n: number) => void }[] = [];
-  const state = { draft: null as unknown, message: '', importing: false, progress: 0, mutations: 0 };
+  const state = { draft: null as unknown, message: '', importing: false, progress: 0, mutations: 0, readers: [] as string[] };
   let cleanup = () => {};
   const update = (fn: () => void) => { state.mutations++; fn(); };
   const context = {
@@ -29,9 +29,10 @@ function fixture() {
     },
     useEffect: (fn: () => () => void) => { cleanup = fn(); },
     importVersion: { current: 0 }, activeDate: { current: '2026-10-22' }, dateKey: '2026-10-22',
-    confirmedPro: false, weights: {}, inbody: {}, form: { memo: 'manual memo' }, manualEdit: { current: { dirty: true } },
+    reportFormat: format, confirmedPro: false, weights: {}, inbody: {}, form: { memo: 'manual memo' }, manualEdit: { current: { dirty: true } },
     bodyForm, bodyImportOwner, validMeasurementDate, getLocalDateKey: () => '2026-10-22',
-    readReport: (_file: unknown, progress: (n: number) => void) => new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })),
+    readReport: (_file: unknown, progress: (n: number) => void) => { state.readers.push('oa-long'); return new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })); },
+    readInbodyReport: (_file: unknown, progress: (n: number) => void) => { state.readers.push('inbody-270s-en'); return new Promise<Result>((resolve, reject) => pending.push({ resolve, reject, progress })); },
     oaSourceMeasurements: () => [], OA_TRUNK_ROWS: [], inbodyFields: [],
     setDraft: (value: unknown) => update(() => { state.draft = value; }),
     setImportMessage: (value: string) => update(() => { state.message = value; }),
@@ -121,4 +122,29 @@ test('measurement plus print date asks for date review without losing recognized
   assert.equal(draft.date, ''); assert.equal(draft.patch.weight, '71'); assert.equal(draft.patch.bmi, '23');
   assert.equal(f.state.importing, false); assert.match(f.state.message, /직접 입력/);
   assert.equal(f.storage.size, 2);
+});
+
+
+test('explicit InBody selection routes to its own reader and requires review with no date inference', async () => {
+  const f = fixture('inbody-270s-en'); const task = f.start();
+  assert.deepEqual(f.state.readers, ['inbody-270s-en']);
+  f.pending[0].resolve({ values: { weight: 79.6, skeletalMuscleMass: 32.8 } }); await task;
+  const draft = f.state.draft as { format: string; sourceReviewed: boolean; date: string; patch: Record<string, string> };
+  assert.equal(draft.format, 'inbody-270s-en'); assert.equal(draft.sourceReviewed, false); assert.equal(draft.date, '');
+  assert.equal(draft.patch.skeletalMuscleMass, '32.8'); assert.equal(draft.patch.muscleMass, undefined);
+  assert.equal(f.storage.size, 2);
+});
+
+test('InBody reader errors never fall back to OA positional mapping or change records', async () => {
+  const f = fixture('inbody-270s-en'); const task = f.start();
+  f.pending[0].reject(Error('unsupported image shape')); await task;
+  assert.deepEqual(f.state.readers, ['inbody-270s-en']); assert.equal(f.state.draft, null); assert.equal(f.storage.size, 2);
+  assert.equal(f.state.message, 'unsupported image shape');
+});
+
+test('account changes invalidate InBody recognition just as they invalidate OA recognition', async () => {
+  const f = fixture('inbody-270s-en'); const task = f.start();
+  f.storage.set('fitness-cloud-sync-epoch', '2'); f.emit('yeoni-cloud-session-changed');
+  const before = structuredClone(f.state); f.pending[0].progress(100); f.pending[0].resolve({ values: { skeletalMuscleMass: 32.8 } }); await task;
+  assert.deepEqual(structuredClone(f.state), before);
 });

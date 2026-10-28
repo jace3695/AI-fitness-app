@@ -51,6 +51,10 @@ test('bounded wait aborts noncooperative transport and clears timer after early 
 test('malformed and failed responses give no score and expose no provider details',async()=>{
  for(const transport of [async()=>({source:'fake',score:100}),async()=>{throw Error('private provider diagnostic');}]){const s=new AssessmentSession('A',transport,policy);const state=await s.assess(request,consent);assert.equal(state.status,'error');assert.equal(state.result,null);assert.ok(!state.notice.includes('private'));}
 });
-test('local recorder remains unconnected to assessment and makes no upload or score claim',()=>{
- const source=readFileSync(new URL('./Recorder.tsx',import.meta.url),'utf8');assert.ok(source.includes('발음 평가 서비스는 아직 정하지 않았어요'));assert.ok(!source.includes('AssessmentSession'));assert.ok(!source.includes('fetch('));assert.ok(source.includes('내 녹음 듣기'));assert.ok(source.includes('지금은 점수를 매기지 않아요'));
+test('local recorder has no direct upload and distinguishes self-playback from separately consented assessment',()=>{
+ const source=readFileSync(new URL('./Recorder.tsx',import.meta.url),'utf8');
+ assert.ok(!source.includes('AssessmentSession'));assert.ok(!source.includes('fetch('));assert.ok(source.includes('내 녹음 듣기'));
+ assert.ok(source.includes('로컬 녹음과 다시 듣기는 이 화면에서만 처리해요.'));
+ assert.ok(source.includes('별도 승인과 연결 준비를 마친 뒤, 전송 안내에 동의하고 직접 요청할 때만'));
+ assert.ok(source.includes('일본어 억양의 정답을 채점하는 기능은 아니에요.'));
 });

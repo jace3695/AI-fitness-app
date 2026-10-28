@@ -13,6 +13,7 @@ import {
   readJson,
 } from "../data/recordStorage";
 import { parseOaReport, type OaDraftMeasurement } from "../lib/oaReportParser";
+import { INBODY_270S_INVENTORY, parseInbody270sReport } from "../lib/inbodyReportParser";
 import { bodyForm, bodyImportOwner, mergeBodyFields, mergeBodyImport, validMeasurementDate } from "../lib/bodyImport";
 import { getLocalDateKey } from "../data/dietPlans";
 import { notifyRecordsChanged, writeStorageBatch } from "../data/storageTransaction";
@@ -90,7 +91,7 @@ const fieldGroups: { title: string; description: string; fields: InbodyField[] }
   },
 ];
 
-fieldGroups.push({title: '다른 기기·직접 입력 (기존 기록)', description: 'OA 원문에 없는 골격근량과 별도 단위 기록입니다. 기존 값은 유지해요.', fields: [
+fieldGroups.push({title: '다른 기기·직접 입력 (기존 기록)', description: '다른 기기에서 확인했거나 직접 입력한 기록입니다. 항목이 없는 사진으로 기존 값을 바꾸지 않아요.', fields: [
  {key:'skeletalMuscleMass',label:'골격근량',unit:'kg'},
  {key:'bodyFatMass',label:'체지방량 (다른 기기·직접 입력)',unit:'kg'},
  {key:'bodyAge',label:'신체연령 (다른 기기·직접 입력)',unit:'세'},
@@ -105,6 +106,7 @@ interface Props {
   inbody: InbodyRecordStore;
   /** Reader boundary for isolated synthetic verification; normal callers use local OCR. */
   readReport?: typeof parseOaReport;
+  readInbodyReport?: typeof parseInbody270sReport;
   onChange: (next: {
     weights: WeightRecordStore;
     inbody: InbodyRecordStore;
@@ -119,6 +121,7 @@ export default function BodyRecordCard({
   onDateChange,
   onManualDraftChange,
   readReport = parseOaReport,
+  readInbodyReport = parseInbody270sReport,
 }: Props) {
   const currentWeight = weights[dateKey];
   const currentInbody = inbody[dateKey];
@@ -127,7 +130,8 @@ export default function BodyRecordCard({
   const [manualDirty, setManualDirty] = useState(false);
   useEffect(() => { onManualDraftChange?.(manualDirty); }, [manualDirty, onManualDraftChange]);
   const [confirmedPro, setConfirmedPro] = useState(false);
-  const [draft, setDraft] = useState<{ date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[]; sourceMeasurements: OaDraftMeasurement[]; autoMappedKeys: string[]; metricSources: BodyMetricSources } | null>(null);
+  const [reportFormat, setReportFormat] = useState<'oa-long' | 'inbody-270s-en'>('oa-long');
+  const [draft, setDraft] = useState<{ format: 'oa-long' | 'inbody-270s-en'; sourceReviewed: boolean; date: string; patch: Record<string, string>; owner: string; unmappedMeasurements: OaDraftMeasurement[]; sourceMeasurements: OaDraftMeasurement[]; autoMappedKeys: string[]; metricSources: BodyMetricSources } | null>(null);
   useUnsavedChanges(Boolean(draft) || manualDirty);
   const importVersion = useRef(0);
   const activeDate = useRef(dateKey);
@@ -204,7 +208,9 @@ export default function BodyRecordCard({
       : null;
   const hasRecord = Boolean(currentWeight || currentInbody);
   const visibleForm = draft ? { ...bodyForm(weights, inbody, draft.date), ...draft.patch } : form;
-  const isOaRecord = Boolean(draft) || Object.values(currentInbody?.metricSources || {}).some(source => source?.device === 'OA Smart Scale PRO' || source?.device === 'OA long report');
+  const isInbodyDraft = draft?.format === 'inbody-270s-en';
+  const reviewInventory = isInbodyDraft ? INBODY_270S_INVENTORY : OA_REPORT_INVENTORY;
+  const isOaRecord = draft ? draft.format === 'oa-long' : Object.values(currentInbody?.metricSources || {}).some(source => source?.device === 'OA Smart Scale PRO' || source?.device === 'OA long report');
   const legacyHasValues = ['skeletalMuscleMass', 'bodyFatMass', 'bodyAge'].some(key => Boolean(visibleForm[key]?.trim()));
 
   const editField = (key: string, value: string) => {
@@ -212,7 +218,7 @@ export default function BodyRecordCard({
       const metricSources = { ...draft.metricSources };
       if (metricSources[key] && value !== draft.patch[key]) metricSources[key] = { ...metricSources[key], method: 'ocr-edited' };
       if (key === 'reportedBodyAgeUnit' && metricSources.reportedBodyAge) metricSources.reportedBodyAge = { ...metricSources.reportedBodyAge, method: 'ocr-edited' };
-      setDraft({ ...draft, metricSources, autoMappedKeys: draft.autoMappedKeys.filter(item => item !== key), patch: { ...draft.patch, [key]: value } });
+      setDraft({ ...draft, sourceReviewed: false, metricSources, autoMappedKeys: draft.autoMappedKeys.filter(item => item !== key), patch: { ...draft.patch, [key]: value } });
     }
     else {
       manualEdit.current = { date: dateKey, dirty: true };
@@ -226,6 +232,7 @@ export default function BodyRecordCard({
     if (!draft) return;
     try {
       if (draft.owner !== bodyImportOwner(window.localStorage)) throw new Error("계정이 변경되었습니다. 이미지를 다시 선택해 주세요.");
+      if (draft.format === 'inbody-270s-en' && !draft.sourceReviewed) throw new Error("InBody 결과지의 항목명·단위·숫자를 대조한 뒤 확인해 주세요.");
       const latestWeights = readJson<WeightRecordStore>(WEIGHT_RECORDS_KEY, {});
       const latestInbody = readJson<InbodyRecordStore>(INBODY_RECORDS_KEY, {});
       const next = mergeBodyImport(latestWeights, latestInbody, draft.date, draft.patch, getLocalDateKey(), draft.metricSources);
@@ -357,9 +364,12 @@ export default function BodyRecordCard({
     const isCurrent = () => version === importVersion.current && owner === bodyImportOwner(window.localStorage) && originDate === activeDate.current;
     setImporting(true);
     setImportProgress(0);
-    setImportMessage("오아 보고서 숫자를 읽고 있습니다.");
+    setImportMessage(reportFormat === 'oa-long' ? "오아 보고서 숫자를 읽고 있습니다." : "InBody270S 영문 결과지의 라벨·단위를 읽고 있습니다.");
     try {
-      const result = await readReport(file, (progress) => { if (isCurrent()) setImportProgress(progress); }, confirmedPro);
+      const progress = (value: number) => { if (isCurrent()) setImportProgress(value); };
+      const result = reportFormat === 'inbody-270s-en'
+        ? await readInbodyReport(file, progress)
+        : await readReport(file, progress, confirmedPro);
       if (!isCurrent()) return;
       const validEntries = Object.entries(result.values).filter(([, value]) => typeof value === "number" && Number.isFinite(value));
       const unmappedMeasurements = result.unmappedMeasurements || [];
@@ -370,7 +380,7 @@ export default function BodyRecordCard({
         ? Object.fromEntries(Object.entries(form).filter(([key, value]) => value !== (baseline[key] || "")))
         : {};
       const sourceMeasurements = oaSourceMeasurements(result);
-      setDraft({ date: measuredDate, owner, unmappedMeasurements, sourceMeasurements,
+      setDraft({ format: reportFormat, sourceReviewed: false, date: measuredDate, owner, unmappedMeasurements, sourceMeasurements,
         autoMappedKeys: OA_TRUNK_ROWS.filter(([key]) => result.metricSources?.[key]?.method === 'ocr' && result.values[key] !== undefined).map(([key]) => key),
         metricSources: result.metricSources || {}, patch: { ...sameDayEdits, ...Object.fromEntries(validEntries.map(([key, value]) => [key, String(value)])), ...result.textValues } });
       setRecordMessage("");
@@ -400,7 +410,7 @@ export default function BodyRecordCard({
             체중 기록
           </p>
           <p className="mt-1 text-[12px] text-gray-500">
-            숫자를 직접 적거나, 오아 보고서 사진에서 가져올 수 있어요. 확인한 뒤 저장해 주세요.
+            숫자를 직접 적거나, 지원하는 결과지 사진에서 가져올 수 있어요. 확인한 뒤 저장해 주세요.
           </p>
         </div>
         <span className="max-w-full shrink-0 whitespace-nowrap rounded-full bg-[#EEEDFE] px-2 py-1 text-[0.6875rem] font-bold text-[#534AB7]">
@@ -418,13 +428,21 @@ export default function BodyRecordCard({
         </p>
       )}
       <div className="mt-3 rounded-xl border border-[#D9D6FE] bg-[#F7F6FF] p-3">
+        <label className="mb-3 block text-sm font-semibold">결과지 형식
+          <select aria-label="결과지 형식" value={reportFormat} disabled={importing || Boolean(draft)}
+            onChange={event => { setReportFormat(event.target.value as 'oa-long' | 'inbody-270s-en'); setConfirmedPro(false); setImportMessage(""); }}
+            className="mt-1 block min-h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white p-2 text-sm">
+            <option value="oa-long">오아 긴 보고서</option>
+            <option value="inbody-270s-en">InBody270S 영문</option>
+          </select>
+        </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-bold text-[#3C3489]">
               사진으로 입력
             </p>
             <p className="mt-0.5 text-[11px] text-gray-600">
-              오아 앱의 긴 건강보고서 사진만 읽을 수 있어요. 사진은 기기 안에서 읽어요. 저장 버튼을 눌러야 기록에 남아요.
+              {reportFormat === 'oa-long' ? '오아 앱의 긴 건강보고서 전체 사진을 읽어요.' : 'InBody270S 영문 전체 결과지의 명확한 라벨·단위만 읽어요. 다른 모델·언어와 흐린 항목은 직접 확인해 주세요.'} 사진은 기기 안에서 읽어요. 저장 버튼을 눌러야 기록에 남아요.
             </p>
           </div>
           <button
@@ -465,19 +483,19 @@ export default function BodyRecordCard({
           <li className="min-w-0 whitespace-nowrap rounded-lg bg-purple-50 px-1 py-2">3. 저장</li>
         </ol>
         {!draft && !manualDirty && !importing && currentInbody && <OaSourceCorrection key={dateKey} dateKey={dateKey} record={currentInbody} onSaved={next => onChange({ weights, inbody: next })}/>}
-        <label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
+        {reportFormat === 'oa-long' && <><label className="mt-3 flex gap-2 text-sm"><input type="checkbox" checked={confirmedPro} disabled={importing} onChange={event => {
           const checked = event.target.checked;
           setConfirmedPro(checked);
           setDraft(current => current && current.owner === bodyImportOwner(window.localStorage) ? setOaProMapping(current, checked) : null);
         }} />사진이 오아 스마트 체중계 PRO의 긴 건강보고서임을 확인했어요.</label>
-        <p className="text-xs text-gray-600">부위 배열과 몸통 아이콘에 따른 해석입니다. 확인한 경우에만 원문의 ‘신체 근육량’·‘체지방량’을 몸통 항목으로 저장할 수 있어요. 다른 기기·양식은 선택하지 마세요.</p>
-        <details className="mt-2 text-xs"><summary>사진 항목 출처·원문 보기</summary><ul aria-label="사진 항목 출처" className="mt-2 text-xs text-gray-600">{Object.entries(draft?.metricSources || currentInbody?.metricSources || {}).map(([key, source]) => <li key={key}>{OA_REPORT_INVENTORY.find(item => item[0] === key)?.[1] || key} · {source?.device} · 원문: {source?.originalLabel} {source?.originalText} · {source?.method === 'ocr-edited' ? '사진 입력 후 수정' : '사진 입력'}</li>)}</ul></details>
+        <p className="text-xs text-gray-600">부위 배열과 몸통 아이콘에 따른 해석입니다. 확인한 경우에만 원문의 ‘신체 근육량’·‘체지방량’을 몸통 항목으로 저장할 수 있어요. 다른 기기·양식은 선택하지 마세요.</p></>}
+        <details className="mt-2 text-xs"><summary>사진 항목 출처·원문 보기</summary><ul aria-label="사진 항목 출처" className="mt-2 text-xs text-gray-600">{Object.entries(draft?.metricSources || currentInbody?.metricSources || {}).map(([key, source]) => <li key={key}>{[...OA_REPORT_INVENTORY, ...INBODY_270S_INVENTORY].find(item => item[0] === key)?.[1] || key} · {source?.device} · 원문: {source?.originalLabel} {source?.originalText} · {source?.method === 'ocr-edited' ? '사진 입력 후 수정' : '사진 입력'}</li>)}</ul></details>
       </div>
       {draft && <section aria-label="가져오기 확인" className="mt-3 rounded-xl border border-purple-200 bg-purple-50 p-3">
         {draft.unmappedMeasurements.length > 0 && <ul aria-label="저장 제외 원문 출처" className="text-sm">{draft.unmappedMeasurements.map(item => <li key={item.label}>{item.source} 긴 보고서 · 원문: {item.label} {item.value} {item.unit} · 읽음 · {confirmedPro ? '직접 입력값 유지 · 자동 반영 제외' : '기기 확인 대기'} · 저장 제외</li>)}</ul>}
         <p className="text-sm">저장 후보 {Object.keys(draft.patch).filter(key => key !== 'memo' && key !== 'reportedBodyAgeUnit' && draft.patch[key].trim()).length + (draft.date ? 1 : 0)}개 (날짜 포함) · 저장 제외 참고값 {draft.unmappedMeasurements.length}개. 확인 후 저장해 주세요.</p>
-        <p className="text-sm">이 OA 보고서에는 골격근량이 따로 제공되지 않아요. 몸통 근육량을 골격근량으로 넣거나 평가하지 않아요. 기존 골격근량 기록은 유지해요.</p>
-        <details className="my-2 text-sm"><summary>원본 30개 항목 대조표 · 숫자 27개, 체형, 날짜, 시간</summary><ul>{OA_REPORT_INVENTORY.map(([key, label, unit]) => {
+        {!isInbodyDraft && <p className="text-sm">이 OA 보고서에는 골격근량이 따로 제공되지 않아요. 몸통 근육량을 골격근량으로 넣거나 평가하지 않아요. 기존 골격근량 기록은 유지해요.</p>}
+        <details className="my-2 text-sm"><summary>{isInbodyDraft ? 'InBody 지원 항목 대조표 · 숫자 7개' : '원본 30개 항목 대조표 · 숫자 27개, 체형, 날짜, 시간'}</summary><ul>{reviewInventory.map(([key, label, unit]) => {
           const value = key === 'measurementDate' ? draft.date : draft.patch[key];
           const reference = draft.unmappedMeasurements.find(item => OA_TRUNK_ROWS.some(([field, label]) => field === key && label === item.label));
           if (reference) return <li key={key} data-oa-field={key}>{label}: {reference.value} {reference.unit} · 읽음 · {confirmedPro ? '직접 입력값 유지 · 자동 반영 제외' : '기기 확인 대기'} · 원문 참고값 저장 제외{value !== undefined && <> · 직접 입력: {value || '비움'}</>}</li>;
@@ -489,9 +507,12 @@ export default function BodyRecordCard({
           <ul>{draft.unmappedMeasurements.map(item => <li key={item.label}>{item.source} · {item.label}: {item.value} {item.unit}</li>)}</ul>
           <p className="text-sm">아래 골격근량·체지방량 칸에 기존 기록이 보이면 이번 사진에서 읽은 값이 아니에요.</p>
         </aside>}
-        <p className="text-sm">지원 범위: 숫자 27개·체형·날짜·시간. 상태 배지, 그래프 기준값, 설명 문장은 저장하지 않아요. 표준 체중은 목표체중과 별도이며, 신체연령은 원문 단위를 유지해요. 시간대는 추정하지 않아요.</p><p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
+        {isInbodyDraft ? <>
+          <p className="text-sm">최소 지원: 체중·체지방량·골격근량·체지방률·BMI·제지방량·기초대사량 중 라벨과 단일 값·단위가 명확한 행만 후보에 들어와요. 그래프 눈금·목표 체중·과거 기록·부위별 제지방량은 가져오지 않아요. 전체 근육량과 골격근량을 서로 바꾸지 않아요.</p>
+          <label className="mt-2 flex gap-2 text-sm"><input type="checkbox" checked={draft.sourceReviewed} onChange={event => setDraft({ ...draft, sourceReviewed: event.target.checked })} />InBody 원본의 항목명·단위·숫자와 측정 날짜를 대조했어요.</label>
+        </> : <p className="text-sm">지원 범위: 숫자 27개·체형·날짜·시간. 상태 배지, 그래프 기준값, 설명 문장은 저장하지 않아요. 표준 체중은 목표체중과 별도이며, 신체연령은 원문 단위를 유지해요. 시간대는 추정하지 않아요.</p>}<p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
         <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
-        <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block min-w-0 w-full max-w-full rounded border p-2" /></label>
+        <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, sourceReviewed: false, date: event.target.value }); setRecordMessage(""); }} className="block min-w-0 w-full max-w-full rounded border p-2" /></label>
         {/* The native date field can clip internally at large text sizes. This is a visual-only copy, not another input or announcement. */}
         {draft.date && <div id="body-measurement-date-preview" aria-hidden="true" className="mt-2 break-keep">
           선택한 날짜
@@ -613,7 +634,7 @@ export default function BodyRecordCard({
         <button
           type="button"
           onClick={draft ? saveImport : save}
-          disabled={importing || Boolean(draft && !validMeasurementDate(draft.date, getLocalDateKey()))}
+          disabled={importing || Boolean(draft && (!validMeasurementDate(draft.date, getLocalDateKey()) || (isInbodyDraft && !draft.sourceReviewed)))}
           className="min-h-12 min-w-0 flex-1 basis-48 break-keep rounded-xl bg-[#534AB7] px-2 py-3 text-sm font-bold text-white"
         >
           {draft ? "확인한 측정일에 저장" : "체중·인바디 저장"}

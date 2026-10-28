@@ -27,7 +27,7 @@ export interface WeightGoal {
 
 export const DEFAULT_WEIGHT_GOAL: WeightGoal = { minKg: 65, maxKg: 67 };
 
-export type BodyMetricSource = { device: 'OA Smart Scale PRO' | 'OA long report'; originalLabel: string; originalUnit?: string; originalText?: string; method: 'ocr' | 'ocr-edited'; mappingVersion: 'oa-pro-v1' };
+export type BodyMetricSource = { device: 'OA Smart Scale PRO' | 'OA long report' | 'InBody 270S English report'; originalLabel: string; originalUnit?: string; originalText?: string; method: 'ocr' | 'ocr-edited'; mappingVersion: 'oa-pro-v1' | 'inbody-270s-en-v1' };
 export type BodyMetricSources = Partial<Record<string, BodyMetricSource>>;
 export interface InbodyRecord {
   standardWeight?: number;

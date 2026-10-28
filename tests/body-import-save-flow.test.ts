@@ -13,7 +13,7 @@ function fixture() {
     ['inbody', JSON.stringify({ '2026-09-30': { bmi: 24, memo: 'keep', futureMetric: 7 } })],
   ]);
   const localStorage = { getItem: (key: string) => storage.get(key) ?? null };
-  const draft = { owner: bodyImportOwner(localStorage), date: '2026-09-30', patch: { weight: '79.2', bmi: '23' } };
+  const draft = { format: 'oa-long', sourceReviewed: false, owner: bodyImportOwner(localStorage), date: '2026-09-30', patch: { weight: '79.2', bmi: '23' } };
   const state = { writes: 0, changed: 0, cleared: false, date: '', message: '', confirm: () => true };
   const context = {
     draft, window: { localStorage, confirm: () => state.confirm() }, bodyImportOwner, mergeBodyImport,
@@ -97,4 +97,12 @@ test('actual import save handler distinguishes a manually corrected missing weig
   const record = JSON.parse(f.storage.get('inbody')!)['2026-09-30'];
   assert.deepEqual(record.metricSources.weight, { ...source, method: 'ocr-edited' });
   assert.equal(record.memo, 'keep');
+});
+
+
+test('InBody save is blocked until source labels, units, values and date have been explicitly reviewed', () => {
+  const f = fixture(); f.draft.format = 'inbody-270s-en'; const before = [...f.storage];
+  f.save(); assert.equal(f.state.writes, 0); assert.deepEqual([...f.storage], before); assert.match(f.state.message, /항목명·단위·숫자/);
+  f.draft.sourceReviewed = true; f.state.confirm = () => false; f.save(); assert.equal(f.state.writes, 0);
+  f.state.confirm = () => true; f.save(); assert.equal(f.state.writes, 1);
 });

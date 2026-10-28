@@ -1,4 +1,5 @@
 import { test, expect } from './fixture';
+import { captureFullPageEvidence } from './evidence-capture';
 
 test('practice input and topic survive rerenders and same-owner remount, but not reload or owner change', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
@@ -108,4 +109,47 @@ test('practice owner-keyed remount aborts old request and a fresh synthetic resp
   await expect(panel.getByRole('region', { name: '방금 나눈 대화', exact: true })).toContainText('新しい合成の練習文です。');
   await expect(consent).not.toBeChecked();
   await expect(metrics).toHaveAttribute('data-calls', '0');
+});
+
+test('actual recorder explains local playback and gated external assessment across narrow open-close-reopen flows without capture or requests', async ({ page }, testInfo) => {
+  const requestMethods: string[] = [];
+  page.on('request', request => {
+    if (['fetch', 'xhr'].includes(request.resourceType())) requestMethods.push(request.method());
+  });
+  await page.goto('/?case=practice');
+  const panel = page.getByTestId('practice-panel');
+  const summary = panel.getByText('내 목소리로 연습하기 (선택)', { exact: true });
+  const recorder = panel.getByRole('region', { name: '발음 자기 점검', exact: true });
+  const copy = recorder.getByText('최대 30초 녹음 후 직접 들어 보세요. 로컬 녹음과 다시 듣기는 이 화면에서만 처리해요. 문장 변경이나 화면 이탈 시 이 화면의 녹음은 지워져요. 외부 발음 평가는 별도 승인과 연결 준비를 마친 뒤, 전송 안내에 동의하고 직접 요청할 때만 녹음과 연습 문장을 보내요.', { exact: true });
+  const metrics = page.getByTestId('practice-fixture-metrics');
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(summary).toBeVisible();
+    await expect(recorder).toHaveCount(0);
+    await summary.click();
+    await expect(copy).toBeVisible();
+    await expect(recorder.getByRole('button', { name: '내 발음 녹음', exact: true })).toBeEnabled();
+    await expect(recorder.locator('audio')).toHaveCount(0);
+    await summary.click();
+    await expect(recorder).toHaveCount(0);
+    await summary.click();
+    await expect(copy).toBeVisible();
+    await recorder.getByText('발음 점수는 준비 중이에요', { exact: true }).click();
+    await expect(recorder.getByRole('button', { name: '발음 점수 받기 · 준비 중', exact: true })).toBeVisible();
+    await expect(recorder.getByRole('button', { name: '발음 점수 받기 · 준비 중', exact: true })).toBeDisabled();
+    await expect(recorder.getByText('연결 준비를 확인한 뒤, 어디로 보내는지 확인하고 동의한 녹음과 연습 문장만 보낼 수 있어요. 지금은 보낼 수 없어요.', { exact: true })).toBeVisible();
+    await expect(metrics).toHaveAttribute('data-calls', '0');
+    await expect.poll(() => page.evaluate(() => sessionStorage.length)).toBe(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await captureFullPageEvidence(page, `.e2e/component-browser/evidence/recorder-consent-${width}-${testInfo.project.name}.png`);
+    await summary.click();
+    await expect(recorder).toHaveCount(0);
+  }
+  await page.reload();
+  await expect(summary).toBeVisible();
+  await expect(recorder).toHaveCount(0);
+  await expect(metrics).toHaveAttribute('data-calls', '0');
+  await expect.poll(() => page.evaluate(() => sessionStorage.length)).toBe(0);
+  expect(requestMethods, 'Opening local guidance must not initiate fetch/XHR requests').toEqual([]);
 });

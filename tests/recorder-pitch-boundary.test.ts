@@ -62,4 +62,11 @@ test('before recording the rendered page explains pitch observation without offe
  assert.ok(html.includes('일본어 억양의 정답을 채점하는 기능은 아니에요.'));
  assert.ok(html.indexOf('녹음 후 내 목소리') < html.indexOf('내 발음 녹음'));
  assert.ok(!html.includes('>목소리 높낮이 보기</button>'));
+ // The same rendered page contains an optional, explicitly consented external assessment.
+ assert.ok(html.includes('로컬 녹음과 다시 듣기는 이 화면에서만 처리해요.'));
+ assert.ok(html.includes('외부 발음 평가는 별도 승인과 연결 준비를 마친 뒤, 전송 안내에 동의하고 직접 요청할 때만 녹음과 연습 문장을 보내요.'));
+ assert.ok(!html.includes('녹음은 전송·저장하지 않으며'));
+ assert.ok(!html.includes('발음 평가 서비스는 아직 정하지 않았어요.'));
+ assert.ok(html.includes('외부 채점은 연결 준비를 확인하고 아래 안내에 동의한 뒤 직접 요청해야 해요.'));
+ assert.ok(html.includes('발음 점수 받기 · 준비 중'));
 });
