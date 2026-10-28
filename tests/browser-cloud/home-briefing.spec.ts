@@ -58,6 +58,12 @@ test('actual home briefing distinguishes loading, missing, failed and completed 
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      if (state !== 'loading') {
+        const next = panel.getByRole('link', { name: '통합 달력 보기', exact: true });
+        await expect(next).toBeInViewport({ ratio: 1 });
+        expect((await next.boundingBox())!.y).toBeLessThan((await panel.getByRole('listitem').first().boundingBox())!.y);
+      }
       await captureFullPageEvidence(page, `.e2e/component-browser/evidence/home-briefing-${state}-evening-${width}-${testInfo.project.name}.png`);
     }
   }
@@ -98,6 +104,10 @@ test('actual home briefing prioritizes due then important work before budget wit
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const next = panel.getByRole('link', { name: label, exact: true });
+      await expect(next).toBeInViewport({ ratio: 1 });
+      expect((await next.boundingBox())!.y).toBeLessThan((await panel.getByRole('listitem').first().boundingBox())!.y);
       await captureFullPageEvidence(page, `.e2e/component-browser/evidence/home-briefing-${state}-${width}-${testInfo.project.name}.png`);
     }
     expect(await storage(page)).toEqual(before);

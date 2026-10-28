@@ -127,6 +127,22 @@ async function completeButtonWords(locator: Locator) {
   });
 }
 
+async function expectFormatDescription(page: Page, format: 'oa-long' | 'inbody-270s-en', rootSize: number) {
+  const select = page.getByLabel('결과지 형식', { exact: true });
+  const help = page.locator('#body-report-format-help');
+  await expect(select).toHaveValue(format);
+  await expect(select.locator('option:checked')).toHaveText(format === 'oa-long' ? '오아' : '270S');
+  await expect(select).toHaveAttribute('aria-describedby', 'body-report-format-help');
+  await expect(help).toContainText(format === 'oa-long'
+    ? '오아 앱의 긴 건강보고서 전체 사진을 읽어요.'
+    : 'InBody270S 영문 전체 결과지의 명확한 라벨·단위만 읽어요.');
+  const box = await completeLabelGeometry(help);
+  expect(box.fontSize).toBe(rootSize * 0.6875);
+  expect(box.fits && box.withinViewport).toBe(true);
+  // Option text/value and outer geometry do not prove native inner glyph fit.
+  // The named original-DPR images remain the actual visual acceptance gate.
+}
+
 test('record labels, actions and full-date alternative remain readable at narrow widths and 200 percent root text', async ({ page }, testInfo) => {
   await seed(page);
   const before = await snapshot(page);
@@ -145,6 +161,7 @@ test('record labels, actions and full-date alternative remain readable at narrow
         // Root-text reflow, not a claim about physical-device browser zoom.
         await page.evaluate(size => { document.documentElement.style.fontSize = `${size}px`; }, rootSize);
         await test.step(`b3-reflow/${state}/${width}/${rootSize}/checks`, async () => {
+          await expectFormatDescription(page, 'oa-long', rootSize);
           const badgeBox = await completeLabelGeometry(badge);
           expect(badgeBox.fontSize).toBe(rootSize * 0.6875);
           expect(badgeBox.lines).toBe(1);
@@ -271,7 +288,12 @@ test('new InBody format requires date and source review, saves distinct metrics,
   await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
   await page.locator('#body-weight-input').fill('79.7');
   await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
+  await expectFormatDescription(page, 'inbody-270s-en', 16);
   await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-320-review-revoked.png`);
+  await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+  await expectFormatDescription(page, 'inbody-270s-en', 32);
+  await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-320-root32-review-revoked.png`);
+  await page.evaluate(() => { document.documentElement.style.fontSize = '16px'; });
   await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
   page.once('dialog', dialog => dialog.dismiss());
   await page.getByRole('button', { name: '확인한 측정일에 저장', exact: true }).click();
@@ -301,7 +323,12 @@ test('InBody cancel and invalid dates cannot write or reuse source confirmation 
   await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
   await page.getByRole('checkbox', { name: sourceReviewName, exact: true }).check();
   await expect(page.getByRole('button', { name: '확인한 측정일에 저장', exact: true })).toBeDisabled();
+  await expectFormatDescription(page, 'inbody-270s-en', 16);
   await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-390-invalid-date.png`);
+  await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+  await expectFormatDescription(page, 'inbody-270s-en', 32);
+  await captureFullPageEvidence(page, `.e2e/component-browser/evidence/${testInfo.project.name}-inbody-390-root32-invalid-date.png`);
+  await page.evaluate(() => { document.documentElement.style.fontSize = '16px'; });
   await page.getByLabel('측정 날짜', { exact: true }).fill(day);
   await expect(page.getByRole('checkbox', { name: sourceReviewName, exact: true })).not.toBeChecked();
   await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();

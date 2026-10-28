@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic';
 import { adviceSpokenText, type ReplyPlan } from '@/lib/yeoni/reply-plan';
 import { stopAllSpeech } from '@/lib/yeoni/speech-focus';
 import DailyBriefing from "@/components/DailyBriefing";
+import HomeOverview from "@/components/HomeOverview";
 import { ADVICE_QUESTIONS } from '@/lib/assistant-advice-intent';
 import { isFreeAdviceScope, type FreeAdviceScope, type FreeAdviceContext } from '@/lib/free-advice-context';
 import type { FreeAdvice } from '@/lib/free-advice';
@@ -687,7 +688,8 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
     </header>
 
     <div className="yeoni-page-content">
-      <section id="yeoni-chat" aria-label="연이에게 말하기" className="scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
+      <HomeOverview action={nextAction} loading={loading} failures={loadFailures} lastLoadedAt={lastLoadedAt} onRetry={() => void load()} />
+      <section id="yeoni-chat" aria-label="연이에게 말하기" className="mt-5 scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div><h2 className="text-xl font-bold">연이에게 말하기</h2><p id="assistant-start-help" className="mt-1 text-sm text-gray-500">하고 싶은 일을 적거나 추천 질문을 고른 뒤, 보내기를 눌러 주세요.</p></div>
         </div>
@@ -732,14 +734,6 @@ export default function AssistantClient({ characterAudio = null }: { characterAu
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void clearChatHistory()} disabled={chatHistoryLoading || chatSending || adviceBusy || chatMessages.filter(item => !item.localOnly).length <= 1} className="rounded-full bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600 disabled:opacity-40">대화 지우기</button><Link href="/assistant/advice" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">ChatGPT 조언 →</Link><Link href="/assistant/history" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">실행 이력 →</Link><Link href="/assistant/quick" className="rounded-full bg-[#F1EFFF] px-3 py-2 text-xs font-bold text-[#5146A6]">Siri 빠른 명령 설정 →</Link></div>
         </details>
       </section>
-
-      {loadFailures.length > 0 && <div role="status" className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800"><p>{loadFailures.join(' · ')} 정보를 불러오지 못했어요. {lastLoadedAt ? `마지막 정상 확인 ${lastLoadedAt}의 값을 유지합니다.` : '아래 숫자를 현재 기록으로 판단하지 마세요.'}</p><button type="button" disabled={loading} onClick={() => void load()} className="mt-2 min-h-11 rounded-xl bg-white px-4 font-bold">다시 불러오기</button></div>}
-      {nextAction && <section aria-label="연이가 고른 다음 한 걸음" className="mt-5 overflow-hidden rounded-[28px] bg-gradient-to-br from-[#5146A6] via-[#665CC0] to-[#7F77DD] p-5 text-white shadow-[0_18px_46px_rgba(81,70,166,0.24)] sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0"><p className="text-xs font-bold text-white/70">연이가 고른 다음 한 걸음 · {nextAction.eyebrow}</p><h2 className="mt-2 break-words text-xl font-extrabold sm:text-2xl">{nextAction.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/80">{nextAction.detail}</p><p className="mt-2 text-[11px] font-semibold text-white/60">저장된 일정과 앱 상태만으로 순서를 정했어요.</p></div>
-          <Link href={nextAction.href} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-extrabold text-[#3C3489] shadow-sm">{nextAction.label} →</Link>
-        </div>
-      </section>}
 
       <section id="assistant-list" className="mt-5 scroll-mt-24 rounded-[28px] border border-white bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><h2 className="text-xl font-bold">해야 할 일</h2><div className="flex flex-wrap gap-2">{(Object.keys(filterLabels) as Filter[]).map((value) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-full px-3 py-2 text-xs font-bold ${filter === value ? "bg-[#5146A6] text-white" : "bg-gray-100 text-gray-600"}`}>{filterLabels[value]}</button>)}</div></div>

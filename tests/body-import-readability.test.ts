@@ -16,6 +16,39 @@ function attribute(element: ts.JsxElement, name: string) {
 }
 const label = (element: ts.JsxElement) => element.children.filter(ts.isJsxText).map(child => child.text).join('').trim();
 
+test('format selector uses compact choices without changing values, controlled state or draft guards', () => {
+  const select = elements.find(element => element.openingElement.tagName.getText(tree) === 'select' && attribute(element, 'aria-label') === '결과지 형식');
+  assert.ok(select);
+  assert.deepEqual(select.children.filter(ts.isJsxElement).map(option => [attribute(option, 'value'), label(option)]), [
+    ['oa-long', '오아'], ['inbody-270s-en', '270S'],
+  ]);
+  const attrs = select.openingElement.attributes.getText(tree);
+  assert.match(attrs, /value=\{reportFormat\}/);
+  assert.match(attrs, /disabled=\{importing \|\| Boolean\(draft\)\}/);
+  assert.match(attrs, /setReportFormat\(event\.target\.value as 'oa-long' \| 'inbody-270s-en'\)/);
+  assert.match(attrs, /setConfirmedPro\(false\); setImportMessage\(""\)/);
+});
+
+test('compact format choices retain an associated full description that scales rather than truncates', () => {
+  const select = elements.find(element => element.openingElement.tagName.getText(tree) === 'select' && attribute(element, 'aria-label') === '결과지 형식');
+  const help = elements.find(element => attribute(element, 'id') === 'body-report-format-help');
+  assert.ok(select && help);
+  assert.equal(attribute(select, 'aria-describedby'), attribute(help, 'id'));
+  assert.ok(attribute(help, 'className').includes('text-[0.6875rem]'));
+  assert.doesNotMatch(attribute(help, 'className'), /truncate|overflow-hidden|whitespace-nowrap|text-\[\d+px\]/);
+  const script = ts.transpileModule(`const render = (reportFormat: string) => (${help.getText(tree)});`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, jsxFactory: 'h' },
+  }).outputText;
+  const render = vm.runInNewContext(script + '\nrender', {
+    h: (tag: string, props: Record<string, string>, ...children: PreviewChild[]) => ({ tag, props, children }),
+  }) as (format: string) => PreviewNode;
+  assert.match(previewText(render('oa-long')), /오아 앱의 긴 건강보고서 전체 사진을 읽어요\./);
+  assert.match(previewText(render('inbody-270s-en')), /InBody270S 영문 전체 결과지의 명확한 라벨·단위만 읽어요\./);
+  for (const format of ['oa-long', 'inbody-270s-en']) {
+    assert.match(previewText(render(format)), /사진은 기기 안에서 읽어요\. 저장 버튼을 눌러야 기록에 남아요\./);
+  }
+});
+
 test('record-kind badge remains a complete label and its header can reflow when text is enlarged', () => {
   const badge = elements.find(element => label(element) === '체중·인바디');
   assert.ok(badge);

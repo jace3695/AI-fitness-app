@@ -27,7 +27,7 @@ vm.runInNewContext(`(function(exports, require){${compiled}\n})`)(output, (name:
 assert.ok(output.default);
 const Component = output.default;
 const render = (scenario: HomeBriefingScenario, loading = false) => renderToStaticMarkup(createElement(Component, { input: briefingScenario(scenario), loading }));
-const nextLink = (markup: string) => [...markup.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g)].at(-1)?.slice(1);
+const nextLink = (markup: string) => [...markup.matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/g)][0]?.slice(1);
 
 // Prevent this test lane drifting into a copied display or a provider-backed fixture.
 test('home briefing fixture renders the same component used by home without replacing production modules', () => {
@@ -98,6 +98,7 @@ test('actual rendered next-action title, label and link follow due, important th
     const markup = render(scenario);
     assert.ok(markup.includes(`다음 한 걸음: ${title}`));
     assert.deepEqual(nextLink(markup), [href, label]);
+    assert.ok(markup.indexOf(`다음 한 걸음: ${title}`) < markup.indexOf('<ul'), 'next action precedes all six domain cards');
     assert.doesNotMatch(markup, /합성 완료 항목|합성 취소 항목/);
   }
 });

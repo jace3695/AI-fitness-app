@@ -429,11 +429,11 @@ export default function BodyRecordCard({
       )}
       <div className="mt-3 rounded-xl border border-[#D9D6FE] bg-[#F7F6FF] p-3">
         <label className="mb-3 block text-sm font-semibold">결과지 형식
-          <select aria-label="결과지 형식" value={reportFormat} disabled={importing || Boolean(draft)}
+          <select aria-label="결과지 형식" aria-describedby="body-report-format-help" value={reportFormat} disabled={importing || Boolean(draft)}
             onChange={event => { setReportFormat(event.target.value as 'oa-long' | 'inbody-270s-en'); setConfirmedPro(false); setImportMessage(""); }}
             className="mt-1 block min-h-11 w-full min-w-0 rounded-lg border border-gray-300 bg-white p-2 text-sm">
-            <option value="oa-long">오아 긴 보고서</option>
-            <option value="inbody-270s-en">InBody270S 영문</option>
+            <option value="oa-long">오아</option>
+            <option value="inbody-270s-en">270S</option>
           </select>
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -441,7 +441,7 @@ export default function BodyRecordCard({
             <p className="text-[13px] font-bold text-[#3C3489]">
               사진으로 입력
             </p>
-            <p className="mt-0.5 text-[11px] text-gray-600">
+            <p id="body-report-format-help" className="mt-0.5 break-keep text-[0.6875rem] text-gray-600">
               {reportFormat === 'oa-long' ? '오아 앱의 긴 건강보고서 전체 사진을 읽어요.' : 'InBody270S 영문 전체 결과지의 명확한 라벨·단위만 읽어요. 다른 모델·언어와 흐린 항목은 직접 확인해 주세요.'} 사진은 기기 안에서 읽어요. 저장 버튼을 눌러야 기록에 남아요.
             </p>
           </div>
