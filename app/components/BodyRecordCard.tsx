@@ -431,7 +431,7 @@ export default function BodyRecordCard({
             type="button"
             disabled={importing || Boolean(draft)}
             onClick={() => fileInputRef.current?.click()}
-            className="min-h-11 shrink-0 rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60"
+            className="min-h-11 shrink-0 break-keep rounded-xl bg-[#534AB7] px-2 py-3 text-sm font-bold text-white disabled:cursor-wait disabled:opacity-60"
           >
             {importing ? `사진 읽는 중 ${importProgress}%` : "사진 선택"}
           </button>
@@ -492,6 +492,15 @@ export default function BodyRecordCard({
         <p className="text-sm">지원 범위: 숫자 27개·체형·날짜·시간. 상태 배지, 그래프 기준값, 설명 문장은 저장하지 않아요. 표준 체중은 목표체중과 별도이며, 신체연령은 원문 단위를 유지해요. 시간대는 추정하지 않아요.</p><p className="font-bold">2. 내용 확인 · 아직 저장 전이에요</p>
         <p className="text-sm">사진의 날짜와 숫자가 맞는지 확인해 주세요. 틀린 곳은 고친 뒤 아래 저장 버튼을 누르세요. 읽지 못한 값과 메모는 그 날짜에 전에 저장한 내용이 남아요.</p>
         <label className="mt-2 block">측정 날짜<input id="body-measurement-date" aria-label="측정 날짜" type="date" max={getLocalDateKey()} value={draft.date} onChange={(event) => { setDraft({ ...draft, date: event.target.value }); setRecordMessage(""); }} className="block min-w-0 w-full max-w-full rounded border p-2" /></label>
+        {/* The native date field can clip internally at large text sizes. This is a visual-only copy, not another input or announcement. */}
+        {draft.date && <div id="body-measurement-date-preview" aria-hidden="true" className="mt-2 break-keep">
+          선택한 날짜
+          <time dateTime={draft.date} className="flex flex-wrap gap-x-1">
+            <span className="whitespace-nowrap">{draft.date.split('-')[0]}년</span>
+            <span className="whitespace-nowrap">{draft.date.split('-')[1]}월</span>
+            <span className="whitespace-nowrap">{draft.date.split('-')[2]}일</span>
+          </time>
+        </div>}
         {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
         {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
         <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 rounded bg-white px-3 py-2">사진 입력 취소</button>
@@ -600,12 +609,12 @@ export default function BodyRecordCard({
         placeholder="체중·인바디 메모"
         className="mt-3 min-h-20 w-full rounded-xl border border-gray-200 px-3 py-2 text-[13px]"
       />
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={draft ? saveImport : save}
           disabled={importing || Boolean(draft && !validMeasurementDate(draft.date, getLocalDateKey()))}
-          className="min-h-12 flex-1 rounded-xl bg-[#534AB7] px-4 py-3 text-sm font-bold text-white"
+          className="min-h-12 min-w-0 flex-1 basis-48 break-keep rounded-xl bg-[#534AB7] px-2 py-3 text-sm font-bold text-white"
         >
           {draft ? "확인한 측정일에 저장" : "체중·인바디 저장"}
         </button>
@@ -613,7 +622,7 @@ export default function BodyRecordCard({
           <button
             type="button"
             onClick={remove}
-            className="min-h-12 rounded-xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600"
+            className="min-h-12 min-w-0 flex-1 basis-48 break-keep rounded-xl bg-red-50 px-2 py-3 text-[0.8125rem] font-bold text-red-600"
           >
             이 날짜 기록 삭제
           </button>

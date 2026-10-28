@@ -85,7 +85,48 @@ async function completeLabelGeometry(locator: Locator) {
   });
 }
 
-test('record badge and photo steps remain complete at 320px and 200 percent root text, including unsaved review', async ({ page }, testInfo) => {
+// A native date input can fit while its internal glyphs clip. Test the visible
+// alternative's actual text ranges instead of treating input geometry as proof.
+async function expectDatePreview(page: Page, value: string, rootSize: number) {
+  const date = page.getByLabel('측정 날짜', { exact: true });
+  await expect(date).toHaveValue(value);
+  await expect(date).toHaveAccessibleName('측정 날짜');
+  expect(await date.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBe(rootSize);
+  const preview = page.locator('#body-measurement-date-preview');
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveAttribute('aria-hidden', 'true');
+  await expect(preview.locator('time')).toHaveAttribute('datetime', value);
+  const parts = preview.locator('time > span');
+  await expect(parts).toHaveText(value.split('-').map((part, index) => part + ['년', '월', '일'][index]));
+  for (const part of await parts.all()) {
+    const box = await completeLabelGeometry(part);
+    expect(box.fontSize).toBe(rootSize);
+    expect(box.lines).toBe(1);
+    expect(box.fits && box.withinViewport).toBe(true);
+  }
+}
+
+async function completeButtonWords(locator: Locator) {
+  return locator.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    let words = 0;
+    while ((node = walker.nextNode())) {
+      for (const match of node.textContent!.matchAll(/\S+/g)) {
+        words++;
+        const range = document.createRange();
+        range.setStart(node, match.index!); range.setEnd(node, match.index! + match[0].length);
+        const rects = [...range.getClientRects()].filter(rect => rect.width > 0 && rect.height > 0);
+        if (!rects.length || rects.some(rect => Math.abs(rect.top - rects[0].top) > 1 ||
+          rect.left < box.left - 1 || rect.right > box.right + 1 || rect.top < box.top - 1 || rect.bottom > box.bottom + 1)) return false;
+      }
+    }
+    return words > 0 && box.left >= 0 && box.right <= innerWidth + 1 && element.scrollWidth <= element.clientWidth + 1;
+  });
+}
+
+test('record labels, actions and full-date alternative remain readable at narrow widths and 200 percent root text', async ({ page }, testInfo) => {
   await seed(page);
   const before = await snapshot(page);
   const badge = page.getByText('체중·인바디', { exact: true });
@@ -112,9 +153,20 @@ test('record badge and photo steps remain complete at 320px and 200 percent root
           expect(box.lines).toBe(1);
           expect(box.fits && box.withinViewport).toBe(true);
         }
+        const photo = page.getByRole('button', { name: '사진 선택', exact: true });
+        const save = page.getByRole('button', { name: state === 'draft' ? '확인한 측정일에 저장' : '체중·인바디 저장', exact: true });
+        for (const button of [photo, save]) expect(await completeButtonWords(button)).toBe(true);
+        expect((await completeLabelGeometry(photo)).fontSize).toBe(rootSize * 0.875);
+        if (state === 'idle') {
+          const remove = page.getByRole('button', { name: '이 날짜 기록 삭제', exact: true });
+          expect(await completeButtonWords(remove)).toBe(true);
+          expect((await completeLabelGeometry(remove)).fontSize).toBe(rootSize * 0.8125);
+          const saveBox = await save.boundingBox(), removeBox = await remove.boundingBox();
+          expect(saveBox && removeBox && removeBox.y >= saveBox.y + saveBox.height).toBeTruthy();
+        }
         if (state === 'draft') {
           const date = page.getByLabel('측정 날짜', { exact: true });
-          await expect(date).toHaveValue(day);
+          await expectDatePreview(page, day, rootSize);
           expect(await date.evaluate(element => {
             const box = element.getBoundingClientRect(), parent = element.parentElement!.getBoundingClientRect();
             return box.left >= parent.left - 1 && box.right <= parent.right + 1 && box.right <= innerWidth + 1;
@@ -122,8 +174,11 @@ test('record badge and photo steps remain complete at 320px and 200 percent root
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         expect(await snapshot(page)).toEqual(before);
-        if (width === 320) await page.screenshot({
-          path: `.e2e/component-browser/evidence/body-import-${state}-320-root${rootSize}-${testInfo.project.name}.png`, fullPage: true,
+        await page.screenshot({
+          path: `.e2e/component-browser/evidence/body-import-${state}-${width}-root${rootSize}-${testInfo.project.name}.png`, fullPage: true,
+        });
+        if (state === 'draft') await page.locator('#body-measurement-date-preview').screenshot({
+          path: `.e2e/component-browser/evidence/body-date-preview-${width}-root${rootSize}-${testInfo.project.name}.png`,
         });
       }
     }
@@ -131,5 +186,37 @@ test('record badge and photo steps remain complete at 320px and 200 percent root
   await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
   await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
   await expect(page.getByLabel('가져오기 확인', { exact: true })).toHaveCount(0);
+  expect(await snapshot(page)).toEqual(before);
+});
+
+
+test('full-date alternative follows native edits and clearing without extra controls or persisted writes', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await seed(page);
+  const before = await snapshot(page);
+  await upload(page);
+  await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; });
+  const date = page.getByLabel('측정 날짜', { exact: true });
+  const preview = page.locator('#body-measurement-date-preview');
+  const save = page.getByRole('button', { name: '확인한 측정일에 저장', exact: true });
+  await page.getByRole('button', { name: '사진의 날짜·숫자 확인하기', exact: true }).click();
+  await expect(date).toBeFocused();
+  await date.fill('2024-02-29');
+  await expectDatePreview(page, '2024-02-29', 32);
+  expect(await snapshot(page)).toEqual(before);
+  await date.fill('');
+  await expect(preview).toHaveCount(0);
+  await expect(page.getByRole('alert')).toContainText('실제 측정 날짜를 입력해 주세요');
+  await expect(save).toBeDisabled();
+  expect(await snapshot(page)).toEqual(before);
+  await date.fill(day);
+  await expectDatePreview(page, day, 32);
+  await expect(save).toBeEnabled();
+  await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
+  await expect(preview).toHaveCount(0);
+  expect(await snapshot(page)).toEqual(before);
+  await upload(page);
+  await expectDatePreview(page, day, 32);
+  await page.getByRole('button', { name: '사진 입력 취소', exact: true }).click();
   expect(await snapshot(page)).toEqual(before);
 });
