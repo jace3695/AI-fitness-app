@@ -4,11 +4,13 @@ import AssessmentFixture from './AssessmentFixture';
 import ReplyFixture from './ReplyFixture';
 import PracticeFixture from './PracticeFixture';
 import BodyImportFixture from './BodyImportFixture';
+import HomeBriefingFixture from './HomeBriefingFixture';
 import '../../../app/globals.css';
 import '../../../app/language/language.css';
 
 const scenario = new URLSearchParams(location.search).get('case');
 const fixture = scenario === 'assessment' ? <AssessmentFixture />
+  : scenario === 'home-briefing' ? <HomeBriefingFixture />
   : scenario === 'body-import' ? <BodyImportFixture />
   : scenario === 'practice' ? <PracticeFixture />
   : scenario === 'reply' ? <ReplyFixture />
