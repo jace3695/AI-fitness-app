@@ -408,7 +408,7 @@ export default function BodyRecordCard({
         </span>
       </div>
       <button type="button" disabled={importing} onClick={() => document.getElementById(draft ? "body-measurement-date" : "body-weight-input")?.focus()}
-        className="mt-3 min-h-11 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-800 disabled:opacity-60">
+        className="mt-3 min-h-11 w-full break-keep rounded-xl border border-gray-300 px-4 py-3 text-sm font-bold text-gray-800 disabled:opacity-60">
         {draft ? "사진의 날짜·숫자 확인하기" : "숫자 직접 적기 · 사진 없이 입력"}
       </button>
       {isTodayKey(dateKey) && (
@@ -503,7 +503,7 @@ export default function BodyRecordCard({
         </div>}
         {!validMeasurementDate(draft.date, getLocalDateKey()) && <p role="alert">실제 측정 날짜를 입력해 주세요. 미래 날짜는 저장할 수 없습니다.</p>}
         {(weights[draft.date] || inbody[draft.date]) && <p>이 날짜에 기존 기록이 있습니다. 저장할 때 변경 확인이 필요합니다.</p>}
-        <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 rounded bg-white px-3 py-2">사진 입력 취소</button>
+        <button type="button" onClick={() => { setDraft(null); setImportMessage(""); }} className="mt-2 min-h-11 break-keep rounded bg-white px-1 py-2">사진 입력 취소</button>
       </section>}
       <p className="mt-4 text-sm font-bold text-gray-800">{draft ? "사진에서 읽은 숫자를 확인해요" : "숫자 직접 입력"}</p>
       <p className="mt-1 text-sm text-gray-600">아는 수치만 적고 아래 저장 버튼을 눌러 주세요.</p>

@@ -155,6 +155,9 @@ test('record labels, actions and full-date alternative remain readable at narrow
             expect(box.lines).toBe(1);
             expect(box.fits && box.withinViewport).toBe(true);
           }
+          const shortcut = page.getByRole('button', { name: state === 'draft' ? '사진의 날짜·숫자 확인하기' : '숫자 직접 적기 · 사진 없이 입력', exact: true });
+          expect(await completeButtonWords(shortcut)).toBe(true);
+          expect((await completeLabelGeometry(shortcut)).fontSize).toBe(rootSize * 0.875);
           const photo = page.getByRole('button', { name: '사진 선택', exact: true });
           const save = page.getByRole('button', { name: state === 'draft' ? '확인한 측정일에 저장' : '체중·인바디 저장', exact: true });
           for (const button of [photo, save]) expect(await completeButtonWords(button)).toBe(true);
@@ -167,6 +170,12 @@ test('record labels, actions and full-date alternative remain readable at narrow
             expect(saveBox && removeBox && removeBox.y >= saveBox.y + saveBox.height).toBeTruthy();
           }
           if (state === 'draft') {
+            const cancel = page.getByRole('button', { name: '사진 입력 취소', exact: true });
+            expect(await completeButtonWords(cancel)).toBe(true);
+            const cancelBox = await completeLabelGeometry(cancel);
+            expect(cancelBox.fontSize).toBe(rootSize);
+            expect(cancelBox.lines).toBeLessThanOrEqual(2);
+            expect(cancelBox.fits && cancelBox.withinViewport).toBe(true);
             const date = page.getByLabel('측정 날짜', { exact: true });
             await expectDatePreview(page, day, rootSize);
             expect(await date.evaluate(element => {

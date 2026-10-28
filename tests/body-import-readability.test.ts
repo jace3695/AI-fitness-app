@@ -140,3 +140,23 @@ test('photo and save/delete actions keep words whole and stack when enlarged ins
   assert.match(attribute(save.parent, 'className'), /\bflex-wrap\b/);
   assert.ok(attribute(remove, 'className').includes('text-[0.8125rem]'));
 });
+
+test('review shortcut preserves complete Korean words without shrinking its enlarged text', () => {
+  const shortcut = elements.find(element => element.openingElement.tagName.getText(tree) === 'button' && element.getText(tree).includes('document.getElementById(draft ?'));
+  assert.ok(shortcut);
+  const classes = attribute(shortcut, 'className');
+  assert.match(classes, /\bbreak-keep\b/);
+  assert.match(classes, /\btext-sm\b/);
+  assert.match(classes, /\bmin-h-11\b/);
+  assert.doesNotMatch(classes, /truncate|overflow-hidden|whitespace-nowrap|text-\[\d+px\]/);
+});
+
+test('photo review cancel keeps words whole with room for two enlarged words while retaining its touch height', () => {
+  const cancel = elements.find(element => label(element) === '사진 입력 취소');
+  assert.ok(cancel);
+  const classes = attribute(cancel, 'className');
+  assert.match(classes, /\bbreak-keep\b/);
+  assert.match(classes, /\bpx-1\b/);
+  assert.match(classes, /\bmin-h-11\b/);
+  assert.doesNotMatch(classes, /truncate|overflow-hidden|whitespace-nowrap|text-/);
+});
