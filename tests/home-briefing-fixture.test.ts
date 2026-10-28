@@ -101,3 +101,27 @@ test('actual rendered next-action title, label and link follow due, important th
     assert.doesNotMatch(markup, /합성 완료 항목|합성 취소 항목/);
   }
 });
+
+test('synthetic scenario selector has a text-only explicitly associated label for exact native lookup', () => {
+  const fixture = readFileSync('scripts/browser-qa/cloud/HomeBriefingFixture.tsx', 'utf8');
+  const tree = ts.createSourceFile('HomeBriefingFixture.tsx', fixture, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const elements: ts.JsxElement[] = [];
+  const visit = (node: ts.Node) => { if (ts.isJsxElement(node)) elements.push(node); ts.forEachChild(node, visit); };
+  visit(tree);
+  const label = elements.find(node => node.openingElement.tagName.getText(tree) === 'label');
+  const select = elements.find(node => node.openingElement.tagName.getText(tree) === 'select');
+  assert.ok(label && select);
+  const literalAttribute = (node: ts.JsxElement, name: string) => {
+    const attr = node.openingElement.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(tree) === name);
+    return attr && ts.isJsxAttribute(attr) && attr.initializer && ts.isStringLiteral(attr.initializer) ? attr.initializer.text : '';
+  };
+  assert.equal(literalAttribute(label, 'htmlFor'), 'synthetic-home-briefing-scenario');
+  assert.equal(literalAttribute(select, 'id'), 'synthetic-home-briefing-scenario');
+  assert.equal(label.children.length, 1, 'nested options must not become part of the exact label text');
+  assert.ok(ts.isJsxText(label.children[0]));
+  assert.equal(label.children[0].text, 'Synthetic home briefing scenario');
+  assert.equal(label.parent, select.parent, 'label and control are siblings, not an option-containing wrapper');
+  for (const name of ['aria-label', 'aria-labelledby']) assert.equal(literalAttribute(select, name), '');
+  const native = readFileSync('tests/browser-cloud/home-briefing.spec.ts', 'utf8');
+  assert.ok(native.includes("page.getByLabel('Synthetic home briefing scenario', { exact: true })"));
+});
