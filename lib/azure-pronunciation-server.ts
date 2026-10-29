@@ -2,6 +2,8 @@
 import { createHash } from 'node:crypto';
 import { Buffer } from 'node:buffer';
 import type { AssessmentResult } from '../app/language/practice/assessment.ts';
+import { ASSESSMENT_TRIAL } from '../app/language/practice/assessment-trial.ts';
+import {parseRetentionDisclosure,retentionPolicyMessage,RETENTION_ASSESSMENT_POLICY,RETENTION_POLICY_ID,type RetentionDisclosure} from '../app/language/practice/assessment-retention.ts';
 
 export const AZURE_ASSESSMENT_POLICY = 'azure-ja-accuracy-fluency-v1';
 export const AZURE_TRIAL_DATA_POLICY='trial-metadata-policy-v1'; // Proposed contract; not evidence of approval.
@@ -37,12 +39,19 @@ export type AzureAssessmentDependencies = Readonly<{
   usage?: AssessmentUsageLedger;
   usageForOwner?(owner:string):AssessmentUsageLedger;
   request: typeof fetch;
+  /** V2 route must supply the reviewed disclosure. Omitted only for legacy
+   * contract regression fixtures; the actual Next route no longer uses v1. */
+  retention?: RetentionDisclosure;
 }>;
 
-function config(env: AzureAssessmentEnvironment) {
+function config(env: AzureAssessmentEnvironment,retention?:RetentionDisclosure) {
   if (env.AZURE_SPEECH_ASSESSMENT_ENABLED !== 'true' || env.VERCEL_ENV !== 'preview' || env.VERCEL_GIT_COMMIT_REF !== 'agent/fitness-record-priority') return fail(503, 'unavailable');
   if (env.AZURE_SPEECH_REGION !== 'koreacentral' || !env.AZURE_SPEECH_KEY || !/^[A-Za-z0-9]{16,128}$/.test(env.AZURE_SPEECH_KEY) || !env.AZURE_SPEECH_RESOURCE_NAME || !/^[a-z0-9][a-z0-9-]{1,62}$/.test(env.AZURE_SPEECH_RESOURCE_NAME)) return fail(503, 'unavailable');
-  if(!env.AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(env.AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID)||env.AZURE_SPEECH_ASSESSMENT_DATA_POLICY_ID!==AZURE_TRIAL_DATA_POLICY)return fail(503,'unavailable');
+  if(!env.AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(env.AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID)||env.AZURE_SPEECH_ASSESSMENT_DATA_POLICY_ID!==(retention?RETENTION_POLICY_ID:AZURE_TRIAL_DATA_POLICY))return fail(503,'unavailable');
+  if(retention){
+   const {policyHash,...descriptor}=parseRetentionDisclosure(retention);
+   if(createHash('sha256').update(retentionPolicyMessage(descriptor)).digest('hex')!==policyHash)return fail(503,'unavailable');
+  }
   return { key: env.AZURE_SPEECH_KEY, host: `${env.AZURE_SPEECH_RESOURCE_NAME}.cognitiveservices.azure.com`,resourceName:env.AZURE_SPEECH_RESOURCE_NAME,region:env.AZURE_SPEECH_REGION,owner:env.AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID };
 }
 
@@ -71,11 +80,11 @@ async function boundedBytes(stream: ReadableStream<Uint8Array> | null, limit: nu
   } finally { signal.removeEventListener('abort', cancel); cancel(); reader.releaseLock(); }
 }
 
-function parseEnvelope(bytes: Uint8Array) {
+function parseEnvelope(bytes: Uint8Array,retention?:RetentionDisclosure) {
   let value: unknown; try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { return fail(400, 'invalid-input'); }
   if (!object(value) || !exact(value, ['requestId', 'language', 'referenceText', 'audioMime', 'audioBase64', 'consent']) || typeof value.requestId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(value.requestId) || value.language !== 'ja-JP' || typeof value.referenceText !== 'string' || !value.referenceText.trim() || value.referenceText.length > 1000 || value.audioMime !== 'audio/wav' || typeof value.audioBase64 !== 'string') return fail(400, 'invalid-input');
   const consent = value.consent;
-  if (!object(consent) || !exact(consent, ['confirmed', 'requestId', 'providerId', 'policyVersion']) || consent.confirmed !== true || consent.requestId !== value.requestId || consent.providerId !== 'azure-speech' || consent.policyVersion !== AZURE_ASSESSMENT_POLICY) return fail(400, 'consent-required');
+  if (!object(consent) || !exact(consent, ['confirmed', 'requestId', 'providerId', 'policyVersion',...(retention?['retentionPolicyHash']:[])]) || consent.confirmed !== true || consent.requestId !== value.requestId || consent.providerId !== 'azure-speech' || consent.policyVersion !== (retention?RETENTION_ASSESSMENT_POLICY:AZURE_ASSESSMENT_POLICY) || (retention&&consent.retentionPolicyHash!==retention.policyHash)) return fail(400, 'consent-required');
   if (value.audioBase64.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value.audioBase64)) return fail(400, 'invalid-input');
   const audio = Buffer.from(value.audioBase64, 'base64');
   if (audio.toString('base64') !== value.audioBase64) return fail(400, 'invalid-input');
@@ -93,12 +102,12 @@ export function mapAzureAssessment(value: unknown, requestId: string): Assessmen
 }
 
 const notices: Record<string, string> = {
-  'trial-only':'이번 시험은 지정된 계정에서 こんにちは。를 5초 이내로 녹음한 한 번만 확인해요. 다른 음성은 보내지 않았어요.',
+  'trial-only':`이번 시험은 지정된 계정에서 ${ASSESSMENT_TRIAL.referenceText}를 ${ASSESSMENT_TRIAL.maxDurationMs / 1000}초 이내로 녹음한 한 번만 확인해요. Microsoft 발음 평가 서비스로는 보내지 않았어요.`,
   unavailable: '발음 채점은 아직 준비 중이에요. 녹음을 보내지 않았어요.',
   'login-required': '로그인을 확인해 주세요. 녹음을 보내지 않았어요.',
   'account-changed': '로그인 상태가 바뀌었어요. 다시 확인해 주세요.',
   'invalid-input': '연습 문장과 녹음 형식을 확인해 주세요.',
-  'audio-format': '지금은 30초 이내의 WAV 녹음만 준비돼 있어요. 다른 형식은 보내지 않았어요.',
+  'audio-format': `녹음 파일의 형식이나 크기를 확인해 주세요. PCM16·모노·16kHz WAV가 필요하며, 이번 시험의 녹음은 ${ASSESSMENT_TRIAL.maxDurationMs / 1000}초 이내여야 해요. Microsoft 발음 평가 서비스로는 보내지 않았어요.`,
   'consent-required': '이번 녹음의 전송 안내와 동의를 확인해 주세요.',
   'too-large': '녹음이 너무 커서 보내지 않았어요.',
   'wrong-origin': '이 화면에서는 녹음을 보낼 수 없어요.',
@@ -124,7 +133,7 @@ export function createAzureAssessmentHandler(deps: AzureAssessmentDependencies) 
     let reservation:{owner:string;requestId:string}|null=null,providerStarted=false,providerFinished=false,settled=false,settleAttempted=false,ledger=deps.usage;
     try {
       const work = async () => {
-        active(); const cfg = config(deps.env);
+        active(); const cfg = config(deps.env,deps.retention);
         // An environment flag cannot replace the missing shared durable limiter.
         if(!deps.usageForOwner&&(!ledger||ledger.durable!==true||!ledger.isReady||!ledger.settle))return fail(503,'unavailable');
         const sameOrigin=request.headers.get('origin')===new URL(request.url).origin;
@@ -136,12 +145,13 @@ export function createAzureAssessmentHandler(deps: AzureAssessmentDependencies) 
         if(!ledger||ledger.durable!==true||!ledger.isReady||!ledger.settle)return fail(503,'unavailable');
         if(request.method==='GET'){
           const available=await ledger.isReady(controller.signal);active();
-          return respond({available,providerId:'azure-speech',policyVersion:AZURE_ASSESSMENT_POLICY,region:'koreacentral'},200);
+          return respond({available,providerId:'azure-speech',policyVersion:deps.retention?RETENTION_ASSESSMENT_POLICY:AZURE_ASSESSMENT_POLICY,region:'koreacentral',...(deps.retention?{retention:deps.retention}:{})},200);
         }
         if(request.method!=='POST')return fail(400,'invalid-input');
         if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') return fail(400, 'invalid-input');
-        const input = parseEnvelope(await boundedBytes(request.body, MAX_BODY, controller.signal)); active();
-        if(input.referenceText!=='こんにちは。'||input.durationMs>5000)return fail(422,'trial-only');
+        const input = parseEnvelope(await boundedBytes(request.body, MAX_BODY, controller.signal),deps.retention); active();
+        if(deps.retention)parseRetentionDisclosure(deps.retention);
+        if(input.referenceText!==ASSESSMENT_TRIAL.referenceText||input.durationMs>ASSESSMENT_TRIAL.maxDurationMs)return fail(422,'trial-only');
         const fingerprint = createHash('sha256').update(input.referenceText).update('\0').update(input.audio).digest('hex');
         const usage = await ledger.consume({ owner, requestId: input.requestId, fingerprint, durationMs: input.durationMs,resourceName:cfg.resourceName,region:cfg.region }, controller.signal); active();
         if (usage !== 'accepted') return fail(409, usage === 'duplicate' ? 'duplicate' : usage==='busy'?'busy':'limit');

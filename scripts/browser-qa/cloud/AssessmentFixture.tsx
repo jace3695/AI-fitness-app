@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AssessmentAvailability from '../../../app/language/practice/AssessmentAvailability';
 import { AZURE_AUDIO_POLICY_VERSION } from '../../../app/language/practice/assessment-audio';
 import type { AssessmentHttp } from '../../../app/language/practice/assessment-browser';
+import {retentionPolicyMessage} from '../../../app/language/practice/assessment-retention';
 
 /** Browser-only fixture. Generated sine bytes and injected in-memory responses only.
  * This does not model hosted Auth, Azure, quotas, microphone capture, or speech quality. */
@@ -40,17 +41,26 @@ export default function AssessmentFixture() {
   const [owner, setOwner] = useState('fixture-owner-a');
   const releaseBytes = useRef<(() => void) | null>(null);
   const releaseResponses = useRef<Array<(accuracy?: number, fluency?: number, outcome?: MockOutcome) => void>>([]);
+  const policyMode=useRef<'configured'|'unconfigured'|'tampered'>('configured');
+  const reviewedHash=useRef<string|null>(null);
 
   const request = useCallback<AssessmentHttp>(async (path, init, activeOwner, signal) => {
     signal.throwIfAborted();
     if (path !== '/api/language/assessment' || !['fixture-owner-a', 'fixture-owner-b'].includes(activeOwner)) throw new Error('Unexpected assessment fixture target');
     if (init.method === 'GET') {
       setMetrics(value => ({ ...value, checks: value.checks + 1 }));
-      return Response.json({ available: true, providerId: 'azure-speech', policyVersion: AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral' });
+      if(policyMode.current==='unconfigured'){reviewedHash.current=null;return Response.json({code:'unavailable'},{status:503});}
+      // Explicitly synthetic TTL/runner policy; never a live approved duration.
+      const descriptor={metadataRetentionSeconds:120,authorizationExpiresAt:Math.floor(Date.now()/1000)+3600,reviewArtifactSHA256:'b'.repeat(64),cleanupIntervalSeconds:60,cleanupStartDelaySeconds:10,cleanupRunTimeoutSeconds:5};
+      const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(retentionPolicyMessage(descriptor)));
+      const policyHash=Array.from(new Uint8Array(digest)).map(byte=>byte.toString(16).padStart(2,'0')).join('');
+      reviewedHash.current=policyHash;
+      return Response.json({ available: true, providerId: 'azure-speech', policyVersion: AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral',retention:{...descriptor,policyHash:policyMode.current==='tampered'?'0'.repeat(64):policyHash} });
     }
     if (init.method !== 'POST' || typeof init.body !== 'string') throw new Error('Unexpected assessment fixture request');
-    const body = JSON.parse(init.body) as { requestId?: unknown };
+    const body = JSON.parse(init.body) as { requestId?: unknown;consent?:{policyVersion?:unknown;retentionPolicyHash?:unknown} };
     if (typeof body.requestId !== 'string') throw new Error('Synthetic response needs the actual request identity');
+    if(body.consent?.policyVersion!==AZURE_AUDIO_POLICY_VERSION||body.consent?.retentionPolicyHash!==reviewedHash.current)throw Error('Synthetic policy consent mismatch');
     // Intentionally ignore cancellation until the visible release control is used:
     // real client/UI code must reject a late result after cancellation or owner change.
     return new Promise<Response>(resolve => {
@@ -105,6 +115,9 @@ export default function AssessmentFixture() {
       <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(81, 72, 'http-error')} style={{ minHeight: 44 }}>Release mock HTTP failure</button>
       <button type="button" disabled={!metrics.responseHeld} onClick={() => releaseResponses.current.at(-1)?.(81, 72, 'malformed')} style={{ minHeight: 44 }}>Release malformed mock response</button>
       <button type="button" onClick={() => setOwner(value => value === 'fixture-owner-a' ? 'fixture-owner-b' : 'fixture-owner-a')} style={{ minHeight: 44 }}>Change synthetic owner</button>
+      <button type="button" onClick={() => {policyMode.current='unconfigured';resetRecording(1);}} style={{minHeight:44}}>Use unconfigured retention policy</button>
+      <button type="button" onClick={() => {policyMode.current='tampered';resetRecording(1);}} style={{minHeight:44}}>Use mismatched retention hash</button>
+      <button type="button" onClick={() => {policyMode.current='configured';resetRecording(1);}} style={{minHeight:44}}>Use synthetic reviewed retention policy</button>
     </div>
     <output data-testid="assessment-fixture-metrics" data-input-reads={metrics.inputReads} data-checks={metrics.checks} data-posts={metrics.posts}
       data-pending-aborts={metrics.pendingAborts} data-local-held={String(metrics.localHeld)} data-response-held={String(metrics.responseHeld)} data-response-count={metrics.responseCount}>

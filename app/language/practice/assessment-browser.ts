@@ -1,6 +1,7 @@
 import {buildAssessmentEnvelope,AZURE_AUDIO_POLICY_VERSION} from './assessment-audio.ts';
 import {validateAssessmentResult,type AssessmentResult,type AssessmentPolicy} from './assessment.ts';
 import {validateAssessmentTrial} from './assessment-trial.ts';
+import {parseRetentionDisclosure,verifyRetentionDisclosure,type RetentionDisclosure} from './assessment-retention.ts';
 export type AssessmentHttp = (path:string,init:RequestInit,owner:string,signal:AbortSignal)=>Promise<Response>;
 const policy:AssessmentPolicy={providerId:'azure-speech',version:AZURE_AUDIO_POLICY_VERSION,language:'ja-JP',mimeTypes:['audio/wav'],metrics:['accuracy','fluency']};
 
@@ -23,7 +24,9 @@ export class AssessmentBrowserClient{
  private available=false;private pending:AbortController|null=null;private disposed=false;private used=new Set<string>();
  constructor(privateOwner:string,privateRequest:AssessmentHttp=authorizedRequest){this.owner=privateOwner;this.request=privateRequest;}
  private owner:string;private request:AssessmentHttp;
- cancel(){this.pending?.abort();this.pending=null;this.available=false;}
+ private disclosure:RetentionDisclosure|null=null;
+ retentionPolicy(){return this.disclosure;}
+ cancel(){this.pending?.abort();this.pending=null;this.available=false;this.disclosure=null;}
  dispose(){this.cancel();this.disposed=true;this.used.clear();}
  private async run<T>(signal:AbortSignal,action:(signal:AbortSignal)=>Promise<T>):Promise<T>{
   if(this.disposed||!this.owner||this.pending)throw Error('Assessment unavailable');signal.throwIfAborted();
@@ -33,21 +36,24 @@ export class AssessmentBrowserClient{
   finally{clearTimeout(timer);signal.removeEventListener('abort',cancel);job.signal.removeEventListener('abort',abort);if(this.pending===job)this.pending=null;job.abort();}
  }
  async check(signal:AbortSignal):Promise<boolean>{
-  this.available=false;
+  this.available=false;this.disclosure=null;
   return this.run(signal,async job=>{
    const response=await this.request('/api/language/assessment',{method:'GET'},this.owner,job);job.throwIfAborted();
    if(!response.ok){void response.body?.cancel().catch(()=>{});return false}
    const data=await json(response,job);job.throwIfAborted();
-   const ready=!!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(data).sort().join(',')==='available,policyVersion,providerId,region'&&(data as Record<string,unknown>).available===true&&(data as Record<string,unknown>).providerId==='azure-speech'&&(data as Record<string,unknown>).policyVersion===policy.version&&(data as Record<string,unknown>).region==='koreacentral';
-   if(this.disposed||this.pending?.signal!==job)throw Error('Assessment stale');this.available=ready;return ready;
+   const ready=!!data&&typeof data==='object'&&!Array.isArray(data)&&Object.keys(data).sort().join(',')==='available,policyVersion,providerId,region,retention'&&(data as Record<string,unknown>).available===true&&(data as Record<string,unknown>).providerId==='azure-speech'&&(data as Record<string,unknown>).policyVersion===policy.version&&(data as Record<string,unknown>).region==='koreacentral';
+   let disclosure:RetentionDisclosure|null=null;
+   if(ready){try{disclosure=await verifyRetentionDisclosure((data as Record<string,unknown>).retention);}catch{return false;}}
+   job.throwIfAborted();if(this.disposed||this.pending?.signal!==job)throw Error('Assessment stale');this.available=!!disclosure;this.disclosure=disclosure;return this.available;
   });
  }
  async assess(wav:Blob,text:string,requestId:string,consent:boolean,signal:AbortSignal):Promise<AssessmentResult>{
-  if(!this.available||!consent||this.used.has(requestId)||this.used.size>=100)throw Error('Assessment not ready');
+  if(!this.available||!this.disclosure||!consent||this.used.has(requestId)||this.used.size>=100)throw Error('Assessment not ready');
+  const retention=parseRetentionDisclosure(this.disclosure);
   return this.run(signal,async job=>{
    // Reject out-of-scope recordings locally, before serialization or any audio POST.
    await validateAssessmentTrial(wav,text,job);job.throwIfAborted();
-   const body=await buildAssessmentEnvelope(wav,text,requestId,consent,job);job.throwIfAborted();
+   const body=await buildAssessmentEnvelope(wav,text,requestId,consent,job,retention);job.throwIfAborted();parseRetentionDisclosure(retention);
    this.used.add(requestId);
    const response=await this.request('/api/language/assessment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},this.owner,job);job.throwIfAborted();
    if(!response.ok){this.available=false;void response.body?.cancel().catch(()=>{});throw Error('Assessment result unconfirmed')}

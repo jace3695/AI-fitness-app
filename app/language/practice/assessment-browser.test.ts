@@ -1,10 +1,14 @@
+import {speechRetentionPolicyHash} from '../../../lib/speech-retention-proof.ts';
+import * as retentionContract from './assessment-retention.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {AssessmentBrowserClient,type AssessmentHttp} from './assessment-browser.ts';
 import {encodeAssessmentWav} from './assessment-audio.ts';
 import {createAzureAssessmentHandler,AZURE_ASSESSMENT_POLICY,type AssessmentUsageLedger} from '../../../lib/azure-pronunciation-server.ts';
 const signal=()=>new AbortController().signal;
-const readiness=()=>Response.json({available:true,providerId:'azure-speech',policyVersion:AZURE_ASSESSMENT_POLICY,region:'koreacentral'});
+const syntheticDescriptor=()=>({metadataRetentionSeconds:120,authorizationExpiresAt:Math.floor(Date.now()/1000)+3600,reviewArtifactSHA256:'b'.repeat(64),cleanupIntervalSeconds:60,cleanupStartDelaySeconds:10,cleanupRunTimeoutSeconds:5});
+const syntheticDisclosure=()=>{const p=syntheticDescriptor();return {...p,policyHash:speechRetentionPolicyHash(p)}};
+const readiness=()=>Response.json({available:true,providerId:'azure-speech',policyVersion:retentionContract.RETENTION_ASSESSMENT_POLICY,region:'koreacentral',retention:syntheticDisclosure()});
 const wav=()=>encodeAssessmentWav({duration:.01,sampleRate:16000,length:160,numberOfChannels:1,getChannelData:()=>new Float32Array(160)},signal());
 const deferred=<T,>()=>{let resolve!:(v:T)=>void;const promise=new Promise<T>(r=>{resolve=r});return{promise,resolve};};
 test('client defaults unavailable, verifies exact server readiness and never dispatches without explicit consent',async()=>{
@@ -13,7 +17,7 @@ test('client defaults unavailable, verifies exact server readiness and never dis
 });
 test('actual browser client -> actual server handler -> mock ledger/provider returns only validated scores once',async()=>{
  let provider=0,release=0,held=false;const used=new Set<string>();const usage:AssessmentUsageLedger={durable:true,isReady:async()=>!held,settle:async()=>{release++;held=false;return true},consume:async input=>{if(used.has(input.requestId))return'duplicate';if(held)return'busy';used.add(input.requestId);held=true;return'accepted'}};
- const handler=createAzureAssessmentHandler({env:{AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID:'00000000-0000-4000-8000-000000000001',AZURE_SPEECH_ASSESSMENT_DATA_POLICY_ID:'trial-metadata-policy-v1',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'agent/fitness-record-priority',AZURE_SPEECH_ASSESSMENT_ENABLED:'true',AZURE_SPEECH_KEY:'syntheticOnlyKey000000',AZURE_SPEECH_REGION:'koreacentral',AZURE_SPEECH_RESOURCE_NAME:'synthetic-resource'},authenticate:async()=> '00000000-0000-4000-8000-000000000001',usage,request:async()=>{provider++;return Response.json({RecognitionStatus:'Success',NBest:[{AccuracyScore:80,FluencyScore:70,ProsodyScore:100}]})}});
+ const handler=createAzureAssessmentHandler({retention:syntheticDisclosure(),env:{AZURE_SPEECH_ASSESSMENT_TEST_OWNER_ID:'00000000-0000-4000-8000-000000000001',AZURE_SPEECH_ASSESSMENT_DATA_POLICY_ID:'trial-retention-policy-v2',VERCEL_ENV:'preview',VERCEL_GIT_COMMIT_REF:'agent/fitness-record-priority',AZURE_SPEECH_ASSESSMENT_ENABLED:'true',AZURE_SPEECH_KEY:'syntheticOnlyKey000000',AZURE_SPEECH_REGION:'koreacentral',AZURE_SPEECH_RESOURCE_NAME:'synthetic-resource'},authenticate:async()=> '00000000-0000-4000-8000-000000000001',usage,request:async()=>{provider++;return Response.json({RecognitionStatus:'Success',NBest:[{AccuracyScore:80,FluencyScore:70,ProsodyScore:100}]})}});
  const http:AssessmentHttp=(path,init,owner,s)=>{assert.equal(owner,'A');const headers=new Headers(init.headers);headers.set('origin','https://fixture.example');return handler(new Request('https://fixture.example'+path,{...init,headers,signal:s}))};
  const c=new AssessmentBrowserClient('A',http);assert.equal(await c.check(signal()),true);const audio=await wav();const result=await c.assess(audio,'こんにちは。','r1',true,signal());assert.deepEqual(result.metrics.map(m=>m.name),['accuracy','fluency']);assert.equal(provider,1);assert.equal(release,1);await assert.rejects(c.assess(audio,'synthetic','r1',true,signal()));assert.equal(provider,1);
 });

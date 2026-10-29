@@ -1,3 +1,5 @@
+import {speechRetentionPolicyHash} from '../../../lib/speech-retention-proof.ts';
+import * as retentionContract from './assessment-retention.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,7 +27,9 @@ const source = readFileSync(new URL('./AssessmentAvailability.tsx', import.meta.
 const compiled = ts.transpileModule(source.replace('  return <details', '  __capture({prepare,review,checkService,send,interrupt,setConsent,current,result});\n  return <details'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
-const readiness = () => Response.json({ available: true, providerId: 'azure-speech', policyVersion: audio.AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral' });
+const syntheticDescriptor=()=>({metadataRetentionSeconds:120,authorizationExpiresAt:Math.floor(Date.now()/1000)+3600,reviewArtifactSHA256:'b'.repeat(64),cleanupIntervalSeconds:60,cleanupStartDelaySeconds:10,cleanupRunTimeoutSeconds:5});
+const syntheticDisclosure=()=>{const p=syntheticDescriptor();return {...p,policyHash:speechRetentionPolicyHash(p)}};
+const readiness = () => Response.json({ available: true, providerId: 'azure-speech', policyVersion: audio.AZURE_AUDIO_POLICY_VERSION, region: 'koreacentral', retention:syntheticDisclosure() });
 const score = (id: string, accuracy = 81, fluency = 72) => Response.json({ requestId: id, providerId: 'azure-speech', language: 'ja-JP', source: 'provider-assessment', metrics: [{ name: 'accuracy', value: accuracy, min: 0, max: 100 }, { name: 'fluency', value: fluency, min: 0, max: 100 }] });
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 async function until(done: () => boolean) { for (let i = 0; i < 100 && !done(); i++) await new Promise(resolve => setTimeout(resolve, 1)); assert.ok(done(), 'mock operation reached expected boundary'); }
@@ -86,6 +90,7 @@ function fixture(options: { text?: string; seconds?: number; holdDecode?: boolea
       if (name === './assessment-audio') return audio;
       if (name === './assessment') return contract;
       if (name === './assessment-trial') return trial;
+      if (name === './assessment-retention') return retentionContract;
       if (name === './assessment-browser') return { AssessmentBrowserClient };
       throw Error(`Unexpected dependency ${name}`);
     },
@@ -133,16 +138,16 @@ test('actual preparation rejects unsupported sentence and over-five-second recor
   const valid = fixture({ seconds: 5 }); await valid.prepare(); assert.ok(valid.controls.current); assert.equal(valid.checkbox?.props.checked, false); assert.equal(valid.calls.length, 0); valid.unmount();
 });
 
-test('rendered retention and consent copy does not promise account deletion removes usage records or readiness confirms retention', async () => {
+test('rendered v2 disclosure separates ephemeral metadata from global consumption and conditional cleanup target', async () => {
   const f = fixture();
-  const retention = '한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.';
+  const retention = '보관 기간과 정리 실행 조건은 아직 정해지지 않았어요. 실제 조건을 확인하기 전에는 녹음을 보낼 수 없어요.';
   const noPayload = '녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.';
   const beforeCheck = '이 녹음과 문장의 전송 안내를 확인했어요 · 지금은 전송하지 않아요';
   const afterCheck = '위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.';
   const assertCopy = () => {
-    assert.ok(f.html.includes(`<p>${retention}</p>`));
+    if(f.calls.some(call=>call.method==='GET')){assert.match(f.text,/최대 120초 후 정리 대상/);assert.match(f.text,/최대 75초 안에 지우는 것이 목표/);assert.match(f.text,/삭제가 늦어질 수 있어요/);}else assert.ok(f.html.includes(`<p>${retention}</p>`));
     assert.ok(f.html.includes(noPayload));
-    assert.match(f.html, /종료를 확인하지 못한 요청의 잠금 정보는 별도 확인 전까지 남을 수 있어요/);
+    assert.match(f.html, /개인 식별 필드가 없는 공용/);assert.match(f.html,/완전한 익명이라는 뜻은 아니에요/);
     assert.doesNotMatch(f.html, /계정 삭제 전까지 남는 설계|보관 기간과 삭제 절차를 확인했어요/);
   };
   try {

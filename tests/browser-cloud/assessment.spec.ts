@@ -3,14 +3,14 @@ import { test, expect } from './fixture';
 const prepareLabel = '녹음 형식 확인 · 전송 안 함';
 const checkLabel = '연결 준비 확인 · 음성 전송 안 함';
 
-test('assessment retention uncertainty remains visible before and after mock readiness without sending audio', async ({ page }, testInfo) => {
+test('assessment v2 retention disclosure binds fresh consent and states conditional cleanup without sending audio', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/?case=assessment');
   const panel = page.getByTestId('assessment-panel');
   const metrics = page.getByTestId('assessment-fixture-metrics');
   await panel.locator('summary').click();
   await panel.getByRole('button', { name: prepareLabel, exact: true }).click();
-  const retention = panel.getByText('한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.', { exact: true });
+  const retention = panel.getByText('보관 기간과 정리 실행 조건은 아직 정해지지 않았어요. 실제 조건을 확인하기 전에는 녹음을 보낼 수 없어요.', { exact: true });
   await expect(retention).toBeVisible();
   await expect(panel).not.toContainText('계정 삭제 전까지 남는 설계예요');
   await expect(panel.getByText('녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.', { exact: false })).toBeVisible();
@@ -23,12 +23,18 @@ test('assessment retention uncertainty remains visible before and after mock rea
   await panel.getByRole('button', { name: checkLabel, exact: true }).click();
   const afterCheck = panel.getByRole('checkbox', { name: '위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.', exact: true });
   await expect(afterCheck).not.toBeChecked();
-  await expect(retention).toBeVisible();
+  await expect(panel).toContainText('최대 120초 후 정리 대상');
+  await expect(panel).toContainText('최대 75초 안에 지우는 것이 목표');
+  await expect(panel).toContainText('삭제가 늦어질 수 있어요');
+  await expect(panel).toContainText('완전한 익명이라는 뜻은 아니에요');
   await expect(panel.getByRole('button', { name: '발음 점수 받기', exact: true })).toBeDisabled();
   await expect(metrics).toHaveAttribute('data-checks', '1');
   await expect(metrics).toHaveAttribute('data-posts', '0');
   await afterCheck.check();
-  await expect(retention).toBeVisible();
+  await expect(panel).toContainText('최대 120초 후 정리 대상');
+  await expect(panel).toContainText('최대 75초 안에 지우는 것이 목표');
+  await expect(panel).toContainText('삭제가 늦어질 수 있어요');
+  await expect(panel).toContainText('완전한 익명이라는 뜻은 아니에요');
   await expect(panel.getByRole('button', { name: '발음 점수 받기', exact: true })).toBeEnabled();
   await expect(metrics).toHaveAttribute('data-posts', '0');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -240,3 +246,17 @@ for (const failure of [
     await expect(alert).toHaveCount(0); await expect(metrics).toHaveAttribute('data-posts', '0');
   });
 }
+
+
+test('assessment null or mismatched retention policy stays closed at 320px and requires a new check/consent after correction',async({page},testInfo)=>{
+ await page.setViewportSize({width:320,height:844});await page.goto('/?case=assessment');
+ const panel=page.getByTestId('assessment-panel'),metrics=page.getByTestId('assessment-fixture-metrics');await panel.locator('summary').click();
+ for(const mode of ['Use unconfigured retention policy','Use mismatched retention hash']){
+  await page.getByRole('button',{name:mode,exact:true}).click();await panel.getByRole('button',{name:prepareLabel,exact:true}).click();await panel.getByRole('checkbox').check();await panel.getByRole('button',{name:checkLabel,exact:true}).click();
+  await expect(panel.getByRole('button',{name:'발음 점수 받기 · 준비 중',exact:true})).toBeDisabled();await expect(panel.getByRole('checkbox')).not.toBeChecked();await expect(panel).toContainText('보관 기간과 정리 실행 조건은 아직 정해지지 않았어요');await expect(metrics).toHaveAttribute('data-posts','0');
+ }
+ await page.getByRole('button',{name:'Use synthetic reviewed retention policy',exact:true}).click();await panel.getByRole('button',{name:prepareLabel,exact:true}).click();await panel.getByRole('button',{name:checkLabel,exact:true}).click();
+ await expect(panel.getByRole('checkbox')).not.toBeChecked();await expect(panel.getByRole('button',{name:'발음 점수 받기',exact:true})).toBeDisabled();await expect(panel).toContainText('최대 120초 후 정리 대상');await expect(panel).toContainText('최대 75초 안에 지우는 것이 목표');await expect(metrics).toHaveAttribute('data-posts','0');
+ await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`.e2e/component-browser/evidence/assessment-v2-retention-recovery-${testInfo.project.name}.png`,fullPage:true});
+});

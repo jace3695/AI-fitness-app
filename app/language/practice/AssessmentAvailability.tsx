@@ -3,6 +3,7 @@ import { prepareAssessmentWav, buildAssessmentEnvelope } from './assessment-audi
 import {AssessmentBrowserClient,type AssessmentHttp} from './assessment-browser';
 import { ASSESSMENT_LIMITS, type AssessmentResult } from './assessment';
 import { ASSESSMENT_TRIAL, validateAssessmentTrial } from './assessment-trial';
+import {cleanupDelaySeconds,type RetentionDisclosure} from './assessment-retention';
 
 /** Explicit preparation/readiness/dispatch steps; no automatic transmission. */
 export default function AssessmentAvailability({ recording = null, text = '', owner='',request }: { recording?: Blob | null; text?: string;owner?:string;request?:AssessmentHttp }) {
@@ -14,10 +15,11 @@ export default function AssessmentAvailability({ recording = null, text = '', ow
   const preparedOwner = useRef<typeof prepared>(null);
   const client=useRef<AssessmentBrowserClient|null>(null);
   const [serviceReady,setServiceReady]=useState(false),[result,setResult]=useState<AssessmentResult|null>(null);
+  const [retention,setRetention]=useState<RetentionDisclosure|null>(null);
   const [operation,setOperation]=useState<'local'|'checking'|'sending'>('local');
   const activeOperation = useRef<'local'|'checking'|'sending'>('local');
   const beginOperation = (next: 'local'|'checking'|'sending') => { activeOperation.current = next; setOperation(next); };
-  const cancel = useCallback((preserveNotice = false) => { job.current?.abort(); job.current = null;client.current?.cancel();setServiceReady(false);setResult(null); setBusy(false); setPrepared(null); preparedOwner.current = null; setConsent(false); attemptedId.current = null; if (!preserveNotice) setNotice(''); }, []);
+  const cancel = useCallback((preserveNotice = false) => { job.current?.abort(); job.current = null;client.current?.cancel();setServiceReady(false);setRetention(null);setResult(null); setBusy(false); setPrepared(null); preparedOwner.current = null; setConsent(false); attemptedId.current = null; if (!preserveNotice) setNotice(''); }, []);
   const interrupt = useCallback(() => {
     const pending = !!job.current, sending = activeOperation.current === 'sending';
     cancel(true);
@@ -57,19 +59,19 @@ export default function AssessmentAvailability({ recording = null, text = '', ow
   async function review() {
     if (!current || preparedOwner.current !== current || !consent || result || attemptedId.current === current.id || job.current) return;
     const controller = new AbortController(); job.current = controller; setBusy(true); setNotice('');beginOperation('local');
-    try { await buildAssessmentEnvelope(current.wav, text, current.id, consent, controller.signal); if (job.current === controller && !controller.signal.aborted) setNotice('전송할 내용만 확인했어요. 녹음은 보내지 않았어요.'); }
+    try { await buildAssessmentEnvelope(current.wav, text, current.id, consent, controller.signal,retention); if (job.current === controller && !controller.signal.aborted) setNotice('전송할 내용만 확인했어요. 녹음은 보내지 않았어요.'); }
     catch { if (job.current === controller) setNotice('확인을 마치지 못했어요. 녹음은 보내지 않았어요.'); }
     finally { if (job.current === controller) { job.current = null; setBusy(false); } }
   }
   async function checkService(){
     if(!current||preparedOwner.current!==current||!client.current||!owner||result||attemptedId.current===current.id||job.current)return;
-    const controller=new AbortController();job.current=controller;setBusy(true);beginOperation('checking');setServiceReady(false);setConsent(false);setResult(null);setNotice('');
-    try{const ready=await client.current.check(controller.signal);if(job.current===controller&&!controller.signal.aborted){setServiceReady(ready);setNotice(ready?'전송 전에 이번 녹음과 문장의 안내·동의를 확인해 주세요.':'공유 한도와 연결 준비가 끝나지 않았어요. 녹음은 보내지 않았어요.');}}
+    const controller=new AbortController();job.current=controller;setBusy(true);beginOperation('checking');setServiceReady(false);setRetention(null);setConsent(false);setResult(null);setNotice('');
+    try{const ready=await client.current.check(controller.signal);if(job.current===controller&&!controller.signal.aborted){setServiceReady(ready);setRetention(ready?client.current.retentionPolicy():null);setNotice(ready?'전송 전에 이번 녹음과 문장의 안내·동의를 확인해 주세요.':'보관·정리 조건과 공유 한도 준비가 끝나지 않았어요. 녹음은 보내지 않았어요.');}}
     catch{if(job.current===controller)setNotice('연결 준비를 확인하지 못했어요. 녹음은 보내지 않았어요.');}
     finally{if(job.current===controller){job.current=null;setBusy(false);}}
   }
   async function send(){
-    if(!current||preparedOwner.current!==current||!consent||!serviceReady||!client.current||result||attemptedId.current===current.id||job.current)return;
+    if(!current||preparedOwner.current!==current||!consent||!serviceReady||!retention||!client.current||result||attemptedId.current===current.id||job.current)return;
     // The client also rejects reused identities. Keep controls and uncertainty
     // aligned with that local ownership rule, without changing the server trial.
     attemptedId.current=current.id;
@@ -91,9 +93,14 @@ export default function AssessmentAvailability({ recording = null, text = '', ow
         {current && <>
           <p>이 기기에서 WAV 형식으로 준비했어요.</p>
           <p>연결 후 전송 대상은 Microsoft Azure Speech(한국 중부)예요. 선택한 녹음 1개와 이 연습 문장만 보내고, 다른 앱 기록은 보내지 않아요.</p>
-          <p>Microsoft의 발음 평가 안내는 입력 비보관을 명시해요. 앱에서도 녹음과 점수를 보관하지 않는 범위로 준비 중이며, 실제 연결 전 보관 안내를 다시 확인해야 해요. 취소해도 이미 보낸 녹음의 서버 처리가 끝났다는 뜻은 아니에요.</p>
-          <p>한도 확인용 기록의 보관 기간과 삭제 절차는 아직 확인이 필요해요. 계정을 삭제해도 함께 지워진다고 보장할 수 없어요. 실제 전송 전에 보관·삭제 안내를 확인해 주세요.</p>
-          <p>한도와 중복 요청 확인에는 계정 식별자·요청 번호·내용 지문·녹음 길이·시각을 사용해요. 종료를 확인하지 못한 요청의 잠금 정보는 별도 확인 전까지 남을 수 있어요. 녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.</p>
+          <p>앱은 녹음·문장·점수를 영구 저장하지 않아요. 점수는 이 화면에서만 보고, 화면을 벗어나거나 녹음·문장·계정이 바뀌면 지워요. 취소해도 이미 보낸 녹음의 서버 처리가 끝났다는 뜻은 아니에요.</p>
+          {retention ? <>
+            <p>정상 종료를 확인하면 요청 정보를 바로 지워요. 끝났는지 확인하지 못한 요청은 최대 {retention.metadataRetentionSeconds}초 후 정리 대상이 되며, 시험 허용 시간이 먼저 끝나면 더 일찍 정리 대상이 돼요.</p>
+            <p>정리 실행기가 정해진 주기·시간 안에 정상 작동할 때 정리 대상이 된 뒤 최대 {cleanupDelaySeconds(retention)}초 안에 지우는 것이 목표예요. 실행이 멈추거나 실패하면 삭제가 늦어질 수 있어요. 준비 확인은 앞으로의 자동 삭제를 보장하지 않아요.</p>
+            <p>인증 계정이 실제로 삭제되면 연결된 요청 정보도 지우는 경로예요. 로그아웃이나 계정 숨기기와는 달라요. 로그·백업까지 즉시 지워진다는 뜻은 아니에요.</p>
+          </> : <p>보관 기간과 정리 실행 조건은 아직 정해지지 않았어요. 실제 조건을 확인하기 전에는 녹음을 보낼 수 없어요.</p>}
+          <p>요청 정보에는 계정 식별자·요청 번호·내용 지문·녹음 길이·시각이 들어가요. 녹음·문장·점수 자체는 이 한도 기록에 저장하지 않아요.</p>
+          <p>개인 식별 필드가 없는 공용 ‘1회 사용함’ 표시는 요청 정보와 따로 남겨요. 요청 정보나 계정을 지워도 시험 횟수는 돌아오지 않아요. 완전한 익명이라는 뜻은 아니에요.</p>
           <label className="flex min-h-11 items-start gap-2"><input type="checkbox" checked={consent} disabled={busy||attempted||!!result} onChange={event => setConsent(event.target.checked)} />{serviceReady?'위 전송·보관 안내를 확인했고 이번 녹음과 문장을 Microsoft로 보내는 데 동의해요.':'이 녹음과 문장의 전송 안내를 확인했어요 · 지금은 전송하지 않아요'}</label>
           <button type="button" className="btn" disabled={!consent || busy || attempted || !!result} onClick={() => void review()}>전송할 내용 확인 · 전송 안 함</button>
           <button type="button" className="btn" disabled={busy||!owner||attempted||!!result} onClick={()=>void checkService()}>연결 준비 확인 · 음성 전송 안 함</button>

@@ -44,16 +44,20 @@ test('clearing recording releases its URL once and drops derived results and blo
 test('before recording the rendered page explains pitch observation without offering an unusable analysis action',()=>{
  const require=createRequire(import.meta.url);
  const React=require('react'), {renderToStaticMarkup}=require('react-dom/server');
+ // Load the real browser-safe retention contract once for all SSR VM imports.
+ const retention={exports:{}};
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-retention.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...retention,require});
+ const requireRetention=(name:string)=>name==='./assessment-retention.ts'||name==='./assessment-retention'?retention.exports:require(name);
  const availability={exports:{}};
  const availabilitySource=fs.readFileSync(new URL('../app/language/practice/AssessmentAvailability.tsx',import.meta.url),'utf8');
  const audio={exports:{}};
  const audioSource=fs.readFileSync(new URL('../app/language/practice/assessment-audio.ts',import.meta.url),'utf8');
- vm.runInNewContext(ts.transpileModule(audioSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...audio,require,setTimeout});
+ vm.runInNewContext(ts.transpileModule(audioSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...audio,require:requireRetention,setTimeout});
  const contract={exports:{}},browser={exports:{}},trial={exports:{}};
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...contract,require});
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-trial.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...trial,require});
- vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-browser.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...browser,require:(name:string)=>name==='./assessment-audio.ts'?audio.exports:name==='./assessment.ts'?contract.exports:name==='./assessment-trial.ts'?trial.exports:require(name)});
- vm.runInNewContext(ts.transpileModule(availabilitySource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{...availability,require:(name:string)=>name==='./assessment-audio'?audio.exports:name==='./assessment-browser'?browser.exports:name==='./assessment-trial'?trial.exports:name==='./assessment'?contract.exports:require(name)});
+ vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../app/language/practice/assessment-browser.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{...browser,require:(name:string)=>name==='./assessment-audio.ts'?audio.exports:name==='./assessment.ts'?contract.exports:name==='./assessment-trial.ts'?trial.exports:requireRetention(name)});
+ vm.runInNewContext(ts.transpileModule(availabilitySource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{...availability,require:(name:string)=>name==='./assessment-audio'?audio.exports:name==='./assessment-browser'?browser.exports:name==='./assessment-trial'?trial.exports:name==='./assessment'?contract.exports:requireRetention(name)});
  const context={exports:{},require:(name:string)=>name==='./AssessmentAvailability'?availability.exports:name==='./pitch'?{}:name.startsWith('@/')?{}:require(name)};
  const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  vm.runInNewContext(compiled,context);

@@ -1,5 +1,6 @@
 // Browser-local preparation only: no microphone, storage, URL or network access.
-export const AZURE_AUDIO_POLICY_VERSION = 'azure-ja-accuracy-fluency-v1';
+import {RETENTION_ASSESSMENT_POLICY,type RetentionDisclosure} from './assessment-retention.ts';
+export const AZURE_AUDIO_POLICY_VERSION = RETENTION_ASSESSMENT_POLICY;
 export type AssessmentDecodedAudio = Readonly<{ duration: number; sampleRate: number; length: number; numberOfChannels: number; getChannelData(channel: number): Float32Array }>;
 export type AssessmentAudioDecoder = Readonly<{ decodeAudioData(bytes: ArrayBuffer): Promise<AssessmentDecodedAudio>; close(): Promise<void> }>;
 const check = (signal: AbortSignal) => signal.throwIfAborted();
@@ -59,11 +60,11 @@ export async function prepareAssessmentWav(blob: Blob, signal: AbortSignal, crea
 }
 
 /** Builds data for review only; caller must never dispatch without server readiness. */
-export async function buildAssessmentEnvelope(wav: Blob, referenceText: string, requestId: string, consent: boolean, signal: AbortSignal) {
+export async function buildAssessmentEnvelope(wav: Blob, referenceText: string, requestId: string, consent: boolean, signal: AbortSignal,retention:RetentionDisclosure|null=null) {
   check(signal);
   if (!consent || !referenceText.trim() || referenceText.length > 1000 || !/^[a-zA-Z0-9_-]{1,100}$/.test(requestId) || wav.type !== 'audio/wav' || wav.size < 46 || wav.size > 960044) throw Error('Review and consent required');
   const bytes = new Uint8Array(await wav.arrayBuffer()); check(signal);
   let binary = '';
   for (let offset = 0; offset < bytes.length; offset += 16384) { await yieldFrame(); check(signal); binary += String.fromCharCode(...bytes.subarray(offset, offset + 16384)); }
-  return { requestId, language: 'ja-JP', referenceText: referenceText.trim(), audioMime: 'audio/wav', audioBase64: btoa(binary), consent: { confirmed: true, requestId, providerId: 'azure-speech', policyVersion: AZURE_AUDIO_POLICY_VERSION } };
+  return { requestId, language: 'ja-JP', referenceText: referenceText.trim(), audioMime: 'audio/wav', audioBase64: btoa(binary), consent: { confirmed: true, requestId, providerId: 'azure-speech', policyVersion: AZURE_AUDIO_POLICY_VERSION,retentionPolicyHash:retention?.policyHash??null } };
 }
