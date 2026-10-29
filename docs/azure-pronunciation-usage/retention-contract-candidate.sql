@@ -37,6 +37,7 @@ create table yeoni_speech_retention_candidate.policy (
  cleanup_interval_seconds integer check(cleanup_interval_seconds>0),
  cleanup_start_delay_seconds integer check(cleanup_start_delay_seconds>=0),
  cleanup_run_timeout_seconds integer check(cleanup_run_timeout_seconds>0),
+ cleanup_schedule_generation uuid,
  cleanup_last_completed_at timestamptz,
  cleanup_policy_hash text check(cleanup_policy_hash ~ '^[0-9a-f]{64}$')
 );
@@ -68,6 +69,85 @@ returns text language sql immutable set search_path='' as $$
  select encode(extensions.digest(convert_to('trial-retention-policy-v2'||chr(10)||p_seconds::text||chr(10)
   ||floor(extract(epoch from p_until))::bigint::text||chr(10)||p_review||chr(10)||p_interval::text||chr(10)||p_delay::text||chr(10)||p_timeout::text,'UTF8'),'sha256'),'hex')
 $$;
+-- Operational schedule state contains no owner/request/audio fields. It is
+-- independent of account deletion; policy must explicitly name its generation.
+-- No schedule, generation or period is selected by installation.
+create table yeoni_speech_retention_candidate.cleanup_health (
+ singleton boolean primary key default true check(singleton),
+ policy_hash text check(policy_hash ~ '^[0-9a-f]{64}$'),
+ generation uuid,
+ next_due_ms bigint check(next_due_ms between 0 and 9007199254740991),
+ last_due_ms bigint check(last_due_ms between 0 and 9007199254740991),
+ attempt_token uuid,
+ attempt_started_ms bigint,
+ attempt_deadline_ms bigint,
+ healthy_until_ms bigint,
+ last_observed_ms bigint,
+ state text not null default 'unconfigured' check(state in ('unconfigured','closed','running','healthy','faulted'))
+);
+insert into yeoni_speech_retention_candidate.cleanup_health(singleton) values(true);
+alter table yeoni_speech_retention_candidate.cleanup_health enable row level security;
+revoke all on yeoni_speech_retention_candidate.cleanup_health from public,anon,authenticated,service_role;
+
+-- Actual policy deletion clears only its matching operational generation. This
+-- does not claim every later account deletion cascades: finish/purge may already
+-- have detached allowed_owner. The global consumed marker is never touched.
+create function yeoni_speech_retention_candidate.clear_deleted_policy_health()
+returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ update yeoni_speech_retention_candidate.cleanup_health set policy_hash=null,generation=null,next_due_ms=null,last_due_ms=null,
+  attempt_token=null,attempt_started_ms=null,attempt_deadline_ms=null,healthy_until_ms=null,last_observed_ms=null,state='unconfigured'
+  where singleton and generation=old.cleanup_schedule_generation;
+ return old;
+end $$;
+create trigger clear_deleted_policy_health after delete on yeoni_speech_retention_candidate.policy
+ for each row execute function yeoni_speech_retention_candidate.clear_deleted_policy_health();
+
+-- Private helper, not an API endpoint. All paths take policy -> health locks.
+-- Clock comparisons are observations of the DB wall clock, not a claim that SQL
+-- can detect an unobserved clock jump or replace a reviewed clock/scheduler.
+create function yeoni_speech_retention_candidate.cleanup_ready(p_policy_hash text)
+returns boolean language plpgsql security definer set search_path='' as $$
+declare p yeoni_speech_retention_candidate.policy%rowtype; h yeoni_speech_retention_candidate.cleanup_health%rowtype; n bigint;
+begin
+ select * into p from yeoni_speech_retention_candidate.policy where singleton for update;
+ if not found then return false;end if;
+ select * into h from yeoni_speech_retention_candidate.cleanup_health where singleton for update;
+ if not found then return false;end if;
+ n:=floor(extract(epoch from clock_timestamp())*1000)::bigint;
+ -- Reading health must never repair an incomplete certificate (for example a
+ -- NULL observation becoming fresh on a second ready call). Latch malformed
+ -- healthy rows before updating any clock observation.
+ if h.state='healthy' and not coalesce(
+   h.last_observed_ms is not null and h.last_due_ms is not null
+   and h.attempt_started_ms is not null and h.attempt_deadline_ms is not null
+   and h.last_observed_ms>=h.attempt_started_ms and h.attempt_started_ms>=h.last_due_ms
+   and h.attempt_started_ms<=h.last_due_ms+p.cleanup_start_delay_seconds::bigint*1000
+   and h.attempt_deadline_ms>h.attempt_started_ms
+   and h.attempt_deadline_ms<=least(h.attempt_started_ms+p.cleanup_run_timeout_seconds::bigint*1000,h.last_due_ms+(p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000)
+   and h.healthy_until_ms is not null and h.healthy_until_ms<=9007199254740991
+   and p.cleanup_schedule_generation is not null and p.cleanup_schedule_generation=h.generation
+   and h.policy_hash=p_policy_hash and h.attempt_token is null
+   and h.healthy_until_ms=h.last_due_ms+(p.cleanup_interval_seconds::bigint+p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000
+   and h.next_due_ms=h.last_due_ms+p.cleanup_interval_seconds::bigint*1000,false) then
+  update yeoni_speech_retention_candidate.cleanup_health set state='faulted',healthy_until_ms=null,attempt_token=null where singleton;
+  return false;
+ end if;
+ if h.last_observed_ms is not null and n<h.last_observed_ms then
+  update yeoni_speech_retention_candidate.cleanup_health set state='faulted',healthy_until_ms=null,attempt_token=null where singleton;
+  return false;
+ end if;
+ update yeoni_speech_retention_candidate.cleanup_health set last_observed_ms=n where singleton;
+ return h.state='healthy' and h.last_observed_ms is not null and h.last_observed_ms>=h.last_due_ms
+  and h.healthy_until_ms is not null and h.healthy_until_ms<=9007199254740991
+  and p.cleanup_schedule_generation is not null
+  and p.cleanup_schedule_generation=h.generation and h.policy_hash=p_policy_hash
+  and h.attempt_token is null and h.last_due_ms is not null
+  and h.healthy_until_ms=h.last_due_ms+(p.cleanup_interval_seconds::bigint+p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000
+  and h.next_due_ms=h.last_due_ms+p.cleanup_interval_seconds::bigint*1000
+  and n>=h.last_due_ms and n<h.healthy_until_ms;
+end $$;
+
 create function yeoni_speech_retention_candidate.authorized(
  p_action text,p_request_id uuid,p_payload_hash text,p_policy_hash text,p_issued_at bigint,
  p_expires_at bigint,p_key_id text,p_mac text
@@ -103,11 +183,9 @@ begin
   or policy.cleanup_interval_seconds is null or policy.cleanup_start_delay_seconds is null or policy.cleanup_run_timeout_seconds is null
   or p_policy_hash is distinct from yeoni_speech_retention_candidate.policy_hash(policy.metadata_retention_seconds,policy.authorization_expires_at,policy.review_artifact_sha256,policy.cleanup_interval_seconds,policy.cleanup_start_delay_seconds,policy.cleanup_run_timeout_seconds)
   then return false;end if;
- -- New dispatch requires recent maintenance. Do not prevent a valid in-flight
- -- finish from deleting its receipt merely because that heartbeat aged out.
- if p_action<>'finish' and (policy.cleanup_last_completed_at is null or policy.cleanup_last_completed_at>clock_timestamp()
-  or policy.cleanup_last_completed_at<clock_timestamp()-make_interval(secs=>policy.cleanup_interval_seconds::bigint+policy.cleanup_start_delay_seconds::bigint+policy.cleanup_run_timeout_seconds::bigint)
-  or policy.cleanup_policy_hash is distinct from p_policy_hash) then return false;end if;
+ -- Dispatch requires a certified nominal-due lease, never recent purge alone.
+ -- Finish remains independent so stale scheduler health cannot block deletion.
+ if p_action<>'finish' and not coalesce(yeoni_speech_retention_candidate.cleanup_ready(p_policy_hash),false) then return false;end if;
  select v.decrypted_secret into encoded_key from yeoni_speech_retention_candidate.keys k
   join vault.decrypted_secrets v on v.id=k.vault_secret_id
   where k.key_id=policy.active_key_id and k.key_id=p_key_id and k.enabled;
@@ -145,6 +223,9 @@ begin
  select consumed into previous from yeoni_speech_retention_candidate.total where singleton for update;
  if not found then return 'denied';end if;
  if p_issued_at>floor(extract(epoch from clock_timestamp())) or p_expires_at<=floor(extract(epoch from clock_timestamp())) then return 'denied';end if;
+ if not coalesce(yeoni_speech_retention_candidate.cleanup_ready(p_policy_hash),false) then return 'denied';end if;
+ -- Recheck after all locks, immediately before duplicate/consumption decisions.
+ if p_expires_at<=floor(extract(epoch from clock_timestamp())) then return 'denied';end if;
  if previous then
   if exists(select 1 from yeoni_speech_retention_candidate.receipt where singleton and owner_id=auth.uid()
    and request_id=p_request_id and payload_hash=fingerprint and expires_at>clock_timestamp()) then return 'duplicate';end if;
@@ -166,7 +247,9 @@ create function yeoni_speech_retention_candidate.ready(p_request_id uuid,p_polic
 returns boolean language plpgsql security definer set search_path='' as $$
 begin
  if not yeoni_speech_retention_candidate.authorized('ready',p_request_id,encode(extensions.digest('ready','sha256'),'hex'),p_policy_hash,p_issued_at,p_expires_at,p_key_id,p_mac) then return false;end if;
- return exists(select 1 from yeoni_speech_retention_candidate.total where singleton and not consumed)
+ return p_expires_at>floor(extract(epoch from clock_timestamp()))
+  and coalesce(yeoni_speech_retention_candidate.cleanup_ready(p_policy_hash),false)
+  and exists(select 1 from yeoni_speech_retention_candidate.total where singleton and not consumed)
   and not exists(select 1 from yeoni_speech_retention_candidate.receipt)
   and exists(select 1 from yeoni_speech_retention_candidate.policy where singleton and authorization_expires_at>clock_timestamp()+interval '30 seconds');
 end $$;
@@ -227,6 +310,91 @@ begin
  end if;
  return jsonb_build_object('policyHash',confirmed,'deletedRows',deleted);
 end $$;
+-- Two separately committed calls are required by the reviewed driver contract.
+-- A begin first closes health, then attempts deletion. Ordinary purge failures
+-- roll back only that inner block, so a returned failure can commit closed state.
+-- Transport/transaction cancellation can still be uncertain: prior leases expire.
+create function yeoni_speech_retention_candidate.maintenance_begin(p_policy_hash text,p_generation uuid,p_due_ms bigint)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare entered_ms bigint:=floor(extract(epoch from clock_timestamp())*1000)::bigint;
+ n bigint; observed_ms bigint; deadline bigint; until_ms bigint; deleted integer:=0; token uuid;
+ p yeoni_speech_retention_candidate.policy%rowtype; h yeoni_speech_retention_candidate.cleanup_health%rowtype;
+ denied jsonb:=jsonb_build_object('policyHash',p_policy_hash,'generation',p_generation,'token',null,'dueAtMs',p_due_ms,'deadlineAtMs',null,'validUntilMs',null,'deletedRows',0);
+begin
+ if p_policy_hash is null or p_policy_hash !~ '^[0-9a-f]{64}$' or p_generation is null or p_due_ms is null or p_due_ms<0 or p_due_ms>9007199254740991 then return denied;end if;
+ select * into p from yeoni_speech_retention_candidate.policy where singleton for update;
+ select * into h from yeoni_speech_retention_candidate.cleanup_health where singleton for update;
+ if not found or p.singleton is null or p.cleanup_schedule_generation is distinct from p_generation
+  or h.generation is distinct from p_generation or h.policy_hash is distinct from p_policy_hash
+  or p_policy_hash is distinct from yeoni_speech_retention_candidate.policy_hash(p.metadata_retention_seconds,p.authorization_expires_at,p.review_artifact_sha256,p.cleanup_interval_seconds,p.cleanup_start_delay_seconds,p.cleanup_run_timeout_seconds) then
+  -- Wrong generations must not revoke a newer runner's lease. Deletion remains
+  -- independently available via private purge; this call cannot certify health.
+  return denied;
+ end if;
+ n:=floor(extract(epoch from clock_timestamp())*1000)::bigint;
+ update yeoni_speech_retention_candidate.cleanup_health set state='closed',healthy_until_ms=null,attempt_token=null where singleton;
+ if h.state='faulted' or n<entered_ms or (h.last_observed_ms is not null and n<h.last_observed_ms) then
+  update yeoni_speech_retention_candidate.cleanup_health set state='faulted' where singleton;
+  return denied;
+ end if;
+ update yeoni_speech_retention_candidate.cleanup_health set last_observed_ms=n where singleton;
+ observed_ms:=n;
+ begin
+  deleted:=yeoni_speech_retention_candidate.purge_expired();
+ exception when others then
+  -- No raw error/row/body is returned. The outer close is not in this block.
+  return denied;
+ end;
+ denied:=jsonb_set(denied,'{deletedRows}',to_jsonb(deleted));
+ n:=floor(extract(epoch from clock_timestamp())*1000)::bigint;
+ if n<observed_ms then update yeoni_speech_retention_candidate.cleanup_health set state='faulted' where singleton;return denied;end if;
+ deadline:=least(entered_ms+p.cleanup_run_timeout_seconds::bigint*1000,p_due_ms+(p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000);
+ until_ms:=p_due_ms+(p.cleanup_interval_seconds::bigint+p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000;
+ if h.next_due_ms is distinct from p_due_ms or h.state='unconfigured'
+  or (h.state='running' and (h.attempt_token is null or h.attempt_started_ms is null or h.attempt_deadline_ms is null
+    or h.last_due_ms is null or h.last_observed_ms is null or h.attempt_deadline_ms<=h.attempt_started_ms
+    or h.next_due_ms is distinct from h.last_due_ms+p.cleanup_interval_seconds::bigint*1000
+    or h.attempt_deadline_ms>entered_ms))
+  or entered_ms<p_due_ms or entered_ms>p_due_ms+p.cleanup_start_delay_seconds::bigint*1000
+  or n<entered_ms or n>=deadline or until_ms>9007199254740991
+  or p_due_ms+p.cleanup_interval_seconds::bigint*1000>9007199254740991 then return denied;end if;
+ token:=pg_catalog.gen_random_uuid();
+ update yeoni_speech_retention_candidate.cleanup_health set state='running',last_due_ms=p_due_ms,
+  next_due_ms=p_due_ms+p.cleanup_interval_seconds::bigint*1000,attempt_token=token,
+  attempt_started_ms=entered_ms,attempt_deadline_ms=deadline,last_observed_ms=n where singleton;
+ return jsonb_build_object('policyHash',p_policy_hash,'generation',p_generation,'token',token,'dueAtMs',p_due_ms,'deadlineAtMs',deadline,'validUntilMs',until_ms,'deletedRows',deleted);
+end $$;
+create function yeoni_speech_retention_candidate.maintenance_finalize(p_policy_hash text,p_generation uuid,p_token uuid,p_due_ms bigint,p_healthy boolean)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare p yeoni_speech_retention_candidate.policy%rowtype; h yeoni_speech_retention_candidate.cleanup_health%rowtype; n bigint; until_ms bigint;
+ denied jsonb:=jsonb_build_object('confirmed',false,'validUntilMs',null);
+begin
+ if p_policy_hash is null or p_policy_hash !~ '^[0-9a-f]{64}$' or p_generation is null or p_token is null or p_due_ms is null or p_due_ms<0 or p_due_ms>9007199254740991 then return denied;end if;
+ select * into p from yeoni_speech_retention_candidate.policy where singleton for update;
+ select * into h from yeoni_speech_retention_candidate.cleanup_health where singleton for update;
+ if not found or p.singleton is null or p.cleanup_schedule_generation is distinct from p_generation
+  or h.generation is distinct from p_generation or h.policy_hash is distinct from p_policy_hash
+  or h.attempt_token is null or h.attempt_token is distinct from p_token or h.last_due_ms is distinct from p_due_ms
+  or h.state<>'running' then return denied;end if;
+ n:=floor(extract(epoch from clock_timestamp())*1000)::bigint;
+ update yeoni_speech_retention_candidate.cleanup_health set state='closed',healthy_until_ms=null,attempt_token=null where singleton;
+ if h.attempt_started_ms is null or h.attempt_deadline_ms is null or h.last_observed_ms is null
+  or h.attempt_started_ms<p_due_ms or h.attempt_started_ms>p_due_ms+p.cleanup_start_delay_seconds::bigint*1000
+  or h.attempt_deadline_ms<=h.attempt_started_ms
+  or h.attempt_deadline_ms>least(h.attempt_started_ms+p.cleanup_run_timeout_seconds::bigint*1000,p_due_ms+(p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000)
+  or h.last_observed_ms<h.attempt_started_ms then return denied;end if;
+ if n<h.last_observed_ms or n<h.attempt_started_ms then
+  update yeoni_speech_retention_candidate.cleanup_health set state='faulted' where singleton;return denied;
+ end if;
+ update yeoni_speech_retention_candidate.cleanup_health set last_observed_ms=n where singleton;
+ until_ms:=p_due_ms+(p.cleanup_interval_seconds::bigint+p.cleanup_start_delay_seconds::bigint+p.cleanup_run_timeout_seconds::bigint)*1000;
+ if p_healthy is distinct from true or n>=h.attempt_deadline_ms or n>=until_ms
+  or p_policy_hash is distinct from yeoni_speech_retention_candidate.policy_hash(p.metadata_retention_seconds,p.authorization_expires_at,p.review_artifact_sha256,p.cleanup_interval_seconds,p.cleanup_start_delay_seconds,p.cleanup_run_timeout_seconds)
+  or h.next_due_ms is distinct from p_due_ms+p.cleanup_interval_seconds::bigint*1000 then return denied;end if;
+ update yeoni_speech_retention_candidate.cleanup_health set state='healthy',healthy_until_ms=until_ms where singleton;
+ return jsonb_build_object('confirmed',true,'validUntilMs',until_ms);
+end $$;
+
 revoke all on all functions in schema yeoni_speech_retention_candidate from public,anon,authenticated,service_role;
 grant usage on schema yeoni_speech_retention_candidate to authenticated;
 grant execute on function yeoni_speech_retention_candidate.consume(uuid,integer,text,text,text,bigint,bigint,text,text),
@@ -238,7 +406,7 @@ begin
  foreach who in array array['anon','authenticated','service_role'] loop
   if has_schema_privilege(who,'yeoni_speech_retention_candidate','CREATE') then raise exception 'Unexpected API schema write access';end if;
   if who<>'authenticated' and has_schema_privilege(who,'yeoni_speech_retention_candidate','USAGE') then raise exception 'Unexpected API schema visibility';end if;
-  foreach object in array array['yeoni_speech_retention_candidate.keys'::regclass,'yeoni_speech_retention_candidate.policy'::regclass,'yeoni_speech_retention_candidate.total'::regclass,'yeoni_speech_retention_candidate.receipt'::regclass] loop
+  foreach object in array array['yeoni_speech_retention_candidate.keys'::regclass,'yeoni_speech_retention_candidate.policy'::regclass,'yeoni_speech_retention_candidate.total'::regclass,'yeoni_speech_retention_candidate.receipt'::regclass,'yeoni_speech_retention_candidate.cleanup_health'::regclass] loop
    if has_table_privilege(who,object,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') then raise exception 'Unexpected direct usage table access';end if;
   end loop;
   for fn in select p.oid,p.proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='yeoni_speech_retention_candidate' loop
@@ -248,7 +416,8 @@ begin
  if exists(select 1 from yeoni_speech_retention_candidate.policy where enabled or allowed_owner is not null or active_key_id is not null
   or policy_id is not null or metadata_retention_seconds is not null or authorization_expires_at is not null
   or review_artifact_sha256 is not null or api_boundary_reviewed_at is not null or deletion_path_reviewed_at is not null
-  or cleanup_interval_seconds is not null or cleanup_start_delay_seconds is not null or cleanup_run_timeout_seconds is not null or cleanup_last_completed_at is not null or cleanup_policy_hash is not null)
+  or cleanup_schedule_generation is not null or cleanup_interval_seconds is not null or cleanup_start_delay_seconds is not null or cleanup_run_timeout_seconds is not null or cleanup_last_completed_at is not null or cleanup_policy_hash is not null)
+  or not exists(select 1 from yeoni_speech_retention_candidate.cleanup_health where singleton and state='unconfigured' and policy_hash is null and generation is null and next_due_ms is null and last_due_ms is null and attempt_token is null and attempt_started_ms is null and attempt_deadline_ms is null and healthy_until_ms is null and last_observed_ms is null)
   or exists(select 1 from yeoni_speech_retention_candidate.keys)
   or exists(select 1 from yeoni_speech_retention_candidate.receipt)
   or not exists(select 1 from yeoni_speech_retention_candidate.total where singleton and consumed)

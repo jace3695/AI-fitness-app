@@ -28,7 +28,11 @@ async function fixture(){
  await db.query('insert into vault.decrypted_secrets values($1,$2)',[R,Buffer.from(key).toString('base64')]);await db.query('insert into yeoni_speech_retention_candidate.keys values($1,$2,true)',['synthetic',R]);
  await db.query("update yeoni_speech_retention_candidate.policy set enabled=true,allowed_owner=$1,active_key_id='synthetic',policy_id='trial-retention-policy-v2',api_boundary_reviewed_at=now(),deletion_path_reviewed_at=now(),metadata_retention_seconds=120,authorization_expires_at=to_timestamp($2),review_artifact_sha256=$3,cleanup_interval_seconds=60,cleanup_start_delay_seconds=10,cleanup_run_timeout_seconds=5",[A,syntheticPolicy.authorizationExpiresAt,syntheticPolicy.reviewArtifactSHA256]);
  await db.exec("update yeoni_speech_retention_candidate.total set consumed=false");
- await db.query("select yeoni_speech_retention_candidate.maintenance($1)",[retention.policyHash]);
+ const generation='00000000-0000-4000-8000-000000000009',due=(await db.query<{n:number}>(`select floor(extract(epoch from clock_timestamp())*1000)::float8 n`)).rows[0].n;
+ await db.query('update yeoni_speech_retention_candidate.policy set cleanup_schedule_generation=$1',[generation]);
+ await db.query("update yeoni_speech_retention_candidate.cleanup_health set policy_hash=$1,generation=$2,next_due_ms=$3,state='closed'",[retention.policyHash,generation,due]);
+ const lease=(await db.query<{r:{token:string}}>('select yeoni_speech_retention_candidate.maintenance_begin($1,$2,$3) r',[retention.policyHash,generation,due])).rows[0].r;
+ assert.ok(lease.token);assert.equal((await db.query<{r:{confirmed:boolean}}>('select yeoni_speech_retention_candidate.maintenance_finalize($1,$2,$3,$4,true) r',[retention.policyHash,generation,lease.token,due])).rows[0].r.confirmed,true);
  const client=(uid:string)=>({schema:(schema:string)=>({rpc:(action:string,args:Record<string,string|number>)=>{
   assert.equal(schema,'yeoni_speech_retention_candidate');assert.ok(['ready','consume','finish'].includes(action));
   let signal:AbortSignal;
